@@ -28,10 +28,13 @@ end
     g1 = FourierGrid((8,), (1.0,))
     good1 = ntuple(_ -> ones(T, 8), 3)
     bad_matrix = ntuple(_ -> ones(T, 4, 2), 3)
+    bad_vector = ntuple(_ -> ones(T, 2), 3)
+    ps1 = ParticleSet{1,T}(1)
 
     @test_throws DimensionMismatch electric_work(good1, bad_matrix, g1)
     @test_throws DimensionMismatch resistive_dissipation(bad_matrix, 0.1, g1)
     @test_throws DimensionMismatch jdotE_density(good1, bad_matrix)
+    @test_throws DimensionMismatch momentum_budget(ps1, bad_vector, g1)
     @test_throws DimensionMismatch power_spectrum(ones(T, 4, 2), g1)
 
     g2 = FourierGrid((4, 2), (1.0, 1.0))

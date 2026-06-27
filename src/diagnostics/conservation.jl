@@ -59,6 +59,7 @@ function momentum_budget(
     B::NTuple{3,<:Array{T,D}},
     g::FourierGrid{D,T},
 ) where {D,T}
+    _require_grid_tuple(:B, B, g)
     p = total_momentum(ps)                 # (px, py, pz)
     # Field momentum omitted (no displacement current in the hybrid model).
     field = (zero(T), zero(T), zero(T))
