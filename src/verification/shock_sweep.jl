@@ -51,6 +51,8 @@ function run_perp_shock(;
     nsteps::Integer = 900,
     seed::Integer = 1,
 )
+    N >= 3 || throw(ArgumentError("N must be at least 3"))
+    nppc >= 1 || throw(ArgumentError("nppc must be positive"))
     nsteps >= 0 || throw(ArgumentError("nsteps must be non-negative"))
     T = Float64
     LxT = T(Lx)

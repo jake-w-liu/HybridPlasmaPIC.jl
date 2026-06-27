@@ -12,6 +12,9 @@
 using HybridPlasmaPIC, Test, Statistics
 
 @testset "SHK-SWEEP perpendicular-shock Mach sweep" begin
+    @test_throws ArgumentError run_perp_shock(; MA = 4.0, N = 2)
+    @test_throws ArgumentError run_perp_shock(; MA = 4.0, nppc = 0)
+    @test_throws ArgumentError run_perp_shock(; MA = 4.0, nppc = -1)
     @test_throws ArgumentError run_perp_shock(; MA = 4.0, nsteps = -1)
 
     MAs = (1.2, 2.0, 4.0)

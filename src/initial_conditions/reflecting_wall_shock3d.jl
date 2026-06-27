@@ -625,6 +625,10 @@ function run_perp_shock3d(;
     field_method::Symbol = :rk4,
     db_turb::Real = 0.0,
 )
+    nx >= 3 || throw(ArgumentError("nx must be at least 3"))
+    ny >= 1 || throw(ArgumentError("ny must be positive"))
+    nz >= 1 || throw(ArgumentError("nz must be positive"))
+    nppc >= 1 || throw(ArgumentError("nppc must be positive"))
     nsteps >= 0 || throw(ArgumentError("nsteps must be non-negative"))
     T = Float64
     B0 = one(T)
