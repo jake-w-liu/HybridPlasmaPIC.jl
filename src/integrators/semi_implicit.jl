@@ -61,6 +61,13 @@ function run_whistler(;
     seed::Integer = 1,
     band::Union{Nothing,Integer} = nothing,
 )
+    n >= 1 || throw(ArgumentError("n must be positive"))
+    isfinite(L) && L > 0 || throw(ArgumentError("L must be finite and positive"))
+    isfinite(B0) || throw(ArgumentError("B0 must be finite"))
+    isfinite(n0) && n0 > 0 || throw(ArgumentError("n0 must be finite and positive"))
+    isfinite(dt) || throw(ArgumentError("dt must be finite"))
+    nsteps >= 0 || throw(ArgumentError("nsteps must be non-negative"))
+    band === nothing || band >= 0 || throw(ArgumentError("band must be non-negative"))
     ω = _whistler_omega(n, L, B0 / n0)
     rng = MersenneTwister(Int(seed))
     bhat = [complex(randn(rng), randn(rng)) for _ = 1:n]
@@ -107,6 +114,10 @@ function compare_integrators_whistler(;
     band_resolved::Integer = 1,
     kwargs...,
 )
+    isfinite(dt_resolved) || throw(ArgumentError("dt_resolved must be finite"))
+    isfinite(dt_stiff) || throw(ArgumentError("dt_stiff must be finite"))
+    nsteps >= 0 || throw(ArgumentError("nsteps must be non-negative"))
+    band_resolved >= 0 || throw(ArgumentError("band_resolved must be non-negative"))
     # Agreement: on a band-limited (low-k, well-resolved) mode, CN and the
     # explicit integrator are both accurate and agree.
     rc = run_whistler(; method = :cn, dt = dt_resolved, nsteps, band = band_resolved, kwargs...)

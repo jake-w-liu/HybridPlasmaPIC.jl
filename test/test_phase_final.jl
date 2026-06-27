@@ -25,6 +25,17 @@ using Random, LinearAlgebra
     @test c.agree_resolved < 0.03
     @test abs(c.cn_ratio_stiff - 1) < 1e-6
     @test !(isfinite(c.euler_ratio_stiff) && c.euler_ratio_stiff < 1.5)
+
+    @test_throws ArgumentError run_whistler(; nsteps = -1)
+    @test_throws ArgumentError run_whistler(; n = 0)
+    @test_throws ArgumentError run_whistler(; L = 0.0)
+    @test_throws ArgumentError run_whistler(; L = Inf)
+    @test_throws ArgumentError run_whistler(; n0 = 0.0)
+    @test_throws ArgumentError run_whistler(; n0 = Inf)
+    @test_throws ArgumentError run_whistler(; dt = NaN)
+    @test_throws ArgumentError run_whistler(; band = -1)
+    @test_throws ArgumentError compare_integrators_whistler(; nsteps = -1)
+    @test_throws ArgumentError compare_integrators_whistler(; band_resolved = -1)
 end
 
 @testset "Four-spacecraft timing" begin
