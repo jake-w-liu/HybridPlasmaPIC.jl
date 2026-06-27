@@ -88,6 +88,10 @@ end
     T = Float64
     Ly = 2π
     ny = 16
+    s = SBP1D(33, 1.0)
+    @test_throws ArgumentError mixed_divcurl_residual(s, 33, ny, NaN)
+    @test_throws ArgumentError mixed_divcurl_residual(s, 33, ny, Inf)
+    @test_throws ArgumentError mixed_divcurl_residual(s, 33, ny, 0.0)
     ns = [33, 65, 129, 257]
     rs = Float64[]
     for nx in ns

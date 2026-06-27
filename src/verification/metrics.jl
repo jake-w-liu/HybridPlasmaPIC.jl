@@ -93,7 +93,7 @@ function mixed_divcurl_residual(sbp::SBP1D{T}, nx::Integer, ny::Integer, Ly::Rea
     ny >= 2 || throw(ArgumentError("need ny ≥ 2"))
     Lx = sbp.dx * (sbp.n - 1)               # physical x extent of the supplied operator
     s = SBP1D(Int(nx), T(Lx))               # SBP operator at the requested x resolution
-    LyT = T(Ly)
+    LyT = _require_finite_positive_real("Ly", Ly, T)
     x = collect(range(zero(T), T(Lx); length = Int(nx)))
     y = T[(j - 1) * LyT / ny for j = 1:Int(ny)]
 
