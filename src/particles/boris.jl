@@ -36,6 +36,23 @@
     return (vnx + h * Ex, vny + h * Ey, vnz + h * Ez)
 end
 
+@inline function _validated_qm(ps::ParticleSet{D,T}) where {D,T<:AbstractFloat}
+    q = _require_finite_real("particle charge q", ps.q, T)
+    qm = q / T(ps.m)
+    isfinite(qm) || throw(ArgumentError("particle charge-to-mass ratio q/m must be finite"))
+    return qm
+end
+
+@inline function _validated_uniform_field(name::AbstractString, field::NTuple{3}, ::Type{T}) where {T<:AbstractFloat}
+    return ntuple(c -> _require_finite_real("$(name)[$c]", field[c], T), 3)
+end
+
+@inline function _require_finite_field_sample(name::AbstractString, value::Real, ::Type{T}) where {T<:AbstractFloat}
+    v = T(value)
+    isfinite(v) || throw(ArgumentError("$name must contain only finite values"))
+    return v
+end
+
 """
     push_uniform!(ps, E::NTuple{3}, B::NTuple{3}, dt)
 
@@ -44,10 +61,10 @@ v^{n-1/2} → v^{n+1/2}, then x^{n} → x^{n+1} = x^n + dt·v^{n+1/2} (only the 
 spatial coordinates move). Returns `ps`.
 """
 function push_uniform!(ps::ParticleSet{D,T}, E::NTuple{3}, B::NTuple{3}, dt::Real) where {D,T}
-    qm = ps.q / ps.m
-    dtT = T(dt)
-    Ex, Ey, Ez = T(E[1]), T(E[2]), T(E[3])
-    Bx, By, Bz = T(B[1]), T(B[2]), T(B[3])
+    qm = _validated_qm(ps)
+    dtT = _require_finite_real("dt", dt, T)
+    Ex, Ey, Ez = _validated_uniform_field("E", E, T)
+    Bx, By, Bz = _validated_uniform_field("B", B, T)
     vx, vy, vz = ps.v
     @inbounds for p in eachindex(ps.weight)
         nx, ny, nz = boris_kick(vx[p], vy[p], vz[p], Ex, Ey, Ez, Bx, By, Bz, qm, dtT)
@@ -96,8 +113,8 @@ function push_gathered!(
     xmid = nothing,
 ) where {D,T}
     _check_gathered_field_lengths(ps, E, B, xmid)
-    qm = ps.q / ps.m
-    dtT = T(dt)
+    qm = _validated_qm(ps)
+    dtT = _require_finite_real("dt", dt, T)
     h = dtT / T(2)
     vx, vy, vz = ps.v
     Ex, Ey, Ez = E
@@ -107,12 +124,12 @@ function push_gathered!(
             vx[p],
             vy[p],
             vz[p],
-            T(Ex[p]),
-            T(Ey[p]),
-            T(Ez[p]),
-            T(Bx[p]),
-            T(By[p]),
-            T(Bz[p]),
+            _require_finite_field_sample("E[1]", Ex[p], T),
+            _require_finite_field_sample("E[2]", Ey[p], T),
+            _require_finite_field_sample("E[3]", Ez[p], T),
+            _require_finite_field_sample("B[1]", Bx[p], T),
+            _require_finite_field_sample("B[2]", By[p], T),
+            _require_finite_field_sample("B[3]", Bz[p], T),
             qm,
             dtT,
         )

@@ -163,6 +163,30 @@ end
     @test_throws DimensionMismatch push_gathered!(ps_gathered, (E[1][1:4], E[2], E[3]), B, dt)
 end
 
+@testset "pushers reject invalid inputs" begin
+    T = Float64
+
+    function seeded_particle(; q = 1.0, m = 1.0)
+        ps = ParticleSet{1,T}(1; q, m)
+        ps.x[1][1] = 0.0
+        ps.v[1][1] = 1.0
+        ps.v[2][1] = 0.0
+        ps.v[3][1] = 0.0
+        return ps
+    end
+
+    @test_throws ArgumentError push_uniform!(seeded_particle(), (0.0, 0.0, 0.0), (0.0, 0.0, 1.0), NaN)
+    @test_throws ArgumentError push_uniform!(seeded_particle(), (NaN, 0.0, 0.0), (0.0, 0.0, 1.0), 0.1)
+    @test_throws ArgumentError push_uniform!(seeded_particle(), (0.0, 0.0, 0.0), (0.0, Inf, 1.0), 0.1)
+    @test_throws ArgumentError push_uniform!(seeded_particle(; q = NaN), (0.0, 0.0, 0.0), (0.0, 0.0, 1.0), 0.1)
+    @test_throws ArgumentError push_uniform!(seeded_particle(; m = 0.0), (0.0, 0.0, 0.0), (0.0, 0.0, 1.0), 0.1)
+
+    @test_throws ArgumentError push_gathered!(seeded_particle(), ([NaN], [0.0], [0.0]), ([0.0], [0.0], [1.0]), 0.1)
+    @test_throws ArgumentError push_gathered!(seeded_particle(), ([0.0], [0.0], [0.0]), ([0.0], [0.0], [1.0]), NaN)
+    @test_throws ArgumentError push_gathered!(seeded_particle(; q = NaN), ([0.0], [0.0], [0.0]), ([0.0], [0.0], [1.0]), 0.1)
+    @test_throws ArgumentError push_gathered!(seeded_particle(; m = 0.0), ([0.0], [0.0], [0.0]), ([0.0], [0.0], [1.0]), 0.1)
+end
+
 @testset "PUSH-004 timestep convergence order" begin
     T = Float64
     Ωc = 1.0
