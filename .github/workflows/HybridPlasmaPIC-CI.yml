@@ -1,0 +1,69 @@
+name: HybridPlasmaPIC CI
+
+# Test workflow for the HybridPlasmaPIC package.
+#
+# Ubuntu-only by design: this is a PRIVATE repo on the GitHub free tier
+# (2000 Actions-minutes/month), where macOS bills at 10x and Windows at 2x.
+# A multi-OS matrix exhausts the monthly minutes and then ALL jobs (every OS,
+# and the Documentation workflow too) fail at dispatch with no runner assigned.
+# Keeping CI to cheap 1x ubuntu runners stays within the free tier. Re-enable
+# macOS/Windows (and a scheduled run) only on a paid plan or a public repo
+# (public repos get unlimited Actions minutes).
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Julia 1.12 (ubuntu)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.12'   # the development version; see julia compat in Project.toml
+      - uses: julia-actions/cache@v2
+      - name: Instantiate and test
+        run: |
+          julia --project=. -e '
+            using Pkg
+            Pkg.instantiate()
+            Pkg.test(; coverage = true)' 2>&1 | tee test-log.txt
+      - name: Upload test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-log
+          path: test-log.txt
+          if-no-files-found: warn
+      - uses: julia-actions/julia-processcoverage@v1
+        with:
+          directories: src
+      - uses: codecov/codecov-action@v4
+        with:
+          files: lcov.info
+          fail_ci_if_error: false
+
+  format:
+    name: Formatting check (JuliaFormatter)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.12'
+      - uses: julia-actions/cache@v2
+      - name: Check formatting
+        run: |
+          julia -e '
+            using Pkg
+            Pkg.add(PackageSpec(name = "JuliaFormatter", version = "1"))
+            using JuliaFormatter
+            if !format(".")
+                error("HybridPlasmaPIC is not formatted; run JuliaFormatter.format on the package")
+            end'

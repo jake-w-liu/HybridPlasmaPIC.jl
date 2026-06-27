@@ -1,0 +1,26 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using these metadata."
+title: "HybridPlasmaPIC.jl"
+abstract: >-
+  A dimension-parametric (1D3V / 2D3V / 3D3V) hybrid particle-in-cell plasma
+  solver in Julia: kinetic ions (Boris-pushed macroparticles), massless fluid
+  electrons (generalized Ohm's law), and periodic Fourier spectral fields, in
+  Omega_ci-normalized units. Includes a Rankine-Hugoniot MHD jump-condition
+  solver, perpendicular-shock setup, electrostatic PIC, and a suite of plasma
+  diagnostics.
+type: software
+version: "0.1.0"
+date-released: "2026-06-25"
+license: MIT
+repository-code: "https://github.com/jake-w-liu/HybridPlasmaPIC.jl"
+url: "https://github.com/jake-w-liu/HybridPlasmaPIC.jl"
+keywords:
+  - plasma physics
+  - particle-in-cell
+  - hybrid simulation
+  - pseudo-spectral
+  - magnetohydrodynamics
+  - Julia
+authors:
+  - family-names: "Liu"
+    given-names: "Jake W."

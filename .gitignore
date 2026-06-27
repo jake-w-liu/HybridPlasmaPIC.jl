@@ -1,0 +1,11 @@
+Manifest.toml
+*.jld2
+*.h5
+*.vtk
+*.vti
+*.xdmf
+*.bp
+*.chk
+*.ser
+*.tmp
+.DS_Store

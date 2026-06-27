@@ -1,0 +1,34 @@
+using HybridPlasmaPIC
+using Test
+
+@testset "explicit package extensions" begin
+    @test supported_extensions() == (:cuda, :metal, :mpi, :io)
+    @test extension_name(Val(:cuda)) == :HybridPlasmaPICCUDAExt
+    @test extension_name(Val(:metal)) == :HybridPlasmaPICMetalExt
+    @test extension_name(Val(:mpi)) == :HybridPlasmaPICMPIExt
+    @test extension_name(Val(:io)) == :HybridPlasmaPICIOExt
+    @test extension_dependency_name(Val(:cuda)) == :CUDA
+    @test extension_dependency_name(Val(:metal)) == :Metal
+    @test extension_dependency_name(Val(:mpi)) == :MPI
+    @test extension_dependency_name(Val(:io)) == :HDF5
+    @test_throws ArgumentError extension_name(Val(:rocm))
+    @test_throws ArgumentError extension_dependency_name(Val(:rocm))
+
+    @test !extension_loaded(Val(:cuda))
+    @test !extension_loaded(Val(:metal))
+
+    import MPI
+    @test extension_loaded(Val(:mpi))
+    @test extension_dependency_module(Val(:mpi)) === MPI
+
+    import HDF5
+    @test extension_loaded(Val(:io))
+    @test extension_dependency_module(Val(:io)) === HDF5
+
+    mktempdir() do dir
+        path = joinpath(dir, "field.h5")
+        A = reshape(collect(Float64, 1:12), 3, 4)
+        @test write_field_hdf5(path, "density", A) == path
+        @test read_field_hdf5(path, "density") == A
+    end
+end

@@ -1,0 +1,194 @@
+# Hybrid field model: HYB-001 algebraic equilibrium plus each generalized
+# Ohm's-law term, Faraday, divergence control, and the density floor — every
+# term checked against a closed-form oracle (band-limited fields → spectrally
+# exact). Full time-evolution HYB-001..008 come with the integrator (Phase 5).
+
+using HybridPlasmaPIC, Test, LinearAlgebra, Random, Statistics
+
+coords1d(g) = [(i - 1) * g.dx[1] for i = 1:g.n[1]]
+
+@testset "HYB-001 algebraic uniform equilibrium" begin
+    for D = 1:3
+        T = Float64
+        nc = ntuple(_ -> 16, D)
+        g = FourierGrid(nc, ntuple(_ -> 2π, D))
+        f = HybridFields{D,T}(nc)
+        fill!(f.n, 1.0)
+        fill!(f.B[3], 1.0)                       # ui=0, B=ẑ
+        ohms_law!(f, HybridModel(IsothermalElectrons(0.5)), g)
+        for c = 1:3
+            @test maximum(abs, f.J[c]) < 1e-12
+            @test maximum(abs, f.E[c]) < 1e-12
+        end
+        @test f.floor_count[] == 0
+    end
+end
+
+@testset "Ohm motional term E = −u_i×B" begin
+    for D = 1:3
+        T = Float64
+        nc = ntuple(_ -> 16, D)
+        g = FourierGrid(nc, ntuple(_ -> 2π, D))
+        f = HybridFields{D,T}(nc)
+        fill!(f.n, 1.0)
+        u0 = (0.3, -0.1, 0.2)
+        B0 = (0.2, 0.5, 1.0)
+        for c = 1:3
+            fill!(f.ui[c], u0[c])
+            fill!(f.B[c], B0[c])
+        end
+        ohms_law!(f, HybridModel(IsothermalElectrons(0.0)), g)   # Te=0, uniform ⇒ only motional
+        ex = -(u0[2] * B0[3] - u0[3] * B0[2])
+        ey = -(u0[3] * B0[1] - u0[1] * B0[3])
+        ez = -(u0[1] * B0[2] - u0[2] * B0[1])
+        @test maximum(abs, f.E[1] .- ex) < 1e-12
+        @test maximum(abs, f.E[2] .- ey) < 1e-12
+        @test maximum(abs, f.E[3] .- ez) < 1e-12
+    end
+end
+
+@testset "Ohm Hall term (1D analytic J×B/n)" begin
+    T = Float64
+    n = 64
+    L = 2π
+    g = FourierGrid((n,), (L,))
+    f = HybridFields{1,T}((n,))
+    fill!(f.n, 1.0)
+    x = coords1d(g)
+    k = 3.0
+    f.B[3] .= cos.(k .* x)                       # Bz=cos(kx) ⇒ J=(0, k sin kx, 0)
+    ohms_law!(f, HybridModel(IsothermalElectrons(0.0)), g)
+    @test maximum(abs, f.J[2] .- (k .* sin.(k .* x))) < 1e-10
+    @test maximum(abs, f.E[1] .- (@. k * sin(k * x) * cos(k * x))) < 1e-10
+    @test maximum(abs, f.E[2]) < 1e-10
+    @test maximum(abs, f.E[3]) < 1e-10
+end
+
+@testset "Ohm electron-pressure term (1D analytic)" begin
+    T = Float64
+    n = 64
+    L = 2π
+    g = FourierGrid((n,), (L,))
+    f = HybridFields{1,T}((n,))
+    x = coords1d(g)
+    k = 2.0
+    amp = 0.2
+    Te = 0.5
+    f.n .= 1 .+ amp .* cos.(k .* x)              # B=0, ui=0 ⇒ only −∇p_e/n
+    ohms_law!(f, HybridModel(IsothermalElectrons(Te)), g)
+    Ex = @. -(Te * (-amp * k * sin(k * x))) / (1 + amp * cos(k * x))
+    @test maximum(abs, f.E[1] .- Ex) < 1e-10
+    @test maximum(abs, f.E[2]) < 1e-10
+    @test maximum(abs, f.E[3]) < 1e-10
+end
+
+@testset "Faraday dB/dt = −∇×E (1D analytic)" begin
+    T = Float64
+    n = 64
+    L = 2π
+    g = FourierGrid((n,), (L,))
+    x = coords1d(g)
+    k = 3.0
+    E = (zeros(T, n), zeros(T, n), cos.(k .* x))  # Ez=cos(kx) ⇒ ∇×E=(0, k sin kx, 0)
+    dB = (zeros(T, n), zeros(T, n), zeros(T, n))
+    faraday_rhs!(dB, E, g)
+    @test maximum(abs, dB[1]) < 1e-10
+    @test maximum(abs, dB[2] .- (.-k .* sin.(k .* x))) < 1e-10
+    @test maximum(abs, dB[3]) < 1e-10
+end
+
+@testset "divergence control via project_b!" begin
+    for D = 1:3
+        T = Float64
+        nc = ntuple(_ -> 16, D)
+        g = FourierGrid(nc, ntuple(_ -> 2π, D))
+        f = HybridFields{D,T}(nc)
+        for c = 1:3
+            f.B[c] .= randn(MersenneTwister(10c + D), nc...)
+        end
+        out = zeros(T, nc)
+        d0 = magnetic_divergence!(out, f, g)
+        project_b!(f, g)
+        d1 = magnetic_divergence!(out, f, g)
+        kmax = maximum(maximum(abs, g.kvec[d]) for d = 1:D)
+        scale = sum(norm(f.B[c]) for c = 1:3)
+        @test d1 / (kmax * scale) < 1e-10
+        @test d1 < d0
+    end
+end
+
+@testset "density floor activation + finiteness" begin
+    T = Float64
+    n = 16
+    g = FourierGrid((n,), (2π,))
+    f = HybridFields{1,T}((n,))
+    f.n .= 1.0
+    f.n[1] = 1e-12
+    fill!(f.B[3], 1.0)
+    fill!(f.ui[1], 0.5)
+    model = HybridModel(IsothermalElectrons(0.5); nfloor = 1e-3)
+    ohms_law!(f, model, g)
+    @test f.floor_count[] >= 1
+    @test all(isfinite, f.E[1]) && all(isfinite, f.E[2]) && all(isfinite, f.E[3])
+end
+
+@testset "Ohm's-law defensive shape checks" begin
+    T = Float64
+    g = FourierGrid((8,), (2π,))
+    model = HybridModel(IsothermalElectrons(0.5))
+
+    f = HybridFields{1,T}((8,))
+    f.ninv = zeros(T, 7)
+    @test_throws DimensionMismatch ohms_law!(f, model, g)
+
+    f = HybridFields{1,T}((8,))
+    f.ui = (zeros(T, 7), zeros(T, 8), zeros(T, 8))
+    @test_throws DimensionMismatch ohms_law!(f, model, g)
+
+    f = HybridFields{1,T}((8,))
+    f.E = (zeros(T, 7), zeros(T, 8), zeros(T, 8))
+    @test_throws DimensionMismatch ohms_law!(f, model, g)
+end
+
+@testset "step! validates timestep and subcycles before mutation" begin
+    T = Float64
+    g = FourierGrid((4,), (2π,))
+    ps = ParticleSet{1,T}(4)
+    load_lattice_1d!(ps, 0.0, 2π)
+    set_density_weight!(ps, 1.0, g)
+    st = HybridStepper(g, HybridModel(IsothermalElectrons(0.0)), NGP(), nparticles(ps))
+    fill!(st.fields.B[3], 1.0)
+    init!(st, ps)
+
+    x0 = ntuple(d -> copy(ps.x[d]), 1)
+    v0 = ntuple(c -> copy(ps.v[c]), 3)
+    B0 = ntuple(c -> copy(st.fields.B[c]), 3)
+    time0 = st.time[]
+    step0 = st.step[]
+
+    @test_throws ArgumentError step!(st, ps, 0.1; NB = 0)
+    @test_throws ArgumentError step!(st, ps, NaN; NB = 1)
+    @test_throws ArgumentError step!(st, ps, -0.1; NB = 1)
+    @test st.time[] == time0
+    @test st.step[] == step0
+    @test all(ps.x[d] == x0[d] for d = 1:1)
+    @test all(ps.v[c] == v0[c] for c = 1:3)
+    @test all(st.fields.B[c] == B0[c] for c = 1:3)
+end
+
+@testset "compute_moments! from particles" begin
+    T = Float64
+    n = 32
+    L = 2π
+    g = FourierGrid((n,), (L,))
+    nppc = 200
+    N = nppc * n
+    ps = ParticleSet{1,T}(N)
+    load_uniform!(ps, MersenneTwister(1), (0.0,), (L,))
+    load_maxwellian!(ps, MersenneTwister(2), (0.1, 0.0, 0.0), (0.5, 0.5, 0.5))
+    f = HybridFields{1,T}((n,))
+    compute_moments!(f, ps, g, CIC(), 1e-6)
+    @test isapprox(mean(f.n), nppc / g.dx[1]; rtol = 0.02)
+    @test isapprox(mean(f.ui[1]), 0.1; atol = 0.02)
+    @test isapprox(mean(f.ui[2]), 0.0; atol = 0.02)
+end
