@@ -153,6 +153,7 @@ upstream states can admit slow/intermediate/fast branches.
 function rh_branches(up::MHDState{T}, γ::Real; μ0::Real = 1.0, nscan::Int = 2000) where {T}
     γT = _require_valid_gamma(γ, T)
     μ = _require_valid_rh_inputs(up, μ0)
+    nscan >= 1 || throw(ArgumentError("nscan must be positive"))
     Fup = _fluxes(up, γT, μ)
     R(X) = _energy_flux(_downstream(up, X, μ), γT, μ) - Fup.energy
     Xmax = (γT + one(T)) / (γT - one(T))

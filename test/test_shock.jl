@@ -23,6 +23,10 @@ gas_compression(M, γ) = (γ + 1) * M^2 / ((γ - 1) * M^2 + 2)
             @test_throws ArgumentError rh_branches(up_invalid, γ; μ0 = badμ0)
         end
 
+        for badnscan in (0, -5)
+            @test_throws ArgumentError rh_branches(up_invalid, γ; nscan = badnscan)
+        end
+
         for up_bad in (
             MHDState(0.0, 2.0, 0.0, 0.2, 0.0, 1.0),
             MHDState(-1.0, 2.0, 0.0, 0.2, 0.0, 1.0),
