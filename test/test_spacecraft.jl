@@ -23,6 +23,8 @@ using HybridPlasmaPIC, Test, LinearAlgebra
         @test gather_at(field, g, s) ≈ 0.5 * (field[n] + field[1]) atol = 1e-12
         # Negative position wraps too.
         @test gather_at(field, g, -0.5 * dx) ≈ 0.5 * (field[n] + field[1]) atol = 1e-12
+        @test_throws DimensionMismatch gather_at(Float64[], g, 0.0)
+        @test_throws DimensionMismatch gather_at(field[1:end-1], g, 0.0)
     end
 
     @testset "SyntheticProbe: sample! and advance!" begin
@@ -51,6 +53,8 @@ using HybridPlasmaPIC, Test, LinearAlgebra
         @test length(probe.t) == 2
         @test probe.t[2] ≈ dt
         @test probe.val[2] ≈ a + b * (x0 + vx * dt) atol = 1e-12
+
+        @test_throws DimensionMismatch sample!(probe, field[1:end-1], g, 2dt)
     end
 
     @testset "shock_frame" begin

@@ -29,6 +29,7 @@ stencil in `deposit.jl`.
 """
 function gather_at(field::Array{T,1}, g::FourierGrid{1,T}, xpos::Real) where {T}
     n = g.n[1]
+    length(field) == n || throw(DimensionMismatch("field length must match the 1-D grid size"))
     dx = g.dx[1]
     s = T(xpos) / dx                 # fractional cell position
     i0 = floor(Int, s)               # 0-based base node
