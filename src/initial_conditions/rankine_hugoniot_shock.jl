@@ -25,6 +25,19 @@ function _require_valid_gamma(γ::Real, ::Type{T}) where {T}
     return γT
 end
 
+function _require_valid_rh_inputs(up::MHDState{T}, μ0::Real) where {T}
+    μ = T(μ0)
+    isfinite(μ) && μ > zero(T) || throw(ArgumentError("μ0 must be finite and positive"))
+    isfinite(up.ρ) && up.ρ > zero(T) || throw(ArgumentError("upstream density must be finite and positive"))
+    isfinite(up.ux) && up.ux > zero(T) ||
+        throw(ArgumentError("upstream normal velocity must be finite and > 0 (shock frame)"))
+    isfinite(up.uy) || throw(ArgumentError("upstream tangential velocity must be finite"))
+    isfinite(up.p) && up.p >= zero(T) || throw(ArgumentError("upstream pressure must be finite and non-negative"))
+    isfinite(up.Bn) || throw(ArgumentError("upstream normal magnetic field must be finite"))
+    isfinite(up.Bt) || throw(ArgumentError("upstream tangential magnetic field must be finite"))
+    return μ
+end
+
 # closed-form downstream state for a trial compression X (exact for mass,
 # induction, tangential & normal momentum)
 function _downstream(up::MHDState{T}, X::T, μ0::T) where {T}
@@ -69,8 +82,7 @@ solution; energy is root-found, the rest are exact by construction). `X = 1`
 """
 function rankine_hugoniot(up::MHDState{T}, γ::Real; μ0::Real = 1.0) where {T}
     γT = _require_valid_gamma(γ, T)
-    μ = T(μ0)
-    up.ux > 0 || throw(ArgumentError("upstream normal velocity must be > 0 (shock frame)"))
+    μ = _require_valid_rh_inputs(up, μ0)
     Fup = _fluxes(up, γT, μ)
     Renergy(X) = _energy_flux(_downstream(up, X, μ), γT, μ) - Fup.energy
 
@@ -140,8 +152,7 @@ upstream states can admit slow/intermediate/fast branches.
 """
 function rh_branches(up::MHDState{T}, γ::Real; μ0::Real = 1.0, nscan::Int = 2000) where {T}
     γT = _require_valid_gamma(γ, T)
-    μ = T(μ0)
-    up.ux > 0 || throw(ArgumentError("upstream normal velocity must be > 0 (shock frame)"))
+    μ = _require_valid_rh_inputs(up, μ0)
     Fup = _fluxes(up, γT, μ)
     R(X) = _energy_flux(_downstream(up, X, μ), γT, μ) - Fup.energy
     Xmax = (γT + one(T)) / (γT - one(T))

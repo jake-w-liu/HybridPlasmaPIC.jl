@@ -17,6 +17,26 @@ gas_compression(M, γ) = (γ + 1) * M^2 / ((γ - 1) * M^2 + 2)
         end
     end
 
+    @testset "invalid μ0 and upstream states are rejected" begin
+        for badμ0 in (0.0, -1.0, NaN, Inf)
+            @test_throws ArgumentError rankine_hugoniot(up_invalid, γ; μ0 = badμ0)
+            @test_throws ArgumentError rh_branches(up_invalid, γ; μ0 = badμ0)
+        end
+
+        for up_bad in (
+            MHDState(0.0, 2.0, 0.0, 0.2, 0.0, 1.0),
+            MHDState(-1.0, 2.0, 0.0, 0.2, 0.0, 1.0),
+            MHDState(1.0, 2.0, 0.0, -0.2, 0.0, 1.0),
+            MHDState(1.0, NaN, 0.0, 0.2, 0.0, 1.0),
+            MHDState(1.0, 2.0, NaN, 0.2, 0.0, 1.0),
+            MHDState(1.0, 2.0, 0.0, 0.2, NaN, 1.0),
+            MHDState(1.0, 2.0, 0.0, 0.2, 0.0, Inf),
+        )
+            @test_throws ArgumentError rankine_hugoniot(up_bad, γ)
+            @test_throws ArgumentError rh_branches(up_bad, γ)
+        end
+    end
+
     @testset "hydrodynamic limit" begin
         ρ, p = 1.0, 1.0
         cs = sqrt(γ * p / ρ)
