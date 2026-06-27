@@ -5,10 +5,26 @@
 
 Random uniform particle positions in the box `[lo, hi)`.
 """
-function load_uniform!(ps::ParticleSet{D,T}, rng, lo::NTuple{D}, hi::NTuple{D}) where {D,T}
+function _validated_open_interval(lo::NTuple{D}, hi::NTuple{D}, ::Type{T}) where {D,T<:AbstractFloat}
+    loT = ntuple(d -> _require_finite_real("lo[$d]", lo[d], T), D)
+    hiT = ntuple(d -> _require_finite_real("hi[$d]", hi[d], T), D)
     @inbounds for d = 1:D
-        L = T(hi[d] - lo[d])
-        l = T(lo[d])
+        hiT[d] > loT[d] || throw(ArgumentError("hi[$d] must be greater than lo[$d]"))
+    end
+    return loT, hiT
+end
+
+function _validated_velocity_moments(u0::NTuple{3}, vth::NTuple{3}, ::Type{T}) where {T<:AbstractFloat}
+    u = ntuple(c -> _require_finite_real("u0[$c]", u0[c], T), 3)
+    s = ntuple(c -> _require_finite_nonnegative_real("vth[$c]", vth[c], T), 3)
+    return u, s
+end
+
+function load_uniform!(ps::ParticleSet{D,T}, rng, lo::NTuple{D}, hi::NTuple{D}) where {D,T}
+    loT, hiT = _validated_open_interval(lo, hi, T)
+    @inbounds for d = 1:D
+        L = hiT[d] - loT[d]
+        l = loT[d]
         xd = ps.x[d]
         for p in eachindex(xd)
             xd[p] = l + L * rand(rng, T)
@@ -31,10 +47,11 @@ function load_lattice!(
     counts::NTuple{D,Int},
 ) where {D,T}
     prod(counts) == nparticles(ps) || throw(ArgumentError("N must equal prod(counts)"))
+    loT, hiT = _validated_open_interval(lo, hi, T)
     @inbounds for (p, I) in enumerate(CartesianIndices(counts))
         t = Tuple(I)
         for d = 1:D
-            ps.x[d][p] = T(lo[d]) + T(hi[d] - lo[d]) * (t[d] - T(0.5)) / counts[d]
+            ps.x[d][p] = loT[d] + (hiT[d] - loT[d]) * (t[d] - T(0.5)) / counts[d]
         end
     end
     return ps
@@ -58,7 +75,8 @@ rescales every 1/n term in Ohm's law.
 function set_density_weight!(ps::ParticleSet{D,T}, n0, g::FourierGrid{D,T}) where {D,T}
     N = nparticles(ps)
     N > 0 || throw(ArgumentError("no particles"))
-    fill!(ps.weight, T(n0) * prod(g.L) / N)
+    n0T = _require_finite_nonnegative_real("n0", n0, T)
+    fill!(ps.weight, n0T * prod(g.L) / N)
     return ps
 end
 
@@ -70,12 +88,11 @@ gives a bi-Maxwellian; equal `vth` an isotropic Maxwellian; `vth=0` a cold beam.
 `vthᶜ = √(k_B Tᶜ/m)`.
 """
 function load_maxwellian!(ps::ParticleSet{D,T}, rng, u0::NTuple{3}, vth::NTuple{3}) where {D,T}
+    u, s = _validated_velocity_moments(u0, vth, T)
     @inbounds for c = 1:3
         vc = ps.v[c]
-        u = T(u0[c])
-        s = T(vth[c])
         for p in eachindex(vc)
-            vc[p] = u + s * randn(rng, T)
+            vc[p] = u[c] + s[c] * randn(rng, T)
         end
     end
     return ps
@@ -97,14 +114,13 @@ function load_quiet_velocities!(
     N = nparticles(ps)
     iseven(N) || throw(ArgumentError("quiet start needs an even particle count"))
     half = N ÷ 2
+    u, s = _validated_velocity_moments(u0, vth, T)
     @inbounds for c = 1:3
         vc = ps.v[c]
-        u = T(u0[c])
-        s = T(vth[c])
         for i = 1:half
-            g = s * randn(rng, T)
-            vc[i] = u + g
-            vc[i+half] = u - g
+            g = s[c] * randn(rng, T)
+            vc[i] = u[c] + g
+            vc[i+half] = u[c] - g
         end
     end
     return ps

@@ -218,6 +218,26 @@ end
     @test ρ_quiet < 1e-8
 end
 
+@testset "particle loaders reject invalid inputs" begin
+    rng = MersenneTwister(11)
+    g = FourierGrid((4,), (4.0,))
+    ps = ParticleSet{1,Float64}(2)
+
+    @test_throws ArgumentError load_uniform!(ps, rng, (0.0,), (NaN,))
+    @test_throws ArgumentError load_uniform!(ps, rng, (1.0,), (0.0,))
+    @test_throws ArgumentError load_lattice!(ps, (0.0,), (NaN,), (2,))
+    @test_throws ArgumentError load_lattice!(ps, (1.0,), (0.0,), (2,))
+
+    @test_throws ArgumentError set_density_weight!(ps, NaN, g)
+    @test_throws ArgumentError set_density_weight!(ps, -1.0, g)
+
+    @test_throws ArgumentError load_maxwellian!(ps, rng, (NaN, 0.0, 0.0), (1.0, 1.0, 1.0))
+    @test_throws ArgumentError load_maxwellian!(ps, rng, (0.0, 0.0, 0.0), (-1.0, 1.0, 1.0))
+
+    @test_throws ArgumentError load_quiet_velocities!(ps, rng, (NaN, 0.0, 0.0), (1.0, 1.0, 1.0))
+    @test_throws ArgumentError load_quiet_velocities!(ps, rng, (0.0, 0.0, 0.0), (Inf, 1.0, 1.0))
+end
+
 @testset "particle boundaries" begin
     T = Float64
     # periodic wrap into [0,1)
