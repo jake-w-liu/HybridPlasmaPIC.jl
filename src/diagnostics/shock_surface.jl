@@ -267,6 +267,7 @@ function boundary_reflection_fraction(
 end
 
 function _refl_frac(x::Vector{T}, vx::Vector{T}, Lx::T, dx::T, ncells::Integer) where {T}
+    ncells >= 1 || throw(ArgumentError("ncells must be positive"))
     edge = Lx - T(ncells) * dx
     inband = 0
     back = 0

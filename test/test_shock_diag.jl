@@ -198,6 +198,8 @@ using HybridPlasmaPIC, Test
         ps2.x[1] .= [0.0, 1.0]
         ps2.v[1] .= [1.0, 1.0]
         @test boundary_reflection_fraction(sh, ps2; ncells = ncells) == 0.0
+        @test_throws ArgumentError boundary_reflection_fraction(sh, ps; ncells = 0)
+        @test_throws ArgumentError boundary_reflection_fraction(sh, ps; ncells = -1)
     end
 
     @testset "boundary_reflection_fraction matches the count (2D)" begin
@@ -213,6 +215,7 @@ using HybridPlasmaPIC, Test
         ps.v[1] .= [3.0, -1.0, 9.0, 9.0]            # in-band: +, −  → 1/2
         frac = boundary_reflection_fraction(sh, ps; ncells = ncells)
         @test frac ≈ 0.5
+        @test_throws ArgumentError boundary_reflection_fraction(sh, ps; ncells = 0)
     end
 
     # ---------------- boundary_energy_flux (1D) -------------------------------
