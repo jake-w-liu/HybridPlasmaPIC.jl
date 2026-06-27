@@ -10,7 +10,7 @@ function HybridPlasmaPIC.write_field_hdf5(
     dataset::AbstractString,
     A::AbstractArray,
 )
-    HDF5.h5open(path, "w") do fid
+    HDF5.h5open(path, "cw") do fid
         fid[dataset] = A
     end
     return path

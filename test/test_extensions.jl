@@ -26,5 +26,9 @@ using Test
         A = reshape(collect(Float64, 1:12), 3, 4)
         @test write_field_hdf5(path, "density", A) == path
         @test read_field_hdf5(path, "density") == A
+        B = reshape(collect(Float64, 13:24), 3, 4)
+        @test write_field_hdf5(path, "pressure", B) == path
+        @test read_field_hdf5(path, "density") == A
+        @test read_field_hdf5(path, "pressure") == B
     end
 end
