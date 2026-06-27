@@ -115,3 +115,66 @@ end
     @test_throws ArgumentError load_checkpoint!(st, ps, path)
     rm(path; force = true)
 end
+
+@testset "load_checkpoint! rejects inconsistent particle array lengths" begin
+    g = FourierGrid((16,), (1.0,))
+    st = HybridStepper(g, HybridModel(IsothermalElectrons(0.5)), CIC(), 2)
+    ps = ParticleSet{1,Float64}(2)
+    fill!(ps.x[1], 0.25)
+    fill!(st.fields.B[1], 7.0)
+    legacy = (
+        D = 1,
+        T = Float64,
+        ncell = st.g.n,
+        L = st.g.L,
+        x = ([0.1],),
+        v = ([0.0, 0.0], [0.0, 0.0], [0.0, 0.0]),
+        weight = [1.0, 1.0],
+        id = UInt64[1, 2],
+        tag = UInt32[0, 0],
+        q = ps.q,
+        m = ps.m,
+        B = (copy(st.fields.B[1]), copy(st.fields.B[2]), copy(st.fields.B[3])),
+        E = (copy(st.fields.E[1]), copy(st.fields.E[2]), copy(st.fields.E[3])),
+        time = st.time[],
+        step = st.step[],
+    )
+    path = tempname()
+    Serialization.serialize(path, legacy)
+    @test_throws ArgumentError load_checkpoint!(st, ps, path)
+    @test length(ps.x[1]) == 2
+    @test ps.x[1] == fill(0.25, 2)
+    @test all(==(7.0), st.fields.B[1])
+    rm(path; force = true)
+end
+
+@testset "load_checkpoint! rejects truncated field arrays" begin
+    g = FourierGrid((16,), (1.0,))
+    st = HybridStepper(g, HybridModel(IsothermalElectrons(0.5)), CIC(), 2)
+    ps = ParticleSet{1,Float64}(2)
+    fill!(st.fields.B[1], 9.0)
+    fill!(st.fields.E[1], 8.0)
+    legacy = (
+        D = 1,
+        T = Float64,
+        ncell = st.g.n,
+        L = st.g.L,
+        x = ([0.1, 0.2],),
+        v = ([0.0, 0.0], [0.0, 0.0], [0.0, 0.0]),
+        weight = [1.0, 1.0],
+        id = UInt64[1, 2],
+        tag = UInt32[0, 0],
+        q = ps.q,
+        m = ps.m,
+        B = ([1.5], copy(st.fields.B[2]), copy(st.fields.B[3])),
+        E = ([4.5], copy(st.fields.E[2]), copy(st.fields.E[3])),
+        time = st.time[],
+        step = st.step[],
+    )
+    path = tempname()
+    Serialization.serialize(path, legacy)
+    @test_throws ArgumentError load_checkpoint!(st, ps, path)
+    @test all(==(9.0), st.fields.B[1])
+    @test all(==(8.0), st.fields.E[1])
+    rm(path; force = true)
+end
