@@ -21,6 +21,8 @@ function LogicalRankLayout(ranks::NTuple{D,<:Integer}; periodic = ntuple(_ -> tr
     D >= 1 || throw(ArgumentError("rank layout dimension must be >= 1"))
     rr = ntuple(d -> Int(ranks[d]), D)
     all(>(0), rr) || throw(ArgumentError("all rank counts must be positive, got $rr"))
+    length(periodic) == D ||
+        throw(ArgumentError("periodic length must equal rank dimension $D"))
     pp = ntuple(d -> Bool(periodic[d]), D)
     return LogicalRankLayout{D}(rr, pp)
 end
@@ -93,6 +95,7 @@ function rank_of_position(
 ) where {D,T}
     coords = ntuple(d -> begin
         xd = T(x[d])
+        isfinite(xd) || throw(ArgumentError("x[$d] must be finite"))
         Ld = g.L[d]
         if layout.periodic[d]
             xd = mod(xd, Ld)

@@ -45,7 +45,10 @@ end
     @test rank_of_position((0.1, 6.1), g, layout) === nothing
 
     @test_throws ArgumentError LogicalRankLayout((2, 0))
+    @test_throws ArgumentError LogicalRankLayout((2, 2); periodic = (true,))
     @test_throws ArgumentError rank_coords(layout, 0)
+    @test_throws ArgumentError rank_of_position((NaN, 0.1), g, layout)
+    @test_throws ArgumentError rank_of_position((0.1, Inf), g, layout)
 end
 
 @testset "multi-dimensional migration and transverse wrapping" begin
@@ -139,6 +142,15 @@ end
     @test result.lost == 2
     @test collect(ranks[1].id) == UInt64[2]
     @test collect(ranks[2].id) == UInt64[3]
+end
+
+@testset "migration rejects non-finite particle positions" begin
+    g = FourierGrid((8,), (8.0,))
+    periodic = LogicalRankLayout((2,); periodic = (true,))
+    nonperiodic = LogicalRankLayout((2,); periodic = (false,))
+
+    @test_throws ArgumentError migrate_particles!([_ps1([NaN], [1]), ParticleSet{1,Float64}(0)], g, periodic)
+    @test_throws ArgumentError migrate_particles!([_ps1([Inf], [1]), ParticleSet{1,Float64}(0)], g, nonperiodic)
 end
 
 @testset "append_particles! rejects species mismatch" begin
