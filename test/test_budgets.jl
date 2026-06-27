@@ -142,4 +142,7 @@ end
     g = FourierGrid((n,), (2π,))
     J = ntuple(_ -> randn(MersenneTwister(3), n), 3)
     @test resistive_dissipation(J, 0.0, g) == 0.0
+    @test_throws ArgumentError resistive_dissipation(J, NaN, g)
+    @test_throws ArgumentError resistive_dissipation(J, Inf, g)
+    @test_throws ArgumentError resistive_dissipation(J, -0.1, g)
 end

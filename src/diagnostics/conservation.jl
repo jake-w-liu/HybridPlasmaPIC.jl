@@ -102,11 +102,12 @@ function resistive_dissipation(
     g::FourierGrid{D,T},
 ) where {D,T}
     _require_grid_tuple(:J, J, g)
+    ηT = _require_finite_nonnegative_real("η", η, T)
     s = zero(T)
     @inbounds for I in eachindex(J[1], J[2], J[3])
         s += J[1][I] * J[1][I] + J[2][I] * J[2][I] + J[3][I] * J[3][I]
     end
-    return T(η) * s * prod(g.dx)
+    return ηT * s * prod(g.dx)
 end
 
 # --- particle momentum / electric work (from diagnostics.jl) ---
