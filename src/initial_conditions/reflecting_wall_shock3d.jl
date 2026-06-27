@@ -60,6 +60,12 @@ mutable struct PerpShock3D{T}
     nfloor::T
 end
 
+function _require_valid_positive_shock_ma(MA::Real, ::Type{T}) where {T}
+    MAT = T(MA)
+    isfinite(MAT) && MAT > zero(T) || throw(ArgumentError("MA must be finite and positive"))
+    return MAT
+end
+
 """
     PerpShock3D(nx, ny, nz, Lx, Ly, Lz; Te, γe, η, τ, B0, nfloor)
 
@@ -631,8 +637,7 @@ function run_perp_shock3d(;
     nppc >= 1 || throw(ArgumentError("nppc must be positive"))
     nsteps >= 0 || throw(ArgumentError("nsteps must be non-negative"))
     T = Float64
-    MAT = T(MA)
-    isfinite(MAT) && MAT > zero(T) || throw(ArgumentError("MA must be finite and positive"))
+    MAT = _require_valid_positive_shock_ma(MA, T)
     B0 = one(T)
     vA = one(T)
     U0 = MAT * vA

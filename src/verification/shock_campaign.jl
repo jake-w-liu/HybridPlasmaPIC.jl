@@ -105,6 +105,7 @@ function production_3d_case(;
     nsteps_pre >= 0 || throw(ArgumentError("nsteps_pre must be non-negative"))
     nsteps_post >= 0 || throw(ArgumentError("nsteps_post must be non-negative"))
     T = Float64
+    _require_valid_positive_shock_ma(MA, T)
     sh, ps = _load_shock3d(; MA, nx, ny, nz, Lx, Ly, Lz, nppc, seed)
     for _ = 1:nsteps_pre
         step_shock3d!(sh, ps, T(dt); NB = 2)
