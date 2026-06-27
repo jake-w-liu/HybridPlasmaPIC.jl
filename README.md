@@ -99,7 +99,7 @@ src/
   io/                     checkpoint/restart and reproducibility metadata
   meshes/                 Cartesian and local finite-difference mesh adapters
   models/                 HybridPIC, FullPIC, electrostatic, Hall-MHD surfaces
-  parallel/               threaded CPU helpers plus MPI/GPU extension hooks
+  parallel/               threaded CPU/MPI helpers plus GPU and I/O extension hooks
   particles/              ParticleSet{D}, loaders, Boris mover, sorting
   verification/           analytic oracles and campaign helpers
 ```

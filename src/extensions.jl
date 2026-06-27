@@ -1,13 +1,12 @@
 # extensions.jl — explicit optional package-extension surface.
 
-const _SUPPORTED_EXTENSIONS = (:cuda, :metal, :mpi, :io)
+const _SUPPORTED_EXTENSIONS = (:cuda, :metal, :io)
 
 "Supported optional extension keys."
 supported_extensions() = _SUPPORTED_EXTENSIONS
 
 extension_name(::Val{:cuda}) = :HybridPlasmaPICCUDAExt
 extension_name(::Val{:metal}) = :HybridPlasmaPICMetalExt
-extension_name(::Val{:mpi}) = :HybridPlasmaPICMPIExt
 extension_name(::Val{:io}) = :HybridPlasmaPICIOExt
 
 function extension_name(::Val{name}) where {name}
@@ -20,7 +19,6 @@ end
 
 extension_dependency_name(::Val{:cuda}) = :CUDA
 extension_dependency_name(::Val{:metal}) = :Metal
-extension_dependency_name(::Val{:mpi}) = :MPI
 extension_dependency_name(::Val{:io}) = :HDF5
 
 function extension_dependency_name(::Val{name}) where {name}

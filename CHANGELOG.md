@@ -21,7 +21,7 @@ First tagged release. HybridPlasmaPIC.jl is a dimension-parametric (1D3V / 2D3V 
 electrons, and spectral fields, in Ω_ci-normalized units. There is no global
 mutable state; all configuration is passed explicitly.
 
-### Spectral operators (`spectral.jl`, `sbp.jl`)
+### Spectral operators (`SpectralOperators.jl`, `src/meshes/local_finite_difference.jl`)
 
 - `FourierGrid(n, L)` periodic spectral grid carrying angular wavenumbers
   (`kvec`, Nyquist mode zeroed), cached forward/inverse FFT plans, and scratch
@@ -31,7 +31,7 @@ mutable state; all configuration is passed explicitly.
 - `SBP1D` summation-by-parts finite-difference operator and `sbp_deriv!` /
   `fourier_deriv_y!` for mixed FD-x / spectral-y discretizations.
 
-### Particles (`particles.jl`)
+### Particles (`src/particles/`, `src/boundaries/`)
 
 - `ParticleSet{D,T}` structure-of-arrays macroparticle container (positions
   carry exactly `D` coordinates; velocities always carry 3).
@@ -41,14 +41,14 @@ mutable state; all configuration is passed explicitly.
 - Boundary conditions: `apply_periodic!`, `apply_reflecting!`,
   `apply_absorbing!`.
 
-### Deposition and moments (`deposit.jl`)
+### Deposition and moments (`src/coupling/`)
 
 - Shape functions `NGP`, `CIC`, `TSC`.
 - `deposit_scalar!`, `gather_scalar!`, `gather_vector!`, and the moment kernels
   `density!`, `momentum!`, `current!`, `pressure_tensor!`,
   `temperature_components`.
 
-### Hybrid model and integrator (`hybrid.jl`, `integrator.jl`)
+### Hybrid model and integrator (`src/models/hybrid_pic.jl`, `src/integrators/`)
 
 - Electron closures `IsothermalElectrons`, `PolytropicElectrons`.
 - `HybridModel` / `HybridFields`, generalized Ohm's law (`ohms_law!`), Faraday
@@ -63,36 +63,36 @@ mutable state; all configuration is passed explicitly.
 - Whistler / Alfvén-branch dispersion verified against the analytic
   cold-plasma hybrid dispersion relation.
 
-### Rankine-Hugoniot and shocks (`shock.jl`, `shock_sim.jl`, `inject.jl`)
+### Rankine-Hugoniot and shocks (`src/initial_conditions/`, `src/verification/`, `src/boundaries/`)
 
 - `MHDState`, `rankine_hugoniot`, and `rh_branches` MHD jump-condition solver.
 - `PerpShock` perpendicular-shock setup with `init_shock!`, `step_shock!`,
   `deposit_moments!`, `compute_E!`, and `shock_density_weight`.
 - Boundary injection: `flux_speed`, `flux_per_density`, `inject_face_1d!`.
 
-### Electrostatic PIC (`espic.jl`)
+### Electrostatic PIC (`src/models/electrostatic.jl`)
 
 - `Electrostatic1D` 1D electrostatic PIC: `init_espic!`, `step_espic!`,
   `poisson_E!`, `field_energy`.
 
-### KdV reference (`kdv.jl`)
+### KdV reference (`src/initial_conditions/linear_waves.jl`)
 
 - `kdv_soliton`, `kdv_solve` analytic/numerical Korteweg-de Vries reference.
 
-### Diagnostics (`diagnostics.jl`)
+### Diagnostics (`src/diagnostics/`)
 
 - `total_momentum`, `electric_work`, `temperatures_par_perp`,
   `velocity_histogram`, `phase_space_histogram`, `power_spectrum`,
   `pressure_strain`, `shock_front`.
 
-### Particle sorting, smoothing, spacecraft (`particle_sort.jl`, `smoothing.jl`, `spacecraft.jl`)
+### Particle sorting, smoothing, spacecraft (`src/particles/`, `src/diagnostics/`)
 
 - `cell_index`, `sort_particles!`, `particles_per_cell`, `memory_bytes`.
 - `binomial_smooth!`, `smoothing_transfer`.
 - `gather_at`, `SyntheticProbe`, `sample!`, `advance!`, `shock_frame`,
   `dehoffmann_teller_velocity`, `classify_reflected`.
 
-### I/O, metadata, normalization (`checkpoint.jl`, `metadata.jl`, `normalization.jl`)
+### I/O, metadata, normalization (`src/io/`, `src/verification/normalization.jl`)
 
 - `save_checkpoint` / `load_checkpoint!`, `save_run` / `load_run`,
   `RunMetadata`, `capture_metadata`, `CHECKPOINT_SCHEMA_VERSION`.
