@@ -23,6 +23,7 @@ function save_checkpoint(
         D = D,
         T = T,
         ncell = st.g.n,
+        L = st.g.L,
         x = ps.x,
         v = ps.v,
         weight = ps.weight,
@@ -59,6 +60,10 @@ function load_checkpoint!(
         ),
     )
     s.ncell == st.g.n || throw(ArgumentError("checkpoint grid $(s.ncell) ≠ $(st.g.n)"))
+    hasproperty(s, :L) || throw(
+        ArgumentError("checkpoint is missing grid lengths L and cannot guarantee a bitwise-identical restart"),
+    )
+    s.L == st.g.L || throw(ArgumentError("checkpoint box lengths $(s.L) ≠ $(st.g.L)"))
     for d = 1:D
         resize!(ps.x[d], length(s.x[d]))
         copyto!(ps.x[d], s.x[d])

@@ -2,7 +2,7 @@
 # must continue bitwise-identically to the uninterrupted run (stepping is
 # deterministic: no RNG, serial loops).
 
-using HybridPlasmaPIC, Test, Random
+using HybridPlasmaPIC, Test, Random, Serialization
 
 function build_run(seed)
     T = Float64
@@ -73,5 +73,45 @@ end
     stb = HybridStepper(gb, HybridModel(IsothermalElectrons(0.5f0)), CIC(), 32)
     psb = ParticleSet{1,Float32}(32)
     @test_throws ArgumentError load_checkpoint!(stb, psb, path)
+    rm(path; force = true)
+end
+
+@testset "load_checkpoint! rejects box-length mismatch" begin
+    ga = FourierGrid((16,), (1.0,))
+    sta = HybridStepper(ga, HybridModel(IsothermalElectrons(0.5)), CIC(), 32)
+    psa = ParticleSet{1,Float64}(32)
+    psa.x[1] .= 0.0
+    path = tempname()
+    save_checkpoint(path, sta, psa)
+    gb = FourierGrid((16,), (2.0,))
+    stb = HybridStepper(gb, HybridModel(IsothermalElectrons(0.5)), CIC(), 32)
+    psb = ParticleSet{1,Float64}(32)
+    @test_throws ArgumentError load_checkpoint!(stb, psb, path)
+    rm(path; force = true)
+end
+
+@testset "load_checkpoint! rejects checkpoints missing box lengths" begin
+    g = FourierGrid((16,), (1.0,))
+    st = HybridStepper(g, HybridModel(IsothermalElectrons(0.5)), CIC(), 32)
+    ps = ParticleSet{1,Float64}(32)
+    legacy = (
+        D = 1,
+        T = Float64,
+        ncell = st.g.n,
+        x = ps.x,
+        v = ps.v,
+        weight = ps.weight,
+        id = ps.id,
+        tag = ps.tag,
+        q = ps.q,
+        m = ps.m,
+        B = st.fields.B,
+        E = st.fields.E,
+        time = st.time[],
+        step = st.step[],
+    )
+    path = tempname()
+    Serialization.serialize(path, legacy)
+    @test_throws ArgumentError load_checkpoint!(st, ps, path)
     rm(path; force = true)
 end
