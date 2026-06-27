@@ -47,6 +47,8 @@ end
     @test crossing_time([0.0, 1.0], [0.2, 1.0], 1.0) ≈ 1.0 atol = 1e-12
     @test crossing_time([0.0, 1.0, 2.0], [0.0, 0.5, 1.0], 1.0) ≈ 2.0 atol = 1e-12
     @test isnan(crossing_time([0.0, 1.0], [0.0, 0.5], 2.0))
+    @test_throws DimensionMismatch crossing_time([0.0], [0.0, 1.0], 0.5)
+    @test_throws DimensionMismatch crossing_time([0.0, 1.0], [0.0], 0.5)
     @test_throws ArgumentError four_spacecraft_traces(nsteps = 0)
     @test_throws ArgumentError four_spacecraft_traces(nsteps = -1)
 

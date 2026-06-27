@@ -155,6 +155,7 @@ First linear-interpolated time at which the time series `vals` crosses `level`
 multi-spacecraft timing of a boundary crossing.
 """
 function crossing_time(ts::AbstractVector, vals::AbstractVector, level::Real)
+    length(ts) == length(vals) || throw(DimensionMismatch("ts and vals must have the same length"))
     n = length(vals)
     @inbounds for i = 1:n-1
         a = vals[i] - level
