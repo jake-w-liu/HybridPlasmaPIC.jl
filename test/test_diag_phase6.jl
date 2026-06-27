@@ -70,6 +70,10 @@ end
     Tpar, Tperp = temperatures_par_perp(P, nb, B)
     @test isapprox(mean(Tpar), Tz; rtol = 0.06)            # T∥ = T_z
     @test isapprox(mean(Tperp), (Tx + Ty) / 2; rtol = 0.06) # T⊥ = (T_x+T_y)/2
+    @test_throws ArgumentError temperatures_par_perp(P, nb, B; nfloor = 0.0)
+    @test_throws ArgumentError temperatures_par_perp(P, nb, B; nfloor = -1.0)
+    @test_throws ArgumentError temperatures_par_perp(P, nb, B; nfloor = NaN)
+    @test_throws ArgumentError temperatures_par_perp(P, nb, B; nfloor = Inf)
 end
 
 @testset "velocity + phase-space histograms" begin
