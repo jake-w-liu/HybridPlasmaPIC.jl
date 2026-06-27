@@ -244,6 +244,7 @@ function four_spacecraft_traces(;
     ),
     level::Union{Nothing,Real} = nothing,
 )
+    nsteps >= 1 || throw(ArgumentError("nsteps must be positive"))
     T = Float64
     B0 = one(T)
     sh, ps = _load_shock3d(; MA, nx, ny, nz, Lx, Ly, Lz, nppc, seed)
