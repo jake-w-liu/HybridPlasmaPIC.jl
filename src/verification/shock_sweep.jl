@@ -55,16 +55,15 @@ function run_perp_shock(;
     nppc >= 1 || throw(ArgumentError("nppc must be positive"))
     nsteps >= 0 || throw(ArgumentError("nsteps must be non-negative"))
     T = Float64
-    MAT = T(MA)
-    isfinite(MAT) && MAT > zero(T) || throw(ArgumentError("MA must be finite and positive"))
-    LxT = T(Lx)
+    MAT = _require_valid_positive_shock_ma(MA, T)
+    LxT = _require_finite_positive_real("Lx", Lx, T)
     B0 = one(T)
     vA = one(T)
     U0 = MAT * vA                        # upstream drift speed (toward the wall)
-    vth = T(vthi)
+    vth = _require_finite_nonnegative_real("vthi", vthi, T)
 
     # field state: inflow SAT strength τ ≈ inflow speed U0 (as in SHK-002)
-    sh = PerpShock(N, LxT; Te = T(Te), γe = T(γe), η = T(η), τ = U0, B0 = B0)
+    sh = PerpShock(N, LxT; Te, γe, η, τ = U0, B0 = B0)
 
     # load drifting ions: x uniform on [0,Lx], v drifting at −U0 toward the wall
     Np = Int(nppc) * Int(N)

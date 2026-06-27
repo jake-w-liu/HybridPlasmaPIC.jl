@@ -62,6 +62,14 @@ end
     @test sh.n == n0
 end
 
+@testset "PerpShock2D validates physical parameters" begin
+    @test_throws ArgumentError PerpShock2D(8, 4, 1.0, 0.0)
+    @test_throws ArgumentError PerpShock2D(8, 4, 1.0, 1.0; Te = -0.1)
+    @test_throws ArgumentError PerpShock2D(8, 4, 1.0, 1.0; γe = 1.0)
+    @test_throws ArgumentError PerpShock2D(8, 4, 1.0, 1.0; η = NaN)
+    @test_throws ArgumentError PerpShock2D(8, 4, 1.0, 1.0; η = -0.1)
+end
+
 @testset "PerpShock2D transverse FFT workspace" begin
     sh = PerpShock2D(9, 8, 1.0, 2π)
     @test sh.ywork isa FourierDerivYWorkspace

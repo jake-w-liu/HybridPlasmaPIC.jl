@@ -31,6 +31,15 @@ using HybridPlasmaPIC: _curl3d!, _fourier_d!, _sbp_dx3d!, _b_rhs3d!
     @test sh.n == n0
 end
 
+@testset "PerpShock3D validates physical parameters" begin
+    @test_throws ArgumentError PerpShock3D(8, 4, 4, 1.0, 0.0, 1.0)
+    @test_throws ArgumentError PerpShock3D(8, 4, 4, 1.0, 1.0, 0.0)
+    @test_throws ArgumentError PerpShock3D(8, 4, 4, 1.0, 1.0, 1.0; Te = -0.1)
+    @test_throws ArgumentError PerpShock3D(8, 4, 4, 1.0, 1.0, 1.0; γe = 1.0)
+    @test_throws ArgumentError PerpShock3D(8, 4, 4, 1.0, 1.0, 1.0; η = NaN)
+    @test_throws ArgumentError PerpShock3D(8, 4, 4, 1.0, 1.0, 1.0; η = -0.1)
+end
+
 @testset "Shock3D operators & div-B" begin
     nx, ny, nz = 24, 16, 12
     Lx, Ly, Lz = 3.0, 2.0, 2.5
@@ -148,6 +157,144 @@ end
         Lx = 12.0,
         Ly = 4.0,
         Lz = 4.0,
+        nppc = 1,
+        nsteps = 1,
+        dt = 0.03,
+        seed = 1,
+    )
+    @test_throws ArgumentError run_perp_shock3d(;
+        MA = 3.0,
+        nx = 8,
+        ny = 4,
+        nz = 4,
+        Lx = 12.0,
+        Ly = 0.0,
+        Lz = 4.0,
+        nppc = 1,
+        nsteps = 1,
+        dt = 0.03,
+        seed = 1,
+    )
+    @test_throws ArgumentError run_perp_shock3d(;
+        MA = 3.0,
+        nx = 8,
+        ny = 4,
+        nz = 4,
+        Lx = 12.0,
+        Ly = 4.0,
+        Lz = 0.0,
+        nppc = 1,
+        nsteps = 1,
+        dt = 0.03,
+        seed = 1,
+    )
+    @test_throws ArgumentError run_perp_shock3d(;
+        MA = 3.0,
+        nx = 8,
+        ny = 4,
+        nz = 4,
+        Lx = 12.0,
+        Ly = 4.0,
+        Lz = 4.0,
+        γe = 1.0,
+        nppc = 1,
+        nsteps = 1,
+        dt = 0.03,
+        seed = 1,
+    )
+    @test_throws ArgumentError run_perp_shock3d(;
+        MA = 3.0,
+        nx = 8,
+        ny = 4,
+        nz = 4,
+        Lx = 12.0,
+        Ly = 4.0,
+        Lz = 4.0,
+        Te = -0.1,
+        nppc = 1,
+        nsteps = 1,
+        dt = 0.03,
+        seed = 1,
+    )
+    @test_throws ArgumentError run_perp_shock3d(;
+        MA = 3.0,
+        nx = 8,
+        ny = 4,
+        nz = 4,
+        Lx = 12.0,
+        Ly = 4.0,
+        Lz = 4.0,
+        η = NaN,
+        nppc = 1,
+        nsteps = 1,
+        dt = 0.03,
+        seed = 1,
+    )
+    @test_throws ArgumentError run_perp_shock3d(;
+        MA = 3.0,
+        nx = 8,
+        ny = 4,
+        nz = 4,
+        Lx = 12.0,
+        Ly = 4.0,
+        Lz = 4.0,
+        η = -0.1,
+        nppc = 1,
+        nsteps = 1,
+        dt = 0.03,
+        seed = 1,
+    )
+    @test_throws ArgumentError run_perp_shock3d(;
+        MA = 3.0,
+        nx = 8,
+        ny = 4,
+        nz = 4,
+        Lx = 12.0,
+        Ly = 4.0,
+        Lz = 4.0,
+        vthi = NaN,
+        nppc = 1,
+        nsteps = 1,
+        dt = 0.03,
+        seed = 1,
+    )
+    @test_throws ArgumentError run_perp_shock3d(;
+        MA = 3.0,
+        nx = 8,
+        ny = 4,
+        nz = 4,
+        Lx = 12.0,
+        Ly = 4.0,
+        Lz = 4.0,
+        vthi = -0.1,
+        nppc = 1,
+        nsteps = 1,
+        dt = 0.03,
+        seed = 1,
+    )
+    @test_throws ArgumentError run_perp_shock3d(;
+        MA = 3.0,
+        nx = 8,
+        ny = 4,
+        nz = 4,
+        Lx = 12.0,
+        Ly = 4.0,
+        Lz = 4.0,
+        db_turb = NaN,
+        nppc = 1,
+        nsteps = 1,
+        dt = 0.03,
+        seed = 1,
+    )
+    @test_throws ArgumentError run_perp_shock3d(;
+        MA = 3.0,
+        nx = 8,
+        ny = 4,
+        nz = 4,
+        Lx = 12.0,
+        Ly = 4.0,
+        Lz = 4.0,
+        db_turb = -0.1,
         nppc = 1,
         nsteps = 1,
         dt = 0.03,

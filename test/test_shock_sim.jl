@@ -33,6 +33,14 @@ front(sh) = sh.x[argmax(abs.(diff(sh.Bz)))]   # steepest Bz gradient
     @test sh.n == n0
 end
 
+@testset "PerpShock validates physical parameters" begin
+    @test_throws ArgumentError PerpShock(8, 1.0; Te = -0.1)
+    @test_throws ArgumentError PerpShock(8, 1.0; γe = 1.0)
+    @test_throws ArgumentError PerpShock(8, 1.0; η = NaN)
+    @test_throws ArgumentError PerpShock(8, 1.0; η = -0.1)
+    @test_throws ArgumentError PerpShock(8, 1.0; nfloor = 0.0)
+end
+
 @testset "SHK-002 reflecting-wall perpendicular shock" begin
     T = Float64
     N = 512

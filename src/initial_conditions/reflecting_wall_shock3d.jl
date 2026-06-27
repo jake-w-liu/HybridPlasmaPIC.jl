@@ -87,25 +87,34 @@ function PerpShock3D(
     B0 = 1.0,
     nfloor = 1e-6,
 ) where {T<:AbstractFloat}
-    sbp = SBP1D(nx, Lx)
-    x = collect(range(zero(T), Lx; length = nx))
-    y = [(j - 1) * Ly / ny for j = 1:ny]
-    z = [(k - 1) * Lz / nz for k = 1:nz]
+    LxT = _require_finite_positive_real("Lx", Lx, T)
+    LyT = _require_finite_positive_real("Ly", Ly, T)
+    LzT = _require_finite_positive_real("Lz", Lz, T)
+    TeT = _require_finite_nonnegative_real("Te", Te, T)
+    γeT = _require_valid_gamma(γe, T)
+    ηT = _require_finite_nonnegative_real("η", η, T)
+    τT = _require_finite_real("τ", τ, T)
+    B0T = _require_finite_real("B0", B0, T)
+    nfloorT = _require_finite_positive_real("nfloor", nfloor, T)
+    sbp = SBP1D(nx, LxT)
+    x = collect(range(zero(T), LxT; length = nx))
+    y = [(j - 1) * LyT / ny for j = 1:ny]
+    z = [(k - 1) * LzT / nz for k = 1:nz]
     A() = zeros(T, nx, ny, nz)
     V() = (A(), A(), A())
     Bx = A()
     By = A()
-    Bz = fill(T(B0), nx, ny, nz)            # B0 along ẑ
+    Bz = fill(B0T, nx, ny, nz)            # B0 along ẑ
     PerpShock3D{T}(
         sbp,
         nx,
         ny,
         nz,
-        Lx,
-        Ly,
-        Lz,
-        Ly / ny,
-        Lz / nz,
+        LxT,
+        LyT,
+        LzT,
+        LyT / ny,
+        LzT / nz,
         x,
         y,
         z,
@@ -126,12 +135,12 @@ function PerpShock3D(
         A(),
         A(),
         A(),
-        T(Te),
-        T(γe),
-        T(η),
-        T(τ),
-        T(B0),
-        T(nfloor),
+        TeT,
+        γeT,
+        ηT,
+        τT,
+        B0T,
+        nfloorT,
     )
 end
 
@@ -550,19 +559,22 @@ function _load_shock3d(;
     db_turb::Real = 0.0,
 )
     T = Float64
-    LxT, LyT, LzT = T(Lx), T(Ly), T(Lz)
+    LxT = _require_finite_positive_real("Lx", Lx, T)
+    LyT = _require_finite_positive_real("Ly", Ly, T)
+    LzT = _require_finite_positive_real("Lz", Lz, T)
     B0 = one(T)
-    U0 = T(MA)
-    vth = T(vthi)
-    sh = PerpShock3D(nx, ny, nz, LxT, LyT, LzT; Te = T(Te), γe = T(γe), η = T(η), τ = U0, B0 = B0)
+    U0 = _require_valid_positive_shock_ma(MA, T)
+    vth = _require_finite_nonnegative_real("vthi", vthi, T)
+    db_turbT = _require_finite_nonnegative_real("db_turb", db_turb, T)
+    sh = PerpShock3D(nx, ny, nz, LxT, LyT, LzT; Te, γe, η, τ = U0, B0 = B0)
 
     # Optional upstream turbulence: div-free transverse Alfvénic fluctuations
     # (δBz varies only in y, δBy only in z ⇒ ∇·δB = 0), summed over a few
     # harmonics with random phases and total rms amplitude ≈ db_turb·B0.
-    if db_turb > 0
+    if db_turbT > 0
         rngt = MersenneTwister(Int(seed) + 7919)
         nh = 3
-        amp = T(db_turb) / sqrt(nh)
+        amp = db_turbT / sqrt(nh)
         for h = 1:nh
             φy = T(2π) * rand(rngt)
             φz = T(2π) * rand(rngt)

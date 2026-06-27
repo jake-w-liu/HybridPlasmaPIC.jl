@@ -75,22 +75,30 @@ function PerpShock2D(
 ) where {T<:AbstractFloat}
     nxi = Int(nx)
     nyi = Int(ny)
-    sbp = SBP1D(nxi, Lx)
-    ywork = FourierDerivYWorkspace(nxi, nyi, Ly)
-    x = collect(range(zero(T), Lx; length = nxi))
-    y = [(j - 1) * Ly / nyi for j = 1:nyi]
+    LxT = _require_finite_positive_real("Lx", Lx, T)
+    LyT = _require_finite_positive_real("Ly", Ly, T)
+    TeT = _require_finite_nonnegative_real("Te", Te, T)
+    γeT = _require_valid_gamma(γe, T)
+    ηT = _require_finite_nonnegative_real("η", η, T)
+    τT = _require_finite_real("τ", τ, T)
+    B0T = _require_finite_real("B0", B0, T)
+    nfloorT = _require_finite_positive_real("nfloor", nfloor, T)
+    sbp = SBP1D(nxi, LxT)
+    ywork = FourierDerivYWorkspace(nxi, nyi, LyT)
+    x = collect(range(zero(T), LxT; length = nxi))
+    y = [(j - 1) * LyT / nyi for j = 1:nyi]
     M() = zeros(T, nxi, nyi)
     PerpShock2D{T,typeof(ywork)}(
         sbp,
         nxi,
         nyi,
-        Lx,
-        Ly,
+        LxT,
+        LyT,
         ywork,
-        Ly / nyi,
+        LyT / nyi,
         x,
         y,
-        fill(T(B0), nxi, nyi),
+        fill(B0T, nxi, nyi),
         M(),
         M(),
         M(),
@@ -98,12 +106,12 @@ function PerpShock2D(
         M(),
         M(),
         M(),
-        T(Te),
-        T(γe),
-        T(η),
-        T(τ),
-        T(B0),
-        T(nfloor),
+        TeT,
+        γeT,
+        ηT,
+        τT,
+        B0T,
+        nfloorT,
         M(),
         M(),
         M(),

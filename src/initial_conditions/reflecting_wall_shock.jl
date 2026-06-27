@@ -64,25 +64,32 @@ function PerpShock(
     B0 = 1.0,
     nfloor = 1e-6,
 ) where {T<:AbstractFloat}
-    s = SBP1D(N, Lx)
-    x = collect(range(zero(T), Lx; length = N))
+    LxT = _require_finite_positive_real("Lx", Lx, T)
+    TeT = _require_finite_nonnegative_real("Te", Te, T)
+    γeT = _require_valid_gamma(γe, T)
+    ηT = _require_finite_nonnegative_real("η", η, T)
+    τT = _require_finite_real("τ", τ, T)
+    B0T = _require_finite_real("B0", B0, T)
+    nfloorT = _require_finite_positive_real("nfloor", nfloor, T)
+    s = SBP1D(N, LxT)
+    x = collect(range(zero(T), LxT; length = N))
     z() = zeros(T, N)
     PerpShock{T}(
         s,
         x,
-        fill(T(B0), N),
+        fill(B0T, N),
         z(),
         z(),
         z(),
         z(),
         z(),
         z(),
-        T(Te),
-        T(γe),
-        T(η),
-        T(τ),
-        T(B0),
-        T(nfloor),
+        TeT,
+        γeT,
+        ηT,
+        τT,
+        B0T,
+        nfloorT,
         z(),
         z(),
         z(),
