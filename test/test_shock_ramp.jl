@@ -69,6 +69,8 @@ using HybridPlasmaPIC, Test, Statistics, Random
     end
 
     @testset "ramp_width_scan returns finite widths" begin
+        @test_throws ArgumentError ramp_width_scan(; widths = (2.0,), nsteps = -1)
+
         res = ramp_width_scan(;
             widths = (2.0, 4.0, 8.0),
             N = 256,
