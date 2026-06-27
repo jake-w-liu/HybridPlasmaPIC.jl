@@ -31,7 +31,8 @@ function gather_at(field::Array{T,1}, g::FourierGrid{1,T}, xpos::Real) where {T}
     n = g.n[1]
     length(field) == n || throw(DimensionMismatch("field length must match the 1-D grid size"))
     dx = g.dx[1]
-    s = T(xpos) / dx                 # fractional cell position
+    x = _require_finite_real("xpos", xpos, T)
+    s = x / dx                 # fractional cell position
     i0 = floor(Int, s)               # 0-based base node
     f = s - i0                        # ∈ [0,1)
     ia = mod(i0, n) + 1              # 1-based, wrapped
@@ -55,7 +56,7 @@ mutable struct SyntheticProbe{T<:AbstractFloat}
 end
 
 SyntheticProbe(x0::Real; T::Type{<:AbstractFloat} = Float64) =
-    SyntheticProbe{T}(Float64(x0), Float64[], T[])
+    SyntheticProbe{T}(_require_finite_real("x0", x0, Float64), Float64[], T[])
 
 """
     sample!(probe, field, g, t)
@@ -70,7 +71,7 @@ function sample!(
     t::Real,
 ) where {T}
     v = gather_at(field, g, probe.x)
-    push!(probe.t, Float64(t))
+    push!(probe.t, _require_finite_real("t", t, Float64))
     push!(probe.val, v)
     return v
 end
@@ -82,7 +83,11 @@ Move the probe by `vx·dt` along x (a moving spacecraft). Returns the new
 position.
 """
 function advance!(probe::SyntheticProbe, vx::Real, dt::Real)
-    probe.x += Float64(vx) * Float64(dt)
+    v = _require_finite_real("vx", vx, Float64)
+    h = _require_finite_real("dt", dt, Float64)
+    xnew = probe.x + v * h
+    isfinite(xnew) || throw(ArgumentError("probe position must remain finite"))
+    probe.x = xnew
     return probe.x
 end
 
@@ -106,12 +111,12 @@ parallel to `B` and the motional electric field `E = -(u - V_HT) × B` vanishes.
 If `|B|² = 0` the frame is undefined; this returns the zero vector.
 """
 function dehoffmann_teller_velocity(u::NTuple{3,<:Real}, B::NTuple{3,<:Real})
-    Bx, By, Bz = B
+    ux, uy, uz = _require_finite_point3("u", u, Float64)
+    Bx, By, Bz = _require_finite_point3("B", B, Float64)
     B2 = Bx * Bx + By * By + Bz * Bz
     if B2 == 0
         return (zero(B2), zero(B2), zero(B2))
     end
-    ux, uy, uz = u
     # w = u × B
     wx = uy * Bz - uz * By
     wy = uz * Bx - ux * Bz
@@ -136,10 +141,12 @@ toward upstream (`vx - frame_Vs > 0`).
 function classify_reflected(ps::ParticleSet{1,T}, x_shock::Real, frame_Vs::Real) where {T}
     x = ps.x[1]
     vx = ps.v[1]
+    _require_finite_real_sequence("particle positions", x)
+    _require_finite_real_sequence("particle velocities", vx)
     N = nparticles(ps)
     out = Vector{Bool}(undef, N)
-    xs = T(x_shock)
-    Vs = T(frame_Vs)
+    xs = _require_finite_real("x_shock", x_shock, T)
+    Vs = _require_finite_real("frame_Vs", frame_Vs, T)
     @inbounds for p = 1:N
         out[p] = (x[p] > xs) && (shock_frame(vx[p], Vs) > zero(T))
     end

@@ -25,6 +25,8 @@ using HybridPlasmaPIC, Test, LinearAlgebra
         @test gather_at(field, g, -0.5 * dx) ≈ 0.5 * (field[n] + field[1]) atol = 1e-12
         @test_throws DimensionMismatch gather_at(Float64[], g, 0.0)
         @test_throws DimensionMismatch gather_at(field[1:end-1], g, 0.0)
+        @test_throws ArgumentError gather_at(field, g, NaN)
+        @test_throws ArgumentError gather_at(field, g, Inf)
     end
 
     @testset "SyntheticProbe: sample! and advance!" begin
@@ -55,6 +57,10 @@ using HybridPlasmaPIC, Test, LinearAlgebra
         @test probe.val[2] ≈ a + b * (x0 + vx * dt) atol = 1e-12
 
         @test_throws DimensionMismatch sample!(probe, field[1:end-1], g, 2dt)
+        @test_throws ArgumentError SyntheticProbe(NaN)
+        @test_throws ArgumentError sample!(probe, field, g, NaN)
+        @test_throws ArgumentError advance!(probe, Inf, dt)
+        @test_throws ArgumentError advance!(probe, vx, Inf)
     end
 
     @testset "shock_frame" begin
@@ -87,6 +93,8 @@ using HybridPlasmaPIC, Test, LinearAlgebra
 
         # Degenerate B = 0 ⇒ zero (undefined frame, handled gracefully).
         @test dehoffmann_teller_velocity((1.0, 2.0, 3.0), (0.0, 0.0, 0.0)) == (0.0, 0.0, 0.0)
+        @test_throws ArgumentError dehoffmann_teller_velocity((NaN, 2.0, 3.0), (1.0, 0.0, 0.0))
+        @test_throws ArgumentError dehoffmann_teller_velocity((1.0, 2.0, 3.0), (1.0, Inf, 0.0))
     end
 
     @testset "classify_reflected: hand-built set" begin
@@ -104,6 +112,12 @@ using HybridPlasmaPIC, Test, LinearAlgebra
         ps.v[1] .= [3.0, 0.5, 3.0, 1.0, 4.0]
         flags = classify_reflected(ps, x_shock, Vs)
         @test flags == [true, false, false, false, true]
+        @test_throws ArgumentError classify_reflected(ps, NaN, Vs)
+        @test_throws ArgumentError classify_reflected(ps, x_shock, Inf)
+        ps_bad = ParticleSet{1,Float64}(1)
+        ps_bad.x[1][1] = NaN
+        ps_bad.v[1][1] = 1.0
+        @test_throws ArgumentError classify_reflected(ps_bad, x_shock, Vs)
     end
 
 end
