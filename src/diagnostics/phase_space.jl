@@ -13,6 +13,7 @@ function velocity_histogram(
     vmin = nothing,
     vmax = nothing,
 ) where {D,T}
+    nbins > 0 || throw(ArgumentError("nbins must be positive"))
     v = ps.v[comp]
     w = ps.weight
     lo = vmin === nothing ? minimum(v) : T(vmin)
@@ -45,6 +46,8 @@ function phase_space_histogram(
     vmin = nothing,
     vmax = nothing,
 ) where {D,T}
+    nx > 0 || throw(ArgumentError("nx must be positive"))
+    nv > 0 || throw(ArgumentError("nv must be positive"))
     x = ps.x[sdim]
     v = ps.v[vcomp]
     w = ps.weight

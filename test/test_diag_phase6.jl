@@ -82,9 +82,15 @@ end
     c, counts = velocity_histogram(ps, 1; nbins = 80, vmin = -6, vmax = 7)
     @test isapprox(sum(counts), N; rtol = 0.02)            # captures ~all weight
     @test abs(c[argmax(counts)] - 0.5) < 0.3               # peak near drift
+    @test_throws ArgumentError velocity_histogram(ps, 1; nbins = 0)
+    @test_throws ArgumentError velocity_histogram(ps, 1; nbins = -1)
     xc, vc, h =
         phase_space_histogram(ps, 1, 1; nx = 32, nv = 32, xmin = 0, xmax = 1, vmin = -6, vmax = 7)
     @test isapprox(sum(h), N; rtol = 0.02)
+    @test_throws ArgumentError phase_space_histogram(ps, 1, 1; nx = 0, nv = 32)
+    @test_throws ArgumentError phase_space_histogram(ps, 1, 1; nx = 32, nv = 0)
+    @test_throws ArgumentError phase_space_histogram(ps, 1, 1; nx = -1, nv = 32)
+    @test_throws ArgumentError phase_space_histogram(ps, 1, 1; nx = 32, nv = -1)
 end
 
 @testset "power spectrum (single mode)" begin
