@@ -1,5 +1,10 @@
 # PhaseSpace.jl — velocity & phase-space histograms (from diagnostics.jl)
 
+@inline function _require_finite_hist_value(name::AbstractString, value)
+    isfinite(value) || throw(ArgumentError("$(name) must be finite"))
+    return value
+end
+
 """
     velocity_histogram(ps, comp; nbins=64, vmin, vmax) -> (centers, counts)
 
@@ -16,14 +21,16 @@ function velocity_histogram(
     nbins > 0 || throw(ArgumentError("nbins must be positive"))
     v = ps.v[comp]
     w = ps.weight
-    lo = vmin === nothing ? minimum(v) : T(vmin)
-    hi = vmax === nothing ? maximum(v) : T(vmax)
+    lo = _require_finite_hist_value("velocity lower bound", vmin === nothing ? minimum(v) : T(vmin))
+    hi = _require_finite_hist_value("velocity upper bound", vmax === nothing ? maximum(v) : T(vmax))
     hi <= lo && (hi = lo + one(T))           # degenerate range ⇒ avoid /0 (NaN→crash)
     dv = (hi - lo) / nbins
     counts = zeros(T, nbins)
     @inbounds for p in eachindex(v)
-        b = floor(Int, (v[p] - lo) / dv) + 1
-        b == nbins + 1 && v[p] <= hi && (b = nbins)   # include the top edge (v==hi)
+        vp = _require_finite_hist_value("velocity[$p]", v[p])
+        _require_finite_hist_value("weight[$p]", w[p])
+        b = floor(Int, (vp - lo) / dv) + 1
+        b == nbins + 1 && vp <= hi && (b = nbins)     # include the top edge (v==hi)
         1 <= b <= nbins && (counts[b] += w[p])
     end
     centers = [lo + (i - T(0.5)) * dv for i = 1:nbins]
@@ -51,20 +58,23 @@ function phase_space_histogram(
     x = ps.x[sdim]
     v = ps.v[vcomp]
     w = ps.weight
-    xlo = xmin === nothing ? minimum(x) : T(xmin)
-    xhi = xmax === nothing ? maximum(x) : T(xmax)
-    vlo = vmin === nothing ? minimum(v) : T(vmin)
-    vhi = vmax === nothing ? maximum(v) : T(vmax)
+    xlo = _require_finite_hist_value("position lower bound", xmin === nothing ? minimum(x) : T(xmin))
+    xhi = _require_finite_hist_value("position upper bound", xmax === nothing ? maximum(x) : T(xmax))
+    vlo = _require_finite_hist_value("velocity lower bound", vmin === nothing ? minimum(v) : T(vmin))
+    vhi = _require_finite_hist_value("velocity upper bound", vmax === nothing ? maximum(v) : T(vmax))
     xhi <= xlo && (xhi = xlo + one(T))       # degenerate range ⇒ avoid /0 (NaN→crash)
     vhi <= vlo && (vhi = vlo + one(T))
     dx = (xhi - xlo) / nx
     dv = (vhi - vlo) / nv
     counts = zeros(T, nx, nv)
     @inbounds for p in eachindex(x)
-        i = floor(Int, (x[p] - xlo) / dx) + 1
-        j = floor(Int, (v[p] - vlo) / dv) + 1
-        i == nx + 1 && x[p] <= xhi && (i = nx)        # include top edges
-        j == nv + 1 && v[p] <= vhi && (j = nv)
+        xp = _require_finite_hist_value("position[$p]", x[p])
+        vp = _require_finite_hist_value("velocity[$p]", v[p])
+        _require_finite_hist_value("weight[$p]", w[p])
+        i = floor(Int, (xp - xlo) / dx) + 1
+        j = floor(Int, (vp - vlo) / dv) + 1
+        i == nx + 1 && xp <= xhi && (i = nx)          # include top edges
+        j == nv + 1 && vp <= vhi && (j = nv)
         (1 <= i <= nx && 1 <= j <= nv) && (counts[i, j] += w[p])
     end
     xc = [xlo + (i - T(0.5)) * dx for i = 1:nx]

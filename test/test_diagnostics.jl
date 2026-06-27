@@ -121,3 +121,26 @@ end
     _, _, ph = phase_space_histogram(ps, 1, 1; nx = 4, nv = 4)
     @test sum(ph) ≈ ps.weight[1]
 end
+
+@testset "histograms reject non-finite data and bounds" begin
+    ps = ParticleSet{1,Float64}(2)
+    ps.x[1] .= [0.0, 1.0]
+    ps.v[1] .= [0.5, 1.0]
+    ps.v[2] .= 0.0
+    ps.v[3] .= 0.0
+
+    ps_bad_v = deepcopy(ps)
+    ps_bad_v.v[1][1] = NaN
+    @test_throws ArgumentError velocity_histogram(ps_bad_v, 1; nbins = 8)
+    @test_throws ArgumentError velocity_histogram(ps, 1; nbins = 8, vmin = NaN)
+
+    ps_bad_w = deepcopy(ps)
+    ps_bad_w.weight[1] = NaN
+    @test_throws ArgumentError velocity_histogram(ps_bad_w, 1; nbins = 8)
+
+    ps_bad_x = deepcopy(ps)
+    ps_bad_x.x[1][1] = NaN
+    @test_throws ArgumentError phase_space_histogram(ps_bad_x, 1, 1; nx = 4, nv = 4)
+    @test_throws ArgumentError phase_space_histogram(ps, 1, 1; nx = 4, nv = 4, xmin = NaN, xmax = 1.0)
+    @test_throws ArgumentError phase_space_histogram(ps_bad_w, 1, 1; nx = 4, nv = 4)
+end
