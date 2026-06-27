@@ -40,7 +40,7 @@ function particle_work!(
     Np = nparticles(ps)
     length(work) == Np ||
         throw(DimensionMismatch("work length $(length(work)) ≠ particle count $Np"))
-    dtT = T(dt)
+    dtT = _require_finite_real("dt", dt, T)
     q = ps.q
     # gather the three field components to each particle (transpose of deposit)
     Ep = ntuple(_ -> Vector{T}(undef, Np), 3)

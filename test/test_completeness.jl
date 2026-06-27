@@ -65,6 +65,12 @@ end
         particle_work!(work, ps, Egrid, g, shape, dt)
         @test maximum(abs.(work .- 2 .* ref)) < 1e-12
     end
+    poisoned = fill(T(7), N)
+    snapshot = copy(poisoned)
+    @test_throws ArgumentError particle_work!(poisoned, ps, Egrid, g, CIC(), NaN)
+    @test poisoned == snapshot
+    @test_throws ArgumentError particle_work!(poisoned, ps, Egrid, g, CIC(), Inf)
+    @test poisoned == snapshot
     # population total weighted by particle weight: Σ_p w_p q (v_p·E) dt
     shape = CIC()
     wwork = zeros(T, N)
