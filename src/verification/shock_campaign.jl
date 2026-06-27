@@ -102,6 +102,8 @@ function production_3d_case(;
     dt::Real = 0.03,
     seed::Integer = 1,
 )
+    nsteps_pre >= 0 || throw(ArgumentError("nsteps_pre must be non-negative"))
+    nsteps_post >= 0 || throw(ArgumentError("nsteps_post must be non-negative"))
     T = Float64
     sh, ps = _load_shock3d(; MA, nx, ny, nz, Lx, Ly, Lz, nppc, seed)
     for _ = 1:nsteps_pre
@@ -147,6 +149,7 @@ realization. `kwargs` (grid size, steps, …) are forwarded to
 [`run_perp_shock3d`](@ref).
 """
 function shock_campaign_3d(; MAs = (4.0, 6.0), seeds = (1, 2), kwargs...)
+    isempty(seeds) && throw(ArgumentError("seeds must be non-empty"))
     out = NamedTuple[]
     for MA in MAs
         n2s = Float64[]

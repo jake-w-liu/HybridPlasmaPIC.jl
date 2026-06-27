@@ -101,6 +101,20 @@ end
 end
 
 @testset "Shock3D physics: compression, flux-freezing, div-B, stability" begin
+    @test_throws ArgumentError run_perp_shock3d(;
+        MA = 3.0,
+        nx = 8,
+        ny = 4,
+        nz = 4,
+        Lx = 12.0,
+        Ly = 4.0,
+        Lz = 4.0,
+        nppc = 1,
+        nsteps = -1,
+        dt = 0.03,
+        seed = 1,
+    )
+
     # Modest grid for a fast but physically converged perpendicular shock at MA=3.
     r = run_perp_shock3d(;
         MA = 3.0,

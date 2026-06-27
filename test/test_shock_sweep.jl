@@ -12,6 +12,8 @@
 using HybridPlasmaPIC, Test, Statistics
 
 @testset "SHK-SWEEP perpendicular-shock Mach sweep" begin
+    @test_throws ArgumentError run_perp_shock(; MA = 4.0, nsteps = -1)
+
     MAs = (1.2, 2.0, 4.0)
     results = Dict{Float64,NamedTuple}()
     for MA in MAs

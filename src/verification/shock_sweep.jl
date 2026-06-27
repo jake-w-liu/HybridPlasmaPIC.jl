@@ -51,6 +51,7 @@ function run_perp_shock(;
     nsteps::Integer = 900,
     seed::Integer = 1,
 )
+    nsteps >= 0 || throw(ArgumentError("nsteps must be non-negative"))
     T = Float64
     LxT = T(Lx)
     B0 = one(T)

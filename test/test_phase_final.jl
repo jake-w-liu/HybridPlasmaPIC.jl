@@ -166,6 +166,10 @@ end
 end
 
 @testset "3-D shock restart + campaign + 1D/3D comparison" begin
+    @test_throws ArgumentError production_3d_case(; nsteps_pre = -1)
+    @test_throws ArgumentError production_3d_case(; nsteps_post = -1)
+    @test_throws ArgumentError shock_campaign_3d(; MAs = (4.0,), seeds = ())
+
     pc = production_3d_case(;
         MA = 4.0,
         nx = 40,
