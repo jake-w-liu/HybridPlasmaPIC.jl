@@ -8,12 +8,13 @@ arrays). Returns the number removed — the only sanctioned particle loss.
 """
 function apply_absorbing!(ps::ParticleSet{D,T}, lo::NTuple{D}, hi::NTuple{D}) where {D,T}
     N = nparticles(ps)
+    loT, hiT = _validated_open_interval(lo, hi, T)
     write = 0
     @inbounds for p = 1:N
         inside = true
         for d = 1:D
             xp = ps.x[d][p]
-            inside &= T(lo[d]) <= xp < T(hi[d])
+            inside &= loT[d] <= xp < hiT[d]
         end
         if inside
             write += 1

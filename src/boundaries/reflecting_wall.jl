@@ -8,9 +8,10 @@ the box and the normal velocity component is flipped. Count is unchanged.
 Assumes at most one reflection per step (true when |v·dt| < box length).
 """
 function apply_reflecting!(ps::ParticleSet{D,T}, lo::NTuple{D}, hi::NTuple{D}) where {D,T}
+    loT, hiT = _validated_open_interval(lo, hi, T)
     @inbounds for d = 1:D
-        l = T(lo[d])
-        h = T(hi[d])
+        l = loT[d]
+        h = hiT[d]
         xd = ps.x[d]
         vd = ps.v[d]
         for p in eachindex(xd)

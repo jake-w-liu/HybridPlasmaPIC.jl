@@ -302,6 +302,24 @@ end
     @test ps.v[1][1] == -1.0
 end
 
+@testset "particle boundaries reject invalid bounds" begin
+    function boundary_seed()
+        ps = ParticleSet{1,Float64}(2)
+        ps.x[1] .= [-0.2, 1.2]
+        ps.v[1] .= [1.0, -1.0]
+        return ps
+    end
+
+    @test_throws ArgumentError apply_periodic!(boundary_seed(), (0.0,), (NaN,))
+    @test_throws ArgumentError apply_periodic!(boundary_seed(), (1.0,), (0.0,))
+
+    @test_throws ArgumentError apply_reflecting!(boundary_seed(), (0.0,), (NaN,))
+    @test_throws ArgumentError apply_reflecting!(boundary_seed(), (1.0,), (0.0,))
+
+    @test_throws ArgumentError apply_absorbing!(boundary_seed(), (0.0,), (NaN,))
+    @test_throws ArgumentError apply_absorbing!(boundary_seed(), (1.0,), (0.0,))
+end
+
 @testset "ParticleSet custom arrays must use one-based axes" begin
     N = 3
     x_bad = (OffsetParticleVector(zeros(Float64, N), -2),)
