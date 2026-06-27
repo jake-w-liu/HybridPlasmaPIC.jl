@@ -7,6 +7,8 @@
 #
 # Serialization is already imported by checkpoint.jl (module-wide); no new dep.
 
+using Dates
+
 """
     RunMetadata
 
@@ -74,7 +76,7 @@ Build a [`RunMetadata`] for the current process. `git_commit` is read from
 `git rev-parse HEAD` (falls back to `"unknown"` outside a repo / no git).
 `project_hash`/`manifest_hash` hash this package's `Project.toml`/`Manifest.toml`
 if present (else `"absent"`). An empty `timestamp` is auto-filled with the
-current local time as a string.
+current UTC time as an ISO-ish string ending in `Z`.
 
 `rank_layout` records the MPI/distributed-memory topology used by the run. Leave
 it empty for the serial default, which is recorded as `ranks=1` rather than
@@ -101,8 +103,9 @@ function capture_metadata(;
     project_hash = _file_content_hash(joinpath(root, "Project.toml"))
     manifest_hash = _file_content_hash(joinpath(root, "Manifest.toml"))
 
-    # Base-only timestamp (avoids adding a Dates dependency): UTC, ISO-ish.
-    ts = isempty(timestamp) ? Libc.strftime("%Y-%m-%dT%H:%M:%SZ", time()) : String(timestamp)
+    ts = isempty(timestamp) ?
+         string(Dates.format(Dates.unix2datetime(time()), dateformat"yyyy-mm-ddTHH:MM:SS"), 'Z') :
+         String(timestamp)
 
     # Backend/hardware provenance. This solver runs on the CPU; the hardware
     # string combines the CPU model with the logical-thread count. Guard the

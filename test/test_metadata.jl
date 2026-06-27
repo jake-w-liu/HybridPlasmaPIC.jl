@@ -1,4 +1,5 @@
 using HybridPlasmaPIC, Test
+using Dates
 using Serialization
 
 @testset "RunMetadata / capture_metadata" begin
@@ -19,6 +20,7 @@ using Serialization
     @test meta.boundary_desc == "periodic"
     @test meta.diagnostic_desc == "energy+spectra"
     @test !isempty(meta.timestamp)             # auto-filled
+    @test endswith(meta.timestamp, "Z")
     @test meta.rank_layout == "serial;ranks=1;dims=(1);coords=(0);periodic=false"
     @test occursin("ranks=1", meta.rank_layout)
     # Hashes: either "absent" or a parseable hash string. In this repo Project.toml
@@ -41,6 +43,15 @@ using Serialization
     layout = "mpi;ranks=4;dims=(2,2);coords=(1,0);periodic=(true,false)"
     meta4 = capture_metadata(; rng_seed = 2, rank_layout = layout)
     @test meta4.rank_layout == layout
+end
+
+@testset "capture_metadata auto timestamp is UTC" begin
+    before = Dates.unix2datetime(time())
+    meta = capture_metadata(; rng_seed = 3)
+    after = Dates.unix2datetime(time())
+    parsed = DateTime(chop(meta.timestamp; tail = 1), dateformat"yyyy-mm-ddTHH:MM:SS")
+    @test endswith(meta.timestamp, "Z")
+    @test before - Second(1) <= parsed <= after + Second(1)
 end
 
 @testset "schema constant" begin
