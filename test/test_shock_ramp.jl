@@ -91,6 +91,12 @@ using HybridPlasmaPIC, Test, Statistics, Random
     end
 
     @testset "box_length_scan compression insensitivity" begin
+        @test_throws ArgumentError box_length_scan(; Lxs = (80.0,), N0 = 0)
+        @test_throws ArgumentError box_length_scan(; Lxs = (80.0,), N0 = -1)
+        @test_throws ArgumentError box_length_scan(; Lxs = (80.0,), Lx0 = 0.0)
+        @test_throws ArgumentError box_length_scan(; Lxs = (80.0,), Lx0 = Inf)
+        @test_throws ArgumentError box_length_scan(; Lxs = (80.0,), Lx0 = NaN)
+
         res = box_length_scan(;
             Lxs = (80.0, 120.0, 160.0),
             MA = 4.0,

@@ -185,10 +185,15 @@ function box_length_scan(;
     η::Real = 0.02,
     seed::Integer = 1,
 )
+    N0 >= 1 || throw(ArgumentError("N0 must be positive"))
+    T = Float64
+    Lx0T = T(Lx0)
+    isfinite(Lx0T) && Lx0T > zero(T) || throw(ArgumentError("Lx0 must be finite and positive"))
+    N0i = Int(N0)
     out = NamedTuple[]
     for Lx in Lxs
         # keep dx ≈ Lx0/N0 by scaling node count with the box length
-        Nb = max(64, round(Int, Int(N0) * (Lx / Lx0)))
+        Nb = max(64, round(Int, N0i * (T(Lx) / Lx0T)))
         r = run_perp_shock(;
             MA = MA,
             N = Nb,
