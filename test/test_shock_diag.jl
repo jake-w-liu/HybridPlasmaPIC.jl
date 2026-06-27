@@ -151,6 +151,25 @@ using HybridPlasmaPIC, Test
         mismatch_logger = CrossingLogger(T)
         @test_throws DimensionMismatch log_crossings!(mismatch_logger, ps, T[3.0])
         @test_throws DimensionMismatch log_crossings!(mismatch_logger, ps, T[])
+
+        poison_logger = CrossingLogger(T)
+        ps.x[1] .= [2.0, 8.0]
+        ps.v[1] .= [1.0, 0.0]
+        ps.v[2] .= [0.0, 0.0]
+        ps.v[3] .= [0.0, 0.0]
+        @test log_crossings!(poison_logger, ps, 3.0) == 0
+        @test_throws ArgumentError log_crossings!(poison_logger, ps, NaN)
+        ps.x[1] .= [4.0, 8.0]
+        ps.v[2] .= [2.0, 0.0]
+        @test log_crossings!(poison_logger, ps, 3.0) == 1
+        @test crossing_count(poison_logger) == 1
+
+        bad_ps = ParticleSet{1,T}(1)
+        bad_ps.x[1][1] = NaN
+        bad_ps.v[1][1] = 1.0
+        bad_ps.v[2][1] = 0.0
+        bad_ps.v[3][1] = 0.0
+        @test_throws ArgumentError log_crossings!(CrossingLogger(T), bad_ps, 1.0)
     end
 
     # ---------------- normal_incidence_frame ----------------------------------
@@ -181,6 +200,9 @@ using HybridPlasmaPIC, Test
 
         # degenerate normal
         @test normal_incidence_frame(u, B, (0.0, 0.0, 0.0)) == (0.0, 0.0, 0.0)
+        @test_throws ArgumentError normal_incidence_frame((NaN, 1.0, 0.0), B, n_hat)
+        @test_throws ArgumentError normal_incidence_frame(u, (Inf, 0.0, 1.0), n_hat)
+        @test_throws ArgumentError normal_incidence_frame(u, B, (NaN, 0.0, 0.0))
     end
 
     # ---------------- boundary_reflection_fraction ----------------------------
@@ -204,6 +226,10 @@ using HybridPlasmaPIC, Test
         @test boundary_reflection_fraction(sh, ps2; ncells = ncells) == 0.0
         @test_throws ArgumentError boundary_reflection_fraction(sh, ps; ncells = 0)
         @test_throws ArgumentError boundary_reflection_fraction(sh, ps; ncells = -1)
+        ps_bad = ParticleSet{1,T}(2)
+        ps_bad.x[1] .= [NaN, Lx]
+        ps_bad.v[1] .= [1.0, -1.0]
+        @test_throws ArgumentError boundary_reflection_fraction(sh, ps_bad; ncells = ncells)
     end
 
     @testset "boundary_reflection_fraction matches the count (2D)" begin
@@ -284,5 +310,13 @@ using HybridPlasmaPIC, Test
         )
         @test sum(Fe[i] * sh.s.H[i] for i = 1:N) ≈ moment rtol = 1e-12
         @test all(isfinite, Fe)
+
+        ps_bad = ParticleSet{1,Float64}(1)
+        ps_bad.x[1][1] = Lx
+        ps_bad.v[1][1] = 1.0
+        ps_bad.v[2][1] = NaN
+        ps_bad.v[3][1] = 0.0
+        ps_bad.weight[1] = 1.0
+        @test_throws ArgumentError boundary_energy_flux(sh; ps = ps_bad)
     end
 end

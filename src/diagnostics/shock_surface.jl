@@ -84,6 +84,11 @@ function _ion_energy_flux(sh::PerpShock{T}, ps::ParticleSet{1,T}) where {T}
     vy = ps.v[2]
     vz = ps.v[3]
     w = ps.weight
+    _require_finite_real_sequence("particle positions", xp)
+    _require_finite_real_sequence("particle velocities vx", vx)
+    _require_finite_real_sequence("particle velocities vy", vy)
+    _require_finite_real_sequence("particle velocities vz", vz)
+    _require_finite_real_sequence("particle weights", w)
     @inbounds for p in eachindex(w)
         a, b, wa, wb = _cic_sbp(xp[p], dx, N)
         keflux = T(0.5) * (vx[p]^2 + vy[p]^2 + vz[p]^2) * vx[p] * w[p]
@@ -210,12 +215,20 @@ without counting a crossing (no previous offset to compare).
 function log_crossings!(logger::CrossingLogger{T}, ps::ParticleSet{D,T}, x_surface) where {D,T}
     x = ps.x[1]
     ids = ps.id
+    _require_finite_real_sequence("particle positions", x)
+    _require_finite_real_sequence("particle velocities vx", ps.v[1])
+    _require_finite_real_sequence("particle velocities vy", ps.v[2])
+    _require_finite_real_sequence("particle velocities vz", ps.v[3])
     nnew = 0
-    if x_surface isa AbstractVector
+    surf = if x_surface isa AbstractVector
         length(x_surface) == length(ids) ||
             throw(DimensionMismatch("x_surface length must match the particle count"))
+        _require_finite_real_sequence("x_surface", x_surface)
+        p -> T(x_surface[p])
+    else
+        xsurf = _require_finite_real("x_surface", x_surface, T)
+        _ -> xsurf
     end
-    surf(p) = x_surface isa AbstractVector ? T(x_surface[p]) : T(x_surface)
     @inbounds for p in eachindex(ids)
         id = ids[p]
         off = x[p] - surf(p)
@@ -272,6 +285,10 @@ end
 
 function _refl_frac(x::Vector{T}, vx::Vector{T}, Lx::T, dx::T, ncells::Integer) where {T}
     ncells >= 1 || throw(ArgumentError("ncells must be positive"))
+    _require_finite_real_sequence("particle positions", x)
+    _require_finite_real_sequence("particle velocities", vx)
+    Lx = _require_finite_real("Lx", Lx, T)
+    dx = _require_finite_positive_real("dx", dx, T)
     edge = Lx - T(ncells) * dx
     inband = 0
     back = 0
@@ -303,13 +320,14 @@ so the flow seen in the NIF is `u − V_NIF = (u·n̂) n̂`, which is parallel t
 returns the zero vector (frame undefined).
 """
 function normal_incidence_frame(u::NTuple{3,<:Real}, B::NTuple{3,<:Real}, n_hat::NTuple{3,<:Real})
-    nx, ny, nz = n_hat
+    ux, uy, uz = _require_finite_point3("u", u, Float64)
+    _require_finite_point3("B", B, Float64)
+    nx, ny, nz = _require_finite_point3("n_hat", n_hat, Float64)
     n2 = nx * nx + ny * ny + nz * nz
     if n2 == 0
         z = zero(float(n2))
         return (z, z, z)
     end
-    ux, uy, uz = u
     udotn = (ux * nx + uy * ny + uz * nz) / n2   # (u·n̂)/|n̂| in units of /|n̂|
     # tangential part of u = u − (u·n̂)n̂  (n̂ = n_hat/|n_hat|)
     return (ux - udotn * nx, uy - udotn * ny, uz - udotn * nz)
