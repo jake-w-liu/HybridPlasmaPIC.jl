@@ -107,6 +107,10 @@ end
     @test_throws ArgumentError compare_to_reference((; a = 1.0), (; a = 1.0); atol = -1.0)
     @test_throws ArgumentError compare_to_reference((; a = 1.0), (; a = 1.0); atol = NaN)
     @test_throws ArgumentError compare_to_reference((; a = 1.0), (; a = 1.0); atol = Inf)
+    @test_throws ArgumentError compare_to_reference((; a = 1.0), (; a = NaN))
+    @test_throws ArgumentError compare_to_reference((; a = 1.0), (; a = Inf))
+    @test_throws ArgumentError compare_to_reference((; a = NaN), (; a = 1.0))
+    @test_throws ArgumentError compare_to_reference((; a = Inf), (; a = 1.0))
     @test_throws ArgumentError reproduce_established_shock(; rtol = Inf, N = 64, nsteps = 1)
     re = reproduce_established_shock(; MA = 3.0, N = 256, nsteps = 500)
     @test re.pass

@@ -19,6 +19,12 @@ function _require_finite_nonnegative_tolerance(name::AbstractString, value::Real
     return v
 end
 
+function _require_finite_comparison_value(kind::AbstractString, key::Symbol, value)
+    v = Float64(value)
+    isfinite(v) || throw(ArgumentError("$kind field $key must be finite"))
+    return v
+end
+
 """
     compare_to_reference(measured::NamedTuple, reference::NamedTuple;
                          rtol=0.1, atol=0.0) -> (; pass, maxrelerr, details)
@@ -42,14 +48,14 @@ function compare_to_reference(
     pass = true
     maxrelerr = 0.0
     for key in keys(reference)
-        ref = Float64(getfield(reference, key))
+        ref = _require_finite_comparison_value("reference", key, getfield(reference, key))
         if !hasproperty(measured, key)
             push!(details, (key, NaN, ref, Inf, false))
             pass = false
             maxrelerr = Inf
             continue
         end
-        mv = Float64(getfield(measured, key))
+        mv = _require_finite_comparison_value("measured", key, getfield(measured, key))
         denom = max(abs(ref), atolT)
         relerr = denom == 0 ? abs(mv - ref) : abs(mv - ref) / denom
         ok = abs(mv - ref) <= atolT + rtolT * abs(ref)
