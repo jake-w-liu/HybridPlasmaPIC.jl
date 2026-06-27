@@ -39,6 +39,14 @@ end
     @test abs(r.speed - V) < 1e-9
     @test norm(collect(r.normal) .- collect(n̂)) < 1e-9
 
+    # Degenerate zero-slowness timing: identical crossing times imply undefined
+    # normal and phase speed, so the API should return invalid markers rather
+    # than a misleading infinite speed.
+    rdeg = four_spacecraft_timing(pos, (1.0, 1.0, 1.0, 1.0))
+    @test isnan(rdeg.speed)
+    @test all(isnan, Tuple(rdeg.normal))
+    @test all(isnan, Tuple(rdeg.slowness))
+
     # crossing_time linear interpolation: level 0.5 between (t=0,v=0) and (t=1,v=1)
     @test crossing_time([0.0, 1.0, 2.0], [0.0, 1.0, 2.0], 0.5) ≈ 0.5 atol = 1e-12
     # level 1.0 between (t=1,v=0.5) and (t=2,v=2.0): t = 1 + (0.5/1.5) = 1.3333…

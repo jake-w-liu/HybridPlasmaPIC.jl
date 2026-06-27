@@ -210,7 +210,11 @@ function four_spacecraft_timing(positions::NTuple{4,NTuple{3,<:Real}}, times::NT
     mx = _det3(b1, a12, a13, b2, a22, a23, b3, a32, a33) / det
     my = _det3(a11, b1, a13, a21, b2, a23, a31, b3, a33) / det
     mz = _det3(a11, a12, b1, a21, a22, b2, a31, a32, b3) / det
-    sp = 1.0 / sqrt(mx * mx + my * my + mz * mz)
+    m2 = mx * mx + my * my + mz * mz
+    if !(m2 > 0.0 && isfinite(m2))
+        return (; normal = (NaN, NaN, NaN), speed = NaN, slowness = (NaN, NaN, NaN))
+    end
+    sp = 1.0 / sqrt(m2)
     n̂ = (mx * sp, my * sp, mz * sp)
     return (; normal = n̂, speed = sp, slowness = (mx, my, mz))
 end
