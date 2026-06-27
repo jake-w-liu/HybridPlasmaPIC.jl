@@ -130,4 +130,9 @@ end
     xs, width = shock_front(Bz, x)
     @test abs(xs - x0) < 2 * (L / n)                        # within a cell of x0
     @test isapprox(width, 2w; rtol = 0.05)                  # tanh full width = 2w
+
+    @test_throws ArgumentError shock_front(T[], T[])
+    @test_throws DimensionMismatch shock_front([1.0, 2.0], [0.0])
+    @test_throws ArgumentError shock_front([1.0, 2.0], [0.0, 0.0])
+    @test_throws ArgumentError shock_front([1.0, 2.0], [1.0, 0.0])
 end

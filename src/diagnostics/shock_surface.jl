@@ -319,10 +319,14 @@ Shock-front position (steepest |∂Bz/∂x|) and ramp width
 """
 function shock_front(Bz::AbstractVector{T}, x::AbstractVector{T}) where {T}
     n = length(Bz)
+    n > 0 || throw(ArgumentError("Bz and x must be nonempty"))
+    length(x) == n || throw(DimensionMismatch("Bz and x must have the same length"))
     gmax = zero(T)
     im = 1
     @inbounds for i = 2:n
-        gx = abs(Bz[i] - Bz[i-1]) / (x[i] - x[i-1])
+        dx = x[i] - x[i-1]
+        dx > zero(T) || throw(ArgumentError("x must be strictly increasing"))
+        gx = abs(Bz[i] - Bz[i-1]) / dx
         gx > gmax && (gmax = gx; im = i)
     end
     bz_down = Bz[1]
