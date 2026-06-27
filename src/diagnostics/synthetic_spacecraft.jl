@@ -165,7 +165,7 @@ function crossing_time(ts::AbstractVector, vals::AbstractVector, level::Real)
             return Float64(ts[i]) + f * (Float64(ts[i+1]) - Float64(ts[i]))
         end
     end
-    return NaN
+    return n > 0 && vals[end] == level ? Float64(ts[end]) : NaN
 end
 
 """

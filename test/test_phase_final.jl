@@ -43,6 +43,9 @@ end
     @test crossing_time([0.0, 1.0, 2.0], [0.0, 1.0, 2.0], 0.5) ≈ 0.5 atol = 1e-12
     # level 1.0 between (t=1,v=0.5) and (t=2,v=2.0): t = 1 + (0.5/1.5) = 1.3333…
     @test crossing_time([0.0, 1.0, 2.0], [0.0, 0.5, 2.0], 1.0) ≈ 4 / 3 atol = 1e-12
+    # exact level hits at the final sample are valid crossings, not "not found"
+    @test crossing_time([0.0, 1.0], [0.2, 1.0], 1.0) ≈ 1.0 atol = 1e-12
+    @test crossing_time([0.0, 1.0, 2.0], [0.0, 0.5, 1.0], 1.0) ≈ 2.0 atol = 1e-12
     @test isnan(crossing_time([0.0, 1.0], [0.0, 0.5], 2.0))
 
     # synthetic traces from a real 3-D shock recover normal ≈ x̂
