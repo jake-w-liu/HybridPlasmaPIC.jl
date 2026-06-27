@@ -252,6 +252,7 @@ function four_spacecraft_traces(;
 )
     nsteps >= 1 || throw(ArgumentError("nsteps must be positive"))
     T = Float64
+    _require_valid_positive_shock_ma(MA, T)
     B0 = one(T)
     sh, ps = _load_shock3d(; MA, nx, ny, nz, Lx, Ly, Lz, nppc, seed)
 
