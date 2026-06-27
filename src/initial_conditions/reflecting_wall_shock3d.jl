@@ -631,9 +631,11 @@ function run_perp_shock3d(;
     nppc >= 1 || throw(ArgumentError("nppc must be positive"))
     nsteps >= 0 || throw(ArgumentError("nsteps must be non-negative"))
     T = Float64
+    MAT = T(MA)
+    isfinite(MAT) && MAT > zero(T) || throw(ArgumentError("MA must be finite and positive"))
     B0 = one(T)
     vA = one(T)
-    U0 = T(MA) * vA
+    U0 = MAT * vA
     vth = T(vthi)
     sh, ps = _load_shock3d(; MA, nx, ny, nz, Lx, Ly, Lz, Te, γe, vthi, η, nppc, seed, db_turb)
 
