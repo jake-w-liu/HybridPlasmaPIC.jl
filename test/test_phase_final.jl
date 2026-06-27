@@ -68,6 +68,11 @@ end
     @test isnan(crossing_time([0.0, 1.0], [0.0, 0.5], 2.0))
     @test_throws DimensionMismatch crossing_time([0.0], [0.0, 1.0], 0.5)
     @test_throws DimensionMismatch crossing_time([0.0, 1.0], [0.0], 0.5)
+    @test_throws ArgumentError crossing_time([0.0, NaN], [0.0, 1.0], 0.5)
+    @test_throws ArgumentError crossing_time([0.0, 1.0], [0.0, Inf], 0.5)
+    @test_throws ArgumentError crossing_time([0.0, 1.0], [0.0, 1.0], NaN)
+    @test_throws ArgumentError four_spacecraft_timing(pos, (0.0, NaN, 2.0, 3.0))
+    @test_throws ArgumentError four_spacecraft_timing(((0.0, 0.0, 0.0), (Inf, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0)), times)
     @test_throws ArgumentError four_spacecraft_traces(nsteps = 0)
     @test_throws ArgumentError four_spacecraft_traces(nsteps = -1)
     @test_throws ArgumentError four_spacecraft_traces(; MA = 0.0, nx = 8, ny = 4, nz = 4, Lx = 12.0, Ly = 4.0, Lz = 4.0, nppc = 1, nsteps = 1, dt = 0.03, seed = 1)
@@ -76,6 +81,8 @@ end
     @test_throws ArgumentError four_spacecraft_traces(; MA = Inf, nx = 8, ny = 4, nz = 4, Lx = 12.0, Ly = 4.0, Lz = 4.0, nppc = 1, nsteps = 1, dt = 0.03, seed = 1)
     @test_throws ArgumentError four_spacecraft_traces(; MA = 3.0, nx = 8, ny = 4, nz = 4, Lx = 12.0, Ly = 4.0, Lz = 4.0, nppc = 1, nsteps = 1, dt = 0.03, seed = 1, level = NaN)
     @test_throws ArgumentError four_spacecraft_traces(; MA = 3.0, nx = 8, ny = 4, nz = 4, Lx = 12.0, Ly = 4.0, Lz = 4.0, nppc = 1, nsteps = 1, dt = 0.03, seed = 1, level = Inf)
+    @test_throws ArgumentError four_spacecraft_traces(; MA = 3.0, nx = 8, ny = 4, nz = 4, Lx = 12.0, Ly = 4.0, Lz = 4.0, nppc = 1, nsteps = 1, dt = 0.03, seed = 1, probes = ((NaN, 1.0, 1.0), (8.0, 8.0, 1.0), (8.0, 1.0, 8.0), (11.0, 4.0, 4.0)))
+    @test_throws ArgumentError four_spacecraft_traces(; MA = 3.0, nx = 8, ny = 4, nz = 4, Lx = 12.0, Ly = 4.0, Lz = 4.0, nppc = 1, nsteps = 1, dt = 0.03, seed = 1, probes = ((5.0, 1.0, 1.0), (Inf, 8.0, 1.0), (8.0, 1.0, 8.0), (11.0, 4.0, 4.0)))
     fs_kw = four_spacecraft_traces(;
         MA = 3.0,
         nx = 8,

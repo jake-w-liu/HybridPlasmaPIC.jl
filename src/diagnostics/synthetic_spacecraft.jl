@@ -155,8 +155,28 @@ First linear-interpolated time at which the time series `vals` crosses `level`
 (either direction). Returns `NaN` if no crossing exists. The building block for
 multi-spacecraft timing of a boundary crossing.
 """
+function _require_finite_real_sequence(name::AbstractString, xs)
+    @inbounds for i in eachindex(xs)
+        x = xs[i]
+        x isa Real || throw(ArgumentError("$(name) must contain real values"))
+        isfinite(x) || throw(ArgumentError("$(name) must contain only finite values"))
+    end
+    return xs
+end
+
+@inline function _require_finite_point3(name::AbstractString, p, ::Type{T}) where {T<:AbstractFloat}
+    return (
+        _require_finite_real("$(name)[1]", p[1], T),
+        _require_finite_real("$(name)[2]", p[2], T),
+        _require_finite_real("$(name)[3]", p[3], T),
+    )
+end
+
 function crossing_time(ts::AbstractVector, vals::AbstractVector, level::Real)
     length(ts) == length(vals) || throw(DimensionMismatch("ts and vals must have the same length"))
+    _require_finite_real_sequence("ts", ts)
+    _require_finite_real_sequence("vals", vals)
+    level = _require_finite_real("level", level, Float64)
     n = length(vals)
     @inbounds for i = 1:n-1
         a = vals[i] - level
@@ -186,11 +206,13 @@ boundary motion), else the 3×3 system is singular and the result is non-finite.
     a11 * (a22 * a33 - a23 * a32) - a12 * (a21 * a33 - a23 * a31) + a13 * (a21 * a32 - a22 * a31)
 
 function four_spacecraft_timing(positions::NTuple{4,NTuple{3,<:Real}}, times::NTuple{4,<:Real})
-    r0 = positions[1]
-    t0 = times[1]
-    r1 = positions[2]
-    r2 = positions[3]
-    r3 = positions[4]
+    pos = ntuple(i -> _require_finite_point3("positions[$i]", positions[i], Float64), 4)
+    ts = ntuple(i -> _require_finite_real("times[$i]", times[i], Float64), 4)
+    r0 = pos[1]
+    t0 = ts[1]
+    r1 = pos[2]
+    r2 = pos[3]
+    r3 = pos[4]
     a11 = Float64(r1[1]) - Float64(r0[1])
     a12 = Float64(r1[2]) - Float64(r0[2])
     a13 = Float64(r1[3]) - Float64(r0[3])
@@ -200,9 +222,9 @@ function four_spacecraft_timing(positions::NTuple{4,NTuple{3,<:Real}}, times::NT
     a31 = Float64(r3[1]) - Float64(r0[1])
     a32 = Float64(r3[2]) - Float64(r0[2])
     a33 = Float64(r3[3]) - Float64(r0[3])
-    b1 = Float64(times[2]) - Float64(t0)
-    b2 = Float64(times[3]) - Float64(t0)
-    b3 = Float64(times[4]) - Float64(t0)
+    b1 = ts[2] - t0
+    b2 = ts[3] - t0
+    b3 = ts[4] - t0
     det = _det3(a11, a12, a13, a21, a22, a23, a31, a32, a33)
     if det == 0.0
         return (; normal = (NaN, NaN, NaN), speed = NaN, slowness = (NaN, NaN, NaN))
@@ -262,6 +284,7 @@ function four_spacecraft_traces(;
     T = Float64
     _require_valid_positive_shock_ma(MA, T)
     B0 = one(T)
+    probesT = ntuple(i -> _require_finite_point3("probes[$i]", probes[i], T), 4)
     sh, ps = _load_shock3d(; MA, nx, ny, nz, Lx, Ly, Lz, Te, γe, vthi, η, nppc, seed, db_turb)
 
     traces = ntuple(_ -> Float64[], 4)
@@ -271,15 +294,15 @@ function four_spacecraft_traces(;
         step_shock3d!(sh, ps, T(dt); NB = 2, field_method = field_method)
         push!(times, st * T(dt))
         for q = 1:4
-            xp, yp, zp = probes[q]
-            v = _gather3d(sh.B[3], T(xp), T(yp), T(zp), dx, sh.dy, sh.dz, nx, ny, nz)
+            xp, yp, zp = probesT[q]
+            v = _gather3d(sh.B[3], xp, yp, zp, dx, sh.dy, sh.dz, nx, ny, nz)
             push!(traces[q], v)
         end
     end
     lvl = level === nothing ? (B0 + maximum(maximum, traces)) / 2 : _require_finite_real("level", level, T)
     crossings = ntuple(q -> crossing_time(times, traces[q], lvl), 4)
     res =
-        all(isfinite, crossings) ? four_spacecraft_timing(probes, crossings) :
+        all(isfinite, crossings) ? four_spacecraft_timing(probesT, crossings) :
         (; normal = (NaN, NaN, NaN), speed = NaN, slowness = (NaN, NaN, NaN))
     return (; traces, times, crossings, normal = res.normal, speed = res.speed)
 end
