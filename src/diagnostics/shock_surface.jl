@@ -211,6 +211,10 @@ function log_crossings!(logger::CrossingLogger{T}, ps::ParticleSet{D,T}, x_surfa
     x = ps.x[1]
     ids = ps.id
     nnew = 0
+    if x_surface isa AbstractVector
+        length(x_surface) == length(ids) ||
+            throw(DimensionMismatch("x_surface length must match the particle count"))
+    end
     surf(p) = x_surface isa AbstractVector ? T(x_surface[p]) : T(x_surface)
     @inbounds for p in eachindex(ids)
         id = ids[p]

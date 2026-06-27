@@ -147,6 +147,10 @@ using HybridPlasmaPIC, Test
         @test log_crossings!(logger, ps, surf) == 1
         @test crossing_count(logger) == 1
         @test energy_gain(logger) ≈ 2.0
+
+        mismatch_logger = CrossingLogger(T)
+        @test_throws DimensionMismatch log_crossings!(mismatch_logger, ps, T[3.0])
+        @test_throws DimensionMismatch log_crossings!(mismatch_logger, ps, T[])
     end
 
     # ---------------- normal_incidence_frame ----------------------------------
