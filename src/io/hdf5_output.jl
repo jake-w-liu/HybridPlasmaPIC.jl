@@ -110,8 +110,13 @@ inside the task). After `wait`, `Serialization.deserialize(path)` returns a valu
 This is deliberately lighter than [`save_run`](@ref): it stages a raw
 Serialization dump with no schema/checksum wrapper, intended for transient
 output staging where the goal is to get bytes off the hot path quickly.
+
+`async_save` snapshots `state` before spawning the write, so mutations made by
+the caller after `async_save(path, state)` returns do not race or leak into the
+serialized file.
 """
 function async_save(path::AbstractString, state)
     p = String(path)
-    return Threads.@spawn serialize(p, state)
+    payload = deepcopy(state)
+    return Threads.@spawn serialize(p, payload)
 end

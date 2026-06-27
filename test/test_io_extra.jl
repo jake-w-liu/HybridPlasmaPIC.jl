@@ -106,6 +106,21 @@ end
     end
 end
 
+@testset "async_save snapshots state at call time" begin
+    state = (a = fill(1.0, 100_000), nested = ([3.0, 4.0],), step = 9)
+    mktemp() do path, io
+        close(io)
+        task = async_save(path, state)
+        fill!(state.a, 2.0)
+        state.nested[1][1] = -7.0
+        wait(task)
+        loaded = deserialize(path)
+        @test all(==(1.0), loaded.a)
+        @test loaded.nested[1] == [3.0, 4.0]
+        @test loaded.step == 9
+    end
+end
+
 @testset "capture_metadata backend/hardware fields" begin
     meta = capture_metadata(; rng_seed = 1)
     @test meta.backend == "CPU"
