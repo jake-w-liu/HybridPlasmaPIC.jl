@@ -74,6 +74,8 @@ end
     @test_throws ArgumentError four_spacecraft_traces(; MA = -1.0, nx = 8, ny = 4, nz = 4, Lx = 12.0, Ly = 4.0, Lz = 4.0, nppc = 1, nsteps = 1, dt = 0.03, seed = 1)
     @test_throws ArgumentError four_spacecraft_traces(; MA = NaN, nx = 8, ny = 4, nz = 4, Lx = 12.0, Ly = 4.0, Lz = 4.0, nppc = 1, nsteps = 1, dt = 0.03, seed = 1)
     @test_throws ArgumentError four_spacecraft_traces(; MA = Inf, nx = 8, ny = 4, nz = 4, Lx = 12.0, Ly = 4.0, Lz = 4.0, nppc = 1, nsteps = 1, dt = 0.03, seed = 1)
+    @test_throws ArgumentError four_spacecraft_traces(; MA = 3.0, nx = 8, ny = 4, nz = 4, Lx = 12.0, Ly = 4.0, Lz = 4.0, nppc = 1, nsteps = 1, dt = 0.03, seed = 1, level = NaN)
+    @test_throws ArgumentError four_spacecraft_traces(; MA = 3.0, nx = 8, ny = 4, nz = 4, Lx = 12.0, Ly = 4.0, Lz = 4.0, nppc = 1, nsteps = 1, dt = 0.03, seed = 1, level = Inf)
     fs_kw = four_spacecraft_traces(;
         MA = 3.0,
         nx = 8,
