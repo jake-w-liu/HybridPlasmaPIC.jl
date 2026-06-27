@@ -13,6 +13,12 @@
 # quantified PASS/FAIL — only the external code's data (not bundled here) is
 # needed for a code-to-code comparison.
 
+function _require_finite_nonnegative_tolerance(name::AbstractString, value::Real)
+    v = Float64(value)
+    isfinite(v) && v >= 0 || throw(ArgumentError("$name must be finite and non-negative"))
+    return v
+end
+
 """
     compare_to_reference(measured::NamedTuple, reference::NamedTuple;
                          rtol=0.1, atol=0.0) -> (; pass, maxrelerr, details)
@@ -30,6 +36,8 @@ function compare_to_reference(
     rtol::Real = 0.1,
     atol::Real = 0.0,
 )
+    rtolT = _require_finite_nonnegative_tolerance("rtol", rtol)
+    atolT = _require_finite_nonnegative_tolerance("atol", atol)
     details = Tuple{Symbol,Float64,Float64,Float64,Bool}[]
     pass = true
     maxrelerr = 0.0
@@ -42,9 +50,9 @@ function compare_to_reference(
             continue
         end
         mv = Float64(getfield(measured, key))
-        denom = max(abs(ref), atol)
+        denom = max(abs(ref), atolT)
         relerr = denom == 0 ? abs(mv - ref) : abs(mv - ref) / denom
-        ok = abs(mv - ref) <= atol + rtol * abs(ref)
+        ok = abs(mv - ref) <= atolT + rtolT * abs(ref)
         pass &= ok
         maxrelerr = max(maxrelerr, relerr)
         push!(details, (key, mv, ref, relerr, ok))
@@ -73,14 +81,15 @@ function reproduce_established_shock(;
     rtol::Real = 0.06,
     run_kwargs...,
 )
+    rtolT = _require_finite_nonnegative_tolerance("rtol", rtol)
     r = run_perp_shock(; MA = MA, γe = γe, run_kwargs...)
     measured = (; frozen_ratio = r.frozen_ratio)
     reference = (; frozen_ratio = 1.0)               # established flux-freezing
-    cmp = compare_to_reference(measured, reference; rtol = rtol)
+    cmp = compare_to_reference(measured, reference; rtol = rtolT)
     # established kinetic ordering: 1 < n₂ ≤ strong-shock fluid maximum (γ+1)/(γ-1).
     # (Uses the robust thermodynamic compression ceiling rather than the
     # front-speed-fit-dependent RH value, which is noisy at modest run lengths.)
     Xmax = (γe + 1) / (γe - 1)
-    ordering_ok = isfinite(r.n2) && 1 < r.n2 < Xmax * (1 + rtol)
+    ordering_ok = isfinite(r.n2) && 1 < r.n2 < Xmax * (1 + rtolT)
     return (; pass = cmp.pass && ordering_ok, measured = r, reference, comparison = cmp)
 end

@@ -40,6 +40,27 @@ using HybridPlasmaPIC, Test
     end
 
     @testset "convergence_study: Δx and ppc convergence at M_A=4" begin
+        @test_throws ArgumentError convergence_study(;
+            MA = 4.0,
+            Ns = (64, 128),
+            ppcs = (2, 4),
+            nsteps = 1,
+            tol = -0.1,
+        )
+        @test_throws ArgumentError convergence_study(;
+            MA = 4.0,
+            Ns = (64, 128),
+            ppcs = (2, 4),
+            nsteps = 1,
+            tol = NaN,
+        )
+        @test_throws ArgumentError convergence_study(;
+            MA = 4.0,
+            Ns = (64, 128),
+            ppcs = (2, 4),
+            nsteps = 1,
+            tol = Inf,
+        )
         cv = convergence_study(; MA = 4.0, Ns = (256, 512), ppcs = (32, 64), nsteps = 500)
         @info "convergence_study" n2_base = round(cv.n2_base, digits = 3) n2_fine_N =
             round(cv.n2_fine_N, digits = 3) n2_fine_ppc = round(cv.n2_fine_ppc, digits = 3) rel_grid =

@@ -101,6 +101,13 @@ end
     @test compare_to_reference((; a = 1.0, b = 2.05), (; a = 1.0, b = 2.0); rtol = 0.05).pass
     @test !compare_to_reference((; a = 1.0, b = 2.5), (; a = 1.0, b = 2.0); rtol = 0.05).pass
     @test !compare_to_reference((; a = 1.0), (; b = 2.0); rtol = 0.05).pass    # missing field
+    @test_throws ArgumentError compare_to_reference((; a = 1.0), (; a = 1.0); rtol = -0.1)
+    @test_throws ArgumentError compare_to_reference((; a = 1.0), (; a = 1.0); rtol = NaN)
+    @test_throws ArgumentError compare_to_reference((; a = 1.0), (; a = 1.0); rtol = Inf)
+    @test_throws ArgumentError compare_to_reference((; a = 1.0), (; a = 1.0); atol = -1.0)
+    @test_throws ArgumentError compare_to_reference((; a = 1.0), (; a = 1.0); atol = NaN)
+    @test_throws ArgumentError compare_to_reference((; a = 1.0), (; a = 1.0); atol = Inf)
+    @test_throws ArgumentError reproduce_established_shock(; rtol = Inf, N = 64, nsteps = 1)
     re = reproduce_established_shock(; MA = 3.0, N = 256, nsteps = 500)
     @test re.pass
     @test abs(re.measured.frozen_ratio - 1) < 0.06

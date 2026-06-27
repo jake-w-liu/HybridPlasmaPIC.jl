@@ -106,6 +106,8 @@ function convergence_study(;
 )
     length(Ns) == 2 || throw(ArgumentError("Ns must hold exactly two resolutions"))
     length(ppcs) == 2 || throw(ArgumentError("ppcs must hold exactly two ppc values"))
+    tolT = Float64(tol)
+    isfinite(tolT) && tolT >= 0 || throw(ArgumentError("tol must be finite and non-negative"))
     Nlo, Nhi = Int(Ns[1]), Int(Ns[2])
     plo, phi = Int(ppcs[1]), Int(ppcs[2])
 
@@ -145,6 +147,6 @@ function convergence_study(;
         rel_grid = rel_grid,
         rel_ppc = rel_ppc,
         rel_max = rel_max,
-        converged = rel_max <= tol,
+        converged = rel_max <= tolT,
     )
 end
