@@ -220,15 +220,17 @@ function four_spacecraft_timing(positions::NTuple{4,NTuple{3,<:Real}}, times::NT
 end
 
 """
-    four_spacecraft_traces(; MA=3.0, probes, level=nothing, run_kwargs...)
+    four_spacecraft_traces(; MA=3.0, probes, level=nothing, ...)
         -> (; traces, times, crossings, normal, speed)
 
-Run a 3-D perpendicular shock ([`run_perp_shock3d`](@ref) keywords forwarded via
-`run_kwargs`) while recording the perpendicular field `B_z` at four virtual
-spacecraft `probes` (a `NTuple{4,NTuple{3}}` of (x,y,z) positions), then recover
-the shock normal and speed by [`four_spacecraft_timing`](@ref) of the `B_z`
-half-rise crossings. For the planar perpendicular shock the recovered normal is
-≈ x̂. `level` defaults to the midpoint between B0 and the downstream peak.
+Run a 3-D perpendicular shock while recording the perpendicular field `B_z` at
+four virtual spacecraft `probes` (a `NTuple{4,NTuple{3}}` of (x,y,z)
+positions), then recover the shock normal and speed by
+[`four_spacecraft_timing`](@ref) of the `B_z` half-rise crossings. The physical
+controls `Te`, `γe`, `vthi`, `η`, `db_turb`, and `field_method` match
+[`run_perp_shock3d`](@ref). For the planar perpendicular shock the recovered
+normal is ≈ x̂. `level` defaults to the midpoint between B0 and the downstream
+peak.
 """
 function four_spacecraft_traces(;
     MA::Real = 3.0,
@@ -242,6 +244,12 @@ function four_spacecraft_traces(;
     nsteps::Integer = 420,
     dt::Real = 0.03,
     seed::Integer = 1,
+    Te::Real = 0.125,
+    γe::Real = 5 / 3,
+    vthi::Real = 0.35,
+    η::Real = 0.02,
+    db_turb::Real = 0.0,
+    field_method::Symbol = :rk4,
     probes::NTuple{4,NTuple{3,<:Real}} = (
         (5.0, 1.0, 1.0),
         (8.0, 8.0, 1.0),
@@ -254,13 +262,13 @@ function four_spacecraft_traces(;
     T = Float64
     _require_valid_positive_shock_ma(MA, T)
     B0 = one(T)
-    sh, ps = _load_shock3d(; MA, nx, ny, nz, Lx, Ly, Lz, nppc, seed)
+    sh, ps = _load_shock3d(; MA, nx, ny, nz, Lx, Ly, Lz, Te, γe, vthi, η, nppc, seed, db_turb)
 
     traces = ntuple(_ -> Float64[], 4)
     times = Float64[]
     dx = sh.sbp.dx
     for st = 1:nsteps
-        step_shock3d!(sh, ps, T(dt); NB = 2)
+        step_shock3d!(sh, ps, T(dt); NB = 2, field_method = field_method)
         push!(times, st * T(dt))
         for q = 1:4
             xp, yp, zp = probes[q]

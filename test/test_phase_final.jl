@@ -74,6 +74,27 @@ end
     @test_throws ArgumentError four_spacecraft_traces(; MA = -1.0, nx = 8, ny = 4, nz = 4, Lx = 12.0, Ly = 4.0, Lz = 4.0, nppc = 1, nsteps = 1, dt = 0.03, seed = 1)
     @test_throws ArgumentError four_spacecraft_traces(; MA = NaN, nx = 8, ny = 4, nz = 4, Lx = 12.0, Ly = 4.0, Lz = 4.0, nppc = 1, nsteps = 1, dt = 0.03, seed = 1)
     @test_throws ArgumentError four_spacecraft_traces(; MA = Inf, nx = 8, ny = 4, nz = 4, Lx = 12.0, Ly = 4.0, Lz = 4.0, nppc = 1, nsteps = 1, dt = 0.03, seed = 1)
+    fs_kw = four_spacecraft_traces(;
+        MA = 3.0,
+        nx = 8,
+        ny = 4,
+        nz = 4,
+        Lx = 12.0,
+        Ly = 4.0,
+        Lz = 4.0,
+        Te = 0.2,
+        γe = 1.6,
+        vthi = 0.25,
+        η = 0.01,
+        db_turb = 0.05,
+        field_method = :cn,
+        nppc = 1,
+        nsteps = 1,
+        dt = 0.03,
+        seed = 1,
+    )
+    @test fs_kw.times == [0.03]
+    @test all(length(trace) == 1 for trace in fs_kw.traces)
 
     # synthetic traces from a real 3-D shock recover normal ≈ x̂
     fs = four_spacecraft_traces(; MA = 3.0)
