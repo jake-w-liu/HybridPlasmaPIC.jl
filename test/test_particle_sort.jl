@@ -211,6 +211,27 @@ end
         @test balanced.per_tile == balanced_tile_loads(percell, balanced.ranges)
     end
 
+    @testset "sorting/load helpers reject invalid inputs" begin
+        g = FourierGrid((4,), (4.0,))
+
+        ps1 = ParticleSet{1,Float64}(1)
+        ps1.x[1][1] = NaN
+        @test_throws ArgumentError cell_index(ps1, g)
+        @test_throws ArgumentError particles_per_cell(ps1, g)
+        @test_throws ArgumentError particle_load_imbalance(ps1, g; ntiles = 2)
+        @test_throws ArgumentError particle_load_balance(ps1, g; ntiles = 2)
+        @test_throws ArgumentError sort_particles!(ps1, g)
+
+        ps2 = ParticleSet{1,Float64}(2)
+        ps2.x[1] .= [NaN, 1.0]
+        @test_throws ArgumentError sort_particles!(ps2, g)
+
+        @test_throws ArgumentError load_imbalance([1.0, NaN])
+        @test_throws ArgumentError load_imbalance([1.0, Inf])
+        @test_throws ArgumentError load_imbalance([1.0, -1.0])
+        @test_throws ArgumentError tile_loads([1, -1, 2], 2)
+    end
+
     @testset "memory_bytes formula" begin
         # hand-computed case: D=3, Tbytes=4 -> (3+3)*4+8+4 = 36 per particle
         @test memory_bytes(ncells = 1000, nppc = 50, D = 3) == 1000 * 50 * ((3 + 3) * 4 + 8 + 4)

@@ -14,10 +14,19 @@ cell is `cell_d = clamp(floor(x_d / dx_d), 0, n_d-1)` and the returned 1-based
 linear index is `1 + Σ_d cell_d * stride_d` with `stride_1 = 1` and
 `stride_d = prod(n[1:d-1])`. Indices lie in `1:prod(g.n)`.
 """
+function _require_finite_particle_positions(ps::ParticleSet{D}) where {D}
+    @inbounds for d = 1:D, p in eachindex(ps.x[d])
+        isfinite(ps.x[d][p]) ||
+            throw(ArgumentError("particle positions must contain only finite values"))
+    end
+    return nothing
+end
+
 function cell_index(ps::ParticleSet{D,T}, g::FourierGrid{D,T}) where {D,T}
     N = nparticles(ps)
     n = g.n
     dx = g.dx
+    _require_finite_particle_positions(ps)
     # column-major strides: stride[1]=1, stride[d]=prod(n[1:d-1])
     strides = ntuple(d -> d == 1 ? 1 : prod(ntuple(k -> n[k], d - 1)), D)
     out = Vector{Int}(undef, N)
@@ -46,8 +55,6 @@ arrays, so per-particle data stays consistent and the original order is preserve
 within a cell. Returns `ps`.
 """
 function sort_particles!(ps::ParticleSet{D,T}, g::FourierGrid{D,T}) where {D,T}
-    N = nparticles(ps)
-    N <= 1 && return ps                       # nothing to reorder
     ci = cell_index(ps, g)
     perm = sortperm(ci; alg = MergeSort)      # stable sort
     for d = 1:D
@@ -91,9 +98,17 @@ metrics) — no MPI required to compute or to study a proposed partition.
 function load_imbalance(counts::AbstractArray{<:Real})
     n = length(counts)
     n == 0 && return 1.0
-    tot = sum(counts)
+    maxcount = 0.0
+    tot = 0.0
+    @inbounds for i in eachindex(counts)
+        count = float(counts[i])
+        isfinite(count) || throw(ArgumentError("counts must contain only finite values"))
+        count >= 0 || throw(ArgumentError("counts must be non-negative"))
+        tot += count
+        maxcount = max(maxcount, count)
+    end
     tot == 0 && return 1.0
-    return Float64(maximum(counts)) / (Float64(tot) / n)
+    return maxcount / (tot / n)
 end
 
 """
@@ -105,11 +120,12 @@ with [`load_imbalance`](@ref) to evaluate a candidate partition.
 """
 function tile_loads(percell::AbstractVector{<:Integer}, ntiles::Integer)
     ntiles >= 1 || throw(ArgumentError("ntiles must be ≥ 1"))
-    ncells = length(percell)
+    loads_in = _validated_loads(percell)
+    ncells = length(loads_in)
     loads = zeros(Int, ntiles)
     @inbounds for c = 1:ncells
         t = min(ntiles, (c - 1) * ntiles ÷ max(ncells, 1) + 1)
-        loads[t] += percell[c]
+        loads[t] += loads_in[c]
     end
     return loads
 end
