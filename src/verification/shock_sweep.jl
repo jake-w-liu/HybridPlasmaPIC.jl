@@ -55,10 +55,12 @@ function run_perp_shock(;
     nppc >= 1 || throw(ArgumentError("nppc must be positive"))
     nsteps >= 0 || throw(ArgumentError("nsteps must be non-negative"))
     T = Float64
+    MAT = T(MA)
+    isfinite(MAT) && MAT > zero(T) || throw(ArgumentError("MA must be finite and positive"))
     LxT = T(Lx)
     B0 = one(T)
     vA = one(T)
-    U0 = T(MA) * vA                      # upstream drift speed (toward the wall)
+    U0 = MAT * vA                        # upstream drift speed (toward the wall)
     vth = T(vthi)
 
     # field state: inflow SAT strength τ ≈ inflow speed U0 (as in SHK-002)
