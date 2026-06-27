@@ -132,6 +132,7 @@ end
     @test isapprox(width, 2w; rtol = 0.05)                  # tanh full width = 2w
 
     @test_throws ArgumentError shock_front(T[], T[])
+    @test_throws ArgumentError shock_front(T[1.0], T[2.0])
     @test_throws DimensionMismatch shock_front([1.0, 2.0], [0.0])
     @test_throws ArgumentError shock_front([1.0, 2.0], [0.0, 0.0])
     @test_throws ArgumentError shock_front([1.0, 2.0], [1.0, 0.0])

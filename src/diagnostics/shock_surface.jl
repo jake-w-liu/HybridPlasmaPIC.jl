@@ -326,6 +326,7 @@ function shock_front(Bz::AbstractVector{T}, x::AbstractVector{T}) where {T}
     n = length(Bz)
     n > 0 || throw(ArgumentError("Bz and x must be nonempty"))
     length(x) == n || throw(DimensionMismatch("Bz and x must have the same length"))
+    n >= 2 || throw(ArgumentError("Bz and x must contain at least two samples"))
     gmax = zero(T)
     im = 1
     @inbounds for i = 2:n
