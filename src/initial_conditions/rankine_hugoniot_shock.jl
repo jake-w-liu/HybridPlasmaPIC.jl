@@ -19,6 +19,12 @@ struct MHDState{T}
     Bt::T
 end
 
+function _require_valid_gamma(γ::Real, ::Type{T}) where {T}
+    γT = T(γ)
+    isfinite(γT) && γT > one(T) || throw(ArgumentError("γ must be finite and > 1"))
+    return γT
+end
+
 # closed-form downstream state for a trial compression X (exact for mass,
 # induction, tangential & normal momentum)
 function _downstream(up::MHDState{T}, X::T, μ0::T) where {T}
@@ -62,7 +68,7 @@ solution; energy is root-found, the rest are exact by construction). `X = 1`
 (with the upstream returned) means no compressive shock was bracketed.
 """
 function rankine_hugoniot(up::MHDState{T}, γ::Real; μ0::Real = 1.0) where {T}
-    γT = T(γ)
+    γT = _require_valid_gamma(γ, T)
     μ = T(μ0)
     up.ux > 0 || throw(ArgumentError("upstream normal velocity must be > 0 (shock frame)"))
     Fup = _fluxes(up, γT, μ)
@@ -133,7 +139,7 @@ change. Each returned `(; X, down, residuals)` satisfies all six jump conditions
 upstream states can admit slow/intermediate/fast branches.
 """
 function rh_branches(up::MHDState{T}, γ::Real; μ0::Real = 1.0, nscan::Int = 2000) where {T}
-    γT = T(γ)
+    γT = _require_valid_gamma(γ, T)
     μ = T(μ0)
     up.ux > 0 || throw(ArgumentError("upstream normal velocity must be > 0 (shock frame)"))
     Fup = _fluxes(up, γT, μ)

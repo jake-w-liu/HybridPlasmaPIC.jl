@@ -8,6 +8,14 @@ gas_compression(M, γ) = (γ + 1) * M^2 / ((γ - 1) * M^2 + 2)
 
 @testset "SHK-001 Rankine–Hugoniot" begin
     γ = 5 / 3
+    up_invalid = MHDState(1.0, 2.0, 0.0, 0.2, 0.0, 1.0)
+
+    @testset "invalid γ is rejected" begin
+        for badγ in (1.0, 0.9, NaN, Inf)
+            @test_throws ArgumentError rankine_hugoniot(up_invalid, badγ)
+            @test_throws ArgumentError rh_branches(up_invalid, badγ)
+        end
+    end
 
     @testset "hydrodynamic limit" begin
         ρ, p = 1.0, 1.0
