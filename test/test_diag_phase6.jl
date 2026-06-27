@@ -147,6 +147,10 @@ end
     @test_throws ArgumentError shock_front(T[], T[])
     @test_throws ArgumentError shock_front(T[1.0], T[2.0])
     @test_throws DimensionMismatch shock_front([1.0, 2.0], [0.0])
+    @test_throws ArgumentError shock_front([1.0, NaN], [0.0, 1.0])
+    @test_throws ArgumentError shock_front([1.0, Inf], [0.0, 1.0])
+    @test_throws ArgumentError shock_front([1.0, 2.0], [0.0, NaN])
+    @test_throws ArgumentError shock_front([1.0, 2.0], [0.0, Inf])
     @test_throws ArgumentError shock_front([1.0, 2.0], [0.0, 0.0])
     @test_throws ArgumentError shock_front([1.0, 2.0], [1.0, 0.0])
 end
