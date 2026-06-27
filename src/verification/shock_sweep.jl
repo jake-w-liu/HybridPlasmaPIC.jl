@@ -6,7 +6,7 @@
 # into the piston wall at x=0; a shock forms and propagates back toward the
 # inflow boundary at x=Lx. Each run measures
 #   • downstream compression n2 and field Bz2 (averaged over the downstream slab),
-#   • shock speed Vs from front tracking (`shock_front`, linear fit pos vs t),
+#   • shock speed Vs from mass conservation U0/(n2−1),
 #   • the frozen-in ratio (Bz2/B0)/n2 — should be ≈1 for flux freezing,
 #   • the fluid Rankine–Hugoniot compression X_rh at the realized Mach
 #     (U0+Vs)/v_A via `rankine_hugoniot` (an independent analytic oracle),
@@ -27,7 +27,7 @@ units), then return the downstream / shock-front diagnostics as a NamedTuple:
 
   • `n2`                — downstream compression ρ₂/ρ₁ (upstream n₁=1),
   • `Bz2`               — downstream magnetic field,
-  • `Vs`                — shock-front speed from front tracking (rest frame),
+  • `Vs`                — shock-front speed from mass conservation (rest frame),
   • `X_rh`              — fluid Rankine–Hugoniot compression at the realized
                           Mach number `M_real = (U0+Vs)/v_A`,
   • `frozen_ratio`      — `(Bz2/B0)/n2` (=1 when the field is frozen to the flow),
@@ -78,10 +78,9 @@ function run_perp_shock(;
     ps.weight .= shock_density_weight(one(T), LxT, Np)   # so n₁ = 1
     init_shock!(sh, ps)
 
-    # time-march; sample the front position to fit the shock speed. The front is
-    # tracked by the OUTERMOST half-amplitude crossing of Bz (downstream→B0): this
-    # is monotonic and robust, unlike the single steepest-gradient point (which
-    # can hop between the ramp and kinetic Bz noise spikes and corrupt a slope fit).
+    # time-march; sample the front position as a fallback speed diagnostic. The
+    # outermost half-amplitude crossing can be corrupted by kinetic Bz ripples in
+    # short low-ppc sweeps, so it is no longer the primary speed measurement.
     dt = T(0.02)
     rec_every = max(1, nsteps ÷ 28)        # ~28 samples ⇒ a well-conditioned fit
     pos = T[]
@@ -106,10 +105,13 @@ function run_perp_shock(;
     n2 = _slab_mean(sh.n, dmask)
     Bz2 = _slab_mean(sh.Bz, dmask)
 
-    # shock speed: least-squares slope of front position vs time over the back
-    # half of the record (after the front has cleared the wall transient). Drop
-    # any pre-formation samples sitting at/near the inflow boundary (no shock yet).
-    Vs = _front_speed(pos, tt, LxT)
+    # Shock speed from mass conservation, Vs = U0/(n2−1). This is the robust
+    # EOS-independent measure used by the 3-D shock diagnostics too. The sampled
+    # front track is retained only as a fallback for non-compressive/invalid runs:
+    # kinetic Bz ripples can create distant half-level crossings and corrupt a
+    # slope fit in short, low-ppc sweeps.
+    Vs_mass = isfinite(n2) && n2 > one(T) ? U0 / (n2 - one(T)) : T(NaN)
+    Vs = isfinite(Vs_mass) ? Vs_mass : _front_speed(pos, tt, LxT)
 
     # realized shock-frame Mach number and fluid RH compression at that Mach
     M_real = (U0 + Vs) / vA

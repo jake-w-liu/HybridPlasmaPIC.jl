@@ -5,7 +5,7 @@
 # (M_A ≥ 2) runs:
 #   • a shock forms with frozen-in ratio (Bz2/B0)/n2 ≈ 1 (<5%),
 #   • compression 1 < n2 < 4 (above unity, below the strong-shock fluid limit),
-#   • mass conservation Vs(front) ≈ U0/(n2−1) (<8%).
+#   • reported shock speed is mass-flux consistent, Vs ≈ U0/(n2−1) (<8%).
 # Reflected fraction and compression are reported per M_A. A 3-seed M_A=4 run
 # bounds the kinetic-noise sensitivity of the measured compression (std/mean<15%).
 
@@ -32,7 +32,7 @@ using HybridPlasmaPIC, Test, Statistics
         @test 1.0 < r.n2 < 4.0                     # compressed, below strong-shock limit
         @test abs(r.frozen_ratio - 1) < 0.05       # flux frozen to the flow
         Vs_mass = U0 / (r.n2 - 1)                  # mass-conservation prediction
-        @test abs(r.Vs - Vs_mass) / Vs_mass < 0.08 # front speed ⇔ mass conservation
+        @test abs(r.Vs - Vs_mass) / Vs_mass < 0.08 # reported speed ⇔ mass conservation
         # fluid RH compresses MORE than the kinetic shock (sanity on the oracle)
         @test r.X_rh > r.n2
         @test 0.0 <= r.reflected_fraction <= 1.0

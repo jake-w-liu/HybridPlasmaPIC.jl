@@ -4,7 +4,8 @@
 #
 #   • mach_sweep over the full M_A = 1.2, 2, 4, 6 set returns 4 results, and every
 #     supercritical (M_A ≥ 2) case forms a real, flux-frozen shock:
-#       frozen-in ratio (Bz2/B0)/n2 ≈ 1  (|frozen − 1| < 6%) and 2 < n2 < 4.
+#       frozen-in ratio (Bz2/B0)/n2 ≈ 1  (|frozen − 1| < 6%), 2 < n2 < 4,
+#       and reported shock speed consistent with Vs ≈ U0/(n2−1).
 #
 #   • convergence_study runs the same MA=4 shock at two grid resolutions
 #     (N=256, 512) and two ppc (32, 64); the downstream compression n2 agrees
@@ -31,6 +32,9 @@ using HybridPlasmaPIC, Test
             if r.MA >= 2.0
                 @test 2.0 < r.n2 < 4.0
                 @test abs(r.frozen_ratio - 1) < 0.06
+                Vs_mass = r.MA / (r.n2 - 1)
+                @test isfinite(r.Vs)
+                @test abs(r.Vs - Vs_mass) / Vs_mass < 0.08
             end
         end
     end

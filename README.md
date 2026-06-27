@@ -50,7 +50,7 @@ Faraday step with the `n+1/2` ion moments frozen (CAM/CL structure); the carried
 ## Verification status
 
 Benchmarks below are checked against **independent analytic oracles**.
-Post-extraction verification on Julia 1.12.6: `Pkg.test()` passed 99,921 tests.
+Post-extraction verification on Julia 1.12.6: `Pkg.test()` passed 99,924 tests.
 Tolerances are the checklist's initial engineering targets.
 
 | Benchmark | What | Status |
