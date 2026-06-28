@@ -370,6 +370,7 @@ function _mpi_moments!(
     work::Vector{T} = Vector{T}(undef, nparticles(ps)),
     gpu_status::GPUAwareMPIStatus = gpu_aware_mpi_status(),
 ) where {D,T}
+    nf = _require_finite_positive_real("nfloor", nfloor, T)
     density!(nout, ps, g, shape)
     momentum!(uout, ps, g, shape; work)
 
@@ -378,7 +379,6 @@ function _mpi_moments!(
         copyto!(uout[c], mpi_allreduce_diagnostics(uout[c], ctx; op = :sum, gpu_status))
     end
 
-    nf = T(nfloor)
     @inbounds for I in eachindex(nout)
         inv = one(T) / max(nout[I], nf)
         uout[1][I] *= inv

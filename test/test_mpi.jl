@@ -105,6 +105,42 @@ end
         @test mpi_reduced.momentum[1] ≈ total_momentum(serial)[1]
         @test mpi_reduced.momentum[2] ≈ total_momentum(serial)[2]
         @test mpi_reduced.momentum[3] ≈ total_momentum(serial)[3]
+
+        empty = ParticleSet{1,Float64}(0)
+        f = HybridFields{1,Float64}((8,))
+        fill!(f.n, 1.0)
+        fill!(f.ui[1], 2.0)
+        fill!(f.ui[2], 3.0)
+        fill!(f.ui[3], 4.0)
+        status = GPUAwareMPIStatus(false, false, false, :test, "host-only one-rank test")
+
+        @test_throws ArgumentError mpi_compute_moments!(
+            f,
+            empty,
+            g,
+            NGP(),
+            0.0,
+            ctx;
+            gpu_status = status,
+        )
+        @test all(==(1.0), f.n)
+        @test all(==(2.0), f.ui[1])
+        @test all(==(3.0), f.ui[2])
+        @test all(==(4.0), f.ui[3])
+
+        @test_throws ArgumentError mpi_compute_moments!(
+            f,
+            empty,
+            g,
+            NGP(),
+            NaN,
+            ctx;
+            gpu_status = status,
+        )
+        @test all(==(1.0), f.n)
+        @test all(==(2.0), f.ui[1])
+        @test all(==(3.0), f.ui[2])
+        @test all(==(4.0), f.ui[3])
     finally
         free_mpi_communicator!(ctx)
     end

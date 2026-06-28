@@ -108,6 +108,50 @@ end
     )
 end
 
+@testset "compute_moments_multi! validates density floor before mutation" begin
+    T = Float64
+    g = FourierGrid((8,), (2π,))
+    species = [ParticleSet{1,T}(0)]
+    f = HybridFields{1,T}((8,))
+    ntmp = zeros(T, 8)
+    mtmp = ntuple(_ -> zeros(T, 8), 3)
+    works = [Vector{T}(undef, 0)]
+    fill!(f.n, 1.0)
+    fill!(f.ui[1], 2.0)
+    fill!(f.ui[2], 3.0)
+    fill!(f.ui[3], 4.0)
+
+    @test_throws ArgumentError compute_moments_multi!(
+        f,
+        species,
+        g,
+        NGP(),
+        0.0;
+        ntmp,
+        mtmp,
+        works,
+    )
+    @test all(==(1.0), f.n)
+    @test all(==(2.0), f.ui[1])
+    @test all(==(3.0), f.ui[2])
+    @test all(==(4.0), f.ui[3])
+
+    @test_throws ArgumentError compute_moments_multi!(
+        f,
+        species,
+        g,
+        NGP(),
+        NaN;
+        ntmp,
+        mtmp,
+        works,
+    )
+    @test all(==(1.0), f.n)
+    @test all(==(2.0), f.ui[1])
+    @test all(==(3.0), f.ui[2])
+    @test all(==(4.0), f.ui[3])
+end
+
 @testset "electron pressure equation (analytic single step)" begin
     T = Float64
     n = 64

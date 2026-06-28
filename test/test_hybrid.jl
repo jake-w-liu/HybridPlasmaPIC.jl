@@ -226,3 +226,26 @@ end
     @test isapprox(mean(f.ui[1]), 0.1; atol = 0.02)
     @test isapprox(mean(f.ui[2]), 0.0; atol = 0.02)
 end
+
+@testset "compute_moments! validates density floor before mutation" begin
+    T = Float64
+    g = FourierGrid((8,), (2π,))
+    ps = ParticleSet{1,T}(0)
+    f = HybridFields{1,T}((8,))
+    fill!(f.n, 1.0)
+    fill!(f.ui[1], 2.0)
+    fill!(f.ui[2], 3.0)
+    fill!(f.ui[3], 4.0)
+
+    @test_throws ArgumentError compute_moments!(f, ps, g, NGP(), 0.0)
+    @test all(==(1.0), f.n)
+    @test all(==(2.0), f.ui[1])
+    @test all(==(3.0), f.ui[2])
+    @test all(==(4.0), f.ui[3])
+
+    @test_throws ArgumentError compute_moments!(f, ps, g, NGP(), NaN)
+    @test all(==(1.0), f.n)
+    @test all(==(2.0), f.ui[1])
+    @test all(==(3.0), f.ui[2])
+    @test all(==(4.0), f.ui[3])
+end
