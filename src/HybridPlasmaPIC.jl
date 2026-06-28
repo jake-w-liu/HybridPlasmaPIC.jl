@@ -263,7 +263,13 @@ export supported_extensions,
     extension_device_array_type,
     disallow_scalar_indexing!,
     write_field_hdf5,
-    read_field_hdf5
+    read_field_hdf5,
+    distributed_fft_plan,
+    distributed_fft_input,
+    distributed_fft_output,
+    distributed_fft_forward!,
+    distributed_fft_inverse!,
+    distributed_fft_roundtrip_error
 export gather_at,
     SyntheticProbe, sample!, advance!, shock_frame, dehoffmann_teller_velocity, classify_reflected
 export RunMetadata, capture_metadata, CHECKPOINT_SCHEMA_VERSION, save_run, load_run

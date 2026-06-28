@@ -50,7 +50,7 @@ Faraday step with the `n+1/2` ion moments frozen (CAM/CL structure); the carried
 ## Verification status
 
 Benchmarks below are checked against **independent analytic oracles**.
-Post-extraction verification on Julia 1.12.6: `Pkg.test()` passed 100,618 tests.
+Post-extraction verification on Julia 1.12.6: `Pkg.test()` passed 100,630 tests.
 Tolerances are the checklist's initial engineering targets.
 
 | Benchmark | What | Status |
@@ -72,6 +72,7 @@ Tolerances are the checklist's initial engineering targets.
 | SHK-001 | Rankine–Hugoniot solver, residuals < 1e-10 | ✅ verified |
 | SHK-005 | Published external hybrid-code reference metadata + scalar comparison target | ✅ verified |
 | DIM-001 | 1D ≡ y-invariant 2D (operators + integrator) | ✅ verified |
+| DFFT | optional PencilFFTs/PencilArrays distributed FFT extension, COMM_SELF parity | ✅ verified |
 | IO-001 | checkpoint/restart bitwise | ✅ verified |
 
 ### Remaining Gated Work
@@ -83,9 +84,9 @@ claimed as done:
 - **MPI** cluster scaling data. Focused real-MPI Cartesian mapping, diagnostic
   Allreduce, destination-routed particle migration, slab field/moment halo
   exchange, time-advanced particle budget invariance, distributed
-  checkpoint/restart bitmatch, field-coupled serial-vs-MPI agreement, and the
-  `benchmark/mpi_scaling.jl` harness pass under two, four, and eight local
-  ranks. Production scaling still requires cluster runs.
+  checkpoint/restart bitmatch, field-coupled serial-vs-MPI agreement, optional
+  PencilFFTs distributed FFT one-rank parity, and the `benchmark/mpi_scaling.jl`
+  harness pass locally. Production scaling still requires cluster runs.
 - **External hybrid-code full-profile replay**: SHK-005 now bundles DOI,
   checksum, and scalar summaries from the published Preisser et al. 2020 Zenodo
   hybrid-simulation dataset (`10.5281/zenodo.3697360`). Replaying the full HDF5

@@ -1,6 +1,6 @@
 # extensions.jl — explicit optional package-extension surface.
 
-const _SUPPORTED_EXTENSIONS = (:cuda, :metal, :io)
+const _SUPPORTED_EXTENSIONS = (:cuda, :metal, :io, :pencilfft)
 
 "Supported optional extension keys."
 supported_extensions() = _SUPPORTED_EXTENSIONS
@@ -8,6 +8,7 @@ supported_extensions() = _SUPPORTED_EXTENSIONS
 extension_name(::Val{:cuda}) = :HybridPlasmaPICCUDAExt
 extension_name(::Val{:metal}) = :HybridPlasmaPICMetalExt
 extension_name(::Val{:io}) = :HybridPlasmaPICIOExt
+extension_name(::Val{:pencilfft}) = :HybridPlasmaPICPencilFFTSExt
 
 function extension_name(::Val{name}) where {name}
     throw(
@@ -20,6 +21,7 @@ end
 extension_dependency_name(::Val{:cuda}) = :CUDA
 extension_dependency_name(::Val{:metal}) = :Metal
 extension_dependency_name(::Val{:io}) = :HDF5
+extension_dependency_name(::Val{:pencilfft}) = :PencilFFTs
 
 function extension_dependency_name(::Val{name}) where {name}
     throw(
@@ -77,3 +79,13 @@ disallow_scalar_indexing!(::Val{name}) where {name} =
 
 write_field_hdf5(args...; kwargs...) = _extension_missing(:io, :write_field_hdf5)
 read_field_hdf5(args...; kwargs...) = _extension_missing(:io, :read_field_hdf5)
+
+distributed_fft_plan(args...; kwargs...) = _extension_missing(:pencilfft, :distributed_fft_plan)
+distributed_fft_input(args...; kwargs...) = _extension_missing(:pencilfft, :distributed_fft_input)
+distributed_fft_output(args...; kwargs...) = _extension_missing(:pencilfft, :distributed_fft_output)
+distributed_fft_forward!(args...; kwargs...) =
+    _extension_missing(:pencilfft, :distributed_fft_forward!)
+distributed_fft_inverse!(args...; kwargs...) =
+    _extension_missing(:pencilfft, :distributed_fft_inverse!)
+distributed_fft_roundtrip_error(args...; kwargs...) =
+    _extension_missing(:pencilfft, :distributed_fft_roundtrip_error)

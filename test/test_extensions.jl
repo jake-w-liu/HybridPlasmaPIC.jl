@@ -10,13 +10,15 @@ catch err
 end
 
 @testset "explicit package extensions" begin
-    @test supported_extensions() == (:cuda, :metal, :io)
+    @test supported_extensions() == (:cuda, :metal, :io, :pencilfft)
     @test extension_name(Val(:cuda)) == :HybridPlasmaPICCUDAExt
     @test extension_name(Val(:metal)) == :HybridPlasmaPICMetalExt
     @test extension_name(Val(:io)) == :HybridPlasmaPICIOExt
+    @test extension_name(Val(:pencilfft)) == :HybridPlasmaPICPencilFFTSExt
     @test extension_dependency_name(Val(:cuda)) == :CUDA
     @test extension_dependency_name(Val(:metal)) == :Metal
     @test extension_dependency_name(Val(:io)) == :HDF5
+    @test extension_dependency_name(Val(:pencilfft)) == :PencilFFTs
     @test_throws ArgumentError extension_name(Val(:rocm))
     @test_throws ArgumentError extension_dependency_name(Val(:rocm))
 

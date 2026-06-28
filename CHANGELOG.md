@@ -26,6 +26,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   full-PIC with mobile electrons, optional mobile ions, relativistic Boris
   support, spectral Gauss-law initialization, and spectral current correction
   that enforces charge conservation on represented Fourier modes.
+- Added optional `HybridPlasmaPICPencilFFTSExt` integration with
+  `PencilFFTs.jl`/`PencilArrays.jl` for fully periodic 3D distributed FFT plans,
+  input/output allocation, forward/inverse transforms, and round-trip checks.
 
 ## [0.1.0]
 

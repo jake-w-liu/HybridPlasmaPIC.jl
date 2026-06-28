@@ -1,6 +1,7 @@
 # Distributed FFT Evaluation
 
 Evaluation date: 2026-06-26.
+Implementation update: 2026-06-28.
 
 ## Decision
 
@@ -8,6 +9,23 @@ Use `PencilFFTs.jl`/`PencilArrays.jl` as the first MPI-distributed FFT path for
 larger fully periodic 3D HybridPlasmaPIC cases. Do not maintain a custom transpose
 implementation unless focused benchmarks show a concrete gap that PencilFFTs
 cannot cover.
+
+## Implementation Status
+
+Implemented as the optional `HybridPlasmaPICPencilFFTSExt` package extension.
+`PencilFFTs` and `PencilArrays` are weak dependencies, so the core package does
+not load them unless users explicitly import those packages. The exported API is:
+
+- `distributed_fft_plan((nx, ny, nz); comm, transform, periodic)`
+- `distributed_fft_input(plan)` / `distributed_fft_output(plan)`
+- `distributed_fft_forward!(output, plan, input)`
+- `distributed_fft_inverse!(input, plan, output)`
+- `distributed_fft_roundtrip_error(plan, input; output=...)`
+
+Verified locally on `MPI.COMM_SELF`: extension loading, input/output allocation,
+validation failures for non-3D/nonperiodic requests, forward-transform parity
+against `FFTW.fft` through `PencilArrays.gather`, inverse transform, and
+round-trip error reduction.
 
 ## Evidence
 
@@ -19,7 +37,8 @@ cannot cover.
   combinations of FFT-related transforms along dimensions, in-place and
   out-of-place plans, and documented high scalability.
 - The repository has a maintained release series and documented MPI scaling.
-  Pin the exact release during implementation after rechecking upstream tags.
+  The implemented compatibility is `PencilFFTs = 0.15` and
+  `PencilArrays = 0.19`.
 
 Primary sources:
 
@@ -39,8 +58,9 @@ Primary source:
 
 1. Keep `SpectralOperators.jl` as the single-rank operator API and oracle.
 2. Add an optional distributed FFT extension around `PencilFFTs.jl` instead of
-   adding `PencilFFTs` as an unconditional core dependency.
-3. Limit the first integration to fully periodic 3D Fourier operators. Shock
+   adding `PencilFFTs` as an unconditional core dependency. **Done.**
+3. Limit the first integration to fully periodic 3D Fourier operators. **Done.**
+   Shock
    configurations with nonperiodic shock-normal physics should continue to use
    slab/local finite-difference logic until a mixed distributed operator is
    designed and tested.
@@ -56,6 +76,5 @@ Primary source:
 
 ## Non-Goals
 
-- This evaluation does not implement pencil decomposition.
 - This evaluation does not establish production scaling.
 - This evaluation does not claim GPU-distributed FFT support for HybridPlasmaPIC.
