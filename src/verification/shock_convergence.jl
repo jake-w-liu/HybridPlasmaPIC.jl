@@ -108,8 +108,10 @@ function convergence_study(;
     length(ppcs) == 2 || throw(ArgumentError("ppcs must hold exactly two ppc values"))
     tolT = Float64(tol)
     isfinite(tolT) && tolT >= 0 || throw(ArgumentError("tol must be finite and non-negative"))
-    Nlo, Nhi = Int(Ns[1]), Int(Ns[2])
-    plo, phi = Int(ppcs[1]), Int(ppcs[2])
+    Nlo = _require_positive_intlike("Ns[1]", Ns[1])
+    Nhi = _require_positive_intlike("Ns[2]", Ns[2])
+    plo = _require_positive_intlike("ppcs[1]", ppcs[1])
+    phi = _require_positive_intlike("ppcs[2]", ppcs[2])
 
     runshock(N, nppc) = run_perp_shock(;
         MA = MA,

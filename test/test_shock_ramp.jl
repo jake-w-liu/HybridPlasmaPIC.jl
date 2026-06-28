@@ -96,6 +96,8 @@ using HybridPlasmaPIC, Test, Statistics, Random
         @test_throws ArgumentError box_length_scan(; Lxs = (80.0,), Lx0 = 0.0)
         @test_throws ArgumentError box_length_scan(; Lxs = (80.0,), Lx0 = Inf)
         @test_throws ArgumentError box_length_scan(; Lxs = (80.0,), Lx0 = NaN)
+        @test_throws ArgumentError box_length_scan(; Lxs = (NaN,), N0 = 64, nsteps = 0, nppc = 1)
+        @test_throws ArgumentError box_length_scan(; Lxs = (Inf,), N0 = 64, nsteps = 0, nppc = 1)
 
         res = box_length_scan(;
             Lxs = (80.0, 120.0, 160.0),

@@ -23,6 +23,17 @@ function _require_finite_positive_real(name::AbstractString, value::Real, ::Type
     return v
 end
 
+function _require_positive_intlike(name::AbstractString, value)
+    value isa Integer || value isa Real || throw(ArgumentError("$(name) must be a positive integer"))
+    if value isa Real
+        isfinite(value) || throw(ArgumentError("$(name) must be a finite positive integer"))
+        isinteger(value) || throw(ArgumentError("$(name) must be an integer-valued positive count"))
+    end
+    value > 0 || throw(ArgumentError("$(name) must be a positive integer"))
+    value <= typemax(Int) || throw(ArgumentError("$(name) must fit in Int"))
+    return Int(value)
+end
+
 function _validated_nonnegative_dt(::Type{T}, dt::Real; name::AbstractString) where {T<:AbstractFloat}
     dtT = T(dt)
     isfinite(dtT) || throw(ArgumentError("$name requires finite dt (got $dt)"))

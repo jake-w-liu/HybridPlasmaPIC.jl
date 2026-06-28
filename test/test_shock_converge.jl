@@ -61,6 +61,30 @@ using HybridPlasmaPIC, Test
             nsteps = 1,
             tol = Inf,
         )
+        @test_throws ArgumentError convergence_study(;
+            MA = 4.0,
+            Ns = (64, NaN),
+            ppcs = (2, 4),
+            nsteps = 0,
+        )
+        @test_throws ArgumentError convergence_study(;
+            MA = 4.0,
+            Ns = (64, 128.5),
+            ppcs = (2, 4),
+            nsteps = 0,
+        )
+        @test_throws ArgumentError convergence_study(;
+            MA = 4.0,
+            Ns = (64, 128),
+            ppcs = (2, NaN),
+            nsteps = 0,
+        )
+        @test_throws ArgumentError convergence_study(;
+            MA = 4.0,
+            Ns = (64, 128),
+            ppcs = (2, 4.5),
+            nsteps = 0,
+        )
         cv = convergence_study(; MA = 4.0, Ns = (256, 512), ppcs = (32, 64), nsteps = 500)
         @info "convergence_study" n2_base = round(cv.n2_base, digits = 3) n2_fine_N =
             round(cv.n2_fine_N, digits = 3) n2_fine_ppc = round(cv.n2_fine_ppc, digits = 3) rel_grid =

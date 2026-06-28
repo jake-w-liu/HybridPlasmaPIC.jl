@@ -191,13 +191,19 @@ function box_length_scan(;
     isfinite(Lx0T) && Lx0T > zero(T) || throw(ArgumentError("Lx0 must be finite and positive"))
     N0i = Int(N0)
     out = NamedTuple[]
-    for Lx in Lxs
+    for (i, Lx) in enumerate(Lxs)
+        LxT = _require_finite_positive_real("Lxs[$i]", Lx, T)
         # keep dx ≈ Lx0/N0 by scaling node count with the box length
-        Nb = max(64, round(Int, N0i * (T(Lx) / Lx0T)))
+        scaled_nodes = N0i * (LxT / Lx0T)
+        isfinite(scaled_nodes) ||
+            throw(ArgumentError("scaled node count for Lxs[$i] must be finite"))
+        scaled_nodes <= typemax(Int) ||
+            throw(ArgumentError("scaled node count for Lxs[$i] must fit in Int"))
+        Nb = max(64, round(Int, scaled_nodes))
         r = run_perp_shock(;
             MA = MA,
             N = Nb,
-            Lx = Lx,
+            Lx = LxT,
             Te = Te,
             γe = γe,
             vthi = vthi,
@@ -206,7 +212,7 @@ function box_length_scan(;
             nsteps = Int(nsteps),
             seed = Int(seed),
         )
-        push!(out, (; Lx = Float64(Lx), N = Nb, n2 = r.n2, Bz2 = r.Bz2, Vs = r.Vs))
+        push!(out, (; Lx = Float64(LxT), N = Nb, n2 = r.n2, Bz2 = r.Bz2, Vs = r.Vs))
     end
     return out
 end
