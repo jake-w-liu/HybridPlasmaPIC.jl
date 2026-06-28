@@ -28,6 +28,19 @@ coords1d(g) = [(i - 1) * g.dx[1] for i = 1:g.n[1]]
     @test_throws ArgumentError PolytropicElectrons(0.5, 1.0, -1.0)
 end
 
+@testset "HybridModel parameter validation" begin
+    model = HybridModel(IsothermalElectrons(0.0); η = 0.1, ηH = 0.05, nfloor = 1e-3)
+    @test model.η == 0.1
+    @test model.ηH == 0.05
+    @test model.nfloor == 1e-3
+    @test_throws ArgumentError HybridModel(IsothermalElectrons(0.0); η = NaN)
+    @test_throws ArgumentError HybridModel(IsothermalElectrons(0.0); η = -0.1)
+    @test_throws ArgumentError HybridModel(IsothermalElectrons(0.0); ηH = NaN)
+    @test_throws ArgumentError HybridModel(IsothermalElectrons(0.0); ηH = -0.1)
+    @test_throws ArgumentError HybridModel(IsothermalElectrons(0.0); nfloor = 0.0)
+    @test_throws ArgumentError HybridModel(IsothermalElectrons(0.0); nfloor = NaN)
+end
+
 @testset "HYB-001 algebraic uniform equilibrium" begin
     for D = 1:3
         T = Float64

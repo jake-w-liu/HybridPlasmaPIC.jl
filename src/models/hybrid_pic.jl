@@ -13,8 +13,12 @@ struct HybridModel{C<:ElectronClosure}
     ηH::Float64
     nfloor::Float64
 end
-HybridModel(closure::ElectronClosure; η = 0.0, ηH = 0.0, nfloor = 1e-6) =
-    HybridModel(closure, η, ηH, nfloor)
+function HybridModel(closure::ElectronClosure; η = 0.0, ηH = 0.0, nfloor = 1e-6)
+    ηT = _require_finite_nonnegative_real("η", η, Float64)
+    ηHT = _require_finite_nonnegative_real("ηH", ηH, Float64)
+    nfloorT = _require_finite_positive_real("nfloor", nfloor, Float64)
+    return HybridModel(closure, ηT, ηHT, nfloorT)
+end
 
 
 """
