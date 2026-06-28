@@ -528,9 +528,9 @@ end
 Allreduce a rank-local diagnostic value over `ctx.comm`. Supports the same leaf
 types as [`reduce_diagnostics`](@ref): numbers, arrays, tuples, and named
 tuples. This is real MPI transport; one-rank tests exercise it through
-`MPI.COMM_SELF`, while multi-rank invariance remains a separate gate. Array
-leaves are routed through the host-staging fallback when GPU-aware MPI is not
-available.
+`MPI.COMM_SELF`, and multi-rank tests exercise two, four, and eight local ranks.
+Array leaves are routed through the host-staging fallback when GPU-aware MPI is
+not available.
 """
 function mpi_allreduce_diagnostics(
     local_value,
@@ -579,7 +579,9 @@ deposits its local density and momentum density on the full grid, then real MPI
 `Allreduce` sums the arrays so every rank obtains the same global density and
 ion bulk velocity as the serial particle set, up to floating-point reduction
 order. This is a correctness reference for MPI agreement; scalable domain-local
-moment exchange remains a separate gate.
+moment exchange for slab ghost zones is provided by
+[`mpi_exchange_ghost_moments!`](@ref), while cluster scaling data remains a
+separate gate.
 """
 function mpi_compute_moments!(
     f::HybridFields{D,T},

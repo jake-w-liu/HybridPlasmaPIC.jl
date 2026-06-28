@@ -76,11 +76,12 @@ These require hardware or external references not available here and are **not**
 claimed as done:
 
 - **GPU** (CUDA/Metal) production plasma kernels — no NVIDIA hardware here.
-- **MPI** cluster scaling studies. Focused real-MPI Cartesian mapping,
-  diagnostic Allreduce, destination-routed particle migration, slab field/moment
-  halo exchange, time-advanced particle budget invariance, distributed
-  checkpoint/restart bitmatch, and field-coupled serial-vs-MPI agreement pass
-  under two, four, and eight local ranks.
+- **MPI** cluster scaling data. Focused real-MPI Cartesian mapping, diagnostic
+  Allreduce, destination-routed particle migration, slab field/moment halo
+  exchange, time-advanced particle budget invariance, distributed
+  checkpoint/restart bitmatch, field-coupled serial-vs-MPI agreement, and the
+  `benchmark/mpi_scaling.jl` harness pass under two, four, and eight local
+  ranks. Production scaling still requires cluster runs.
 - **External hybrid-code comparison** (SHK-005): the comparator harness exists,
   but a published external dataset is still required.
 - **Multi-GPU** restart and scaling.
@@ -135,6 +136,12 @@ julia --project=. test/test_mpi.jl
 julia --project=. -e 'import MPI; run(`$(MPI.mpiexec()) -n 2 $(Base.julia_cmd()) --project=. test/test_mpi_multirank.jl`)'
 julia --project=. -e 'import MPI; run(`$(MPI.mpiexec()) -n 4 $(Base.julia_cmd()) --project=. test/test_mpi_multirank.jl`)'
 julia --project=. -e 'import MPI; run(`$(MPI.mpiexec()) -n 8 $(Base.julia_cmd()) --project=. test/test_mpi_multirank.jl`)'
+```
+
+MPI scaling smoke/benchmark harness:
+
+```bash
+julia --project=. -e 'import MPI; run(`$(MPI.mpiexec()) -n 4 $(Base.julia_cmd()) --project=. benchmark/mpi_scaling.jl --reps 3`)'
 ```
 
 ## Minimal example
