@@ -199,6 +199,19 @@ function _assert_face_particle_fields(ps::ParticleSet{D,Float64}) where {D}
     end
 end
 
+_halo_field(rank) =
+    [100.0 * rank + 1.0, 10.0 * rank, 10.0 * rank + 1.0, 10.0 * rank + 2.0, 100.0 * rank + 2.0]
+_halo_moment(rank) =
+    [200.0 * rank + 1.0, 20.0 * rank, 20.0 * rank + 1.0, 20.0 * rank + 2.0, 200.0 * rank + 2.0]
+
+function _halo_matrix(rank; scale)
+    A = Matrix{Float64}(undef, 5, 3)
+    for j = 1:3, i = 1:5
+        A[i, j] = scale * rank + 10.0 * i + j
+    end
+    return A
+end
+
 @testset "multi-rank MPI launcher guard" begin
     if WORLD_SIZE == 1
         @test WORLD_RANK == 0
@@ -278,6 +291,106 @@ if WORLD_SIZE in (2, 4, 8)
                 else
                     @test isempty(recv_chunks[rank0+1])
                 end
+            end
+        end
+
+        @testset "real MPI slab field halo exchange size=$WORLD_SIZE" begin
+            slab_layout = LogicalRankLayout((WORLD_SIZE,); periodic = (false,))
+            slab_ctx = create_cartesian_communicator(slab_layout; comm = WORLD, reorder = false)
+            try
+                reference = [(_halo_field(r), _halo_field(r) .+ 1000.0) for r = 1:WORLD_SIZE]
+                local_fields = (
+                    copy(reference[slab_ctx.logical_rank][1]),
+                    copy(reference[slab_ctx.logical_rank][2]),
+                )
+                expected = [(copy(a), copy(b)) for (a, b) in reference]
+                expected_stats =
+                    exchange_field_halos!(expected, slab_layout; halo = 1, fill_value = -99.0)
+
+                stats =
+                    mpi_exchange_field_halos!(local_fields, slab_ctx; halo = 1, fill_value = -99.0)
+                @test stats == expected_stats
+                @test local_fields[1] == expected[slab_ctx.logical_rank][1]
+                @test local_fields[2] == expected[slab_ctx.logical_rank][2]
+            finally
+                free_mpi_communicator!(slab_ctx)
+            end
+        end
+
+        @testset "real MPI slab ghost moment exchange size=$WORLD_SIZE" begin
+            slab_layout = LogicalRankLayout((WORLD_SIZE,); periodic = (false,))
+            slab_ctx = create_cartesian_communicator(slab_layout; comm = WORLD, reorder = false)
+            try
+                reference = [(_halo_moment(r), _halo_moment(r) .+ 1000.0) for r = 1:WORLD_SIZE]
+                local_moments = (
+                    copy(reference[slab_ctx.logical_rank][1]),
+                    copy(reference[slab_ctx.logical_rank][2]),
+                )
+                expected = [(copy(a), copy(b)) for (a, b) in reference]
+                expected_stats = exchange_ghost_moments!(expected, slab_layout; halo = 1)
+
+                stats = mpi_exchange_ghost_moments!(local_moments, slab_ctx; halo = 1)
+                @test stats == expected_stats
+                @test local_moments[1] == expected[slab_ctx.logical_rank][1]
+                @test local_moments[2] == expected[slab_ctx.logical_rank][2]
+            finally
+                free_mpi_communicator!(slab_ctx)
+            end
+        end
+
+        @testset "real MPI periodic slab halo exchange size=$WORLD_SIZE" begin
+            slab_layout = LogicalRankLayout((WORLD_SIZE,); periodic = (true,))
+            slab_ctx = create_cartesian_communicator(slab_layout; comm = WORLD, reorder = false)
+            try
+                field_ref = [_halo_field(r) for r = 1:WORLD_SIZE]
+                local_field = copy(field_ref[slab_ctx.logical_rank])
+                expected_field = [copy(A) for A in field_ref]
+                expected_field_stats = exchange_field_halos!(expected_field, slab_layout; halo = 1)
+
+                field_stats = mpi_exchange_field_halos!(local_field, slab_ctx; halo = 1)
+                @test field_stats == expected_field_stats
+                @test local_field == expected_field[slab_ctx.logical_rank]
+
+                moment_ref = [_halo_moment(r) for r = 1:WORLD_SIZE]
+                local_moment = copy(moment_ref[slab_ctx.logical_rank])
+                expected_moment = [copy(A) for A in moment_ref]
+                expected_moment_stats =
+                    exchange_ghost_moments!(expected_moment, slab_layout; halo = 1)
+
+                moment_stats = mpi_exchange_ghost_moments!(local_moment, slab_ctx; halo = 1)
+                @test moment_stats == expected_moment_stats
+                @test local_moment == expected_moment[slab_ctx.logical_rank]
+            finally
+                free_mpi_communicator!(slab_ctx)
+            end
+        end
+
+        @testset "real MPI 2D slab halo exchange size=$WORLD_SIZE" begin
+            slab_layout = LogicalRankLayout((WORLD_SIZE, 1); periodic = (false, true))
+            slab_ctx = create_cartesian_communicator(slab_layout; comm = WORLD, reorder = false)
+            try
+                field_ref = [_halo_matrix(r; scale = 1000.0) for r = 1:WORLD_SIZE]
+                local_field = copy(field_ref[slab_ctx.logical_rank])
+                expected_field = [copy(A) for A in field_ref]
+                expected_field_stats =
+                    exchange_field_halos!(expected_field, slab_layout; halo = 1, fill_value = -77.0)
+
+                field_stats =
+                    mpi_exchange_field_halos!(local_field, slab_ctx; halo = 1, fill_value = -77.0)
+                @test field_stats == expected_field_stats
+                @test local_field == expected_field[slab_ctx.logical_rank]
+
+                moment_ref = [_halo_matrix(r; scale = 2000.0) for r = 1:WORLD_SIZE]
+                local_moment = copy(moment_ref[slab_ctx.logical_rank])
+                expected_moment = [copy(A) for A in moment_ref]
+                expected_moment_stats =
+                    exchange_ghost_moments!(expected_moment, slab_layout; halo = 1)
+
+                moment_stats = mpi_exchange_ghost_moments!(local_moment, slab_ctx; halo = 1)
+                @test moment_stats == expected_moment_stats
+                @test local_moment == expected_moment[slab_ctx.logical_rank]
+            finally
+                free_mpi_communicator!(slab_ctx)
             end
         end
 

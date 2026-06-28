@@ -3,8 +3,8 @@
 # Thin MPI.jl transport hooks over the deterministic logical-rank reference
 # kernels in domain_decomposition.jl. These wrappers are intentionally small:
 # they create real MPI Cartesian communicators, expose rank/layout provenance,
-# and provide structured collective diagnostics plus destination-routed particle
-# migration. Scaling still requires cluster tests.
+# and provide structured collective diagnostics, real slab halo exchanges, and
+# destination-routed particle migration. Scaling still requires cluster tests.
 
 import MPI
 import Serialization
@@ -711,10 +711,12 @@ function _deserialize_mpi_payload(::Type{T}, bytes::AbstractVector{UInt8}) where
     return payload
 end
 
-function _check_mpi_byte_count(n::Integer)
-    0 <= n <= typemax(Cint) || throw(ArgumentError("MPI byte payload exceeds Cint count capacity"))
+function _check_mpi_count(n::Integer, label::AbstractString)
+    0 <= n <= typemax(Cint) || throw(ArgumentError("$label exceeds Cint count capacity"))
     return Cint(n)
 end
+
+_check_mpi_byte_count(n::Integer) = _check_mpi_count(n, "MPI byte payload")
 
 function _mpi_alltoallv_bytes(send_chunks::AbstractVector{<:AbstractVector{UInt8}}, comm::MPI.Comm)
     ncomm = MPI.Comm_size(comm)
@@ -756,6 +758,270 @@ function _mpi_rank_for_logical(ctx::MPICartesianCommunicator{D}, logical_rank::I
     coords = rank_coords(ctx.layout, logical_rank)
     coords0 = [coords[d] - 1 for d = 1:D]
     return MPI.Cart_rank(ctx.comm, coords0)
+end
+
+const _MPI_FIELD_HALO_TAG_UPPER = 0x4841
+const _MPI_FIELD_HALO_TAG_LOWER = 0x4842
+const _MPI_MOMENT_HALO_TAG_UPPER = 0x4843
+const _MPI_MOMENT_HALO_TAG_LOWER = 0x4844
+const _MPI_COUNT_TAG_OFFSET = 0x100
+
+function _validate_mpi_slab_array!(
+    A::AbstractArray{T,D},
+    ctx::MPICartesianCommunicator{D},
+    halo::Integer,
+) where {T,D}
+    ensure_mpi_initialized!()
+    MPI.Comm_size(ctx.comm) == nranks(ctx.layout) ||
+        throw(ArgumentError("MPI communicator size must equal nranks(ctx.layout)"))
+    MPI.Comm_size(ctx.comm) == ctx.mpi_size ||
+        throw(ArgumentError("ctx.mpi_size does not match MPI communicator size"))
+    h = Int(halo)
+    h >= 1 || throw(ArgumentError("halo must be >= 1, got $halo"))
+    axis = _slab_axis(ctx.layout)
+    axis == 0 && return h, axis
+    size(A, axis) >= 3h ||
+        throw(DimensionMismatch("axis $axis size $(size(A, axis)) is too small for halo=$halo"))
+    return h, axis
+end
+
+function _mpi_neighbor_rank(
+    ctx::MPICartesianCommunicator{D},
+    axis::Integer,
+    offset::Integer,
+) where {D}
+    logical =
+        rank_index(ctx.layout, ntuple(d -> d == axis ? ctx.coords[d] + offset : ctx.coords[d], D))
+    logical === nothing && return MPI.PROC_NULL
+    return _mpi_rank_for_logical(ctx, logical)
+end
+
+function _slab_face_ranges(A::AbstractArray, axis::Integer, halo::Integer)
+    h = Int(halo)
+    nloc = size(A, axis)
+    return (;
+        lower_ghost = _face_ranges(A, axis, 1:h),
+        lower_owned = _face_ranges(A, axis, (h+1):(2h)),
+        upper_owned = _face_ranges(A, axis, (nloc-2h+1):(nloc-h)),
+        upper_ghost = _face_ranges(A, axis, (nloc-h+1):nloc),
+    )
+end
+
+function _face_payload(A::AbstractArray{T}, face) where {T}
+    return collect(vec(view(A, face...)))
+end
+
+function _copy_face_payload!(A::AbstractArray, face, payload::AbstractVector)
+    dst = view(A, face...)
+    length(dst) == length(payload) || throw(
+        DimensionMismatch("received face has $(length(payload)) values; expected $(length(dst))"),
+    )
+    copyto!(vec(dst), payload)
+    return A
+end
+
+function _mpi_sendrecv_checked!(
+    sendbuf::AbstractVector{T},
+    dest::Integer,
+    recvbuf::AbstractVector{T},
+    source::Integer,
+    comm::MPI.Comm,
+    tag::Integer,
+    label::AbstractString,
+) where {T}
+    send_count = Cint[_check_mpi_count(length(sendbuf), "$label send count")]
+    recv_count = Cint[0]
+    MPI.Sendrecv!(
+        send_count,
+        Int(dest),
+        Int(tag + _MPI_COUNT_TAG_OFFSET),
+        recv_count,
+        Int(source),
+        Int(tag + _MPI_COUNT_TAG_OFFSET),
+        comm,
+    )
+    if source != MPI.PROC_NULL && Int(recv_count[1]) != length(recvbuf)
+        throw(
+            DimensionMismatch(
+                "$label received $(Int(recv_count[1])) values; expected $(length(recvbuf))",
+            ),
+        )
+    end
+    MPI.Sendrecv!(sendbuf, Int(dest), Int(tag), recvbuf, Int(source), Int(tag), comm)
+    return recvbuf
+end
+
+function _allreduce_exchange_stats(local_a::Integer, local_b::Integer, comm::MPI.Comm)
+    return (;
+        exchanged = Int(MPI.Allreduce(Int(local_a), +, comm)),
+        filled = Int(MPI.Allreduce(Int(local_b), +, comm)),
+    )
+end
+
+"""
+    mpi_exchange_field_halos!(A, ctx; halo=1, fill_value=zero(eltype(A)))
+
+Exchange slab field halos for this rank's local array through real MPI
+point-to-point transport. The layout must have at most one decomposed axis.
+Lower and upper ghost cells receive neighboring owned boundary cells; exterior
+nonperiodic ghosts are filled with `fill_value`. Returns global counts
+`(; exchanged, filled)` reduced across `ctx.comm`.
+"""
+function mpi_exchange_field_halos!(
+    A::AbstractArray{T,D},
+    ctx::MPICartesianCommunicator{D};
+    halo::Integer = 1,
+    fill_value = zero(T),
+) where {T,D}
+    h, axis = _validate_mpi_slab_array!(A, ctx, halo)
+    axis == 0 && return (; exchanged = 0, filled = 0)
+
+    faces = _slab_face_ranges(A, axis, h)
+    lower = _mpi_neighbor_rank(ctx, axis, -1)
+    upper = _mpi_neighbor_rank(ctx, axis, 1)
+
+    local_exchanged = 0
+    local_filled = 0
+
+    lower_recv = Vector{T}(undef, length(view(A, faces.lower_ghost...)))
+    _mpi_sendrecv_checked!(
+        _face_payload(A, faces.upper_owned),
+        upper,
+        lower_recv,
+        lower,
+        ctx.comm,
+        _MPI_FIELD_HALO_TAG_UPPER,
+        "field lower halo",
+    )
+    if lower == MPI.PROC_NULL
+        view(A, faces.lower_ghost...) .= fill_value
+        local_filled += length(lower_recv)
+    else
+        _copy_face_payload!(A, faces.lower_ghost, lower_recv)
+        local_exchanged += length(lower_recv)
+    end
+
+    upper_recv = Vector{T}(undef, length(view(A, faces.upper_ghost...)))
+    _mpi_sendrecv_checked!(
+        _face_payload(A, faces.lower_owned),
+        lower,
+        upper_recv,
+        upper,
+        ctx.comm,
+        _MPI_FIELD_HALO_TAG_LOWER,
+        "field upper halo",
+    )
+    if upper == MPI.PROC_NULL
+        view(A, faces.upper_ghost...) .= fill_value
+        local_filled += length(upper_recv)
+    else
+        _copy_face_payload!(A, faces.upper_ghost, upper_recv)
+        local_exchanged += length(upper_recv)
+    end
+
+    return _allreduce_exchange_stats(local_exchanged, local_filled, ctx.comm)
+end
+
+function mpi_exchange_field_halos!(
+    fields::NTuple{N,<:AbstractArray{T,D}},
+    ctx::MPICartesianCommunicator{D};
+    halo::Integer = 1,
+    fill_value = zero(T),
+) where {N,T,D}
+    exchanged = 0
+    filled = 0
+    for A in fields
+        stats = mpi_exchange_field_halos!(A, ctx; halo, fill_value)
+        exchanged += stats.exchanged
+        filled += stats.filled
+    end
+    return (; exchanged, filled)
+end
+
+"""
+    mpi_exchange_ghost_moments!(A, ctx; halo=1, clear_ghosts=true)
+
+Accumulate this rank's slab ghost-zone moment contributions into neighboring
+rank interiors through real MPI point-to-point transport. Contributions crossing
+nonperiodic exterior boundaries are dropped. When `clear_ghosts` is true, local
+ghost zones are zeroed after their values have been copied into send buffers.
+Returns global counts `(; exchanged, dropped)` reduced across `ctx.comm`.
+"""
+function mpi_exchange_ghost_moments!(
+    A::AbstractArray{T,D},
+    ctx::MPICartesianCommunicator{D};
+    halo::Integer = 1,
+    clear_ghosts::Bool = true,
+) where {T,D}
+    h, axis = _validate_mpi_slab_array!(A, ctx, halo)
+    axis == 0 && return (; exchanged = 0, dropped = 0)
+
+    faces = _slab_face_ranges(A, axis, h)
+    lower = _mpi_neighbor_rank(ctx, axis, -1)
+    upper = _mpi_neighbor_rank(ctx, axis, 1)
+
+    local_exchanged = 0
+    local_dropped = 0
+
+    lower_contrib = Vector{T}(undef, length(view(A, faces.lower_owned...)))
+    _mpi_sendrecv_checked!(
+        _face_payload(A, faces.upper_ghost),
+        upper,
+        lower_contrib,
+        lower,
+        ctx.comm,
+        _MPI_MOMENT_HALO_TAG_UPPER,
+        "moment lower interior",
+    )
+    if lower == MPI.PROC_NULL
+        local_dropped += length(view(A, faces.lower_ghost...))
+    else
+        view(A, faces.lower_owned...) .+=
+            reshape(lower_contrib, size(view(A, faces.lower_owned...)))
+        local_exchanged += length(lower_contrib)
+    end
+
+    upper_contrib = Vector{T}(undef, length(view(A, faces.upper_owned...)))
+    _mpi_sendrecv_checked!(
+        _face_payload(A, faces.lower_ghost),
+        lower,
+        upper_contrib,
+        upper,
+        ctx.comm,
+        _MPI_MOMENT_HALO_TAG_LOWER,
+        "moment upper interior",
+    )
+    if upper == MPI.PROC_NULL
+        local_dropped += length(view(A, faces.upper_ghost...))
+    else
+        view(A, faces.upper_owned...) .+=
+            reshape(upper_contrib, size(view(A, faces.upper_owned...)))
+        local_exchanged += length(upper_contrib)
+    end
+
+    if clear_ghosts
+        view(A, faces.lower_ghost...) .= zero(T)
+        view(A, faces.upper_ghost...) .= zero(T)
+    end
+
+    stats = _allreduce_exchange_stats(local_exchanged, local_dropped, ctx.comm)
+    return (; exchanged = stats.exchanged, dropped = stats.filled)
+end
+
+function mpi_exchange_ghost_moments!(
+    moments::NTuple{N,<:AbstractArray{T,D}},
+    ctx::MPICartesianCommunicator{D};
+    halo::Integer = 1,
+    clear_ghosts::Bool = true,
+) where {N,T,D}
+    exchanged = 0
+    dropped = 0
+    for A in moments
+        stats = mpi_exchange_ghost_moments!(A, ctx; halo, clear_ghosts)
+        exchanged += stats.exchanged
+        dropped += stats.dropped
+    end
+    return (; exchanged, dropped)
 end
 
 """

@@ -132,11 +132,19 @@ end
         field_stats = exchange_field_halos!(field, ctx.layout; halo = 1)
         @test field_stats == (exchanged = 0, filled = 0)
         @test field[1] == [-1.0, 10.0, 11.0, 12.0, 13.0, -2.0]
+        mpi_field = copy(field[1])
+        mpi_field_stats = mpi_exchange_field_halos!(mpi_field, ctx; halo = 1, fill_value = -99.0)
+        @test mpi_field_stats == (exchanged = 0, filled = 0)
+        @test mpi_field == field[1]
 
         moments = [[2.0, 10.0, 11.0, 12.0, 3.0]]
         moment_stats = exchange_ghost_moments!(moments, ctx.layout; halo = 1)
         @test moment_stats == (exchanged = 0, dropped = 0)
         @test moments[1] == [2.0, 10.0, 11.0, 12.0, 3.0]
+        mpi_moments = copy(moments[1])
+        mpi_moment_stats = mpi_exchange_ghost_moments!(mpi_moments, ctx; halo = 1)
+        @test mpi_moment_stats == (exchanged = 0, dropped = 0)
+        @test mpi_moments == moments[1]
 
         serial = _mpi_parity_particles([9.9, 0.2, 5.0, 0.1], [1.0, -2.0, 0.5, 3.0])
         rank_particles = [_mpi_parity_particles([-0.1, 0.2, 5.0, 10.1], [1.0, -2.0, 0.5, 3.0])]

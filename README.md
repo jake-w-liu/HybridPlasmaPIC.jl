@@ -50,7 +50,7 @@ Faraday step with the `n+1/2` ion moments frozen (CAM/CL structure); the carried
 ## Verification status
 
 Benchmarks below are checked against **independent analytic oracles**.
-Post-extraction verification on Julia 1.12.6: `Pkg.test()` passed 100,412 tests.
+Post-extraction verification on Julia 1.12.6: `Pkg.test()` passed 100,416 tests.
 Tolerances are the checklist's initial engineering targets.
 
 | Benchmark | What | Status |
@@ -76,9 +76,9 @@ These require hardware or external references not available here and are **not**
 claimed as done:
 
 - **GPU** (CUDA/Metal) production plasma kernels — no NVIDIA hardware here.
-- **MPI** scalable field/moment halo exchange and scaling studies. Focused
-  real-MPI Cartesian mapping, diagnostic Allreduce, destination-routed particle
-  migration, time-advanced particle budget invariance, distributed
+- **MPI** cluster scaling studies. Focused real-MPI Cartesian mapping,
+  diagnostic Allreduce, destination-routed particle migration, slab field/moment
+  halo exchange, time-advanced particle budget invariance, distributed
   checkpoint/restart bitmatch, and field-coupled serial-vs-MPI agreement pass
   under two, four, and eight local ranks.
 - **External hybrid-code comparison** (SHK-005): the comparator harness exists,
