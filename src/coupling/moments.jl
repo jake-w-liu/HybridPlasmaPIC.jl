@@ -9,15 +9,12 @@
     shape::ShapeFunction,
 ) where {D,T}
     np = nparticles(ps)
-    length(weight) == np || throw(
-        DimensionMismatch("weight length $(length(weight)) must equal particle count $np"),
-    )
-    length(value) == np || throw(
-        DimensionMismatch("value length $(length(value)) must equal particle count $np"),
-    )
-    size(out) == g.n || throw(
-        DimensionMismatch("out size $(size(out)) does not match grid size $(g.n)"),
-    )
+    length(weight) == np ||
+        throw(DimensionMismatch("weight length $(length(weight)) must equal particle count $np"))
+    length(value) == np ||
+        throw(DimensionMismatch("value length $(length(value)) must equal particle count $np"))
+    size(out) == g.n ||
+        throw(DimensionMismatch("out size $(size(out)) does not match grid size $(g.n)"))
     fill!(out, zero(T))
     n = g.n
     stamp = CartesianIndices(ntuple(_ -> width(shape), D))
@@ -47,18 +44,14 @@ end
     shape::ShapeFunction,
 ) where {D,T}
     np = nparticles(ps)
-    length(weight) == np || throw(
-        DimensionMismatch("weight length $(length(weight)) must equal particle count $np"),
-    )
-    length(left) == np || throw(
-        DimensionMismatch("left length $(length(left)) must equal particle count $np"),
-    )
-    length(right) == np || throw(
-        DimensionMismatch("right length $(length(right)) must equal particle count $np"),
-    )
-    size(out) == g.n || throw(
-        DimensionMismatch("out size $(size(out)) does not match grid size $(g.n)"),
-    )
+    length(weight) == np ||
+        throw(DimensionMismatch("weight length $(length(weight)) must equal particle count $np"))
+    length(left) == np ||
+        throw(DimensionMismatch("left length $(length(left)) must equal particle count $np"))
+    length(right) == np ||
+        throw(DimensionMismatch("right length $(length(right)) must equal particle count $np"))
+    size(out) == g.n ||
+        throw(DimensionMismatch("out size $(size(out)) does not match grid size $(g.n)"))
     fill!(out, zero(T))
     n = g.n
     stamp = CartesianIndices(ntuple(_ -> width(shape), D))
@@ -158,20 +151,15 @@ function pressure_tensor!(
     nbuf === nothing && (nbuf = similar(P[1]))
     mom === nothing && (mom = ntuple(_ -> similar(P[1]), 3))
     for c = 1:6
-        size(P[c]) == g.n || throw(
-            DimensionMismatch("P[$c] size $(size(P[c])) does not match grid size $(g.n)"),
-        )
+        size(P[c]) == g.n ||
+            throw(DimensionMismatch("P[$c] size $(size(P[c])) does not match grid size $(g.n)"))
     end
 
-    size(nbuf) == g.n || throw(
-        DimensionMismatch("nbuf size $(size(nbuf)) does not match grid size $(g.n)"),
-    )
+    size(nbuf) == g.n ||
+        throw(DimensionMismatch("nbuf size $(size(nbuf)) does not match grid size $(g.n)"))
     for c = 1:3
-        size(mom[c]) == g.n || throw(
-            DimensionMismatch(
-                "mom[$c] size $(size(mom[c])) does not match grid size $(g.n)",
-            ),
-        )
+        size(mom[c]) == g.n ||
+            throw(DimensionMismatch("mom[$c] size $(size(mom[c])) does not match grid size $(g.n)"))
     end
 
     if work === nothing
@@ -179,9 +167,7 @@ function pressure_tensor!(
         momentum!(mom, ps, g, shape)         # mom = n·U
     else
         length(work) == Np ||
-            throw(
-                DimensionMismatch("work length $(length(work)) must equal particle count $Np"),
-            )
+            throw(DimensionMismatch("work length $(length(work)) must equal particle count $Np"))
         density!(nbuf, ps, g, shape)
         momentum!(mom, ps, g, shape; work)
     end
