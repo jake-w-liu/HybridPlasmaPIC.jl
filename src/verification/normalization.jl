@@ -47,7 +47,10 @@ function PlasmaUnits(; n0, B0, mi)
     mu0 = 1.25663706212e-6
     c = 2.99792458e8
     T = float(promote_type(typeof(n0), typeof(B0), typeof(mi), typeof(e), typeof(mu0), typeof(c)))
-    return PlasmaUnits{T}(T(n0), T(B0), T(mi), T(e), T(mu0), T(c))
+    n0T = _require_finite_positive_real("n0", n0, T)
+    B0T = _require_finite_positive_real("B0", B0, T)
+    miT = _require_finite_positive_real("mi", mi, T)
+    return PlasmaUnits{T}(n0T, B0T, miT, T(e), T(mu0), T(c))
 end
 
 """

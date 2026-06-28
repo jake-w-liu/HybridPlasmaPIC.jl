@@ -59,6 +59,16 @@ const KINDS = (:length, :time, :velocity, :magnetic, :electric, :density, :curre
         @test_throws ArgumentError to_normalized(1.0, :foobar, u)
     end
 
+    @testset "reference scales must be finite and positive" begin
+        @test_throws ArgumentError PlasmaUnits(n0 = 0.0, B0 = 5e-9, mi = 1.6726e-27)
+        @test_throws ArgumentError PlasmaUnits(n0 = -1.0, B0 = 5e-9, mi = 1.6726e-27)
+        @test_throws ArgumentError PlasmaUnits(n0 = NaN, B0 = 5e-9, mi = 1.6726e-27)
+        @test_throws ArgumentError PlasmaUnits(n0 = 1e6, B0 = 0.0, mi = 1.6726e-27)
+        @test_throws ArgumentError PlasmaUnits(n0 = 1e6, B0 = -5e-9, mi = 1.6726e-27)
+        @test_throws ArgumentError PlasmaUnits(n0 = 1e6, B0 = 5e-9, mi = 0.0)
+        @test_throws ArgumentError PlasmaUnits(n0 = 1e6, B0 = 5e-9, mi = -1.0)
+    end
+
     @testset "type promotion in constructor" begin
         ui = PlasmaUnits(n0 = 1, B0 = 5e-9, mi = 1.6726e-27)  # mixed Int/Float
         @test ui isa PlasmaUnits{Float64}
