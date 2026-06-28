@@ -550,7 +550,7 @@ function _mpi_moments!(
     shape::ShapeFunction,
     nfloor,
     ctx::MPICartesianCommunicator{D};
-    work::Vector{T} = Vector{T}(undef, nparticles(ps)),
+    work::Union{Nothing,Vector{T}} = nothing,
     gpu_status::GPUAwareMPIStatus = gpu_aware_mpi_status(),
 ) where {D,T}
     nf = _require_finite_positive_real("nfloor", nfloor, T)
@@ -590,7 +590,7 @@ function mpi_compute_moments!(
     shape::ShapeFunction,
     nfloor,
     ctx::MPICartesianCommunicator{D};
-    work::Vector{T} = Vector{T}(undef, nparticles(ps)),
+    work::Union{Nothing,Vector{T}} = nothing,
     gpu_status::GPUAwareMPIStatus = gpu_aware_mpi_status(),
 ) where {D,T}
     _mpi_moments!(f.n, f.ui, ps, g, shape, nfloor, ctx; work, gpu_status)

@@ -33,11 +33,11 @@ function compute_moments!(
     g::FourierGrid{D,T},
     shape::ShapeFunction,
     nfloor;
-    work::AbstractVector{T} = Vector{T}(undef, nparticles(ps)),
+    work::Union{Nothing,AbstractVector{T}} = nothing,
 ) where {D,T}
     nf = _require_finite_positive_real("nfloor", nfloor, T)
     density!(f.n, ps, g, shape)
-    momentum!(f.ui, ps, g, shape; work)          # holds (n u) on entry
+    momentum!(f.ui, ps, g, shape; work)
     @inbounds for I in eachindex(f.n)
         inv = one(T) / max(f.n[I], nf)
         f.ui[1][I] *= inv
@@ -90,7 +90,7 @@ function compute_moments_multi!(
     end
     for (is, s) in enumerate(species)
         work = if works === nothing
-            Vector{T}(undef, nparticles(s))
+            nothing
         else
             w = works[is]
             eltype(w) === T ||
