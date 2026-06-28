@@ -9,6 +9,7 @@ using Test
     include("test_pencil_decomposition.jl")
     include("test_deposit.jl")
     include("test_hybrid.jl")
+    include("test_hall_mhd.jl")
     include("test_dispersion.jl")
     include("test_camcl.jl")
     include("test_shock.jl")

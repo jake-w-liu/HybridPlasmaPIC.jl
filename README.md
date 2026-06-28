@@ -65,6 +65,7 @@ Tolerances are the checklist's initial engineering targets.
 | HYB-002 | ion-acoustic ω = k·c_s (0.05%) | ✅ verified |
 | HYB-003/004 | Alfvén / whistler / ion-cyclotron branches (~1–2%) | ✅ verified |
 | HYB-007/008 | adiabatic energy convergence, subcycling | ✅ verified |
+| HALL-MHD | periodic Hall-MHD Ohm/RHS/RK4 mass conservation oracles | ✅ verified |
 | KDV-001 | KdV soliton + 2/3 dealiasing | ✅ verified |
 | SHK-001 | Rankine–Hugoniot solver, residuals < 1e-10 | ✅ verified |
 | SHK-005 | Published external hybrid-code reference metadata + scalar comparison target | ✅ verified |
@@ -102,7 +103,7 @@ src/
   integrators/            HybridStepper, CAM-CL, semi-implicit helpers
   io/                     checkpoint/restart and reproducibility metadata
   meshes/                 Cartesian and local finite-difference mesh adapters
-  models/                 HybridPIC, FullPIC, electrostatic, Hall-MHD surfaces
+  models/                 HybridPIC, FullPIC, electrostatic, and Hall-MHD models
   parallel/               threaded CPU/MPI helpers plus GPU and I/O extension hooks
   particles/              ParticleSet{D}, loaders, Boris mover, sorting
   verification/           analytic oracles and campaign helpers

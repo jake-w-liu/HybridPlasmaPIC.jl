@@ -16,6 +16,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - SHK-005 now includes a compact published external hybrid-code reference from
   the Preisser et al. 2020 Zenodo dataset (`10.5281/zenodo.3697360`): source DOI,
   license, HDF5 checksum, derived scalar `Bavg_y` summaries, and comparison tests.
+- Implemented periodic Hall-MHD with `HallMHDModel`, `HallMHDState`,
+  generalized Ohm's law, continuity/momentum/Faraday RHS, RK4 stepping, and
+  analytic verification tests.
 
 ## [0.1.0]
 
