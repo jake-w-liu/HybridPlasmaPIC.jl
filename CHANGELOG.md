@@ -22,6 +22,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Added dimension-parametric `ElectrostaticPIC` for periodic 1D/2D/3D
   electrostatic full-PIC, with 2D/3D spectral Poisson oracles and 2D validation
   and equilibrium tests while preserving the existing `Electrostatic1D` API.
+- Added dimension-parametric `EMPIC` for periodic 1D/2D/3D electromagnetic
+  full-PIC with mobile electrons, optional mobile ions, relativistic Boris
+  support, spectral Gauss-law initialization, and spectral current correction
+  that enforces charge conservation on represented Fourier modes.
 
 ## [0.1.0]
 

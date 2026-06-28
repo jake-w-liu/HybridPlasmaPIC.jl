@@ -47,6 +47,7 @@ using Test
     include("test_inject.jl")
     include("test_mpi.jl")
     include("test_espic.jl")
+    include("test_empic.jl")
     include("test_empic1d.jl")
     include("test_jet.jl")
     include("test_quality.jl")

@@ -50,7 +50,7 @@ Faraday step with the `n+1/2` ion moments frozen (CAM/CL structure); the carried
 ## Verification status
 
 Benchmarks below are checked against **independent analytic oracles**.
-Post-extraction verification on Julia 1.12.6: `Pkg.test()` passed 100,570 tests.
+Post-extraction verification on Julia 1.12.6: `Pkg.test()` passed 100,618 tests.
 Tolerances are the checklist's initial engineering targets.
 
 | Benchmark | What | Status |
@@ -67,6 +67,7 @@ Tolerances are the checklist's initial engineering targets.
 | HYB-007/008 | adiabatic energy convergence, subcycling | ✅ verified |
 | HALL-MHD | periodic Hall-MHD Ohm/RHS/RK4 mass conservation oracles | ✅ verified |
 | ESPIC | electrostatic PIC: 1D Langmuir/two-stream + 2D/3D Poisson oracles | ✅ verified |
+| EMPIC | EM PIC: 1D Esirkepov + 2D/3D spectral charge-conserving current | ✅ verified |
 | KDV-001 | KdV soliton + 2/3 dealiasing | ✅ verified |
 | SHK-001 | Rankine–Hugoniot solver, residuals < 1e-10 | ✅ verified |
 | SHK-005 | Published external hybrid-code reference metadata + scalar comparison target | ✅ verified |
@@ -89,9 +90,10 @@ claimed as done:
   checksum, and scalar summaries from the published Preisser et al. 2020 Zenodo
   hybrid-simulation dataset (`10.5281/zenodo.3697360`). Replaying the full HDF5
   profiles remains optional and requires downloading the upstream data.
-- **Electromagnetic full-PIC beyond 1D3V**: `ElectrostaticPIC` covers periodic
-  1D/2D/3D electrostatic PIC with analytic Poisson oracles, but the
-  charge-conserving electromagnetic full-PIC model remains `EMPIC1D`.
+- **Advanced multidimensional full-PIC features**: `EMPIC` covers periodic
+  1D/2D/3D electromagnetic PIC with spectral charge-conserving current
+  correction. Multidimensional electron subcycling and non-periodic EM PIC
+  boundary conditions are not claimed.
 - **Multi-GPU** restart and scaling.
 
 ## Package layout

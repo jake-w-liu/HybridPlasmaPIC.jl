@@ -1,9 +1,11 @@
-# empic1d.jl — full electromagnetic 1D PIC (1D space, 3V velocity), SEPARATE from
-# the hybrid loop. Mobile kinetic electrons (q=−1, m=1). The positive species can
-# be EITHER a uniform immobile ion background (+n0, the default) OR a second
-# mobile kinetic ion species (q=+1, mass mi, default mi=1836·me). ε0=1, so the
-# electron plasma frequency is ω_pe = √(n0) and ω_pe = 1 at n0 = 1. Speed of light
-# c is a free parameter (default 5).
+# full_pic.jl — full electromagnetic PIC models, SEPARATE from the hybrid loop.
+# `EMPIC1D` is the specialized 1D3V leapfrog/subcycling solver below; `EMPIC`
+# is the dimension-parametric periodic 1D/2D/3D solver later in this file. Both
+# use mobile kinetic electrons (q=−1, m=1). The positive species can be EITHER a
+# uniform immobile ion background (+n0, the default) OR a second mobile kinetic
+# ion species (q=+1, mass mi, default mi=1836·me). ε0=1, so the electron plasma
+# frequency is ω_pe = √(n0) and ω_pe = 1 at n0 = 1. Speed of light c is a free
+# parameter (default 5).
 #
 # Fields live on the collocated periodic Fourier grid; spatial derivatives are
 # spectral (∂x ↔ ik with the Nyquist mode zeroed, supplied by FourierGrid{1}).
@@ -128,12 +130,13 @@ function EMPIC1D(
     n_sub::Integer = 1,
 ) where {T}
     n_sub >= 1 || throw(ArgumentError("n_sub must be ≥ 1"))
+    Np = _particle_length(Nparticles)
     n0T = _require_finite_nonnegative_real("n0", n0, T)
     cT = _require_finite_positive_real("c", c, T)
     miT = _require_finite_positive_real("mi", mi, T)
     n = g.n[1]
     z() = zeros(T, n)
-    vz() = zeros(T, Nparticles)
+    vz() = zeros(T, Np)
     EMPIC1D{T,typeof(g),typeof(shape)}(
         g,
         n0T,
@@ -178,11 +181,21 @@ end
     return es
 end
 
-@inline function _require_empic_electrons(e::ParticleSet{1,T}) where {T}
+@inline function _require_empic_electrons(e::ParticleSet{D,T}) where {D,T}
     q = _require_finite_real("electron charge q", e.q, T)
     m = _require_finite_real("electron mass m", e.m, T)
-    q == -one(T) || throw(ArgumentError("EMPIC1D requires electron ParticleSet with q = -1"))
-    m == one(T) || throw(ArgumentError("EMPIC1D requires electron ParticleSet with m = 1"))
+    q == -one(T) ||
+        throw(ArgumentError("electromagnetic PIC requires electron ParticleSet with q = -1"))
+    m == one(T) ||
+        throw(ArgumentError("electromagnetic PIC requires electron ParticleSet with m = 1"))
+    return nothing
+end
+
+@inline function _require_empic_ions(ions::ParticleSet{D,T}) where {D,T}
+    q = _require_finite_real("ion charge q", ions.q, T)
+    m = _require_finite_real("ion mass m", ions.m, T)
+    q == one(T) || throw(ArgumentError("electromagnetic PIC requires ion ParticleSet with q = 1"))
+    m > zero(T) || throw(ArgumentError("electromagnetic PIC requires ion ParticleSet with m > 0"))
     return nothing
 end
 
@@ -434,6 +447,7 @@ function init_empic!(
     if es.mobile
         ions === nothing &&
             throw(ArgumentError("mobile=true requires an ion ParticleSet in init_empic!"))
+        _require_empic_ions(ions)
         _ensure_ion_buffers!(es, nparticles(ions))
     end
     g = es.g
@@ -585,6 +599,7 @@ function step_empic!(
     if es.mobile
         ions === nothing &&
             throw(ArgumentError("mobile=true requires an ion ParticleSet in step_empic!"))
+        _require_empic_ions(ions)
     end
     dtT = _validated_nonnegative_dt(T, dt; name = "step_empic!")
     if es.mobile
@@ -666,6 +681,499 @@ function charge_conservation_residual(es::EMPIC1D{T}, dt::Real) where {T}
     @inbounds for i = 1:n
         dρ = real(cb[i])
         r = dρ + dtT * dJx[i]
+        rmax = max(rmax, abs(r))
+        scale = max(scale, abs(dρ))
+    end
+    return rmax / (scale > 0 ? scale : one(T))
+end
+
+# ---------------------------------------------------------------- dimension-parametric EM PIC
+
+"""
+    EMPIC(g, Nparticles; n0=1.0, c=5.0, shape=CIC(), relativistic=false,
+          mobile=false, mi=1836.0)
+
+Dimension-parametric periodic electromagnetic PIC on `FourierGrid{D}` for
+`D = 1, 2, 3`. Electrons are kinetic (`q=-1`, `m=1`) with either a uniform
+immobile positive background of density `n0` or, when `mobile=true`, a second
+kinetic ion species (`q=+1`) supplied to [`init_empic!`](@ref) and
+[`step_empic!`](@ref). Fields are collocated spectral arrays with `E` and `B`
+stored as 3-component tuples.
+
+The mover uses a leapfrog Maxwell update:
+`B^{n} = B^{n-1/2} - (dt/2) curl(E^n)` for the particle push,
+`B^{n+1/2} = B^{n-1/2} - dt curl(E^n)`, and
+`E^{n+1} = E^n + dt(c^2 curl(B^{n+1/2}) - J^{n+1/2})`.
+The midpoint particle current is spectrally corrected only in its longitudinal
+component so that `Δρ/dt + div(J) = 0` holds to roundoff on the represented
+Fourier modes.
+"""
+mutable struct EMPIC{D,T,G,SH<:ShapeFunction}
+    g::G
+    n0::T
+    c::T
+    shape::SH
+    relativistic::Bool
+    mobile::Bool
+    mi::T
+    E::NTuple{3,Array{T,D}}
+    B::NTuple{3,Array{T,D}}
+    Bc::NTuple{3,Array{T,D}}
+    J::NTuple{3,Array{T,D}}
+    Jraw::NTuple{3,Array{T,D}}
+    rho_n::Array{T,D}
+    rho_np1::Array{T,D}
+    ne::Array{T,D}
+    curlE::NTuple{3,Array{T,D}}
+    curlB::NTuple{3,Array{T,D}}
+    Ep::NTuple{3,Vector{T}}
+    Bp::NTuple{3,Vector{T}}
+    mide::NTuple{D,Vector{T}}
+    worke::Vector{T}
+    Epi::NTuple{3,Vector{T}}
+    Bpi::NTuple{3,Vector{T}}
+    midi::NTuple{D,Vector{T}}
+    worki::Vector{T}
+    time::Base.RefValue{T}
+    step::Base.RefValue{Int}
+end
+
+function EMPIC(
+    g::FourierGrid{D,T},
+    Nparticles::Integer;
+    n0 = 1.0,
+    c = 5.0,
+    shape::ShapeFunction = CIC(),
+    relativistic::Bool = false,
+    mobile::Bool = false,
+    mi = 1836.0,
+) where {D,T}
+    1 <= D <= 3 || throw(ArgumentError("EMPIC supports D = 1, 2, or 3"))
+    Np = _particle_length(Nparticles)
+    n0T = _require_finite_nonnegative_real("n0", n0, T)
+    cT = _require_finite_positive_real("c", c, T)
+    miT = _require_finite_positive_real("mi", mi, T)
+    grid_tuple() = ntuple(_ -> zeros(T, g.n), 3)
+    particle_tuple() = ntuple(_ -> zeros(T, Np), 3)
+    midpoint_tuple() = ntuple(_ -> zeros(T, Np), D)
+    return EMPIC{D,T,typeof(g),typeof(shape)}(
+        g,
+        n0T,
+        cT,
+        shape,
+        relativistic,
+        mobile,
+        miT,
+        grid_tuple(),
+        grid_tuple(),
+        grid_tuple(),
+        grid_tuple(),
+        grid_tuple(),
+        zeros(T, g.n),
+        zeros(T, g.n),
+        zeros(T, g.n),
+        grid_tuple(),
+        grid_tuple(),
+        particle_tuple(),
+        particle_tuple(),
+        midpoint_tuple(),
+        zeros(T, Np),
+        ntuple(_ -> T[], 3),
+        ntuple(_ -> T[], 3),
+        ntuple(_ -> T[], D),
+        T[],
+        Ref(zero(T)),
+        Ref(0),
+    )
+end
+
+@inline function _ensure_empic_ion_buffers!(es::EMPIC{D,T}, ni::Integer) where {D,T}
+    ni >= 0 || throw(ArgumentError("ion particle count must be nonnegative"))
+    for c = 1:3
+        resize!(es.Epi[c], ni)
+        resize!(es.Bpi[c], ni)
+    end
+    for d = 1:D
+        resize!(es.midi[d], ni)
+    end
+    resize!(es.worki, ni)
+    return es
+end
+
+@inline _empic_component_buffer(g, c::Int) = c == 1 ? g.cbuf : c == 2 ? g.tbuf : g.abuf
+
+@inline function _empic_divergence_hat(
+    buffers,
+    g::FourierGrid{D,T},
+    I::CartesianIndex{D},
+) where {D,T}
+    s = zero(Complex{T})
+    idx = Tuple(I)
+    @inbounds for d = 1:D
+        s += Complex{T}(0, g.kvec[d][idx[d]]) * buffers[d][I]
+    end
+    return s
+end
+
+function _enforce_gauss!(es::EMPIC{D,T}) where {D,T}
+    g = es.g
+    rhohat = g.sbuf
+    rhohat .= es.rho_n
+    g.plan * rhohat
+    buffers = (g.cbuf, g.tbuf, g.abuf)
+    for c = 1:3
+        buffers[c] .= es.E[c]
+        g.plan * buffers[c]
+    end
+    @inbounds for I in CartesianIndices(rhohat)
+        k2 = _spectral_k2(g, I)
+        if k2 != 0
+            delta = rhohat[I] - _empic_divergence_hat(buffers, g, I)
+            idx = Tuple(I)
+            for d = 1:D
+                buffers[d][I] += (-im * g.kvec[d][idx[d]] / k2) * delta
+            end
+        end
+    end
+    for c = 1:3
+        g.iplan * buffers[c]
+        es.E[c] .= real.(buffers[c])
+    end
+    return es.E
+end
+
+@inline function _add_species_charge!(
+    rho::Array{T,D},
+    ne::Array{T,D},
+    es::EMPIC{D,T},
+    s::ParticleSet{D,T},
+) where {D,T}
+    density!(ne, s, es.g, es.shape)
+    q = s.q
+    @inbounds for I in eachindex(rho)
+        rho[I] += q * ne[I]
+    end
+    return rho
+end
+
+function _charge_density!(
+    rho::Array{T,D},
+    ne::Array{T,D},
+    es::EMPIC{D,T},
+    e::ParticleSet{D,T},
+    ions::Union{Nothing,ParticleSet{D,T}},
+) where {D,T}
+    if es.mobile && ions !== nothing
+        fill!(rho, zero(T))
+        _add_species_charge!(rho, ne, es, ions)
+        _add_species_charge!(rho, ne, es, e)
+    else
+        density!(ne, e, es.g, es.shape)
+        @inbounds for I in eachindex(rho)
+            rho[I] = es.n0 - ne[I]
+        end
+    end
+    return rho
+end
+
+function _add_species_current!(
+    J::NTuple{3,Array{T,D}},
+    es::EMPIC{D,T},
+    s::ParticleSet{D,T},
+    work::Vector{T},
+    scratch::Array{T,D},
+    accumulate::Bool,
+) where {D,T}
+    length(work) == nparticles(s) ||
+        throw(DimensionMismatch("current work length must equal particle count"))
+    ΔV = prod(es.g.dx)
+    @inbounds for c = 1:3
+        @. work = s.weight * s.v[c]
+        deposit_scalar!(scratch, s, work, es.g, es.shape)
+        f = s.q / ΔV
+        if accumulate
+            for I in eachindex(J[c])
+                J[c][I] += f * scratch[I]
+            end
+        else
+            for I in eachindex(J[c])
+                J[c][I] = f * scratch[I]
+            end
+        end
+    end
+    return J
+end
+
+@inline function _swap_positions_with_midpoints!(
+    s::ParticleSet{D,T},
+    mid::NTuple{D,Vector{T}},
+) where {D,T}
+    @inbounds for d = 1:D
+        x = s.x[d]
+        xm = mid[d]
+        length(xm) == length(x) ||
+            throw(DimensionMismatch("midpoint buffer length must equal particle count"))
+        for p in eachindex(x)
+            tmp = x[p]
+            x[p] = xm[p]
+            xm[p] = tmp
+        end
+    end
+    return s
+end
+
+function _deposit_current_at_midpoints!(
+    es::EMPIC{D,T},
+    e::ParticleSet{D,T},
+    ions::Union{Nothing,ParticleSet{D,T}},
+) where {D,T}
+    _swap_positions_with_midpoints!(e, es.mide)
+    _add_species_current!(es.Jraw, es, e, es.worke, es.ne, false)
+    _swap_positions_with_midpoints!(e, es.mide)
+    if es.mobile && ions !== nothing
+        _swap_positions_with_midpoints!(ions, es.midi)
+        _add_species_current!(es.Jraw, es, ions, es.worki, es.ne, true)
+        _swap_positions_with_midpoints!(ions, es.midi)
+    end
+    return es.Jraw
+end
+
+function _correct_current_continuity!(es::EMPIC{D,T}, dt::T) where {D,T}
+    g = es.g
+    buffers = (g.cbuf, g.tbuf, g.abuf)
+    for c = 1:3
+        buffers[c] .= es.Jraw[c]
+        g.plan * buffers[c]
+    end
+    delta = g.sbuf
+    @inbounds for I in CartesianIndices(delta)
+        delta[I] = Complex{T}(es.rho_np1[I] - es.rho_n[I])
+    end
+    g.plan * delta
+    @inbounds for I in CartesianIndices(delta)
+        k2 = _spectral_k2(g, I)
+        if k2 != 0
+            target = -delta[I] / dt
+            defect = target - _empic_divergence_hat(buffers, g, I)
+            idx = Tuple(I)
+            for d = 1:D
+                buffers[d][I] += (-im * g.kvec[d][idx[d]] / k2) * defect
+            end
+        end
+    end
+    for c = 1:3
+        g.iplan * buffers[c]
+        es.J[c] .= real.(buffers[c])
+    end
+    return es.J
+end
+
+@inline function _push_velocities!(
+    es::EMPIC{D,T},
+    s::ParticleSet{D,T},
+    Ep::NTuple{3,Vector{T}},
+    Bp::NTuple{3,Vector{T}},
+    dt::T,
+) where {D,T}
+    qm = s.q / s.m
+    vx, vy, vz = s.v
+    if es.relativistic
+        cc = es.c
+        @inbounds for p in eachindex(s.weight)
+            nx, ny, nz = _boris_rel(
+                vx[p],
+                vy[p],
+                vz[p],
+                Ep[1][p],
+                Ep[2][p],
+                Ep[3][p],
+                Bp[1][p],
+                Bp[2][p],
+                Bp[3][p],
+                qm,
+                dt,
+                cc,
+            )
+            vx[p] = nx
+            vy[p] = ny
+            vz[p] = nz
+        end
+    else
+        @inbounds for p in eachindex(s.weight)
+            nx, ny, nz = boris_kick(
+                vx[p],
+                vy[p],
+                vz[p],
+                Ep[1][p],
+                Ep[2][p],
+                Ep[3][p],
+                Bp[1][p],
+                Bp[2][p],
+                Bp[3][p],
+                qm,
+                dt,
+            )
+            vx[p] = nx
+            vy[p] = ny
+            vz[p] = nz
+        end
+    end
+    return s
+end
+
+@inline function _drift_record_mid!(
+    s::ParticleSet{D,T},
+    mid::NTuple{D,Vector{T}},
+    dt::T,
+    L::NTuple{D,T},
+) where {D,T}
+    @inbounds for d = 1:D
+        x = s.x[d]
+        v = s.v[d]
+        xm = mid[d]
+        length(xm) == length(x) ||
+            throw(DimensionMismatch("midpoint buffer length must equal particle count"))
+        for p in eachindex(x)
+            xmid = x[p] + (dt / 2) * v[p]
+            x[p] += dt * v[p]
+            xm[p] = mod(xmid, L[d])
+        end
+    end
+    return s
+end
+
+"""
+    init_empic!(es::EMPIC, electrons[, ions])
+
+Initialize a dimension-parametric EM PIC state. Existing transverse electric
+field content is preserved; only the longitudinal component is corrected so
+`div(E) = rho` for the loaded particles. `B` keeps the caller-provided initial
+values.
+"""
+function init_empic!(
+    es::EMPIC{D,T},
+    e::ParticleSet{D,T},
+    ions::Union{Nothing,ParticleSet{D,T}} = nothing,
+) where {D,T}
+    _require_empic_electrons(e)
+    if es.mobile
+        ions === nothing &&
+            throw(ArgumentError("mobile=true requires an ion ParticleSet in init_empic!"))
+        _require_empic_ions(ions)
+        _ensure_empic_ion_buffers!(es, nparticles(ions))
+    end
+    _charge_density!(es.rho_n, es.ne, es, e, ions)
+    _enforce_gauss!(es)
+    return es
+end
+
+function _substep_empic!(
+    es::EMPIC{D,T},
+    e::ParticleSet{D,T},
+    ions::Union{Nothing,ParticleSet{D,T}},
+    dt::T,
+) where {D,T}
+    g = es.g
+    c2 = es.c * es.c
+    _charge_density!(es.rho_n, es.ne, es, e, ions)
+
+    curl!(es.curlE, es.E, g)
+    @inbounds for c = 1:3, I in eachindex(es.B[c])
+        es.Bc[c][I] = es.B[c][I] - (dt / 2) * es.curlE[c][I]
+    end
+
+    gather_vector!(es.Ep, es.E, e, g, es.shape)
+    gather_vector!(es.Bp, es.Bc, e, g, es.shape)
+    _push_velocities!(es, e, es.Ep, es.Bp, dt)
+    _drift_record_mid!(e, es.mide, dt, g.L)
+    apply_periodic!(e, ntuple(_ -> zero(T), D), g.L)
+
+    if es.mobile && ions !== nothing
+        gather_vector!(es.Epi, es.E, ions, g, es.shape)
+        gather_vector!(es.Bpi, es.Bc, ions, g, es.shape)
+        _push_velocities!(es, ions, es.Epi, es.Bpi, dt)
+        _drift_record_mid!(ions, es.midi, dt, g.L)
+        apply_periodic!(ions, ntuple(_ -> zero(T), D), g.L)
+    end
+
+    _deposit_current_at_midpoints!(es, e, ions)
+    _charge_density!(es.rho_np1, es.ne, es, e, ions)
+    _correct_current_continuity!(es, dt)
+
+    @inbounds for c = 1:3, I in eachindex(es.B[c])
+        es.B[c][I] -= dt * es.curlE[c][I]
+    end
+    curl!(es.curlB, es.B, g)
+    @inbounds for c = 1:3, I in eachindex(es.E[c])
+        es.E[c][I] += dt * (c2 * es.curlB[c][I] - es.J[c][I])
+    end
+    return es
+end
+
+"""
+    step_empic!(es::EMPIC, electrons[, ions], dt)
+
+Advance the dimension-parametric EM PIC state by one step. The optional ion
+species is required when `mobile=true` and ignored otherwise.
+"""
+function step_empic!(
+    es::EMPIC{D,T},
+    e::ParticleSet{D,T},
+    ions::Union{Nothing,ParticleSet{D,T}},
+    dt::Real,
+) where {D,T}
+    _require_empic_electrons(e)
+    if es.mobile
+        ions === nothing &&
+            throw(ArgumentError("mobile=true requires an ion ParticleSet in step_empic!"))
+        _require_empic_ions(ions)
+    end
+    dtT = _validated_nonnegative_dt(T, dt; name = "step_empic!")
+    if es.mobile
+        _ensure_empic_ion_buffers!(es, nparticles(ions))
+    end
+    _substep_empic!(es, e, ions, dtT)
+    es.time[] += dtT
+    es.step[] += 1
+    return es
+end
+
+step_empic!(es::EMPIC{D,T}, e::ParticleSet{D,T}, dt::Real) where {D,T} =
+    step_empic!(es, e, nothing, dt)
+
+function em_field_energy(es::EMPIC{D,T}) where {D,T}
+    c2 = es.c * es.c
+    s = zero(T)
+    @inbounds for c = 1:3, I in eachindex(es.E[c])
+        s += es.E[c][I]^2 + c2 * es.B[c][I]^2
+    end
+    return T(0.5) * s * prod(es.g.dx)
+end
+
+function charge_conservation_residual(es::EMPIC{D,T}, dt::Real) where {D,T}
+    g = es.g
+    dtT = T(dt)
+    dρhat = g.cbuf
+    @inbounds for I in CartesianIndices(dρhat)
+        dρhat[I] = Complex{T}(es.rho_np1[I] - es.rho_n[I])
+    end
+    g.plan * dρhat
+    @inbounds for I in CartesianIndices(dρhat)
+        _spectral_k2(g, I) == 0 && (dρhat[I] = zero(Complex{T}))
+    end
+    g.iplan * dρhat
+    dρrepr = similar(es.rho_n)
+    @inbounds for I in eachindex(dρrepr)
+        dρrepr[I] = real(dρhat[I])
+    end
+
+    dJ = similar(es.rho_n)
+    divergence!(dJ, es.J, g)
+    rmax = zero(T)
+    scale = zero(T)
+    @inbounds for I in eachindex(dJ)
+        dρ = dρrepr[I]
+        r = dρ + dtT * dJ[I]
         rmax = max(rmax, abs(r))
         scale = max(scale, abs(dρ))
     end

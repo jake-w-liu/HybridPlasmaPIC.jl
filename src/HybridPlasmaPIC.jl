@@ -271,7 +271,7 @@ export PlasmaUnits, alfven_speed, gyrofrequency, inertial_length, to_SI, to_norm
 export rh_branches
 export SpectralOperators, exp_filter!, dealias_two_thirds!, fft_friendly_size, with_fftw_wisdom
 export CAMCLStepper, init_camcl!, step_camcl!
-export EMPIC1D, init_empic!, step_empic!, em_field_energy, charge_conservation_residual
+export EMPIC, EMPIC1D, init_empic!, step_empic!, em_field_energy, charge_conservation_residual
 export HallMHDModel, HallMHDState, hall_mhd_ohms_law!, hall_mhd_rhs!, step_hall_mhd!
 export run_perp_shock, perp_shock_sweep
 export collide_bgk!
