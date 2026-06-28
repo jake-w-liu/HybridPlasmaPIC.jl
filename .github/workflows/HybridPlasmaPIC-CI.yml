@@ -49,6 +49,39 @@ jobs:
           files: lcov.info
           fail_ci_if_error: false
 
+  mpi-smoke:
+    name: Real MPI 2-rank smoke
+    runs-on: ubuntu-latest
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        ranks: [2]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.12'
+      - uses: julia-actions/cache@v2
+      - name: Run real MPI regression smoke test
+        timeout-minutes: 20
+        run: |
+          set -euo pipefail
+          julia --project=. -e 'using Pkg; Pkg.instantiate()'
+          julia --project=. -e '
+            import MPI
+            mpiexec = MPI.mpiexec()
+            mpiexec === nothing && error("MPI launcher unavailable")
+            run(`$mpiexec -n ${{ matrix.ranks }} $(Base.julia_cmd()) --project=$(pwd()) test/test_mpi_multirank.jl`)' > mpi-smoke.log 2>&1
+          cat mpi-smoke.log
+      - name: Upload mpi-smoke log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mpi-smoke-log-${{ matrix.ranks }}-ranks
+          path: mpi-smoke.log
+          if-no-files-found: warn
+
   format:
     name: Formatting check (JuliaFormatter)
     runs-on: ubuntu-latest
