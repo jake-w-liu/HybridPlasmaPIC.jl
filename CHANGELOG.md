@@ -19,6 +19,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Implemented periodic Hall-MHD with `HallMHDModel`, `HallMHDState`,
   generalized Ohm's law, continuity/momentum/Faraday RHS, RK4 stepping, and
   analytic verification tests.
+- Added dimension-parametric `ElectrostaticPIC` for periodic 1D/2D/3D
+  electrostatic full-PIC, with 2D/3D spectral Poisson oracles and 2D validation
+  and equilibrium tests while preserving the existing `Electrostatic1D` API.
 
 ## [0.1.0]
 

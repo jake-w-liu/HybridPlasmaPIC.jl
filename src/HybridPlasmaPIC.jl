@@ -181,7 +181,7 @@ export save_checkpoint, load_checkpoint!
 export kdv_soliton, kdv_solve
 export SBP1D, sbp_deriv!, sbp_deriv, sbp_deriv_x!, FourierDerivYWorkspace, fourier_deriv_y!
 export PerpShock, init_shock!, step_shock!, deposit_moments!, compute_E!, shock_density_weight
-export Electrostatic1D, init_espic!, step_espic!, poisson_E!, field_energy
+export Electrostatic1D, ElectrostaticPIC, init_espic!, step_espic!, poisson_E!, field_energy
 export flux_speed, flux_per_density, inject_face_1d!
 export total_momentum,
     electric_work,

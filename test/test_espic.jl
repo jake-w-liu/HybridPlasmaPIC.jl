@@ -11,6 +11,170 @@ using HybridPlasmaPIC, FFTW, Test, Random
     @test es.n0 == 1.0
     @test_throws ArgumentError Electrostatic1D(g, 4; n0 = NaN)
     @test_throws ArgumentError Electrostatic1D(g, 4; n0 = -1.0)
+    @test_throws ArgumentError Electrostatic1D(g, -1; n0 = 1.0)
+end
+
+@testset "ElectrostaticPIC constructor validation" begin
+    g2 = FourierGrid((8, 6), (2π, 3π))
+    es2 = ElectrostaticPIC(g2, 5; n0 = 0.75)
+    @test es2.n0 == 0.75
+    @test size(es2.ne) == (8, 6)
+    @test all(size(Ec) == (8, 6) for Ec in es2.E)
+    @test all(length(Ep) == 5 for Ep in es2.Ep)
+
+    g3 = FourierGrid((6, 5, 4), (2π, 3π, 4π))
+    es3 = ElectrostaticPIC(g3, 7; n0 = 1.25)
+    @test size(es3.ne) == (6, 5, 4)
+    @test all(size(Ec) == (6, 5, 4) for Ec in es3.E)
+    @test all(length(Ep) == 7 for Ep in es3.Ep)
+
+    @test_throws ArgumentError ElectrostaticPIC(g2, 5; n0 = NaN)
+    @test_throws ArgumentError ElectrostaticPIC(g2, 5; n0 = -1.0)
+    @test_throws ArgumentError ElectrostaticPIC(g2, -1; n0 = 1.0)
+
+    g4 = FourierGrid((2, 2, 2, 2), (1.0, 1.0, 1.0, 1.0))
+    @test_throws ArgumentError ElectrostaticPIC(g4, 1; n0 = 1.0)
+end
+
+@testset "ElectrostaticPIC 2D spectral Poisson oracle" begin
+    nx, ny = 32, 24
+    Lx, Ly = 2π, 2π
+    g = FourierGrid((nx, ny), (Lx, Ly))
+    es = ElectrostaticPIC(g, 0; n0 = 1.25)
+    A = 0.2
+    mx, my = 2, 3
+    kx = 2π * mx / Lx
+    ky = 2π * my / Ly
+    k2 = kx^2 + ky^2
+    ex = zeros(Float64, nx, ny)
+    ey = zeros(Float64, nx, ny)
+
+    for j = 1:ny, i = 1:nx
+        x = (i - 1) * g.dx[1]
+        y = (j - 1) * g.dx[2]
+        rho = A * cos(kx * x) * cos(ky * y)
+        es.ne[i, j] = es.n0 - rho
+        ex[i, j] = A * kx / k2 * sin(kx * x) * cos(ky * y)
+        ey[i, j] = A * ky / k2 * cos(kx * x) * sin(ky * y)
+    end
+
+    poisson_E!(es)
+    @test maximum(abs, es.E[1] .- ex) < 1e-12
+    @test maximum(abs, es.E[2] .- ey) < 1e-12
+    @test maximum(abs, es.E[3]) < 1e-12
+    @test field_energy(es) ≈ 0.5 * (sum(abs2, es.E[1]) + sum(abs2, es.E[2])) * prod(g.dx)
+end
+
+@testset "ElectrostaticPIC 3D spectral Poisson oracle" begin
+    nx, ny, nz = 16, 12, 10
+    Lx, Ly, Lz = 2π, 2π, 2π
+    g = FourierGrid((nx, ny, nz), (Lx, Ly, Lz))
+    es = ElectrostaticPIC(g, 0; n0 = 0.5)
+    A = 0.15
+    mx, my, mz = 1, 2, 3
+    kx = 2π * mx / Lx
+    ky = 2π * my / Ly
+    kz = 2π * mz / Lz
+    k2 = kx^2 + ky^2 + kz^2
+    ex = zeros(Float64, nx, ny, nz)
+    ey = zeros(Float64, nx, ny, nz)
+    ez = zeros(Float64, nx, ny, nz)
+
+    for k = 1:nz, j = 1:ny, i = 1:nx
+        x = (i - 1) * g.dx[1]
+        y = (j - 1) * g.dx[2]
+        z = (k - 1) * g.dx[3]
+        cx = cos(kx * x)
+        cy = cos(ky * y)
+        cz = cos(kz * z)
+        sx = sin(kx * x)
+        sy = sin(ky * y)
+        sz = sin(kz * z)
+        rho = A * cx * cy * cz
+        es.ne[i, j, k] = es.n0 - rho
+        ex[i, j, k] = A * kx / k2 * sx * cy * cz
+        ey[i, j, k] = A * ky / k2 * cx * sy * cz
+        ez[i, j, k] = A * kz / k2 * cx * cy * sz
+    end
+
+    poisson_E!(es)
+    @test maximum(abs, es.E[1] .- ex) < 1e-12
+    @test maximum(abs, es.E[2] .- ey) < 1e-12
+    @test maximum(abs, es.E[3] .- ez) < 1e-12
+end
+
+@testset "ElectrostaticPIC 2D electron species validation" begin
+    T = Float64
+    g = FourierGrid((8, 8), (2π, 2π))
+
+    badq = ParticleSet{2,T}(4; q = 0.0, m = 1.0)
+    load_lattice!(badq, (0.0, 0.0), (2π, 2π), (2, 2))
+    set_density_weight!(badq, 1.0, g)
+    es = ElectrostaticPIC(g, 4; n0 = 1.0)
+    @test_throws ArgumentError init_espic!(es, badq)
+    for c = 1:3
+        fill!(es.E[c], c)
+    end
+    fill!(es.ne, 0.25)
+    x0 = ntuple(d -> copy(badq.x[d]), 2)
+    v0 = ntuple(c -> copy(badq.v[c]), 3)
+    E0 = ntuple(c -> copy(es.E[c]), 3)
+    ne0 = copy(es.ne)
+    @test_throws ArgumentError step_espic!(es, badq, 0.1)
+    @test all(badq.x[d] == x0[d] for d = 1:2)
+    @test all(badq.v[c] == v0[c] for c = 1:3)
+    @test all(es.E[c] == E0[c] for c = 1:3)
+    @test es.ne == ne0
+
+    badm = ParticleSet{2,T}(4; q = -1.0, m = 2.0)
+    load_lattice!(badm, (0.0, 0.0), (2π, 2π), (2, 2))
+    set_density_weight!(badm, 1.0, g)
+    @test_throws ArgumentError init_espic!(ElectrostaticPIC(g, 4; n0 = 1.0), badm)
+end
+
+@testset "ElectrostaticPIC 2D timestep validation before mutation" begin
+    T = Float64
+    g = FourierGrid((8, 8), (2π, 2π))
+    e = ParticleSet{2,T}(64; q = -1.0, m = 1.0)
+    load_lattice!(e, (0.0, 0.0), (2π, 2π), (8, 8))
+    set_density_weight!(e, 1.0, g)
+    es = ElectrostaticPIC(g, 64; n0 = 1.0)
+    init_espic!(es, e)
+
+    x0 = ntuple(d -> copy(e.x[d]), 2)
+    v0 = ntuple(c -> copy(e.v[c]), 3)
+    E0 = ntuple(c -> copy(es.E[c]), 3)
+    ne0 = copy(es.ne)
+
+    @test_throws ArgumentError step_espic!(es, e, NaN)
+    @test_throws ArgumentError step_espic!(es, e, -0.1)
+    @test all(e.x[d] == x0[d] for d = 1:2)
+    @test all(e.v[c] == v0[c] for c = 1:3)
+    @test all(es.E[c] == E0[c] for c = 1:3)
+    @test es.ne == ne0
+end
+
+@testset "ElectrostaticPIC 2D uniform equilibrium is force-free" begin
+    T = Float64
+    g = FourierGrid((8, 6), (2π, 3π))
+    counts = (8, 6)
+    N = prod(counts)
+    e = ParticleSet{2,T}(N; q = -1.0, m = 1.0)
+    load_lattice!(e, (0.0, 0.0), g.L, counts)
+    set_density_weight!(e, 1.0, g)
+    es = ElectrostaticPIC(g, N; n0 = 1.0)
+    init_espic!(es, e)
+
+    @test maximum(abs, es.ne .- 1.0) < 1e-12
+    @test all(maximum(abs, es.E[c]) < 1e-12 for c = 1:3)
+    x0 = ntuple(d -> copy(e.x[d]), 2)
+    for _ = 1:5
+        step_espic!(es, e, 0.1)
+    end
+    @test maximum(abs, es.ne .- 1.0) < 1e-12
+    @test all(maximum(abs, es.E[c]) < 1e-12 for c = 1:3)
+    @test all(e.x[d] == x0[d] for d = 1:2)
+    @test field_energy(es) < 1e-24
 end
 
 @testset "Electrostatic1D electron species validation" begin
