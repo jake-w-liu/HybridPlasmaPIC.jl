@@ -377,6 +377,73 @@ if WORLD_SIZE in (2, 4, 8)
             end
         end
 
+        @testset "distributed MPI checkpoint restart bitmatch size=$WORLD_SIZE" begin
+            D = length(ctx.coords)
+            g, serial0 = _field_coupled_reference_state(Val(D))
+            local_ps = _rank_budget_particles(serial0, g, ctx.layout, ctx.logical_rank)
+            model = HybridModel(IsothermalElectrons(0.03); nfloor = 1e-5)
+            shape = CIC()
+            mpi_st = HybridStepper(g, model, shape, nparticles(local_ps))
+            _set_field_coupled_B!(mpi_st)
+            status = GPUAwareMPIStatus(false, false, false, :test, "host-only multi-rank test")
+            mpi_init!(mpi_st, local_ps, ctx; gpu_status = status)
+
+            dt = 0.025
+            for _ = 1:2
+                mpi_step!(mpi_st, local_ps, ctx, dt; NB = 2, gpu_status = status)
+            end
+
+            dir = joinpath(tempdir(), "HybridPlasmaPIC_mpi_checkpoint_size$(WORLD_SIZE)")
+            ctx.mpi_rank == 0 && rm(dir; recursive = true, force = true)
+            MPI.Barrier(ctx.comm)
+            manifest_path = save_mpi_checkpoint(dir, mpi_st, local_ps, ctx)
+            @test isfile(manifest_path)
+
+            restart_ps = ParticleSet{D,Float64}(1; q = local_ps.q, m = local_ps.m)
+            restart_st = HybridStepper(g, model, shape, 1)
+            load_mpi_checkpoint!(restart_st, restart_ps, dir, ctx)
+            @test restart_st.step[] == mpi_st.step[]
+            @test restart_st.time[] == mpi_st.time[]
+            @test nparticles(restart_ps) == nparticles(local_ps)
+            @test length(restart_st.work) == nparticles(restart_ps)
+            @test all(length(restart_st.Ep[c]) == nparticles(restart_ps) for c = 1:3)
+            @test all(length(restart_st.Bp[c]) == nparticles(restart_ps) for c = 1:3)
+            @test all(length(restart_st.xmid[d]) == nparticles(restart_ps) for d = 1:D)
+            for d = 1:D
+                @test restart_ps.x[d] == local_ps.x[d]
+            end
+            for c = 1:3
+                @test restart_ps.v[c] == local_ps.v[c]
+                @test restart_st.fields.B[c] == mpi_st.fields.B[c]
+                @test restart_st.fields.E[c] == mpi_st.fields.E[c]
+            end
+            @test restart_ps.weight == local_ps.weight
+            @test restart_ps.id == local_ps.id
+            @test restart_ps.tag == local_ps.tag
+
+            for _ = 1:3
+                mpi_step!(mpi_st, local_ps, ctx, dt; NB = 2, gpu_status = status)
+                mpi_step!(restart_st, restart_ps, ctx, dt; NB = 2, gpu_status = status)
+            end
+            for d = 1:D
+                @test restart_ps.x[d] == local_ps.x[d]
+            end
+            for c = 1:3
+                @test restart_ps.v[c] == local_ps.v[c]
+                @test restart_st.fields.B[c] == mpi_st.fields.B[c]
+                @test restart_st.fields.E[c] == mpi_st.fields.E[c]
+            end
+            @test restart_ps.weight == local_ps.weight
+            @test restart_ps.id == local_ps.id
+            @test restart_ps.tag == local_ps.tag
+            @test restart_st.step[] == mpi_st.step[]
+            @test restart_st.time[] == mpi_st.time[]
+
+            MPI.Barrier(ctx.comm)
+            ctx.mpi_rank == 0 && rm(dir; recursive = true, force = true)
+            MPI.Barrier(ctx.comm)
+        end
+
         if WORLD_SIZE == 2
             @testset "real MPI particle migration nonperiodic slab size=2" begin
                 g = FourierGrid((8,), (8.0,))

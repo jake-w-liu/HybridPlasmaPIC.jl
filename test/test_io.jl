@@ -60,6 +60,29 @@ end
     @test stb.step[] == str.step[] == 20
 end
 
+@testset "load_checkpoint! resizes particle workspaces" begin
+    g = FourierGrid((8,), (1.0,))
+    sta = HybridStepper(g, HybridModel(IsothermalElectrons(0.1)), CIC(), 6)
+    psa = ParticleSet{1,Float64}(6)
+    load_lattice_1d!(psa, 0.0, 1.0)
+    set_density_weight!(psa, 1.0, g)
+    init!(sta, psa)
+
+    path = tempname()
+    save_checkpoint(path, sta, psa)
+
+    stb = HybridStepper(g, HybridModel(IsothermalElectrons(0.1)), CIC(), 1)
+    psb = ParticleSet{1,Float64}(1)
+    load_checkpoint!(stb, psb, path)
+    @test nparticles(psb) == 6
+    @test length(stb.work) == 6
+    @test all(length(stb.Ep[c]) == 6 for c = 1:3)
+    @test all(length(stb.Bp[c]) == 6 for c = 1:3)
+    @test length(stb.xmid[1]) == 6
+    @test step!(stb, psb, 0.01) === stb
+    rm(path; force = true)
+end
+
 @testset "load_checkpoint! rejects eltype mismatch" begin
     # Regression: only D and grid were validated; a Float64 checkpoint loaded into
     # a Float32 stepper was silently converted, breaking the bitwise guarantee.

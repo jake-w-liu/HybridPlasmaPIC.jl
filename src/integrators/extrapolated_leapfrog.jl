@@ -75,6 +75,22 @@ function HybridStepper(
     )
 end
 
+function _resize_hybrid_particle_workspaces!(st::HybridStepper{D,T}, n::Integer) where {D,T}
+    n >= 0 || throw(ArgumentError("particle workspace length must be nonnegative, got $n"))
+    N = Int(n)
+    length(st.work) == N &&
+        all(length(st.Ep[c]) == N for c = 1:3) &&
+        all(length(st.Bp[c]) == N for c = 1:3) &&
+        all(length(st.xmid[d]) == N for d = 1:D) &&
+        return st
+
+    st.Ep = ntuple(_ -> Vector{T}(undef, N), 3)
+    st.Bp = ntuple(_ -> Vector{T}(undef, N), 3)
+    st.xmid = ntuple(_ -> Vector{T}(undef, N), D)
+    st.work = Vector{T}(undef, N)
+    return st
+end
+
 # moments (density into nout, bulk velocity into uout) with density floor
 function _moments!(
     nout::Array{T,D},

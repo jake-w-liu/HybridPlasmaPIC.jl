@@ -1,5 +1,6 @@
 using HybridPlasmaPIC, Test
 import MPI
+import Serialization
 
 struct WrappedMPIArray{T,N,A<:Array{T,N}} <: AbstractArray{T,N}
     data::A
@@ -66,6 +67,56 @@ end
 
     mismatch = LogicalRankLayout((2,); periodic = (true,))
     @test_throws ArgumentError create_cartesian_communicator(mismatch; comm = MPI.COMM_SELF)
+end
+
+@testset "one-rank MPI checkpoint restart" begin
+    ensure_mpi_initialized!()
+    @test MPI_CHECKPOINT_SCHEMA_VERSION == 1
+    g = FourierGrid((8,), (2π,))
+    layout = LogicalRankLayout((1,); periodic = (true,))
+    ctx = create_cartesian_communicator(layout; comm = MPI.COMM_SELF)
+    try
+        ps = ParticleSet{1,Float64}(8)
+        load_lattice_1d!(ps, 0.0, 2π)
+        set_density_weight!(ps, 1.0, g)
+        st = HybridStepper(g, HybridModel(IsothermalElectrons(0.2)), CIC(), nparticles(ps))
+        fill!(st.fields.B[3], 1.0)
+        mpi_init!(st, ps, ctx)
+        mpi_step!(st, ps, ctx, 0.01; NB = 2)
+
+        mktempdir() do dir
+            manifest_path = save_mpi_checkpoint(dir, st, ps, ctx)
+            @test isfile(manifest_path)
+            restored = HybridStepper(g, HybridModel(IsothermalElectrons(0.2)), CIC(), 1)
+            ps_restored = ParticleSet{1,Float64}(1)
+            load_mpi_checkpoint!(restored, ps_restored, dir, ctx)
+            @test restored.step[] == st.step[]
+            @test restored.time[] == st.time[]
+            @test nparticles(ps_restored) == nparticles(ps)
+            @test length(restored.work) == nparticles(ps)
+            @test ps_restored.x[1] == ps.x[1]
+            for c = 1:3
+                @test ps_restored.v[c] == ps.v[c]
+                @test restored.fields.B[c] == st.fields.B[c]
+                @test restored.fields.E[c] == st.fields.E[c]
+            end
+            @test ps_restored.weight == ps.weight
+            @test ps_restored.id == ps.id
+            @test ps_restored.tag == ps.tag
+
+            manifest = Serialization.deserialize(manifest_path)
+            bad = merge(manifest, (schema = MPI_CHECKPOINT_SCHEMA_VERSION + 1,))
+            Serialization.serialize(manifest_path, bad)
+            poisoned = HybridStepper(g, HybridModel(IsothermalElectrons(0.2)), CIC(), 1)
+            ps_poisoned = ParticleSet{1,Float64}(1)
+            fill!(poisoned.fields.B[1], 7.0)
+            @test_throws ArgumentError load_mpi_checkpoint!(poisoned, ps_poisoned, dir, ctx)
+            @test nparticles(ps_poisoned) == 1
+            @test all(==(7.0), poisoned.fields.B[1])
+        end
+    finally
+        free_mpi_communicator!(ctx)
+    end
 end
 
 @testset "one-rank MPI layout agrees with serial reference operations" begin

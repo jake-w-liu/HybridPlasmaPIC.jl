@@ -191,6 +191,206 @@ function mpi_rank_layout_description(ctx::MPICartesianCommunicator)
     )
 end
 
+const MPI_CHECKPOINT_SCHEMA_VERSION = 1
+const _MPI_CHECKPOINT_MANIFEST = "mpi_checkpoint_manifest.ser"
+
+_mpi_checkpoint_manifest_path(dir::AbstractString) = joinpath(dir, _MPI_CHECKPOINT_MANIFEST)
+
+function _mpi_checkpoint_rank_filename(logical_rank::Integer)
+    logical_rank >= 1 || throw(ArgumentError("logical rank must be positive, got $logical_rank"))
+    return string("rank_", lpad(string(Int(logical_rank)), 6, '0'), ".ser")
+end
+
+_mpi_checkpoint_rank_path(dir::AbstractString, logical_rank::Integer) =
+    joinpath(dir, _mpi_checkpoint_rank_filename(logical_rank))
+
+function _mpi_checkpoint_manifest(
+    st::HybridStepper{D,T},
+    ctx::MPICartesianCommunicator{D},
+) where {D,T}
+    rank_files = Tuple(_mpi_checkpoint_rank_filename(r) for r = 1:nranks(ctx.layout))
+    return (
+        schema = MPI_CHECKPOINT_SCHEMA_VERSION,
+        D = D,
+        T = T,
+        ncell = st.g.n,
+        L = st.g.L,
+        ranks = ctx.layout.ranks,
+        periodic = ctx.layout.periodic,
+        nranks = nranks(ctx.layout),
+        time = st.time[],
+        step = st.step[],
+        rank_files = rank_files,
+    )
+end
+
+function _validate_mpi_checkpoint_filename(file)
+    file isa AbstractString ||
+        throw(ArgumentError("MPI checkpoint rank file names must be strings"))
+    s = String(file)
+    !isempty(s) || throw(ArgumentError("MPI checkpoint rank file name must be nonempty"))
+    basename(s) == s || throw(ArgumentError("MPI checkpoint rank file must be relative: $s"))
+    return s
+end
+
+function _validate_mpi_checkpoint_manifest(
+    manifest,
+    st::HybridStepper{D,T},
+    ctx::MPICartesianCommunicator{D},
+) where {D,T}
+    manifest isa NamedTuple ||
+        throw(ArgumentError("MPI checkpoint manifest is not a valid container"))
+    required = (:schema, :D, :T, :ncell, :L, :ranks, :periodic, :nranks, :time, :step, :rank_files)
+    missing = Symbol[k for k in required if !hasproperty(manifest, k)]
+    if !isempty(missing)
+        throw(
+            ArgumentError(
+                "MPI checkpoint manifest is missing fields: $(join(string.(missing), ", "))",
+            ),
+        )
+    end
+    manifest.schema == MPI_CHECKPOINT_SCHEMA_VERSION || throw(
+        ArgumentError(
+            "MPI checkpoint schema $(manifest.schema) ≠ $(MPI_CHECKPOINT_SCHEMA_VERSION)",
+        ),
+    )
+    manifest.D == D || throw(ArgumentError("MPI checkpoint dimension $(manifest.D) ≠ $D"))
+    manifest.T == T || throw(ArgumentError("MPI checkpoint eltype $(manifest.T) ≠ $T"))
+    manifest.ncell == st.g.n ||
+        throw(ArgumentError("MPI checkpoint grid $(manifest.ncell) ≠ $(st.g.n)"))
+    manifest.L == st.g.L ||
+        throw(ArgumentError("MPI checkpoint box lengths $(manifest.L) ≠ $(st.g.L)"))
+    manifest.ranks == ctx.layout.ranks ||
+        throw(ArgumentError("MPI checkpoint rank grid $(manifest.ranks) ≠ $(ctx.layout.ranks)"))
+    manifest.periodic == ctx.layout.periodic || throw(
+        ArgumentError("MPI checkpoint periodicity $(manifest.periodic) ≠ $(ctx.layout.periodic)"),
+    )
+    manifest.nranks == nranks(ctx.layout) ||
+        throw(ArgumentError("MPI checkpoint rank count $(manifest.nranks) ≠ $(nranks(ctx.layout))"))
+    length(manifest.rank_files) == nranks(ctx.layout) || throw(
+        ArgumentError(
+            "MPI checkpoint manifest has $(length(manifest.rank_files)) rank files, expected $(nranks(ctx.layout))",
+        ),
+    )
+    foreach(_validate_mpi_checkpoint_filename, manifest.rank_files)
+    return nothing
+end
+
+function _mpi_checkpoint_state(
+    st::HybridStepper{D,T},
+    ps::ParticleSet{D,T},
+    ctx::MPICartesianCommunicator{D},
+) where {D,T}
+    base = _checkpoint_state(st, ps)
+    _validate_checkpoint_state(base, st)
+    return merge(
+        base,
+        (
+            mpi_schema = MPI_CHECKPOINT_SCHEMA_VERSION,
+            logical_rank = ctx.logical_rank,
+            mpi_rank = ctx.mpi_rank,
+            mpi_size = ctx.mpi_size,
+            layout_ranks = ctx.layout.ranks,
+            layout_periodic = ctx.layout.periodic,
+        ),
+    )
+end
+
+function _validate_mpi_rank_checkpoint_state(
+    state,
+    manifest,
+    st::HybridStepper{D,T},
+    ctx::MPICartesianCommunicator{D},
+) where {D,T}
+    _validate_checkpoint_state(state, st)
+    required = (:mpi_schema, :logical_rank, :mpi_rank, :mpi_size, :layout_ranks, :layout_periodic)
+    missing = Symbol[k for k in required if !hasproperty(state, k)]
+    if !isempty(missing)
+        throw(
+            ArgumentError("MPI rank checkpoint is missing fields: $(join(string.(missing), ", "))"),
+        )
+    end
+    state.mpi_schema == MPI_CHECKPOINT_SCHEMA_VERSION || throw(
+        ArgumentError(
+            "MPI rank checkpoint schema $(state.mpi_schema) ≠ $(MPI_CHECKPOINT_SCHEMA_VERSION)",
+        ),
+    )
+    state.logical_rank == ctx.logical_rank || throw(
+        ArgumentError(
+            "MPI rank checkpoint logical rank $(state.logical_rank) ≠ $(ctx.logical_rank)",
+        ),
+    )
+    state.mpi_size == ctx.mpi_size ||
+        throw(ArgumentError("MPI rank checkpoint size $(state.mpi_size) ≠ $(ctx.mpi_size)"))
+    state.layout_ranks == ctx.layout.ranks || throw(
+        ArgumentError("MPI rank checkpoint layout $(state.layout_ranks) ≠ $(ctx.layout.ranks)"),
+    )
+    state.layout_periodic == ctx.layout.periodic || throw(
+        ArgumentError(
+            "MPI rank checkpoint periodicity $(state.layout_periodic) ≠ $(ctx.layout.periodic)",
+        ),
+    )
+    state.time == manifest.time ||
+        throw(ArgumentError("MPI rank checkpoint time $(state.time) ≠ manifest $(manifest.time)"))
+    state.step == manifest.step ||
+        throw(ArgumentError("MPI rank checkpoint step $(state.step) ≠ manifest $(manifest.step)"))
+    return nothing
+end
+
+"""
+    save_mpi_checkpoint(dir, stepper, ps, ctx) -> manifest_path
+
+Collectively write a restartable MPI checkpoint directory. Each rank writes its
+rank-local particles plus replicated fields to a logical-rank file, and MPI rank
+0 writes a manifest describing the grid, layout, time, step, and rank-file map.
+All ranks return the shared manifest path after the files are complete.
+"""
+function save_mpi_checkpoint(
+    dir::AbstractString,
+    st::HybridStepper{D,T},
+    ps::ParticleSet{D,T},
+    ctx::MPICartesianCommunicator{D},
+) where {D,T}
+    ensure_mpi_initialized!()
+    ctx.mpi_rank == 0 && mkpath(dir)
+    MPI.Barrier(ctx.comm)
+
+    rank_path = _mpi_checkpoint_rank_path(dir, ctx.logical_rank)
+    Serialization.serialize(rank_path, _mpi_checkpoint_state(st, ps, ctx))
+    MPI.Barrier(ctx.comm)
+
+    manifest_path = _mpi_checkpoint_manifest_path(dir)
+    if ctx.mpi_rank == 0
+        manifest = _mpi_checkpoint_manifest(st, ctx)
+        Serialization.serialize(manifest_path, manifest)
+    end
+    MPI.Barrier(ctx.comm)
+    return manifest_path
+end
+
+"""
+    load_mpi_checkpoint!(stepper, ps, dir, ctx) -> stepper
+
+Collectively restore the rank-local state written by [`save_mpi_checkpoint`](@ref).
+The manifest and rank-local file are validated against `ctx`, `stepper`, grid
+identity, time, step, and logical-rank identity before the destination state is
+mutated. After loading, [`mpi_step!`](@ref) can continue the run.
+"""
+function load_mpi_checkpoint!(
+    st::HybridStepper{D,T},
+    ps::ParticleSet{D,T},
+    dir::AbstractString,
+    ctx::MPICartesianCommunicator{D},
+) where {D,T}
+    ensure_mpi_initialized!()
+    manifest = Serialization.deserialize(_mpi_checkpoint_manifest_path(dir))
+    _validate_mpi_checkpoint_manifest(manifest, st, ctx)
+    rank_file = _validate_mpi_checkpoint_filename(manifest.rank_files[ctx.logical_rank])
+    state = Serialization.deserialize(joinpath(dir, rank_file))
+    _validate_mpi_rank_checkpoint_state(state, manifest, st, ctx)
+    return _restore_checkpoint_state!(st, ps, state)
+end
+
 function _mpi_reduction_op(op::Symbol)
     op === :sum && return +
     op === :min && return min
@@ -341,22 +541,6 @@ function mpi_allreduce_diagnostics(
 )
     ensure_mpi_initialized!()
     return _mpi_allreduce_value(local_value, _mpi_reduction_op(op), ctx.comm, gpu_status)
-end
-
-function _resize_hybrid_particle_workspaces!(st::HybridStepper{D,T}, n::Integer) where {D,T}
-    n >= 0 || throw(ArgumentError("particle workspace length must be nonnegative, got $n"))
-    N = Int(n)
-    length(st.work) == N &&
-        all(length(st.Ep[c]) == N for c = 1:3) &&
-        all(length(st.Bp[c]) == N for c = 1:3) &&
-        all(length(st.xmid[d]) == N for d = 1:D) &&
-        return st
-
-    st.Ep = ntuple(_ -> Vector{T}(undef, N), 3)
-    st.Bp = ntuple(_ -> Vector{T}(undef, N), 3)
-    st.xmid = ntuple(_ -> Vector{T}(undef, N), D)
-    st.work = Vector{T}(undef, N)
-    return st
 end
 
 function _mpi_moments!(
