@@ -575,9 +575,11 @@ function step_empic!(
     if es.mobile
         ions === nothing &&
             throw(ArgumentError("mobile=true requires an ion ParticleSet in step_empic!"))
+    end
+    dtT = _validated_nonnegative_dt(T, dt; name = "step_empic!")
+    if es.mobile
         _ensure_ion_buffers!(es, nparticles(ions))
     end
-    dtT = T(dt)
     ns = es.n_sub
     dt_e = dtT / ns
     # ions pushed on the substep straddling their half-level midpoint (middle one)

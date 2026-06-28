@@ -165,10 +165,7 @@ function _validated_step_dt(
 ) where {T}
     NB >= min_NB ||
         throw(ArgumentError("$name requires NB >= $min_NB magnetic subcycles (got $NB)"))
-    dtT = T(dt)
-    isfinite(dtT) || throw(ArgumentError("$name requires finite dt (got $dt)"))
-    dtT >= zero(T) || throw(ArgumentError("$name requires nonnegative dt (got $dt)"))
-    return dtT
+    return _validated_nonnegative_dt(T, dt; name)
 end
 
 """

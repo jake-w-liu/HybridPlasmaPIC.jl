@@ -13,6 +13,28 @@ using HybridPlasmaPIC, FFTW, Test, Random
     @test_throws ArgumentError Electrostatic1D(g, 4; n0 = -1.0)
 end
 
+@testset "step_espic! validates timestep before mutation" begin
+    T = Float64
+    g = FourierGrid((8,), (2π,))
+    e = ParticleSet{1,T}(8)
+    load_lattice_1d!(e, 0.0, 2π)
+    set_density_weight!(e, 1.0, g)
+    es = Electrostatic1D(g, 8; n0 = 1.0)
+    init_espic!(es, e)
+
+    x0 = ntuple(d -> copy(e.x[d]), 1)
+    v0 = ntuple(c -> copy(e.v[c]), 3)
+    E0 = copy(es.E)
+    ne0 = copy(es.ne)
+
+    @test_throws ArgumentError step_espic!(es, e, NaN)
+    @test_throws ArgumentError step_espic!(es, e, -0.1)
+    @test all(e.x[d] == x0[d] for d = 1:1)
+    @test all(e.v[c] == v0[c] for c = 1:3)
+    @test es.E == E0
+    @test es.ne == ne0
+end
+
 # dominant positive-frequency peak (parabolic interpolation)
 function _peakfreq(series, dt)
     Nt = length(series)

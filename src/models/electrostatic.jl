@@ -67,10 +67,10 @@ Advance one leapfrog step: gather E → Boris kick (B=0) → drift → periodic 
 deposit density → solve Poisson.
 """
 function step_espic!(es::Electrostatic1D{T}, e::ParticleSet{1,T}, dt::Real) where {T}
+    dtT = _validated_nonnegative_dt(T, dt; name = "step_espic!")
     g = es.g
     L = g.L[1]
     qm = -one(T)
-    dtT = T(dt)
     gather_scalar!(es.Ep, es.E, e, g, CIC())
     vx = e.v[1]
     xx = e.x[1]

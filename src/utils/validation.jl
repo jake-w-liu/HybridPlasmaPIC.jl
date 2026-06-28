@@ -22,3 +22,10 @@ function _require_finite_positive_real(name::AbstractString, value::Real, ::Type
     v > zero(T) || throw(ArgumentError("$(name) must be finite and positive"))
     return v
 end
+
+function _validated_nonnegative_dt(::Type{T}, dt::Real; name::AbstractString) where {T<:AbstractFloat}
+    dtT = T(dt)
+    isfinite(dtT) || throw(ArgumentError("$name requires finite dt (got $dt)"))
+    dtT >= zero(T) || throw(ArgumentError("$name requires nonnegative dt (got $dt)"))
+    return dtT
+end
