@@ -9,3 +9,14 @@ Manifest.toml
 *.ser
 *.tmp
 .DS_Store
+.arc/
+validation/artifacts/
+validation/tmp/
+validation/**/artifacts/
+validation/**/tmp/
+validation/**/*.csv
+validation/**/*.pdf
+
+*.pdf
+*.csv
+tmp
