@@ -2,16 +2,159 @@
 # reference (items SHK-005 / "external-code comparison" / "published hybrid
 # result reproduced").
 #
-# SCOPE (honest): the implemented reference is the ESTABLISHED ANALYTIC benchmark
-# for a perpendicular collisionless shock — the magnetohydrodynamic
-# Rankine–Hugoniot jump and exact flux-freezing (Bz/n conserved across the
-# front), with the published kinetic ordering 1 < n₂ < X_RH (a collisionless
-# shock compresses LESS than the γ-law fluid because reflected ions heat the
-# downstream; Leroy et al. 1982, Tidman & Krall 1971). `compare_to_reference`
-# is a generic NamedTuple comparator, so a user who HAS the output of a specific
-# external hybrid code can pass its numbers as `reference` and get the same
-# quantified PASS/FAIL — only the external code's data (not bundled here) is
-# needed for a code-to-code comparison.
+# SCOPE (honest): the implemented references are:
+#   * the established analytic perpendicular-shock benchmark: MHD Rankine-
+#     Hugoniot jump, exact flux-freezing, and the kinetic ordering 1 < n₂ < X_RH;
+#   * a compact summary of one published external hybrid-code dataset from
+#     Preisser et al. 2020, Zenodo DOI 10.5281/zenodo.3697360.
+#
+# The published-data summary is deliberately small and offline: it stores source
+# metadata, the upstream file checksum, and scalar observables derived from the
+# HDF5 figure-data file. It does not bundle the full HDF5 profile.
+
+const _PREISSER2020_SHOCK_REFERENCE_ID = :preisser2020_65deg_Bavg_y
+
+const _PREISSER2020_SHOCK_REFERENCE_META = (
+    id = _PREISSER2020_SHOCK_REFERENCE_ID,
+    title = "Influence of He++ and shock geometry on interplanetary shocks in the solar wind: 2D Hybrid simulations",
+    creators = (
+        "Luis Preisser",
+        "Xochitl Blanco-Cano",
+        "David Burgess",
+        "Domenico Trotta",
+        "Primoz Kajdic",
+    ),
+    doi = "10.5281/zenodo.3697360",
+    doi_url = "https://doi.org/10.5281/zenodo.3697360",
+    publication_date = "2020-03-05",
+    license = "CC-BY-4.0",
+    resource_type = "dataset",
+    notes = "HDF5 data corresponding to publication figure panels; 2D local hybrid simulations with particle ions and massless-fluid electrons.",
+    file = "Fig2_65deg_1perc_5perc_10perc_Bavg_y.h5",
+    file_url = "https://zenodo.org/api/records/3697360/files/Fig2_65deg_1perc_5perc_10perc_Bavg_y.h5/content",
+    file_checksum = "md5:2ea4f239d7221cd52607705f383161a1",
+    derived_with = "HDF5.jl 0.17.3 read of the Zenodo file; scalar min/max/mean over each 1000-sample Bavg_y dataset.",
+)
+
+const _PREISSER2020_BAVG_REFERENCES = (
+    (
+        dataset = "65deg_1perc_Bavg_y",
+        thetaBn_deg = 65.0,
+        alpha_fraction = 0.01,
+        nsamples = 1000,
+        Bavg_y_min = 0.9968850596311658,
+        Bavg_y_max = 3.698209909020219,
+        Bavg_y_mean = 1.924506582194626,
+    ),
+    (
+        dataset = "65deg_5perc_Bavg_y",
+        thetaBn_deg = 65.0,
+        alpha_fraction = 0.05,
+        nsamples = 1000,
+        Bavg_y_min = 0.997214995499391,
+        Bavg_y_max = 3.500705042674052,
+        Bavg_y_mean = 1.9245920883357377,
+    ),
+    (
+        dataset = "65deg_10perc_Bavg_y",
+        thetaBn_deg = 65.0,
+        alpha_fraction = 0.10,
+        nsamples = 1000,
+        Bavg_y_min = 0.9969985157435545,
+        Bavg_y_max = 3.5037309774874927,
+        Bavg_y_mean = 1.9378039653740708,
+    ),
+)
+
+_unknown_published_reference_error(id) = ArgumentError(
+    "unknown published hybrid reference $(id); expected $(_PREISSER2020_SHOCK_REFERENCE_ID)",
+)
+
+"""
+    published_hybrid_reference_ids() -> Tuple{Symbol}
+
+Return the published external hybrid-code reference identifiers bundled as
+compact scalar summaries.
+"""
+published_hybrid_reference_ids() = (_PREISSER2020_SHOCK_REFERENCE_ID,)
+
+"""
+    published_hybrid_reference_metadata(id=:preisser2020_65deg_Bavg_y)
+
+Return provenance for a bundled published external hybrid-code reference:
+publication DOI, license, source HDF5 filename, source checksum, and derivation
+notes. The full upstream data are not bundled.
+"""
+function published_hybrid_reference_metadata(id::Symbol = _PREISSER2020_SHOCK_REFERENCE_ID)
+    id == _PREISSER2020_SHOCK_REFERENCE_ID || throw(_unknown_published_reference_error(id))
+    return _PREISSER2020_SHOCK_REFERENCE_META
+end
+
+function _require_known_alpha_fraction(alpha_fraction::Real)
+    a = Float64(alpha_fraction)
+    isfinite(a) || throw(ArgumentError("alpha_fraction must be finite"))
+    for ref in _PREISSER2020_BAVG_REFERENCES
+        if a == ref.alpha_fraction
+            return ref
+        end
+    end
+    throw(
+        ArgumentError(
+            "unsupported alpha_fraction $(alpha_fraction); expected one of 0.01, 0.05, 0.10",
+        ),
+    )
+end
+
+"""
+    published_hybrid_reference(; id=:preisser2020_65deg_Bavg_y, alpha_fraction=0.01)
+
+Return scalar observables from the bundled published external hybrid-code
+reference. For the Preisser et al. Zenodo reference, `alpha_fraction` selects the
+1%, 5%, or 10% He++ 65-degree shock `Bavg_y` profile and returns the profile
+sample count plus min/max/mean magnetic-field magnitude summary.
+"""
+function published_hybrid_reference(;
+    id::Symbol = _PREISSER2020_SHOCK_REFERENCE_ID,
+    alpha_fraction::Real = 0.01,
+)
+    id == _PREISSER2020_SHOCK_REFERENCE_ID || throw(_unknown_published_reference_error(id))
+    return _require_known_alpha_fraction(alpha_fraction)
+end
+
+"""
+    compare_to_published_hybrid_reference(measured; id=:preisser2020_65deg_Bavg_y,
+                                          alpha_fraction=0.01, rtol=0.1, atol=0.0)
+
+Compare `measured` scalar observables against a bundled published external
+hybrid-code reference using [`compare_to_reference`](@ref). Extra fields in
+`measured` are ignored; required fields are `thetaBn_deg`, `alpha_fraction`,
+`nsamples`, `Bavg_y_min`, `Bavg_y_max`, and `Bavg_y_mean`.
+"""
+function compare_to_published_hybrid_reference(
+    measured::NamedTuple;
+    id::Symbol = _PREISSER2020_SHOCK_REFERENCE_ID,
+    alpha_fraction::Real = 0.01,
+    rtol::Real = 0.1,
+    atol::Real = 0.0,
+)
+    reference = published_hybrid_reference(; id, alpha_fraction)
+    numeric_reference = (;
+        thetaBn_deg = reference.thetaBn_deg,
+        alpha_fraction = reference.alpha_fraction,
+        nsamples = reference.nsamples,
+        Bavg_y_min = reference.Bavg_y_min,
+        Bavg_y_max = reference.Bavg_y_max,
+        Bavg_y_mean = reference.Bavg_y_mean,
+    )
+    comparison = compare_to_reference(measured, numeric_reference; rtol, atol)
+    return (;
+        pass = comparison.pass,
+        measured,
+        reference,
+        metadata = published_hybrid_reference_metadata(id),
+        comparison,
+    )
+end
 
 function _require_finite_nonnegative_tolerance(name::AbstractString, value::Real)
     v = Float64(value)

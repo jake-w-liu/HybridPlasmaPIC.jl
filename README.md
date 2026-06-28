@@ -67,6 +67,7 @@ Tolerances are the checklist's initial engineering targets.
 | HYB-007/008 | adiabatic energy convergence, subcycling | ✅ verified |
 | KDV-001 | KdV soliton + 2/3 dealiasing | ✅ verified |
 | SHK-001 | Rankine–Hugoniot solver, residuals < 1e-10 | ✅ verified |
+| SHK-005 | Published external hybrid-code reference metadata + scalar comparison target | ✅ verified |
 | DIM-001 | 1D ≡ y-invariant 2D (operators + integrator) | ✅ verified |
 | IO-001 | checkpoint/restart bitwise | ✅ verified |
 
@@ -82,8 +83,10 @@ claimed as done:
   checkpoint/restart bitmatch, field-coupled serial-vs-MPI agreement, and the
   `benchmark/mpi_scaling.jl` harness pass under two, four, and eight local
   ranks. Production scaling still requires cluster runs.
-- **External hybrid-code comparison** (SHK-005): the comparator harness exists,
-  but a published external dataset is still required.
+- **External hybrid-code full-profile replay**: SHK-005 now bundles DOI,
+  checksum, and scalar summaries from the published Preisser et al. 2020 Zenodo
+  hybrid-simulation dataset (`10.5281/zenodo.3697360`). Replaying the full HDF5
+  profiles remains optional and requires downloading the upstream data.
 - **Multi-GPU** restart and scaling.
 
 ## Package layout

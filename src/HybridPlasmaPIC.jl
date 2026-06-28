@@ -304,7 +304,12 @@ export load_imbalance,
     balanced_tile_ranges,
     balanced_tile_loads,
     particle_load_balance
-export compare_to_reference, reproduce_established_shock
+export compare_to_reference,
+    reproduce_established_shock,
+    published_hybrid_reference_ids,
+    published_hybrid_reference_metadata,
+    published_hybrid_reference,
+    compare_to_published_hybrid_reference
 export boundary_energy_flux,
     shock_surface_spectrum,
     transverse_coherence,

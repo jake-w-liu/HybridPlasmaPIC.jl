@@ -13,6 +13,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   formatting-check CI job, a scheduled (cron) CI run, a Windows runner in the
   test matrix for the non-MPI core, and upload of test logs as CI artifacts.
 - Project metadata: `CITATION.cff`, `CONTRIBUTING.md`, and this changelog.
+- SHK-005 now includes a compact published external hybrid-code reference from
+  the Preisser et al. 2020 Zenodo dataset (`10.5281/zenodo.3697360`): source DOI,
+  license, HDF5 checksum, derived scalar `Bavg_y` summaries, and comparison tests.
 
 ## [0.1.0]
 
