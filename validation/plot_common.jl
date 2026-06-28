@@ -6,8 +6,9 @@ import PlotlySupply
 
 const REQUIRED_PLOTLYSUPPLY_VERSION = v"1.8.0"
 
-function _parse_plot_args(args; default_artifact_dir::AbstractString)
+function _parse_plot_args(args; default_artifact_dir::AbstractString, allow_cases::Bool = false)
     artifact_dir = default_artifact_dir
+    selected = String[]
     i = 1
     while i <= length(args)
         arg = args[i]
@@ -15,12 +16,16 @@ function _parse_plot_args(args; default_artifact_dir::AbstractString)
             i == length(args) && throw(ArgumentError("--artifact-dir requires a directory"))
             artifact_dir = args[i + 1]
             i += 1
+        elseif allow_cases && arg == "--case"
+            i == length(args) && throw(ArgumentError("--case requires a case id"))
+            push!(selected, args[i + 1])
+            i += 1
         else
             throw(ArgumentError("unknown argument: $arg"))
         end
         i += 1
     end
-    return (; artifact_dir = abspath(artifact_dir))
+    return (; artifact_dir = abspath(artifact_dir), selected)
 end
 
 function _plotlysupply_version()
@@ -119,9 +124,15 @@ function _save_pdf(path::AbstractString, fig)
     return path
 end
 
-function _summary_plot(artifact_dir::AbstractString)
+function _summary_plot(artifact_dir::AbstractString, selected::Vector{String} = String[])
     rows = _read_csv(joinpath(artifact_dir, "validation_summary.csv"))
-    comparable = [row for row in rows if row["status"] != "skip" && isfinite(_num(row["error"])) && isfinite(_num(row["tolerance"]))]
+    selected_ids = Set(selected)
+    comparable = [
+        row for row in rows if row["status"] != "skip" &&
+        (isempty(selected_ids) || row["id"] in selected_ids) &&
+        isfinite(_num(row["error"])) &&
+        isfinite(_num(row["tolerance"]))
+    ]
     isempty(comparable) && return nothing
     by_case = Dict{String,Float64}()
     for row in comparable

@@ -32,11 +32,29 @@ function _load_plots()
     return plots
 end
 
+function _selected_plots(plots::AbstractVector{<:Pair{String,<:Function}}, selected::Vector{String})
+    isempty(selected) && return plots
+    by_id = Dict(first(plot) => plot for plot in plots)
+    unknown = setdiff(selected, keys(by_id))
+    isempty(unknown) || throw(ArgumentError("unknown validation plot case(s): $(join(unknown, ", "))"))
+
+    repeated = String[]
+    seen = Set{String}()
+    for id in selected
+        id in seen && push!(repeated, id)
+        push!(seen, id)
+    end
+    isempty(repeated) || throw(ArgumentError("duplicate validation plot case(s): $(join(unique(repeated), ", "))"))
+
+    return [by_id[id] for id in selected]
+end
+
 function main(args = ARGS)
-    options = _parse_plot_args(args; default_artifact_dir = DEFAULT_ARTIFACT_DIR)
+    options = _parse_plot_args(args; default_artifact_dir = DEFAULT_ARTIFACT_DIR, allow_cases = true)
     version, path = _require_plotlysupply_180()
-    outputs = Any[_summary_plot(options.artifact_dir)]
-    for (case_id, plotter) in _load_plots()
+    plots = _selected_plots(_load_plots(), options.selected)
+    outputs = Any[_summary_plot(options.artifact_dir, options.selected)]
+    for (case_id, plotter) in plots
         push!(outputs, Base.invokelatest(plotter, _case_artifact_dir(case_id, options.artifact_dir)))
     end
     metadata = _write_plot_metadata(options.artifact_dir, version, path, outputs)

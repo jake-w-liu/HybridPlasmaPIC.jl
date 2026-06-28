@@ -71,6 +71,13 @@ end
 function _selected_cases(cases::Vector{ValidationCase}, options)
     by_id = Dict(case.id => case for case in cases)
     if !isempty(options.selected)
+        repeated = String[]
+        seen = Set{String}()
+        for id in options.selected
+            id in seen && push!(repeated, id)
+            push!(seen, id)
+        end
+        isempty(repeated) || throw(ArgumentError("duplicate validation case(s): $(join(unique(repeated), ", "))"))
         unknown = setdiff(options.selected, keys(by_id))
         isempty(unknown) || throw(ArgumentError("unknown validation case(s): $(join(unknown, ", "))"))
         return [by_id[id] for id in options.selected]
@@ -88,9 +95,13 @@ function _print_cases(cases::Vector{ValidationCase})
     return nothing
 end
 
-function _run_plotter(artifact_dir::AbstractString)
+function _run_plotter(artifact_dir::AbstractString, case_ids::Vector{String})
     script = joinpath(@__DIR__, "plot_validation.jl")
-    cmd = Cmd(vcat(Base.julia_cmd().exec, ["--project=@v#.#", script, "--artifact-dir", artifact_dir]))
+    args = ["--project=@v#.#", script, "--artifact-dir", artifact_dir]
+    for case_id in case_ids
+        push!(args, "--case", case_id)
+    end
+    cmd = Cmd(vcat(Base.julia_cmd().exec, args))
     println("Plotting with global PlotlySupply: ", cmd)
     run(cmd)
     return nothing
@@ -107,7 +118,7 @@ function main(args = ARGS)
     cases = _selected_cases(all_cases, options)
     mkpath(options.artifact_dir)
     _clean_generated_artifacts!(options.artifact_dir)
-    for case in cases
+    for case in all_cases
         _clean_generated_artifacts!(_case_artifact_dir(case, options.artifact_dir))
     end
 
@@ -144,7 +155,7 @@ function main(args = ARGS)
     _print_results(results)
 
     if options.plots
-        _run_plotter(options.artifact_dir)
+        _run_plotter(options.artifact_dir, [case.id for case in cases])
     end
 
     any(r.status == "fail" for r in results) && return 1
