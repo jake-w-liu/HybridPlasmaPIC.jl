@@ -178,6 +178,14 @@ end
     return es
 end
 
+@inline function _require_empic_electrons(e::ParticleSet{1,T}) where {T}
+    q = _require_finite_real("electron charge q", e.q, T)
+    m = _require_finite_real("electron mass m", e.m, T)
+    q == -one(T) || throw(ArgumentError("EMPIC1D requires electron ParticleSet with q = -1"))
+    m == one(T) || throw(ArgumentError("EMPIC1D requires electron ParticleSet with m = 1"))
+    return nothing
+end
+
 # ---------------------------------------------------------------- charge density
 
 # Number-density-weighted charge density of ONE species accumulated into `rho`
@@ -422,6 +430,7 @@ function init_empic!(
     e::ParticleSet{1,T},
     ions::Union{Nothing,ParticleSet{1,T}} = nothing,
 ) where {T}
+    _require_empic_electrons(e)
     if es.mobile
         ions === nothing &&
             throw(ArgumentError("mobile=true requires an ion ParticleSet in init_empic!"))
@@ -572,6 +581,7 @@ function step_empic!(
     ions::Union{Nothing,ParticleSet{1,T}},
     dt::Real,
 ) where {T}
+    _require_empic_electrons(e)
     if es.mobile
         ions === nothing &&
             throw(ArgumentError("mobile=true requires an ion ParticleSet in step_empic!"))

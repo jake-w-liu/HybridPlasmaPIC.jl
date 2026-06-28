@@ -21,6 +21,62 @@ using HybridPlasmaPIC, FFTW, Test, Random
     @test_throws ArgumentError EMPIC1D(g, 4; mi = 0.0)
 end
 
+@testset "EMPIC1D electron species validation" begin
+    T = Float64
+    g = FourierGrid((8,), (2π,))
+
+    badq = ParticleSet{1,T}(8; q = 0.0, m = 1.0)
+    load_lattice_1d!(badq, 0.0, 2π)
+    set_density_weight!(badq, 1.0, g)
+    @test_throws ArgumentError init_empic!(EMPIC1D(g, 8; n0 = 1.0, c = 5.0, shape = CIC()), badq)
+
+    badm = ParticleSet{1,T}(8; q = -1.0, m = 2.0)
+    load_lattice_1d!(badm, 0.0, 2π)
+    set_density_weight!(badm, 1.0, g)
+    @test_throws ArgumentError init_empic!(EMPIC1D(g, 8; n0 = 1.0, c = 5.0, shape = CIC()), badm)
+
+    e = ParticleSet{1,T}(8; q = -1.0, m = 1.0)
+    load_lattice_1d!(e, 0.0, 2π)
+    set_density_weight!(e, 1.0, g)
+    es = EMPIC1D(g, 8; n0 = 1.0, c = 5.0, shape = CIC())
+    init_empic!(es, e)
+
+    x0 = ntuple(d -> copy(e.x[d]), 1)
+    v0 = ntuple(c -> copy(e.v[c]), 3)
+    Ex0 = copy(es.Ex)
+    Ey0 = copy(es.Ey)
+    Bz0 = copy(es.Bz)
+    rho_n0 = copy(es.rho_n)
+    rho_np10 = copy(es.rho_np1)
+    time0 = es.time[]
+    step0 = es.step[]
+
+    e.q = 0.0
+    @test_throws ArgumentError step_empic!(es, e, 0.1)
+    @test all(e.x[d] == x0[d] for d = 1:1)
+    @test all(e.v[c] == v0[c] for c = 1:3)
+    @test es.Ex == Ex0
+    @test es.Ey == Ey0
+    @test es.Bz == Bz0
+    @test es.rho_n == rho_n0
+    @test es.rho_np1 == rho_np10
+    @test es.time[] == time0
+    @test es.step[] == step0
+
+    e.q = -1.0
+    e.m = 2.0
+    @test_throws ArgumentError step_empic!(es, e, 0.1)
+    @test all(e.x[d] == x0[d] for d = 1:1)
+    @test all(e.v[c] == v0[c] for c = 1:3)
+    @test es.Ex == Ex0
+    @test es.Ey == Ey0
+    @test es.Bz == Bz0
+    @test es.rho_n == rho_n0
+    @test es.rho_np1 == rho_np10
+    @test es.time[] == time0
+    @test es.step[] == step0
+end
+
 @testset "step_empic! validates timestep before mutation" begin
     T = Float64
     g = FourierGrid((8,), (2π,))
