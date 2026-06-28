@@ -629,6 +629,18 @@ if WORLD_SIZE in (2, 4, 8)
                 @test rank_of_position((ps.x[1][1],), g, ctx.layout) == ctx.logical_rank
                 _assert_face_particle_fields(ps)
             end
+
+            @testset "real MPI particle migration rejects species mismatch before mutation size=2" begin
+                g = FourierGrid((8,), (8.0,))
+                ps = ParticleSet{1,Float64}(1; q = Float64(ctx.logical_rank), m = 1.0)
+                ps.x[1][1] = ctx.logical_rank == 1 ? 4.25 : 3.75
+                ps.id[1] = UInt64(900 + ctx.logical_rank)
+
+                @test_throws ArgumentError mpi_migrate_particles!(ps, g, ctx)
+                @test nparticles(ps) == 1
+                @test ps.x[1][1] == (ctx.logical_rank == 1 ? 4.25 : 3.75)
+                @test ps.id == UInt64[900+ctx.logical_rank]
+            end
         end
 
         if WORLD_SIZE == 8

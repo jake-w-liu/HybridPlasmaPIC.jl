@@ -253,9 +253,7 @@ end
     assert_rejects_without_mutation(merge(base, (step = "bad",)))
     assert_rejects_without_mutation(merge(base, (q = 2,)))
     assert_rejects_without_mutation(merge(base, (x = (Float32[0.1, 0.2],),)))
-    assert_rejects_without_mutation(
-        merge(base, (B = (Float32.(base.B[1]), base.B[2], base.B[3]),)),
-    )
+    assert_rejects_without_mutation(merge(base, (B = (Float32.(base.B[1]), base.B[2], base.B[3]),)))
 end
 
 @testset "load_checkpoint! rejects invalid container shape before mutation" begin

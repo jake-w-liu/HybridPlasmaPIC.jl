@@ -762,6 +762,37 @@ function _mpi_rank_for_logical(ctx::MPICartesianCommunicator{D}, logical_rank::I
     return MPI.Cart_rank(ctx.comm, coords0)
 end
 
+function _validate_mpi_particle_migration_inputs!(
+    ps::ParticleSet{D,T},
+    ctx::MPICartesianCommunicator{D},
+) where {D,T<:Real}
+    local_bad_position = _has_nonfinite_particle_positions(ps)
+    any_bad_position = MPI.Allreduce(local_bad_position ? 1 : 0, max, ctx.comm)
+    if any_bad_position != 0
+        local_bad_position && _validate_migration_positions!(ps)
+        throw(ArgumentError("non-finite particle position detected on another MPI rank"))
+    end
+
+    q::Float64 = Float64(ps.q)
+    m::Float64 = Float64(ps.m)
+    q_min::Float64 = MPI.Allreduce(q, min, ctx.comm)
+    q_max::Float64 = MPI.Allreduce(q, max, ctx.comm)
+    m_min::Float64 = MPI.Allreduce(m, min, ctx.comm)
+    m_max::Float64 = MPI.Allreduce(m, max, ctx.comm)
+    species_mismatch = q_min != q_max || m_min != m_max
+    species_mismatch && throw(
+        ArgumentError("MPI particle migration requires identical charge and mass on all ranks"),
+    )
+    return nothing
+end
+
+function _validate_mpi_particle_migration_inputs!(
+    ps::ParticleSet{D,T},
+    ctx::MPICartesianCommunicator{D},
+) where {D,T}
+    throw(ArgumentError("MPI particle migration requires real particle scalar type, got $T"))
+end
+
 const _MPI_FIELD_HALO_TAG_UPPER = 0x4841
 const _MPI_FIELD_HALO_TAG_LOWER = 0x4842
 const _MPI_MOMENT_HALO_TAG_UPPER = 0x4843
@@ -1051,6 +1082,7 @@ function mpi_migrate_particles!(
     ensure_mpi_initialized!()
     MPI.Comm_size(ctx.comm) == nranks(ctx.layout) ||
         throw(ArgumentError("MPI communicator size must equal nranks(ctx.layout)"))
+    _validate_mpi_particle_migration_inputs!(ps, ctx)
 
     _wrap_for_layout!(ps, g, ctx.layout)
     keep = Int[]

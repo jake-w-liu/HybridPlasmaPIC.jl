@@ -165,6 +165,12 @@ end
         @test mpi_reduced.momentum[2] ≈ total_momentum(serial)[2]
         @test mpi_reduced.momentum[3] ≈ total_momentum(serial)[3]
 
+        bad = _mpi_parity_particles([-0.1, NaN], [1.0, 2.0])
+        @test_throws ArgumentError mpi_migrate_particles!(bad, g, ctx)
+        @test bad.x[1][1] == -0.1
+        @test isnan(bad.x[1][2])
+        @test bad.id == UInt64[101, 102]
+
         empty = ParticleSet{1,Float64}(0)
         f = HybridFields{1,Float64}((8,))
         fill!(f.n, 1.0)

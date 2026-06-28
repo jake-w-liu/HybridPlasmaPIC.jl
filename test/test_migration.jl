@@ -161,6 +161,25 @@ end
     )
 end
 
+@testset "migration validates before mutation" begin
+    g = FourierGrid((8,), (8.0,))
+    periodic = LogicalRankLayout((2,); periodic = (true,))
+
+    species = [_ps1([5.0], [1]; q = 1.0), _ps1(Float64[], Int[]; q = 2.0)]
+    @test_throws ArgumentError migrate_particles!(species, g, periodic)
+    @test nparticles(species[1]) == 1
+    @test species[1].x[1] == [5.0]
+    @test species[1].id == UInt64[1]
+    @test nparticles(species[2]) == 0
+
+    nonfinite = [_ps1([-0.25, NaN], [1, 2]), ParticleSet{1,Float64}(0)]
+    @test_throws ArgumentError migrate_particles!(nonfinite, g, periodic)
+    @test nonfinite[1].x[1][1] == -0.25
+    @test isnan(nonfinite[1].x[1][2])
+    @test nonfinite[1].id == UInt64[1, 2]
+    @test nparticles(nonfinite[2]) == 0
+end
+
 @testset "append_particles! rejects species mismatch" begin
     dest = _ps1([0.1], [1]; q = 1.0, m = 1.0)
     src_q = _ps1([0.2], [2]; q = 2.0, m = 1.0)

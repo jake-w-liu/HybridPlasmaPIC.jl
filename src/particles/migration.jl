@@ -45,6 +45,46 @@ function append_particles!(dest::ParticleSet{D,T}, src::ParticleSet{D,T}) where 
     return dest
 end
 
+function _validate_rank_particle_species!(
+    rank_particles::AbstractVector{<:ParticleSet{D,T}},
+) where {D,T}
+    isempty(rank_particles) && return nothing
+    ref_q = first(rank_particles).q
+    ref_m = first(rank_particles).m
+    for (r, ps) in pairs(rank_particles)
+        ps.q == ref_q || throw(
+            ArgumentError("rank $r particle charge $(ps.q) differs from rank 1 charge $(ref_q)"),
+        )
+        ps.m == ref_m ||
+            throw(ArgumentError("rank $r particle mass $(ps.m) differs from rank 1 mass $(ref_m)"))
+    end
+    return nothing
+end
+
+function _has_nonfinite_particle_positions(ps::ParticleSet{D}) where {D}
+    @inbounds for d = 1:D, p = 1:nparticles(ps)
+        isfinite(ps.x[d][p]) || return true
+    end
+    return false
+end
+
+function _validate_migration_positions!(ps::ParticleSet{D}) where {D}
+    @inbounds for d = 1:D, p = 1:nparticles(ps)
+        isfinite(ps.x[d][p]) || throw(ArgumentError("particle position x[$d][$p] must be finite"))
+    end
+    return nothing
+end
+
+function _validate_particle_migration_inputs!(
+    rank_particles::AbstractVector{<:ParticleSet{D,T}},
+) where {D,T}
+    _validate_rank_particle_species!(rank_particles)
+    for ps in rank_particles
+        _validate_migration_positions!(ps)
+    end
+    return nothing
+end
+
 function _wrap_for_layout!(
     ps::ParticleSet{D,T},
     g::FourierGrid{D,T},
@@ -80,6 +120,7 @@ function migrate_particles!(
 ) where {D,T}
     length(rank_particles) == nranks(layout) ||
         throw(ArgumentError("rank_particles length must equal nranks(layout)"))
+    _validate_particle_migration_inputs!(rank_particles)
 
     moves = Tuple{Int,ParticleSet{D,T}}[]
     moved = 0

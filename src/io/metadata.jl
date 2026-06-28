@@ -183,8 +183,12 @@ serializable value (typically a `NamedTuple` of simulation arrays/scalars).
 Returns `path`.
 """
 function save_run(path::AbstractString, state, meta::RunMetadata)
-    container =
-        (schema = CHECKPOINT_SCHEMA_VERSION, meta = meta, state = state, checksum = _state_checksum(state))
+    container = (
+        schema = CHECKPOINT_SCHEMA_VERSION,
+        meta = meta,
+        state = state,
+        checksum = _state_checksum(state),
+    )
     serialize(path, container)
     return path
 end
