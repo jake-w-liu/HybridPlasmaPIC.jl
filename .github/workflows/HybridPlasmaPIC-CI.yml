@@ -50,13 +50,13 @@ jobs:
           fail_ci_if_error: false
 
   mpi-smoke:
-    name: Real MPI 2-rank smoke
+    name: Real MPI smoke (${{ matrix.ranks }}-rank)
     runs-on: ubuntu-latest
     needs: test
     strategy:
       fail-fast: false
       matrix:
-        ranks: [2]
+        ranks: [2, 4, 8]
     steps:
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v2
@@ -65,14 +65,18 @@ jobs:
       - uses: julia-actions/cache@v2
       - name: Run real MPI regression smoke test
         timeout-minutes: 20
+        env:
+          MPI_RANKS: ${{ matrix.ranks }}
         run: |
           set -euo pipefail
-          julia --project=. -e 'using Pkg; Pkg.instantiate()'
           julia --project=. -e '
+            using Pkg
+            Pkg.instantiate()
             import MPI
             mpiexec = MPI.mpiexec()
             mpiexec === nothing && error("MPI launcher unavailable")
-            run(`$mpiexec -n ${{ matrix.ranks }} $(Base.julia_cmd()) --project=$(pwd()) test/test_mpi_multirank.jl`)' > mpi-smoke.log 2>&1
+            n = parse(Int, ENV["MPI_RANKS"])
+            run(`$mpiexec -n $n $(Base.julia_cmd()) --project=$(pwd()) test/test_mpi_multirank.jl`)' > mpi-smoke.log 2>&1
           cat mpi-smoke.log
       - name: Upload mpi-smoke log
         if: always()
