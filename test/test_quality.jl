@@ -5,8 +5,21 @@
 # constructor, "unbound" solely for the impossible D=0 (empty-tuple) case — the
 # well-known Aqua false positive for NTuple{D} APIs.
 
-using HybridPlasmaPIC, Test, Aqua
+using HybridPlasmaPIC, Test
+
+const AQUA_AVAILABLE = try
+    @eval import Aqua
+    true
+catch err
+    @warn "Aqua unavailable; skipping quality checks" exception = err
+    false
+end
 
 @testset "Aqua quality" begin
-    Aqua.test_all(HybridPlasmaPIC; unbound_args = false, persistent_tasks = false)
+    if AQUA_AVAILABLE
+        import Aqua
+        Aqua.test_all(HybridPlasmaPIC; unbound_args = false, persistent_tasks = false)
+    else
+        @test_skip "Aqua not available in this environment"
+    end
 end
