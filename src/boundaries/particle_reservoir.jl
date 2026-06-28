@@ -34,6 +34,12 @@ end
     )
 end
 
+@inline function _validated_flux_sampler_params(a::T, σ::T) where {T}
+    aT = _require_finite_real("a", a, T)
+    σT = _require_finite_nonnegative_real("σ", σ, T)
+    return aT, σT
+end
+
 """
     flux_per_density(a, σ)
 
@@ -42,7 +48,10 @@ normal drift `a` (into the domain) and normal thermal speed `σ`:
 `Γ/n0 = a/2·(1+erf(a/(σ√2))) + σ/√(2π)·exp(−a²/2σ²)`. (a=0 ⇒ σ/√(2π).)
 """
 function flux_per_density(a::T, σ::T) where {T}
-    return a / 2 * (one(T) + _erf(a / (σ * sqrt(T(2))))) + σ / sqrt(T(2π)) * exp(-a^2 / (2σ^2))
+    aT, σT = _validated_flux_sampler_params(a, σ)
+    σT == zero(T) && return max(aT, zero(T))
+    return aT / 2 * (one(T) + _erf(aT / (σT * sqrt(T(2))))) +
+           σT / sqrt(T(2π)) * exp(-aT^2 / (2σT^2))
 end
 
 """
@@ -53,16 +62,18 @@ uses the exact Rayleigh inverse-CDF; otherwise inverse-CDF by bisection on the
 closed-form (erf) cumulative.
 """
 function flux_speed(rng, a::T, σ::T) where {T}
-    if a == 0
-        return σ * sqrt(-2 * log(rand(rng, T)))
+    aT, σT = _validated_flux_sampler_params(a, σ)
+    σT == zero(T) && return max(aT, zero(T))
+    if aT == 0
+        return σT * sqrt(-2 * log(rand(rng, T)))
     end
-    Z = _flux_integral(a + 14σ, a, σ)
+    Z = _flux_integral(aT + 14σT, aT, σT)
     U = rand(rng, T)
     lo = zero(T)
-    hi = a + 14σ
+    hi = aT + 14σT
     for _ = 1:60
         m = (lo + hi) / 2
-        (_flux_integral(m, a, σ) / Z < U) ? (lo = m) : (hi = m)
+        (_flux_integral(m, aT, σT) / Z < U) ? (lo = m) : (hi = m)
     end
     return (lo + hi) / 2
 end

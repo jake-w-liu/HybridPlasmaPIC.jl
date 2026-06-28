@@ -31,6 +31,25 @@ end
     end
 end
 
+@testset "flux sampler handles the cold-beam limit" begin
+    rng = MersenneTwister(2)
+    @test flux_per_density(2.0, 0.0) == 2.0
+    @test flux_per_density(0.0, 0.0) == 0.0
+    @test flux_per_density(-2.0, 0.0) == 0.0
+    @test flux_speed(rng, 2.0, 0.0) == 2.0
+    @test flux_speed(rng, 0.0, 0.0) == 0.0
+
+    T = Float64
+    ps = ParticleSet{1,T}(0)
+    acc = Ref(0.0)
+    nid = Ref(UInt64(1))
+    ninj = inject_face_1d!(ps, rng, 0.0, +1, 1.0, 2.0, 0.0, (0.0, 0.0), 0.3, 1.0, 0.5, acc, nid)
+    @test ninj == 4
+    @test all(==(2.0), ps.v[1])
+    @test all(>=(0.0), ps.x[1])
+    @test all(<=(2.0), ps.x[1])   # swept slab face_x .. face_x + a*dt
+end
+
 @testset "inject_face_1d! delivers the target number flux" begin
     T = Float64
     n0 = 1.0
