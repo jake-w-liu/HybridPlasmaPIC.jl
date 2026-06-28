@@ -121,31 +121,13 @@ end
     fill!(f.ui[2], 3.0)
     fill!(f.ui[3], 4.0)
 
-    @test_throws ArgumentError compute_moments_multi!(
-        f,
-        species,
-        g,
-        NGP(),
-        0.0;
-        ntmp,
-        mtmp,
-        works,
-    )
+    @test_throws ArgumentError compute_moments_multi!(f, species, g, NGP(), 0.0; ntmp, mtmp, works)
     @test all(==(1.0), f.n)
     @test all(==(2.0), f.ui[1])
     @test all(==(3.0), f.ui[2])
     @test all(==(4.0), f.ui[3])
 
-    @test_throws ArgumentError compute_moments_multi!(
-        f,
-        species,
-        g,
-        NGP(),
-        NaN;
-        ntmp,
-        mtmp,
-        works,
-    )
+    @test_throws ArgumentError compute_moments_multi!(f, species, g, NGP(), NaN; ntmp, mtmp, works)
     @test all(==(1.0), f.n)
     @test all(==(2.0), f.ui[1])
     @test all(==(3.0), f.ui[2])

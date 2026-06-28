@@ -149,8 +149,16 @@ end
     periodic = LogicalRankLayout((2,); periodic = (true,))
     nonperiodic = LogicalRankLayout((2,); periodic = (false,))
 
-    @test_throws ArgumentError migrate_particles!([_ps1([NaN], [1]), ParticleSet{1,Float64}(0)], g, periodic)
-    @test_throws ArgumentError migrate_particles!([_ps1([Inf], [1]), ParticleSet{1,Float64}(0)], g, nonperiodic)
+    @test_throws ArgumentError migrate_particles!(
+        [_ps1([NaN], [1]), ParticleSet{1,Float64}(0)],
+        g,
+        periodic,
+    )
+    @test_throws ArgumentError migrate_particles!(
+        [_ps1([Inf], [1]), ParticleSet{1,Float64}(0)],
+        g,
+        nonperiodic,
+    )
 end
 
 @testset "append_particles! rejects species mismatch" begin

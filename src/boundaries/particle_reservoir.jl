@@ -103,8 +103,7 @@ function inject_face_1d!(
     acc::Base.RefValue{Float64},
     nextid::Base.RefValue{UInt64},
 ) where {T}
-    inward == 1 || inward == -1 ||
-        throw(ArgumentError("inward must be +1 or -1, got $inward"))
+    inward == 1 || inward == -1 || throw(ArgumentError("inward must be +1 or -1, got $inward"))
     face_xT = _require_finite_real("face_x", face_x, T)
     n0T = _require_finite_nonnegative_real("n0", n0, T)
     aT = T(a)

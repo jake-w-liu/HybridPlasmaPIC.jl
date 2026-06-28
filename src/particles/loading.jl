@@ -5,7 +5,11 @@
 
 Random uniform particle positions in the box `[lo, hi)`.
 """
-function _validated_open_interval(lo::NTuple{D}, hi::NTuple{D}, ::Type{T}) where {D,T<:AbstractFloat}
+function _validated_open_interval(
+    lo::NTuple{D},
+    hi::NTuple{D},
+    ::Type{T},
+) where {D,T<:AbstractFloat}
     loT = ntuple(d -> _require_finite_real("lo[$d]", lo[d], T), D)
     hiT = ntuple(d -> _require_finite_real("hi[$d]", hi[d], T), D)
     @inbounds for d = 1:D
@@ -14,7 +18,11 @@ function _validated_open_interval(lo::NTuple{D}, hi::NTuple{D}, ::Type{T}) where
     return loT, hiT
 end
 
-function _validated_velocity_moments(u0::NTuple{3}, vth::NTuple{3}, ::Type{T}) where {T<:AbstractFloat}
+function _validated_velocity_moments(
+    u0::NTuple{3},
+    vth::NTuple{3},
+    ::Type{T},
+) where {T<:AbstractFloat}
     u = ntuple(c -> _require_finite_real("u0[$c]", u0[c], T), 3)
     s = ntuple(c -> _require_finite_nonnegative_real("vth[$c]", vth[c], T), 3)
     return u, s

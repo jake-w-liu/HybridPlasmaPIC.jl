@@ -28,11 +28,13 @@ end
 function _require_valid_rh_inputs(up::MHDState{T}, μ0::Real) where {T}
     μ = T(μ0)
     isfinite(μ) && μ > zero(T) || throw(ArgumentError("μ0 must be finite and positive"))
-    isfinite(up.ρ) && up.ρ > zero(T) || throw(ArgumentError("upstream density must be finite and positive"))
+    isfinite(up.ρ) && up.ρ > zero(T) ||
+        throw(ArgumentError("upstream density must be finite and positive"))
     isfinite(up.ux) && up.ux > zero(T) ||
         throw(ArgumentError("upstream normal velocity must be finite and > 0 (shock frame)"))
     isfinite(up.uy) || throw(ArgumentError("upstream tangential velocity must be finite"))
-    isfinite(up.p) && up.p >= zero(T) || throw(ArgumentError("upstream pressure must be finite and non-negative"))
+    isfinite(up.p) && up.p >= zero(T) ||
+        throw(ArgumentError("upstream pressure must be finite and non-negative"))
     isfinite(up.Bn) || throw(ArgumentError("upstream normal magnetic field must be finite"))
     isfinite(up.Bt) || throw(ArgumentError("upstream tangential magnetic field must be finite"))
     return μ

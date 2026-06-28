@@ -175,16 +175,61 @@ end
         return ps
     end
 
-    @test_throws ArgumentError push_uniform!(seeded_particle(), (0.0, 0.0, 0.0), (0.0, 0.0, 1.0), NaN)
-    @test_throws ArgumentError push_uniform!(seeded_particle(), (NaN, 0.0, 0.0), (0.0, 0.0, 1.0), 0.1)
-    @test_throws ArgumentError push_uniform!(seeded_particle(), (0.0, 0.0, 0.0), (0.0, Inf, 1.0), 0.1)
-    @test_throws ArgumentError push_uniform!(seeded_particle(; q = NaN), (0.0, 0.0, 0.0), (0.0, 0.0, 1.0), 0.1)
-    @test_throws ArgumentError push_uniform!(seeded_particle(; m = 0.0), (0.0, 0.0, 0.0), (0.0, 0.0, 1.0), 0.1)
+    @test_throws ArgumentError push_uniform!(
+        seeded_particle(),
+        (0.0, 0.0, 0.0),
+        (0.0, 0.0, 1.0),
+        NaN,
+    )
+    @test_throws ArgumentError push_uniform!(
+        seeded_particle(),
+        (NaN, 0.0, 0.0),
+        (0.0, 0.0, 1.0),
+        0.1,
+    )
+    @test_throws ArgumentError push_uniform!(
+        seeded_particle(),
+        (0.0, 0.0, 0.0),
+        (0.0, Inf, 1.0),
+        0.1,
+    )
+    @test_throws ArgumentError push_uniform!(
+        seeded_particle(; q = NaN),
+        (0.0, 0.0, 0.0),
+        (0.0, 0.0, 1.0),
+        0.1,
+    )
+    @test_throws ArgumentError push_uniform!(
+        seeded_particle(; m = 0.0),
+        (0.0, 0.0, 0.0),
+        (0.0, 0.0, 1.0),
+        0.1,
+    )
 
-    @test_throws ArgumentError push_gathered!(seeded_particle(), ([NaN], [0.0], [0.0]), ([0.0], [0.0], [1.0]), 0.1)
-    @test_throws ArgumentError push_gathered!(seeded_particle(), ([0.0], [0.0], [0.0]), ([0.0], [0.0], [1.0]), NaN)
-    @test_throws ArgumentError push_gathered!(seeded_particle(; q = NaN), ([0.0], [0.0], [0.0]), ([0.0], [0.0], [1.0]), 0.1)
-    @test_throws ArgumentError push_gathered!(seeded_particle(; m = 0.0), ([0.0], [0.0], [0.0]), ([0.0], [0.0], [1.0]), 0.1)
+    @test_throws ArgumentError push_gathered!(
+        seeded_particle(),
+        ([NaN], [0.0], [0.0]),
+        ([0.0], [0.0], [1.0]),
+        0.1,
+    )
+    @test_throws ArgumentError push_gathered!(
+        seeded_particle(),
+        ([0.0], [0.0], [0.0]),
+        ([0.0], [0.0], [1.0]),
+        NaN,
+    )
+    @test_throws ArgumentError push_gathered!(
+        seeded_particle(; q = NaN),
+        ([0.0], [0.0], [0.0]),
+        ([0.0], [0.0], [1.0]),
+        0.1,
+    )
+    @test_throws ArgumentError push_gathered!(
+        seeded_particle(; m = 0.0),
+        ([0.0], [0.0], [0.0]),
+        ([0.0], [0.0], [1.0]),
+        0.1,
+    )
 end
 
 @testset "PUSH-004 timestep convergence order" begin

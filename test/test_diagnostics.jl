@@ -141,6 +141,14 @@ end
     ps_bad_x = deepcopy(ps)
     ps_bad_x.x[1][1] = NaN
     @test_throws ArgumentError phase_space_histogram(ps_bad_x, 1, 1; nx = 4, nv = 4)
-    @test_throws ArgumentError phase_space_histogram(ps, 1, 1; nx = 4, nv = 4, xmin = NaN, xmax = 1.0)
+    @test_throws ArgumentError phase_space_histogram(
+        ps,
+        1,
+        1;
+        nx = 4,
+        nv = 4,
+        xmin = NaN,
+        xmax = 1.0,
+    )
     @test_throws ArgumentError phase_space_histogram(ps_bad_w, 1, 1; nx = 4, nv = 4)
 end

@@ -306,7 +306,9 @@ function four_spacecraft_traces(;
             push!(traces[q], v)
         end
     end
-    lvl = level === nothing ? (B0 + maximum(maximum, traces)) / 2 : _require_finite_real("level", level, T)
+    lvl =
+        level === nothing ? (B0 + maximum(maximum, traces)) / 2 :
+        _require_finite_real("level", level, T)
     crossings = ntuple(q -> crossing_time(times, traces[q], lvl), 4)
     res =
         all(isfinite, crossings) ? four_spacecraft_timing(probesT, crossings) :

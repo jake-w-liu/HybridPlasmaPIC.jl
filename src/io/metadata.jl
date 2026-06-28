@@ -109,9 +109,10 @@ function capture_metadata(;
     project_hash = _file_content_hash(joinpath(root, "Project.toml"))
     manifest_hash = _file_content_hash(joinpath(root, "Manifest.toml"))
 
-    ts = isempty(timestamp) ?
-         string(Dates.format(Dates.unix2datetime(time()), dateformat"yyyy-mm-ddTHH:MM:SS"), 'Z') :
-         String(timestamp)
+    ts =
+        isempty(timestamp) ?
+        string(Dates.format(Dates.unix2datetime(time()), dateformat"yyyy-mm-ddTHH:MM:SS"), 'Z') :
+        String(timestamp)
 
     # Backend/hardware provenance. This solver runs on the CPU; the hardware
     # string combines the CPU model with the logical-thread count. Guard the

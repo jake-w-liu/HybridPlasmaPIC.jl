@@ -58,10 +58,14 @@ function phase_space_histogram(
     x = ps.x[sdim]
     v = ps.v[vcomp]
     w = ps.weight
-    xlo = _require_finite_hist_value("position lower bound", xmin === nothing ? minimum(x) : T(xmin))
-    xhi = _require_finite_hist_value("position upper bound", xmax === nothing ? maximum(x) : T(xmax))
-    vlo = _require_finite_hist_value("velocity lower bound", vmin === nothing ? minimum(v) : T(vmin))
-    vhi = _require_finite_hist_value("velocity upper bound", vmax === nothing ? maximum(v) : T(vmax))
+    xlo =
+        _require_finite_hist_value("position lower bound", xmin === nothing ? minimum(x) : T(xmin))
+    xhi =
+        _require_finite_hist_value("position upper bound", xmax === nothing ? maximum(x) : T(xmax))
+    vlo =
+        _require_finite_hist_value("velocity lower bound", vmin === nothing ? minimum(v) : T(vmin))
+    vhi =
+        _require_finite_hist_value("velocity upper bound", vmax === nothing ? maximum(v) : T(vmax))
     xhi <= xlo && (xhi = xlo + one(T))       # degenerate range ⇒ avoid /0 (NaN→crash)
     vhi <= vlo && (vhi = vlo + one(T))
     dx = (xhi - xlo) / nx

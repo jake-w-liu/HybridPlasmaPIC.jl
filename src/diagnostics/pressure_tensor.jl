@@ -67,8 +67,7 @@ function temperatures_par_perp(
     Tpar = similar(n)
     Tperp = similar(n)
     nf = T(nfloor)
-    isfinite(nf) && nf > zero(T) ||
-        throw(ArgumentError("nfloor must be finite and positive"))
+    isfinite(nf) && nf > zero(T) || throw(ArgumentError("nfloor must be finite and positive"))
     Pxx, Pyy, Pzz, Pxy, Pxz, Pyz = P
     Bx, By, Bz = B
     @inbounds for I in eachindex(n)

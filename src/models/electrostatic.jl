@@ -56,7 +56,8 @@ end
 @inline function _require_espic_electrons(e::ParticleSet{1,T}) where {T}
     q = _require_finite_real("electron charge q", e.q, T)
     m = _require_finite_real("electron mass m", e.m, T)
-    q == -one(T) || throw(ArgumentError("Electrostatic1D requires electron ParticleSet with q = -1"))
+    q == -one(T) ||
+        throw(ArgumentError("Electrostatic1D requires electron ParticleSet with q = -1"))
     m == one(T) || throw(ArgumentError("Electrostatic1D requires electron ParticleSet with m = 1"))
     return nothing
 end

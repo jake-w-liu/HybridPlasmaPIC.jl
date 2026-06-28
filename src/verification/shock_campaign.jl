@@ -17,8 +17,9 @@ end
 function _validate_shock3d_restart_state(state)
     state isa Tuple ||
         throw(ArgumentError("shock3d restart file does not contain a checkpoint tuple"))
-    length(state) == 2 ||
-        throw(ArgumentError("shock3d restart tuple must have exactly 2 entries, got $(length(state))"))
+    length(state) == 2 || throw(
+        ArgumentError("shock3d restart tuple must have exactly 2 entries, got $(length(state))"),
+    )
     sh, ps = state
     sh isa PerpShock3D ||
         throw(ArgumentError("shock3d restart entry 1 must be a PerpShock3D, got $(typeof(sh))"))

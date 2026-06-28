@@ -21,8 +21,7 @@ function LogicalRankLayout(ranks::NTuple{D,<:Integer}; periodic = ntuple(_ -> tr
     D >= 1 || throw(ArgumentError("rank layout dimension must be >= 1"))
     rr = ntuple(d -> Int(ranks[d]), D)
     all(>(0), rr) || throw(ArgumentError("all rank counts must be positive, got $rr"))
-    length(periodic) == D ||
-        throw(ArgumentError("periodic length must equal rank dimension $D"))
+    length(periodic) == D || throw(ArgumentError("periodic length must equal rank dimension $D"))
     pp = ntuple(d -> Bool(periodic[d]), D)
     return LogicalRankLayout{D}(rr, pp)
 end

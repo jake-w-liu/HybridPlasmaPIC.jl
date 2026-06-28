@@ -43,11 +43,19 @@ end
     return qm
 end
 
-@inline function _validated_uniform_field(name::AbstractString, field::NTuple{3}, ::Type{T}) where {T<:AbstractFloat}
+@inline function _validated_uniform_field(
+    name::AbstractString,
+    field::NTuple{3},
+    ::Type{T},
+) where {T<:AbstractFloat}
     return ntuple(c -> _require_finite_real("$(name)[$c]", field[c], T), 3)
 end
 
-@inline function _require_finite_field_sample(name::AbstractString, value::Real, ::Type{T}) where {T<:AbstractFloat}
+@inline function _require_finite_field_sample(
+    name::AbstractString,
+    value::Real,
+    ::Type{T},
+) where {T<:AbstractFloat}
     v = T(value)
     isfinite(v) || throw(ArgumentError("$name must contain only finite values"))
     return v
