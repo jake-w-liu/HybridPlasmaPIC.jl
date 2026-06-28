@@ -3,9 +3,8 @@
 # Thin MPI.jl transport hooks over the deterministic logical-rank reference
 # kernels in domain_decomposition.jl. These wrappers are intentionally small:
 # they create real MPI Cartesian communicators, expose rank/layout provenance,
-# and provide structured collective diagnostics plus correctness-first particle
-# migration. Time-advanced rank invariance and scaling still require
-# mpiexec/cluster tests.
+# and provide structured collective diagnostics plus destination-routed particle
+# migration. Scaling still requires cluster tests.
 
 import MPI
 import Serialization
@@ -712,36 +711,62 @@ function _deserialize_mpi_payload(::Type{T}, bytes::AbstractVector{UInt8}) where
     return payload
 end
 
-function _mpi_allgather_bytes(bytes::Vector{UInt8}, comm::MPI.Comm)
-    length(bytes) <= typemax(Cint) ||
-        throw(ArgumentError("MPI byte payload exceeds Cint count capacity"))
-    counts = Cint.(MPI.Allgather(Cint(length(bytes)), comm))
-    total = sum(Int, counts)
-    recv = Vector{UInt8}(undef, total)
-    MPI.Allgatherv!(bytes, MPI.VBuffer(recv, counts), comm)
+function _check_mpi_byte_count(n::Integer)
+    0 <= n <= typemax(Cint) || throw(ArgumentError("MPI byte payload exceeds Cint count capacity"))
+    return Cint(n)
+end
 
-    chunks = Vector{Vector{UInt8}}(undef, length(counts))
+function _mpi_alltoallv_bytes(send_chunks::AbstractVector{<:AbstractVector{UInt8}}, comm::MPI.Comm)
+    ncomm = MPI.Comm_size(comm)
+    length(send_chunks) == ncomm || throw(
+        ArgumentError(
+            "send_chunks length $(length(send_chunks)) must equal communicator size $ncomm",
+        ),
+    )
+
+    send_counts = Cint[_check_mpi_byte_count(length(chunk)) for chunk in send_chunks]
+    recv_counts = MPI.Alltoall(MPI.UBuffer(send_counts, 1), comm)
+    send_total = sum(Int, send_counts)
+    recv_total = sum(Int, recv_counts)
+
+    sendbuf = Vector{UInt8}(undef, send_total)
     offset = 1
-    for i = 1:length(counts)
-        n = Int(counts[i])
-        chunks[i] = n == 0 ? UInt8[] : recv[offset:(offset+n-1)]
+    for chunk in send_chunks
+        n = length(chunk)
+        if n > 0
+            copyto!(sendbuf, offset, chunk, firstindex(chunk), n)
+            offset += n
+        end
+    end
+
+    recvbuf = Vector{UInt8}(undef, recv_total)
+    MPI.Alltoallv!(MPI.VBuffer(sendbuf, send_counts), MPI.VBuffer(recvbuf, recv_counts), comm)
+
+    chunks = Vector{Vector{UInt8}}(undef, ncomm)
+    offset = 1
+    for i = 1:ncomm
+        n = Int(recv_counts[i])
+        chunks[i] = n == 0 ? UInt8[] : recvbuf[offset:(offset+n-1)]
         offset += n
     end
     return chunks
 end
 
+function _mpi_rank_for_logical(ctx::MPICartesianCommunicator{D}, logical_rank::Integer) where {D}
+    coords = rank_coords(ctx.layout, logical_rank)
+    coords0 = [coords[d] - 1 for d = 1:D]
+    return MPI.Cart_rank(ctx.comm, coords0)
+end
+
 """
     mpi_migrate_particles!(ps, g, ctx) -> (; moved, lost, sent, received)
 
-Migrate this rank's particles through real MPI transport according to `ctx`'s
-Cartesian layout. Periodic coordinates are wrapped before destination
-classification; particles outside a nonperiodic global boundary are removed.
-
-This is a correctness-first collective transport: each rank serializes its
-variable-size outbound particle subsets and exchanges them with `Allgatherv`.
-It preserves the same destination rules as [`migrate_particles!`](@ref), but it
-is not the scalable production neighbor-exchange path. Scaling remains a
-separate Phase-9 gate.
+Migrate this rank's particles through destination-routed real MPI transport
+according to `ctx`'s Cartesian layout. Periodic coordinates are wrapped before
+destination classification; particles outside a nonperiodic global boundary are
+removed. Each rank serializes only the particles needed by each destination and
+exchanges variable-size byte payloads with `MPI.Alltoallv!`, so inbound data is
+received only by its owning rank.
 """
 function mpi_migrate_particles!(
     ps::ParticleSet{D,T},
@@ -769,26 +794,25 @@ function mpi_migrate_particles!(
         end
     end
 
-    outbound = Tuple{Int,ParticleSet{D,T}}[]
+    send_chunks = [UInt8[] for _ = 1:ctx.mpi_size]
     sent_local = 0
     for dest in sort!(collect(keys(by_dest)))
         subset = _subset_particles(ps, by_dest[dest])
-        push!(outbound, (dest, subset))
+        mpi_dest = _mpi_rank_for_logical(ctx, dest)
+        send_chunks[mpi_dest+1] = _serialize_mpi_payload(subset)
         sent_local += nparticles(subset)
     end
 
     _replace_particles!(ps, keep)
 
-    payload_type = Vector{Tuple{Int,ParticleSet{D,T}}}
-    chunks = _mpi_allgather_bytes(_serialize_mpi_payload(outbound), ctx.comm)
+    payload_type = ParticleSet{D,T}
+    chunks = _mpi_alltoallv_bytes(send_chunks, ctx.comm)
     received_local = 0
     for chunk in chunks
-        rank_payload = _deserialize_mpi_payload(payload_type, chunk)
-        for (dest, incoming) in rank_payload
-            if dest == ctx.logical_rank
-                append_particles!(ps, incoming)
-                received_local += nparticles(incoming)
-            end
+        if !isempty(chunk)
+            incoming = _deserialize_mpi_payload(payload_type, chunk)
+            append_particles!(ps, incoming)
+            received_local += nparticles(incoming)
         end
     end
 

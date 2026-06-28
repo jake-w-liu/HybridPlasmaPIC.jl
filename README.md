@@ -76,11 +76,11 @@ These require hardware or external references not available here and are **not**
 claimed as done:
 
 - **GPU** (CUDA/Metal) production plasma kernels — no NVIDIA hardware here.
-- **MPI** scalable neighbor exchange and scaling. Focused real-MPI Cartesian
-  mapping, diagnostic Allreduce, correctness-first collective particle migration,
-  time-advanced particle budget invariance, distributed checkpoint/restart
-  bitmatch, and field-coupled serial-vs-MPI agreement pass under two, four, and
-  eight local ranks.
+- **MPI** scalable field/moment halo exchange and scaling studies. Focused
+  real-MPI Cartesian mapping, diagnostic Allreduce, destination-routed particle
+  migration, time-advanced particle budget invariance, distributed
+  checkpoint/restart bitmatch, and field-coupled serial-vs-MPI agreement pass
+  under two, four, and eight local ranks.
 - **External hybrid-code comparison** (SHK-005): the comparator harness exists,
   but a published external dataset is still required.
 - **Multi-GPU** restart and scaling.

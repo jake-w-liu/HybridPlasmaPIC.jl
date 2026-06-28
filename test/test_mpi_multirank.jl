@@ -266,6 +266,21 @@ if WORLD_SIZE in (2, 4, 8)
                   reduce_diagnostics(expected_locals; op = :max)
         end
 
+        @testset "destination-routed MPI byte transport size=$WORLD_SIZE" begin
+            dest = mod(ctx.mpi_rank + 1, WORLD_SIZE)
+            source = mod(ctx.mpi_rank - 1, WORLD_SIZE)
+            send_chunks = [UInt8[] for _ = 1:WORLD_SIZE]
+            send_chunks[dest+1] = UInt8[0x40+UInt8(ctx.mpi_rank)]
+            recv_chunks = HybridPlasmaPIC._mpi_alltoallv_bytes(send_chunks, ctx.comm)
+            for rank0 = 0:(WORLD_SIZE-1)
+                if rank0 == source
+                    @test recv_chunks[rank0+1] == UInt8[0x40+UInt8(rank0)]
+                else
+                    @test isempty(recv_chunks[rank0+1])
+                end
+            end
+        end
+
         @testset "rank-count invariant synthetic particle diagnostics size=$WORLD_SIZE" begin
             local_ps = _particle_partition(WORLD_RANK, WORLD_SIZE)
             serial_ps = _particle_partition(0, 1)
