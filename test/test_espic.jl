@@ -4,6 +4,15 @@
 
 using HybridPlasmaPIC, FFTW, Test, Random
 
+@testset "Electrostatic1D parameter validation" begin
+    T = Float64
+    g = FourierGrid((8,), (2π,))
+    es = Electrostatic1D(g, 4; n0 = 1.0)
+    @test es.n0 == 1.0
+    @test_throws ArgumentError Electrostatic1D(g, 4; n0 = NaN)
+    @test_throws ArgumentError Electrostatic1D(g, 4; n0 = -1.0)
+end
+
 # dominant positive-frequency peak (parabolic interpolation)
 function _peakfreq(series, dt)
     Nt = length(series)

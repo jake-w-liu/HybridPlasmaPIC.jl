@@ -28,7 +28,8 @@ end
 
 function Electrostatic1D(g::FourierGrid{1,T}, Nparticles::Integer; n0 = 1.0) where {T}
     n = g.n[1]
-    Electrostatic1D{T,typeof(g)}(g, T(n0), zeros(T, n), zeros(T, n), zeros(T, Nparticles))
+    n0T = _require_finite_nonnegative_real("n0", n0, T)
+    Electrostatic1D{T,typeof(g)}(g, n0T, zeros(T, n), zeros(T, n), zeros(T, Nparticles))
 end
 
 "Solve −∂²φ = ρ/ε0, E = −∂φ, spectrally: Ê_m = −i ρ̂_m/(ε0 k_m), Ê_0 = 0."

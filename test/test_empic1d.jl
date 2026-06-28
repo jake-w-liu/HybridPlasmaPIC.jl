@@ -5,6 +5,22 @@
 
 using HybridPlasmaPIC, FFTW, Test, Random
 
+@testset "EMPIC1D parameter validation" begin
+    T = Float64
+    g = FourierGrid((8,), (2π,))
+    es = EMPIC1D(g, 4; n0 = 1.0, c = 5.0, mi = 1836.0)
+    @test es.n0 == 1.0
+    @test es.c == 5.0
+    @test es.mi == 1836.0
+    @test_throws ArgumentError EMPIC1D(g, 4; n0 = NaN)
+    @test_throws ArgumentError EMPIC1D(g, 4; n0 = -1.0)
+    @test_throws ArgumentError EMPIC1D(g, 4; c = NaN)
+    @test_throws ArgumentError EMPIC1D(g, 4; c = 0.0)
+    @test_throws ArgumentError EMPIC1D(g, 4; c = -1.0)
+    @test_throws ArgumentError EMPIC1D(g, 4; mi = NaN)
+    @test_throws ArgumentError EMPIC1D(g, 4; mi = 0.0)
+end
+
 # dominant positive-frequency peak of a complex time series (parabolic interp)
 function _em_peakfreq(series, dt)
     Nt = length(series)

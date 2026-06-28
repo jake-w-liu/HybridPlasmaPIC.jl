@@ -128,18 +128,20 @@ function EMPIC1D(
     n_sub::Integer = 1,
 ) where {T}
     n_sub >= 1 || throw(ArgumentError("n_sub must be ≥ 1"))
-    mi > 0 || throw(ArgumentError("ion mass mi must be > 0"))
+    n0T = _require_finite_nonnegative_real("n0", n0, T)
+    cT = _require_finite_positive_real("c", c, T)
+    miT = _require_finite_positive_real("mi", mi, T)
     n = g.n[1]
     z() = zeros(T, n)
     vz() = zeros(T, Nparticles)
     EMPIC1D{T,typeof(g),typeof(shape)}(
         g,
-        T(n0),
-        T(c),
+        n0T,
+        cT,
         shape,
         relativistic,
         mobile,
-        T(mi),
+        miT,
         Int(n_sub),
         z(),       # Ex
         z(),       # Ey
