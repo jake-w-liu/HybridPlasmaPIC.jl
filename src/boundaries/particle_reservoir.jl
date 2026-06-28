@@ -103,22 +103,30 @@ function inject_face_1d!(
     acc::Base.RefValue{Float64},
     nextid::Base.RefValue{UInt64},
 ) where {T}
+    inward == 1 || inward == -1 ||
+        throw(ArgumentError("inward must be +1 or -1, got $inward"))
+    face_xT = _require_finite_real("face_x", face_x, T)
+    n0T = _require_finite_nonnegative_real("n0", n0, T)
     aT = T(a)
     σT = T(σ)
+    ut1 = _require_finite_real("ut[1]", ut[1], T)
+    ut2 = _require_finite_real("ut[2]", ut[2], T)
+    σtT = _require_finite_nonnegative_real("σt", σt, T)
+    dtT = _validated_nonnegative_dt(T, dt; name = "inject_face_1d!")
+    wT = _require_finite_positive_real("w", w, T)
     fpn0 = flux_per_density(aT, σT)
-    acc[] += float(n0) * float(fpn0) * float(dt) / float(w)
+    acc[] += float(n0T) * float(fpn0) * float(dtT) / float(wT)
     Ninj = floor(Int, acc[])
     acc[] -= Ninj
     Ninj == 0 && return 0
     s_in = T(inward)
-    σtT = T(σt)
     @inbounds for _ = 1:Ninj
         s = flux_speed(rng, aT, σT)
-        push!(ps.x[1], T(face_x) + s_in * s * T(dt) * rand(rng, T))   # fly-in within the swept slab
+        push!(ps.x[1], face_xT + s_in * s * dtT * rand(rng, T))   # fly-in within the swept slab
         push!(ps.v[1], s_in * s)
-        push!(ps.v[2], T(ut[1]) + σtT * randn(rng, T))
-        push!(ps.v[3], T(ut[2]) + σtT * randn(rng, T))
-        push!(ps.weight, T(w))
+        push!(ps.v[2], ut1 + σtT * randn(rng, T))
+        push!(ps.v[3], ut2 + σtT * randn(rng, T))
+        push!(ps.weight, wT)
         push!(ps.id, nextid[])
         nextid[] += one(UInt64)
         push!(ps.tag, UInt32(1))                                      # tag=1 ⇒ injected

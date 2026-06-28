@@ -50,6 +50,50 @@ end
     @test all(<=(2.0), ps.x[1])   # swept slab face_x .. face_x + a*dt
 end
 
+@testset "inject_face_1d! validates inputs before mutation" begin
+    rng = MersenneTwister(3)
+
+    function snapshot()
+        ps = ParticleSet{1,Float64}(0)
+        acc = Ref(10.0)
+        nid = Ref(UInt64(1))
+        return ps, acc, nid
+    end
+
+    for kwargs in (
+        (; face_x = NaN, inward = +1, n0 = 1.0, a = 2.0, σ = 0.5, ut = (0.0, 0.0), σt = 0.3, dt = 1.0, w = 1.0),
+        (; face_x = 0.0, inward = 0, n0 = 1.0, a = 2.0, σ = 0.5, ut = (0.0, 0.0), σt = 0.3, dt = 1.0, w = 1.0),
+        (; face_x = 0.0, inward = 2, n0 = 1.0, a = 2.0, σ = 0.5, ut = (0.0, 0.0), σt = 0.3, dt = 1.0, w = 1.0),
+        (; face_x = 0.0, inward = +1, n0 = -1.0, a = 2.0, σ = 0.5, ut = (0.0, 0.0), σt = 0.3, dt = 1.0, w = 1.0),
+        (; face_x = 0.0, inward = +1, n0 = 1.0, a = 2.0, σ = 0.5, ut = (NaN, 0.0), σt = 0.3, dt = 1.0, w = 1.0),
+        (; face_x = 0.0, inward = +1, n0 = 1.0, a = 2.0, σ = 0.5, ut = (0.0, 0.0), σt = NaN, dt = 1.0, w = 1.0),
+        (; face_x = 0.0, inward = +1, n0 = 1.0, a = 2.0, σ = 0.5, ut = (0.0, 0.0), σt = 0.3, dt = NaN, w = 1.0),
+        (; face_x = 0.0, inward = +1, n0 = 1.0, a = 2.0, σ = 0.5, ut = (0.0, 0.0), σt = 0.3, dt = 1.0, w = 0.0),
+    )
+        ps, acc, nid = snapshot()
+        @test_throws ArgumentError inject_face_1d!(
+            ps,
+            rng,
+            kwargs.face_x,
+            kwargs.inward,
+            kwargs.n0,
+            kwargs.a,
+            kwargs.σ,
+            kwargs.ut,
+            kwargs.σt,
+            kwargs.dt,
+            kwargs.w,
+            acc,
+            nid,
+        )
+        @test nparticles(ps) == 0
+        @test isempty(ps.x[1]) && isempty(ps.v[1]) && isempty(ps.v[2]) && isempty(ps.v[3])
+        @test isempty(ps.weight) && isempty(ps.id) && isempty(ps.tag)
+        @test acc[] == 10.0
+        @test nid[] == UInt64(1)
+    end
+end
+
 @testset "inject_face_1d! delivers the target number flux" begin
     T = Float64
     n0 = 1.0
