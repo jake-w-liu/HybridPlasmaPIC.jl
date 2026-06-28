@@ -3,7 +3,7 @@
 # spacecraft timing, load-imbalance metric, reference reproduction, upstream
 # turbulence, 3-D restart, 3-D campaign + 1D/3D comparison. Measured tolerances.
 
-using Random, LinearAlgebra
+using Random, LinearAlgebra, Serialization
 
 @testset "Semi-implicit CN integrator (conservative + unconditionally stable)" begin
     # CN multiplier modulus is exactly 1 (energy-conserving) for any ω, dt.
@@ -208,6 +208,22 @@ end
     sh2 = deepcopy(sh)
     sh2.n[1, 1, 1] = one(eltype(sh2.n))
     @test !HybridPlasmaPIC._shock3d_restart_bitmatch(sh, ps, sh2, ps2)
+end
+
+@testset "restore_shock3d validates checkpoint contents" begin
+    mktemp() do path, io
+        close(io)
+        Serialization.serialize(path, (1, 2))
+        @test_throws ArgumentError restore_shock3d(path)
+
+        Serialization.serialize(path, (1, 2, 3))
+        @test_throws ArgumentError restore_shock3d(path)
+
+        sh = PerpShock3D(8, 4, 4, 10.0, 4.0, 4.0)
+        ps1d = ParticleSet{1,Float64}(0)
+        Serialization.serialize(path, (sh, ps1d))
+        @test_throws ArgumentError restore_shock3d(path)
+    end
 end
 
 @testset "3-D shock restart + campaign + 1D/3D comparison" begin

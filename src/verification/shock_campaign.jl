@@ -14,10 +14,22 @@ function checkpoint_shock3d(path::AbstractString, sh::PerpShock3D, ps::ParticleS
     return path
 end
 
+function _validate_shock3d_restart_state(state)
+    state isa Tuple ||
+        throw(ArgumentError("shock3d restart file does not contain a checkpoint tuple"))
+    length(state) == 2 ||
+        throw(ArgumentError("shock3d restart tuple must have exactly 2 entries, got $(length(state))"))
+    sh, ps = state
+    sh isa PerpShock3D ||
+        throw(ArgumentError("shock3d restart entry 1 must be a PerpShock3D, got $(typeof(sh))"))
+    ps isa ParticleSet{3} ||
+        throw(ArgumentError("shock3d restart entry 2 must be a 3-D ParticleSet, got $(typeof(ps))"))
+    return sh, ps
+end
+
 "Restore a `(sh, ps)` 3-D shock state written by [`checkpoint_shock3d`](@ref)."
 function restore_shock3d(path::AbstractString)
-    sh, ps = deserialize(path)
-    return sh, ps
+    return _validate_shock3d_restart_state(deserialize(path))
 end
 
 @inline _state_value_equal(a, b) = a == b

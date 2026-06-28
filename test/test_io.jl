@@ -178,3 +178,19 @@ end
     @test all(==(8.0), st.fields.E[1])
     rm(path; force = true)
 end
+
+@testset "load_checkpoint! rejects invalid container shape before mutation" begin
+    g = FourierGrid((16,), (1.0,))
+    st = HybridStepper(g, HybridModel(IsothermalElectrons(0.5)), CIC(), 2)
+    ps = ParticleSet{1,Float64}(2)
+    fill!(ps.x[1], 0.25)
+    fill!(st.fields.B[1], 7.0)
+    st.step[] = 3
+    path = tempname()
+    Serialization.serialize(path, 7)
+    @test_throws ArgumentError load_checkpoint!(st, ps, path)
+    @test ps.x[1] == fill(0.25, 2)
+    @test all(==(7.0), st.fields.B[1])
+    @test st.step[] == 3
+    rm(path; force = true)
+end

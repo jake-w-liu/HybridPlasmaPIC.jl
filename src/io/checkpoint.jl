@@ -9,6 +9,35 @@
 
 using Serialization
 
+const _CHECKPOINT_REQUIRED_FIELDS = (
+    :D,
+    :T,
+    :ncell,
+    :L,
+    :x,
+    :v,
+    :weight,
+    :id,
+    :tag,
+    :q,
+    :m,
+    :B,
+    :E,
+    :time,
+    :step,
+)
+
+function _validate_checkpoint_container(s)
+    s isa NamedTuple ||
+        throw(ArgumentError("checkpoint file does not contain a valid checkpoint container"))
+    missing = Symbol[k for k in _CHECKPOINT_REQUIRED_FIELDS if !hasproperty(s, k)]
+    if !isempty(missing)
+        missing_list = join(string.(missing), ", ")
+        throw(ArgumentError("checkpoint is missing required fields: $missing_list"))
+    end
+    return nothing
+end
+
 function _validate_checkpoint_particle_state(s, ::Val{D}) where {D}
     length(s.x) == D || throw(
         ArgumentError("checkpoint has $(length(s.x)) position arrays, expected $D"),
@@ -99,6 +128,7 @@ function load_checkpoint!(
     path::AbstractString,
 ) where {D,T}
     s = deserialize(path)
+    _validate_checkpoint_container(s)
     s.D == D || throw(ArgumentError("checkpoint dimension $(s.D) ≠ $D"))
     s.T == T || throw(
         ArgumentError(
@@ -106,9 +136,6 @@ function load_checkpoint!(
         ),
     )
     s.ncell == st.g.n || throw(ArgumentError("checkpoint grid $(s.ncell) ≠ $(st.g.n)"))
-    hasproperty(s, :L) || throw(
-        ArgumentError("checkpoint is missing grid lengths L and cannot guarantee a bitwise-identical restart"),
-    )
     s.L == st.g.L || throw(ArgumentError("checkpoint box lengths $(s.L) ≠ $(st.g.L)"))
     _validate_checkpoint_particle_state(s, Val(D))
     _validate_checkpoint_field_state(s, st)
