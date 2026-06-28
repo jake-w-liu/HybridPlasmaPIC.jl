@@ -53,8 +53,17 @@ function poisson_E!(es::Electrostatic1D{T}) where {T}
     return es.E
 end
 
+@inline function _require_espic_electrons(e::ParticleSet{1,T}) where {T}
+    q = _require_finite_real("electron charge q", e.q, T)
+    m = _require_finite_real("electron mass m", e.m, T)
+    q == -one(T) || throw(ArgumentError("Electrostatic1D requires electron ParticleSet with q = -1"))
+    m == one(T) || throw(ArgumentError("Electrostatic1D requires electron ParticleSet with m = 1"))
+    return nothing
+end
+
 "Deposit electron density and solve the field (call once after loading)."
 function init_espic!(es::Electrostatic1D{T}, e::ParticleSet{1,T}) where {T}
+    _require_espic_electrons(e)
     density!(es.ne, e, es.g, CIC())
     poisson_E!(es)
     return es
@@ -67,6 +76,7 @@ Advance one leapfrog step: gather E → Boris kick (B=0) → drift → periodic 
 deposit density → solve Poisson.
 """
 function step_espic!(es::Electrostatic1D{T}, e::ParticleSet{1,T}, dt::Real) where {T}
+    _require_espic_electrons(e)
     dtT = _validated_nonnegative_dt(T, dt; name = "step_espic!")
     g = es.g
     L = g.L[1]

@@ -13,10 +13,36 @@ using HybridPlasmaPIC, FFTW, Test, Random
     @test_throws ArgumentError Electrostatic1D(g, 4; n0 = -1.0)
 end
 
+@testset "Electrostatic1D electron species validation" begin
+    T = Float64
+    g = FourierGrid((8,), (2π,))
+
+    badq = ParticleSet{1,T}(8; q = 0.0, m = 1.0)
+    load_lattice_1d!(badq, 0.0, 2π)
+    set_density_weight!(badq, 1.0, g)
+    es = Electrostatic1D(g, 8; n0 = 1.0)
+    @test_throws ArgumentError init_espic!(es, badq)
+    fill!(es.E, 1.0)
+    x0 = ntuple(d -> copy(badq.x[d]), 1)
+    v0 = ntuple(c -> copy(badq.v[c]), 3)
+    E0 = copy(es.E)
+    ne0 = copy(es.ne)
+    @test_throws ArgumentError step_espic!(es, badq, 0.1)
+    @test all(badq.x[d] == x0[d] for d = 1:1)
+    @test all(badq.v[c] == v0[c] for c = 1:3)
+    @test es.E == E0
+    @test es.ne == ne0
+
+    badm = ParticleSet{1,T}(8; q = -1.0, m = 2.0)
+    load_lattice_1d!(badm, 0.0, 2π)
+    set_density_weight!(badm, 1.0, g)
+    @test_throws ArgumentError init_espic!(Electrostatic1D(g, 8; n0 = 1.0), badm)
+end
+
 @testset "step_espic! validates timestep before mutation" begin
     T = Float64
     g = FourierGrid((8,), (2π,))
-    e = ParticleSet{1,T}(8)
+    e = ParticleSet{1,T}(8; q = -1.0, m = 1.0)
     load_lattice_1d!(e, 0.0, 2π)
     set_density_weight!(e, 1.0, g)
     es = Electrostatic1D(g, 8; n0 = 1.0)
@@ -72,7 +98,7 @@ end
     g = FourierGrid((n,), (L,))
     nppc = 400
     N = nppc * n
-    e = ParticleSet{1,T}(N)
+    e = ParticleSet{1,T}(N; q = -1.0, m = 1.0)
     load_lattice_1d!(e, 0.0, L)
     set_density_weight!(e, 1.0, g)
     rng = MersenneTwister(1)
@@ -105,7 +131,7 @@ end
     g = FourierGrid((n,), (L,))
     nppc = 800
     N = nppc * n
-    e = ParticleSet{1,T}(N)
+    e = ParticleSet{1,T}(N; q = -1.0, m = 1.0)
     load_lattice_1d!(e, 0.0, L)
     set_density_weight!(e, 1.0, g)
     for p = 1:N
@@ -135,7 +161,7 @@ end
     g = FourierGrid((n,), (L,))
     nppc = 800
     N = nppc * n
-    e = ParticleSet{1,T}(N)
+    e = ParticleSet{1,T}(N; q = -1.0, m = 1.0)
     load_lattice_1d!(e, 0.0, L)
     set_density_weight!(e, 1.0, g)
     for p = 1:N
