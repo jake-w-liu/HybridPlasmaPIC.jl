@@ -394,6 +394,29 @@ if WORLD_SIZE in (2, 4, 8)
             end
         end
 
+        @testset "real MPI slab halo count mismatch rejects collectively size=$WORLD_SIZE" begin
+            slab_layout = LogicalRankLayout((WORLD_SIZE, 1); periodic = (false, true))
+            slab_ctx = create_cartesian_communicator(slab_layout; comm = WORLD, reorder = false)
+            try
+                ntrans = slab_ctx.logical_rank == 1 ? 2 : 3
+                bad_field = fill(Float64(slab_ctx.logical_rank), 5, ntrans)
+                @test_throws DimensionMismatch mpi_exchange_field_halos!(
+                    bad_field,
+                    slab_ctx;
+                    halo = 1,
+                )
+
+                bad_moment = fill(10.0 * slab_ctx.logical_rank, 5, ntrans)
+                @test_throws DimensionMismatch mpi_exchange_ghost_moments!(
+                    bad_moment,
+                    slab_ctx;
+                    halo = 1,
+                )
+            finally
+                free_mpi_communicator!(slab_ctx)
+            end
+        end
+
         @testset "rank-count invariant synthetic particle diagnostics size=$WORLD_SIZE" begin
             local_ps = _particle_partition(WORLD_RANK, WORLD_SIZE)
             serial_ps = _particle_partition(0, 1)

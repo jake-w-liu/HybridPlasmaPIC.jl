@@ -840,7 +840,14 @@ function _mpi_sendrecv_checked!(
         Int(tag + _MPI_COUNT_TAG_OFFSET),
         comm,
     )
-    if source != MPI.PROC_NULL && Int(recv_count[1]) != length(recvbuf)
+    local_mismatch = source != MPI.PROC_NULL && Int(recv_count[1]) != length(recvbuf)
+    any_mismatch = MPI.Allreduce(local_mismatch ? 1 : 0, max, comm)
+    if any_mismatch != 0
+        local_mismatch || throw(
+            DimensionMismatch(
+                "$label count mismatch detected on another MPI rank; aborting payload exchange",
+            ),
+        )
         throw(
             DimensionMismatch(
                 "$label received $(Int(recv_count[1])) values; expected $(length(recvbuf))",
