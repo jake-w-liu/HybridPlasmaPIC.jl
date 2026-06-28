@@ -202,6 +202,62 @@ end
     rm(path; force = true)
 end
 
+@testset "load_checkpoint! rejects scalar/type conversion before mutation" begin
+    g = FourierGrid((16,), (1.0,))
+    st = HybridStepper(g, HybridModel(IsothermalElectrons(0.5)), CIC(), 2)
+    ps = ParticleSet{1,Float64}(2; q = 2.0, m = 3.0)
+    fill!(ps.x[1], 0.25)
+    fill!(st.fields.B[1], 7.0)
+    st.step[] = 3
+    st.time[] = 0.75
+    base = (
+        D = 1,
+        T = Float64,
+        ncell = st.g.n,
+        L = st.g.L,
+        x = ([0.1, 0.2],),
+        v = ([1.0, 1.0], [2.0, 2.0], [3.0, 3.0]),
+        weight = [4.0, 4.0],
+        id = UInt64[10, 11],
+        tag = UInt32[1, 1],
+        q = 2.0,
+        m = 3.0,
+        B = (fill(8.0, size(st.fields.B[1])), copy(st.fields.B[2]), copy(st.fields.B[3])),
+        E = (copy(st.fields.E[1]), copy(st.fields.E[2]), copy(st.fields.E[3])),
+        time = 1.25,
+        step = 4,
+    )
+
+    function assert_rejects_without_mutation(bad)
+        fill!(ps.x[1], 0.25)
+        ps.q = 2.0
+        ps.m = 3.0
+        fill!(st.fields.B[1], 7.0)
+        st.step[] = 3
+        st.time[] = 0.75
+        path = tempname()
+        try
+            Serialization.serialize(path, bad)
+            @test_throws ArgumentError load_checkpoint!(st, ps, path)
+            @test ps.x[1] == fill(0.25, 2)
+            @test ps.q == 2.0
+            @test ps.m == 3.0
+            @test all(==(7.0), st.fields.B[1])
+            @test st.step[] == 3
+            @test st.time[] == 0.75
+        finally
+            rm(path; force = true)
+        end
+    end
+
+    assert_rejects_without_mutation(merge(base, (step = "bad",)))
+    assert_rejects_without_mutation(merge(base, (q = 2,)))
+    assert_rejects_without_mutation(merge(base, (x = (Float32[0.1, 0.2],),)))
+    assert_rejects_without_mutation(
+        merge(base, (B = (Float32.(base.B[1]), base.B[2], base.B[3]),)),
+    )
+end
+
 @testset "load_checkpoint! rejects invalid container shape before mutation" begin
     g = FourierGrid((16,), (1.0,))
     st = HybridStepper(g, HybridModel(IsothermalElectrons(0.5)), CIC(), 2)

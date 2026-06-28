@@ -23,40 +23,84 @@ function _validate_checkpoint_container(s)
     return nothing
 end
 
+function _validate_checkpoint_vector(name::Symbol, a, N::Int, ::Type{T}) where {T}
+    a isa AbstractVector ||
+        throw(ArgumentError("checkpoint $(name) is $(typeof(a)), expected AbstractVector{$T}"))
+    eltype(a) === T || throw(
+        ArgumentError(
+            "checkpoint $(name) eltype $(eltype(a)) ≠ $T (would silently convert on restore)",
+        ),
+    )
+    length(a) == N ||
+        throw(ArgumentError("checkpoint $(name) length $(length(a)) ≠ particle count $N"))
+    _check_particle_vector_axes(name, a, N)
+    return nothing
+end
+
+function _validate_checkpoint_array(name::Symbol, a, reference::AbstractArray{T}) where {T}
+    a isa AbstractArray ||
+        throw(ArgumentError("checkpoint $(name) is $(typeof(a)), expected AbstractArray{$T}"))
+    eltype(a) === T || throw(
+        ArgumentError(
+            "checkpoint $(name) eltype $(eltype(a)) ≠ $T (would silently convert on restore)",
+        ),
+    )
+    axes(a) == axes(reference) ||
+        throw(ArgumentError("checkpoint $(name) axes $(axes(a)) ≠ $(axes(reference))"))
+    return nothing
+end
+
+function _validate_checkpoint_scalar_state(s, ::Type{T}) where {T}
+    s.q isa T || throw(
+        ArgumentError("checkpoint q type $(typeof(s.q)) ≠ $T (would silently convert on restore)"),
+    )
+    s.m isa T || throw(
+        ArgumentError("checkpoint m type $(typeof(s.m)) ≠ $T (would silently convert on restore)"),
+    )
+    s.time isa T || throw(
+        ArgumentError(
+            "checkpoint time type $(typeof(s.time)) ≠ $T (would silently convert on restore)",
+        ),
+    )
+    s.step isa Int || throw(
+        ArgumentError(
+            "checkpoint step type $(typeof(s.step)) ≠ Int (would fail or convert on restore)",
+        ),
+    )
+    return nothing
+end
+
 function _validate_checkpoint_particle_state(s, ::Val{D}) where {D}
+    s.x isa Tuple || throw(ArgumentError("checkpoint positions must be stored as a tuple"))
+    s.v isa Tuple || throw(ArgumentError("checkpoint velocities must be stored as a tuple"))
     length(s.x) == D ||
         throw(ArgumentError("checkpoint has $(length(s.x)) position arrays, expected $D"))
     length(s.v) == 3 ||
         throw(ArgumentError("checkpoint has $(length(s.v)) velocity arrays, expected 3"))
+    s.weight isa AbstractVector ||
+        throw(ArgumentError("checkpoint weight is $(typeof(s.weight)), expected AbstractVector"))
     N = length(s.weight)
+    T = s.T
+    _validate_checkpoint_vector(:weight, s.weight, N, T)
     for d = 1:D
-        length(s.x[d]) == N ||
-            throw(ArgumentError("checkpoint x[$d] length $(length(s.x[d])) ≠ particle count $N"))
-        _check_particle_vector_axes(Symbol(:x, d), s.x[d], N)
+        _validate_checkpoint_vector(Symbol(:x, d), s.x[d], N, T)
     end
     for c = 1:3
-        length(s.v[c]) == N ||
-            throw(ArgumentError("checkpoint v[$c] length $(length(s.v[c])) ≠ particle count $N"))
-        _check_particle_vector_axes(Symbol(:v, c), s.v[c], N)
+        _validate_checkpoint_vector(Symbol(:v, c), s.v[c], N, T)
     end
-    length(s.id) == N ||
-        throw(ArgumentError("checkpoint id length $(length(s.id)) ≠ particle count $N"))
-    length(s.tag) == N ||
-        throw(ArgumentError("checkpoint tag length $(length(s.tag)) ≠ particle count $N"))
-    _check_particle_vector_axes(:weight, s.weight, N)
-    _check_particle_vector_axes(:id, s.id, N)
-    _check_particle_vector_axes(:tag, s.tag, N)
+    _validate_checkpoint_vector(:id, s.id, N, UInt64)
+    _validate_checkpoint_vector(:tag, s.tag, N, UInt32)
     return nothing
 end
 
 function _validate_checkpoint_field_state(s, st)
+    s.B isa Tuple || throw(ArgumentError("checkpoint B fields must be stored as a tuple"))
+    s.E isa Tuple || throw(ArgumentError("checkpoint E fields must be stored as a tuple"))
     length(s.B) == 3 || throw(ArgumentError("checkpoint has $(length(s.B)) B arrays, expected 3"))
     length(s.E) == 3 || throw(ArgumentError("checkpoint has $(length(s.E)) E arrays, expected 3"))
     for c = 1:3
-        axes(s.B[c]) == axes(st.fields.B[c]) ||
-            throw(ArgumentError("checkpoint B[$c] axes $(axes(s.B[c])) ≠ $(axes(st.fields.B[c]))"))
-        axes(s.E[c]) == axes(st.fields.E[c]) ||
-            throw(ArgumentError("checkpoint E[$c] axes $(axes(s.E[c])) ≠ $(axes(st.fields.E[c]))"))
+        _validate_checkpoint_array(Symbol(:B, c), s.B[c], st.fields.B[c])
+        _validate_checkpoint_array(Symbol(:E, c), s.E[c], st.fields.E[c])
     end
     return nothing
 end
@@ -71,6 +115,7 @@ function _validate_checkpoint_state(s, st::HybridStepper{D,T}) where {D,T}
     )
     s.ncell == st.g.n || throw(ArgumentError("checkpoint grid $(s.ncell) ≠ $(st.g.n)"))
     s.L == st.g.L || throw(ArgumentError("checkpoint box lengths $(s.L) ≠ $(st.g.L)"))
+    _validate_checkpoint_scalar_state(s, T)
     _validate_checkpoint_particle_state(s, Val(D))
     _validate_checkpoint_field_state(s, st)
     return nothing
