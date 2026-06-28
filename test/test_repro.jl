@@ -129,7 +129,7 @@ end
             schema = cont.schema,
             meta = cont.meta,
             state = cont.state,
-            checksum = cont.checksum + 0x1,
+            checksum = cont.checksum == repeat("0", 64) ? repeat("1", 64) : repeat("0", 64),
         )
         serialize(path, bad)
         @test_throws ErrorException load_archive(path)

@@ -2,6 +2,8 @@ using HybridPlasmaPIC, Test
 using Dates
 using Serialization
 
+_sha256_hex(s) = s isa AbstractString && occursin(r"^[0-9a-f]{64}$", s)
+
 @testset "RunMetadata / capture_metadata" begin
     meta = capture_metadata(;
         rng_seed = 12345,
@@ -23,11 +25,11 @@ using Serialization
     @test endswith(meta.timestamp, "Z")
     @test meta.rank_layout == "serial;ranks=1;dims=(1);coords=(0);periodic=false"
     @test occursin("ranks=1", meta.rank_layout)
-    # Hashes: either "absent" or a parseable hash string. In this repo Project.toml
-    # exists, so project_hash must be a numeric-string hash, not "absent".
+    # Hashes: either "absent" or a stable SHA-256 hex digest. In this repo
+    # Project.toml exists, so project_hash must be a digest, not "absent".
     @test meta.project_hash != "absent"
-    @test tryparse(UInt64, meta.project_hash) !== nothing
-    @test meta.manifest_hash == "absent" || tryparse(UInt64, meta.manifest_hash) !== nothing
+    @test _sha256_hex(meta.project_hash)
+    @test meta.manifest_hash == "absent" || _sha256_hex(meta.manifest_hash)
 
     # Defaults branch.
     meta2 = capture_metadata(; rng_seed = -7)
@@ -58,7 +60,7 @@ end
 end
 
 @testset "schema constant" begin
-    @test CHECKPOINT_SCHEMA_VERSION == 2
+    @test CHECKPOINT_SCHEMA_VERSION == 3
 end
 
 @testset "save_run / load_run round-trip" begin
@@ -75,6 +77,9 @@ end
         close(io)
         ret = save_run(path, state, meta)
         @test ret == path
+        container = deserialize(path)
+        @test container.checksum isa String
+        @test _sha256_hex(container.checksum)
 
         loaded = load_run(path)
         @test loaded.schema == CHECKPOINT_SCHEMA_VERSION
@@ -88,8 +93,37 @@ end
         @test loaded.state.time == state.time
         @test loaded.state.step == state.step
         @test loaded.state.label == state.label
-        # hash equality is what the integrity check relies on.
-        @test hash(loaded.state) == hash(state)
+    end
+end
+
+@testset "save_run / load_run checksum survives process boundary" begin
+    project_dir = pkgdir(HybridPlasmaPIC)
+    external_state = (a = [1.0, 2.0, 3.0], label = "external", step = 11)
+
+    mktemp() do path, io
+        close(io)
+        writer = """
+        using HybridPlasmaPIC
+        meta = capture_metadata(; rng_seed = 17, timestamp = "2026-06-28T00:00:00Z")
+        state = (a = [1.0, 2.0, 3.0], label = "external", step = 11)
+        save_run(ARGS[1], state, meta)
+        """
+        run(`$(Base.julia_cmd()) --project=$project_dir -e $writer $path`)
+
+        loaded = load_run(path)
+        @test loaded.state == external_state
+        @test loaded.meta.rng_seed == 17
+
+        current_state = (a = [4.0, 5.0], label = "current", step = 12)
+        save_run(path, current_state, capture_metadata(; rng_seed = 18))
+        reader = """
+        using HybridPlasmaPIC
+        loaded = load_run(ARGS[1])
+        loaded.state == (a = [4.0, 5.0], label = "current", step = 12) ||
+            error("external load_run saw the wrong state")
+        loaded.meta.rng_seed == 18 || error("external load_run saw the wrong metadata")
+        """
+        run(`$(Base.julia_cmd()) --project=$project_dir -e $reader $path`)
     end
 end
 
@@ -104,11 +138,12 @@ end
         @test load_run(path).state == state
 
         # Hand-craft a container with a deliberately wrong checksum.
+        container = deserialize(path)
         bad = (
             schema = CHECKPOINT_SCHEMA_VERSION,
             meta = meta,
             state = state,
-            checksum = hash(state) + 0x1,
+            checksum = container.checksum == repeat("0", 64) ? repeat("1", 64) : repeat("0", 64),
         )   # wrong on purpose
         serialize(path, bad)
         @test_throws ErrorException load_run(path)
@@ -124,7 +159,7 @@ end
             schema = CHECKPOINT_SCHEMA_VERSION + 1,
             meta = meta,
             state = state,
-            checksum = hash(state),
+            checksum = repeat("0", 64),
         )   # checksum correct, schema wrong
         serialize(path, wrong)
         @test_throws ErrorException load_run(path)
@@ -147,7 +182,7 @@ end
             schema = CHECKPOINT_SCHEMA_VERSION,
             meta = (not = "metadata",),
             state = state,
-            checksum = hash(state),
+            checksum = repeat("0", 64),
         )
         serialize(path, wrong)
         @test_throws ErrorException load_run(path)

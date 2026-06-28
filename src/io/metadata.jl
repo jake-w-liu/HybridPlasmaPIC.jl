@@ -3,11 +3,29 @@
 # Captures the information needed to reproduce and audit a run (git commit,
 # Julia version, environment hashes, RNG seed, normalization/filter/boundary/
 # diagnostic descriptions, timestamp), and wraps Serialization-based save/load
-# with a schema-version tag and an integrity checksum over the stored state.
+# with a schema-version tag and an integrity digest over the stored state.
 #
 # Serialization is already imported by checkpoint.jl (module-wide); no new dep.
 
 using Dates
+using SHA
+
+struct _SHA256WriteSink <: IO
+    ctx::SHA.SHA256_CTX
+end
+
+Base.iswritable(::_SHA256WriteSink) = true
+
+function Base.write(s::_SHA256WriteSink, x::UInt8)
+    SHA.update!(s.ctx, UInt8[x])
+    return 1
+end
+
+function Base.unsafe_write(s::_SHA256WriteSink, p::Ptr{UInt8}, n::UInt)
+    bytes = unsafe_wrap(Vector{UInt8}, p, Int(n))
+    SHA.update!(s.ctx, bytes)
+    return n
+end
 
 """
     RunMetadata
@@ -17,8 +35,8 @@ Provenance record for a simulation run. All fields are `String` except `rng_seed
 Fields:
 - `git_commit`   — `git rev-parse HEAD`, or `"unknown"` if unavailable.
 - `julia_version`— `string(VERSION)`.
-- `project_hash` — stable hash of `Project.toml` contents, or `"absent"`.
-- `manifest_hash`— stable hash of `Manifest.toml` contents, or `"absent"`.
+- `project_hash` — SHA-256 digest of `Project.toml` contents, or `"absent"`.
+- `manifest_hash`— SHA-256 digest of `Manifest.toml` contents, or `"absent"`.
 - `rng_seed`     — the RNG seed used to make the run reproducible.
 - `normalization`— units convention (default `"Omega_ci"`).
 - `filter_desc`, `boundary_desc`, `diagnostic_desc` — free-form descriptions.
@@ -44,11 +62,16 @@ struct RunMetadata
     rank_layout::String
 end
 
-# Stable content hash of a file's text, or "absent" if the file does not exist.
-# Uses string(hash(::String)) so it is deterministic within a Julia version.
+# Stable content digest of a file's bytes, or "absent" if the file does not exist.
 function _file_content_hash(path::AbstractString)
     isfile(path) || return "absent"
-    return string(hash(read(path, String)))
+    return bytes2hex(SHA.sha256(read(path)))
+end
+
+function _state_checksum(state)
+    ctx = SHA.SHA256_CTX()
+    serialize(_SHA256WriteSink(ctx), state)
+    return bytes2hex(SHA.digest!(ctx))
 end
 
 # Locate the package root = nearest ancestor directory containing Project.toml.
@@ -80,9 +103,10 @@ end
 
 Build a [`RunMetadata`] for the current process. `git_commit` is read from
 `git rev-parse HEAD` (falls back to `"unknown"` outside a repo / no git).
-`project_hash`/`manifest_hash` hash this package's `Project.toml`/`Manifest.toml`
-if present (else `"absent"`). An empty `timestamp` is auto-filled with the
-current UTC time as an ISO-ish string ending in `Z`.
+`project_hash`/`manifest_hash` are SHA-256 digests of this package's
+`Project.toml`/`Manifest.toml` if present (else `"absent"`). An empty
+`timestamp` is auto-filled with the current UTC time as an ISO-ish string ending
+in `Z`.
 
 `rank_layout` records the MPI/distributed-memory topology used by the run. Leave
 it empty for the serial default, which is recorded as `ranks=1` rather than
@@ -147,19 +171,20 @@ function capture_metadata(;
 end
 
 "Schema version of the checkpoint container written by [`save_run`](@ref)."
-const CHECKPOINT_SCHEMA_VERSION = 2
+const CHECKPOINT_SCHEMA_VERSION = 3
 
 """
     save_run(path, state, meta::RunMetadata)
 
 Serialize a tagged container to `path`: a `NamedTuple`
 `(schema, meta, state, checksum)` where `schema == CHECKPOINT_SCHEMA_VERSION`
-and `checksum == hash(state)`. `state` is any serializable value (typically a
-`NamedTuple` of simulation arrays/scalars). Returns `path`.
+and `checksum` is a SHA-256 digest of the serialized `state`. `state` is any
+serializable value (typically a `NamedTuple` of simulation arrays/scalars).
+Returns `path`.
 """
 function save_run(path::AbstractString, state, meta::RunMetadata)
     container =
-        (schema = CHECKPOINT_SCHEMA_VERSION, meta = meta, state = state, checksum = hash(state))
+        (schema = CHECKPOINT_SCHEMA_VERSION, meta = meta, state = state, checksum = _state_checksum(state))
     serialize(path, container)
     return path
 end
@@ -168,9 +193,9 @@ end
     load_run(path) -> (; schema, meta, state)
 
 Deserialize a container written by [`save_run`](@ref). Verifies that
-`schema == CHECKPOINT_SCHEMA_VERSION` and that the recomputed `hash(state)`
-matches the stored `checksum`; throws an `ErrorException` on either mismatch
-(version skew or corruption).
+`schema == CHECKPOINT_SCHEMA_VERSION` and that the recomputed SHA-256 state
+digest matches the stored `checksum`; throws an `ErrorException` on either
+mismatch (version skew or corruption).
 """
 function load_run(path::AbstractString)
     container = deserialize(path)
@@ -188,10 +213,14 @@ function load_run(path::AbstractString)
     if !(container.meta isa RunMetadata)
         error("load_run: metadata in $(path) is not a RunMetadata record")
     end
-    if hash(container.state) != container.checksum
+    if !(container.checksum isa AbstractString)
+        error("load_run: checksum in $(path) is not a SHA-256 digest string")
+    end
+    checksum = _state_checksum(container.state)
+    if checksum != container.checksum
         error(
             "load_run: checksum mismatch — state is corrupted " *
-            "(stored $(container.checksum), recomputed $(hash(container.state)))",
+            "(stored $(container.checksum), recomputed $(checksum))",
         )
     end
     return (schema = container.schema, meta = container.meta, state = container.state)
