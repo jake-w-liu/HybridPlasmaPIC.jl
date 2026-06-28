@@ -7,6 +7,27 @@ using HybridPlasmaPIC, Test, LinearAlgebra, Random, Statistics
 
 coords1d(g) = [(i - 1) * g.dx[1] for i = 1:g.n[1]]
 
+@testset "electron closure parameter validation" begin
+    @test IsothermalElectrons(0.0).Te == 0.0
+    @test IsothermalElectrons(0.5).Te == 0.5
+    @test_throws ArgumentError IsothermalElectrons(NaN)
+    @test_throws ArgumentError IsothermalElectrons(Inf)
+    @test_throws ArgumentError IsothermalElectrons(-1.0)
+
+    clo = PolytropicElectrons(0.5, 1.0, 5 / 3)
+    @test clo.pe0 == 0.5
+    @test clo.n0 == 1.0
+    @test clo.γ ≈ 5 / 3
+    @test PolytropicElectrons(0.0, 1.0, 1.0).pe0 == 0.0
+    @test_throws ArgumentError PolytropicElectrons(NaN, 1.0, 5 / 3)
+    @test_throws ArgumentError PolytropicElectrons(-0.1, 1.0, 5 / 3)
+    @test_throws ArgumentError PolytropicElectrons(0.5, 0.0, 5 / 3)
+    @test_throws ArgumentError PolytropicElectrons(0.5, -1.0, 5 / 3)
+    @test_throws ArgumentError PolytropicElectrons(0.5, 1.0, NaN)
+    @test_throws ArgumentError PolytropicElectrons(0.5, 1.0, 0.0)
+    @test_throws ArgumentError PolytropicElectrons(0.5, 1.0, -1.0)
+end
+
 @testset "HYB-001 algebraic uniform equilibrium" begin
     for D = 1:3
         T = Float64

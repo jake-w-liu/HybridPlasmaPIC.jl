@@ -25,6 +25,19 @@ struct PolytropicElectrons{T} <: ElectronClosure
     γ::T
 end
 
+function IsothermalElectrons(Te::Real)
+    T = float(typeof(Te))
+    return IsothermalElectrons{T}(_require_finite_nonnegative_real("Te", Te, T))
+end
+
+function PolytropicElectrons(pe0::Real, n0::Real, γ::Real)
+    T = float(promote_type(typeof(pe0), typeof(n0), typeof(γ)))
+    pe0T = _require_finite_nonnegative_real("pe0", pe0, T)
+    n0T = _require_finite_positive_real("n0", n0, T)
+    γT = _require_finite_positive_real("γ", γ, T)
+    return PolytropicElectrons{T}(pe0T, n0T, γT)
+end
+
 electron_pressure!(pe, n, c::IsothermalElectrons) = (@. pe = c.Te * n; pe)
 electron_pressure!(pe, n, c::PolytropicElectrons) = (@. pe = c.pe0 * (n / c.n0)^c.γ; pe)
 
