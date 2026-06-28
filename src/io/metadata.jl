@@ -67,6 +67,12 @@ end
 
 _serial_rank_layout() = "serial;ranks=1;dims=(1);coords=(0);periodic=false"
 
+function _validated_rng_seed(rng_seed::Integer)
+    typemin(Int) <= rng_seed <= typemax(Int) ||
+        throw(ArgumentError("rng_seed must fit in Int, got $rng_seed"))
+    return Int(rng_seed)
+end
+
 """
     capture_metadata(; rng_seed, normalization="Omega_ci", filter_desc="",
                        boundary_desc="", diagnostic_desc="", timestamp="",
@@ -127,7 +133,7 @@ function capture_metadata(;
         string(VERSION),
         project_hash,
         manifest_hash,
-        Int(rng_seed),
+        _validated_rng_seed(rng_seed),
         String(normalization),
         String(filter_desc),
         String(boundary_desc),

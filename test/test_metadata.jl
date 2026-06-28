@@ -43,6 +43,9 @@ using Serialization
     layout = "mpi;ranks=4;dims=(2,2);coords=(1,0);periodic=(true,false)"
     meta4 = capture_metadata(; rng_seed = 2, rank_layout = layout)
     @test meta4.rank_layout == layout
+
+    @test_throws ArgumentError capture_metadata(; rng_seed = big(typemax(Int)) + 1)
+    @test_throws ArgumentError capture_metadata(; rng_seed = big(typemin(Int)) - 1)
 end
 
 @testset "capture_metadata auto timestamp is UTC" begin

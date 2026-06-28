@@ -110,6 +110,14 @@ end
     end
 end
 
+@testset "archive_run validates rng_seed range" begin
+    _, _, st, ps = _build_run(; N = 16)
+    mktemp() do path, io
+        close(io)
+        @test_throws ArgumentError archive_run(path, st, ps; rng_seed = big(typemax(Int)) + 1)
+    end
+end
+
 @testset "archive corruption detected (checksum via load_run)" begin
     g, model, st, ps = _build_run(; N = 32)
     mktemp() do path, io
