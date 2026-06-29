@@ -309,6 +309,45 @@ end
     @info "subcycle agreement |ω(n_sub=1)−ω(n_sub=2)|/ω(n_sub=1)" agree
 end
 
+@testset "Full e–i PIC: n_sub≥3 ion Jy independent of worki init (no stale read)" begin
+    # For n_sub ≥ 3 the substeps before the ion push read es.worki before it is
+    # written; the step must seed it from the ions' current positions so the
+    # transverse-Jy deposit never depends on uninitialized/stale memory. Two runs
+    # whose only difference is a garbage worki seed must produce identical fields.
+    T = Float64
+    n = 32
+    L = 2π
+    cc = 5.0
+    n0 = 1.0
+    g = FourierGrid((n,), (L,))
+    nppc = 40
+    N = nppc * n
+    mmode = 1
+    function run_poisoned(seed_val)
+        e = ParticleSet{1,T}(N; q = -1.0, m = 1.0)
+        load_lattice_1d!(e, 0.0, L)
+        set_density_weight!(e, n0, g)
+        ions = ParticleSet{1,T}(N; q = 1.0, m = 1836.0)
+        load_lattice_1d!(ions, 0.0, L)
+        set_density_weight!(ions, n0, g)
+        ions.v[2] .= 0.1                        # transverse drift ⇒ nonzero ion Jy
+        es = EMPIC1D(g, N; n0 = n0, c = cc, shape = CIC(), mobile = true, mi = 1836.0, n_sub = 3)
+        k = 2π * mmode / L
+        for i = 1:n
+            es.Ey[i] = 1e-3 * cos(k * (i - 1) * g.dx[1])
+        end
+        init_empic!(es, e, ions)
+        fill!(es.worki, seed_val)               # garbage: must NOT influence output
+        step_empic!(es, e, ions, 0.01)
+        return copy(es.Ey)
+    end
+    Ey_a = run_poisoned(0.0)
+    Ey_b = run_poisoned(L / 2)
+    Ey_c = run_poisoned(1.0e9)
+    @test Ey_a == Ey_b
+    @test Ey_a == Ey_c
+end
+
 @testset "Full e–i PIC: numerical-Cherenkov beam energy bounded (v≈0.9c)" begin
     T = Float64
     n = 64

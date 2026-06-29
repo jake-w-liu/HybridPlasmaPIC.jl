@@ -609,6 +609,22 @@ function step_empic!(
     dt_e = dtT / ns
     # ions pushed on the substep straddling their half-level midpoint (middle one)
     push_sub = (ns + 1) ÷ 2
+    # Seed the ion midpoint buffer with the ions' current positions x^n. The
+    # transverse-Jy deposit (_deposit_Jy_at_midpoints!) reads es.worki on EVERY
+    # substep, but the ion push that fills it only runs on s == push_sub. For
+    # n_sub ≥ 3 (push_sub > 1) the substeps s < push_sub run first, so without
+    # this seed they would deposit ion Jy from uninitialized memory (first step)
+    # or the previous step's stale midpoint — corrupting Ey. x^n is the ions'
+    # actual position on those pre-push substeps, so it is the correct seed. For
+    # n_sub ≤ 2 (push_sub == 1) the push fills worki before any read, so this is a
+    # no-op there and the tested n_sub=1,2 paths are bit-for-bit unchanged.
+    if es.mobile && push_sub > 1
+        xi = ions.x[1]
+        Lx = es.g.L[1]
+        @inbounds for p in eachindex(xi)
+            es.worki[p] = mod(xi[p], Lx)
+        end
+    end
     @inbounds for s = 1:ns
         _substep_em!(es, e, ions, dt_e, s == push_sub)
         es.time[] += dt_e
