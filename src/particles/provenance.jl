@@ -130,3 +130,138 @@ function assign_global_particle_ids!(
     end
     return ps
 end
+
+# §9.4 particle provenance — an ID-KEYED EVENT LOG (the checklist explicitly allows
+# "event logs rather than per-particle dense arrays"). Keying by the stable global
+# particle ID (not the local SoA index) makes the log invariant under sorting,
+# compaction, and MPI migration, which a parallel dense array would not be. The
+# species is already carried in the high bits of the ID, so the log + ID together
+# supply the full §9.4 retain-list: id, species, source region, injection batch,
+# injection time, first/last shock crossing, crossing count, reflection flag, and
+# maximum kinetic energy.
+
+@enum ProvenanceKind PROV_INJECTION = 1 PROV_CROSSING = 2 PROV_REFLECTION = 3 PROV_MAXKE = 4
+
+struct ProvenanceEvent
+    id::UInt64
+    kind::ProvenanceKind
+    time::Float64
+    a::Float64            # injection: source_region; maxke: kinetic energy; else unused
+    b::Float64            # injection: batch; else unused
+end
+
+"Append-only per-particle provenance event log keyed by global particle ID (§9.4)."
+struct ParticleProvenanceLog
+    events::Vector{ProvenanceEvent}
+end
+ParticleProvenanceLog() = ParticleProvenanceLog(ProvenanceEvent[])
+
+"Record a particle injection: its `time`, `source_region`, and `batch`."
+function record_injection!(
+    log::ParticleProvenanceLog,
+    id::Integer,
+    time::Real;
+    source_region::Integer = 0,
+    batch::Integer = 0,
+)
+    push!(
+        log.events,
+        ProvenanceEvent(
+            UInt64(id),
+            PROV_INJECTION,
+            Float64(time),
+            Float64(source_region),
+            Float64(batch),
+        ),
+    )
+    return log
+end
+
+"Record a shock-front crossing for particle `id` at `time`."
+function record_crossing!(log::ParticleProvenanceLog, id::Integer, time::Real)
+    push!(log.events, ProvenanceEvent(UInt64(id), PROV_CROSSING, Float64(time), 0.0, 0.0))
+    return log
+end
+
+"Record that particle `id` was reflected at `time`."
+function record_reflection!(log::ParticleProvenanceLog, id::Integer, time::Real)
+    push!(log.events, ProvenanceEvent(UInt64(id), PROV_REFLECTION, Float64(time), 0.0, 0.0))
+    return log
+end
+
+"""
+    record_max_kinetic_energy!(log, ps, time) -> log
+
+Log each particle's current kinetic energy ½m|v|² at `time`. The per-particle
+maximum over the run is recovered by [`provenance_summary`](@ref).
+"""
+function record_max_kinetic_energy!(
+    log::ParticleProvenanceLog,
+    ps::ParticleSet{D,T},
+    time::Real,
+) where {D,T}
+    vx, vy, vz = ps.v
+    m = ps.m
+    @inbounds for p = 1:nparticles(ps)
+        ke = 0.5 * m * (vx[p]^2 + vy[p]^2 + vz[p]^2)
+        push!(log.events, ProvenanceEvent(ps.id[p], PROV_MAXKE, Float64(time), Float64(ke), 0.0))
+    end
+    return log
+end
+
+"""
+    provenance_summary(log, id) -> NamedTuple
+
+Reduce the event log for one particle `id` to the full §9.4 provenance record:
+`(; id, species, injection_time, source_region, injection_batch, crossing_count,
+first_crossing_time, last_crossing_time, reflection_flag, max_kinetic_energy)`.
+Times default to `NaN` and `max_kinetic_energy` to `0.0` when no event is logged.
+"""
+# ponytail: O(n_events) linear scan per id; build the Dict form below for a full
+# reduction, or add an id→indices index if per-id queries become hot.
+function provenance_summary(log::ParticleProvenanceLog, id::Integer)
+    idU = UInt64(id)
+    inj_t = NaN
+    src = NaN
+    batch = NaN
+    nc = 0
+    first_c = NaN
+    last_c = NaN
+    refl = false
+    maxke = 0.0
+    @inbounds for e in log.events
+        e.id == idU || continue
+        if e.kind == PROV_INJECTION
+            inj_t = e.time
+            src = e.a
+            batch = e.b
+        elseif e.kind == PROV_CROSSING
+            nc += 1
+            first_c = isnan(first_c) ? e.time : min(first_c, e.time)
+            last_c = isnan(last_c) ? e.time : max(last_c, e.time)
+        elseif e.kind == PROV_REFLECTION
+            refl = true
+        elseif e.kind == PROV_MAXKE
+            maxke = max(maxke, e.a)
+        end
+    end
+    species = idU >> _PARTICLE_ID_INDEX_BITS
+    return (;
+        id = idU,
+        species,
+        injection_time = inj_t,
+        source_region = src,
+        injection_batch = batch,
+        crossing_count = nc,
+        first_crossing_time = first_c,
+        last_crossing_time = last_c,
+        reflection_flag = refl,
+        max_kinetic_energy = maxke,
+    )
+end
+
+"Reduce the whole log to a `Dict{UInt64,NamedTuple}` of per-ID provenance summaries."
+function provenance_summary(log::ParticleProvenanceLog)
+    ids = Set(e.id for e in log.events)
+    return Dict(id => provenance_summary(log, id) for id in ids)
+end

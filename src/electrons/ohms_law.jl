@@ -197,4 +197,49 @@ end
 "Project B onto its divergence-free part in place (preserving the k=0 mean field)."
 project_b!(f::HybridFields{D,T}, g::FourierGrid{D,T}) where {D,T} = project_divfree!(f.B, g)
 
+# ---------------------------------------------------------------- electron velocity
+
+"""
+    electron_velocity!(ue, ui, J, n; nfloor=1e-6)
+
+Electron bulk velocity `u_e = u_i − J/n` (§6.4), with `J = ∇×B` the normalized
+current and `n` the quasineutral density. `ue`, `ui`, `J` are 3-tuples of grid
+arrays; `n` a grid array. The density floor protects the `1/n` division. `ue` may
+alias `ui`. Returns `ue`.
+"""
+function electron_velocity!(
+    ue::NTuple{3,<:Array{T,D}},
+    ui::NTuple{3,<:Array{T,D}},
+    J::NTuple{3,<:Array{T,D}},
+    n::Array{T,D};
+    nfloor = 1e-6,
+) where {D,T}
+    nf = _require_finite_positive_real("nfloor", nfloor, T)
+    size(n) == size(ue[1]) ||
+        throw(DimensionMismatch("n size $(size(n)) does not match ue size $(size(ue[1]))"))
+    @inbounds for c = 1:3
+        uec, uic, Jc = ue[c], ui[c], J[c]
+        for I in eachindex(uec)
+            uec[I] = uic[I] - Jc[I] / max(n[I], nf)
+        end
+    end
+    return ue
+end
+
+"""
+    electron_velocity!(ue, f::HybridFields, g; nfloor=1e-6)
+
+Compute `J = ∇×B` into `f.J`, then the electron velocity `u_e = u_i − J/n` into
+`ue` from the field state `f`. Returns `ue`.
+"""
+function electron_velocity!(
+    ue::NTuple{3,<:Array{T,D}},
+    f::HybridFields{D,T},
+    g::FourierGrid{D,T};
+    nfloor = 1e-6,
+) where {D,T}
+    curl!(f.J, f.B, g)
+    return electron_velocity!(ue, f.ui, f.J, f.n; nfloor)
+end
+
 # ---------------------------------------------------------------- multi-species

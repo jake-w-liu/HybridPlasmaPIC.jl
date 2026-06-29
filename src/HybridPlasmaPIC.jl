@@ -142,6 +142,12 @@ export ParticleSet,
     rank_rng,
     global_particle_id,
     assign_global_particle_ids!,
+    ParticleProvenanceLog,
+    record_injection!,
+    record_crossing!,
+    record_reflection!,
+    record_max_kinetic_energy!,
+    provenance_summary,
     boris_kick,
     push_uniform!,
     push_gathered!,
@@ -173,9 +179,16 @@ export ElectronClosure,
     magnetic_divergence!,
     project_b!,
     compute_moments_multi!,
-    advance_electron_pressure!
+    advance_electron_pressure!,
+    electron_velocity!
 export HybridStepper,
-    init!, step!, kinetic_energy, magnetic_energy, electron_internal_energy, mode_amplitude
+    init!,
+    step!,
+    kinetic_energy,
+    magnetic_energy,
+    electron_internal_energy,
+    mode_amplitude,
+    recommended_dt
 export MHDState, rankine_hugoniot
 export save_checkpoint, load_checkpoint!
 export kdv_soliton, kdv_solve

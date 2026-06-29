@@ -64,7 +64,9 @@ Tolerances are the checklist's initial engineering targets.
 | HYB-001 | uniform equilibrium stationary | ✅ verified |
 | HYB-002 | ion-acoustic ω = k·c_s (0.05%) | ✅ verified |
 | HYB-003/004 | Alfvén / whistler / ion-cyclotron branches (~1–2%) | ✅ verified |
-| HYB-007/008 | adiabatic energy convergence, subcycling | ✅ verified |
+| HYB-005 | fast/slow magnetosonic c_{f,s} (oblique) + PIC fast mode | ✅ verified |
+| HYB-006 | independent two-fluid eigenvalue oracle (`test/oracles/`) | ✅ verified |
+| HYB-007/008 | adiabatic energy convergence, subcycling (NB=1,2,4,8) | ✅ verified |
 | HALL-MHD | periodic Hall-MHD Ohm/RHS/RK4 mass conservation oracles | ✅ verified |
 | ESPIC | electrostatic PIC: 1D Langmuir/two-stream + 2D/3D Poisson oracles | ✅ verified |
 | EMPIC | EM PIC: 1D Esirkepov + 2D/3D spectral charge-conserving current | ✅ verified |

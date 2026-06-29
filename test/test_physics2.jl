@@ -44,6 +44,46 @@ end
     @test maximum(abs, f.E[2] .- (@. ηH * k^3 * sin(k * x))) < 1e-8         # +ηH k³ sin(kx)
 end
 
+@testset "§6.5 resistivity term +ηJ (1D analytic)" begin
+    T = Float64
+    n = 64
+    L = 2π
+    g = FourierGrid((n,), (L,))
+    f = HybridFields{1,T}((n,))
+    fill!(f.n, 1.0)
+    x = [(i - 1) * g.dx[1] for i = 1:n]
+    k = 3.0
+    f.B[3] .= cos.(k .* x)                       # Bz=cos kx ⇒ Jy = k sin kx; (J×B)_y = 0
+    η = 0.1
+    ohms_law!(f, HybridModel(IsothermalElectrons(0.0); η = η), g)
+    @test maximum(abs, f.E[2] .- (@. η * k * sin(k * x))) < 1e-9     # E_y = η J_y exactly
+    @test maximum(abs, f.E[1] .- (@. k * sin(k * x) * cos(k * x))) < 1e-9  # E_x = Hall only
+    @test maximum(abs, f.E[3]) < 1e-12                              # E_z = η J_z = 0 (J_z = 0)
+    # scaling: doubling η exactly doubles the resistive E_y
+    f2 = HybridFields{1,T}((n,))
+    fill!(f2.n, 1.0)
+    f2.B[3] .= cos.(k .* x)
+    ohms_law!(f2, HybridModel(IsothermalElectrons(0.0); η = 2η), g)
+    @test maximum(abs, f2.E[2] .- 2 .* f.E[2]) < 1e-9          # E_y ∝ η exactly
+end
+
+@testset "§6.7 polytropic closure pe = pe0 (n/n0)^γ (oracle)" begin
+    T = Float64
+    nn = T[0.5, 1.0, 2.0, 4.0]
+    clo = PolytropicElectrons(0.7, 2.0, 5 / 3)
+    pe = similar(nn)
+    electron_pressure!(pe, nn, clo)
+    @test all(pe .≈ 0.7 .* (nn ./ 2.0) .^ (5 / 3))
+    @test closure_gamma(clo) ≈ 5 / 3
+    clo1 = PolytropicElectrons(0.3, 1.0, 1.0)        # γ=1 ⇒ linear in n
+    electron_pressure!(pe, nn, clo1)
+    @test all(pe .≈ 0.3 .* nn)
+    iso = IsothermalElectrons(0.4)                   # isothermal pe = Te n
+    electron_pressure!(pe, nn, iso)
+    @test all(pe .≈ 0.4 .* nn)
+    @test closure_gamma(iso) == 1.0
+end
+
 @testset "multi-species charge-weighted moments" begin
     T = Float64
     n = 32

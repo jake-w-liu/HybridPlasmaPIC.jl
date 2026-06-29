@@ -36,8 +36,14 @@ end
             show(stdout, MIME"text/plain"(), rep)
             println()
         end
-        # The analysis ran to completion — that is what we verify.
-        @test true
+        # Regression gate (not a tautology): the observed baseline is a handful of
+        # reports, all originating in upstream deps (FFTW/Base/stdlib). The ceiling
+        # is set well above that baseline so it never flakes on upstream/version
+        # noise, but a real type-stability regression in our own code would add
+        # dozens of reports and trip it. Tightening below the upstream floor would
+        # make JET a flaky gate, which §21.2 explicitly avoids.
+        JET_REPORT_CEILING = 30
+        @test length(reports) <= JET_REPORT_CEILING
     else
         @test_skip "JET not available in this environment"
     end
