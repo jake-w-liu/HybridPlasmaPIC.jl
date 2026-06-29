@@ -305,6 +305,124 @@ function run_perp_shock_rh(;
     )
 end
 
+"""
+    run_perp_shock_leroy(; MA, β=1.0, N=512, Lx=200.0, γe=5/3, η=0.02,
+                           nppc=160, nsteps=1500, seed=1, t_avg_start=8.0, window=8.0)
+
+§11.3 Rankine–Hugoniot two-state shock in the wall-less, shock-REST frame
+(Leroy et al. 1982 setup): upstream plasma flows IN at x=Lx at the shock-frame
+speed `V1 = MA`, downstream flows OUT at x=0, the shock is held stationary by the
+two-ended flux balance, and the downstream boundary is a thermal RESERVOIR (not a
+specular wall) so self-consistent ion reflection / the energetic foot can develop.
+
+Unlike [`run_perp_shock_rh`] (reflecting-wall, §11.2), this is the configuration
+that produces Leroy's reflected fraction α: returns the same fields, with
+`reflected_flux` the rest-frame α (flux of back-streaming ions in `[xf, xf+window]`
+over the upstream flux n₁·V1) and `M_real = MA` (the inflow Mach, exact by
+construction).
+"""
+function run_perp_shock_leroy(;
+    MA::Real,
+    β::Real = 1.0,
+    N::Integer = 512,
+    Lx::Real = 200.0,
+    γe::Real = 5 / 3,
+    η::Real = 0.02,
+    nppc::Integer = 160,
+    nsteps::Integer = 1500,
+    seed::Integer = 1,
+    t_avg_start::Real = 8.0,
+    window::Real = 8.0,
+)
+    N >= 8 || throw(ArgumentError("N must be ≥ 8"))
+    nppc >= 1 || throw(ArgumentError("nppc must be positive"))
+    nsteps >= 1 || throw(ArgumentError("nsteps must be ≥ 1"))
+    T = Float64
+    MAT = _require_valid_positive_shock_ma(MA, T)
+    LxT = _require_finite_positive_real("Lx", Lx, T)
+    βT = _require_finite_nonnegative_real("β", β, T)
+    winT = _require_finite_positive_real("window", window, T)
+    B0 = one(T)
+    Te = βT / 2
+    vthi = sqrt(βT / 2)
+    p1 = vthi^2 + Te
+
+    rh = rankine_hugoniot(MHDState(one(T), MAT, zero(T), p1, zero(T), B0), T(γe))
+    n2 = rh.X
+    n2 > one(T) || throw(ArgumentError("no compressive RH shock at MA=$MA, β=$β"))
+    Bz2 = n2 * B0
+    Ti2 = max((rh.down.p - Te * n2^T(γe)) / n2, zero(T))
+    vth2 = sqrt(Ti2)
+    V1 = MAT                                  # shock-frame upstream inflow speed
+    V2 = V1 / n2                              # downstream outflow speed (n₁V1 = n₂V2)
+    p_up = V2 / flux_per_density(V2, vth2)    # exiting-ion fraction recycled upstream
+
+    sh = PerpShock(N, LxT; Te, γe, η, τ = V1, B0)
+    Np = Int(nppc) * Int(N)
+    ps = ParticleSet{1,T}(Np)
+    rng = MersenneTwister(Int(seed))
+    xr = LxT / 2                              # shock sits mid-box (room both sides)
+    initial_ramp!(sh, ps, xr, T(2), one(T), n2, B0, Bz2; rng = rng)
+    @inbounds for p = 1:nparticles(ps)
+        if ps.x[1][p] < xr                    # downstream: flows out at −V2, hot
+            ps.v[1][p] = -V2 + vth2 * randn(rng)
+            ps.v[2][p] = vth2 * randn(rng)
+            ps.v[3][p] = vth2 * randn(rng)
+        else                                  # upstream: flows in at −V1, cool
+            ps.v[1][p] = -V1 + vthi * randn(rng)
+            ps.v[2][p] = vthi * randn(rng)
+            ps.v[3][p] = vthi * randn(rng)
+        end
+    end
+    init_shock!(sh, ps)
+
+    bc = LeroyBoundary(
+        MersenneTwister(Int(seed) + 1);
+        V1 = V1,
+        vthi = vthi,
+        V2 = V2,
+        vth2 = vth2,
+        B_down = Bz2,
+        p_up = p_up,
+    )
+
+    dt = T(0.02)
+    comp = T[]
+    over = T[]
+    alpha = T[]
+    for st = 1:nsteps
+        step_leroy_shock!(sh, ps, dt; NB = 2, bc = bc)
+        if st * dt >= T(t_avg_start) && st % 20 == 0
+            xf, _ = shock_front(sh.Bz, sh.x)
+            isfinite(xf) || continue
+            T(12) < xf < LxT - T(12) || continue
+            dmask = (sh.x .> T(8)) .& (sh.x .< xf - T(8))      # downstream = x < xf
+            any(dmask) || continue
+            ndm = _median(sh.n[dmask])
+            ndm > one(T) || continue
+            push!(comp, ndm)
+            fmask = (sh.x .> xf - T(8)) .& (sh.x .< xf + T(2))
+            push!(over, maximum(sh.Bz[fmask]) / _median(sh.Bz[dmask]))
+            # rest frame: Vs=0, reflected ions back-stream (vx>0) into [xf, xf+window]
+            push!(alpha, reflected_flux_fraction(ps, xf, zero(T), V1; window = winT, n1 = one(T)))
+        end
+    end
+    cm, cs = _avg_std(comp)
+    om, os = _avg_std(over)
+    am, as = _avg_std(alpha)
+    return (;
+        compression = cm,
+        compression_std = cs,
+        reflected_flux = am,
+        reflected_flux_std = as,
+        overshoot = om,
+        overshoot_std = os,
+        X_rh = n2,
+        M_real = MAT,
+        nsamples = length(comp),
+    )
+end
+
 # weighted-free arithmetic mean of `v` over the masked nodes (NaN if empty)
 function _slab_mean(v::AbstractVector{T}, mask::AbstractVector{Bool}) where {T}
     s = zero(T)

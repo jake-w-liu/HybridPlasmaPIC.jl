@@ -195,6 +195,7 @@ export kdv_soliton, kdv_solve
 export SBP1D, sbp_deriv!, sbp_deriv, sbp_deriv_x!, FourierDerivYWorkspace, fourier_deriv_y!
 export PerpShock,
     ShockInjector, init_shock!, step_shock!, deposit_moments!, compute_E!, shock_density_weight
+export LeroyBoundary, step_leroy_shock!
 export Electrostatic1D, ElectrostaticPIC, init_espic!, step_espic!, poisson_E!, field_energy
 export flux_speed, flux_per_density, inject_face_1d!
 export total_momentum,
@@ -299,7 +300,7 @@ export SpectralOperators, exp_filter!, dealias_two_thirds!, fft_friendly_size, w
 export CAMCLStepper, init_camcl!, step_camcl!
 export EMPIC, EMPIC1D, init_empic!, step_empic!, em_field_energy, charge_conservation_residual
 export HallMHDModel, HallMHDState, hall_mhd_ohms_law!, hall_mhd_rhs!, step_hall_mhd!
-export run_perp_shock, run_perp_shock_rh, perp_shock_sweep
+export run_perp_shock, run_perp_shock_rh, run_perp_shock_leroy, perp_shock_sweep
 export collide_bgk!
 export deposit_scalar_threaded!, density_threaded!
 export energy_budget, momentum_budget, jdotE_density, resistive_dissipation

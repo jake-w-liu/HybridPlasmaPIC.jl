@@ -116,6 +116,29 @@ end
     @test_throws ArgumentError run_perp_shock_rh(; MA = 0.5, cfg...)
 end
 
+@testset "run_perp_shock_leroy: §11.3 wall-less two-ended-flux shock reaches Leroy α" begin
+    # Leroy 1982's actual setup: no wall, shock-REST frame, upstream inflow at x=Lx /
+    # downstream thermal-reservoir outflow at x=0. Unlike the reflecting-wall model, the
+    # downstream reservoir (not a specular wall) lets the energetic foot develop, so the
+    # reflected fraction α reaches Leroy's published 10–23% band at high Mach.
+    cfg = (β = 1.0, N = 256, nppc = 64, nsteps = 600, Lx = 200.0, t_avg_start = 6.0)
+    r4 = run_perp_shock_leroy(; MA = 4.0, seed = 1, cfg...)
+    r6 = run_perp_shock_leroy(; MA = 6.0, seed = 1, cfg...)
+    r8 = run_perp_shock_leroy(; MA = 8.0, seed = 1, cfg...)
+    for (r, MA) in ((r4, 4.0), (r6, 6.0), (r8, 8.0))
+        @test r.nsamples > 0
+        @test r.M_real == MA                                  # inflow Mach, exact by construction
+        @test isapprox(r.compression, r.X_rh; rtol = 0.05)    # downstream holds the fluid RH state
+        @test 1.2 < r.overshoot < 2.0                         # a real magnetic overshoot
+    end
+    @test r4.reflected_flux < r6.reflected_flux < r8.reflected_flux   # α rises with M_A (Leroy)
+    @test r8.reflected_flux > 0.08            # reaches Leroy's reflected-fraction regime (wall model < 0.02)
+    # deterministic for a fixed seed; non-compressive Mach rejected
+    @test run_perp_shock_leroy(; MA = 6.0, seed = 1, cfg...).reflected_flux == r6.reflected_flux
+    @test_throws ArgumentError run_perp_shock_leroy(; MA = 0.5, cfg...)
+    @test_throws ArgumentError run_perp_shock_leroy(; MA = 6.0, window = 0.0, cfg...)
+end
+
 @testset "shock_front is robust to ripples and boundary artifacts" begin
     T = Float64
     N = 200

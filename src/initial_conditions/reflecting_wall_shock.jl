@@ -378,6 +378,149 @@ function step_shock!(
     return sh
 end
 
+# ============================================================================
+# §11.3 Rankine–Hugoniot two-state shock — the wall-less, shock-REST-FRAME model
+# Leroy et al. 1982 uses (vs the reflecting-wall §11.2 model above): no wall;
+# upstream plasma flows IN at x=Lx and downstream plasma flows OUT at x=0, with
+# the shock held roughly stationary by a two-ended flux balance, and BOTH ends
+# carry a mean-field B BC (B0 upstream at x=Lx, B2 downstream at x=0). The
+# downstream boundary is a THERMAL reservoir (exiting ions are reinserted with a
+# downstream-thermal velocity), NOT a specular wall — which is what lets the
+# self-consistent ion reflection / foot develop (Leroy's α).
+# ============================================================================
+
+# dBz with SAT mean-field BCs at BOTH ends: node N → B0 (upstream), node 1 → B_down.
+function _bz_rhs_leroy!(
+    dB::Vector{T},
+    Bz::Vector{T},
+    sh::PerpShock{T},
+    B_down::T,
+    τ_down::T,
+) where {T}
+    N = sh.s.n
+    @. sh.Fb = sh.ux * Bz
+    sbp_deriv!(sh.DF, sh.Fb, sh.s)
+    _d2narrow!(sh.d2, Bz, sh.s.dx)
+    @. dB = -sh.DF + sh.η * sh.d2
+    dB[N] += -(sh.τ / sh.s.H[N]) * (Bz[N] - sh.B0)         # upstream → B0
+    dB[1] += -(τ_down / sh.s.H[1]) * (Bz[1] - B_down)      # downstream → B_down
+    return dB
+end
+
+function _rk4_bz_leroy!(sh::PerpShock{T}, h::T, B_down::T, τ_down::T) where {T}
+    Bz = sh.Bz
+    _bz_rhs_leroy!(sh.k1, Bz, sh, B_down, τ_down)
+    @. sh.tmp = Bz + h / 2 * sh.k1
+    _bz_rhs_leroy!(sh.k2, sh.tmp, sh, B_down, τ_down)
+    @. sh.tmp = Bz + h / 2 * sh.k2
+    _bz_rhs_leroy!(sh.k3, sh.tmp, sh, B_down, τ_down)
+    @. sh.tmp = Bz + h * sh.k3
+    _bz_rhs_leroy!(sh.k4, sh.tmp, sh, B_down, τ_down)
+    @. Bz += h / 6 * (sh.k1 + 2sh.k2 + 2sh.k3 + sh.k4)
+    return sh
+end
+
+"""
+    LeroyBoundary(rng; V1, vthi, V2, vth2, B_down, p_up, τ_down=V2)
+
+Two-ended flux boundary for [`step_leroy_shock!`]. Ions are conserved: each ion
+leaving the domain is reinserted — with probability `p_up` as fresh upstream
+inflow at x=Lx (drift −V1, thermal `vthi`), otherwise as a downstream-reservoir
+ion at x=0 (into the box, thermal `vth2`). `p_up = V2/flux_per_density(V2, vth2)`
+makes the net upstream inflow equal the downstream outflow n₁V₁ = n₂V₂ in steady
+state. `B_down` is the downstream field BC; `τ_down` the downstream field-SAT
+strength.
+"""
+mutable struct LeroyBoundary{T,R}
+    V1::T
+    vthi::T
+    V2::T
+    vth2::T
+    B_down::T
+    τ_down::T
+    p_up::T
+    rng::R
+end
+function LeroyBoundary(
+    rng::R;
+    V1::Real,
+    vthi::Real,
+    V2::Real,
+    vth2::Real,
+    B_down::Real,
+    p_up::Real,
+    τ_down::Real = V2,
+) where {R}
+    T = float(promote_type(typeof(V1), typeof(V2), typeof(B_down)))
+    (0 <= p_up <= 1) || throw(ArgumentError("p_up must be in [0,1], got $p_up"))
+    return LeroyBoundary{T,R}(T(V1), T(vthi), T(V2), T(vth2), T(B_down), T(τ_down), T(p_up), rng)
+end
+
+"""
+    step_leroy_shock!(sh, ps, dt; NB=2, bc::LeroyBoundary)
+
+One step of the §11.3 wall-less shock-rest-frame perpendicular shock: Boris push →
+two-ended particle recycle (no wall) → deposit → two-ended-BC Bz subcycle →
+recompute E. Particle count is exactly conserved (recycle is in place).
+"""
+function step_leroy_shock!(
+    sh::PerpShock{T},
+    ps::ParticleSet{1,T},
+    dt::Real;
+    NB::Integer = 2,
+    bc::LeroyBoundary,
+) where {T}
+    N = sh.s.n
+    dx = sh.s.dx
+    dtT = _validated_step_dt(T, dt, NB; min_NB = 1, name = "step_leroy_shock!")
+    Lx = sh.x[end]
+    xp = ps.x[1]
+    vx = ps.v[1]
+    vy = ps.v[2]
+    vz = ps.v[3]
+    rng = bc.rng
+    # 1. push with carried E^n, B^n
+    @inbounds for p in eachindex(ps.weight)
+        Exp = _gather_sbp(sh.Ex, xp[p], dx, N)
+        Eyp = _gather_sbp(sh.Ey, xp[p], dx, N)
+        Bzp = _gather_sbp(sh.Bz, xp[p], dx, N)
+        nx, ny, nz =
+            boris_kick(vx[p], vy[p], vz[p], Exp, Eyp, zero(T), zero(T), zero(T), Bzp, one(T), dtT)
+        vx[p] = nx
+        vy[p] = ny
+        vz[p] = nz
+        xp[p] += dtT * nx
+    end
+    # 2. two-ended recycle (NO wall): each exiting ion is reinserted in place, as
+    #    fresh upstream inflow (prob p_up) or a downstream-reservoir ion (else).
+    ε = Lx * T(1e-6)
+    @inbounds for p in eachindex(ps.weight)
+        if xp[p] < zero(T) || xp[p] > Lx
+            if rand(rng, T) < bc.p_up                    # → upstream inflow at x=Lx
+                xp[p] = Lx - ε
+                vx[p] = -bc.V1 + bc.vthi * randn(rng, T)
+                vy[p] = bc.vthi * randn(rng, T)
+                vz[p] = bc.vthi * randn(rng, T)
+            else                                         # → downstream reservoir at x=0 (into box)
+                xp[p] = ε
+                vx[p] = abs(bc.vth2 * randn(rng, T))
+                vy[p] = bc.vth2 * randn(rng, T)
+                vz[p] = bc.vth2 * randn(rng, T)
+            end
+        end
+    end
+    # 3. deposit
+    deposit_moments!(sh, ps)
+    # 4. subcycle Bz with two-ended mean-field BCs
+    hb = dtT / NB
+    for _ = 1:NB
+        _rk4_bz_leroy!(sh, hb, bc.B_down, bc.τ_down)
+    end
+    # 5. recompute E
+    compute_E!(sh)
+    return sh
+end
+
 """
     shock_density_weight(n0, Lx, N)
 
