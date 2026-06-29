@@ -40,6 +40,7 @@ using Test
     include("test_shock3d.jl")
     include("test_phase_final.jl")
     include("test_shock_diag.jl")
+    include("test_shock_injection.jl")
     include("test_external_reference.jl")
     include("test_completeness.jl")
     include("test_io_extra.jl")

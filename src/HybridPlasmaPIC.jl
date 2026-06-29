@@ -193,7 +193,8 @@ export MHDState, rankine_hugoniot
 export save_checkpoint, load_checkpoint!
 export kdv_soliton, kdv_solve
 export SBP1D, sbp_deriv!, sbp_deriv, sbp_deriv_x!, FourierDerivYWorkspace, fourier_deriv_y!
-export PerpShock, init_shock!, step_shock!, deposit_moments!, compute_E!, shock_density_weight
+export PerpShock,
+    ShockInjector, init_shock!, step_shock!, deposit_moments!, compute_E!, shock_density_weight
 export Electrostatic1D, ElectrostaticPIC, init_espic!, step_espic!, poisson_E!, field_energy
 export flux_speed, flux_per_density, inject_face_1d!
 export total_momentum,
@@ -284,7 +285,13 @@ export supported_extensions,
     distributed_fft_inverse!,
     distributed_fft_roundtrip_error
 export gather_at,
-    SyntheticProbe, sample!, advance!, shock_frame, dehoffmann_teller_velocity, classify_reflected
+    SyntheticProbe,
+    sample!,
+    advance!,
+    shock_frame,
+    dehoffmann_teller_velocity,
+    classify_reflected,
+    reflected_flux_fraction
 export RunMetadata, capture_metadata, CHECKPOINT_SCHEMA_VERSION, save_run, load_run
 export PlasmaUnits, alfven_speed, gyrofrequency, inertial_length, to_SI, to_normalized
 export rh_branches

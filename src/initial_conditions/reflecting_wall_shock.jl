@@ -106,6 +106,89 @@ function PerpShock(
     )
 end
 
+# Upstream particle injection at the inflow face (x=Lx). Without it the finite
+# initial reservoir drifts to the wall and the upstream EMPTIES within a few
+# Ω_ci⁻¹, so the shock cannot reach a sustained/quasi-stationary state (the field
+# eventually collapses). Leroy et al. 1982 and Hellinger et al. 2002 both maintain
+# a constant upstream flux n₁V₁; this reproduces that. Off by default so the
+# validated transient SHK-002 behaviour is unchanged.
+"""
+    ShockInjector(rng; n0=1.0, drift, vthi, ut=(0,0), σt=vthi, weight)
+
+Sustained flux-weighted upstream injection at the inflow face for [`step_shock!`].
+`drift` is the inward (toward the wall) bulk speed (= the upstream drift `U0`),
+`vthi` the normal thermal speed, `weight` the per-particle weight (use
+[`shock_density_weight`](@ref) so the injected flux carries density `n0`). Carries
+the flux accumulator and next-id counter across steps.
+"""
+mutable struct ShockInjector{T,R}
+    rng::R
+    n0::T
+    drift::T
+    vthi::T
+    ut::NTuple{2,T}
+    σt::T
+    weight::T
+    acc::Base.RefValue{Float64}
+    nextid::Base.RefValue{UInt64}
+end
+
+function ShockInjector(
+    rng::R;
+    n0::Real = 1.0,
+    drift::Real,
+    vthi::Real,
+    ut::NTuple{2,<:Real} = (0.0, 0.0),
+    σt::Real = vthi,
+    weight::Real,
+    first_id::Integer = 1,
+) where {R}
+    T = float(promote_type(typeof(n0), typeof(drift), typeof(vthi), typeof(weight)))
+    n0T = _require_finite_nonnegative_real("n0", n0, T)
+    driftT = _require_finite_real("drift", drift, T)
+    vthiT = _require_finite_nonnegative_real("vthi", vthi, T)
+    σtT = _require_finite_nonnegative_real("σt", σt, T)
+    wT = _require_finite_positive_real("weight", weight, T)
+    first_id >= 1 || throw(ArgumentError("first_id must be ≥ 1, got $first_id"))
+    return ShockInjector{T,R}(
+        rng,
+        n0T,
+        driftT,
+        vthiT,
+        (T(ut[1]), T(ut[2])),
+        σtT,
+        wT,
+        Ref(0.0),
+        Ref(UInt64(first_id)),
+    )
+end
+
+# Inject one step's worth of upstream plasma at the inflow face x=Lx, drifting
+# inward (−x, toward the wall). Returns the number injected.
+function _inject_upstream!(
+    sh::PerpShock{T},
+    ps::ParticleSet{1,T},
+    inj::ShockInjector,
+    dt::T,
+) where {T}
+    Lx = sh.x[end]
+    return inject_face_1d!(
+        ps,
+        inj.rng,
+        Lx,
+        -1,                       # inward = −x (toward the wall)
+        inj.n0,
+        inj.drift,
+        inj.vthi,
+        inj.ut,
+        inj.σt,
+        dt,
+        inj.weight,
+        inj.acc,
+        inj.nextid,
+    )
+end
+
 # CIC stencil on the SBP node grid (node i at (i−1)dx), 1-based, FOLD/clamp at
 # the non-periodic boundaries (no wrap). Conserves total deposited weight.
 @inline function _cic_sbp(xp::T, dx::T, N::Int) where {T}
@@ -220,7 +303,13 @@ Advance the perpendicular shock one timestep: Boris push (E^n,B^n) → reflect a
 the wall (x=0, lo-only) / absorb past the inflow (x=Lx) → deposit n,u_x →
 subcycle Bz (SBP + SAT + η) → recompute E.
 """
-function step_shock!(sh::PerpShock{T}, ps::ParticleSet{1,T}, dt::Real; NB::Integer = 2) where {T}
+function step_shock!(
+    sh::PerpShock{T},
+    ps::ParticleSet{1,T},
+    dt::Real;
+    NB::Integer = 2,
+    injector::Union{Nothing,ShockInjector} = nothing,
+) where {T}
     N = sh.s.n
     dx = sh.s.dx
     dtT = _validated_step_dt(T, dt, NB; min_NB = 1, name = "step_shock!")
@@ -273,6 +362,10 @@ function step_shock!(sh::PerpShock{T}, ps::ParticleSet{1,T}, dt::Real; NB::Integ
         resize!(ps.id, write)
         resize!(ps.tag, write)
     end
+    # 2b. sustained upstream injection at the inflow face (opt-in). Appends fresh
+    #     upstream plasma so the reservoir does not deplete over the run; deposited
+    #     in this step's moment pass below.
+    injector === nothing || _inject_upstream!(sh, ps, injector, dtT)
     # 3. deposit moments
     deposit_moments!(sh, ps)
     # 4. subcycle Bz

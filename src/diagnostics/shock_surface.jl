@@ -335,28 +335,48 @@ end
 
 # --- shock-front locator (from diagnostics.jl) ---
 """
-    shock_front(Bz, x) -> (x_s, width)
+    shock_front(Bz, x; smooth=2) -> (x_s, width)
 
 Shock-front position (steepest |∂Bz/∂x|) and ramp width
 `(Bz_down − Bz_up) / max|∂Bz/∂x|`.
+
+The gradient is taken on a lightly smoothed `Bz` (`smooth` passes of a 3-point
+[1 2 1]/4 binomial filter) and the search excludes the two boundary nodes, so the
+locator tracks the macroscopic ramp rather than a 2–4 cell kinetic ripple or a
+boundary (wall / inflow-SAT) artifact. `smooth=0` recovers the raw single-cell
+gradient. A clean, well-separated shock front is unmoved by the smoothing.
 """
-function shock_front(Bz::AbstractVector{T}, x::AbstractVector{T}) where {T}
+function shock_front(Bz::AbstractVector{T}, x::AbstractVector{T}; smooth::Integer = 2) where {T}
     n = length(Bz)
     n > 0 || throw(ArgumentError("Bz and x must be nonempty"))
     length(x) == n || throw(DimensionMismatch("Bz and x must have the same length"))
     n >= 2 || throw(ArgumentError("Bz and x must contain at least two samples"))
+    smooth >= 0 || throw(ArgumentError("smooth must be ≥ 0, got $smooth"))
     _require_finite_real_sequence("Bz", Bz)
     _require_finite_real_sequence("x", x)
+    # smoothed working copy (boundary nodes held fixed by the [1 2 1]/4 stencil)
+    b = collect(T, Bz)
+    if n >= 3
+        tmp = similar(b)
+        for _ = 1:smooth
+            copyto!(tmp, b)
+            @inbounds for i = 2:n-1
+                b[i] = (tmp[i-1] + 2 * tmp[i] + tmp[i+1]) / 4
+            end
+        end
+    end
+    # steepest |∂b/∂x| over the interior (drop the 2 outer nodes: SBP/SAT + wall
+    # pile-up artifacts live there and are not the shock front).
+    lo = n >= 5 ? 3 : 2
+    hi = n >= 5 ? n - 1 : n
     gmax = zero(T)
-    im = 1
-    @inbounds for i = 2:n
+    im = lo
+    @inbounds for i = lo:hi
         dx = x[i] - x[i-1]
         dx > zero(T) || throw(ArgumentError("x must be strictly increasing"))
-        gx = abs(Bz[i] - Bz[i-1]) / dx
+        gx = abs(b[i] - b[i-1]) / dx
         gx > gmax && (gmax = gx; im = i)
     end
-    bz_down = Bz[1]
-    bz_up = Bz[end]                # wall side vs inflow side
-    width = gmax > 0 ? abs(bz_down - bz_up) / gmax : T(NaN)
+    width = gmax > 0 ? abs(b[1] - b[end]) / gmax : T(NaN)
     return x[im], width
 end

@@ -18,8 +18,9 @@
 
 """
     run_perp_shock(; MA, N=512, Lx=120, Te=0.125, γe=5/3, vthi=0.35, η=0.02,
-                     nppc=64, nsteps=900, seed=1)
-        -> (; n2, Bz2, Vs, X_rh, frozen_ratio, reflected_fraction, M_real, xf)
+                     nppc=64, nsteps=900, seed=1, inject=false)
+        -> (; n2, Bz2, Vs, X_rh, frozen_ratio, reflected_fraction,
+              reflected_flux, M_real, xf)
 
 Set up and run a 1-D perpendicular collisionless shock at upstream Alfvén Mach
 number `MA` (upstream drift `U0 = MA·v_A`, with `v_A = 1` in Ω_ci-normalized
@@ -31,13 +32,18 @@ units), then return the downstream / shock-front diagnostics as a NamedTuple:
   • `X_rh`              — fluid Rankine–Hugoniot compression at the realized
                           Mach number `M_real = (U0+Vs)/v_A`,
   • `frozen_ratio`      — `(Bz2/B0)/n2` (=1 when the field is frozen to the flow),
-  • `reflected_fraction`— weighted fraction of ions classified as reflected,
+  • `reflected_fraction`— whole-box weighted fraction of ions classified as reflected,
+  • `reflected_flux`    — literature-style α = reflected flux at the front /
+                          upstream flux `n₁·V₁` ([`reflected_flux_fraction`](@ref)),
   • `M_real`            — realized (shock-frame) Mach number,
   • `xf`                — final shock-front position.
 
 The simulation is the verified reflecting-wall `PerpShock` model (SHK-002);
 `seed` seeds the particle load so the kinetic noise / seed sensitivity can be
 studied. `nsteps`/`nppc`/`N` are kept modest by default for fast research sweeps.
+Set `inject=true` for sustained upstream injection (maintains `n₁=1` at the inflow
+so the shock can run to a quasi-stationary state instead of draining the finite
+reservoir) — needed to compare against sustained shocks (e.g. Leroy 1982).
 """
 function run_perp_shock(;
     MA::Real,
@@ -50,6 +56,7 @@ function run_perp_shock(;
     nppc::Integer = 64,
     nsteps::Integer = 900,
     seed::Integer = 1,
+    inject::Bool = false,
 )
     N >= 3 || throw(ArgumentError("N must be at least 3"))
     nppc >= 1 || throw(ArgumentError("nppc must be positive"))
@@ -79,8 +86,23 @@ function run_perp_shock(;
         vy[p] = vth * randn(rng)
         vz[p] = vth * randn(rng)
     end
-    ps.weight .= shock_density_weight(one(T), LxT, Np)   # so n₁ = 1
+    wp = shock_density_weight(one(T), LxT, Np)
+    ps.weight .= wp                                      # so n₁ = 1
     init_shock!(sh, ps)
+
+    # opt-in sustained upstream injection (maintains n₁=1 at the inflow so the
+    # shock can reach a quasi-stationary state instead of depleting the reservoir).
+    injector =
+        inject ?
+        ShockInjector(
+            MersenneTwister(Int(seed) + 1);
+            n0 = one(T),
+            drift = U0,
+            vthi = vth,
+            σt = vth,
+            weight = wp,
+            first_id = Np + 1,
+        ) : nothing
 
     # time-march; sample the front position as a fallback speed diagnostic. The
     # outermost half-amplitude crossing can be corrupted by kinetic Bz ripples in
@@ -90,7 +112,7 @@ function run_perp_shock(;
     pos = T[]
     tt = T[]
     for st = 1:nsteps
-        step_shock!(sh, ps, dt; NB = 2)
+        step_shock!(sh, ps, dt; NB = 2, injector = injector)
         if st % rec_every == 0
             push!(pos, _front_crossing(sh.Bz, sh.x, B0))
             push!(tt, st * dt)
@@ -138,7 +160,13 @@ function run_perp_shock(;
     end
     reflected_fraction = wtot > 0 ? wrefl / wtot : zero(T)
 
-    return (; n2, Bz2, Vs, X_rh, frozen_ratio, reflected_fraction, M_real, xf)
+    # literature-style reflected fraction α (flux at the front / upstream flux
+    # n₁·V₁), the apples-to-apples quantity for Leroy 1982 / Hellinger 2002.
+    reflected_flux =
+        isfinite(xf) && isfinite(Vs) && isfinite(M_real) ?
+        reflected_flux_fraction(ps, xf, Vs, U0 + Vs) : T(NaN)
+
+    return (; n2, Bz2, Vs, X_rh, frozen_ratio, reflected_fraction, reflected_flux, M_real, xf)
 end
 
 # weighted-free arithmetic mean of `v` over the masked nodes (NaN if empty)

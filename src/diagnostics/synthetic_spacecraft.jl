@@ -153,6 +153,46 @@ function classify_reflected(ps::ParticleSet{1,T}, x_shock::Real, frame_Vs::Real)
     return out
 end
 
+"""
+    reflected_flux_fraction(ps, x_shock, Vs, V1; window=3.0, n1=1.0) -> Float64
+
+Reflected-ion fraction α in the literature (Leroy et al. 1982) sense: the x-flux
+of ions reflected at the shock front — within `±window` of `x_shock` and
+shock-frame backward-moving (`vx − Vs > 0`, with the upstream plasma at +x and the
+front advancing at `Vs`) — normalized by the upstream incident flux `n1·V1`
+(`V1 = U0 + Vs`, the shock-frame upstream speed). This differs from
+[`classify_reflected`](@ref)'s whole-box count fraction and is the apples-to-apples
+quantity for code/observation comparisons.
+"""
+function reflected_flux_fraction(
+    ps::ParticleSet{1,T},
+    x_shock::Real,
+    Vs::Real,
+    V1::Real;
+    window::Real = 3.0,
+    n1::Real = 1.0,
+) where {T}
+    x = ps.x[1]
+    vx = ps.v[1]
+    w = ps.weight
+    xs = _require_finite_real("x_shock", x_shock, T)
+    vs = _require_finite_real("Vs", Vs, T)
+    win = _require_finite_positive_real("window", window, T)
+    # Count backward-moving ions in a window on the UPSTREAM side of the front
+    # (x ∈ [xs, xs+win]); the upstream half-window excludes downstream gyrating
+    # ions, which momentarily have vx−Vs>0 too and would otherwise inflate α.
+    Φ_refl = zero(T)
+    @inbounds for p in eachindex(w)
+        if xs <= x[p] <= xs + win
+            vsf = vx[p] - vs
+            vsf > zero(T) && (Φ_refl += w[p] * vsf)
+        end
+    end
+    Φ_refl /= win                                 # flux = ⟨n v⟩ over the upstream window
+    Φ1 = _require_finite_nonnegative_real("n1", n1, T) * abs(_require_finite_real("V1", V1, T))
+    return Φ1 > zero(T) ? Φ_refl / Φ1 : zero(T)
+end
+
 # ---------------------------------------------------------------- four-spacecraft timing
 
 """
