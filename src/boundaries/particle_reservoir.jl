@@ -67,10 +67,17 @@ function flux_speed(rng, a::T, σ::T) where {T}
     if aT == 0
         return σT * sqrt(-2 * log(rand(rng, T)))
     end
-    Z = _flux_integral(aT + 14σT, aT, σT)
+    hi = aT + 14σT
+    # For a < −14σ the inward flux ∝ exp(−14²/2) ≈ 0 and the bracket [0, hi]
+    # inverts (hi < 0), so the bisection below could return s < 0. The inward
+    # speed limit there is 0⁺; clamp so this exported sampler honours its
+    # documented s>0 contract instead of emitting a negative speed.
+    # ponytail: one guard covers the degenerate far-outward-drift case; a full
+    # log-space CDF inversion would be needed only if that regime carried flux.
+    hi > zero(T) || return zero(T)
+    Z = _flux_integral(hi, aT, σT)
     U = rand(rng, T)
     lo = zero(T)
-    hi = aT + 14σT
     for _ = 1:60
         m = (lo + hi) / 2
         (_flux_integral(m, aT, σT) / Z < U) ? (lo = m) : (hi = m)
