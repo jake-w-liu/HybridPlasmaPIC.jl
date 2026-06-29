@@ -16,25 +16,21 @@ function case_12_model_runtime_smoke_validation(artifact_dir::AbstractString)
     fill!(f.n, 1.0)
     f.B[3] .= cos.(k .* x)
     ohms_law!(f, HybridModel(IsothermalElectrons(0.0)), g)
-    ohm_error = maximum(
-        (
-            maximum(abs, f.J[2] .- (k .* sin.(k .* x))),
-            maximum(abs, f.E[1] .- (@. k * sin(k * x) * cos(k * x))),
-            maximum(abs, f.E[2]),
-            maximum(abs, f.E[3]),
-        ),
-    )
+    ohm_error = maximum((
+        maximum(abs, f.J[2] .- (k .* sin.(k .* x))),
+        maximum(abs, f.E[1] .- (@. k * sin(k * x) * cos(k * x))),
+        maximum(abs, f.E[2]),
+        maximum(abs, f.E[3]),
+    ),)
 
     E = (zeros(Float64, n), zeros(Float64, n), cos.(k .* x))
     dB = ntuple(_ -> zeros(Float64, n), 3)
     faraday_rhs!(dB, E, g)
-    faraday_error = maximum(
-        (
-            maximum(abs, dB[1]),
-            maximum(abs, dB[2] .- (.-k .* sin.(k .* x))),
-            maximum(abs, dB[3]),
-        ),
-    )
+    faraday_error = maximum((
+        maximum(abs, dB[1]),
+        maximum(abs, dB[2] .- (.-k .* sin.(k .* x))),
+        maximum(abs, dB[3]),
+    ),)
 
     fproj = HybridFields{1,Float64}((n,))
     fproj.B[1] .= sin.(x)
@@ -54,24 +50,20 @@ function case_12_model_runtime_smoke_validation(artifact_dir::AbstractString)
     fmulti = HybridFields{1,Float64}((n,))
     compute_moments!(fsingle, ps, g, CIC(), 1e-6)
     compute_moments_multi!(fmulti, [ps], g, CIC(), 1e-6)
-    moments_error = maximum(
-        (
-            maximum(abs, fsingle.n .- fmulti.n),
-            maximum(abs, fsingle.ui[1] .- fmulti.ui[1]),
-            maximum(abs, fsingle.ui[2] .- fmulti.ui[2]),
-            maximum(abs, fsingle.ui[3] .- fmulti.ui[3]),
-        ),
-    )
+    moments_error = maximum((
+        maximum(abs, fsingle.n .- fmulti.n),
+        maximum(abs, fsingle.ui[1] .- fmulti.ui[1]),
+        maximum(abs, fsingle.ui[2] .- fmulti.ui[2]),
+        maximum(abs, fsingle.ui[3] .- fmulti.ui[3]),
+    ),)
 
     Bconst = (zeros(Float64, n), zeros(Float64, n), ones(Float64, n))
     polytropic = PolytropicElectrons(0.5, 1.0, 5 / 3)
-    energy_error = maximum(
-        (
-            abs(magnetic_energy(Bconst, g) - 0.5 * prod(g.L)),
-            abs(electron_internal_energy(fill(1.0, n), polytropic, g) - 0.5 / (5 / 3 - 1) * prod(g.L)),
-            maximum(abs.(momentum_budget(ps, Bconst, g).particle .- total_momentum(ps))),
-        ),
-    )
+    energy_error = maximum((
+        abs(magnetic_energy(Bconst, g) - 0.5 * prod(g.L)),
+        abs(electron_internal_energy(fill(1.0, n), polytropic, g) - 0.5 / (5 / 3 - 1) * prod(g.L)),
+        maximum(abs.(momentum_budget(ps, Bconst, g).particle .- total_momentum(ps))),
+    ),)
 
     p_uniform = ParticleSet{2,Float64}(3; q = 1.5, m = 2.0)
     p_gathered = ParticleSet{2,Float64}(3; q = p_uniform.q, m = p_uniform.m)
@@ -93,15 +85,13 @@ function case_12_model_runtime_smoke_validation(artifact_dir::AbstractString)
     Bpart = ntuple(c -> fill(B0[c], nparticles(p_uniform)), 3)
     push_uniform!(p_uniform, E0, B0, dt)
     push_gathered!(p_gathered, Epart, Bpart, dt)
-    gathered_push_error = maximum(
-        (
-            maximum(abs, p_gathered.x[1] .- p_uniform.x[1]),
-            maximum(abs, p_gathered.x[2] .- p_uniform.x[2]),
-            maximum(abs, p_gathered.v[1] .- p_uniform.v[1]),
-            maximum(abs, p_gathered.v[2] .- p_uniform.v[2]),
-            maximum(abs, p_gathered.v[3] .- p_uniform.v[3]),
-        ),
-    )
+    gathered_push_error = maximum((
+        maximum(abs, p_gathered.x[1] .- p_uniform.x[1]),
+        maximum(abs, p_gathered.x[2] .- p_uniform.x[2]),
+        maximum(abs, p_gathered.v[1] .- p_uniform.v[1]),
+        maximum(abs, p_gathered.v[2] .- p_uniform.v[2]),
+        maximum(abs, p_gathered.v[3] .- p_uniform.v[3]),
+    ),)
     bkick = boris_kick(1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.1)
     boris_error = abs(sum(abs2, bkick) - 1.0)
 
@@ -112,29 +102,25 @@ function case_12_model_runtime_smoke_validation(artifact_dir::AbstractString)
     es = ElectrostaticPIC(ge, nparticles(electrons); n0 = 1.0)
     init_espic!(es, electrons)
     step_espic!(es, electrons, 0.1)
-    espic_uniform_error = maximum(
-        (
-            maximum(abs, es.ne .- 1.0),
-            maximum(abs, es.E[1]),
-            maximum(abs, es.E[2]),
-            maximum(abs, es.E[3]),
-        ),
-    )
+    espic_uniform_error = maximum((
+        maximum(abs, es.ne .- 1.0),
+        maximum(abs, es.E[1]),
+        maximum(abs, es.E[2]),
+        maximum(abs, es.E[3]),
+    ),)
 
     hall = HallMHDState(ge, HallMHDModel(IsothermalElectrons(0.5); Ti = 0.2))
     fill!(hall.fields.n, 1.0)
     fill!(hall.fields.B[3], 1.0)
     hall_mhd_ohms_law!(hall)
     step_hall_mhd!(hall, 0.05)
-    hall_uniform_error = maximum(
-        (
-            maximum(abs, hall.fields.n .- 1.0),
-            maximum(abs, hall.fields.B[3] .- 1.0),
-            maximum(abs, hall.fields.E[1]),
-            abs(hall.time[] - 0.05),
-            abs(hall.step[] - 1),
-        ),
-    )
+    hall_uniform_error = maximum((
+        maximum(abs, hall.fields.n .- 1.0),
+        maximum(abs, hall.fields.B[3] .- 1.0),
+        maximum(abs, hall.fields.E[1]),
+        abs(hall.time[] - 0.05),
+        abs(hall.step[] - 1),
+    ),)
 
     sh1 = PerpShock(8, 1.0)
     ps1 = ParticleSet{1,Float64}(2)
@@ -156,8 +142,7 @@ function case_12_model_runtime_smoke_validation(artifact_dir::AbstractString)
     ps2.v[1] .= [-0.1, -0.2]
     ps2.weight .= shock2d_density_weight(1.0, 1.0, 1.0, nparticles(ps2))
     deposit_moments2d!(sh2, ps2)
-    shock2_deposit_error =
-        abs(sum(sh2.n .* reshape(sh2.sbp.H, :, 1)) * sh2.dy - sum(ps2.weight))
+    shock2_deposit_error = abs(sum(sh2.n .* reshape(sh2.sbp.H, :, 1)) * sh2.dy - sum(ps2.weight))
     init_shock2d!(sh2, ps2)
     compute_E2d!(sh2)
     step_shock2d!(sh2, ps2, 0.0; NB = 1)
@@ -184,18 +169,81 @@ function case_12_model_runtime_smoke_validation(artifact_dir::AbstractString)
     rows = (
         ("ohms_law_hall_term_max_abs_error", ohm_error, 0.0, "absolute", ohm_error, 1e-10),
         ("faraday_rhs_max_abs_error", faraday_error, 0.0, "absolute", faraday_error, 1e-10),
-        ("project_b_divergence_contract_error", projection_error, 0.0, "absolute", projection_error, 0.0),
-        ("single_multi_species_moment_max_abs_error", moments_error, 0.0, "absolute", moments_error, 1e-12),
-        ("energy_momentum_budget_max_abs_error", energy_error, 0.0, "absolute", energy_error, 1e-12),
-        ("push_gathered_uniform_equivalence_error", gathered_push_error, 0.0, "absolute", gathered_push_error, 1e-12),
+        (
+            "project_b_divergence_contract_error",
+            projection_error,
+            0.0,
+            "absolute",
+            projection_error,
+            0.0,
+        ),
+        (
+            "single_multi_species_moment_max_abs_error",
+            moments_error,
+            0.0,
+            "absolute",
+            moments_error,
+            1e-12,
+        ),
+        (
+            "energy_momentum_budget_max_abs_error",
+            energy_error,
+            0.0,
+            "absolute",
+            energy_error,
+            1e-12,
+        ),
+        (
+            "push_gathered_uniform_equivalence_error",
+            gathered_push_error,
+            0.0,
+            "absolute",
+            gathered_push_error,
+            1e-12,
+        ),
         ("boris_kick_speed_invariant_error", boris_error, 0.0, "absolute", boris_error, 1e-12),
-        ("electrostatic_pic_uniform_step_error", espic_uniform_error, 0.0, "absolute", espic_uniform_error, 1e-12),
-        ("hall_mhd_uniform_step_error", hall_uniform_error, 0.0, "absolute", hall_uniform_error, 1e-12),
-        ("shock1d_deposit_compute_e_mass_error", shock1_deposit_error, 0.0, "absolute", shock1_deposit_error, 1e-12),
+        (
+            "electrostatic_pic_uniform_step_error",
+            espic_uniform_error,
+            0.0,
+            "absolute",
+            espic_uniform_error,
+            1e-12,
+        ),
+        (
+            "hall_mhd_uniform_step_error",
+            hall_uniform_error,
+            0.0,
+            "absolute",
+            hall_uniform_error,
+            1e-12,
+        ),
+        (
+            "shock1d_deposit_compute_e_mass_error",
+            shock1_deposit_error,
+            0.0,
+            "absolute",
+            shock1_deposit_error,
+            1e-12,
+        ),
         ("shock1d_init_step_finite_error", shock1_error, 0.0, "absolute", shock1_error, 0.0),
-        ("shock2d_deposit_mass_error", shock2_deposit_error, 0.0, "absolute", shock2_deposit_error, 1e-12),
+        (
+            "shock2d_deposit_mass_error",
+            shock2_deposit_error,
+            0.0,
+            "absolute",
+            shock2_deposit_error,
+            1e-12,
+        ),
         ("shock2d_init_step_finite_error", shock2_error, 0.0, "absolute", shock2_error, 0.0),
-        ("shock3d_deposit_mass_error", shock3_deposit_error, 0.0, "absolute", shock3_deposit_error, 1e-12),
+        (
+            "shock3d_deposit_mass_error",
+            shock3_deposit_error,
+            0.0,
+            "absolute",
+            shock3_deposit_error,
+            1e-12,
+        ),
         ("shock3d_init_step_finite_error", shock3_error, 0.0, "absolute", shock3_error, 0.0),
     )
     _write_metric_csv(artifact, rows)
@@ -216,5 +264,11 @@ VALIDATION_CASE = ValidationCase(
 )
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    exit(_run_single_case_main(VALIDATION_CASE, ARGS; default_artifact_dir = joinpath(@__DIR__, "artifacts")))
+    exit(
+        _run_single_case_main(
+            VALIDATION_CASE,
+            ARGS;
+            default_artifact_dir = joinpath(@__DIR__, "artifacts"),
+        ),
+    )
 end

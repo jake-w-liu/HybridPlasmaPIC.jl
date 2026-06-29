@@ -24,7 +24,8 @@ function case_10_io_metadata_archive_validation(artifact_dir::AbstractString)
         wait(task)
         async_loaded = deserialize(async_path)
         async_error =
-            all(==(1.0), async_loaded.a) && async_loaded.nested[1] == [3.0, 4.0] &&
+            all(==(1.0), async_loaded.a) &&
+            async_loaded.nested[1] == [3.0, 4.0] &&
             async_loaded.step == 9 ? 0.0 : 1.0
 
         run_path = tempname()
@@ -35,7 +36,8 @@ function case_10_io_metadata_archive_validation(artifact_dir::AbstractString)
         loaded = load_run(run_path)
         metadata_type_error = meta isa RunMetadata && loaded.meta isa RunMetadata ? 0.0 : 1.0
         save_run_error =
-            loaded.schema == CHECKPOINT_SCHEMA_VERSION && loaded.meta.rng_seed == 123 &&
+            loaded.schema == CHECKPOINT_SCHEMA_VERSION &&
+            loaded.meta.rng_seed == 123 &&
             loaded.state == state ? 0.0 : 1.0
 
         archive_path = tempname()
@@ -63,9 +65,30 @@ function case_10_io_metadata_archive_validation(artifact_dir::AbstractString)
         rows = (
             ("write_read_field_max_abs_error", field_error, 0.0, "absolute", field_error, 0.0),
             ("async_save_snapshot_error", async_error, 0.0, "absolute", async_error, 0.0),
-            ("run_metadata_type_contract_error", metadata_type_error, 0.0, "absolute", metadata_type_error, 0.0),
-            ("save_run_load_run_roundtrip_error", save_run_error, 0.0, "absolute", save_run_error, 0.0),
-            ("archive_run_load_archive_max_abs_error", archive_error, 0.0, "absolute", archive_error, 0.0),
+            (
+                "run_metadata_type_contract_error",
+                metadata_type_error,
+                0.0,
+                "absolute",
+                metadata_type_error,
+                0.0,
+            ),
+            (
+                "save_run_load_run_roundtrip_error",
+                save_run_error,
+                0.0,
+                "absolute",
+                save_run_error,
+                0.0,
+            ),
+            (
+                "archive_run_load_archive_max_abs_error",
+                archive_error,
+                0.0,
+                "absolute",
+                archive_error,
+                0.0,
+            ),
             ("sample_particles_stride_error", sample_error, 0.0, "absolute", sample_error, 0.0),
             ("operators_match_boolean_error", operator_error, 0.0, "absolute", operator_error, 0.0),
         )
@@ -94,5 +117,11 @@ VALIDATION_CASE = ValidationCase(
 )
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    exit(_run_single_case_main(VALIDATION_CASE, ARGS; default_artifact_dir = joinpath(@__DIR__, "artifacts")))
+    exit(
+        _run_single_case_main(
+            VALIDATION_CASE,
+            ARGS;
+            default_artifact_dir = joinpath(@__DIR__, "artifacts"),
+        ),
+    )
 end

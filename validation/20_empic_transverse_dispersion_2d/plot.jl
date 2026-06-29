@@ -18,5 +18,11 @@ end
 VALIDATION_PLOT = plot_20_empic_transverse_dispersion_2d
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    exit(_run_single_plot_main(VALIDATION_PLOT, ARGS; default_artifact_dir = joinpath(@__DIR__, "artifacts")))
+    exit(
+        _run_single_plot_main(
+            VALIDATION_PLOT,
+            ARGS;
+            default_artifact_dir = joinpath(@__DIR__, "artifacts"),
+        ),
+    )
 end

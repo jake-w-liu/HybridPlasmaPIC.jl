@@ -11,7 +11,10 @@ function plot_01_analytic_poisson_2d(artifact_dir::AbstractString)
         "01_analytic_poisson_2d_slice.pdf";
         title = "Electrostatic Poisson single-mode field",
         xcol = "x",
-        measured_expected_pairs = (("measured_Ex", "expected_Ex", "Ex"), ("measured_Ey", "expected_Ey", "Ey")),
+        measured_expected_pairs = (
+            ("measured_Ex", "expected_Ex", "Ex"),
+            ("measured_Ey", "expected_Ey", "Ey"),
+        ),
         yaxis_title = "electric field",
     )
 end
@@ -19,5 +22,11 @@ end
 VALIDATION_PLOT = plot_01_analytic_poisson_2d
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    exit(_run_single_plot_main(VALIDATION_PLOT, ARGS; default_artifact_dir = joinpath(@__DIR__, "artifacts")))
+    exit(
+        _run_single_plot_main(
+            VALIDATION_PLOT,
+            ARGS;
+            default_artifact_dir = joinpath(@__DIR__, "artifacts"),
+        ),
+    )
 end

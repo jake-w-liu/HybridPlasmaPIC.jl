@@ -3,7 +3,8 @@
 include(joinpath(@__DIR__, "common.jl"))
 
 function _case_artifact_root(summary_artifact_dir::AbstractString)
-    return basename(summary_artifact_dir) == "artifacts" ? dirname(summary_artifact_dir) : summary_artifact_dir
+    return basename(summary_artifact_dir) == "artifacts" ? dirname(summary_artifact_dir) :
+           summary_artifact_dir
 end
 
 function _case_artifact_dir(case::ValidationCase, summary_artifact_dir::AbstractString)
@@ -11,7 +12,10 @@ function _case_artifact_dir(case::ValidationCase, summary_artifact_dir::Abstract
 end
 
 function _case_script_dirs()
-    dirs = [path for path in readdir(@__DIR__; join = true) if isdir(path) && isfile(joinpath(path, "run.jl"))]
+    dirs = [
+        path for path in readdir(@__DIR__; join = true) if
+        isdir(path) && isfile(joinpath(path, "run.jl"))
+    ]
     sort!(dirs; by = basename)
     return dirs
 end
@@ -24,7 +28,8 @@ function _load_cases()
         Base.include(@__MODULE__, script)
         case = getfield(@__MODULE__, :VALIDATION_CASE)
         case isa ValidationCase || error("$script did not define VALIDATION_CASE")
-        case.id == basename(dir) || error("$script defines case id $(case.id), expected $(basename(dir))")
+        case.id == basename(dir) ||
+            error("$script defines case id $(case.id), expected $(basename(dir))")
         push!(cases, case)
     end
     isempty(cases) && error("no validation cases found under $(@__DIR__)")
@@ -53,11 +58,11 @@ function _parse_args(args)
             plots = true
         elseif arg == "--case"
             i == length(args) && throw(ArgumentError("--case requires a case id"))
-            push!(selected, args[i + 1])
+            push!(selected, args[i+1])
             i += 1
         elseif arg == "--artifact-dir"
             i == length(args) && throw(ArgumentError("--artifact-dir requires a directory"))
-            artifact_dir = abspath(args[i + 1])
+            artifact_dir = abspath(args[i+1])
             i += 1
         else
             throw(ArgumentError("unknown argument: $arg"))
@@ -77,9 +82,11 @@ function _selected_cases(cases::Vector{ValidationCase}, options)
             id in seen && push!(repeated, id)
             push!(seen, id)
         end
-        isempty(repeated) || throw(ArgumentError("duplicate validation case(s): $(join(unique(repeated), ", "))"))
+        isempty(repeated) ||
+            throw(ArgumentError("duplicate validation case(s): $(join(unique(repeated), ", "))"))
         unknown = setdiff(options.selected, keys(by_id))
-        isempty(unknown) || throw(ArgumentError("unknown validation case(s): $(join(unknown, ", "))"))
+        isempty(unknown) ||
+            throw(ArgumentError("unknown validation case(s): $(join(unknown, ", "))"))
         return [by_id[id] for id in options.selected]
     end
     options.all_cases && return cases

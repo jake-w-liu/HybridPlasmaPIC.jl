@@ -207,16 +207,16 @@ function _peak_frequency(series::AbstractVector{<:Complex}, dt::Real)
     mag = abs.(spectrum)
     best = 2
     bestmag = -Inf
-    for j = 2:(nt ÷ 2)
-        if mag[j + 1] > bestmag
-            bestmag = mag[j + 1]
+    for j = 2:(nt÷2)
+        if mag[j+1] > bestmag
+            bestmag = mag[j+1]
             best = j
         end
     end
     best <= 1 && return NaN
     a = mag[best]
-    b = mag[best + 1]
-    c = mag[best + 2]
+    b = mag[best+1]
+    c = mag[best+2]
     denom = a - 2b + c
     offset = denom != 0 ? 0.5 * (a - c) / denom : 0.0
     return 2π * (best + offset) / (nt * dt)
@@ -225,7 +225,7 @@ end
 function _zero_cross_frequency(series::AbstractVector{<:Real}, dt::Real)
     crossings = Int[]
     for i = 2:length(series)
-        if series[i - 1] < 0 && series[i] >= 0
+        if series[i-1] < 0 && series[i] >= 0
             push!(crossings, i)
         end
     end
@@ -260,7 +260,15 @@ function _checkpoint_validation_run(seed)
 end
 
 
-function _setup_hybrid_1d(n, l, seed; nppc = 400, vth = (0.0, 0.0, 0.0), te = 0.0, b0 = (0.0, 0.0, 0.0))
+function _setup_hybrid_1d(
+    n,
+    l,
+    seed;
+    nppc = 400,
+    vth = (0.0, 0.0, 0.0),
+    te = 0.0,
+    b0 = (0.0, 0.0, 0.0),
+)
     g = FourierGrid((n,), (Float64(l),))
     np = nppc * n
     ps = ParticleSet{1,Float64}(np)
@@ -314,7 +322,7 @@ function _parse_single_artifact_args(args; default_artifact_dir::AbstractString)
         arg = args[i]
         if arg == "--artifact-dir"
             i == length(args) && throw(ArgumentError("--artifact-dir requires a directory"))
-            artifact_dir = args[i + 1]
+            artifact_dir = args[i+1]
             i += 1
         else
             throw(ArgumentError("unknown argument: $arg"))

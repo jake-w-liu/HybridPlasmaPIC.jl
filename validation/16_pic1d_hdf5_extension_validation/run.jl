@@ -53,16 +53,47 @@ function case_16_pic1d_hdf5_extension_validation(artifact_dir::AbstractString)
     artifact = joinpath(artifact_dir, "16_pic1d_hdf5_extension_validation.csv")
     rows = Any[
         ("electrostatic1d_poisson_max_abs_error", espic_error, 0.0, "absolute", espic_error, 1e-12),
-        ("electrostatic1d_field_energy_abs_error", field_energy(es), 0.5 * sum(abs2, es.E) * prod(g.dx), "absolute", field_energy_error, 0.0),
-        ("empic1d_charge_conservation_residual", empic_residual, 0.0, "absolute", empic_residual, 1e-8),
-        ("empic1d_finite_energy_error", empic_finite_error, 0.0, "absolute", empic_finite_error, 0.0),
-        ("empic1d_mobile_subcycle_charge_residual", mobile_residual, 0.0, "absolute", mobile_residual, 1e-8),
+        (
+            "electrostatic1d_field_energy_abs_error",
+            field_energy(es),
+            0.5 * sum(abs2, es.E) * prod(g.dx),
+            "absolute",
+            field_energy_error,
+            0.0,
+        ),
+        (
+            "empic1d_charge_conservation_residual",
+            empic_residual,
+            0.0,
+            "absolute",
+            empic_residual,
+            1e-8,
+        ),
+        (
+            "empic1d_finite_energy_error",
+            empic_finite_error,
+            0.0,
+            "absolute",
+            empic_finite_error,
+            0.0,
+        ),
+        (
+            "empic1d_mobile_subcycle_charge_residual",
+            mobile_residual,
+            0.0,
+            "absolute",
+            mobile_residual,
+            1e-8,
+        ),
     ]
 
     try
         @eval import HDF5
         h5_error = Base.invokelatest(_hdf5_roundtrip_error)
-        push!(rows, ("hdf5_extension_roundtrip_max_abs_error", h5_error, 0.0, "absolute", h5_error, 0.0))
+        push!(
+            rows,
+            ("hdf5_extension_roundtrip_max_abs_error", h5_error, 0.0, "absolute", h5_error, 0.0),
+        )
     catch err
         push!(
             results,
@@ -112,5 +143,11 @@ VALIDATION_CASE = ValidationCase(
 )
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    exit(_run_single_case_main(VALIDATION_CASE, ARGS; default_artifact_dir = joinpath(@__DIR__, "artifacts")))
+    exit(
+        _run_single_case_main(
+            VALIDATION_CASE,
+            ARGS;
+            default_artifact_dir = joinpath(@__DIR__, "artifacts"),
+        ),
+    )
 end

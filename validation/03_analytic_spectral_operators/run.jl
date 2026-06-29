@@ -54,11 +54,32 @@ function case_03_analytic_spectral_operators(artifact_dir::AbstractString)
 
     artifact = joinpath(artifact_dir, "03_analytic_spectral_operators.csv")
     rows = (
-        ("derivative_relative_l2_error", derivative_relerr, 0.0, "relative", derivative_relerr, 1e-10),
+        (
+            "derivative_relative_l2_error",
+            derivative_relerr,
+            0.0,
+            "relative",
+            derivative_relerr,
+            1e-10,
+        ),
         ("laplacian_relative_l2_error", laplacian_relerr, 0.0, "relative", laplacian_relerr, 1e-10),
         ("divergence_of_curl_residual", divcurl_residual, 0.0, "relative", divcurl_residual, 1e-10),
-        ("projection_divergence_residual", projection_div_residual, 0.0, "relative", projection_div_residual, 1e-10),
-        ("projection_recovery_relative_error", projection_recovery_relerr, 0.0, "relative", projection_recovery_relerr, 1e-10),
+        (
+            "projection_divergence_residual",
+            projection_div_residual,
+            0.0,
+            "relative",
+            projection_div_residual,
+            1e-10,
+        ),
+        (
+            "projection_recovery_relative_error",
+            projection_recovery_relerr,
+            0.0,
+            "relative",
+            projection_recovery_relerr,
+            1e-10,
+        ),
     )
     _write_metric_csv(artifact, rows)
     return _metric_rows_to_results(
@@ -80,5 +101,11 @@ VALIDATION_CASE = ValidationCase(
 )
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    exit(_run_single_case_main(VALIDATION_CASE, ARGS; default_artifact_dir = joinpath(@__DIR__, "artifacts")))
+    exit(
+        _run_single_case_main(
+            VALIDATION_CASE,
+            ARGS;
+            default_artifact_dir = joinpath(@__DIR__, "artifacts"),
+        ),
+    )
 end

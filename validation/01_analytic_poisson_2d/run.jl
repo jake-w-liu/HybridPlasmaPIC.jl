@@ -26,22 +26,11 @@ function case_01_analytic_poisson_2d(artifact_dir::AbstractString)
         ey[i, j] = amp * ky / k2 * cos(kx * x) * sin(ky * y)
     end
     poisson_E!(es)
-    err = maximum((
-        maximum(abs, es.E[1] .- ex),
-        maximum(abs, es.E[2] .- ey),
-        maximum(abs, es.E[3]),
-    ))
+    err = maximum((maximum(abs, es.E[1] .- ex), maximum(abs, es.E[2] .- ey), maximum(abs, es.E[3])))
 
     artifact = joinpath(artifact_dir, "01_analytic_poisson_2d_slice.csv")
-    rows = [
-        ((i - 1) * g.dx[1], es.E[1][i, 1], ex[i, 1], es.E[2][i, 1], ey[i, 1]) for
-        i = 1:nx
-    ]
-    _write_csv(
-        artifact,
-        ("x", "measured_Ex", "expected_Ex", "measured_Ey", "expected_Ey"),
-        rows,
-    )
+    rows = [((i - 1) * g.dx[1], es.E[1][i, 1], ex[i, 1], es.E[2][i, 1], ey[i, 1]) for i = 1:nx]
+    _write_csv(artifact, ("x", "measured_Ex", "expected_Ex", "measured_Ey", "expected_Ey"), rows)
     return [
         _result(
             id = id,
@@ -68,5 +57,11 @@ VALIDATION_CASE = ValidationCase(
 )
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    exit(_run_single_case_main(VALIDATION_CASE, ARGS; default_artifact_dir = joinpath(@__DIR__, "artifacts")))
+    exit(
+        _run_single_case_main(
+            VALIDATION_CASE,
+            ARGS;
+            default_artifact_dir = joinpath(@__DIR__, "artifacts"),
+        ),
+    )
 end

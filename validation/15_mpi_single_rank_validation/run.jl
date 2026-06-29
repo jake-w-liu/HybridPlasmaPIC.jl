@@ -61,11 +61,14 @@ end
 function case_15_mpi_single_rank_validation(artifact_dir::AbstractString)
     id = "15_mpi_single_rank_validation"
     ensure_mpi_initialized!()
-    gpu_status = GPUAwareMPIStatus(false, false, false, :validation, "host-only single-rank validation")
+    gpu_status =
+        GPUAwareMPIStatus(false, false, false, :validation, "host-only single-rank validation")
     queried_gpu_status = gpu_aware_mpi_status(; initialize = false)
 
     init_error =
-        mpi_initialized() && mpi_comm_size(MPI.COMM_WORLD) >= 1 && mpi_comm_rank(MPI.COMM_WORLD) >= 0 &&
+        mpi_initialized() &&
+        mpi_comm_size(MPI.COMM_WORLD) >= 1 &&
+        mpi_comm_rank(MPI.COMM_WORLD) >= 0 &&
         prod(mpi_dims_create(1, 3)) == 1 ? 0.0 : 1.0
 
     layout = LogicalRankLayout((1,); periodic = (true,))
@@ -81,13 +84,15 @@ function case_15_mpi_single_rank_validation(artifact_dir::AbstractString)
             occursin("mpi;ranks=1", mpi_rank_layout_description(ctx)) ? 0.0 : 1.0
 
         local_value = (energy = [1.0, 2.0, 3.0], extrema = (lo = -2.0, hi = 5.0), count = 4)
-        sum_error = maximum(abs, mpi_allreduce_diagnostics(local_value, ctx; op = :sum, gpu_status).energy .- local_value.energy)
+        sum_error = maximum(
+            abs,
+            mpi_allreduce_diagnostics(local_value, ctx; op = :sum, gpu_status).energy .-
+            local_value.energy,
+        )
         min_value = mpi_allreduce_diagnostics(local_value, ctx; op = :min, gpu_status)
         max_value = mpi_allreduce_diagnostics(local_value, ctx; op = :max, gpu_status)
-        allreduce_error = max(
-            sum_error,
-            min_value.extrema.lo == -2.0 && max_value.extrema.hi == 5.0 ? 0.0 : 1.0,
-        )
+        allreduce_error =
+            max(sum_error, min_value.extrema.lo == -2.0 && max_value.extrema.hi == 5.0 ? 0.0 : 1.0)
 
         wrapped = ValidationWrappedMPIArray([1.0, 2.0, 3.0])
         plan = prepare_mpi_buffer(wrapped; status = gpu_status, intent = :recv)
@@ -100,15 +105,16 @@ function case_15_mpi_single_rank_validation(artifact_dir::AbstractString)
             queried_gpu_status.enabled == (queried_gpu_status.cuda || queried_gpu_status.rocm) &&
             queried_gpu_status.source === :mpi ? 0.0 : 1.0
         direct_copy_error = direct_copy.data == [7.0, 8.0, 9.0] ? 0.0 : 1.0
-        staging_error =
-            max(
-                plan isa MPIBufferPlan && plan.used_host_staging && plan.copy_back &&
-                wrapped.data == [4.0, 5.0, 6.0] &&
-                !mpi_buffer_uses_host_staging([1.0]; status = gpu_status) &&
-                host_staging_buffer([1.0, 2.0]) == [1.0, 2.0] ? 0.0 : 1.0,
-                gpu_status_query_error,
-                direct_copy_error,
-            )
+        staging_error = max(
+            plan isa MPIBufferPlan &&
+            plan.used_host_staging &&
+            plan.copy_back &&
+            wrapped.data == [4.0, 5.0, 6.0] &&
+            !mpi_buffer_uses_host_staging([1.0]; status = gpu_status) &&
+            host_staging_buffer([1.0, 2.0]) == [1.0, 2.0] ? 0.0 : 1.0,
+            gpu_status_query_error,
+            direct_copy_error,
+        )
 
         g = FourierGrid((8,), (2π,))
         ps = ParticleSet{1,Float64}(8)
@@ -172,13 +178,48 @@ function case_15_mpi_single_rank_validation(artifact_dir::AbstractString)
         artifact = joinpath(artifact_dir, "15_mpi_single_rank_validation.csv")
         rows = (
             ("mpi_initialization_contract_error", init_error, 0.0, "absolute", init_error, 0.0),
-            ("mpi_cartesian_rank_layout_error", rank_layout_error, 0.0, "absolute", rank_layout_error, 0.0),
-            ("mpi_allreduce_nested_contract_error", allreduce_error, 0.0, "absolute", allreduce_error, 0.0),
+            (
+                "mpi_cartesian_rank_layout_error",
+                rank_layout_error,
+                0.0,
+                "absolute",
+                rank_layout_error,
+                0.0,
+            ),
+            (
+                "mpi_allreduce_nested_contract_error",
+                allreduce_error,
+                0.0,
+                "absolute",
+                allreduce_error,
+                0.0,
+            ),
             ("mpi_host_staging_contract_error", staging_error, 0.0, "absolute", staging_error, 0.0),
-            ("mpi_compute_moments_serial_max_abs_error", moments_error, 0.0, "absolute", moments_error, 1e-12),
-            ("mpi_single_rank_migration_error", migration_error, 0.0, "absolute", migration_error, 0.0),
+            (
+                "mpi_compute_moments_serial_max_abs_error",
+                moments_error,
+                0.0,
+                "absolute",
+                moments_error,
+                1e-12,
+            ),
+            (
+                "mpi_single_rank_migration_error",
+                migration_error,
+                0.0,
+                "absolute",
+                migration_error,
+                0.0,
+            ),
             ("mpi_single_rank_halo_exchange_error", halo_error, 0.0, "absolute", halo_error, 0.0),
-            ("mpi_checkpoint_roundtrip_error", checkpoint_error, 0.0, "absolute", checkpoint_error, 1e-12),
+            (
+                "mpi_checkpoint_roundtrip_error",
+                checkpoint_error,
+                0.0,
+                "absolute",
+                checkpoint_error,
+                1e-12,
+            ),
         )
         _write_metric_csv(artifact, rows)
         return _metric_rows_to_results(
@@ -202,5 +243,11 @@ VALIDATION_CASE = ValidationCase(
 )
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    exit(_run_single_case_main(VALIDATION_CASE, ARGS; default_artifact_dir = joinpath(@__DIR__, "artifacts")))
+    exit(
+        _run_single_case_main(
+            VALIDATION_CASE,
+            ARGS;
+            default_artifact_dir = joinpath(@__DIR__, "artifacts"),
+        ),
+    )
 end

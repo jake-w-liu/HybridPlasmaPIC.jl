@@ -24,10 +24,8 @@ function case_08_metrics_loadbalance_validation(artifact_dir::AbstractString)
     for shape in (NGP(), CIC(), TSC())
         work = zeros(Float64, n)
         particle_work!(work, ps, Egrid, g, shape, dt)
-        ref = [
-            ps.q * (ps.v[1][p] * E0[1] + ps.v[2][p] * E0[2] + ps.v[3][p] * E0[3]) * dt for
-            p = 1:n
-        ]
+        ref =
+            [ps.q * (ps.v[1][p] * E0[1] + ps.v[2][p] * E0[2] + ps.v[3][p] * E0[3]) * dt for p = 1:n]
         work_error = max(work_error, maximum(abs, work .- ref))
     end
 
@@ -61,12 +59,40 @@ function case_08_metrics_loadbalance_validation(artifact_dir::AbstractString)
 
     artifact = joinpath(artifact_dir, "08_metrics_loadbalance_validation.csv")
     rows = (
-        ("particle_work_uniform_field_max_abs_error", work_error, 0.0, "absolute", work_error, 1e-12),
+        (
+            "particle_work_uniform_field_max_abs_error",
+            work_error,
+            0.0,
+            "absolute",
+            work_error,
+            1e-12,
+        ),
         ("mixed_divcurl_finest_residual", residuals[end], 0.0, "absolute", residuals[end], 1e-2),
-        ("mixed_divcurl_monotonicity_error", mixed_monotone_error, 0.0, "absolute", mixed_monotone_error, 0.0),
-        ("balanced_tile_minimax_cap_error", maximum(loads), 9.0, "absolute", balance_cap_error, 0.0),
+        (
+            "mixed_divcurl_monotonicity_error",
+            mixed_monotone_error,
+            0.0,
+            "absolute",
+            mixed_monotone_error,
+            0.0,
+        ),
+        (
+            "balanced_tile_minimax_cap_error",
+            maximum(loads),
+            9.0,
+            "absolute",
+            balance_cap_error,
+            0.0,
+        ),
         ("balanced_tile_coverage_error", coverage_error, 0.0, "absolute", coverage_error, 0.0),
-        ("cell_index_oracle_max_abs_error", maximum(ci), maximum(expected_ci), "absolute", cell_index_error, 0.0),
+        (
+            "cell_index_oracle_max_abs_error",
+            maximum(ci),
+            maximum(expected_ci),
+            "absolute",
+            cell_index_error,
+            0.0,
+        ),
         ("sort_particles_ordering_error", sort_error, 0.0, "absolute", sort_error, 0.0),
         ("memory_bytes_exact_error", mem, 4800.0, "absolute", memory_error, 0.0),
     )
@@ -90,5 +116,11 @@ VALIDATION_CASE = ValidationCase(
 )
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    exit(_run_single_case_main(VALIDATION_CASE, ARGS; default_artifact_dir = joinpath(@__DIR__, "artifacts")))
+    exit(
+        _run_single_case_main(
+            VALIDATION_CASE,
+            ARGS;
+            default_artifact_dir = joinpath(@__DIR__, "artifacts"),
+        ),
+    )
 end

@@ -34,7 +34,8 @@ function case_11_api_contract_regression_validation(artifact_dir::AbstractString
     Du = sbp_deriv(u, s)
     Dv = similar(v)
     sbp_deriv!(Dv, v, s)
-    sbp_identity_error = abs(sum(s.H .* u .* Dv) + sum(s.H .* Du .* v) - (u[end] * v[end] - u[1] * v[1]))
+    sbp_identity_error =
+        abs(sum(s.H .* u .* Dv) + sum(s.H .* Du .* v) - (u[end] * v[end] - u[1] * v[1]))
 
     ly = 2π
     ny = 16
@@ -77,15 +78,13 @@ function case_11_api_contract_regression_validation(artifact_dir::AbstractString
     pe = similar(nvals)
     closure = PolytropicElectrons(2.0, 1.0, 2.0)
     electron_pressure!(pe, nvals, closure)
-    fields_closure_error = maximum(
-        (
-            maximum(abs, pe .- 2.0 .* nvals .^ 2),
-            abs(closure_gamma(closure) - 2.0),
-            abs(closure_gamma(IsothermalElectrons(1.0)) - 1.0),
-            maximum(abs, hf.n),
-            Float64(hf.floor_count[]),
-        ),
-    )
+    fields_closure_error = maximum((
+        maximum(abs, pe .- 2.0 .* nvals .^ 2),
+        abs(closure_gamma(closure) - 2.0),
+        abs(closure_gamma(IsothermalElectrons(1.0)) - 1.0),
+        maximum(abs, hf.n),
+        Float64(hf.floor_count[]),
+    ),)
 
     gvec = FourierGrid((4, 4), (1.0, 1.0))
     psg = ParticleSet{2,Float64}(2)
@@ -94,13 +93,11 @@ function case_11_api_contract_regression_validation(artifact_dir::AbstractString
     field = (fill(1.0, gvec.n), fill(2.0, gvec.n), fill(3.0, gvec.n))
     gathered = (zeros(2), zeros(2), zeros(2))
     gather_vector!(gathered, field, psg, gvec, CIC())
-    gather_vector_error = maximum(
-        (
-            maximum(abs, gathered[1] .- 1.0),
-            maximum(abs, gathered[2] .- 2.0),
-            maximum(abs, gathered[3] .- 3.0),
-        ),
-    )
+    gather_vector_error = maximum((
+        maximum(abs, gathered[1] .- 1.0),
+        maximum(abs, gathered[2] .- 2.0),
+        maximum(abs, gathered[3] .- 3.0),
+    ),)
 
     gcur = FourierGrid((4,), (4.0,))
     pscur = ParticleSet{1,Float64}(2; q = 2.0, m = 3.0)
@@ -113,18 +110,23 @@ function case_11_api_contract_regression_validation(artifact_dir::AbstractString
     cur = ntuple(_ -> zeros(Float64, gcur.n), 3)
     momentum!(mom, pscur, gcur, NGP())
     current!(cur, pscur, gcur, NGP())
-    P = (fill(4.0, gcur.n), fill(6.0, gcur.n), fill(8.0, gcur.n), zeros(gcur.n), zeros(gcur.n), zeros(gcur.n))
-    tc = temperature_components(P, fill(2.0, gcur.n))
-    moment_temperature_error = maximum(
-        (
-            maximum(abs, cur[1] .- 2.0 .* mom[1]),
-            maximum(abs, cur[2] .- 2.0 .* mom[2]),
-            maximum(abs, cur[3] .- 2.0 .* mom[3]),
-            maximum(abs, tc[1] .- 2.0),
-            maximum(abs, tc[2] .- 3.0),
-            maximum(abs, tc[3] .- 4.0),
-        ),
+    P = (
+        fill(4.0, gcur.n),
+        fill(6.0, gcur.n),
+        fill(8.0, gcur.n),
+        zeros(gcur.n),
+        zeros(gcur.n),
+        zeros(gcur.n),
     )
+    tc = temperature_components(P, fill(2.0, gcur.n))
+    moment_temperature_error = maximum((
+        maximum(abs, cur[1] .- 2.0 .* mom[1]),
+        maximum(abs, cur[2] .- 2.0 .* mom[2]),
+        maximum(abs, cur[3] .- 2.0 .* mom[3]),
+        maximum(abs, tc[1] .- 2.0),
+        maximum(abs, tc[2] .- 3.0),
+        maximum(abs, tc[3] .- 4.0),
+    ),)
 
     up = MHDState(1.0, 4.0, 0.0, 0.1, 0.0, 1.0)
     rh = rankine_hugoniot(up, 5 / 3)
@@ -178,12 +180,13 @@ function case_11_api_contract_regression_validation(artifact_dir::AbstractString
         checkpoint_shock3d(path, sh3, ps3)
         sh_loaded, ps_loaded = restore_shock3d(path)
         sh_loaded.nx == sh3.nx &&
-        sh_loaded.B[3] == sh3.B[3] &&
-        ps_loaded.id == ps3.id &&
-        ps_loaded.x[1] == ps3.x[1] ? 0.0 : 1.0
+            sh_loaded.B[3] == sh3.B[3] &&
+            ps_loaded.id == ps3.id &&
+            ps_loaded.x[1] == ps3.x[1] ? 0.0 : 1.0
     end
 
-    reference_cmp = compare_to_reference((a = 1.01, b = 2.0, c = 99.0), (a = 1.0, b = 2.0); rtol = 0.02)
+    reference_cmp =
+        compare_to_reference((a = 1.01, b = 2.0, c = 99.0), (a = 1.0, b = 2.0); rtol = 0.02)
     published_contract =
         published_hybrid_reference_ids() == (:preisser2020_65deg_Bavg_y,) &&
         published_hybrid_reference_metadata().doi == "10.5281/zenodo.3697360" &&
@@ -195,18 +198,95 @@ function case_11_api_contract_regression_validation(artifact_dir::AbstractString
         ("rank_seed_rng_contract_error", seed_rng_error, 0.0, "absolute", seed_rng_error, 0.0),
         ("global_particle_id_contract_error", id_error, 0.0, "absolute", id_error, 0.0),
         ("sbp_identity_abs_error", sbp_identity_error, 0.0, "absolute", sbp_identity_error, 1e-12),
-        ("mixed_sbp_fourier_y_max_abs_error", mixed_derivative_error, 0.0, "absolute", mixed_derivative_error, 1e-12),
+        (
+            "mixed_sbp_fourier_y_max_abs_error",
+            mixed_derivative_error,
+            0.0,
+            "absolute",
+            mixed_derivative_error,
+            1e-12,
+        ),
         ("sbp_deriv_x_linear_max_abs_error", sbp_x_error, 0.0, "absolute", sbp_x_error, 1e-12),
-        ("spectral_utilities_contract_error", spectral_contract_error, 0.0, "absolute", spectral_contract_error, 1e-10),
-        ("electron_closure_fields_contract_error", fields_closure_error, 0.0, "absolute", fields_closure_error, 1e-12),
-        ("gather_vector_constant_field_error", gather_vector_error, 0.0, "absolute", gather_vector_error, 1e-12),
-        ("current_temperature_contract_error", moment_temperature_error, 0.0, "absolute", moment_temperature_error, 1e-12),
-        ("rankine_hugoniot_residual_contract_error", rh_contract_error, 0.0, "absolute", rh_contract_error, 1e-12),
-        ("diagnostic_reduction_contract_error", reduction_error, 0.0, "absolute", reduction_error, 0.0),
-        ("load_balance_contract_error", load_balance_error, 0.0, "absolute", load_balance_error, 0.0),
-        ("mpi_host_buffer_contract_error", mpi_buffer_error, 0.0, "absolute", mpi_buffer_error, 0.0),
-        ("shock3d_checkpoint_roundtrip_error", checkpoint_error, 0.0, "absolute", checkpoint_error, 0.0),
-        ("reference_comparison_contract_error", published_contract, 0.0, "absolute", published_contract, 0.0),
+        (
+            "spectral_utilities_contract_error",
+            spectral_contract_error,
+            0.0,
+            "absolute",
+            spectral_contract_error,
+            1e-10,
+        ),
+        (
+            "electron_closure_fields_contract_error",
+            fields_closure_error,
+            0.0,
+            "absolute",
+            fields_closure_error,
+            1e-12,
+        ),
+        (
+            "gather_vector_constant_field_error",
+            gather_vector_error,
+            0.0,
+            "absolute",
+            gather_vector_error,
+            1e-12,
+        ),
+        (
+            "current_temperature_contract_error",
+            moment_temperature_error,
+            0.0,
+            "absolute",
+            moment_temperature_error,
+            1e-12,
+        ),
+        (
+            "rankine_hugoniot_residual_contract_error",
+            rh_contract_error,
+            0.0,
+            "absolute",
+            rh_contract_error,
+            1e-12,
+        ),
+        (
+            "diagnostic_reduction_contract_error",
+            reduction_error,
+            0.0,
+            "absolute",
+            reduction_error,
+            0.0,
+        ),
+        (
+            "load_balance_contract_error",
+            load_balance_error,
+            0.0,
+            "absolute",
+            load_balance_error,
+            0.0,
+        ),
+        (
+            "mpi_host_buffer_contract_error",
+            mpi_buffer_error,
+            0.0,
+            "absolute",
+            mpi_buffer_error,
+            0.0,
+        ),
+        (
+            "shock3d_checkpoint_roundtrip_error",
+            checkpoint_error,
+            0.0,
+            "absolute",
+            checkpoint_error,
+            0.0,
+        ),
+        (
+            "reference_comparison_contract_error",
+            published_contract,
+            0.0,
+            "absolute",
+            published_contract,
+            0.0,
+        ),
     )
     _write_metric_csv(artifact, rows)
     return _metric_rows_to_results(
@@ -228,5 +308,11 @@ VALIDATION_CASE = ValidationCase(
 )
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    exit(_run_single_case_main(VALIDATION_CASE, ARGS; default_artifact_dir = joinpath(@__DIR__, "artifacts")))
+    exit(
+        _run_single_case_main(
+            VALIDATION_CASE,
+            ARGS;
+            default_artifact_dir = joinpath(@__DIR__, "artifacts"),
+        ),
+    )
 end

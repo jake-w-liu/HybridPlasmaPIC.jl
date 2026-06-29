@@ -64,15 +64,64 @@ function case_09_normalization_migration_io(artifact_dir::AbstractString)
         checkpoint_error = max(particle_error, velocity_error, field_error, step_error)
         artifact = joinpath(artifact_dir, "09_normalization_migration_io.csv")
         rows = (
-            ("unit_roundtrip_max_relative_error", unit_roundtrip, 0.0, "relative", unit_roundtrip, 1e-12),
-            ("normalization_scalar_identity_error", unit_identity_error, 0.0, "absolute", unit_identity_error, 1e-12),
+            (
+                "unit_roundtrip_max_relative_error",
+                unit_roundtrip,
+                0.0,
+                "relative",
+                unit_roundtrip,
+                1e-12,
+            ),
+            (
+                "normalization_scalar_identity_error",
+                unit_identity_error,
+                0.0,
+                "absolute",
+                unit_identity_error,
+                1e-12,
+            ),
             ("rank_periodic_wrap_abs_error", rank_error, 0.0, "absolute", rank_error, 0.0),
-            ("rank_index_nranks_contract_error", rank_index_error, 0.0, "absolute", rank_index_error, 0.0),
+            (
+                "rank_index_nranks_contract_error",
+                rank_index_error,
+                0.0,
+                "absolute",
+                rank_index_error,
+                0.0,
+            ),
             ("rank_bounds_max_abs_error", bounds_error, 0.0, "absolute", bounds_error, 0.0),
-            ("migration_id_preservation_error", migration_id_error, 0.0, "absolute", migration_id_error, 0.0),
-            ("migration_count_error", migration_count_error, 0.0, "absolute", migration_count_error, 0.0),
-            ("append_particles_id_contract_error", append_error, 0.0, "absolute", append_error, 0.0),
-            ("checkpoint_restart_max_abs_error", checkpoint_error, 0.0, "absolute", checkpoint_error, 0.0),
+            (
+                "migration_id_preservation_error",
+                migration_id_error,
+                0.0,
+                "absolute",
+                migration_id_error,
+                0.0,
+            ),
+            (
+                "migration_count_error",
+                migration_count_error,
+                0.0,
+                "absolute",
+                migration_count_error,
+                0.0,
+            ),
+            (
+                "append_particles_id_contract_error",
+                append_error,
+                0.0,
+                "absolute",
+                append_error,
+                0.0,
+            ),
+            (
+                "checkpoint_restart_max_abs_error",
+                checkpoint_error,
+                0.0,
+                "absolute",
+                checkpoint_error,
+                0.0,
+            ),
         )
         _write_metric_csv(artifact, rows)
         return _metric_rows_to_results(
@@ -97,5 +146,11 @@ VALIDATION_CASE = ValidationCase(
 )
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    exit(_run_single_case_main(VALIDATION_CASE, ARGS; default_artifact_dir = joinpath(@__DIR__, "artifacts")))
+    exit(
+        _run_single_case_main(
+            VALIDATION_CASE,
+            ARGS;
+            default_artifact_dir = joinpath(@__DIR__, "artifacts"),
+        ),
+    )
 end

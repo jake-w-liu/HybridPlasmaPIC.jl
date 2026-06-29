@@ -14,11 +14,11 @@ function _parse_plot_args(args; default_artifact_dir::AbstractString, allow_case
         arg = args[i]
         if arg == "--artifact-dir"
             i == length(args) && throw(ArgumentError("--artifact-dir requires a directory"))
-            artifact_dir = args[i + 1]
+            artifact_dir = args[i+1]
             i += 1
         elseif allow_cases && arg == "--case"
             i == length(args) && throw(ArgumentError("--case requires a case id"))
-            push!(selected, args[i + 1])
+            push!(selected, args[i+1])
             i += 1
         else
             throw(ArgumentError("unknown argument: $arg"))
@@ -36,8 +36,9 @@ end
 
 function _require_plotlysupply_180()
     version, path = _plotlysupply_version()
-    version == REQUIRED_PLOTLYSUPPLY_VERSION ||
-        error("global PlotlySupply must resolve to $REQUIRED_PLOTLYSUPPLY_VERSION; got $version at $path")
+    version == REQUIRED_PLOTLYSUPPLY_VERSION || error(
+        "global PlotlySupply must resolve to $REQUIRED_PLOTLYSUPPLY_VERSION; got $version at $path",
+    )
     return version, path
 end
 
@@ -156,18 +157,26 @@ function _summary_plot(artifact_dir::AbstractString, selected::Vector{String} = 
     return _save_pdf(joinpath(artifact_dir, "validation_summary.pdf"), fig)
 end
 
-function _metric_plot(artifact_dir::AbstractString, csv_name::AbstractString, pdf_name::AbstractString; title)
+function _metric_plot(
+    artifact_dir::AbstractString,
+    csv_name::AbstractString,
+    pdf_name::AbstractString;
+    title,
+)
     all_rows = _read_csv(joinpath(artifact_dir, csv_name))
     rows = [
-        row for row in all_rows if haskey(row, "metric") && haskey(row, "error") &&
-        haskey(row, "tolerance") && haskey(row, "status") && row["status"] != "skip"
+        row for row in all_rows if haskey(row, "metric") &&
+        haskey(row, "error") &&
+        haskey(row, "tolerance") &&
+        haskey(row, "status") &&
+        row["status"] != "skip"
     ]
     labels = String[]
     values = Float64[]
     if isempty(rows)
         skipped = [
-            row for row in all_rows if haskey(row, "metric") &&
-            haskey(row, "status") && row["status"] == "skip"
+            row for row in all_rows if
+            haskey(row, "metric") && haskey(row, "status") && row["status"] == "skip"
         ]
         isempty(skipped) && return nothing
         labels = [row["metric"] * " (skip)" for row in skipped]
@@ -182,7 +191,11 @@ function _metric_plot(artifact_dir::AbstractString, csv_name::AbstractString, pd
     end
     full_labels = copy(labels)
     labels = [_metric_label(full_labels[i], i) for i in eachindex(full_labels)]
-    _write_label_key(joinpath(artifact_dir, splitext(pdf_name)[1] * "_plot_labels.csv"), labels, full_labels)
+    _write_label_key(
+        joinpath(artifact_dir, splitext(pdf_name)[1] * "_plot_labels.csv"),
+        labels,
+        full_labels,
+    )
     fig = PlotlySupply.plot_bar(
         labels,
         values;
@@ -253,7 +266,12 @@ function _time_series_plot(
     return _save_pdf(joinpath(artifact_dir, pdf_name), fig)
 end
 
-function _write_plot_metadata(artifact_dir::AbstractString, version::VersionNumber, path::AbstractString, outputs)
+function _write_plot_metadata(
+    artifact_dir::AbstractString,
+    version::VersionNumber,
+    path::AbstractString,
+    outputs,
+)
     metadata_path = joinpath(artifact_dir, "plot_metadata.csv")
     mkpath(artifact_dir)
     open(metadata_path, "w") do io

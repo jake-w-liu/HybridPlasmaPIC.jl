@@ -68,10 +68,38 @@ function case_05_particle_coupling_diagnostics(artifact_dir::AbstractString)
     rows = (
         ("density_integral_relative_error", density_relerr, 0.0, "relative", density_relerr, 1e-12),
         ("cic_linear_gather_max_abs_error", gather_error, 0.0, "absolute", gather_error, 1e-12),
-        ("deposit_gather_adjoint_relative_error", adjoint_relerr, 0.0, "relative", adjoint_relerr, 1e-12),
-        ("pressure_tensor_exact_max_abs_error", pressure_error, 0.0, "absolute", pressure_error, 1e-12),
-        ("velocity_histogram_weight_relative_error", histogram_relerr, 0.0, "relative", histogram_relerr, 1e-12),
-        ("phase_space_histogram_weight_relative_error", phase_histogram_relerr, 0.0, "relative", phase_histogram_relerr, 1e-12),
+        (
+            "deposit_gather_adjoint_relative_error",
+            adjoint_relerr,
+            0.0,
+            "relative",
+            adjoint_relerr,
+            1e-12,
+        ),
+        (
+            "pressure_tensor_exact_max_abs_error",
+            pressure_error,
+            0.0,
+            "absolute",
+            pressure_error,
+            1e-12,
+        ),
+        (
+            "velocity_histogram_weight_relative_error",
+            histogram_relerr,
+            0.0,
+            "relative",
+            histogram_relerr,
+            1e-12,
+        ),
+        (
+            "phase_space_histogram_weight_relative_error",
+            phase_histogram_relerr,
+            0.0,
+            "relative",
+            phase_histogram_relerr,
+            1e-12,
+        ),
     )
     _write_metric_csv(artifact, rows)
     return _metric_rows_to_results(
@@ -93,5 +121,11 @@ VALIDATION_CASE = ValidationCase(
 )
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    exit(_run_single_case_main(VALIDATION_CASE, ARGS; default_artifact_dir = joinpath(@__DIR__, "artifacts")))
+    exit(
+        _run_single_case_main(
+            VALIDATION_CASE,
+            ARGS;
+            default_artifact_dir = joinpath(@__DIR__, "artifacts"),
+        ),
+    )
 end

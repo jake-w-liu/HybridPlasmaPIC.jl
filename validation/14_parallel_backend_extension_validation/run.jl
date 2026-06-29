@@ -16,8 +16,10 @@ function case_14_parallel_backend_extension_validation(artifact_dir::AbstractStr
     backend_error = particle_storage_backend(ps) == :cpu ? 0.0 : 1.0
     ps_cpu = copy_particles_to_backend(Val(:cpu), ps)
     cpu_copy_error =
-        particle_storage_backend(ps_cpu) == :cpu && ps_cpu.x[1] == ps.x[1] && ps_cpu.id == ps.id ? 0.0 : 1.0
-    pressure = memory_pressure(BackendMemoryStatus(:cpu, true, false; total_bytes = 100, free_bytes = 25))
+        particle_storage_backend(ps_cpu) == :cpu && ps_cpu.x[1] == ps.x[1] && ps_cpu.id == ps.id ?
+        0.0 : 1.0
+    pressure =
+        memory_pressure(BackendMemoryStatus(:cpu, true, false; total_bytes = 100, free_bytes = 25))
     memory_pressure_error = abs(pressure - 0.75)
 
     dec = PencilDecomposition3D((8, 6, 4), (2, 2))
@@ -39,7 +41,8 @@ function case_14_parallel_backend_extension_validation(artifact_dir::AbstractStr
     halos = [Float64[10, 11, 12, 13, 14], Float64[20, 21, 22, 23, 24]]
     halo_stats = exchange_field_halos!(halos, layout; halo = 1, fill_value = -1.0)
     halo_error =
-        halo_stats.exchanged == 2 && halo_stats.filled == 2 &&
+        halo_stats.exchanged == 2 &&
+        halo_stats.filled == 2 &&
         halos[1] == [-1.0, 11.0, 12.0, 13.0, 21.0] &&
         halos[2] == [13.0, 21.0, 22.0, 23.0, -1.0] ? 0.0 : 1.0
 
@@ -62,14 +65,35 @@ function case_14_parallel_backend_extension_validation(artifact_dir::AbstractStr
 
     artifact = joinpath(artifact_dir, "14_parallel_backend_extension_validation.csv")
     rows = (
-        ("supported_extensions_contract_error", supported_error, 0.0, "absolute", supported_error, 0.0),
+        (
+            "supported_extensions_contract_error",
+            supported_error,
+            0.0,
+            "absolute",
+            supported_error,
+            0.0,
+        ),
         ("cpu_particle_backend_error", backend_error, 0.0, "absolute", backend_error, 0.0),
         ("cpu_particle_copy_error", cpu_copy_error, 0.0, "absolute", cpu_copy_error, 0.0),
         ("memory_pressure_abs_error", pressure, 0.75, "absolute", memory_pressure_error, 0.0),
         ("pencil_rank_coords_error", pencil_coord_error, 0.0, "absolute", pencil_coord_error, 0.0),
         ("pencil_bounds_error", pencil_bounds_error, 0.0, "absolute", pencil_bounds_error, 0.0),
-        ("pencil_owner_abs_error", pencil_owner(dec, (1, 4, 3), :x), 4.0, "absolute", pencil_owner_error, 0.0),
-        ("pencil_api_wrapper_contract_error", pencil_api_error, 0.0, "absolute", pencil_api_error, 0.0),
+        (
+            "pencil_owner_abs_error",
+            pencil_owner(dec, (1, 4, 3), :x),
+            4.0,
+            "absolute",
+            pencil_owner_error,
+            0.0,
+        ),
+        (
+            "pencil_api_wrapper_contract_error",
+            pencil_api_error,
+            0.0,
+            "absolute",
+            pencil_api_error,
+            0.0,
+        ),
         ("field_halo_exchange_error", halo_error, 0.0, "absolute", halo_error, 0.0),
     )
     _write_metric_csv(artifact, rows)
@@ -120,5 +144,11 @@ VALIDATION_CASE = ValidationCase(
 )
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    exit(_run_single_case_main(VALIDATION_CASE, ARGS; default_artifact_dir = joinpath(@__DIR__, "artifacts")))
+    exit(
+        _run_single_case_main(
+            VALIDATION_CASE,
+            ARGS;
+            default_artifact_dir = joinpath(@__DIR__, "artifacts"),
+        ),
+    )
 end

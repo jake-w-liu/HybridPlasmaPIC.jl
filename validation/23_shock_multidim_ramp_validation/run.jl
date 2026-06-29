@@ -14,7 +14,7 @@ function case_23_shock_multidim_ramp_validation(artifact_dir::AbstractString)
     expected_xs = zeros(Float64, sh2.ny)
     for j = 1:sh2.ny
         ip = base + round(Int, amp_nodes * cos(2π * mseed * (j - 1) / sh2.ny))
-        expected_xs[j] = sh2.x[ip + 1]
+        expected_xs[j] = sh2.x[ip+1]
         for i = 1:sh2.nx
             sh2.Bz[i, j] = i <= ip ? 2.0 : 1.0
         end
@@ -46,7 +46,7 @@ function case_23_shock_multidim_ramp_validation(artifact_dir::AbstractString)
     expected3 = zeros(Float64, sh3.ny, sh3.nz)
     for k3 = 1:sh3.nz, j = 1:sh3.ny
         ip = 5 + ((j + k3) % 2)
-        expected3[j, k3] = sh3.x[ip + 1]
+        expected3[j, k3] = sh3.x[ip+1]
         for i = 1:sh3.nx
             sh3.B[3][i, j, k3] = i <= ip ? 2.0 : 1.0
         end
@@ -67,12 +67,54 @@ function case_23_shock_multidim_ramp_validation(artifact_dir::AbstractString)
 
     artifact = joinpath(artifact_dir, "23_shock_multidim_ramp_validation.csv")
     rows = (
-        ("shock2d_surface_position_max_abs_error", surface2_error, 0.0, "absolute", surface2_error, 1e-12),
-        ("shock2d_surface_spectrum_peak_error", argmax(pnon) - 1, mseed, "absolute", spectrum_peak_error, 0.0),
-        ("shock2d_transverse_coherence_max_abs_error", coherence_error, 0.0, "absolute", coherence_error, 1e-12),
-        ("shock3d_surface_position_max_abs_error", surface3_error, 0.0, "absolute", surface3_error, 1e-12),
-        ("shock3d_uniform_divergence_max_abs_error", div3_error, 0.0, "absolute", div3_error, 1e-12),
-        ("initial_ramp_field_max_abs_error", ramp_field_error, 0.0, "absolute", ramp_field_error, 1e-12),
+        (
+            "shock2d_surface_position_max_abs_error",
+            surface2_error,
+            0.0,
+            "absolute",
+            surface2_error,
+            1e-12,
+        ),
+        (
+            "shock2d_surface_spectrum_peak_error",
+            argmax(pnon) - 1,
+            mseed,
+            "absolute",
+            spectrum_peak_error,
+            0.0,
+        ),
+        (
+            "shock2d_transverse_coherence_max_abs_error",
+            coherence_error,
+            0.0,
+            "absolute",
+            coherence_error,
+            1e-12,
+        ),
+        (
+            "shock3d_surface_position_max_abs_error",
+            surface3_error,
+            0.0,
+            "absolute",
+            surface3_error,
+            1e-12,
+        ),
+        (
+            "shock3d_uniform_divergence_max_abs_error",
+            div3_error,
+            0.0,
+            "absolute",
+            div3_error,
+            1e-12,
+        ),
+        (
+            "initial_ramp_field_max_abs_error",
+            ramp_field_error,
+            0.0,
+            "absolute",
+            ramp_field_error,
+            1e-12,
+        ),
     )
     _write_metric_csv(artifact, rows)
     return _metric_rows_to_results(
@@ -94,5 +136,11 @@ VALIDATION_CASE = ValidationCase(
 )
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    exit(_run_single_case_main(VALIDATION_CASE, ARGS; default_artifact_dir = joinpath(@__DIR__, "artifacts")))
+    exit(
+        _run_single_case_main(
+            VALIDATION_CASE,
+            ARGS;
+            default_artifact_dir = joinpath(@__DIR__, "artifacts"),
+        ),
+    )
 end

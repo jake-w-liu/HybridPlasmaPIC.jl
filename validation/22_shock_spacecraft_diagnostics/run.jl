@@ -64,11 +64,10 @@ function case_22_shock_spacecraft_diagnostics(artifact_dir::AbstractString)
     flux = boundary_energy_flux(sh)
     gamma_factor = sh.γe / (sh.γe - 1)
     expected_total_inflow =
-        -3.0 +
-        0.5 * 1.0 * ((-3.0)^2 + 0.2^2) * (-3.0) +
-        gamma_factor * 2.0 * (-3.0)
+        -3.0 + 0.5 * 1.0 * ((-3.0)^2 + 0.2^2) * (-3.0) + gamma_factor * 2.0 * (-3.0)
     expected_total_wall = 1.0
-    flux_error = max(abs(flux.total[1] - expected_total_inflow), abs(flux.total[2] - expected_total_wall))
+    flux_error =
+        max(abs(flux.total[1] - expected_total_inflow), abs(flux.total[2] - expected_total_wall))
 
     g = FourierGrid((8,), (8.0,))
     field = [(i - 1) * g.dx[1] for i = 1:g.n[1]]
@@ -84,7 +83,8 @@ function case_22_shock_spacecraft_diagnostics(artifact_dir::AbstractString)
     positions = ((0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))
     times = ntuple(i -> dot(normal, positions[i]) / speed, 4)
     timing = four_spacecraft_timing(positions, times)
-    timing_error = max(maximum(abs(timing.normal[i] - normal[i]) for i = 1:3), abs(timing.speed - speed))
+    timing_error =
+        max(maximum(abs(timing.normal[i] - normal[i]) for i = 1:3), abs(timing.speed - speed))
 
     vht = dehoffmann_teller_velocity((2.0, 3.0, 4.0), (0.0, 0.0, 2.0))
     dht_residual_error = hypot(2.0 - vht[1], 3.0 - vht[2])
@@ -97,18 +97,95 @@ function case_22_shock_spacecraft_diagnostics(artifact_dir::AbstractString)
 
     artifact = joinpath(artifact_dir, "22_shock_spacecraft_diagnostics.csv")
     rows = (
-        ("shock_front_position_width_max_abs_error", max(xf, width), 2.0, "absolute", shock_front_error, 1e-12),
-        ("crossing_logger_count_error", crossing_count(logger), 3.0, "absolute", crossing_error, 0.0),
-        ("crossing_logger_energy_gain_error", energy_gain(logger), 4.5, "absolute", gain_error, 1e-12),
-        ("shock_frame_velocity_abs_error", shock_frame(-3.0, 1.25), -4.25, "absolute", shock_frame_error, 0.0),
-        ("normal_incidence_tangent_residual", nif_tangent_error, 0.0, "absolute", nif_tangent_error, 1e-12),
-        ("boundary_reflection_fraction_abs_error", boundary_reflection_fraction(sh, pband; ncells = 3), 2 / 3, "absolute", reflection_error, 1e-12),
-        ("boundary_energy_flux_total_abs_error", maximum(abs, flux.total), maximum(abs, (expected_total_inflow, expected_total_wall)), "absolute", flux_error, 1e-12),
-        ("gather_at_linear_interpolation_abs_error", gather_at(field, g, 2.25), 2.25, "absolute", gather_error, 1e-12),
+        (
+            "shock_front_position_width_max_abs_error",
+            max(xf, width),
+            2.0,
+            "absolute",
+            shock_front_error,
+            1e-12,
+        ),
+        (
+            "crossing_logger_count_error",
+            crossing_count(logger),
+            3.0,
+            "absolute",
+            crossing_error,
+            0.0,
+        ),
+        (
+            "crossing_logger_energy_gain_error",
+            energy_gain(logger),
+            4.5,
+            "absolute",
+            gain_error,
+            1e-12,
+        ),
+        (
+            "shock_frame_velocity_abs_error",
+            shock_frame(-3.0, 1.25),
+            -4.25,
+            "absolute",
+            shock_frame_error,
+            0.0,
+        ),
+        (
+            "normal_incidence_tangent_residual",
+            nif_tangent_error,
+            0.0,
+            "absolute",
+            nif_tangent_error,
+            1e-12,
+        ),
+        (
+            "boundary_reflection_fraction_abs_error",
+            boundary_reflection_fraction(sh, pband; ncells = 3),
+            2 / 3,
+            "absolute",
+            reflection_error,
+            1e-12,
+        ),
+        (
+            "boundary_energy_flux_total_abs_error",
+            maximum(abs, flux.total),
+            maximum(abs, (expected_total_inflow, expected_total_wall)),
+            "absolute",
+            flux_error,
+            1e-12,
+        ),
+        (
+            "gather_at_linear_interpolation_abs_error",
+            gather_at(field, g, 2.25),
+            2.25,
+            "absolute",
+            gather_error,
+            1e-12,
+        ),
         ("synthetic_probe_sample_advance_abs_error", probe.x, 3.25, "absolute", probe_error, 1e-12),
-        ("crossing_time_linear_abs_error", crossing_time([0.0, 1.0], [0.0, 2.0], 1.0), 0.5, "absolute", crossing_time_error, 1e-12),
-        ("four_spacecraft_timing_max_abs_error", timing.speed, speed, "absolute", timing_error, 1e-12),
-        ("dehoffmann_teller_perp_residual", dht_residual_error, 0.0, "absolute", dht_residual_error, 1e-12),
+        (
+            "crossing_time_linear_abs_error",
+            crossing_time([0.0, 1.0], [0.0, 2.0], 1.0),
+            0.5,
+            "absolute",
+            crossing_time_error,
+            1e-12,
+        ),
+        (
+            "four_spacecraft_timing_max_abs_error",
+            timing.speed,
+            speed,
+            "absolute",
+            timing_error,
+            1e-12,
+        ),
+        (
+            "dehoffmann_teller_perp_residual",
+            dht_residual_error,
+            0.0,
+            "absolute",
+            dht_residual_error,
+            1e-12,
+        ),
         ("classify_reflected_boolean_error", sum(flags), 1.0, "absolute", classify_error, 0.0),
     )
     _write_metric_csv(artifact, rows)
@@ -131,5 +208,11 @@ VALIDATION_CASE = ValidationCase(
 )
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    exit(_run_single_case_main(VALIDATION_CASE, ARGS; default_artifact_dir = joinpath(@__DIR__, "artifacts")))
+    exit(
+        _run_single_case_main(
+            VALIDATION_CASE,
+            ARGS;
+            default_artifact_dir = joinpath(@__DIR__, "artifacts"),
+        ),
+    )
 end

@@ -53,7 +53,12 @@ function case_13_threaded_backend_api_validation(artifact_dir::AbstractString)
         g = FourierGrid(n, ntuple(d -> 1.25 + 0.25d, D))
         np = 307 + 17D
         ps = ParticleSet{D,Float64}(np)
-        load_uniform!(ps, MersenneTwister(1000 + 17D + _shape_width(shape)), ntuple(_ -> 0.0, D), g.L)
+        load_uniform!(
+            ps,
+            MersenneTwister(1000 + 17D + _shape_width(shape)),
+            ntuple(_ -> 0.0, D),
+            g.L,
+        )
         ps.weight .= 0.5 .+ rand(MersenneTwister(2000 + 19D + _shape_width(shape)), np)
         vals = randn(MersenneTwister(3000 + 23D + _shape_width(shape)), np)
 
@@ -106,16 +111,21 @@ function case_13_threaded_backend_api_validation(artifact_dir::AbstractString)
     roundtrip = copy_particles_to_host(host)
     backend_error =
         particle_storage_backend(ps) == :cpu &&
-        all(particle_array_backend(A) == :cpu for A in (ps.x..., ps.v..., ps.weight, ps.id, ps.tag)) &&
+        all(
+            particle_array_backend(A) == :cpu for A in (ps.x..., ps.v..., ps.weight, ps.id, ps.tag)
+        ) &&
         particle_storage_backend(host) == :cpu ? 0.0 : 1.0
-    host_copy_error = max(_particle_roundtrip_error(host, ps), _particle_roundtrip_error(roundtrip, host))
+    host_copy_error =
+        max(_particle_roundtrip_error(host, ps), _particle_roundtrip_error(roundtrip, host))
 
     mem = BackendMemoryStatus(:cpu, true, false; total_bytes = 128, free_bytes = 32)
     memory_pressure_error = abs(memory_pressure(mem) - 0.75)
     cpu_status = backend_memory_status(Val(:cpu))
     cpu_status_error =
-        cpu_status.backend == :cpu && cpu_status.device_available &&
-        !cpu_status.pool_supported && backend_memory_status(ps).backend == :cpu &&
+        cpu_status.backend == :cpu &&
+        cpu_status.device_available &&
+        !cpu_status.pool_supported &&
+        backend_memory_status(ps).backend == :cpu &&
         reclaim_backend_memory!(Val(:cpu)) == false ? 0.0 : 1.0
 
     extension_error =
@@ -126,31 +136,124 @@ function case_13_threaded_backend_api_validation(artifact_dir::AbstractString)
         loaded_extensions() isa Tuple ? 0.0 : 1.0
     missing_extension_error =
         extension_loaded(Val(:pencilfft)) ? 0.0 :
-        (_throws_expected(() -> require_extension(Val(:pencilfft))) &&
-         _throws_expected(() -> extension_dependency_module(Val(:pencilfft))) &&
-         _throws_expected(() -> extension_device_array_type(Val(:pencilfft))) &&
-         _throws_expected(() -> disallow_scalar_indexing!(Val(:pencilfft))) &&
-         _throws_expected(() -> 17_distributed_fft_roundtrip_error()) ? 0.0 : 1.0)
+        (
+            _throws_expected(() -> require_extension(Val(:pencilfft))) &&
+            _throws_expected(() -> extension_dependency_module(Val(:pencilfft))) &&
+            _throws_expected(() -> extension_device_array_type(Val(:pencilfft))) &&
+            _throws_expected(() -> disallow_scalar_indexing!(Val(:pencilfft))) &&
+            _throws_expected(() -> 17_distributed_fft_roundtrip_error()) ? 0.0 : 1.0
+        )
     prepare_cpu_error = prepare_gpu_backend!(Val(:cpu)) === nothing ? 0.0 : 1.0
     abstract_contract_error =
         CIC() isa ShapeFunction && IsothermalElectrons(1.0) isa ElectronClosure ? 0.0 : 1.0
 
     artifact = joinpath(artifact_dir, "13_threaded_backend_api_validation.csv")
     rows = (
-        ("threaded_deposit_max_abs_error", max_deposit_error, 0.0, "absolute", max_deposit_error, 1e-10),
-        ("threaded_density_max_abs_error", max_density_error, 0.0, "absolute", max_density_error, 1e-10),
-        ("threaded_deposit_conservation_error", max_conservation_error, 0.0, "absolute", max_conservation_error, 1e-10),
-        ("threaded_offset_values_max_abs_error", offset_error, 0.0, "absolute", offset_error, 1e-12),
-        ("threaded_zero_particle_error", zero_particle_error, 0.0, "absolute", zero_particle_error, 0.0),
-        ("binomial_workspace_equivalence_error", workspace_error, 0.0, "absolute", workspace_error, 0.0),
+        (
+            "threaded_deposit_max_abs_error",
+            max_deposit_error,
+            0.0,
+            "absolute",
+            max_deposit_error,
+            1e-10,
+        ),
+        (
+            "threaded_density_max_abs_error",
+            max_density_error,
+            0.0,
+            "absolute",
+            max_density_error,
+            1e-10,
+        ),
+        (
+            "threaded_deposit_conservation_error",
+            max_conservation_error,
+            0.0,
+            "absolute",
+            max_conservation_error,
+            1e-10,
+        ),
+        (
+            "threaded_offset_values_max_abs_error",
+            offset_error,
+            0.0,
+            "absolute",
+            offset_error,
+            1e-12,
+        ),
+        (
+            "threaded_zero_particle_error",
+            zero_particle_error,
+            0.0,
+            "absolute",
+            zero_particle_error,
+            0.0,
+        ),
+        (
+            "binomial_workspace_equivalence_error",
+            workspace_error,
+            0.0,
+            "absolute",
+            workspace_error,
+            0.0,
+        ),
         ("cpu_backend_contract_error", backend_error, 0.0, "absolute", backend_error, 0.0),
-        ("cpu_backend_copy_roundtrip_error", host_copy_error, 0.0, "absolute", host_copy_error, 0.0),
-        ("backend_memory_pressure_error", memory_pressure(mem), 0.75, "absolute", memory_pressure_error, 0.0),
-        ("cpu_backend_status_contract_error", cpu_status_error, 0.0, "absolute", cpu_status_error, 0.0),
-        ("extension_registry_contract_error", extension_error, 0.0, "absolute", extension_error, 0.0),
-        ("missing_extension_fallback_contract_error", missing_extension_error, 0.0, "absolute", missing_extension_error, 0.0),
-        ("prepare_cpu_backend_contract_error", prepare_cpu_error, 0.0, "absolute", prepare_cpu_error, 0.0),
-        ("abstract_api_type_contract_error", abstract_contract_error, 0.0, "absolute", abstract_contract_error, 0.0),
+        (
+            "cpu_backend_copy_roundtrip_error",
+            host_copy_error,
+            0.0,
+            "absolute",
+            host_copy_error,
+            0.0,
+        ),
+        (
+            "backend_memory_pressure_error",
+            memory_pressure(mem),
+            0.75,
+            "absolute",
+            memory_pressure_error,
+            0.0,
+        ),
+        (
+            "cpu_backend_status_contract_error",
+            cpu_status_error,
+            0.0,
+            "absolute",
+            cpu_status_error,
+            0.0,
+        ),
+        (
+            "extension_registry_contract_error",
+            extension_error,
+            0.0,
+            "absolute",
+            extension_error,
+            0.0,
+        ),
+        (
+            "missing_extension_fallback_contract_error",
+            missing_extension_error,
+            0.0,
+            "absolute",
+            missing_extension_error,
+            0.0,
+        ),
+        (
+            "prepare_cpu_backend_contract_error",
+            prepare_cpu_error,
+            0.0,
+            "absolute",
+            prepare_cpu_error,
+            0.0,
+        ),
+        (
+            "abstract_api_type_contract_error",
+            abstract_contract_error,
+            0.0,
+            "absolute",
+            abstract_contract_error,
+            0.0,
+        ),
     )
     _write_metric_csv(artifact, rows)
     return _metric_rows_to_results(
@@ -171,5 +274,11 @@ VALIDATION_CASE = ValidationCase(
 )
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    exit(_run_single_case_main(VALIDATION_CASE, ARGS; default_artifact_dir = joinpath(@__DIR__, "artifacts")))
+    exit(
+        _run_single_case_main(
+            VALIDATION_CASE,
+            ARGS;
+            default_artifact_dir = joinpath(@__DIR__, "artifacts"),
+        ),
+    )
 end

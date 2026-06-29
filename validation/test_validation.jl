@@ -29,7 +29,10 @@ end
         artifact_dir = joinpath(dir, "artifacts")
         mkpath(artifact_dir)
         open(joinpath(artifact_dir, "validation_summary.csv"), "w") do io
-            println(io, "id,category,reference_kind,reference,metric,measured,expected,error_kind,error,tolerance,status,artifact,notes")
+            println(
+                io,
+                "id,category,reference_kind,reference,metric,measured,expected,error_kind,error,tolerance,status,artifact,notes",
+            )
             println(io, "case_a,cat,analytic,ref,m_a,0,0,absolute,0.1,1,pass,,")
             println(io, "case_b,cat,analytic,ref,m_b,0,0,absolute,0.2,1,pass,,")
         end

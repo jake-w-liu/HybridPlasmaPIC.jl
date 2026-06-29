@@ -16,5 +16,11 @@ end
 VALIDATION_PLOT = plot_19_integrator_camcl_semiimplicit
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    exit(_run_single_plot_main(VALIDATION_PLOT, ARGS; default_artifact_dir = joinpath(@__DIR__, "artifacts")))
+    exit(
+        _run_single_plot_main(
+            VALIDATION_PLOT,
+            ARGS;
+            default_artifact_dir = joinpath(@__DIR__, "artifacts"),
+        ),
+    )
 end

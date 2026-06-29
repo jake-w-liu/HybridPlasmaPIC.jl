@@ -31,10 +31,8 @@ function case_04_particle_push_collision_boundaries(artifact_dir::AbstractString
     reflected.x[1] .= (-0.2, 1.2)
     reflected.v[1] .= (-3.0, 4.0)
     apply_reflecting!(reflected, (0.0,), (1.0,))
-    reflecting_error = max(
-        maximum(abs, reflected.x[1] .- [0.2, 0.8]),
-        maximum(abs, reflected.v[1] .- [3.0, -4.0]),
-    )
+    reflecting_error =
+        max(maximum(abs, reflected.x[1] .- [0.2, 0.8]), maximum(abs, reflected.v[1] .- [3.0, -4.0]))
 
     rng = MersenneTwister(31)
     coll = ParticleSet{1,Float64}(4_000)
@@ -49,9 +47,23 @@ function case_04_particle_push_collision_boundaries(artifact_dir::AbstractString
 
     artifact = joinpath(artifact_dir, "04_particle_push_collision_boundaries.csv")
     rows = (
-        ("boris_uniform_B_speed_relative_error", speed_relerr, 0.0, "relative", speed_relerr, 1e-12),
+        (
+            "boris_uniform_B_speed_relative_error",
+            speed_relerr,
+            0.0,
+            "relative",
+            speed_relerr,
+            1e-12,
+        ),
         ("periodic_boundary_max_abs_error", periodic_error, 0.0, "absolute", periodic_error, 1e-12),
-        ("reflecting_boundary_max_abs_error", reflecting_error, 0.0, "absolute", reflecting_error, 1e-12),
+        (
+            "reflecting_boundary_max_abs_error",
+            reflecting_error,
+            0.0,
+            "absolute",
+            reflecting_error,
+            1e-12,
+        ),
         ("bgk_momentum_relative_error", momentum_relerr, 0.0, "relative", momentum_relerr, 1e-10),
         ("bgk_energy_relative_error", energy_relerr, 0.0, "relative", energy_relerr, 1e-10),
     )
@@ -75,5 +87,11 @@ VALIDATION_CASE = ValidationCase(
 )
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    exit(_run_single_case_main(VALIDATION_CASE, ARGS; default_artifact_dir = joinpath(@__DIR__, "artifacts")))
+    exit(
+        _run_single_case_main(
+            VALIDATION_CASE,
+            ARGS;
+            default_artifact_dir = joinpath(@__DIR__, "artifacts"),
+        ),
+    )
 end
