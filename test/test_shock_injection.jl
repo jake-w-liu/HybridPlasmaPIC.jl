@@ -95,6 +95,27 @@ end
     @test_throws ArgumentError reflected_flux_fraction(αset(0.6, 1.0), xf, Vs, V1; window = 0.0)
 end
 
+@testset "run_perp_shock_rh: sustained two-state-RH shock reproduces Leroy structure" begin
+    # Two-state RH initialization (Leroy 1982 setup) → a sustained perpendicular
+    # shock whose downstream holds the fluid-RH compression, with an emergent
+    # magnetic overshoot and a reflected fraction that rises with M_A (Leroy trend).
+    cfg = (β = 1.0, N = 256, nppc = 64, nsteps = 600, Lx = 160.0, t_avg_start = 6.0)
+    r4 = run_perp_shock_rh(; MA = 4.0, seed = 1, cfg...)
+    r6 = run_perp_shock_rh(; MA = 6.0, seed = 1, cfg...)
+    r8 = run_perp_shock_rh(; MA = 8.0, seed = 1, cfg...)
+    for (r, MA) in ((r4, 4.0), (r6, 6.0), (r8, 8.0))
+        @test r.nsamples > 0
+        @test isapprox(r.M_real, MA; rtol = 0.02)            # frame setup is consistent
+        @test isapprox(r.compression, r.X_rh; rtol = 0.05)   # downstream holds the RH state
+        @test 1.1 < r.overshoot < 1.9                        # a real magnetic overshoot
+    end
+    @test r4.reflected_flux < r6.reflected_flux < r8.reflected_flux  # α rises with M_A (Leroy)
+    # deterministic for a fixed seed
+    @test run_perp_shock_rh(; MA = 6.0, seed = 1, cfg...).compression == r6.compression
+    # a non-compressive Mach is rejected (the RH solver finds no shock)
+    @test_throws ArgumentError run_perp_shock_rh(; MA = 0.5, cfg...)
+end
+
 @testset "shock_front is robust to ripples and boundary artifacts" begin
     T = Float64
     N = 200

@@ -299,7 +299,7 @@ export SpectralOperators, exp_filter!, dealias_two_thirds!, fft_friendly_size, w
 export CAMCLStepper, init_camcl!, step_camcl!
 export EMPIC, EMPIC1D, init_empic!, step_empic!, em_field_energy, charge_conservation_residual
 export HallMHDModel, HallMHDState, hall_mhd_ohms_law!, hall_mhd_rhs!, step_hall_mhd!
-export run_perp_shock, perp_shock_sweep
+export run_perp_shock, run_perp_shock_rh, perp_shock_sweep
 export collide_bgk!
 export deposit_scalar_threaded!, density_threaded!
 export energy_budget, momentum_budget, jdotE_density, resistive_dissipation

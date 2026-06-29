@@ -169,6 +169,142 @@ function run_perp_shock(;
     return (; n2, Bz2, Vs, X_rh, frozen_ratio, reflected_fraction, reflected_flux, M_real, xf)
 end
 
+# mean / population std / median of a Float64 vector (NaN-safe, no Statistics dep)
+function _avg_std(v::AbstractVector{T}) where {T}
+    isempty(v) && return (T(NaN), T(NaN))
+    m = sum(v) / length(v)
+    s = sqrt(sum(x -> (x - m)^2, v) / length(v))
+    return m, s
+end
+function _median(v::AbstractVector{T}) where {T}
+    isempty(v) && return T(NaN)
+    s = sort(v)
+    n = length(s)
+    return isodd(n) ? s[(n+1)÷2] : (s[n÷2] + s[n÷2+1]) / 2
+end
+
+"""
+    run_perp_shock_rh(; MA, β=1.0, N=512, Lx=200, γe=5/3, η=0.02, nppc=160,
+                        nsteps=1500, seed=1, t_avg_start=8.0)
+        -> (; compression, compression_std, reflected_flux, reflected_flux_std,
+              overshoot, overshoot_std, X_rh, M_real, nsamples)
+
+Sustained perpendicular shock initialized from the **two-state Rankine–Hugoniot
+profile** (Leroy et al. 1982 setup): the downstream half is pre-loaded at the
+fluid-RH compression and temperature, the upstream at `(n=1, B=B0, u=−U0)`, joined
+by a thin `tanh` ramp, and upstream plasma is injected at the inflow so the shock
+runs to a quasi-stationary state. Diagnostics (downstream median compression, the
+front overshoot `B_max/B₂`, and the flux-based reflected fraction α) are
+time-averaged once `t ≥ t_avg_start`. Use this — not the piston `run_perp_shock` —
+to compare against sustained published perpendicular shocks.
+
+`MA` is the shock-frame Alfvén Mach number; `β = β_e = β_i` sets the upstream
+temperatures (`Te = β/2`, `vthi = √(β/2)`).
+"""
+function run_perp_shock_rh(;
+    MA::Real,
+    β::Real = 1.0,
+    N::Integer = 512,
+    Lx::Real = 200.0,
+    γe::Real = 5 / 3,
+    η::Real = 0.02,
+    nppc::Integer = 160,
+    nsteps::Integer = 1500,
+    seed::Integer = 1,
+    t_avg_start::Real = 8.0,
+)
+    N >= 8 || throw(ArgumentError("N must be ≥ 8"))
+    nppc >= 1 || throw(ArgumentError("nppc must be positive"))
+    nsteps >= 1 || throw(ArgumentError("nsteps must be ≥ 1"))
+    T = Float64
+    MAT = _require_valid_positive_shock_ma(MA, T)
+    LxT = _require_finite_positive_real("Lx", Lx, T)
+    βT = _require_finite_nonnegative_real("β", β, T)
+    B0 = one(T)
+    Te = βT / 2                              # β_e = 2 Te (n=1, B=1)
+    vthi = sqrt(βT / 2)                      # β_i = 2 vthi²
+    p1 = vthi^2 + Te                         # upstream total pressure
+
+    # fluid Rankine–Hugoniot downstream at shock-frame Mach MA (perpendicular: Bn=0)
+    rh = rankine_hugoniot(MHDState(one(T), MAT, zero(T), p1, zero(T), B0), T(γe))
+    n2 = rh.X
+    n2 > one(T) || throw(ArgumentError("no compressive RH shock at MA=$MA, β=$β"))
+    Bz2 = n2 * B0
+    pe2 = Te * n2^T(γe)
+    Ti2 = max((rh.down.p - pe2) / n2, zero(T))
+    vth2 = sqrt(Ti2)                          # downstream ion thermal speed
+    U0 = MAT * (n2 - one(T)) / n2             # so M_real = U0·n2/(n2−1) = MA
+    Vs = U0 / (n2 - one(T))
+
+    sh = PerpShock(N, LxT; Te, γe, η, τ = U0, B0)
+    Np = Int(nppc) * Int(N)
+    ps = ParticleSet{1,T}(Np)
+    rng = MersenneTwister(Int(seed))
+    xr = LxT / 3                              # initial shock position (downstream = x<xr)
+    initial_ramp!(sh, ps, xr, T(2), one(T), n2, B0, Bz2; rng = rng)
+    @inbounds for p = 1:nparticles(ps)
+        if ps.x[1][p] < xr                    # downstream: at rest (wall frame), hot
+            ps.v[1][p] = vth2 * randn(rng)
+            ps.v[2][p] = vth2 * randn(rng)
+            ps.v[3][p] = vth2 * randn(rng)
+        else                                  # upstream: drift −U0, cool
+            ps.v[1][p] = -U0 + vthi * randn(rng)
+            ps.v[2][p] = vthi * randn(rng)
+            ps.v[3][p] = vthi * randn(rng)
+        end
+    end
+    init_shock!(sh, ps)
+
+    wp = shock_density_weight(one(T), LxT, Np)
+    injector = ShockInjector(
+        MersenneTwister(Int(seed) + 1);
+        n0 = one(T),
+        drift = U0,
+        vthi = vthi,
+        σt = vthi,
+        weight = wp,
+        first_id = Np + 1,
+    )
+
+    dt = T(0.02)
+    comp = T[]
+    over = T[]
+    alpha = T[]
+    for st = 1:nsteps
+        step_shock!(sh, ps, dt; NB = 2, injector = injector)
+        if st * dt >= T(t_avg_start) && st % 20 == 0
+            xf, _ = shock_front(sh.Bz, sh.x)
+            isfinite(xf) || continue
+            T(15) < xf < LxT - T(20) || continue       # shock well inside the box
+            dmask = (sh.x .> T(8)) .& (sh.x .< xf - T(8))
+            any(dmask) || continue
+            nd = sh.n[dmask]
+            Bzd = sh.Bz[dmask]
+            ndm = _median(nd)
+            ndm > one(T) || continue
+            push!(comp, ndm)
+            fmask = (sh.x .> xf - T(8)) .& (sh.x .< xf + T(2))
+            push!(over, maximum(sh.Bz[fmask]) / _median(Bzd))
+            Vsr = U0 / (ndm - one(T))
+            push!(alpha, reflected_flux_fraction(ps, xf, Vsr, U0 + Vsr))
+        end
+    end
+    cm, cs = _avg_std(comp)
+    om, os = _avg_std(over)
+    am, as = _avg_std(alpha)
+    return (;
+        compression = cm,
+        compression_std = cs,
+        reflected_flux = am,
+        reflected_flux_std = as,
+        overshoot = om,
+        overshoot_std = os,
+        X_rh = n2,
+        M_real = U0 + Vs,
+        nsamples = length(comp),
+    )
+end
+
 # weighted-free arithmetic mean of `v` over the masked nodes (NaN if empty)
 function _slab_mean(v::AbstractVector{T}, mask::AbstractVector{Bool}) where {T}
     s = zero(T)
