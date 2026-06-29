@@ -215,8 +215,17 @@ function electron_velocity!(
     nfloor = 1e-6,
 ) where {D,T}
     nf = _require_finite_positive_real("nfloor", nfloor, T)
-    size(n) == size(ue[1]) ||
-        throw(DimensionMismatch("n size $(size(n)) does not match ue size $(size(ue[1]))"))
+    sz = size(n)
+    # Validate EVERY component size before the @inbounds loop: a shorter ui[c]/J[c]
+    # would otherwise be read out of bounds (silent UB) when iterating ue[c].
+    for c = 1:3
+        size(ue[c]) == sz ||
+            throw(DimensionMismatch("ue[$c] size $(size(ue[c])) does not match n size $sz"))
+        size(ui[c]) == sz ||
+            throw(DimensionMismatch("ui[$c] size $(size(ui[c])) does not match n size $sz"))
+        size(J[c]) == sz ||
+            throw(DimensionMismatch("J[$c] size $(size(J[c])) does not match n size $sz"))
+    end
     @inbounds for c = 1:3
         uec, uic, Jc = ue[c], ui[c], J[c]
         for I in eachindex(uec)

@@ -19,6 +19,11 @@ using HybridPlasmaPIC, Test, Random
     electron_velocity!(ue, ui, J, n2; nfloor = 1e-6)
     @test ue[1][3] ≈ ui[1][3] - J[1][3] / 1e-6
     @test_throws ArgumentError electron_velocity!(ue, ui, J, n; nfloor = 0.0)
+    # mismatched component sizes are rejected, not read out of bounds
+    Jbad = (J[1], T[1.0, 2.0], J[3])             # J[2] too short
+    @test_throws DimensionMismatch electron_velocity!(ue, ui, Jbad, n)
+    uibad = (ui[1], ui[2], T[1.0])               # ui[3] too short
+    @test_throws DimensionMismatch electron_velocity!(ue, uibad, J, n)
 end
 
 @testset "§6.4 electron_velocity! from HybridFields (analytic curl)" begin
