@@ -320,6 +320,13 @@ that produces Leroy's reflected fraction α: returns the same fields, with
 `reflected_flux` the rest-frame α (flux of back-streaming ions in `[xf, xf+window]`
 over the upstream flux n₁·V1) and `M_real = MA` (the inflow Mach, exact by
 construction).
+
+Resolution matters: the default `dx ≈ 0.4 d_i` (N≈512, Lx=200) under-resolves the
+ion-inertial ramp, which then oscillates (spurious reformation) and suppresses α.
+Converging `dx → 0.1 d_i` steadies the shock and lifts α toward Leroy's 13.7% (and
+the overshoot toward 1.26). That REQUIRES a smaller `dt`: the whistler CFL scales as
+`dt ∝ dx²`, so `dt` is a keyword and an over-large `dt` is rejected (it would go
+silently unstable). Use e.g. `N=1024, dt=0.005` or `N=2048, dt=0.00125`.
 """
 function run_perp_shock_leroy(;
     MA::Real,
@@ -333,6 +340,7 @@ function run_perp_shock_leroy(;
     seed::Integer = 1,
     t_avg_start::Real = 8.0,
     window::Real = 8.0,
+    dt::Real = 0.02,
 )
     N >= 8 || throw(ArgumentError("N must be ≥ 8"))
     nppc >= 1 || throw(ArgumentError("nppc must be positive"))
@@ -386,13 +394,25 @@ function run_perp_shock_leroy(;
         p_up = p_up,
     )
 
-    dt = T(0.02)
+    # whistler CFL: the RK4 Bz substep (dt/NB) must resolve ω_W(k_max). At fine dx
+    # the limit drops below 0.02, so a fixed dt silently goes unstable — guard it
+    # (the resolution needed to approach Leroy's α REQUIRES dt ∝ dx²; pass `dt`).
+    dtT = _require_finite_positive_real("dt", dt, T)
+    Kdx = T(π) / sh.s.dx                                   # d_i = 1 in these units
+    ω_w = T(0.5) * (sqrt(Kdx^4 + 4Kdx^2) + Kdx^2)
+    dt_cfl = T(0.85) * T(2.8) * 2 / ω_w                   # 2 = NB, 2.8 = RK4 bound
+    dtT <= dt_cfl || throw(
+        ArgumentError(
+            "dt=$dt exceeds the whistler-CFL limit $(round(dt_cfl, sigdigits = 3)) at " *
+            "N=$N (dx=$(round(sh.s.dx, sigdigits = 3))); reduce dt (∝ dx²) at fine resolution",
+        ),
+    )
     comp = T[]
     over = T[]
     alpha = T[]
     for st = 1:nsteps
-        step_leroy_shock!(sh, ps, dt; NB = 2, bc = bc)
-        if st * dt >= T(t_avg_start) && st % 20 == 0
+        step_leroy_shock!(sh, ps, dtT; NB = 2, bc = bc)
+        if st * dtT >= T(t_avg_start) && st % 20 == 0
             xf, _ = shock_front(sh.Bz, sh.x)
             isfinite(xf) || continue
             T(12) < xf < LxT - T(12) || continue

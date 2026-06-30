@@ -137,6 +137,25 @@ end
     @test run_perp_shock_leroy(; MA = 6.0, seed = 1, cfg...).reflected_flux == r6.reflected_flux
     @test_throws ArgumentError run_perp_shock_leroy(; MA = 0.5, cfg...)
     @test_throws ArgumentError run_perp_shock_leroy(; MA = 6.0, window = 0.0, cfg...)
+    # whistler-CFL guard: a too-large dt at fine dx is rejected, not silently unstable
+    @test_throws ArgumentError run_perp_shock_leroy(;
+        MA = 6.0,
+        N = 1024,
+        nppc = 8,
+        nsteps = 10,
+        Lx = 200.0,
+        dt = 0.02,
+    )
+    @test_throws ArgumentError run_perp_shock_leroy(; MA = 6.0, dt = 0.0, cfg...)
+    # the same fine dx runs fine with a CFL-correct dt
+    @test run_perp_shock_leroy(;
+        MA = 6.0,
+        N = 1024,
+        nppc = 8,
+        nsteps = 10,
+        Lx = 200.0,
+        dt = 0.005,
+    ).nsamples >= 0
 end
 
 @testset "shock_front is robust to ripples and boundary artifacts" begin

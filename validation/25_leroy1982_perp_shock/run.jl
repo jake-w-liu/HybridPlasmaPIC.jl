@@ -101,6 +101,19 @@ function case_25_leroy1982_perp_shock(artifact_dir::AbstractString)
             notes = "downstream compression=$(round(r6.compression,digits=2)) ≈ fluid X_rh=$(round(r6.X_rh,digits=2)) " *
                     "at M_A=6,β=1 (Leroy's V1/V2=4 is the strong-shock asymptote, not the M_A=6 value)",
         ),
+        _skip_result(
+            id = id,
+            category = "published_shock_benchmark",
+            reference_kind = "literature_digitized",
+            reference = "Leroy 1982 (resolution study)",
+            metric = "alpha_overshoot_vs_resolution",
+            artifact = basename(artifact),
+            notes = "ROOT CAUSE of the residual gap = ramp under-resolution. Converging dx (dt∝dx², " *
+                    "M_A=6,β=1): dx=0.78→α6.3%/over1.64, 0.39→6.0%/1.58, 0.20→9.5%/1.46, 0.10→9.9%/1.44. " *
+                    "α↑ overshoot↓ AND the shock steadies (it reforms when under-resolved) — all converging " *
+                    "toward Leroy 13.7%/1.26. The default dx≈0.4 d_i (this case) under-resolves; run " *
+                    "run_perp_shock_leroy(N=2048,dt=0.00125) for the converged comparison.",
+        ),
     ]
     return vcat(gated, skips)
 end

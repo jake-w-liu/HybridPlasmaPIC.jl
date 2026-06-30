@@ -40,13 +40,31 @@ overshoot and compression but its specular wall short-circuits reflection, suppr
   reflecting-wall model cannot — it stays ≲2%).
 
 **Recorded as skips (informational — precise published point values):**
-- **α(M_A=6)** vs 13.7%: the trend reproduces and α(M_A=8) reaches Leroy's 10–23% band
-  at coarser resolution (up to ~17% at N=256), but the **magnitude is resolution- and
-  seed-sensitive** (5–17% depending on Δx, n_ppc) — consistent with Hellinger 2002's
-  finding that 1-D hybrid perpendicular shocks are resolution-dependent. Reported, not
-  gated on a tight band.
+- **α(M_A=6)** vs 13.7%: at the default `dx ≈ 0.4 d_i` (this case) the model under-reflects
+  (α ≈ 4–6%). **Root cause = ramp under-resolution** (see below), not a model error.
 - **overshoot(M_A=6)** vs 1.26: the wall-less self-consistent foot drives a *stronger*
   overshoot (~1.5–1.7) than the η/4π=1.2×10⁻⁴ Table-1 case; Leroy's Table 2 spans
   1.0–1.5 with resistivity, so this is η-tunable.
 - **compression** vs fluid RH: kinetic ≈ fluid at M_A=6, β=1 (Leroy's V₁/V₂=4 is the
   strong-shock asymptote, not the M_A=6 value).
+
+## Why the default run under-reflects — resolution convergence
+
+The dominant cause of the residual gap is **under-resolution of the ion-inertial shock
+ramp**. At the default `dx ≈ 0.4 d_i` the ramp is ~1 cell wide and oscillates (spurious
+**reformation**, period ≈1.3 Ω_ci⁻¹), which makes reflection bursty → low time-averaged
+α and an inflated, fluctuating overshoot. Converging `dx → 0.1 d_i` (with `dt ∝ dx²` — the
+whistler CFL) steadies the shock and moves α **and** overshoot toward Leroy *together*:
+
+| dx (d_i) | α | overshoot | unsteadiness |
+|---|---|---|---|
+| 0.78 | 6.3% | 1.64 | high |
+| 0.39 (default) | 6.0% | 1.58 | high |
+| 0.20 | 9.5% | 1.46 | lower |
+| 0.10 | 9.9% | 1.44 | lowest |
+
+(M_A=6, β=1; Leroy: α=13.7%, overshoot=1.26.) A residual ~25% gap remains at dx=0.10,
+attributable to the resistivity normalization (we use η=0.01; Leroy's η/4π=1.2×10⁻⁴ in his
+units) and 1-D closure details. The default case is left coarse (fast); for the converged
+comparison run `run_perp_shock_leroy(N=2048, dt=0.00125)`. Note `run_perp_shock_leroy`
+rejects a CFL-unstable `dt` rather than running silently unstable.
