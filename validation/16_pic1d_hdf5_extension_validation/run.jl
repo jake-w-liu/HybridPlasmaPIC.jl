@@ -100,7 +100,7 @@ function case_16_pic1d_hdf5_extension_validation(artifact_dir::AbstractString)
             _skip_result(
                 id = id,
                 category = "hdf5_extension",
-                reference_kind = "external_open_source",
+                reference_kind = "external_library",
                 reference = "HDF5.jl package extension",
                 metric = "hdf5_extension_roundtrip_max_abs_error",
                 notes = "Skipped because HDF5 extension is not loadable: $(typeof(err))",

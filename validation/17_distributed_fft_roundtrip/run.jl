@@ -17,7 +17,7 @@ function case_17_distributed_fft_roundtrip(artifact_dir::AbstractString)
             _skip_result(
                 id = id,
                 category = "parallel_fft",
-                reference_kind = "external_open_source",
+                reference_kind = "external_library",
                 reference = "PencilFFTs/PencilArrays extension compared with FFTW",
                 metric = "roundtrip_max_abs_error",
                 artifact = basename(artifact),
@@ -54,7 +54,7 @@ function _case_17_distributed_fft_roundtrip_loaded(artifact_dir::AbstractString)
     return _metric_rows_to_results(
         id = id,
         category = "parallel_fft",
-        reference_kind = "external_open_source",
+        reference_kind = "external_library",
         reference = "PencilFFTs/PencilArrays extension compared with FFTW on MPI.COMM_SELF and inverse roundtrip",
         rows = rows,
         artifact = artifact,

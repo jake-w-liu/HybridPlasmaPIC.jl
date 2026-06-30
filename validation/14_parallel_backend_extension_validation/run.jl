@@ -112,7 +112,7 @@ function case_14_parallel_backend_extension_validation(artifact_dir::AbstractStr
             _metric_rows_to_results(
                 id = id,
                 category = "mpi_serial_smoke",
-                reference_kind = "external_open_source",
+                reference_kind = "external_library",
                 reference = "MPI.jl COMM_WORLD size-1 Cartesian communicator",
                 rows = mpirows,
                 artifact = artifact,
@@ -125,7 +125,7 @@ function case_14_parallel_backend_extension_validation(artifact_dir::AbstractStr
             _skip_result(
                 id = id,
                 category = "mpi_serial_smoke",
-                reference_kind = "external_open_source",
+                reference_kind = "external_library",
                 reference = "MPI.jl COMM_WORLD size-1 Cartesian communicator",
                 metric = "mpi_single_rank_cartesian_error",
                 notes = mpi_notes,

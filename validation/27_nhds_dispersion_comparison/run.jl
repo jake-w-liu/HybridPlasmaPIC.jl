@@ -28,7 +28,7 @@ using .HybridDispersionOracle
 function case_27_nhds_dispersion_comparison(artifact_dir::AbstractString)
     id = "27_nhds_dispersion_comparison"
     cat = "external_plasma_code"
-    refkind = "external_open_source"
+    refkind = "external_plasma_code"
     ref = "NHDS (danielver02/NHDS, BSD-2) whistler.in: β=1 parallel Vlasov-Maxwell"
     nhds_out = joinpath(@__DIR__, "nhds_build", "NHDS", "output_whistler.in_plasma.dat")
 

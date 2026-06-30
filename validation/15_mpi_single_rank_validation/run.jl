@@ -225,7 +225,7 @@ function case_15_mpi_single_rank_validation(artifact_dir::AbstractString)
         return _metric_rows_to_results(
             id = id,
             category = "mpi_single_rank",
-            reference_kind = "external_open_source",
+            reference_kind = "external_library",
             reference = "MPI.jl COMM_SELF transport and serial reference invariants",
             rows = rows,
             artifact = artifact,
