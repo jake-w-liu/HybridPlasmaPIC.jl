@@ -17,6 +17,9 @@ cd "$BD"
 if [ ! -d NHDS ]; then
     git clone --depth 1 https://github.com/danielver02/NHDS.git
 fi
+# strip the clone's own .git so editors don't register it as a nested repo and
+# decorate its generated files (it is gitignored here and never updated).
+rm -rf NHDS/.git
 cd NHDS
 if [ ! -x src/NHDS ]; then
     sh ./configure FC="${FC:-gfortran}"

@@ -25,6 +25,9 @@ fi
 # 2. clone Hybrid-VPIC (hybridVPIC branch; note: this branch does NOT use Kokkos)
 cd "$BD"
 [ -d vpic-kokkos ] || git clone --depth 1 -b hybridVPIC https://github.com/lanl/vpic-kokkos.git
+# strip the clone's own .git so editors don't register it as a nested repo and
+# decorate its generated files (it is gitignored here and never updated).
+rm -rf vpic-kokkos/.git
 
 # 3. build the VPIC deck-compiler (CMake 4.x needs the policy-min shim for old VPIC)
 cd vpic-kokkos
