@@ -23,3 +23,5 @@ validation/**/*.dat
 *.pdf
 *.csv
 tmp
+validation/**/vpic_build/
+validation/**/*.txt
