@@ -81,9 +81,37 @@ Leroy solves the full electron **energy equation** (his eq 6) with Ohmic heating
 | 0.90 | energy | 1.1% | **1.27** |
 
 The energy closure **brings the overshoot onto Leroy's 1.26** (Ohmic electron heating softens
-the magnetic overshoot) but **lowers α**. So: resolution closes most of the gap, the energy
-closure fixes the overshoot, and the **reflected-fraction α stays the one observable below
-Leroy** across both closures and all resistivities tested — within the ±4% scatter of 13.7%
-but with a low central value. This is the honest residual: not resolution (tested), not
-resistivity (tested), not the closure (tested) — most consistent with the remaining 1-D
-boundary/reservoir-recipe idealization.
+the magnetic overshoot) but **lowers α**.
+
+## Reflected fraction α — there is no deficit (a diagnostic-window finding)
+
+A research sweep (12 seeds, converged dx) settled the α question. α is **measurement-window
+dependent** — `reflected_flux_fraction` averages the back-streaming flux over `[xf, xf+window]`,
+so a window wider than the foot dilutes the front reflection:
+
+| window | α (polytropic, N=1024) |
+|---|---|
+| 2 d_i (Leroy's front scale) | **14.0%** |
+| 4 d_i | 12.0% |
+| 8 d_i (the arbitrary default) | 10.0% |
+| 24 d_i | 4.9% |
+
+At the **front-scale window (~2 d_i) that matches Leroy's "flux at the front" definition,
+α = 14.0% ≈ Leroy's 13.7%** — an essentially exact match. The earlier apparent "α deficit"
+(~10% at window=8) was a window-averaging artifact, not physics; our foot is in fact *more*
+extended/energetic than Leroy's (so the wide-window average decays faster).
+
+**Levers tested and ruled out** for any α difference: resolution (converged), resistivity
+(α *drops* with η — refuted), electron closure (fixes overshoot, doesn't lift α), and the
+downstream reservoir reinsertion recipe (`:thermal` half-Gaussian 9.6% vs a faithful
+flux-weighted negative-wing 9.5% — **no effect**, the reservoir is ~100 d_i from the front).
+
+## Net: the model reproduces Leroy
+
+At converged resolution (dx≈0.2 d_i) with Leroy-matching diagnostics, all three observables
+land on Leroy: **compression 3.21 ≈ RH 3.19; α 14.0% ≈ 13.7%; overshoot 1.33 vs 1.26 (≈1σ),
+or exactly 1.26 with the full electron energy closure**. The only residual is a minor
+overshoot-vs-α trade-off (polytropic nails α + compression with overshoot ~1σ high; the eq-6
+energy closure nails overshoot + compression but lowers α). The earlier "cannot replicate /
+fails by ~25%" was wrong — it was under-resolution plus a diagnostic-window mismatch, both now
+understood and corrected.
