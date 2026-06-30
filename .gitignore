@@ -16,6 +16,9 @@ validation/**/artifacts/
 validation/**/tmp/
 validation/**/*.csv
 validation/**/*.pdf
+# external plasma-code checkouts/binaries/outputs (case 27 NHDS) — regenerated, never committed
+validation/**/nhds_build/
+validation/**/*.dat
 
 *.pdf
 *.csv
