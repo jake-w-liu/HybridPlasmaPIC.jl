@@ -44,6 +44,7 @@ mutable struct PerpShock{T}
     k3::Vector{T}
     k4::Vector{T}
     tmp::Vector{T}
+    closure::Symbol              # electron closure: :polytropic (pe=Te·n^γe) or :energy (Leroy eq 6)
 end
 
 """
@@ -63,6 +64,7 @@ function PerpShock(
     τ = 3.0,
     B0 = 1.0,
     nfloor = 1e-6,
+    closure::Symbol = :polytropic,
 ) where {T<:AbstractFloat}
     LxT = _require_finite_positive_real("Lx", Lx, T)
     TeT = _require_finite_nonnegative_real("Te", Te, T)
@@ -71,6 +73,8 @@ function PerpShock(
     τT = _require_finite_real("τ", τ, T)
     B0T = _require_finite_real("B0", B0, T)
     nfloorT = _require_finite_positive_real("nfloor", nfloor, T)
+    (closure === :polytropic || closure === :energy) ||
+        throw(ArgumentError("closure must be :polytropic or :energy, got :$closure"))
     s = SBP1D(N, LxT)
     x = collect(range(zero(T), LxT; length = N))
     z() = zeros(T, N)
@@ -103,6 +107,7 @@ function PerpShock(
         z(),
         z(),
         z(),
+        closure,
     )
 end
 
@@ -239,7 +244,11 @@ function compute_E!(sh::PerpShock{T}) where {T}
     N = sh.s.n
     η = sh.η
     nf = sh.nfloor
-    @. sh.pe = sh.Te * sh.n^sh.γe
+    # :polytropic — pe is an algebraic function of n; :energy — pe is a dynamical
+    # field evolved by the energy equation (do not overwrite it here).
+    if sh.closure === :polytropic
+        @. sh.pe = sh.Te * sh.n^sh.γe
+    end
     sbp_deriv!(sh.DBz, sh.Bz, sh.s)
     sbp_deriv!(sh.Dpe, sh.pe, sh.s)
     @inbounds for i = 1:N
@@ -292,6 +301,7 @@ end
 "Initialize carried E from the loaded particles (call once after loading)."
 function init_shock!(sh::PerpShock{T}, ps::ParticleSet{1,T}) where {T}
     deposit_moments!(sh, ps)
+    @. sh.pe = sh.Te * sh.n^sh.γe        # consistent IC (the :energy closure evolves from here)
     compute_E!(sh)
     return sh
 end
@@ -420,6 +430,52 @@ function _rk4_bz_leroy!(sh::PerpShock{T}, h::T, B_down::T, τ_down::T) where {T}
     return sh
 end
 
+# Leroy 1982 eq 6 — electron energy equation (advective form, our normalisation):
+#   ∂t pe = −ux ∂x pe − γe pe ∂x ux + (γe−1) η (∂x Bz)²        [Jy = −∂x Bz]
+# Advanced once per step (after the Bz subcycle), matching Leroy's scheme order
+# (move ions → moments → field → pe → E). ux, ∂x ux and the Ohmic source are
+# frozen across the RK4 stages (only ∂x pe varies); ∂x ux is held in sh.d2 and the
+# Ohmic source in sh.Fb. The two boundary nodes carry fresh injected/reservoir
+# plasma (not yet Ohmically heated) so are clamped to the polytropic value, and pe
+# is floored positive. SBP central advection (no extra dissipation) — the resistive
+# ramp it rides on is itself η-smoothed, which keeps the pe profile well-behaved.
+function _pe_energy_rhs!(dpe::Vector{T}, pe::Vector{T}, sh::PerpShock{T}, γe::T) where {T}
+    sbp_deriv!(sh.DF, pe, sh.s)                                   # ∂x pe (per stage)
+    _d2narrow!(sh.Dpe, pe, sh.s.dx)                              # ∂² pe (electron heat conduction)
+    # advection − compression + Ohmic heating + resistive-scale heat conduction.
+    # The η∂²pe term is electron heat diffusion at the collisional (resistive) scale;
+    # it also damps the 2Δx advection mode that bare SBP central differencing leaves
+    # undamped (without it pe develops grid-scale spikes/undershoots). Leroy's eq 6
+    # omits conduction, so this is the one numerically-required addition — kept at the
+    # same η as the field so it is the minimal resistive-scale regularisation.
+    @. dpe = -sh.ux * sh.DF - γe * pe * sh.d2 + sh.Fb + sh.η * sh.Dpe
+    return dpe
+end
+
+function _rk4_pe_energy!(sh::PerpShock{T}, h::T) where {T}
+    N = sh.s.n
+    γe = sh.γe
+    sbp_deriv!(sh.DBz, sh.Bz, sh.s)                               # ∂x Bz  (= −Jy)
+    sbp_deriv!(sh.d2, sh.ux, sh.s)                                # ∂x ux  (frozen this step)
+    @. sh.Fb = (γe - one(T)) * sh.η * sh.DBz^2                    # Ohmic source (frozen, ≥ 0)
+    pe = sh.pe
+    _pe_energy_rhs!(sh.k1, pe, sh, γe)
+    @. sh.tmp = pe + h / 2 * sh.k1
+    _pe_energy_rhs!(sh.k2, sh.tmp, sh, γe)
+    @. sh.tmp = pe + h / 2 * sh.k2
+    _pe_energy_rhs!(sh.k3, sh.tmp, sh, γe)
+    @. sh.tmp = pe + h * sh.k3
+    _pe_energy_rhs!(sh.k4, sh.tmp, sh, γe)
+    @. pe += h / 6 * (sh.k1 + 2sh.k2 + 2sh.k3 + sh.k4)
+    pf = sh.nfloor * sh.Te                                        # tiny positive floor
+    @inbounds for i = 1:N
+        pe[i] < pf && (pe[i] = pf)
+    end
+    pe[1] = sh.Te * sh.n[1]^γe                                    # downstream-reservoir BC
+    pe[N] = sh.Te * sh.n[N]^γe                                    # upstream-inflow BC
+    return sh
+end
+
 """
     LeroyBoundary(rng; V1, vthi, V2, vth2, B_down, p_up, τ_down=V2)
 
@@ -511,10 +567,13 @@ function step_leroy_shock!(
     end
     # 3. deposit
     deposit_moments!(sh, ps)
-    # 4. subcycle Bz with two-ended mean-field BCs
+    # 4. subcycle Bz (whistler CFL) — and pe alongside it when the energy closure is
+    #    on, so the Ohmic source rides the evolving Bz and both share the safe substep
     hb = dtT / NB
+    energy = sh.closure === :energy
     for _ = 1:NB
         _rk4_bz_leroy!(sh, hb, bc.B_down, bc.τ_down)
+        energy && _rk4_pe_energy!(sh, hb)
     end
     # 5. recompute E
     compute_E!(sh)

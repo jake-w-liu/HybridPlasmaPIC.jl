@@ -158,6 +158,27 @@ end
     ).nsamples >= 0
 end
 
+@testset "electron energy closure (Leroy 1982 eq 6)" begin
+    # The :energy closure evolves pe by Leroy's electron energy equation (advection +
+    # Ohmic heating (γe-1)ηJy² + compression) instead of the polytropic pe=Te·n^γe.
+    cfg = (β = 1.0, N = 256, nppc = 32, nsteps = 300, Lx = 200.0, t_avg_start = 2.0, seed = 1)
+    rp = run_perp_shock_leroy(; MA = 6.0, closure = :polytropic, cfg...)
+    re = run_perp_shock_leroy(; MA = 6.0, closure = :energy, cfg...)
+    rd = run_perp_shock_leroy(; MA = 6.0, cfg...)
+    # default is :polytropic — byte-identical (the new closure must not perturb it)
+    @test rd.compression == rp.compression && rd.overshoot == rp.overshoot
+    @test rd.reflected_flux == rp.reflected_flux
+    # the energy closure runs to a real, finite shock and is a DISTINCT model
+    @test isfinite(re.compression) && re.compression > 1
+    @test isfinite(re.overshoot) && re.overshoot > 0
+    @test re.overshoot != rp.overshoot              # Ohmic heating changes the structure
+    # deterministic for a fixed seed
+    @test run_perp_shock_leroy(; MA = 6.0, closure = :energy, cfg...).overshoot == re.overshoot
+    # the closure symbol is validated at both the struct and runner level
+    @test_throws ArgumentError PerpShock(64, 100.0; closure = :bogus)
+    @test_throws ArgumentError run_perp_shock_leroy(; MA = 6.0, closure = :bogus, cfg...)
+end
+
 @testset "shock_front is robust to ripples and boundary artifacts" begin
     T = Float64
     N = 200

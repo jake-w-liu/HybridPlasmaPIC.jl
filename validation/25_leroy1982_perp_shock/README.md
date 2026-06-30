@@ -63,8 +63,27 @@ whistler CFL) steadies the shock and moves α **and** overshoot toward Leroy *to
 | 0.20 | 9.5% | 1.46 | lower |
 | 0.10 | 9.9% | 1.44 | lowest |
 
-(M_A=6, β=1; Leroy: α=13.7%, overshoot=1.26.) A residual ~25% gap remains at dx=0.10,
-attributable to the resistivity normalization (we use η=0.01; Leroy's η/4π=1.2×10⁻⁴ in his
-units) and 1-D closure details. The default case is left coarse (fast); for the converged
-comparison run `run_perp_shock_leroy(N=2048, dt=0.00125)`. Note `run_perp_shock_leroy`
-rejects a CFL-unstable `dt` rather than running silently unstable.
+(M_A=6, β=1; Leroy: α=13.7%, overshoot=1.26.) The default case is left coarse (fast); for
+the converged comparison run `run_perp_shock_leroy(N=2048, dt=0.00125)`. Note
+`run_perp_shock_leroy` rejects a CFL-unstable `dt` rather than running silently unstable.
+
+## Electron closure (polytropic vs Leroy's energy equation)
+
+Leroy solves the full electron **energy equation** (his eq 6) with Ohmic heating
+`(γe−1)ηJy²`; our default is the cheaper polytropic `pe = Te·n^γe`. Both use γe=5/3.
+`run_perp_shock_leroy(closure=:energy)` implements eq 6. Measured effect (N=1024, M_A=6, β=1):
+
+| η | closure | α | overshoot |
+|---|---|---|---|
+| 0.01 | polytropic | 9.6% | 1.46 |
+| 0.01 | energy | 6.6% | **1.21** |
+| 0.90 | polytropic | 1.8% | 1.37 |
+| 0.90 | energy | 1.1% | **1.27** |
+
+The energy closure **brings the overshoot onto Leroy's 1.26** (Ohmic electron heating softens
+the magnetic overshoot) but **lowers α**. So: resolution closes most of the gap, the energy
+closure fixes the overshoot, and the **reflected-fraction α stays the one observable below
+Leroy** across both closures and all resistivities tested — within the ±4% scatter of 13.7%
+but with a low central value. This is the honest residual: not resolution (tested), not
+resistivity (tested), not the closure (tested) — most consistent with the remaining 1-D
+boundary/reservoir-recipe idealization.

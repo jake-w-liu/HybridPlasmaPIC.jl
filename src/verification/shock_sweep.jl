@@ -327,6 +327,11 @@ Converging `dx → 0.1 d_i` steadies the shock and lifts α toward Leroy's 13.7%
 the overshoot toward 1.26). That REQUIRES a smaller `dt`: the whistler CFL scales as
 `dt ∝ dx²`, so `dt` is a keyword and an over-large `dt` is rejected (it would go
 silently unstable). Use e.g. `N=1024, dt=0.005` or `N=2048, dt=0.00125`.
+
+`closure` selects the electron model: `:polytropic` (default, `pe = Te·n^γe`) or
+`:energy` (Leroy 1982 eq 6 — the full electron energy equation with Ohmic heating).
+The energy closure brings the magnetic overshoot onto Leroy's 1.26 (the Ohmic
+electron heating softens the field overshoot) but lowers the reflected fraction α.
 """
 function run_perp_shock_leroy(;
     MA::Real,
@@ -341,6 +346,7 @@ function run_perp_shock_leroy(;
     t_avg_start::Real = 8.0,
     window::Real = 8.0,
     dt::Real = 0.02,
+    closure::Symbol = :polytropic,
 )
     N >= 8 || throw(ArgumentError("N must be ≥ 8"))
     nppc >= 1 || throw(ArgumentError("nppc must be positive"))
@@ -365,7 +371,7 @@ function run_perp_shock_leroy(;
     V2 = V1 / n2                              # downstream outflow speed (n₁V1 = n₂V2)
     p_up = V2 / flux_per_density(V2, vth2)    # exiting-ion fraction recycled upstream
 
-    sh = PerpShock(N, LxT; Te, γe, η, τ = V1, B0)
+    sh = PerpShock(N, LxT; Te, γe, η, τ = V1, B0, closure)
     Np = Int(nppc) * Int(N)
     ps = ParticleSet{1,T}(Np)
     rng = MersenneTwister(Int(seed))
