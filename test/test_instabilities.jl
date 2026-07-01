@@ -44,3 +44,24 @@ end
     @test ion_cyclotron_growth(; vth_par = 0.4, vth_perp = 1.3, cfg...).ratio_max == u.ratio_max
     @test_throws ArgumentError ion_cyclotron_growth(; vth_par = 0.4, vth_perp = 1.3, dt = 0.1)
 end
+
+@testset "weibel_growth: current-filamentation instability (full EM-PIC)" begin
+    # Counter-streaming electron beams (full PIC): B_z grows from shot noise; the
+    # hybrid model cannot do this (B=0 fixed point), so this uses EMPIC. Fast config.
+    cfg = (N = (8, 64), L = (4π, 8π), nppc = 40, nsteps = 300, c = 3.0, dt = 0.05, seed = 1)
+    u = weibel_growth(; u0 = 0.6, vth = 0.1, cfg...)   # A = (6)² = 36 ≫ 1 (unstable)
+    s = weibel_growth(; u0 = 0.0, vth = 0.1, cfg...)   # A = 0 (single Maxwellian, stable)
+
+    @test u.unstable_theory && !s.unstable_theory       # bimodal-streaming threshold
+    @test u.anisotropy > 1 && s.anisotropy == 0
+    @test u.wBz_max > 1e-2                              # B_z grows to a macroscopic level
+    @test s.wBz_max < 1e-3                              # no streaming ⇒ shot-noise floor
+    @test u.wBz_max > 50 * s.wBz_max                    # large, unambiguous separation
+    @test u.nsamples == 300 && s.nsamples == 300        # neither run blew up
+    # deterministic for a fixed seed
+    @test weibel_growth(; u0 = 0.6, vth = 0.1, cfg...).wBz_max == u.wBz_max
+    # EM-Courant guard + input validation (both throw before running the sim)
+    @test_throws ArgumentError weibel_growth(; u0 = 0.6, dt = 1.0)
+    @test_throws ArgumentError weibel_growth(; u0 = 0.6, vth = -1.0)
+    @test_throws ArgumentError weibel_growth(; u0 = -1.0)
+end

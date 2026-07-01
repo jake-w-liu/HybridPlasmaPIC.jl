@@ -122,3 +122,85 @@ function ion_cyclotron_growth(; vth_par::Real, vth_perp::Real, kwargs...)
         r.nsamples,
     )
 end
+
+"""
+    weibel_growth(; u0, vth=0.1, N=(8,96), L=(4π,12π), nppc=50, c=3.0,
+                    dt=0.05, nsteps=600, seed=1)
+
+Drive the **Weibel / current-filamentation instability** in the full electromagnetic
+PIC model (kinetic electrons + immobile neutralizing ion background `+n₀`). Two
+counter-streaming cold electron beams `±u₀ x̂` carry the free energy — an effective
+velocity-space anisotropy `⟨vₓ²⟩ = u₀² + vth² > vth² = ⟨v_y²⟩` — and the unstable
+wavevector is `k ∥ ŷ` (⊥ the streaming), so the out-of-plane field `B_z(y)` grows from
+particle shot noise. The full-PIC electron dynamics are essential: in the quasineutral
+massless-electron hybrid model `B = 0` is an exact fixed point (E is the curl-free `∇pₑ`
+term, so `−∇×E = 0`) and only the *bulk* ion moments couple to the field, so the beams'
+`u_y` cancels and the ion-Weibel decays — verified. Here `B_z` grows exponentially, then
+saturates as the beams isotropize.
+
+    unstable ⇔ A = (u₀/vth)² > 1   (bimodal counter-streaming: streaming anisotropy
+                                    exceeds the thermal spread; Weibel 1959, Fried 1959)
+
+Returns `(; wBz_max, anisotropy, unstable_theory, nsamples)` where `wBz_max` is the peak
+`B_z` magnetic energy `½∫B_z² dV` and `anisotropy = (u₀/vth)²`.
+"""
+function weibel_growth(;
+    u0::Real,
+    vth::Real = 0.1,
+    N::NTuple{2,Integer} = (8, 96),
+    L::NTuple{2,Real} = (4π, 12π),
+    nppc::Integer = 50,
+    c::Real = 3.0,
+    dt::Real = 0.05,
+    nsteps::Integer = 600,
+    seed::Integer = 1,
+)
+    T = Float64
+    all(n -> n >= 4, N) || throw(ArgumentError("both N components must be ≥ 4"))
+    nppc >= 1 || throw(ArgumentError("nppc must be positive"))
+    nsteps >= 1 || throw(ArgumentError("nsteps must be ≥ 1"))
+    u0T = _require_finite_nonnegative_real("u0", u0, T)      # 0 allowed (stable reference)
+    vthT = _require_finite_positive_real("vth", vth, T)
+    cT = _require_finite_positive_real("c", c, T)
+    dtT = _require_finite_positive_real("dt", dt, T)
+    LT = (
+        _require_finite_positive_real("L[1]", L[1], T),
+        _require_finite_positive_real("L[2]", L[2], T),
+    )
+
+    g = FourierGrid((Int(N[1]), Int(N[2])), LT)
+    # spectral-leapfrog EM Courant: transverse wave ω=c·k, k_max≈π/dx ⇒ c·dt ≲ 0.64 dx
+    cT * dtT <= T(0.6) * minimum(g.dx) || throw(
+        ArgumentError(
+            "c·dt=$(round(cT * dtT, sigdigits = 3)) exceeds the EM Courant limit " *
+            "0.6·min(dx)=$(round(T(0.6) * minimum(g.dx), sigdigits = 3)); reduce dt or c",
+        ),
+    )
+
+    Np = Int(nppc) * prod(Int.(N))
+    es = EMPIC(g, Np; n0 = one(T), c = cT)
+    e = ParticleSet{2,T}(Np; q = -one(T), m = one(T))
+    rng = MersenneTwister(Int(seed))
+    load_uniform!(e, rng, (zero(T), zero(T)), LT)
+    load_maxwellian!(e, rng, (zero(T), zero(T), zero(T)), (vthT, vthT, vthT))
+    half = Np ÷ 2                                           # two counter-streaming halves (±u₀ x̂)
+    @inbounds for p = 1:Np
+        e.v[1][p] += p <= half ? u0T : -u0T
+    end
+    set_density_weight!(e, one(T), g)
+    init_empic!(es, e)
+
+    dV = prod(g.dx)
+    Bz = es.B[3]
+    wBz() = T(0.5) * sum(abs2, Bz) * dV
+    wmax = wBz()
+    ok = 0
+    for s = 1:Int(nsteps)
+        step_empic!(es, e, dtT)
+        all(isfinite, Bz) || break
+        wmax = max(wmax, wBz())
+        ok += 1
+    end
+    A = (u0T / vthT)^2
+    return (; wBz_max = wmax, anisotropy = A, unstable_theory = A > one(T), nsamples = ok)
+end
