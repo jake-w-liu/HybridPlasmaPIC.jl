@@ -65,3 +65,22 @@ end
     @test_throws ArgumentError weibel_growth(; u0 = 0.6, vth = -1.0)
     @test_throws ArgumentError weibel_growth(; u0 = -1.0)
 end
+
+@testset "reconnection_growth: Harris-sheet tearing (2D hybrid)" begin
+    # The clean ~12× sheet-vs-uniform separation needs the full 64×128 config (too slow
+    # for CI) — that is validation case 32. Here a small smoke config: the runner builds
+    # the pressure-balanced Harris equilibrium and tears the seeded m=1 mode.
+    cfg = (Nx = 32, Ny = 64, Lx = 25.6, Ly = 25.6, nppc = 40, nsteps = 150, dt = 0.03, NB = 4)
+    u = reconnection_growth(; sheet = true, cfg...)
+    c = reconnection_growth(; sheet = false, cfg...)
+
+    @test u.tearing_theory && !c.tearing_theory     # kx·λ<1 sheet unstable; no sheet stable
+    @test u.nsamples == 150 && c.nsamples == 150     # neither run blew up (2-D whistler CFL ok)
+    @test u.growth > 1.5                             # the sheet amplifies the m=1 tearing mode
+    @test isfinite(u.m1_max) && isfinite(c.m1_max)
+    @test reconnection_growth(; sheet = true, cfg...).growth == u.growth   # deterministic
+    # 2-D whistler-CFL guard + equilibrium/input validation (all throw before the sim)
+    @test_throws ArgumentError reconnection_growth(; dt = 0.1)
+    @test_throws ArgumentError reconnection_growth(; λ = 10.0)   # Ly > 4λ violated
+    @test_throws ArgumentError reconnection_growth(; Ti = -1.0)
+end
