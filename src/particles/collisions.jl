@@ -172,3 +172,108 @@ function collide_bgk!(
 
     return ps
 end
+
+# ---------------------------------------------------------------- Coulomb (Takizuka-Abe)
+
+"""
+    collide_coulomb!(ps::ParticleSet{D,T}, gcoeff, dt; rng=Random.default_rng(),
+                     u_floor=1e-3) -> ps
+
+One **Takizuka-Abe (1977)** binary-Coulomb collision substep. The particles are
+randomly paired; each pair's relative velocity `g = v_i − v_j` is rotated by a polar
+scattering angle `Θ` (azimuth `Φ` uniform) with `δ = tan(Θ/2)` drawn from
+`𝒩(0, ⟨δ²⟩)`, `⟨δ²⟩ = gcoeff·dt / max(|g|, u_floor)³`. The `|g|⁻³` velocity dependence
+is the physical Coulomb law (slow particles scatter through larger angles); `gcoeff`
+bundles the collisional prefactor `n·lnΛ·(qᵢqⱼ/…)²` in the code's normalized units, so
+it sets the collisionality. Each pair is updated about its **weighted centre of mass**
+`V = (wᵢvᵢ+wⱼvⱼ)/(wᵢ+wⱼ)`:
+
+    v_i ← V + (wⱼ/(wᵢ+wⱼ)) g',   v_j ← V − (wᵢ/(wᵢ+wⱼ)) g',   g' = R(Θ,Φ) g
+
+Because `|g'| = |g|` (a pure rotation) this conserves each pair's momentum **and**
+energy exactly for arbitrary weights (to roundoff), hence the whole-set `Σwv` and
+`Σw|v|²`. Unlike BGK ([`collide_bgk!`]) this reproduces true Coulomb velocity-space
+diffusion and relaxes a temperature **anisotropy** toward isotropy at the physical,
+speed-dependent rate.
+
+Whole-set pairing (0-D velocity-space relaxation, same scope as `collide_bgk!`);
+cell-local pairing is the spatially-resolved upgrade. `gcoeff ≥ 0`, `dt ≥ 0`;
+fewer than two particles is a no-op. Returns `ps`.
+"""
+function collide_coulomb!(
+    ps::ParticleSet{D,T},
+    gcoeff::Real,
+    dt::Real;
+    rng = Random.default_rng(),
+    u_floor::Real = 1e-3,
+) where {D,T}
+    gcoeff >= 0 || throw(ArgumentError("collision coefficient gcoeff must be ≥ 0"))
+    dt >= 0 || throw(ArgumentError("dt must be ≥ 0"))
+    uf = _require_finite_positive_real("u_floor", u_floor, T)
+    N = nparticles(ps)
+    (N < 2 || gcoeff == 0 || dt == 0) && return ps
+
+    vx, vy, vz = ps.v
+    w = ps.weight
+    gc = T(gcoeff)
+    dtT = T(dt)
+    twoπ = 2 * T(π)
+
+    idx = randperm(rng, N)                     # random pairing (like collide_bgk!'s falses(N))
+    npair = N ÷ 2
+    @inbounds for k = 1:npair
+        i = idx[2k-1]
+        j = idx[2k]
+        wi = w[i]
+        wj = w[j]
+        wsum = wi + wj
+        wsum > 0 || continue
+
+        gx = vx[i] - vx[j]
+        gy = vy[i] - vy[j]
+        gz = vz[i] - vz[j]
+        gmag = sqrt(gx * gx + gy * gy + gz * gz)
+        gmag > 0 || continue                   # identical velocities: no relative motion
+
+        Vx = (wi * vx[i] + wj * vx[j]) / wsum
+        Vy = (wi * vy[i] + wj * vy[j]) / wsum
+        Vz = (wi * vz[i] + wj * vz[j]) / wsum
+
+        var = gc * dtT / max(gmag, uf)^3       # Takizuka-Abe ⟨δ²⟩
+        δ = sqrt(var) * randn(rng, T)
+        δ2 = δ * δ
+        cosθ = (one(T) - δ2) / (one(T) + δ2)   # δ = tan(Θ/2) ⇒ cosΘ,sinΘ
+        sinθ = 2δ / (one(T) + δ2)
+        φ = twoπ * rand(rng, T)
+        cosφ = cos(φ)
+        sinφ = sin(φ)
+
+        gperp = sqrt(gx * gx + gy * gy)
+        if gperp > 0                            # rotate g by (Θ,Φ) — Takizuka & Abe 1977 eq.
+            Δgx =
+                (gx / gperp) * gz * sinθ * cosφ - (gy / gperp) * gmag * sinθ * sinφ -
+                gx * (one(T) - cosθ)
+            Δgy =
+                (gy / gperp) * gz * sinθ * cosφ + (gx / gperp) * gmag * sinθ * sinφ -
+                gy * (one(T) - cosθ)
+            Δgz = -gperp * sinθ * cosφ - gz * (one(T) - cosθ)
+        else                                    # g along ±z: rotate the z-aligned vector directly
+            Δgx = gmag * sinθ * cosφ
+            Δgy = gmag * sinθ * sinφ
+            Δgz = -gz * (one(T) - cosθ)          # gz = ±gmag ⇒ |g'| = gmag preserved
+        end
+
+        gpx = gx + Δgx
+        gpy = gy + Δgy
+        gpz = gz + Δgz
+        fi = wj / wsum
+        fj = wi / wsum
+        vx[i] = Vx + fi * gpx
+        vy[i] = Vy + fi * gpy
+        vz[i] = Vz + fi * gpz
+        vx[j] = Vx - fj * gpx
+        vy[j] = Vy - fj * gpy
+        vz[j] = Vz - fj * gpz
+    end
+    return ps
+end
