@@ -231,3 +231,58 @@ end
     end
     @test pa.v[1] == pb.v[1] && pa.v[2] == pb.v[2] && pa.v[3] == pb.v[3]
 end
+
+# ---- Monte-Carlo neutral collisions (collide_neutral_mcc!) --------------------
+# Oracle: the charged population relaxes toward the neutral reservoir — temperature
+# → T_n, drift → u_n (full thermalization at equal mass).
+
+@testset "MCC-001 neutral collisions thermalize toward the bath" begin
+    T = Float64
+    N = 20_000
+    rng = MersenneTwister(3)
+    ps = ParticleSet{1,T}(N)
+    load_maxwellian!(ps, rng, (1.0, 0.0, 0.0), (sqrt(2.0), sqrt(2.0), sqrt(2.0)))  # hot T_p≈2, drift
+    fill!(ps.weight, 1.0)
+    Tof(ps) = (comp_temp(ps, 1) + comp_temp(ps, 2) + comp_temp(ps, 3)) / 3
+    driftx(ps) = sum(ps.weight .* ps.v[1]) / sum(ps.weight)
+
+    @test Tof(ps) > 1.5 && driftx(ps) > 0.8
+    crng = MersenneTwister(9)
+    for _ = 1:400
+        collide_neutral_mcc!(ps, 0.1; nσ = 1.0, T_n = 0.2, m_n = 1.0, rng = crng)
+    end
+    # equal-mass elastic MCC → full thermalization: T → T_n = 0.2, drift → u_n = 0
+    @test isapprox(Tof(ps), 0.2; atol = 0.03)
+    @test abs(driftx(ps)) < 0.05
+end
+
+@testset "MCC-002 neutral collisions: edge cases, validation & determinism" begin
+    T = Float64
+    rng = MersenneTwister(1)
+    ps = ParticleSet{1,T}(1000)
+    load_maxwellian!(ps, rng, (0.3, 0.0, 0.0), (1.0, 1.0, 1.0))
+    fill!(ps.weight, 1.0)
+    snap = (copy(ps.v[1]), copy(ps.v[2]), copy(ps.v[3]))
+    collide_neutral_mcc!(ps, 0.1; nσ = 0.0, T_n = 0.3)     # nσ = 0 → untouched
+    @test ps.v[1] == snap[1] && ps.v[2] == snap[2] && ps.v[3] == snap[3]
+    collide_neutral_mcc!(ps, 0.0; nσ = 1.0, T_n = 0.3)     # dt = 0 → untouched
+    @test ps.v[1] == snap[1] && ps.v[2] == snap[2] && ps.v[3] == snap[3]
+    @test_throws ArgumentError collide_neutral_mcc!(ps, 0.1; nσ = -1.0, T_n = 0.3)
+    @test_throws ArgumentError collide_neutral_mcc!(ps, -0.1; nσ = 1.0, T_n = 0.3)
+    @test_throws ArgumentError collide_neutral_mcc!(ps, 0.1; nσ = 1.0, T_n = -0.3)
+    @test_throws ArgumentError collide_neutral_mcc!(ps, 0.1; nσ = 1.0, T_n = 0.3, m_n = 0.0)
+    # deterministic for a fixed rng
+    pa = ParticleSet{1,T}(2000)
+    load_maxwellian!(pa, MersenneTwister(5), (0.0, 0.0, 0.0), (1.2, 1.2, 1.2))
+    fill!(pa.weight, 1.0)
+    pb = ParticleSet{1,T}(2000)
+    load_maxwellian!(pb, MersenneTwister(5), (0.0, 0.0, 0.0), (1.2, 1.2, 1.2))
+    fill!(pb.weight, 1.0)
+    for _ = 1:4
+        collide_neutral_mcc!(pa, 0.1; nσ = 1.0, T_n = 0.3, rng = MersenneTwister(42))
+    end
+    for _ = 1:4
+        collide_neutral_mcc!(pb, 0.1; nσ = 1.0, T_n = 0.3, rng = MersenneTwister(42))
+    end
+    @test pa.v[1] == pb.v[1] && pa.v[2] == pb.v[2] && pa.v[3] == pb.v[3]
+end

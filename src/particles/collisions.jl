@@ -277,3 +277,75 @@ function collide_coulomb!(
     end
     return ps
 end
+
+# ---------------------------------------------------------------- neutral MCC (elastic)
+
+"""
+    collide_neutral_mcc!(ps::ParticleSet{D,T}, dt; nσ, T_n, m_n=1.0,
+                         u_n=(0.0,0.0,0.0), rng=Random.default_rng()) -> ps
+
+One **Monte-Carlo-collision (MCC)** substep of elastic scattering off a background
+**neutral gas** — a thermal reservoir at temperature `T_n`, mass `m_n`, bulk drift
+`u_n`, and density×cross-section product `nσ = n_n·σ`. For each charged particle
+(mass `m_p = ps.m`) a neutral partner velocity `v_n` is drawn from the neutral
+Maxwellian; with probability `P = 1 − exp(−nσ·|g|·dt)` (relative speed `|g| = |v−v_n|`)
+the pair scatters **elastically and isotropically in the centre-of-mass frame**:
+
+    V = (m_p v + m_n v_n)/(m_p+m_n),   g' = |g| n̂  (n̂ isotropic),   v ← V + (m_n/(m_p+m_n)) g'
+
+Each binary collision conserves the (particle+neutral) momentum and energy exactly,
+but the neutral is a **reservoir** (freshly sampled and discarded each collision), so
+the charged population relaxes toward the neutral distribution: its temperature toward
+`T_n` and its drift toward `u_n` (full thermalization when `m_p = m_n`).
+
+`nσ ≥ 0`, `T_n ≥ 0`, `dt ≥ 0`, `m_n > 0`. Elastic only (inelastic excitation and
+ionization are the upgrade path). Returns `ps`.
+"""
+function collide_neutral_mcc!(
+    ps::ParticleSet{D,T},
+    dt::Real;
+    nσ::Real,
+    T_n::Real,
+    m_n::Real = 1.0,
+    u_n::NTuple{3,<:Real} = (0.0, 0.0, 0.0),
+    rng = Random.default_rng(),
+) where {D,T}
+    nσ >= 0 || throw(ArgumentError("nσ (density×cross-section) must be ≥ 0"))
+    dt >= 0 || throw(ArgumentError("dt must be ≥ 0"))
+    TnT = _require_finite_nonnegative_real("T_n", T_n, T)
+    mnT = _require_finite_positive_real("m_n", m_n, T)
+    N = nparticles(ps)
+    (N == 0 || nσ == 0 || dt == 0) && return ps
+
+    vx, vy, vz = ps.v
+    mp = T(ps.m)
+    nσT = T(nσ)
+    dtT = T(dt)
+    vthn = sqrt(TnT / mnT)                          # neutral thermal speed √(T_n/m_n)
+    unx, uny, unz = T(u_n[1]), T(u_n[2]), T(u_n[3])
+    invM = one(T) / (mp + mnT)
+    μn = mnT * invM                                 # v ← V + μn g'
+    twoπ = 2 * T(π)
+    @inbounds for p = 1:N
+        vnx = unx + vthn * randn(rng, T)            # sample a neutral partner
+        vny = uny + vthn * randn(rng, T)
+        vnz = unz + vthn * randn(rng, T)
+        gx = vx[p] - vnx
+        gy = vy[p] - vny
+        gz = vz[p] - vnz
+        gmag = sqrt(gx * gx + gy * gy + gz * gz)
+        gmag > 0 || continue
+        Pcoll = -expm1(-nσT * gmag * dtT)           # 1 − exp(−nσ|g|dt)
+        rand(rng, T) < Pcoll || continue
+        Vx = (mp * vx[p] + mnT * vnx) * invM        # centre-of-mass velocity
+        Vy = (mp * vy[p] + mnT * vny) * invM
+        Vz = (mp * vz[p] + mnT * vnz) * invM
+        cosχ = 2 * rand(rng, T) - one(T)            # isotropic elastic scatter in CM
+        sinχ = sqrt(max(zero(T), one(T) - cosχ * cosχ))
+        φ = twoπ * rand(rng, T)
+        vx[p] = Vx + μn * gmag * sinχ * cos(φ)
+        vy[p] = Vy + μn * gmag * sinχ * sin(φ)
+        vz[p] = Vz + μn * gmag * cosχ
+    end
+    return ps
+end
