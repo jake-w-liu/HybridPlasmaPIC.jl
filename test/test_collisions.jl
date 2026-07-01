@@ -411,4 +411,27 @@ end
     call2_ids = el.id[end-n2+1:end]
     @test all(id -> id > maximum(call1_ids), call2_ids)    # monotonic across calls
     @test length(unique(el.id)) == nparticles(el)          # still globally unique
+
+    # a 0-valued counter must NOT underflow (e_nextid[]-1 would wrap to typemax) — it is
+    # treated as "start above the live set"
+    el0 = ParticleSet{2,T}(10; q = -1.0, m = 1.0)
+    ions0 = ParticleSet{2,T}(0; q = 1.0, m = 100.0)
+    for p = 1:10
+        el0.v[1][p] = 2.0
+    end
+    fill!(el0.weight, 1.0)
+    z = Ref(UInt64(0))
+    ionize_mcc!(
+        el0,
+        ions0,
+        0.1;
+        nσ_iz = 5.0,
+        E_iz = 0.5,
+        e_nextid = z,
+        i_nextid = Ref(UInt64(0)),
+        rng = MersenneTwister(3),
+    )
+    @test length(unique(el0.id)) == nparticles(el0)        # no wrap/collision with live 1..10
+    @test all(>(UInt64(10)), el0.id[11:end])               # newborns above the live max
+    @test z[] > UInt64(10)                                  # counter self-healed, no wrap
 end

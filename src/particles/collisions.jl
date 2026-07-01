@@ -446,8 +446,12 @@ function ionize_mcc!(
     # the live max (unique vs the current live set only — a removed id may later be reissued).
     livemax_e = isempty(electrons.id) ? zero(UInt64) : maximum(electrons.id)
     livemax_i = isempty(ions.id) ? zero(UInt64) : maximum(ions.id)
-    base_e = e_nextid === nothing ? livemax_e : max(e_nextid[] - one(UInt64), livemax_e)
-    base_i = i_nextid === nothing ? livemax_i : max(i_nextid[] - one(UInt64), livemax_i)
+    # subtract AFTER the max so it never underflows (a 0-valued counter would wrap
+    # e_nextid[]-1 to typemax and corrupt the ids); this treats nextid=0 as "start at 1".
+    base_e =
+        e_nextid === nothing ? livemax_e : max(e_nextid[], livemax_e + one(UInt64)) - one(UInt64)
+    base_i =
+        i_nextid === nothing ? livemax_i : max(i_nextid[], livemax_i + one(UInt64)) - one(UInt64)
     e_nextid === nothing || (e_nextid[] = base_e + one(UInt64) + nbU)
     i_nextid === nothing || (i_nextid[] = base_i + one(UInt64) + nbU)
     @inbounds for (k, p) in enumerate(born)
