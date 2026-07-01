@@ -377,6 +377,13 @@ the secondaries are born at rest, so the electron population loses **exactly** `
 
 `nσ_iz ≥ 0`, `E_iz ≥ 0`, `T_n ≥ 0`, `dt ≥ 0`, `m_n > 0`. Elastic-secondary reservoir model
 (a differential-cross-section secondary spectrum is the upgrade). Returns the ionization count.
+
+**Particle ids.** Pass a persistent per-species monotonic counter `e_nextid`/`i_nextid`
+(`Ref{UInt64}`, as [`inject_face_1d!`](@ref) does) to give newborns **globally unique** ids
+that are never reused — required when id-keyed provenance/restart is active and particles are
+removed between calls. Without a counter the ids are only unique against the current **live**
+set (`max(existing)+k`); that is safe for the immediate physics but a removed particle's id can
+later be reissued.
 """
 function ionize_mcc!(
     electrons::ParticleSet{D,T},
@@ -387,6 +394,8 @@ function ionize_mcc!(
     T_n::Real = 0.0,
     m_n::Real = 1.0,
     u_n::NTuple{3,<:Real} = (0.0, 0.0, 0.0),
+    e_nextid::Union{Nothing,Base.RefValue{UInt64}} = nothing,
+    i_nextid::Union{Nothing,Base.RefValue{UInt64}} = nothing,
     rng = Random.default_rng(),
 ) where {D,T}
     nσ_iz >= 0 || throw(ArgumentError("nσ_iz must be ≥ 0"))
@@ -423,14 +432,24 @@ function ionize_mcc!(
     nb = length(born)
     nb == 0 && return 0
 
-    # build newborn secondary electrons + ions (batched: one append each). Give them ids
-    # above every existing id so the unique-id contract holds (default ctor ids are 1..nb,
-    # which would collide with the first nb existing particles and corrupt id-keyed
-    # diagnostics/restart); ids stay unique across repeated calls since the base grows.
+    # build newborn secondary electrons + ions (batched: one append each). The default ctor
+    # ids (1..nb) would collide with the first nb existing particles, so assign base+k: from a
+    # threaded monotonic counter when supplied (globally unique, never reused — advance it by
+    # nb), else from max(live id) (unique vs the live set only). See the docstring / id note.
     new_e = ParticleSet{D,T}(nb; q = electrons.q, m = electrons.m)
     new_i = ParticleSet{D,T}(nb; q = ions.q, m = ions.m)
-    base_e = isempty(electrons.id) ? zero(UInt64) : maximum(electrons.id)
-    base_i = isempty(ions.id) ? zero(UInt64) : maximum(ions.id)
+    nbU = UInt64(nb)
+    # newborn ids = base+k. With a threaded counter, base = max(counter−1, live max): the
+    # counter (advanced by nb) makes ids globally unique and never reused even across particle
+    # removal, while the max(·, live max) keeps them above the live set so even a low-
+    # initialised counter cannot collide with existing particles. Without a counter, base is
+    # the live max (unique vs the current live set only — a removed id may later be reissued).
+    livemax_e = isempty(electrons.id) ? zero(UInt64) : maximum(electrons.id)
+    livemax_i = isempty(ions.id) ? zero(UInt64) : maximum(ions.id)
+    base_e = e_nextid === nothing ? livemax_e : max(e_nextid[] - one(UInt64), livemax_e)
+    base_i = i_nextid === nothing ? livemax_i : max(i_nextid[] - one(UInt64), livemax_i)
+    e_nextid === nothing || (e_nextid[] = base_e + one(UInt64) + nbU)
+    i_nextid === nothing || (i_nextid[] = base_i + one(UInt64) + nbU)
     @inbounds for (k, p) in enumerate(born)
         for d = 1:D
             new_e.x[d][k] = ex[d][p]               # born at the incident position

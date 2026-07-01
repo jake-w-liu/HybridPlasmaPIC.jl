@@ -371,3 +371,44 @@ end
     nbb = ionize_mcc!(eb, ib, 0.1; nσ_iz = 2.0, E_iz = 0.4, T_n = 0.1, rng = MersenneTwister(9))
     @test na == nbb && ea.v[1] == eb.v[1] && ia.v[1] == ib.v[1]
 end
+
+@testset "IZ-003 threaded id counter ⇒ globally-unique ids (self-heal + no reuse under removal)" begin
+    T = Float64
+    el = ParticleSet{2,T}(200; q = -1.0, m = 1.0)          # pre-existing ids 1..200
+    ions = ParticleSet{2,T}(0; q = 1.0, m = 100.0)
+    for p = 1:200
+        el.v[1][p] = 2.0
+    end
+    fill!(el.weight, 1.0)
+    ce = Ref(UInt64(1))   # deliberately below the live max: must self-heal above it
+    ci = Ref(UInt64(1))
+    n1 = ionize_mcc!(
+        el,
+        ions,
+        0.1;
+        nσ_iz = 5.0,
+        E_iz = 0.5,
+        e_nextid = ce,
+        i_nextid = ci,
+        rng = MersenneTwister(1),
+    )
+    @test n1 > 0
+    @test length(unique(el.id)) == nparticles(el)          # newborns don't collide with 1..200
+    @test ce[] > UInt64(200)                                # counter self-healed above the live max
+    call1_ids = el.id[end-n1+1:end]
+    # counter only increases ⇒ even if the current max-id particle is later removed, the next
+    # batch's ids strictly exceed every previously-issued id, so a removed id is never reissued
+    n2 = ionize_mcc!(
+        el,
+        ions,
+        0.1;
+        nσ_iz = 5.0,
+        E_iz = 0.5,
+        e_nextid = ce,
+        i_nextid = ci,
+        rng = MersenneTwister(2),
+    )
+    call2_ids = el.id[end-n2+1:end]
+    @test all(id -> id > maximum(call1_ids), call2_ids)    # monotonic across calls
+    @test length(unique(el.id)) == nparticles(el)          # still globally unique
+end
