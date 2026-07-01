@@ -28,3 +28,19 @@ using HybridPlasmaPIC, Test
     @test_throws ArgumentError firehose_growth(; vth_par = -1.0, vth_perp = 0.3)
     @test_throws ArgumentError firehose_growth(; vth_par = 1.5, vth_perp = 0.3, N = 4)
 end
+
+@testset "ion_cyclotron_growth: EMIC (T_⊥>T_∥) anisotropy instability" begin
+    cfg = (N = 96, Lx = 19.2, nppc = 100, nsteps = 700, dt = 0.02, seed = 1)
+    u = ion_cyclotron_growth(; vth_par = 0.4, vth_perp = 1.3, cfg...)   # A=9.6 ≫ threshold
+    s = ion_cyclotron_growth(; vth_par = 0.8, vth_perp = 0.9, cfg...)   # A=0.27 < threshold
+
+    @test u.unstable_theory && !s.unstable_theory       # EMIC threshold flag (Gary 1993)
+    @test u.T_anisotropy > 1 && s.T_anisotropy > 1      # both T_⊥ > T_∥, differ by margin
+    @test u.ratio_max > 0.02                            # transverse δB grows above threshold
+    @test s.ratio_max < 0.01                            # sub-threshold stays at noise
+    @test u.ratio_max > 8 * s.ratio_max
+    @test u.nsamples == 700
+    # deterministic; reuses firehose_growth's guards
+    @test ion_cyclotron_growth(; vth_par = 0.4, vth_perp = 1.3, cfg...).ratio_max == u.ratio_max
+    @test_throws ArgumentError ion_cyclotron_growth(; vth_par = 0.4, vth_perp = 1.3, dt = 0.1)
+end

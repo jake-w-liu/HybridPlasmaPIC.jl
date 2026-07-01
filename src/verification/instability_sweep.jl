@@ -93,3 +93,32 @@ function firehose_growth(;
         nsamples = ok,
     )
 end
+
+"""
+    ion_cyclotron_growth(; vth_par, vth_perp, kwargs...)
+
+Drive the **electromagnetic ion-cyclotron (EMIC) anisotropy instability** — the
+`T_⊥ > T_∥` counterpart of the firehose (same parallel bi-Maxwellian run and
+transverse-δB diagnostic, opposite anisotropy). Reuses [`firehose_growth`] for the
+run and adds the EMIC threshold: with anisotropy `A = T_⊥/T_∥ − 1` and `β_∥ = 2T_∥`,
+the plasma is EMIC-unstable when `A > 0.43 / β_∥^0.43` (Gary 1993 marginal-stability
+fit). Returns `(; wperp_max, wperp_final, wB0, ratio_max, T_anisotropy, beta_par,
+unstable_theory, nsamples)`.
+"""
+function ion_cyclotron_growth(; vth_par::Real, vth_perp::Real, kwargs...)
+    r = firehose_growth(; vth_par = vth_par, vth_perp = vth_perp, kwargs...)
+    T = Float64
+    β_par = 2 * T(vth_par)^2                              # β_∥ = 2 T_∥ (n=1, B=1)
+    A = (T(vth_perp) / T(vth_par))^2 - 1                  # T_⊥/T_∥ − 1
+    A_c = 0.43 / β_par^T(0.43)                            # Gary 1993 EMIC threshold
+    return (;
+        r.wperp_max,
+        r.wperp_final,
+        r.wB0,
+        r.ratio_max,
+        T_anisotropy = A + 1,
+        beta_par = β_par,
+        unstable_theory = A > A_c,
+        r.nsamples,
+    )
+end
