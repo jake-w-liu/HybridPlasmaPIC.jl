@@ -219,7 +219,10 @@ function collide_coulomb!(
     dtT = T(dt)
     twoπ = 2 * T(π)
 
-    idx = randperm(rng, N)                     # random pairing (like collide_bgk!'s falses(N))
+    # ponytail: randperm allocates an 8N-byte index vector per call (like collide_bgk!'s
+    # falses(N)); fine for a per-step operator called standalone. If wired into a hot step
+    # loop, pass a persistent Vector{Int} scratch and Random.shuffle!(rng, work) instead.
+    idx = randperm(rng, N)
     npair = N ÷ 2
     @inbounds for k = 1:npair
         i = idx[2k-1]
@@ -420,9 +423,14 @@ function ionize_mcc!(
     nb = length(born)
     nb == 0 && return 0
 
-    # build newborn secondary electrons + ions (batched: one append each)
+    # build newborn secondary electrons + ions (batched: one append each). Give them ids
+    # above every existing id so the unique-id contract holds (default ctor ids are 1..nb,
+    # which would collide with the first nb existing particles and corrupt id-keyed
+    # diagnostics/restart); ids stay unique across repeated calls since the base grows.
     new_e = ParticleSet{D,T}(nb; q = electrons.q, m = electrons.m)
     new_i = ParticleSet{D,T}(nb; q = ions.q, m = ions.m)
+    base_e = isempty(electrons.id) ? zero(UInt64) : maximum(electrons.id)
+    base_i = isempty(ions.id) ? zero(UInt64) : maximum(ions.id)
     @inbounds for (k, p) in enumerate(born)
         for d = 1:D
             new_e.x[d][k] = ex[d][p]               # born at the incident position
@@ -436,6 +444,8 @@ function ionize_mcc!(
         new_i.v[3][k] = unz + vthn * randn(rng, T)
         new_e.weight[k] = ew[p]                    # inherit the incident macro-particle weight
         new_i.weight[k] = ew[p]
+        new_e.id[k] = base_e + UInt64(k)
+        new_i.id[k] = base_i + UInt64(k)
     end
     append_particles!(electrons, new_e)
     append_particles!(ions, new_i)

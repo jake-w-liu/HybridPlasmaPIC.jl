@@ -321,6 +321,9 @@ end
     @test nparticles(ions) == nb                   # an ion per ionization (net-neutral)
     # cold neutrals ⇒ secondaries born at rest ⇒ electrons lose EXACTLY nb·E_iz
     @test isapprox(E0 - eKE(el), nb * E_iz; rtol = 1e-12)
+    # newborns get unique ids (no collision with the incident 1..Ne0 ids)
+    @test length(unique(el.id)) == nparticles(el)
+    @test length(unique(ions.id)) == nparticles(ions)
 end
 
 @testset "IZ-002 ionization: threshold, edge cases, validation & determinism" begin

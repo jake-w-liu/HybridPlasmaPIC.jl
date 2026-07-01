@@ -37,11 +37,19 @@ function append_particles!(dest::ParticleSet{D,T}, src::ParticleSet{D,T}) where 
     dest.q == src.q || throw(ArgumentError("cannot append particles with different charge"))
     dest.m == src.m || throw(ArgumentError("cannot append particles with different mass"))
     nparticles(src) == 0 && return dest
-    dest.x = ntuple(d -> vcat(dest.x[d], src.x[d]), D)
-    dest.v = ntuple(c -> vcat(dest.v[c], src.v[c]), 3)
-    dest.weight = vcat(dest.weight, src.weight)
-    dest.id = vcat(dest.id, src.id)
-    dest.tag = vcat(dest.tag, src.tag)
+    # In-place append! (not vcat): vcat reallocates and copies every destination array on
+    # each call, so repeated appends (ionization sources, per-step MPI receives) cost O(N²)
+    # over a run; append! amortizes to O(total). Requires resizable (Vector) fields, which
+    # the ParticleSet constructor produces; it preserves the one-based-axes contract.
+    for d = 1:D
+        append!(dest.x[d], src.x[d])
+    end
+    for c = 1:3
+        append!(dest.v[c], src.v[c])
+    end
+    append!(dest.weight, src.weight)
+    append!(dest.id, src.id)
+    append!(dest.tag, src.tag)
     return dest
 end
 

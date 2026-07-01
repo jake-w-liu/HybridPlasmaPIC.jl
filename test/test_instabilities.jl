@@ -62,6 +62,16 @@ end
     @test weibel_growth(; u0 = 0.6, vth = 0.1, cfg...).wBz_max == u.wBz_max
     # EM-Courant guard + input validation (both throw before running the sim)
     @test_throws ArgumentError weibel_growth(; u0 = 0.6, dt = 1.0)
+    # 2-D corner CFL: an isotropic grid with c·dt·|k|max>1.9 must be rejected (a 1-D
+    # min(dx) guard would wrongly pass this and silently blow up)
+    @test_throws ArgumentError weibel_growth(;
+        u0 = 0.6,
+        N = (64, 64),
+        L = (2π, 2π),
+        c = 3.0,
+        dt = 0.0173,
+        nsteps = 1,
+    )
     @test_throws ArgumentError weibel_growth(; u0 = 0.6, vth = -1.0)
     @test_throws ArgumentError weibel_growth(; u0 = -1.0)
 end
@@ -83,4 +93,5 @@ end
     @test_throws ArgumentError reconnection_growth(; dt = 0.1)
     @test_throws ArgumentError reconnection_growth(; λ = 10.0)   # Ly > 4λ violated
     @test_throws ArgumentError reconnection_growth(; Ti = -1.0)
+    @test_throws ArgumentError reconnection_growth(; δ = 0.0)    # no seed ⇒ growth=Inf
 end

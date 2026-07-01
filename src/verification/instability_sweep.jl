@@ -169,11 +169,14 @@ function weibel_growth(;
     )
 
     g = FourierGrid((Int(N[1]), Int(N[2])), LT)
-    # spectral-leapfrog EM Courant: transverse wave ω=c·k, k_max≈π/dx ⇒ c·dt ≲ 0.64 dx
-    cT * dtT <= T(0.6) * minimum(g.dx) || throw(
+    # spectral-leapfrog EM Courant on the 2-D grid: transverse wave ω=c·|k|, so stable
+    # iff c·dt·|k|max ≤ 2 with the 2-D corner |k|max=√Σ(π/dxᵢ)² (a 1-D min(dx) estimate
+    # under-counts on a near-isotropic grid and would admit an unstable dt). 1.9 = margin.
+    Kmax = sqrt(sum((T(π) / d)^2 for d in g.dx))
+    cT * dtT * Kmax <= T(1.9) || throw(
         ArgumentError(
-            "c·dt=$(round(cT * dtT, sigdigits = 3)) exceeds the EM Courant limit " *
-            "0.6·min(dx)=$(round(T(0.6) * minimum(g.dx), sigdigits = 3)); reduce dt or c",
+            "c·dt·|k|max=$(round(cT * dtT * Kmax, sigdigits = 3)) exceeds the 2-D EM " *
+            "leapfrog limit 1.9 at N=$N; reduce dt or c",
         ),
     )
 
@@ -186,6 +189,14 @@ function weibel_growth(;
     half = Np ÷ 2                                           # two counter-streaming halves (±u₀ x̂)
     @inbounds for p = 1:Np
         e.v[1][p] += p <= half ? u0T : -u0T
+    end
+    # de-mean the imposed drift so the net electron current is exactly zero regardless of
+    # parity (0 for even Np; the −u₀ half has one extra particle when Np is odd)
+    if !iseven(Np)
+        shift = u0T / Np
+        @inbounds for p = 1:Np
+            e.v[1][p] += shift
+        end
     end
     set_density_weight!(e, one(T), g)
     init_empic!(es, e)
@@ -261,7 +272,7 @@ function reconnection_growth(;
     TiT = _require_finite_positive_real("Ti", Ti, T)
     TeT = _require_finite_nonnegative_real("Te", Te, T)
     nbT = _require_finite_nonnegative_real("n_b", n_b, T)
-    δT = _require_finite_nonnegative_real("δ", δ, T)
+    δT = _require_finite_positive_real("δ", δ, T)   # δ=0 ⇒ no seed ⇒ m1_0=0 ⇒ growth=Inf
     LxT = _require_finite_positive_real("Lx", Lx, T)
     LyT = _require_finite_positive_real("Ly", Ly, T)
     ηT = _require_finite_nonnegative_real("η", η, T)
