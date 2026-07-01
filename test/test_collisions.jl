@@ -286,3 +286,85 @@ end
     end
     @test pa.v[1] == pb.v[1] && pa.v[2] == pb.v[2] && pa.v[3] == pb.v[3]
 end
+
+# ---- electron-impact ionization (ionize_mcc!) ---------------------------------
+# Oracles: pair creation (Ne,Ni each +nb → net-neutral), and — with cold neutrals —
+# an EXACT electron-population energy loss of nb·E_iz (each primary cooled by E_iz).
+
+@testset "IZ-001 ionization: pair creation & exact energy cost" begin
+    T = Float64
+    Ne0 = 10_000
+    el = ParticleSet{2,T}(Ne0; q = -1.0, m = 1.0)
+    ions = ParticleSet{2,T}(0; q = 1.0, m = 100.0)
+    rng = MersenneTwister(2)
+    for p = 1:Ne0
+        el.x[1][p] = rand(rng)
+        el.x[2][p] = rand(rng)
+        el.v[1][p] = 2.0                            # KE = 2.0 each (> E_iz)
+    end
+    fill!(el.weight, 1.0)
+    E_iz = 0.5
+    eKE(ps) = 0.5 * ps.m * sum(@. ps.v[1]^2 + ps.v[2]^2 + ps.v[3]^2)
+    E0 = eKE(el)
+    nb = ionize_mcc!(
+        el,
+        ions,
+        0.1;
+        nσ_iz = 3.0,
+        E_iz = E_iz,
+        T_n = 0.0,
+        m_n = 100.0,
+        rng = MersenneTwister(7),
+    )
+    @test nb > 0
+    @test nparticles(el) == Ne0 + nb               # a secondary electron per ionization
+    @test nparticles(ions) == nb                   # an ion per ionization (net-neutral)
+    # cold neutrals ⇒ secondaries born at rest ⇒ electrons lose EXACTLY nb·E_iz
+    @test isapprox(E0 - eKE(el), nb * E_iz; rtol = 1e-12)
+end
+
+@testset "IZ-002 ionization: threshold, edge cases, validation & determinism" begin
+    T = Float64
+    # below threshold (KE = 0.125 < E_iz = 0.5) ⇒ no ionization, no growth
+    el = ParticleSet{2,T}(5000; q = -1.0, m = 1.0)
+    ions = ParticleSet{2,T}(0; q = 1.0, m = 100.0)
+    rng = MersenneTwister(1)
+    for p = 1:5000
+        el.x[1][p] = rand(rng)
+        el.x[2][p] = rand(rng)
+        el.v[1][p] = 0.5
+    end
+    fill!(el.weight, 1.0)
+    @test ionize_mcc!(el, ions, 0.1; nσ_iz = 10.0, E_iz = 0.5, rng = MersenneTwister(1)) == 0
+    @test nparticles(el) == 5000 && nparticles(ions) == 0
+    # no-op: nσ_iz = 0, dt = 0
+    el2 = ParticleSet{2,T}(1000; q = -1.0, m = 1.0)
+    i2 = ParticleSet{2,T}(0; q = 1.0, m = 100.0)
+    for p = 1:1000
+        el2.v[1][p] = 3.0
+    end
+    fill!(el2.weight, 1.0)
+    @test ionize_mcc!(el2, i2, 0.1; nσ_iz = 0.0, E_iz = 0.5) == 0
+    @test ionize_mcc!(el2, i2, 0.0; nσ_iz = 5.0, E_iz = 0.5) == 0
+    @test nparticles(el2) == 1000 && nparticles(i2) == 0
+    # input validation
+    @test_throws ArgumentError ionize_mcc!(el2, i2, 0.1; nσ_iz = -1.0, E_iz = 0.5)
+    @test_throws ArgumentError ionize_mcc!(el2, i2, 0.1; nσ_iz = 1.0, E_iz = -0.5)
+    @test_throws ArgumentError ionize_mcc!(el2, i2, 0.1; nσ_iz = 1.0, E_iz = 0.5, T_n = -1.0)
+    @test_throws ArgumentError ionize_mcc!(el2, i2, 0.1; nσ_iz = 1.0, E_iz = 0.5, m_n = 0.0)
+    # deterministic for a fixed rng (count + all created velocities)
+    ea = ParticleSet{2,T}(3000; q = -1.0, m = 1.0)
+    ia = ParticleSet{2,T}(0; q = 1.0, m = 50.0)
+    eb = ParticleSet{2,T}(3000; q = -1.0, m = 1.0)
+    ib = ParticleSet{2,T}(0; q = 1.0, m = 50.0)
+    for p = 1:3000, s in (ea, eb)
+        s.x[1][p] = 0.3
+        s.x[2][p] = 0.4
+        s.v[1][p] = 1.8
+    end
+    fill!(ea.weight, 1.0)
+    fill!(eb.weight, 1.0)
+    na = ionize_mcc!(ea, ia, 0.1; nσ_iz = 2.0, E_iz = 0.4, T_n = 0.1, rng = MersenneTwister(9))
+    nbb = ionize_mcc!(eb, ib, 0.1; nσ_iz = 2.0, E_iz = 0.4, T_n = 0.1, rng = MersenneTwister(9))
+    @test na == nbb && ea.v[1] == eb.v[1] && ia.v[1] == ib.v[1]
+end

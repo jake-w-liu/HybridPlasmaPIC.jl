@@ -349,3 +349,95 @@ function collide_neutral_mcc!(
     end
     return ps
 end
+
+# ---------------------------------------------------------------- electron-impact ionization
+
+"""
+    ionize_mcc!(electrons::ParticleSet{D,T}, ions::ParticleSet{D,T}, dt;
+                nσ_iz, E_iz, T_n=0.0, m_n=1.0, u_n=(0.0,0.0,0.0),
+                rng=Random.default_rng()) -> nionized
+
+One **electron-impact ionization** MCC substep: `e_fast + N → e_primary + e_secondary + N⁺`.
+Each electron with kinetic energy `KE = ½ mₑ|v|² > E_iz` ionizes a background neutral with
+probability `P = 1 − exp(−nσ_iz·|v|·dt)`. On ionization:
+
+  * the incident (primary) electron is **cooled by exactly `E_iz`** — its speed is rescaled
+    by `√((KE−E_iz)/KE)` (so its new `KE = KE−E_iz`), the energy going into unbinding;
+  * a **secondary electron** and a **positive ion** are created at the incident position, each
+    with a velocity drawn from the neutral Maxwellian (temperature `T_n`, mass `m_n`, drift
+    `u_n`), inheriting the incident macro-particle weight.
+
+`electrons` and `ions` grow by the number of ionizations (in place, via `append_particles!`),
+which is returned. Net charge change per event is zero (`+1 e⁻`, `+1 ion` from a neutral). The
+neutral reservoir supplies the secondary/ion energy and absorbs recoil momentum; with `T_n=0`
+the secondaries are born at rest, so the electron population loses **exactly** `nionized·E_iz`.
+
+`nσ_iz ≥ 0`, `E_iz ≥ 0`, `T_n ≥ 0`, `dt ≥ 0`, `m_n > 0`. Elastic-secondary reservoir model
+(a differential-cross-section secondary spectrum is the upgrade). Returns the ionization count.
+"""
+function ionize_mcc!(
+    electrons::ParticleSet{D,T},
+    ions::ParticleSet{D,T},
+    dt::Real;
+    nσ_iz::Real,
+    E_iz::Real,
+    T_n::Real = 0.0,
+    m_n::Real = 1.0,
+    u_n::NTuple{3,<:Real} = (0.0, 0.0, 0.0),
+    rng = Random.default_rng(),
+) where {D,T}
+    nσ_iz >= 0 || throw(ArgumentError("nσ_iz must be ≥ 0"))
+    dt >= 0 || throw(ArgumentError("dt must be ≥ 0"))
+    Eiz = _require_finite_nonnegative_real("E_iz", E_iz, T)
+    TnT = _require_finite_nonnegative_real("T_n", T_n, T)
+    mnT = _require_finite_positive_real("m_n", m_n, T)
+    Ne = nparticles(electrons)
+    (Ne == 0 || nσ_iz == 0 || dt == 0) && return 0
+
+    me = T(electrons.m)
+    nσT = T(nσ_iz)
+    dtT = T(dt)
+    vthn = sqrt(TnT / mnT)
+    unx, uny, unz = T(u_n[1]), T(u_n[2]), T(u_n[3])
+    evx, evy, evz = electrons.v
+    ex = electrons.x
+    ew = electrons.weight
+
+    born = Int[]                                   # incident electrons that ionized
+    @inbounds for p = 1:Ne
+        v2 = evx[p]^2 + evy[p]^2 + evz[p]^2
+        ke = T(0.5) * me * v2
+        ke > Eiz || continue                       # below the ionization threshold
+        speed = sqrt(v2)
+        Pcoll = -expm1(-nσT * speed * dtT)
+        rand(rng, T) < Pcoll || continue
+        scale = sqrt((ke - Eiz) / ke)              # cool the primary: KE ← KE − E_iz (0<scale<1)
+        evx[p] *= scale
+        evy[p] *= scale
+        evz[p] *= scale
+        push!(born, p)
+    end
+    nb = length(born)
+    nb == 0 && return 0
+
+    # build newborn secondary electrons + ions (batched: one append each)
+    new_e = ParticleSet{D,T}(nb; q = electrons.q, m = electrons.m)
+    new_i = ParticleSet{D,T}(nb; q = ions.q, m = ions.m)
+    @inbounds for (k, p) in enumerate(born)
+        for d = 1:D
+            new_e.x[d][k] = ex[d][p]               # born at the incident position
+            new_i.x[d][k] = ex[d][p]
+        end
+        new_e.v[1][k] = unx + vthn * randn(rng, T) # secondary e⁻ from the neutral Maxwellian
+        new_e.v[2][k] = uny + vthn * randn(rng, T)
+        new_e.v[3][k] = unz + vthn * randn(rng, T)
+        new_i.v[1][k] = unx + vthn * randn(rng, T) # ion from the neutral Maxwellian
+        new_i.v[2][k] = uny + vthn * randn(rng, T)
+        new_i.v[3][k] = unz + vthn * randn(rng, T)
+        new_e.weight[k] = ew[p]                    # inherit the incident macro-particle weight
+        new_i.weight[k] = ew[p]
+    end
+    append_particles!(electrons, new_e)
+    append_particles!(ions, new_i)
+    return nb
+end

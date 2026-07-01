@@ -303,7 +303,7 @@ export EMPIC, EMPIC1D, init_empic!, step_empic!, em_field_energy, charge_conserv
 export HallMHDModel, HallMHDState, hall_mhd_ohms_law!, hall_mhd_rhs!, step_hall_mhd!
 export run_perp_shock, run_perp_shock_rh, run_perp_shock_leroy, perp_shock_sweep
 export firehose_growth, ion_cyclotron_growth, weibel_growth, reconnection_growth
-export collide_bgk!, collide_coulomb!, collide_neutral_mcc!
+export collide_bgk!, collide_coulomb!, collide_neutral_mcc!, ionize_mcc!
 export deposit_scalar_threaded!, density_threaded!
 export energy_budget, momentum_budget, jdotE_density, resistive_dissipation
 export archive_run, load_archive, sample_particles, operators_match
