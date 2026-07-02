@@ -167,6 +167,7 @@ end
             st.g,
         )
     end
+    _apply_electron_inertia!(st.Escr, T(st.model.de2), st.g)   # E ← E/(1+d_e²k²) if de2>0
     faraday_rhs!(out, st.Escr, st.g)
     return out
 end

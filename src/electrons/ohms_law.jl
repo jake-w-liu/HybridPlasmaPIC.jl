@@ -45,6 +45,7 @@ function ohms_law!(f::HybridFields{D,T}, model::HybridModel, g::FourierGrid{D,T}
             g,
         )
     end
+    _apply_electron_inertia!(f.E, T(model.de2), g)      # E ← E/(1+d_e²k²) if de2>0
     return f.E
 end
 
@@ -321,6 +322,43 @@ function _ohm_Efield_aniso!(
             -(vz * bx - vx * bz) + (jz * bx - jx * bz) * inv + η * jy - ηH * LJy[I] - Fy[I] * inv
         Ez[I] =
             -(vx * by - vy * bx) + (jx * by - jy * bx) * inv + η * jz - ηH * LJz[I] - Fz[I] * inv
+    end
+    return E
+end
+
+# ---------------------------------------------------------------- electron inertia
+
+# Apply the electron-inertia Fourier multiplier  f ← f / (1 + d_e² k²)  in place, using the
+# grid's shared FFT buffer/plans (same machinery as laplacian!). This is the leading-order
+# `(d_e²/n) ∂_t J` term of the generalized Ohm's law for the transverse field on a uniform
+# background, and it regularizes the whistler / reconnection at the electron inertial scale.
+function _inertia_filter!(f::Array{T,D}, de2::T, g::FourierGrid{D,T}) where {T,D}
+    g.cbuf .= f
+    g.plan * g.cbuf
+    @inbounds for I in CartesianIndices(g.cbuf)
+        k2 = zero(T)
+        for d = 1:D
+            kk = g.kfull[d][I[d]]
+            k2 += kk * kk
+        end
+        g.cbuf[I] *= one(T) / (one(T) + de2 * k2)
+    end
+    g.iplan * g.cbuf
+    f .= real.(g.cbuf)
+    return f
+end
+
+# Apply electron inertia to all three E components — a no-op (byte-identical) when de2==0,
+# the massless-electron default.
+@inline function _apply_electron_inertia!(
+    E::NTuple{3,<:Array{T,D}},
+    de2::T,
+    g::FourierGrid{D,T},
+) where {T,D}
+    if de2 != zero(T)
+        for c = 1:3
+            _inertia_filter!(E[c], de2, g)
+        end
     end
     return E
 end
