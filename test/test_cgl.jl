@@ -112,3 +112,17 @@ end
     # CAM-CL rejects anisotropic closures at construction (frozen scalar ∇p_e is incompatible)
     @test_throws ArgumentError CAMCLStepper(g, HybridModel(c), CIC(), 100)
 end
+
+@testset "CGL-005 numeric-type generality: Float32 fields + Float64 closure" begin
+    T = Float32
+    g = FourierGrid((16,), (T(2π),))
+    f = HybridPlasmaPIC.HybridFields{1,T}(g.n; anisotropic = true)
+    fill!(f.n, one(T))
+    fill!(f.B[3], one(T))
+    # a CGL closure built from ordinary Float64 literals must drive Float32 fields (like the
+    # scalar closures) — the anisotropic force's closure precision is independent of field T.
+    model = HybridModel(CGLElectrons(0.3, 0.6, 1.0, 1.0))
+    ohms_law!(f, model, g)                                    # must not MethodError
+    @test eltype(f.E[1]) === T
+    @test all(all(isfinite, f.E[c]) for c = 1:3)
+end

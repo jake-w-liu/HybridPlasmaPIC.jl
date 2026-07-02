@@ -210,8 +210,8 @@ function anisotropic_pressure_force!(
     Fp::NTuple{3,<:Array{T,D}},
     n::Array{T,D},
     B::NTuple{3,<:Array{T,D}},
-    closure::CGLElectrons{T},
-    g::FourierGrid{D,T};
+    closure::CGLElectrons,          # closure precision is independent of the field T (like the
+    g::FourierGrid{D,T};            # scalar closures): the C⊥/C∥ constants promote into the loop
     bfloor::Real = 1e-12,
 ) where {D,T}
     bf = _require_finite_positive_real("bfloor", bfloor, T)
