@@ -57,7 +57,7 @@ function HybridStepper(
         g,
         model,
         shape,
-        HybridFields{D,T}(nc),
+        HybridFields{D,T}(nc; anisotropic = is_anisotropic(model.closure)),
         zeros(T, nc),
         ntuple(_ -> zeros(T, nc), Val(3)),
         ntuple(_ -> zeros(T, nc), Val(3)),
@@ -317,6 +317,9 @@ function electron_internal_energy(
     g::FourierGrid{D,T},
 ) where {D,T}
     _require_grid_array(:n, n, g)
+    # a gyrotropic (CGL) closure has no scalar pressure ⇒ no scalar internal energy from this
+    # (density-only) interface; degrade to NaN like isothermal rather than throwing downstream.
+    is_anisotropic(closure) && return T(NaN)
     γ = T(closure_gamma(closure))
     γ == one(T) && return T(NaN)
     pe = similar(n)

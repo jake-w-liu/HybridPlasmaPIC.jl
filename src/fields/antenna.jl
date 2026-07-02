@@ -28,6 +28,10 @@ function apply_antenna!(
     dt >= 0 || throw(ArgumentError("dt must be ≥ 0"))
     dtT = _require_finite_nonnegative_real("dt", dt, T)
     dtT == 0 && return B
+    for c = 1:3
+        size(B[c]) == g.n ||
+            throw(DimensionMismatch("B[$c] size $(size(B[c])) does not match grid size $(g.n)"))
+    end
     curlE = work === nothing ? ntuple(_ -> similar(B[1]), 3) : work
     curl!(curlE, E_ant, g)                       # ∇×E_ant
     @inbounds for c = 1:3

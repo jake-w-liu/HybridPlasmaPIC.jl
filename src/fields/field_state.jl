@@ -17,12 +17,16 @@ mutable struct HybridFields{D,T}
     gradp::NTuple{D,Array{T,D}}
     ninv::Array{T,D}
     lapJ::NTuple{3,Array{T,D}}        # ∇²J workspace (hyperresistivity)
-    pforce::NTuple{3,Array{T,D}}      # frozen ∇·P_e (anisotropic/CGL closure; unused/0 for scalar)
+    pforce::NTuple{3,Array{T,D}}      # ∇·P_e output (anisotropic/CGL only; 0-length for scalar)
     floor_count::Base.RefValue{Int}
 end
 
-function HybridFields{D,T}(nc::NTuple{D,Int}) where {D,T}
+# `anisotropic=true` (a CGL closure) allocates the `pforce` ∇·P_e buffer full-size; scalar
+# closures get 0-length pforce (type-stable, never indexed on the scalar Ohm path) so the
+# common case carries no dead weight.
+function HybridFields{D,T}(nc::NTuple{D,Int}; anisotropic::Bool = false) where {D,T}
     z() = zeros(T, nc)
+    pf() = anisotropic ? zeros(T, nc) : zeros(T, ntuple(_ -> 0, D))
     HybridFields{D,T}(
         z(),
         ntuple(_ -> z(), 3),
@@ -33,7 +37,7 @@ function HybridFields{D,T}(nc::NTuple{D,Int}) where {D,T}
         ntuple(_ -> z(), D),
         z(),
         ntuple(_ -> z(), 3),
-        ntuple(_ -> z(), 3),
+        ntuple(_ -> pf(), 3),
         Ref(0),
     )
 end

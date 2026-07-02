@@ -18,8 +18,10 @@ The relativistic momentum `p = γ v` is advanced `p ← p + F_rad·dt` and `v` r
 (∝ the classical electron radius). A gyrating ultrarelativistic particle in a magnetic
 field cools synchrotron-like, `d(1/γ)/dt ≈ K B²` (so `1/γ ≈ 1/γ₀ + K B² t`).
 
-`K ≥ 0`, `dt ≥ 0`, `c > 0`. `K·dt` must be small enough that the momentum stays positive
-(a well-resolved cooling substep); `K=0` or `dt=0` is a no-op. Returns `ps`.
+The momentum decay is integrated exactly as `p ← p·exp(−K γ χ² dt)` (an exponential
+integrator), so it is **unconditionally stable**: `|v|` always shrinks toward zero, never
+reverses or spuriously heats, for any `K·dt`. `K ≥ 0`, `dt ≥ 0`, `c > 0`; `E, B` finite;
+`K=0` or `dt=0` is a no-op. Returns `ps`.
 """
 function apply_radiation_reaction!(
     ps::ParticleSet{D,T},
@@ -32,6 +34,8 @@ function apply_radiation_reaction!(
     K >= 0 || throw(ArgumentError("radiation-reaction coefficient K must be ≥ 0"))
     dt >= 0 || throw(ArgumentError("dt must be ≥ 0"))
     cT = _require_finite_positive_real("c", c, T)
+    (all(isfinite, E) && all(isfinite, B)) ||
+        throw(ArgumentError("apply_radiation_reaction!: E and B must be finite"))
     (K == 0 || dt == 0) && return ps
     Ex, Ey, Ez = T(E[1]), T(E[2]), T(E[3])
     Bx, By, Bz = T(B[1]), T(B[2]), T(B[3])
@@ -52,8 +56,10 @@ function apply_radiation_reaction!(
         vE = ux * Ex + uy * Ey + uz * Ez
         χ2 = (wx * wx + wy * wy + wz * wz) - (vE * vE) / c2 # radiation invariant
         χ2 > 0 || continue
-        # F_rad = (−K γ² χ²) v  ⇒  p = γv advances to (γ − K γ² χ² dt) v
-        s = γ - KT * γ * γ * χ2 * dtT
+        # dp/dt = F_rad = −K γ² χ² v = −(K γ χ²) p, so p decays by exactly exp(−K γ χ² dt)
+        # over the substep (an exponential integrator): |p| always shrinks, never reverses or
+        # heats — unconditionally stable, unlike the 1st-order γ − K γ² χ² dt which overshoots.
+        s = γ * exp(-KT * γ * χ2 * dtT)
         px = s * ux
         py = s * uy
         pz = s * uz

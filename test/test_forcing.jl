@@ -61,6 +61,19 @@ end
     apply_radiation_reaction!(a, (0.0, 0.0, 0.0), (0.0, 0.0, 1.0), 0.05; K = 0.01)
     apply_radiation_reaction!(b, (0.0, 0.0, 0.0), (0.0, 0.0, 1.0), 0.05; K = 0.01)
     @test a.v[1] == b.v[1]
+    # exponential integrator is unconditionally stable: a large K·dt cools, never reverses/heats
+    ps3 = ParticleSet{1,T}(1)
+    ps3.v[1][1] = 0.99
+    γ0 = 1 / sqrt(1 - 0.99^2)
+    apply_radiation_reaction!(ps3, (0.0, 0.0, 0.0), (0.0, 0.0, 1.0), 0.5; K = 1.0)   # overshoot regime
+    @test ps3.v[1][1] > 0 && 1 / sqrt(1 - ps3.v[1][1]^2) < γ0
+    @test_throws ArgumentError apply_radiation_reaction!(
+        ps3,
+        (NaN, 0.0, 0.0),
+        (0.0, 0.0, 1.0),
+        0.1;
+        K = 0.01,
+    )
 end
 
 @testset "ANT-001 antenna injects −dt·∇×E_ant, divergence-free" begin
@@ -101,4 +114,6 @@ end
     apply_antenna!(B, Eant, 0.0, g)                     # dt=0 ⇒ untouched
     @test all(B[c] == snap[c] for c = 1:3)
     @test_throws ArgumentError apply_antenna!(B, Eant, -0.1, g)
+    Bbad = ntuple(_ -> zeros(T, (N[1] + 1, N[2])), 3)   # B not matching the grid ⇒ guarded
+    @test_throws DimensionMismatch apply_antenna!(Bbad, Eant, 0.1, g)
 end

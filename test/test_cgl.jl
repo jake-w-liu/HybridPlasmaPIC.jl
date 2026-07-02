@@ -9,6 +9,8 @@ using HybridPlasmaPIC:
     deriv!,
     HybridModel,
     HybridStepper,
+    CAMCLStepper,
+    electron_internal_energy,
     ParticleSet,
     load_uniform!,
     load_maxwellian!,
@@ -90,4 +92,23 @@ end
     iso = runit(IsothermalElectrons(0.5))
     @test iso[1] == 150
     @test cgl[2] != iso[2]                                 # the anisotropic closure changes B
+end
+
+@testset "CGL-004 robustness: size guards, diagnostics, integrator support" begin
+    T = Float64
+    N = 16
+    g = FourierGrid((N,), (2π,))
+    c = CGLElectrons(0.6, 0.3, 1.0, 1.0)
+    # the anisotropic Ohm helper validates array sizes (mirrors its scalar twin)
+    @test_throws DimensionMismatch anisotropic_pressure_force!(
+        ntuple(_ -> zeros(N), 3),
+        zeros(2N),
+        ntuple(_ -> ones(N), 3),
+        c,
+        g,
+    )
+    # electron_internal_energy degrades to NaN for CGL (no scalar pressure) rather than throwing
+    @test isnan(electron_internal_energy(ones(N), c, g))
+    # CAM-CL rejects anisotropic closures at construction (frozen scalar ∇p_e is incompatible)
+    @test_throws ArgumentError CAMCLStepper(g, HybridModel(c), CIC(), 100)
 end

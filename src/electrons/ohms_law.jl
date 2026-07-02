@@ -215,6 +215,13 @@ function anisotropic_pressure_force!(
     bfloor::Real = 1e-12,
 ) where {D,T}
     bf = _require_finite_positive_real("bfloor", bfloor, T)
+    size(n) == g.n || throw(DimensionMismatch("n size $(size(n)) does not match grid size $(g.n)"))
+    for c = 1:3
+        size(B[c]) == g.n ||
+            throw(DimensionMismatch("B[$c] size $(size(B[c])) does not match grid size $(g.n)"))
+        size(Fp[c]) == g.n ||
+            throw(DimensionMismatch("Fp[$c] size $(size(Fp[c])) does not match grid size $(g.n)"))
+    end
     Bx, By, Bz = B
     bx = similar(n)
     by = similar(n)
@@ -292,6 +299,20 @@ function _ohm_Efield_aniso!(
     ηH::T,
     g::FourierGrid{D,T},
 ) where {D,T}
+    size(ninv) == g.n ||
+        throw(DimensionMismatch("ninv size $(size(ninv)) does not match grid size $(g.n)"))
+    for c = 1:3
+        size(E[c]) == g.n ||
+            throw(DimensionMismatch("E[$c] size $(size(E[c])) does not match grid size $(g.n)"))
+        size(ui[c]) == g.n ||
+            throw(DimensionMismatch("ui[$c] size $(size(ui[c])) does not match grid size $(g.n)"))
+        size(pforce[c]) == g.n || throw(
+            DimensionMismatch("pforce[$c] size $(size(pforce[c])) does not match grid size $(g.n)"),
+        )
+        size(lapJ[c]) == g.n || throw(
+            DimensionMismatch("lapJ[$c] size $(size(lapJ[c])) does not match grid size $(g.n)"),
+        )
+    end
     curl!(J, B, g)
     if ηH != 0
         for c = 1:3

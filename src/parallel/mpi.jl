@@ -683,7 +683,13 @@ function mpi_step!(
     _mpi_moments!(st.fn, st.fui, psmid, g, st.shape, nf, ctx; work = st.work, gpu_status)
 
     f = st.fields
-    _ohm_prep!(f.pe, f.gradp, f.ninv, st.fn, st.model.closure, nf, f.floor_count, g)
+    # scalar closures freeze pe/∇pe/1/n; the anisotropic (CGL) closure freezes only 1/n and
+    # recomputes ∇·P_e per subcycle stage (in _rk4_B!→_bfield_rhs!) — mirror HybridStepper.
+    if is_anisotropic(st.model.closure)
+        _ohm_ninv!(f.ninv, st.fn, nf, f.floor_count)
+    else
+        _ohm_prep!(f.pe, f.gradp, f.ninv, st.fn, st.model.closure, nf, f.floor_count, g)
+    end
 
     hb = dtT / NB
     for _ = 1:NB

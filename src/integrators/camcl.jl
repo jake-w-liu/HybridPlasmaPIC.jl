@@ -64,6 +64,13 @@ function CAMCLStepper(
     shape::SH,
     N::Integer,
 ) where {D,T,M<:HybridModel,SH<:ShapeFunction}
+    # the CL subcycle freezes the scalar ∇p_e (f.gradp), which is incompatible with the
+    # B-dependent gyrotropic force — use HybridStepper for anisotropic (CGL) closures.
+    is_anisotropic(model.closure) && throw(
+        ArgumentError(
+            "CAMCLStepper does not support anisotropic (CGL) closures; use HybridStepper",
+        ),
+    )
     nc = g.n
     Np = _particle_length(N)
     CAMCLStepper{D,T,SH,M}(
@@ -120,6 +127,7 @@ end
         T(st.model.ηH),
         st.g,
     )
+    _apply_electron_inertia!(st.Escr, T(st.model.de2), st.g)   # E ← E/(1+d_e²k²) if de2>0
     faraday_rhs!(out, st.Escr, st.g)
     return out
 end
