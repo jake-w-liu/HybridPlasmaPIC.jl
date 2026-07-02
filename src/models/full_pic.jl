@@ -181,6 +181,19 @@ end
     return es
 end
 
+# Electron gather buffers (also reused as position scratch in _substep_em!) are sized to Np at
+# construction; re-size to the current electron count each step so a growing electron population
+# (e.g. ionize_mcc! secondaries) composes with the push, symmetric with the ion buffers above.
+@inline function _ensure_electron_buffers!(es::EMPIC1D{T}, ne::Integer) where {T}
+    if length(es.Exp) != ne
+        resize!(es.Exp, ne)
+        resize!(es.Eyp, ne)
+        resize!(es.Bzp, ne)
+        resize!(es.work, ne)
+    end
+    return es
+end
+
 @inline function _require_empic_electrons(e::ParticleSet{D,T}) where {D,T}
     q = _require_finite_real("electron charge q", e.q, T)
     m = _require_finite_real("electron mass m", e.m, T)
@@ -444,6 +457,7 @@ function init_empic!(
     ions::Union{Nothing,ParticleSet{1,T}} = nothing,
 ) where {T}
     _require_empic_electrons(e)
+    _ensure_electron_buffers!(es, nparticles(e))
     if es.mobile
         ions === nothing &&
             throw(ArgumentError("mobile=true requires an ion ParticleSet in init_empic!"))
@@ -602,6 +616,7 @@ function step_empic!(
         _require_empic_ions(ions)
     end
     dtT = _validated_nonnegative_dt(T, dt; name = "step_empic!")
+    _ensure_electron_buffers!(es, nparticles(e))
     if es.mobile
         _ensure_ion_buffers!(es, nparticles(ions))
     end
@@ -813,6 +828,22 @@ end
         resize!(es.midi[d], ni)
     end
     resize!(es.worki, ni)
+    return es
+end
+
+# Electron gather buffers are sized to Np at construction; re-size them to the current electron
+# count each step so a growing electron population (e.g. ionize_mcc! secondaries) composes with
+# the push, symmetric with the ion buffers above. resize! to the same length is a no-op.
+@inline function _ensure_empic_electron_buffers!(es::EMPIC{D,T}, ne::Integer) where {D,T}
+    ne >= 0 || throw(ArgumentError("electron particle count must be nonnegative"))
+    for c = 1:3
+        resize!(es.Ep[c], ne)
+        resize!(es.Bp[c], ne)
+    end
+    for d = 1:D
+        resize!(es.mide[d], ne)
+    end
+    resize!(es.worke, ne)
     return es
 end
 
@@ -1072,6 +1103,7 @@ function init_empic!(
     ions::Union{Nothing,ParticleSet{D,T}} = nothing,
 ) where {D,T}
     _require_empic_electrons(e)
+    _ensure_empic_electron_buffers!(es, nparticles(e))
     if es.mobile
         ions === nothing &&
             throw(ArgumentError("mobile=true requires an ion ParticleSet in init_empic!"))
@@ -1145,6 +1177,7 @@ function step_empic!(
         _require_empic_ions(ions)
     end
     dtT = _validated_nonnegative_dt(T, dt; name = "step_empic!")
+    _ensure_empic_electron_buffers!(es, nparticles(e))
     if es.mobile
         _ensure_empic_ion_buffers!(es, nparticles(ions))
     end

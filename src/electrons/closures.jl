@@ -39,7 +39,12 @@ function PolytropicElectrons(pe0::Real, n0::Real, γ::Real)
 end
 
 electron_pressure!(pe, n, c::IsothermalElectrons) = (@. pe = c.Te * n; pe)
-electron_pressure!(pe, n, c::PolytropicElectrons) = (@. pe = c.pe0 * (n / c.n0)^c.γ; pe)
+# Floor the base at 0: particle-deposited densities are ≥0 (so this is a no-op for hybrid/full-PIC),
+# but a Hall-MHD RK4 predictor stage can transiently undershoot a cell below 0, and (neg)^γ with a
+# non-integer γ throws an uncontrolled DomainError. pe→0 there (continuous, since 0^γ=0 for γ>0);
+# the committed state is separately validated against nfloor.
+electron_pressure!(pe, n, c::PolytropicElectrons) =
+    (@. pe = c.pe0 * (max(n, zero(eltype(n))) / c.n0)^c.γ; pe)
 
 "Adiabatic index of a closure (for the electron internal-energy budget)."
 closure_gamma(::IsothermalElectrons) = 1.0

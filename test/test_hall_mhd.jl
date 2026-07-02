@@ -143,3 +143,22 @@ end
     @test abs(mass1 - mass0) < 1e-11
     @test all(isfinite, st.fields.n)
 end
+
+@testset "Hall-MHD polytropic closure survives transient RK4 predictor undershoot" begin
+    # An RK4 predictor stage can drive a cell's density transiently below 0 even when the
+    # committed state is healthy; the polytropic pressure `(n/n0)^γ` must not throw a
+    # DomainError on a negative base (non-integer γ). The step must complete and stay finite.
+    g = FourierGrid((16, 4), (2π, 2π))
+    st = HallMHDState(g, HallMHDModel(PolytropicElectrons(0.5, 1.0, 5 / 3); Ti = 0.0, η = 0.0))
+    xs = [(i - 1) * g.dx[1] for i = 1:16]
+    for j = 1:4, i = 1:16
+        st.fields.n[i, j] = 1 + 0.9 * cos(xs[i])       # min committed density ~0.1 ≫ nfloor
+        st.fields.B[3][i, j] = 1.0
+        st.fields.ui[1][i, j] = 50.0                   # strong flow ⇒ predictor undershoot
+    end
+    for _ = 1:5
+        step_hall_mhd!(st, 0.02)
+    end
+    @test all(isfinite, st.fields.n)
+    @test minimum(st.fields.n) > 0
+end

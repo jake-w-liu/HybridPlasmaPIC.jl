@@ -425,3 +425,26 @@ end
     end
     @test Wmax / W0 < 2.0
 end
+
+@testset "EMPIC1D resizes electron gather buffers when the electron count grows" begin
+    T = Float64
+    g = FourierGrid((32,), (2π,))
+    N = 64
+    e = ParticleSet{1,T}(N; q = -1.0, m = 1.0)
+    ions = ParticleSet{1,T}(N; q = 1.0, m = 25.0)
+    load_lattice!(e, (0.0,), g.L, (N,))
+    load_lattice!(ions, (0.0,), g.L, (N,))
+    es = EMPIC1D(g, N; mobile = true, mi = 25.0, c = 8.0)
+    init_empic!(es, e, ions)
+    step_empic!(es, e, ions, 0.005)
+    # grow the electron population (as ionize_mcc! secondaries would); the next step must not
+    # DimensionMismatch on stale-sized electron gather/scratch buffers.
+    xe = ParticleSet{1,T}(5; q = -1.0, m = 1.0)
+    for k = 1:5
+        xe.x[1][k] = 0.1k
+    end
+    HybridPlasmaPIC.append_particles!(e, xe)
+    @test HybridPlasmaPIC.nparticles(e) == N + 5
+    step_empic!(es, e, ions, 0.005)
+    @test isfinite(em_field_energy(es) + kinetic_energy(e))
+end

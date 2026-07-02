@@ -233,3 +233,26 @@ end
     set_density_weight!(badions, 1.0, g)
     @test_throws ArgumentError step_empic!(es, e, badions, 0.01)
 end
+
+@testset "EMPIC resizes electron gather buffers when the electron count grows" begin
+    T = Float64
+    g = FourierGrid((16, 16), (2π, 2π))
+    N = 64
+    e = ParticleSet{2,T}(N; q = -1.0, m = 1.0)
+    ions = ParticleSet{2,T}(N; q = 1.0, m = 25.0)
+    load_lattice!(e, (0.0, 0.0), g.L, (8, 8))
+    load_lattice!(ions, (0.0, 0.0), g.L, (8, 8))
+    es = EMPIC(g, N; mobile = true, mi = 25.0, c = 8.0)
+    init_empic!(es, e, ions)
+    step_empic!(es, e, ions, 0.005)
+    # grow the electron population (as ionize_mcc! secondaries would); the next step must not
+    # DimensionMismatch on stale-sized electron gather buffers (they are ion-symmetric now).
+    xe = ParticleSet{2,T}(5; q = -1.0, m = 1.0)
+    for d = 1:2, k = 1:5
+        xe.x[d][k] = 0.1k
+    end
+    HybridPlasmaPIC.append_particles!(e, xe)
+    @test HybridPlasmaPIC.nparticles(e) == N + 5
+    step_empic!(es, e, ions, 0.005)
+    @test isfinite(em_field_energy(es) + kinetic_energy(e) + kinetic_energy(ions))
+end
