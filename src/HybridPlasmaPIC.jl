@@ -51,6 +51,7 @@ include("models/abstract_model.jl")
 include("particles/particle_set.jl")
 include("particles/loading.jl")
 include("particles/boris.jl")
+include("particles/radiation_reaction.jl")
 include("particles/sorting.jl")
 include("particles/collisions.jl")
 include("parallel/domain_decomposition.jl")
@@ -73,6 +74,7 @@ include("coupling/moments.jl")
 # --- Electrons + hybrid model + field state ---
 include("electrons/closures.jl")
 include("fields/field_state.jl")              # HybridFields
+include("fields/antenna.jl")                  # external antenna/RF field source
 include("models/hybrid_pic.jl")               # HybridModel + compute_moments!
 include("electrons/ohms_law.jl")
 include("electrons/energy_equation.jl")
@@ -152,6 +154,8 @@ export ParticleSet,
     boris_kick,
     push_uniform!,
     push_gathered!,
+    apply_radiation_reaction!,
+    apply_antenna!,
     apply_periodic!,
     apply_reflecting!,
     apply_absorbing!
