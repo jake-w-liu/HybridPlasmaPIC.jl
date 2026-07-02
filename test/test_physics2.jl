@@ -172,6 +172,29 @@ end
     @test all(==(2.0), f.ui[1])
     @test all(==(3.0), f.ui[2])
     @test all(==(4.0), f.ui[3])
+
+    # a mis-sized PER-SPECIES works (index ≥ 2) must also leave f untouched: the per-element
+    # works check runs before any fill!/deposit, not half-way through the species loop.
+    two = [ParticleSet{1,T}(3), ParticleSet{1,T}(4)]
+    badworks = [Vector{T}(undef, 3), Vector{T}(undef, 99)]      # works[2] length ≠ 4
+    fill!(f.n, 1.0)
+    fill!(f.ui[1], 2.0)
+    fill!(f.ui[2], 3.0)
+    fill!(f.ui[3], 4.0)
+    @test_throws DimensionMismatch compute_moments_multi!(
+        f,
+        two,
+        g,
+        NGP(),
+        1e-6;
+        ntmp,
+        mtmp,
+        works = badworks,
+    )
+    @test all(==(1.0), f.n)
+    @test all(==(2.0), f.ui[1])
+    @test all(==(3.0), f.ui[2])
+    @test all(==(4.0), f.ui[3])
 end
 
 @testset "electron pressure equation (analytic single step)" begin

@@ -91,24 +91,26 @@ function compute_moments_multi!(
             ),
         )
     end
-    fill!(f.n, zero(T))
-    for c = 1:3
-        fill!(f.ui[c], zero(T))
-    end
-    for (is, s) in enumerate(species)
-        work = if works === nothing
-            nothing
-        else
+    # Validate every works[is] BEFORE mutating f, so a mis-sized scratch leaves f unchanged
+    # (strong exception guarantee) rather than half-accumulated — matching the up-front nfloor/
+    # ntmp/mtmp/works-count checks and the "validates before mutation" contract (test_physics2.jl).
+    if works !== nothing
+        for (is, s) in enumerate(species)
             w = works[is]
-            eltype(w) === T ||
-                throw(ArgumentError("works[$is] eltype $(eltype(w)) must match $T"))
+            eltype(w) === T || throw(ArgumentError("works[$is] eltype $(eltype(w)) must match $T"))
             length(w) == nparticles(s) || throw(
                 DimensionMismatch(
                     "works[$is] length $(length(w)) must equal particle count $(nparticles(s))",
                 ),
             )
-            w
         end
+    end
+    fill!(f.n, zero(T))
+    for c = 1:3
+        fill!(f.ui[c], zero(T))
+    end
+    for (is, s) in enumerate(species)
+        work = works === nothing ? nothing : works[is]
         density!(ntmp, s, g, shape)
         momentum!(mtmp, s, g, shape; work)           # (n u)_s
         @. f.n += s.q * ntmp                          # Σ q_s n_s

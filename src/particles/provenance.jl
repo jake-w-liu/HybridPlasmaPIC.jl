@@ -125,6 +125,12 @@ function assign_global_particle_ids!(
     length(global_indices) == nparticles(ps) ||
         throw(DimensionMismatch("global_indices length must equal nparticles(ps)"))
     sp = _particle_species(species)
+    # Validate every index BEFORE writing any id, so an invalid entry leaves ps.id unchanged
+    # (strong exception guarantee), matching the range form above rather than corrupting the
+    # id array half-way through.
+    @inbounds for p = 1:nparticles(ps)
+        _positive_particle_index(global_indices[p])
+    end
     @inbounds for p = 1:nparticles(ps)
         ps.id[p] = _global_particle_id(_positive_particle_index(global_indices[p]), sp)
     end

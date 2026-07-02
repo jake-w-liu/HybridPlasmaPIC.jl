@@ -71,3 +71,17 @@ end
     @test sort(ranks[2].id) ==
           UInt64[global_particle_id(1; species = 2), global_particle_id(2; species = 2)]
 end
+
+@testset "assign_global_particle_ids! is exception-safe (no partial relabel on a bad index)" begin
+    ps = ParticleSet{1,Float64}(5)
+    for p = 1:5
+        ps.id[p] = UInt64(900 + p)
+    end
+    before = copy(ps.id)
+    # an invalid index mid-vector must leave EVERY id unchanged, not relabel positions 1..k-1
+    @test_throws ArgumentError assign_global_particle_ids!(ps, [1, 2, 0, 4, 5])
+    @test ps.id == before
+    # the valid path still assigns consecutive global ids
+    assign_global_particle_ids!(ps, [1, 2, 3, 4, 5])
+    @test collect(ps.id) == UInt64[global_particle_id(i) for i = 1:5]
+end
