@@ -10,6 +10,7 @@ using Test
     include("test_distributed_fft.jl")
     include("test_deposit.jl")
     include("test_hybrid.jl")
+    include("test_cgl.jl")
     include("test_hall_mhd.jl")
     include("test_dispersion.jl")
     include("test_dispersion_oracle.jl")

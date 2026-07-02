@@ -17,6 +17,7 @@ mutable struct HybridFields{D,T}
     gradp::NTuple{D,Array{T,D}}
     ninv::Array{T,D}
     lapJ::NTuple{3,Array{T,D}}        # ∇²J workspace (hyperresistivity)
+    pforce::NTuple{3,Array{T,D}}      # frozen ∇·P_e (anisotropic/CGL closure; unused/0 for scalar)
     floor_count::Base.RefValue{Int}
 end
 
@@ -31,6 +32,7 @@ function HybridFields{D,T}(nc::NTuple{D,Int}) where {D,T}
         z(),
         ntuple(_ -> z(), D),
         z(),
+        ntuple(_ -> z(), 3),
         ntuple(_ -> z(), 3),
         Ref(0),
     )

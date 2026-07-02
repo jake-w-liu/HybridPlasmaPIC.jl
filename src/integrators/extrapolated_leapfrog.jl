@@ -132,20 +132,41 @@ end
     st::HybridStepper{D,T},
 ) where {D,T}
     f = st.fields
-    # frozen pe/∇pe/ninv were precomputed once per step (via _ohm_prep! in step!);
-    # only the B-dependent part is evaluated here, each subcycle stage.
-    _ohm_Efield!(
-        st.Escr,
-        st.fui,
-        Btrial,
-        f.J,
-        f.lapJ,
-        f.gradp,
-        f.ninv,
-        T(st.model.η),
-        T(st.model.ηH),
-        st.g,
-    )
+    # frozen pe/∇pe/ninv (scalar) or the frozen ∇·P_e force (anisotropic/CGL) were
+    # precomputed once per step; only the B-dependent part is evaluated here each subcycle
+    # stage. The `is_anisotropic` test is compile-time-resolved from the closure type, so
+    # scalar closures keep the exact original call below.
+    if is_anisotropic(st.model.closure)
+        # the gyrotropic force depends on the field DIRECTION b, so it must track the trial
+        # B within the subcycle (a step-frozen b would misalign as B_⊥ grows and drive a
+        # numerical instability); recompute ∇·P_e(n^{n+1/2}, B_trial) each stage.
+        anisotropic_pressure_force!(f.pforce, st.fn, Btrial, st.model.closure, st.g)
+        _ohm_Efield_aniso!(
+            st.Escr,
+            st.fui,
+            Btrial,
+            f.J,
+            f.lapJ,
+            f.pforce,
+            f.ninv,
+            T(st.model.η),
+            T(st.model.ηH),
+            st.g,
+        )
+    else
+        _ohm_Efield!(
+            st.Escr,
+            st.fui,
+            Btrial,
+            f.J,
+            f.lapJ,
+            f.gradp,
+            f.ninv,
+            T(st.model.η),
+            T(st.model.ηH),
+            st.g,
+        )
+    end
     faraday_rhs!(out, st.Escr, st.g)
     return out
 end
@@ -230,9 +251,26 @@ function step!(st::HybridStepper{D,T}, ps::ParticleSet{D,T}, dt::Real; NB::Integ
     psmid = ParticleSet{D,T}(st.xmid, ps.v, ps.weight, ps.id, ps.tag, ps.q, ps.m)
     apply_periodic!(psmid, lo, hi)
     _moments!(st.fn, st.fui, psmid, g, st.shape, nf, st.work)
-    # frozen-moment Ohm terms (pe, ∇pe, 1/n) computed ONCE; reused every subcycle.
+    # frozen-moment Ohm terms computed ONCE; reused every subcycle. Scalar closures freeze
+    # pe/∇pe/1/n; the anisotropic (CGL) closure freezes 1/n and the pressure-tensor force
+    # ∇·P_e(n^{n+1/2}, B^n) instead (compile-time-resolved from the closure type).
     f = st.fields
-    _ohm_prep!(f.pe, f.gradp, f.ninv, st.fn, st.model.closure, T(st.model.nfloor), f.floor_count, g)
+    if is_anisotropic(st.model.closure)
+        # only 1/n is frozen; the gyrotropic force ∇·P_e is recomputed per subcycle stage
+        # (it depends on the trial B direction — see _bfield_rhs!).
+        _ohm_ninv!(f.ninv, st.fn, T(st.model.nfloor), f.floor_count)
+    else
+        _ohm_prep!(
+            f.pe,
+            f.gradp,
+            f.ninv,
+            st.fn,
+            st.model.closure,
+            T(st.model.nfloor),
+            f.floor_count,
+            g,
+        )
+    end
 
     # 3. subcycle B: n → n+1
     hb = dtT / NB
