@@ -7,6 +7,11 @@
 #   electric field   E (carried): integer n         (recomputed → n+1)
 #   moments for the B-subcycle : n+1/2 (midpoint positions x^{n+1/2}, v^{n+1/2})
 #
+# The loaded velocity is the physical v^0, so the FIRST step primes the leapfrog once
+# (v^{-1/2} = v^0 − (dt/2)·a^0) — without it the loaded v^0 acts as v^{-1/2} and the run is only
+# 1st-order in dt. This scheme is 2nd-order in dt (verified by a convergence study, incl. on
+# magnetized problems); getting there needs both the priming and the step-4 u_i re-centering below.
+#
 # One step (CAM/CL-style; the B subcycle is RK4 for stability of the stiff
 # whistler branch, with the n+1/2 ion moments held frozen across the subcycle):
 #   1. Gather E^n, B^n to particles; Boris push  v^{n−1/2}→v^{n+1/2}, x^n→x^{n+1}.
@@ -14,8 +19,10 @@
 #   2. Deposit frozen moments n^{n+1/2}, u_i^{n+1/2} from (x^{n+1/2}, v^{n+1/2}).
 #   3. Subcycle B: integrate ∂B/∂t = −∇×E(B; frozen moments) over dt with N_B RK4
 #      substeps  →  B^{n+1}.
-#   4. Recompute carried E from n^{n+1}, u_i^{n+1/2}, B^{n+1}  →  E^{n+1}.
-# The Boris update is centered at n; the B update is centered at n+1/2.
+#   4. Recompute carried E from n^{n+1}, u_i^{n+1/2}, B^{n+1}; then RE-CENTER u_i to n+1 via a
+#      predictor half-kick and recompute → 2nd-order E^{n+1} (u_i^{n+1/2} alone would be 1st-order
+#      in the −u_i×B convection term). See _recenter_carried_E!.
+# The Boris update is centered at n; the B update is centered at n+1/2; the scheme is 2nd-order.
 
 """
     HybridStepper(g, model, shape, N::Integer)
@@ -39,6 +46,7 @@ mutable struct HybridStepper{D,T,SH<:ShapeFunction,M<:HybridModel}
     Btmp::NTuple{3,Array{T,D}}
     Ep::NTuple{3,Vector{T}}
     Bp::NTuple{3,Vector{T}}
+    vpred::NTuple{3,Vector{T}}         # predicted v^{n+1} for the carried-E re-centering (2nd order)
     xmid::NTuple{D,Vector{T}}
     work::Vector{T}
     time::Base.RefValue{T}
@@ -66,9 +74,10 @@ function HybridStepper(
         ntuple(_ -> zeros(T, nc), Val(3)),
         ntuple(_ -> zeros(T, nc), Val(3)),
         ntuple(_ -> zeros(T, nc), Val(3)),
-        ntuple(_ -> zeros(T, Np), Val(3)),
-        ntuple(_ -> zeros(T, Np), Val(3)),
-        ntuple(_ -> zeros(T, Np), Val(D)),
+        ntuple(_ -> zeros(T, Np), Val(3)),   # Ep
+        ntuple(_ -> zeros(T, Np), Val(3)),   # Bp
+        ntuple(_ -> zeros(T, Np), Val(3)),   # vpred
+        ntuple(_ -> zeros(T, Np), Val(D)),   # xmid
         zeros(T, Np),
         Ref(zero(T)),
         Ref(0),
@@ -81,11 +90,13 @@ function _resize_hybrid_particle_workspaces!(st::HybridStepper{D,T}, n::Integer)
     length(st.work) == N &&
         all(length(st.Ep[c]) == N for c = 1:3) &&
         all(length(st.Bp[c]) == N for c = 1:3) &&
+        all(length(st.vpred[c]) == N for c = 1:3) &&
         all(length(st.xmid[d]) == N for d = 1:D) &&
         return st
 
     st.Ep = ntuple(_ -> Vector{T}(undef, N), 3)
     st.Bp = ntuple(_ -> Vector{T}(undef, N), 3)
+    st.vpred = ntuple(_ -> Vector{T}(undef, N), 3)
     st.xmid = ntuple(_ -> Vector{T}(undef, N), D)
     st.work = Vector{T}(undef, N)
     return st
@@ -122,6 +133,8 @@ function init!(st::HybridStepper{D,T}, ps::ParticleSet{D,T}) where {D,T}
     nf = T(st.model.nfloor)
     _moments!(st.fields.n, st.fields.ui, ps, st.g, st.shape, nf, st.work)
     ohms_law!(st.fields, st.model, st.g)
+    st.time[] = zero(T)                 # (re)start at t=0; step==0 triggers leapfrog priming
+    st.step[] = 0
     return st
 end
 
@@ -211,6 +224,57 @@ end
 
 Advance the plasma one timestep `dt` with `NB` magnetic subcycles (periodic box).
 """
+# One-time leapfrog priming. The loaded velocity is the physical v^0, but the leapfrog Boris push
+# expects v^{-1/2}; push v back a half step v^{-1/2} = v^0 − (dt/2)·a^0 (forward-Euler, with
+# a^0 = qm(E^0 + v^0×B^0) from the just-gathered fields) so the first Boris kick is centred at
+# t=0. Applied once (first step after init!) — a one-time O(dt²) IC correction that restores the
+# documented 2nd-order accuracy for a real init!+step! run (verified: end-to-end rate 1 → 2).
+@inline function _prime_leapfrog!(v, Ep, Bp, qm, h, np)
+    vx, vy, vz = v
+    ex, ey, ez = Ep
+    bx, by, bz = Bp
+    @inbounds for p = 1:np
+        ux, uy, uz = vx[p], vy[p], vz[p]
+        vx[p] = ux - h * qm * (ex[p] + (uy * bz[p] - uz * by[p]))
+        vy[p] = uy - h * qm * (ey[p] + (uz * bx[p] - ux * bz[p]))
+        vz[p] = uz - h * qm * (ez[p] + (ux * by[p] - uy * bx[p]))
+    end
+    return v
+end
+
+# Forward half-kick predictor v^{n+1/2} → v^{n+1} into `vp`, from particle-gathered E, B.
+@inline function _predict_half_kick!(vp, v, Ep, Bp, qm, h, np)
+    vx, vy, vz = v
+    vpx, vpy, vpz = vp
+    ex, ey, ez = Ep
+    bx, by, bz = Bp
+    @inbounds for p = 1:np
+        ux, uy, uz = vx[p], vy[p], vz[p]
+        vpx[p] = ux + h * qm * (ex[p] + (uy * bz[p] - uz * by[p]))
+        vpy[p] = uy + h * qm * (ey[p] + (uz * bx[p] - ux * bz[p]))
+        vpz[p] = uz + h * qm * (ez[p] + (ux * by[p] - uy * bx[p]))
+    end
+    return vp
+end
+
+# Re-center the carried E to integer level n+1. The E just computed in step 4 deposits u_i from
+# the half-step velocity v^{n+1/2}, so the −u_i×B convection term lags by dt/2 — an O(dt) force
+# error that makes the whole scheme 1st-order on magnetized problems. Predict v^{n+1} with a
+# forward half-kick from the fresh E^{n+1}, B^{n+1}, re-deposit u_i^{n+1}, and recompute the
+# carried E, restoring the documented CAM/CL 2nd-order accuracy (verified: magnetized temporal
+# convergence rate 1 → 2). Unmagnetized behavior is unchanged (u_i drops out of Ohm's law when
+# B=0). Generic over the stepper (HybridStepper/CAMCLStepper share Ep/Bp/vpred/work). No alloc.
+function _recenter_carried_E!(st, ps::ParticleSet{D,T}, dtT::T) where {D,T}
+    g = st.g
+    gather_vector!(st.Ep, st.fields.E, ps, g, st.shape)   # E^{n+1}
+    gather_vector!(st.Bp, st.fields.B, ps, g, st.shape)   # B^{n+1}
+    _predict_half_kick!(st.vpred, ps.v, st.Ep, st.Bp, ps.q / ps.m, dtT / 2, length(ps.weight))
+    pspred = ParticleSet{D,T}(ps.x, st.vpred, ps.weight, ps.id, ps.tag, ps.q, ps.m)
+    _moments!(st.fields.n, st.fields.ui, pspred, g, st.shape, T(st.model.nfloor), st.work)
+    ohms_law!(st.fields, st.model, g)
+    return st
+end
+
 function step!(st::HybridStepper{D,T}, ps::ParticleSet{D,T}, dt::Real; NB::Integer = 1) where {D,T}
     dtT = _validated_step_dt(T, dt, NB; min_NB = 1, name = "step!")
     g = st.g
@@ -223,6 +287,8 @@ function step!(st::HybridStepper{D,T}, ps::ParticleSet{D,T}, dt::Real; NB::Integ
     gather_vector!(st.Ep, st.fields.E, ps, g, st.shape)
     gather_vector!(st.Bp, st.fields.B, ps, g, st.shape)
     qm = ps.q / ps.m
+    # prime the leapfrog once: loaded v is physical v^0 → v^{-1/2} for 2nd-order (see above).
+    st.step[] == 0 && _prime_leapfrog!(ps.v, st.Ep, st.Bp, qm, h, length(ps.weight))
     vx, vy, vz = ps.v
     @inbounds for p in eachindex(ps.weight)
         nx, ny, nz = boris_kick(
@@ -279,9 +345,11 @@ function step!(st::HybridStepper{D,T}, ps::ParticleSet{D,T}, dt::Real; NB::Integ
         _rk4_B!(st, hb)
     end
 
-    # 4. recompute carried E = E^{n+1}
+    # 4. recompute carried E = E^{n+1} (n^{n+1}, u_i^{n+1/2}, B^{n+1}), then re-center u_i to n+1
+    #    via a predictor half-kick so the carried E is 2nd-order accurate (see _recenter_carried_E!).
     _moments!(st.fields.n, st.fields.ui, ps, g, st.shape, nf, st.work)
     ohms_law!(st.fields, st.model, st.g)
+    _recenter_carried_E!(st, ps, dtT)
 
     st.time[] += dtT
     st.step[] += 1

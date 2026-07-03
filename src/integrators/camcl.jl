@@ -52,6 +52,7 @@ mutable struct CAMCLStepper{D,T,SH<:ShapeFunction,M<:HybridModel}
     rhs::NTuple{3,Array{T,D}}          # −∇×E scratch
     Ep::NTuple{3,Vector{T}}
     Bp::NTuple{3,Vector{T}}
+    vpred::NTuple{3,Vector{T}}         # predicted v^{n+1} for the carried-E re-centering (2nd order)
     xmid::NTuple{D,Vector{T}}
     work::Vector{T}
     time::Base.RefValue{T}
@@ -84,9 +85,10 @@ function CAMCLStepper(
         ntuple(_ -> zeros(T, nc), Val(3)),
         ntuple(_ -> zeros(T, nc), Val(3)),
         ntuple(_ -> zeros(T, nc), Val(3)),
-        ntuple(_ -> zeros(T, Np), Val(3)),
-        ntuple(_ -> zeros(T, Np), Val(3)),
-        ntuple(_ -> zeros(T, Np), Val(D)),
+        ntuple(_ -> zeros(T, Np), Val(3)),   # Ep
+        ntuple(_ -> zeros(T, Np), Val(3)),   # Bp
+        ntuple(_ -> zeros(T, Np), Val(3)),   # vpred
+        ntuple(_ -> zeros(T, Np), Val(D)),   # xmid
         zeros(T, Np),
         Ref(zero(T)),
         Ref(0),
@@ -104,6 +106,8 @@ function init_camcl!(st::CAMCLStepper{D,T}, ps::ParticleSet{D,T}) where {D,T}
     nf = T(st.model.nfloor)
     _moments!(st.fields.n, st.fields.ui, ps, st.g, st.shape, nf, st.work)
     ohms_law!(st.fields, st.model, st.g)
+    st.time[] = zero(T)                 # (re)start at t=0; step==0 triggers leapfrog priming
+    st.step[] = 0
     return st
 end
 
@@ -224,6 +228,8 @@ function step_camcl!(
     gather_vector!(st.Ep, st.fields.E, ps, g, st.shape)
     gather_vector!(st.Bp, st.fields.B, ps, g, st.shape)
     qm = ps.q / ps.m
+    # prime the leapfrog once: loaded v is physical v^0 → v^{-1/2} for 2nd-order accuracy.
+    st.step[] == 0 && _prime_leapfrog!(ps.v, st.Ep, st.Bp, qm, h, length(ps.weight))
     vx, vy, vz = ps.v
     @inbounds for p in eachindex(ps.weight)
         nx, ny, nz = boris_kick(
@@ -261,10 +267,11 @@ function step_camcl!(
     # 3. CL: cyclic-leapfrog subcycle of B from n → n+1.
     _cl_subcycle_B!(st, dtT, NB)
 
-    # 4. recompute carried E = E^{n+1} from n+1 moments + n+1/2 current... use
-    #    full-step moments for the carried field consistent with HybridStepper.
+    # 4. recompute carried E = E^{n+1}, then re-center u_i to integer level n+1 via a predictor
+    #    half-kick so the carried E is 2nd-order accurate (consistent with HybridStepper).
     _moments!(st.fields.n, st.fields.ui, ps, g, st.shape, nf, st.work)
     ohms_law!(st.fields, st.model, st.g)
+    _recenter_carried_E!(st, ps, dtT)
 
     st.time[] += dtT
     st.step[] += 1

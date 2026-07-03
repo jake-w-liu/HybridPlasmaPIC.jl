@@ -621,6 +621,8 @@ function mpi_init!(
         gpu_status,
     )
     ohms_law!(st.fields, st.model, st.g)
+    st.time[] = zero(T)                 # (re)start at t=0; step==0 triggers leapfrog priming
+    st.step[] = 0
     return st
 end
 
@@ -653,6 +655,8 @@ function mpi_step!(
     gather_vector!(st.Ep, st.fields.E, ps, g, st.shape)
     gather_vector!(st.Bp, st.fields.B, ps, g, st.shape)
     qm = ps.q / ps.m
+    # prime the leapfrog once: loaded v is physical v^0 → v^{-1/2} for 2nd-order accuracy.
+    st.step[] == 0 && _prime_leapfrog!(ps.v, st.Ep, st.Bp, qm, h, nparticles(ps))
     vx, vy, vz = ps.v
     @inbounds for p in eachindex(ps.weight)
         nx, ny, nz = boris_kick(
@@ -697,6 +701,15 @@ function mpi_step!(
     end
 
     mpi_compute_moments!(st.fields, ps, g, st.shape, nf, ctx; work = st.work, gpu_status)
+    ohms_law!(st.fields, st.model, st.g)
+    # re-center u_i to integer level n+1 (predictor half-kick from the fresh E^{n+1}, B^{n+1}) so
+    # the carried E is 2nd-order accurate, matching HybridStepper (see _recenter_carried_E!). The
+    # re-deposit uses the MPI moment routine; particles are still pre-migration (as for step 4).
+    gather_vector!(st.Ep, st.fields.E, ps, g, st.shape)
+    gather_vector!(st.Bp, st.fields.B, ps, g, st.shape)
+    _predict_half_kick!(st.vpred, ps.v, st.Ep, st.Bp, ps.q / ps.m, h, nparticles(ps))
+    pspred = ParticleSet{D,T}(ps.x, st.vpred, ps.weight, ps.id, ps.tag, ps.q, ps.m)
+    mpi_compute_moments!(st.fields, pspred, g, st.shape, nf, ctx; work = st.work, gpu_status)
     ohms_law!(st.fields, st.model, st.g)
 
     migrate_particles && mpi_migrate_particles!(ps, g, ctx)

@@ -249,3 +249,41 @@ end
     @test all(==(3.0), f.ui[2])
     @test all(==(4.0), f.ui[3])
 end
+
+@testset "HYB-order: magnetized hybrid step! is 2nd-order in dt" begin
+    # The carried-E u_i re-centering (predictor) + one-time leapfrog velocity priming make a
+    # real init!+step! run 2nd-order accurate on a magnetized problem (previously 1st-order:
+    # the carried E used the half-step-lagged u_i^{n+1/2}, and the loaded v^0 was used as
+    # v^{-1/2} unprimed). Self-convergence on the seeded transverse magnetic energy: the
+    # temporal order must sit near 2, well above the old 1.
+    T = Float64
+    L = 2π
+    k = 2π / L
+    function bE(nsteps, Tf)
+        n = 16
+        N = 1000 * n
+        g = FourierGrid((n,), (T(L),))
+        ps = ParticleSet{1,T}(N)
+        load_lattice_1d!(ps, 0.0, T(L))
+        set_density_weight!(ps, 1.0, g)
+        load_quiet_velocities!(ps, MersenneTwister(7), (0.0, 0.0, 0.0), (0.02, 0.02, 0.02))
+        st = HybridStepper(g, HybridModel(IsothermalElectrons(0.5)), CIC(), N)
+        x = [(i - 1) * g.dx[1] for i = 1:n]
+        fill!(st.fields.B[1], 1.0)
+        st.fields.B[2] .= 0.01 .* cos.(k .* x)
+        st.fields.B[3] .= 0.01 .* sin.(k .* x)
+        init!(st, ps)
+        dt = Tf / nsteps
+        for _ = 1:nsteps
+            step!(st, ps, dt; NB = 4)
+        end
+        magnetic_energy(st.fields.B, g)
+    end
+    Tf = 0.2
+    s = (10, 20, 40, 80)
+    v = [bE(ns, Tf) for ns in s]
+    r1 = log2(abs(v[1] - v[2]) / abs(v[2] - v[3]))
+    r2 = log2(abs(v[2] - v[3]) / abs(v[3] - v[4]))
+    @test r1 > 1.6        # ≈2.0 with the fix; ≈1.0 (would fail) without it
+    @test r2 > 1.6
+end
