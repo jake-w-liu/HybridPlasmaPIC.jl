@@ -229,15 +229,38 @@ Advance the plasma one timestep `dt` with `NB` magnetic subcycles (periodic box)
 # a^0 = qm(E^0 + v^0×B^0) from the just-gathered fields) so the first Boris kick is centred at
 # t=0. Applied once (first step after init!) — a one-time O(dt²) IC correction that restores the
 # documented 2nd-order accuracy for a real init!+step! run (verified: end-to-end rate 1 → 2).
-@inline function _prime_leapfrog!(v, Ep, Bp, qm, h, np)
+# `rel=true` (relativistic push, works in momentum u=γv) backs up MOMENTUM: u^{-1/2}=γ^0 v^0 − h·a^0,
+# v^{-1/2}=u^{-1/2}/γ(u); the default non-relativistic path is byte-identical for the hybrid callers.
+@inline function _prime_leapfrog!(v, Ep, Bp, qm, h, np, rel::Bool = false, c = one(eltype(v[1])))
     vx, vy, vz = v
     ex, ey, ez = Ep
     bx, by, bz = Bp
-    @inbounds for p = 1:np
-        ux, uy, uz = vx[p], vy[p], vz[p]
-        vx[p] = ux - h * qm * (ex[p] + (uy * bz[p] - uz * by[p]))
-        vy[p] = uy - h * qm * (ey[p] + (uz * bx[p] - ux * bz[p]))
-        vz[p] = uz - h * qm * (ez[p] + (ux * by[p] - uy * bx[p]))
+    if rel
+        c2 = c * c
+        o = one(c)
+        @inbounds for p = 1:np
+            v0x, v0y, v0z = vx[p], vy[p], vz[p]
+            β2 = (v0x * v0x + v0y * v0y + v0z * v0z) / c2
+            β2 >= o && (β2 = o - eps(c))
+            g0 = o / sqrt(o - β2)
+            ax = qm * (ex[p] + (v0y * bz[p] - v0z * by[p]))
+            ay = qm * (ey[p] + (v0z * bx[p] - v0x * bz[p]))
+            az = qm * (ez[p] + (v0x * by[p] - v0y * bx[p]))
+            umx = g0 * v0x - h * ax
+            umy = g0 * v0y - h * ay
+            umz = g0 * v0z - h * az
+            gm = sqrt(o + (umx * umx + umy * umy + umz * umz) / c2)
+            vx[p] = umx / gm
+            vy[p] = umy / gm
+            vz[p] = umz / gm
+        end
+    else
+        @inbounds for p = 1:np
+            ux, uy, uz = vx[p], vy[p], vz[p]
+            vx[p] = ux - h * qm * (ex[p] + (uy * bz[p] - uz * by[p]))
+            vy[p] = uy - h * qm * (ey[p] + (uz * bx[p] - ux * bz[p]))
+            vz[p] = uz - h * qm * (ez[p] + (ux * by[p] - uy * bx[p]))
+        end
     end
     return v
 end

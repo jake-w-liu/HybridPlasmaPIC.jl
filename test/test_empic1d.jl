@@ -488,3 +488,46 @@ end
         @test r2 > 1.6
     end
 end
+
+@testset "EMPIC1D relativistic priming is 2nd-order for a relativistic drifting beam" begin
+    # The relativistic push works in momentum u=γv, so the prime must back up MOMENTUM
+    # (u^{-1/2}=γ^0 v^0−h·a^0), not velocity. With a bulk drift the velocity-space prime leaves
+    # an O(dt) momentum error → 1st-order; the momentum-space prime restores 2nd-order.
+    T = Float64
+    L = 2π
+    k = 2π / L
+    A = 0.02
+    function ex(nsteps; vd)
+        n = 32
+        N = 400 * n
+        g = FourierGrid((n,), (T(L),))
+        e = ParticleSet{1,T}(N; q = -1.0, m = 1.0)
+        ions = ParticleSet{1,T}(N; q = 1.0, m = 100.0)
+        load_lattice_1d!(e, 0.0, T(L))
+        load_lattice_1d!(ions, 0.0, T(L))
+        set_density_weight!(e, 1.0, g)
+        set_density_weight!(ions, 1.0, g)
+        for p = 1:N
+            e.x[1][p] = mod(e.x[1][p] - (A / k) * sin(k * e.x[1][p]), L)
+            e.v[1][p] = vd
+        end
+        es = EMPIC1D(g, N; mobile = true, mi = 100.0, c = 8.0, relativistic = true)
+        init_empic!(es, e, ions)
+        for _ = 1:nsteps
+            step_empic!(es, e, ions, 1.0 / nsteps)
+        end
+        abs(mode_amplitude(es.Ex, g, (1,)))
+    end
+    v = [ex(ns; vd = 4.0) for ns in (20, 40, 80, 160)]   # drift 0.5c, γ≈1.15
+    @test log2(abs(v[1] - v[2]) / abs(v[2] - v[3])) > 1.6
+    @test log2(abs(v[2] - v[3]) / abs(v[3] - v[4])) > 1.6
+end
+
+@testset "EMPIC ion ParticleSet mass must match the constructor mi" begin
+    T = Float64
+    g = FourierGrid((16,), (2π,))
+    es = EMPIC1D(g, 100; mobile = true, mi = 100.0, c = 5.0)
+    e = ParticleSet{1,T}(100; q = -1.0, m = 1.0)
+    bad = ParticleSet{1,T}(100; q = 1.0, m = 1.0)      # m ≠ mi=100 (was silently ignored)
+    @test_throws ArgumentError init_empic!(es, e, bad)
+end

@@ -64,6 +64,15 @@
 # to the field solve on every electron substep. n_sub=1 reproduces the single-
 # rate scheme exactly (and bit-for-bit reproduces the legacy immobile-ion run).
 #
+# KNOWN LIMITATION (verified 2026-07, deep-debug): with MOBILE ions AND n_sub≥2 the temporal
+# order drops to ~1 (cold self-convergence: n_sub=1 → 2.0; n_sub=2 → ~0.9→1.0). The heavy ions
+# are drifted the whole dt_ion at once on the straddling substep, so their charge snapshot on the
+# other substeps sits at x^n (before) or x^{n+1} (after) rather than the substep-consistent
+# x^{n+1/2±} — an O(dt) per-step charge/field error (NOT the initial-condition priming, which is
+# self-consistent here). n_sub=1 and the immobile-ion background are unaffected (2nd-order). A fix
+# would split the ion drift across substeps (drift dt_e each substep, kick once) so the deposited
+# ion charge is time-consistent; that is a subcycling-scheme change left for a dedicated pass.
+#
 # Verified oracles (test_empic1d.jl):
 #   (1) transverse EM-wave dispersion ω² = ω_pe² + c²k² (≥2 k values, <3%);
 #   (2) charge conservation max|ρ^{n+1}−ρ^n + dt ∂xJx|/scale < 1e-10;
@@ -214,11 +223,18 @@ end
     return nothing
 end
 
-@inline function _require_empic_ions(ions::ParticleSet{D,T}) where {D,T}
+@inline function _require_empic_ions(ions::ParticleSet{D,T}, mi::T) where {D,T}
     q = _require_finite_real("ion charge q", ions.q, T)
     m = _require_finite_real("ion mass m", ions.m, T)
     q == one(T) || throw(ArgumentError("electromagnetic PIC requires ion ParticleSet with q = 1"))
     m > zero(T) || throw(ArgumentError("electromagnetic PIC requires ion ParticleSet with m > 0"))
+    # the dynamics use the ParticleSet's per-particle mass; require it to match the constructor
+    # `mi` so a user following the docstring cannot silently get a different ion mass.
+    m == mi || throw(
+        ArgumentError(
+            "ion ParticleSet mass m=$m must equal the EMPIC constructor mi=$mi (the ion mass)",
+        ),
+    )
     return nothing
 end
 
@@ -471,7 +487,7 @@ function init_empic!(
     if es.mobile
         ions === nothing &&
             throw(ArgumentError("mobile=true requires an ion ParticleSet in init_empic!"))
-        _require_empic_ions(ions)
+        _require_empic_ions(ions, es.mi)
         _ensure_ion_buffers!(es, nparticles(ions))
     end
     g = es.g
@@ -611,13 +627,39 @@ end
 # push expects v^{-1/2}; back it up a half step v^{-1/2} = v^0 − h·a^0, a^0 = qm(E + v×B) with
 # B = (0,0,Bz). `h` is the species' half-step (dt_e/2 for electrons, dt_ion/2 for ions). Restores
 # 2nd-order temporal accuracy (verified: rate 1 → 2 for both species).
-@inline function _prime_empic1d!(v, Exp, Eyp, Bzp, qm, h, np)
-    vx, vy, _ = v
-    @inbounds for p = 1:np
-        bz = Bzp[p]
-        ux, uy = vx[p], vy[p]
-        vx[p] = ux - h * qm * (Exp[p] + uy * bz)          # a_x = qm(Ex + v_y B_z)
-        vy[p] = uy - h * qm * (Eyp[p] - ux * bz)          # a_y = qm(Ey − v_x B_z)
+@inline function _prime_empic1d!(v, Exp, Eyp, Bzp, qm, h, np, rel::Bool, c)
+    vx, vy, vz = v
+    if rel
+        # the relativistic Boris push works in momentum u=γv, so back up MOMENTUM:
+        # u^{-1/2}=γ^0 v^0 − h·qm(E+v^0×B^0), then v^{-1/2}=u^{-1/2}/γ(u^{-1/2}). Backing up v
+        # directly (below) leaves an O(dt) momentum error ∝ the bulk drift → 1st order.
+        c2 = c * c
+        o = one(c)
+        @inbounds for p = 1:np
+            bz = Bzp[p]
+            v0x = vx[p]
+            v0y = vy[p]
+            v0z = vz[p]
+            β2 = (v0x * v0x + v0y * v0y + v0z * v0z) / c2
+            β2 >= o && (β2 = o - eps(c))
+            g0 = o / sqrt(o - β2)
+            ax = qm * (Exp[p] + v0y * bz)                 # a = qm(E + v×B), B=(0,0,B_z)
+            ay = qm * (Eyp[p] - v0x * bz)
+            umx = g0 * v0x - h * ax
+            umy = g0 * v0y - h * ay
+            umz = g0 * v0z
+            gm = sqrt(o + (umx * umx + umy * umy + umz * umz) / c2)
+            vx[p] = umx / gm
+            vy[p] = umy / gm
+            vz[p] = umz / gm
+        end
+    else
+        @inbounds for p = 1:np
+            bz = Bzp[p]
+            ux, uy = vx[p], vy[p]
+            vx[p] = ux - h * qm * (Exp[p] + uy * bz)      # a_x = qm(Ex + v_y B_z)
+            vy[p] = uy - h * qm * (Eyp[p] - ux * bz)      # a_y = qm(Ey − v_x B_z)
+        end
     end
     return v
 end
@@ -640,7 +682,7 @@ function step_empic!(
     if es.mobile
         ions === nothing &&
             throw(ArgumentError("mobile=true requires an ion ParticleSet in step_empic!"))
-        _require_empic_ions(ions)
+        _require_empic_ions(ions, es.mi)
     end
     dtT = _validated_nonnegative_dt(T, dt; name = "step_empic!")
     iszero(dtT) && return es            # dt=0 no-op: do not consume the one-time priming
@@ -656,7 +698,17 @@ function step_empic!(
         gather_scalar!(es.Exp, es.Ex, e, g0, es.shape)
         gather_scalar!(es.Eyp, es.Ey, e, g0, es.shape)
         gather_scalar!(es.Bzp, es.Bz, e, g0, es.shape)
-        _prime_empic1d!(e.v, es.Exp, es.Eyp, es.Bzp, -one(T), dt_e / 2, nparticles(e))
+        _prime_empic1d!(
+            e.v,
+            es.Exp,
+            es.Eyp,
+            es.Bzp,
+            -one(T),
+            dt_e / 2,
+            nparticles(e),
+            es.relativistic,
+            es.c,
+        )
         if es.mobile && ions !== nothing
             gather_scalar!(es.Exi, es.Ex, ions, g0, es.shape)
             gather_scalar!(es.Eyi, es.Ey, ions, g0, es.shape)
@@ -670,6 +722,8 @@ function step_empic!(
                 ions.q / ions.m,
                 (T(ns) * dt_e) / 2,
                 nparticles(ions),
+                es.relativistic,
+                es.c,
             )
         end
         # field priming: the seeded Bz is the physical Bz^0, but the Yee leapfrog carries Bz at
@@ -1165,7 +1219,7 @@ function init_empic!(
     if es.mobile
         ions === nothing &&
             throw(ArgumentError("mobile=true requires an ion ParticleSet in init_empic!"))
-        _require_empic_ions(ions)
+        _require_empic_ions(ions, es.mi)
         _ensure_empic_ion_buffers!(es, nparticles(ions))
     end
     _charge_density!(es.rho_n, es.ne, es, e, ions)
@@ -1234,7 +1288,7 @@ function step_empic!(
     if es.mobile
         ions === nothing &&
             throw(ArgumentError("mobile=true requires an ion ParticleSet in step_empic!"))
-        _require_empic_ions(ions)
+        _require_empic_ions(ions, es.mi)
     end
     dtT = _validated_nonnegative_dt(T, dt; name = "step_empic!")
     iszero(dtT) && return es            # dt=0 no-op: do not consume the one-time priming
@@ -1250,11 +1304,20 @@ function step_empic!(
         h = dtT / 2
         gather_vector!(es.Ep, es.E, e, g0, es.shape)
         gather_vector!(es.Bp, es.B, e, g0, es.shape)
-        _prime_leapfrog!(e.v, es.Ep, es.Bp, -one(T), h, nparticles(e))
+        _prime_leapfrog!(e.v, es.Ep, es.Bp, -one(T), h, nparticles(e), es.relativistic, es.c)
         if es.mobile && ions !== nothing
             gather_vector!(es.Epi, es.E, ions, g0, es.shape)
             gather_vector!(es.Bpi, es.B, ions, g0, es.shape)
-            _prime_leapfrog!(ions.v, es.Epi, es.Bpi, ions.q / ions.m, h, nparticles(ions))
+            _prime_leapfrog!(
+                ions.v,
+                es.Epi,
+                es.Bpi,
+                ions.q / ions.m,
+                h,
+                nparticles(ions),
+                es.relativistic,
+                es.c,
+            )
         end
         curl!(es.curlE, es.E, g0)
         @inbounds for c = 1:3, I in eachindex(es.B[c])
