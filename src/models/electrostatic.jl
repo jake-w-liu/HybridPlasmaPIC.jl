@@ -24,13 +24,14 @@ struct Electrostatic1D{T,G}
     E::Vector{T}
     ne::Vector{T}
     Ep::Vector{T}
+    primed::Base.RefValue{Bool}        # false until the one-time leapfrog velocity priming
 end
 
 function Electrostatic1D(g::FourierGrid{1,T}, Nparticles::Integer; n0 = 1.0) where {T}
     n = g.n[1]
     Np = _particle_length(Nparticles)
     n0T = _require_finite_nonnegative_real("n0", n0, T)
-    Electrostatic1D{T,typeof(g)}(g, n0T, zeros(T, n), zeros(T, n), zeros(T, Np))
+    Electrostatic1D{T,typeof(g)}(g, n0T, zeros(T, n), zeros(T, n), zeros(T, Np), Ref(false))
 end
 
 """
@@ -47,6 +48,7 @@ struct ElectrostaticPIC{D,T,G}
     E::NTuple{3,Array{T,D}}
     ne::Array{T,D}
     Ep::NTuple{3,Vector{T}}
+    primed::Base.RefValue{Bool}        # false until the one-time leapfrog velocity priming
 end
 
 function ElectrostaticPIC(g::FourierGrid{D,T}, Nparticles::Integer; n0 = 1.0) where {D,T}
@@ -59,6 +61,7 @@ function ElectrostaticPIC(g::FourierGrid{D,T}, Nparticles::Integer; n0 = 1.0) wh
         ntuple(_ -> zeros(T, g.n), 3),
         zeros(T, g.n),
         ntuple(_ -> zeros(T, Np), 3),
+        Ref(false),
     )
 end
 
@@ -138,6 +141,7 @@ function init_espic!(es::Electrostatic1D{T}, e::ParticleSet{1,T}) where {T}
     _require_espic_electrons(e)
     density!(es.ne, e, es.g, CIC())
     poisson_E!(es)
+    es.primed[] = false                 # re-arm the one-time priming for the next step
     return es
 end
 
@@ -145,6 +149,7 @@ function init_espic!(es::ElectrostaticPIC{D,T}, e::ParticleSet{D,T}) where {D,T}
     _require_espic_electrons(e)
     density!(es.ne, e, es.g, CIC())
     poisson_E!(es)
+    es.primed[] = false                 # re-arm the one-time priming for the next step
     return es
 end
 
@@ -157,12 +162,19 @@ deposit density → solve Poisson.
 function step_espic!(es::Electrostatic1D{T}, e::ParticleSet{1,T}, dt::Real) where {T}
     _require_espic_electrons(e)
     dtT = _validated_nonnegative_dt(T, dt; name = "step_espic!")
+    iszero(dtT) && return es            # dt=0 no-op: do not consume the one-time priming
     g = es.g
     L = g.L[1]
     qm = -one(T)
     gather_scalar!(es.Ep, es.E, e, g, CIC())
     vx = e.v[1]
     xx = e.x[1]
+    if !es.primed[]                     # prime once: loaded v is physical v^0 → v^{-1/2} (2nd order)
+        @inbounds for p in eachindex(e.weight)
+            vx[p] -= (dtT / 2) * qm * es.Ep[p]      # a^0 = qm E (B=0)
+        end
+        es.primed[] = true
+    end
     @inbounds for p in eachindex(e.weight)
         nx, _, _ = boris_kick(
             vx[p],
@@ -189,10 +201,20 @@ end
 function step_espic!(es::ElectrostaticPIC{D,T}, e::ParticleSet{D,T}, dt::Real) where {D,T}
     _require_espic_electrons(e)
     dtT = _validated_nonnegative_dt(T, dt; name = "step_espic!")
+    iszero(dtT) && return es            # dt=0 no-op: do not consume the one-time priming
     g = es.g
     gather_vector!(es.Ep, es.E, e, g, CIC())
     qm = e.q / e.m
     vx, vy, vz = e.v
+    if !es.primed[]                     # prime once: loaded v is physical v^0 → v^{-1/2} (2nd order)
+        h = dtT / 2
+        @inbounds for p in eachindex(e.weight)
+            vx[p] -= h * qm * es.Ep[1][p]           # a^0 = qm E (B=0)
+            vy[p] -= h * qm * es.Ep[2][p]
+            vz[p] -= h * qm * es.Ep[3][p]
+        end
+        es.primed[] = true
+    end
     @inbounds for p in eachindex(e.weight)
         nx, ny, nz = boris_kick(
             vx[p],

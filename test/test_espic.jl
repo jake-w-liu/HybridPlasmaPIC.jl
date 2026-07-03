@@ -343,3 +343,42 @@ end
     end
     @test amax < 50 * (a0 + 1e-6)                     # bounded — no exponential growth
 end
+
+@testset "ESPIC-order: step_espic! is 2nd-order in dt (leapfrog priming)" begin
+    # The loaded velocity is physical v^0; step_espic! primes it once to v^{-1/2} so the
+    # Boris+leapfrog scheme is 2nd-order (was 1st-order unprimed). Cold-Langmuir self-
+    # convergence on the fundamental mode amplitude — deterministic (lattice load), so the
+    # differences are pure temporal error; the order must sit near 2.
+    T = Float64
+    L = 2π
+    k = 2π / L
+    A = 0.01
+    function amp(dt, Tf; lead_zero)
+        n = 32
+        N = 200 * n
+        g = FourierGrid((n,), (T(L),))
+        e = ParticleSet{1,T}(N; q = -1.0, m = 1.0)
+        load_lattice_1d!(e, 0.0, T(L))
+        set_density_weight!(e, 1.0, g)
+        for p = 1:N
+            e.v[1][p] = 0.0
+            e.x[1][p] = mod(e.x[1][p] - (A / k) * sin(k * e.x[1][p]), L)
+        end
+        es = Electrostatic1D(g, N; n0 = 1.0)
+        init_espic!(es, e)
+        lead_zero && step_espic!(es, e, 0.0)          # dt=0 must not consume the priming
+        for _ = 1:round(Int, Tf / dt)
+            step_espic!(es, e, dt)
+        end
+        abs(mode_amplitude(es.E, g, (1,)))
+    end
+    Tf = 2.0
+    dts = (0.02, 0.01, 0.005, 0.0025)
+    for lz in (false, true)
+        v = [amp(dt, Tf; lead_zero = lz) for dt in dts]
+        r1 = log2(abs(v[1] - v[2]) / abs(v[2] - v[3]))
+        r2 = log2(abs(v[2] - v[3]) / abs(v[3] - v[4]))
+        @test r1 > 1.6        # ≈2.0 with priming; ≈1.0 (would fail) without it
+        @test r2 > 1.6        # lead_zero=true also ≈2.0 (dt=0 short-circuit preserves priming)
+    end
+end
