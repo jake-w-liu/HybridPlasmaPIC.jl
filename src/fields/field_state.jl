@@ -25,6 +25,7 @@ end
 # closures get 0-length pforce (type-stable, never indexed on the scalar Ohm path) so the
 # common case carries no dead weight.
 function HybridFields{D,T}(nc::NTuple{D,Int}; anisotropic::Bool = false) where {D,T}
+    _check_spatial_dimension(D)
     z() = zeros(T, nc)
     pf() = anisotropic ? zeros(T, nc) : zeros(T, ntuple(_ -> 0, D))
     HybridFields{D,T}(

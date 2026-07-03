@@ -15,6 +15,21 @@ Base.IndexStyle(::Type{<:OffsetParticleVector}) = IndexLinear()
 Base.getindex(v::OffsetParticleVector, i::Int) = v.data[i-v.first_index+1]
 Base.setindex!(v::OffsetParticleVector, x, i::Int) = (v.data[i-v.first_index+1] = x)
 
+@testset "ParticleSet dimension validation" begin
+    @test_throws ArgumentError ParticleSet{0,Float64}(1)
+    @test_throws ArgumentError ParticleSet{4,Float64}(1)
+    @test_throws ArgumentError ParticleSet{:bad,Float64}(1)
+    @test_throws ArgumentError ParticleSet{4,Float64}(
+        (zeros(1), zeros(1), zeros(1), zeros(1)),
+        (zeros(1), zeros(1), zeros(1)),
+        ones(1),
+        UInt64[1],
+        UInt32[0],
+        1.0,
+        1.0,
+    )
+end
+
 # Run a single gyrating particle; return (speed series, accumulated signed phase,
 # x series, y series). q=m=1 so Ω_c = B0.
 function run_gyro(::Type{T}, dt, nsteps; vperp = 1.0, B0 = 1.0) where {T}

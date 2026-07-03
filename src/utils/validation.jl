@@ -44,6 +44,13 @@ function _require_positive_intlike(name::AbstractString, value)
     return Int(value)
 end
 
+function _check_spatial_dimension(D)
+    D isa Integer || throw(ArgumentError("D must be an integer spatial dimension"))
+    1 <= D <= 3 ||
+        throw(ArgumentError("D must be 1, 2, or 3 for 1D/2D/3D spatial models"))
+    return nothing
+end
+
 function _validated_nonnegative_dt(
     ::Type{T},
     dt::Real;

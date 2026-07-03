@@ -41,6 +41,15 @@ end
     @test_throws ArgumentError HybridModel(IsothermalElectrons(0.0); nfloor = NaN)
 end
 
+@testset "spatial dimension validation" begin
+    g4 = FourierGrid((2, 2, 2, 2), (1.0, 1.0, 1.0, 1.0))
+    model = HybridModel(IsothermalElectrons(0.0))
+    @test_throws ArgumentError HybridFields{4,Float64}(g4.n)
+    @test_throws ArgumentError HybridFields{4,Float64}(g4.n; anisotropic = true)
+    @test_throws ArgumentError HybridStepper(g4, model, NGP(), 1)
+    @test_throws ArgumentError CAMCLStepper(g4, model, NGP(), 1)
+end
+
 @testset "HYB-001 algebraic uniform equilibrium" begin
     for D = 1:3
         T = Float64

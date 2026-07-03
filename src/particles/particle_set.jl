@@ -52,7 +52,7 @@ function _check_particle_vector_axes(name::Symbol, a::AbstractVector, N::Int)
 end
 
 function ParticleSet{D,T}(N::Integer; q = one(T), m = one(T)) where {D,T}
-    D >= 1 || throw(ArgumentError("D must be ≥ 1"))
+    _check_spatial_dimension(D)
     Np = _particle_length(N)
     x = ntuple(_ -> Vector{T}(undef, Np), Val(D))
     v = ntuple(_ -> zeros(T, Np), Val(3))
@@ -84,7 +84,7 @@ function ParticleSet{D,T}(
     I<:AbstractVector{UInt64},
     G<:AbstractVector{UInt32},
 }
-    D >= 1 || throw(ArgumentError("D must be ≥ 1"))
+    _check_spatial_dimension(D)
     N = length(weight)
     all(length(x[d]) == N for d = 1:D) ||
         throw(DimensionMismatch("all position arrays must have length $N"))
