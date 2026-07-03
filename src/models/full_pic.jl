@@ -37,6 +37,16 @@
 #   5. Ey: Ey^{n+1} = Ey^n − dt(c²∂xBz^{n+1/2} + Jy^{n+1/2}).
 #      Ex: Ex^{n+1} = Ex^n − dt·Jx^{n+1/2}.
 #
+# 2nd-order accuracy (verified 2026-07, deep-debug): the seeded initial state is physical (v^0 and
+# Bz^0), but the leapfrog carries v and Bz at the HALF level, so the FIRST step primes both once
+# (see the priming block in step_empic!): (a) velocity v^{-1/2} = v^0 − h·a^0 for BOTH species
+# (h = dt_e/2 electrons, dt_ion/2 ions — electrons alone is not enough when ions are mobile), and
+# (b) field Bz^{-1/2} = Bz^0 + (dt_e/2)∂xEy^0. Without either, the integer-level fields (Ex, Ey)
+# are only 1st-order in dt; with both, cold-deterministic self-convergence gives rate → 2.0 for
+# the longitudinal Langmuir Ex and the transverse Ey. (The stored Bz stays at the half level, so a
+# diagnostic reading es.Bz as "Bz at the integer time" sees the inherent O(dt) Yee stagger — use
+# the time-centered Bz from step 1 if an integer-level Bz is needed.)
+#
 # ---- Mobile ions -------------------------------------------------------------
 # When `mobile=true`, a second kinetic species (the ions passed to init/step)
 # is pushed alongside the electrons. Ions are heavy (mi≫me) so they respond
@@ -481,6 +491,8 @@ function init_empic!(
     @inbounds for i = 1:n
         es.Ex[i] = real(cb[i])
     end
+    es.time[] = zero(T)                 # (re)start at t=0; step==0 triggers leapfrog priming
+    es.step[] = 0
     return es
 end
 
@@ -595,6 +607,21 @@ end
 
 # ---------------------------------------------------------------- step
 
+# One-time leapfrog priming for EMPIC1D. The loaded velocity is the physical v^0, but the Boris
+# push expects v^{-1/2}; back it up a half step v^{-1/2} = v^0 − h·a^0, a^0 = qm(E + v×B) with
+# B = (0,0,Bz). `h` is the species' half-step (dt_e/2 for electrons, dt_ion/2 for ions). Restores
+# 2nd-order temporal accuracy (verified: rate 1 → 2 for both species).
+@inline function _prime_empic1d!(v, Exp, Eyp, Bzp, qm, h, np)
+    vx, vy, _ = v
+    @inbounds for p = 1:np
+        bz = Bzp[p]
+        ux, uy = vx[p], vy[p]
+        vx[p] = ux - h * qm * (Exp[p] + uy * bz)          # a_x = qm(Ex + v_y B_z)
+        vy[p] = uy - h * qm * (Eyp[p] - ux * bz)          # a_y = qm(Ey − v_x B_z)
+    end
+    return v
+end
+
 """
     step_empic!(es, electrons[, ions], dt)
 
@@ -616,12 +643,43 @@ function step_empic!(
         _require_empic_ions(ions)
     end
     dtT = _validated_nonnegative_dt(T, dt; name = "step_empic!")
+    iszero(dtT) && return es            # dt=0 no-op: do not consume the one-time priming
     _ensure_electron_buffers!(es, nparticles(e))
     if es.mobile
         _ensure_ion_buffers!(es, nparticles(ions))
     end
     ns = es.n_sub
     dt_e = dtT / ns
+    # prime the leapfrog once (both species): loaded v is physical v^0 → v^{-1/2} for 2nd order.
+    if es.step[] == 0
+        g0 = es.g
+        gather_scalar!(es.Exp, es.Ex, e, g0, es.shape)
+        gather_scalar!(es.Eyp, es.Ey, e, g0, es.shape)
+        gather_scalar!(es.Bzp, es.Bz, e, g0, es.shape)
+        _prime_empic1d!(e.v, es.Exp, es.Eyp, es.Bzp, -one(T), dt_e / 2, nparticles(e))
+        if es.mobile && ions !== nothing
+            gather_scalar!(es.Exi, es.Ex, ions, g0, es.shape)
+            gather_scalar!(es.Eyi, es.Ey, ions, g0, es.shape)
+            gather_scalar!(es.Bzi, es.Bz, ions, g0, es.shape)
+            # ions leapfrog at the full ion step dt_ion = ns·dt_e
+            _prime_empic1d!(
+                ions.v,
+                es.Exi,
+                es.Eyi,
+                es.Bzi,
+                ions.q / ions.m,
+                (T(ns) * dt_e) / 2,
+                nparticles(ions),
+            )
+        end
+        # field priming: the seeded Bz is the physical Bz^0, but the Yee leapfrog carries Bz at
+        # the half level Bz^{-1/2}. Back it up a half step: Bz^{-1/2} = Bz^0 + (dt_e/2) ∂xEy^0
+        # (∂tBz = −∂xEy). Without this the integer-level fields (Ex, Ey) are only 1st-order in dt.
+        deriv!(es.dEy, es.Ey, g0, 1)
+        @inbounds for i = 1:g0.n[1]
+            es.Bz[i] += (dt_e / 2) * es.dEy[i]
+        end
+    end
     # ions pushed on the substep straddling their half-level midpoint (middle one)
     push_sub = (ns + 1) ÷ 2
     # Seed the ion midpoint buffer with the ions' current positions x^n. The
@@ -1112,6 +1170,8 @@ function init_empic!(
     end
     _charge_density!(es.rho_n, es.ne, es, e, ions)
     _enforce_gauss!(es)
+    es.time[] = zero(T)                 # (re)start at t=0; step==0 triggers leapfrog priming
+    es.step[] = 0
     return es
 end
 
@@ -1177,9 +1237,29 @@ function step_empic!(
         _require_empic_ions(ions)
     end
     dtT = _validated_nonnegative_dt(T, dt; name = "step_empic!")
+    iszero(dtT) && return es            # dt=0 no-op: do not consume the one-time priming
     _ensure_empic_electron_buffers!(es, nparticles(e))
     if es.mobile
         _ensure_empic_ion_buffers!(es, nparticles(ions))
+    end
+    # prime the leapfrog once (2nd order): the seeded v and B are physical (v^0, B^0) but the
+    # leapfrog carries them at the half level. Velocity: v^{-1/2}=v^0−(dt/2)a^0 for both species;
+    # field: B^{-1/2}=B^0+(dt/2)∇×E^0 (∂tB=−∇×E). See the EMPIC1D header note.
+    if es.step[] == 0
+        g0 = es.g
+        h = dtT / 2
+        gather_vector!(es.Ep, es.E, e, g0, es.shape)
+        gather_vector!(es.Bp, es.B, e, g0, es.shape)
+        _prime_leapfrog!(e.v, es.Ep, es.Bp, -one(T), h, nparticles(e))
+        if es.mobile && ions !== nothing
+            gather_vector!(es.Epi, es.E, ions, g0, es.shape)
+            gather_vector!(es.Bpi, es.B, ions, g0, es.shape)
+            _prime_leapfrog!(ions.v, es.Epi, es.Bpi, ions.q / ions.m, h, nparticles(ions))
+        end
+        curl!(es.curlE, es.E, g0)
+        @inbounds for c = 1:3, I in eachindex(es.B[c])
+            es.B[c][I] += h * es.curlE[c][I]
+        end
     end
     _substep_empic!(es, e, ions, dtT)
     es.time[] += dtT

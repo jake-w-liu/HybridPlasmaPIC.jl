@@ -448,3 +448,43 @@ end
     step_empic!(es, e, ions, 0.005)
     @test isfinite(em_field_energy(es) + kinetic_energy(e))
 end
+
+@testset "EMPIC1D-order: step_empic! is 2nd-order in dt (leapfrog v + Bz priming)" begin
+    # The first step primes BOTH species' velocities (v^0→v^{-1/2}) and the seeded Bz
+    # (Bz^0→Bz^{-1/2}); without it the integer-level fields are 1st-order. Cold-deterministic
+    # longitudinal Langmuir self-convergence on Ex (integer level) — rate must sit near 2.
+    T = Float64
+    L = 2π
+    k = 2π / L
+    A = 0.02
+    function ex(nsteps, Tf; lead_zero)
+        n = 32
+        N = 400 * n
+        g = FourierGrid((n,), (T(L),))
+        e = ParticleSet{1,T}(N; q = -1.0, m = 1.0)
+        ions = ParticleSet{1,T}(N; q = 1.0, m = 100.0)
+        load_lattice_1d!(e, 0.0, T(L))
+        load_lattice_1d!(ions, 0.0, T(L))
+        set_density_weight!(e, 1.0, g)
+        set_density_weight!(ions, 1.0, g)
+        for p = 1:N
+            e.x[1][p] = mod(e.x[1][p] - (A / k) * sin(k * e.x[1][p]), L)
+        end
+        es = EMPIC1D(g, N; mobile = true, mi = 100.0, c = 8.0)
+        init_empic!(es, e, ions)
+        lead_zero && step_empic!(es, e, ions, 0.0)         # dt=0 must not consume the priming
+        for _ = 1:nsteps
+            step_empic!(es, e, ions, Tf / nsteps)
+        end
+        abs(mode_amplitude(es.Ex, g, (1,)))
+    end
+    Tf = 1.0
+    seq = (20, 40, 80, 160)
+    for lz in (false, true)
+        v = [ex(ns, Tf; lead_zero = lz) for ns in seq]
+        r1 = log2(abs(v[1] - v[2]) / abs(v[2] - v[3]))
+        r2 = log2(abs(v[2] - v[3]) / abs(v[3] - v[4]))
+        @test r1 > 1.6        # ≈2.0 with priming; ≈1.0 (would fail) without it
+        @test r2 > 1.6
+    end
+end

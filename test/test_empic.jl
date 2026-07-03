@@ -256,3 +256,40 @@ end
     step_empic!(es, e, ions, 0.005)
     @test isfinite(em_field_energy(es) + kinetic_energy(e) + kinetic_energy(ions))
 end
+
+@testset "EMPIC-order: step_empic! is 2nd-order in dt (leapfrog v + B priming)" begin
+    # The multi-dim EM PIC primes both species' velocities and the seeded B on the first step
+    # (same fix as EMPIC1D). Cold 2D longitudinal Langmuir self-convergence on Ex — rate ≈ 2.
+    T = Float64
+    L = 2π
+    k = 2π / L
+    A = 0.02
+    function ex(nsteps, Tf)
+        n = 16
+        pd = 80
+        N = pd * pd
+        g = FourierGrid((n, n), (T(L), T(L)))
+        e = ParticleSet{2,T}(N; q = -1.0, m = 1.0)
+        ions = ParticleSet{2,T}(N; q = 1.0, m = 100.0)
+        load_lattice!(e, (0.0, 0.0), g.L, (pd, pd))
+        load_lattice!(ions, (0.0, 0.0), g.L, (pd, pd))
+        set_density_weight!(e, 1.0, g)
+        set_density_weight!(ions, 1.0, g)
+        for p = 1:N
+            e.x[1][p] = mod(e.x[1][p] - (A / k) * sin(k * e.x[1][p]), L)
+        end
+        es = EMPIC(g, N; mobile = true, mi = 100.0, c = 8.0)
+        init_empic!(es, e, ions)
+        for _ = 1:nsteps
+            step_empic!(es, e, ions, Tf / nsteps)
+        end
+        abs(mode_amplitude(es.E[1], g, (1, 0)))
+    end
+    Tf = 1.0
+    seq = (40, 80, 160, 320)
+    v = [ex(ns, Tf) for ns in seq]
+    r1 = log2(abs(v[1] - v[2]) / abs(v[2] - v[3]))
+    r2 = log2(abs(v[2] - v[3]) / abs(v[3] - v[4]))
+    @test r1 > 1.6
+    @test r2 > 1.6
+end
