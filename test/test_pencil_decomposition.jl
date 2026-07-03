@@ -9,6 +9,8 @@ using Test
     @test pencil_rank_index(dec, (3, 4)) == 12
     @test_throws ArgumentError pencil_rank_coords(dec, 0)
     @test_throws ArgumentError pencil_rank_index(dec, (4, 1))
+    @test_throws ArgumentError pencil_rank_index(dec, (1,))
+    @test_throws ArgumentError pencil_owner(dec, (1, 1))
     @test_throws ArgumentError pencil_bounds(dec, 1, :bad)
 
     for orientation in (:x, :y, :z)
@@ -42,11 +44,20 @@ using Test
 end
 
 @testset "pencil decomposition validation" begin
+    huge = big(typemax(Int)) + 1
     @test_throws ArgumentError PencilDecomposition3D((8, 8), (2, 2))
     @test_throws ArgumentError PencilDecomposition3D((8, 8, 8), (0, 2))
     @test_throws ArgumentError PencilDecomposition3D((8, 8, 8), (2, 0))
     @test_throws ArgumentError PencilDecomposition3D((8, 8, 8), (9, 2))
     @test_throws ArgumentError PencilDecomposition3D((8, 8, 8), (2, 9))
+    @test_throws ArgumentError PencilDecomposition3D((huge, 8, 8), (2, 2))
+    @test_throws ArgumentError PencilDecomposition3D((8, 8, 8), (huge, 2))
+    @test_throws ArgumentError pencil_rank_coords(PencilDecomposition3D((8, 8, 8), (2, 2)), huge)
+    @test_throws ArgumentError pencil_rank_index(
+        PencilDecomposition3D((8, 8, 8), (2, 2)),
+        (huge, 1),
+    )
+    @test_throws ArgumentError pencil_owner(PencilDecomposition3D((8, 8, 8), (2, 2)), (huge, 1, 1))
     @test_throws ArgumentError PencilDecomposition3D(
         (8, 8, 8),
         (2, 2);

@@ -24,6 +24,10 @@ using HybridPlasmaPIC, Test, Random, Statistics
     @test isapprox(mean(Tc[1]), Tx; rtol = 0.06)     # T_x = P_xx/n
     @test isapprox(mean(Tc[2]), Ty; rtol = 0.06)
     @test isapprox(mean(Tc[3]), Tz; rtol = 0.06)
+    @test_throws ArgumentError temperature_components(P, nb; nfloor = 0.0)
+    @test_throws ArgumentError temperature_components(P, nb; nfloor = -1.0)
+    @test_throws ArgumentError temperature_components(P, nb; nfloor = NaN)
+    @test_throws ArgumentError temperature_components(P, nb; nfloor = Inf)
     @test abs(mean(P[4])) < 0.05                     # off-diagonal P_xy ≈ 0
     @test abs(mean(P[5])) < 0.05
     @test abs(mean(P[6])) < 0.05
@@ -151,4 +155,17 @@ end
         xmax = 1.0,
     )
     @test_throws ArgumentError phase_space_histogram(ps_bad_w, 1, 1; nx = 4, nv = 4)
+end
+
+@testset "histograms reject invalid component selectors" begin
+    ps = ParticleSet{1,Float64}(1)
+    ps.x[1][1] = 0.0
+    ps.v[1][1] = 0.0
+
+    @test_throws ArgumentError velocity_histogram(ps, 0)
+    @test_throws ArgumentError velocity_histogram(ps, 4)
+    @test_throws ArgumentError phase_space_histogram(ps, 0, 1)
+    @test_throws ArgumentError phase_space_histogram(ps, 2, 1)
+    @test_throws ArgumentError phase_space_histogram(ps, 1, 0)
+    @test_throws ArgumentError phase_space_histogram(ps, 1, 4)
 end

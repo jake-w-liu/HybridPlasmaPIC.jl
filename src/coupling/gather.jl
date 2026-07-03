@@ -19,7 +19,7 @@ function gather_scalar!(
     n = g.n
     stamp = CartesianIndices(ntuple(_ -> width(shape), D))
     @inbounds for (p, oi) in enumerate(eachindex(out))
-        st = ntuple(d -> _stencil1d(shape, ps.x[d][p] / g.dx[d]), D)
+        st = ntuple(d -> _stencil1d(shape, _particle_cell_position(ps, g, d, p)), D)
         acc = zero(T)
         for c in stamp
             o = Tuple(c)

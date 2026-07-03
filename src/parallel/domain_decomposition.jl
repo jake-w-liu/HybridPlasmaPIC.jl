@@ -19,7 +19,7 @@ end
 
 function LogicalRankLayout(ranks::NTuple{D,<:Integer}; periodic = ntuple(_ -> true, D)) where {D}
     D >= 1 || throw(ArgumentError("rank layout dimension must be >= 1"))
-    rr = ntuple(d -> Int(ranks[d]), D)
+    rr = ntuple(d -> _require_positive_intlike("ranks[$d]", ranks[d]), D)
     all(>(0), rr) || throw(ArgumentError("all rank counts must be positive, got $rr"))
     length(periodic) == D || throw(ArgumentError("periodic length must equal rank dimension $D"))
     pp = ntuple(d -> Bool(periodic[d]), D)
@@ -29,10 +29,15 @@ end
 nranks(layout::LogicalRankLayout) = prod(layout.ranks)
 
 function _check_rank(layout::LogicalRankLayout, rank::Integer)
-    r = Int(rank)
-    1 <= r <= nranks(layout) ||
+    1 <= rank <= nranks(layout) ||
         throw(ArgumentError("rank must be in 1:$(nranks(layout)), got $rank"))
+    r = Int(rank)
     return r
+end
+
+function _rank_coordinate(name::AbstractString, coord::Integer)
+    typemin(Int) <= coord <= typemax(Int) || throw(ArgumentError("$name must fit in Int"))
+    return Int(coord)
 end
 
 """
@@ -52,11 +57,11 @@ Return the 1-based linear rank for 1-based Cartesian `coords`. Periodic axes
 wrap. Nonperiodic out-of-range coordinates return `nothing`.
 """
 function rank_index(layout::LogicalRankLayout{D}, coords::NTuple{D,<:Integer}) where {D}
-    cc = ntuple(d -> Int(coords[d]), D)
+    cc = ntuple(d -> _rank_coordinate("coords[$d]", coords[d]), D)
     wrapped = ntuple(d -> begin
         c = cc[d]
         if layout.periodic[d]
-            mod(c - 1, layout.ranks[d]) + 1
+            mod1(c, layout.ranks[d])
         elseif 1 <= c <= layout.ranks[d]
             c
         else
@@ -166,7 +171,7 @@ function exchange_field_halos!(
     halo::Integer = 1,
     fill_value = zero(T),
 ) where {T,D}
-    h = Int(halo)
+    h = _require_positive_intlike("halo", halo)
     axis = _validate_halo_arrays!(rank_arrays, layout, h)
     axis == 0 && return (; exchanged = 0, filled = 0)
 

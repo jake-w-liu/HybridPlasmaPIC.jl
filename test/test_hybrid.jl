@@ -46,6 +46,9 @@ end
     model = HybridModel(IsothermalElectrons(0.0))
     @test_throws ArgumentError HybridFields{4,Float64}(g4.n)
     @test_throws ArgumentError HybridFields{4,Float64}(g4.n; anisotropic = true)
+    @test_throws ArgumentError HybridFields{true,Float64}((2,))
+    @test_throws ArgumentError HybridFields{Int8(1),Float64}((2,))
+    @test_throws ArgumentError HybridFields{UInt(2),Float64}((2, 2))
     @test_throws ArgumentError HybridStepper(g4, model, NGP(), 1)
     @test_throws ArgumentError CAMCLStepper(g4, model, NGP(), 1)
 end

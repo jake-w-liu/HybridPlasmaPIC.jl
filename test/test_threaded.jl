@@ -137,6 +137,15 @@ end
     @test_throws DimensionMismatch density_threaded!(zeros(T, 5), ps, g, CIC())
 end
 
+@testset "THR-005b non-finite particle positions are rejected" begin
+    T = Float64
+    g = FourierGrid((6,), (1.0,))
+    ps = ParticleSet{1,T}(1)
+    ps.x[1][1] = T(Inf)
+    @test_throws ArgumentError deposit_scalar_threaded!(zeros(T, g.n), ps, T[1.0], g, CIC())
+    @test_throws ArgumentError density_threaded!(zeros(T, g.n), ps, g, CIC())
+end
+
 # When multiple threads are active, the threaded path (not the serial fallback)
 # must still match serial — this asserts the partial-accumulator reduction.
 if Threads.nthreads() > 1

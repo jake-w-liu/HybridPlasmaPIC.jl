@@ -18,6 +18,8 @@ Base.getindex(v::OffsetKDVVector, i::Int) = v.data[i-v.firstindex+1]
     @test_throws ArgumentError kdv_solve(u0, Inf, 1.0, 1.0, 1.0, 0.01, 1)
     @test_throws ArgumentError kdv_solve(u0, 1.0, 1.0, 1.0, 1.0, NaN, 1)
     @test_throws ArgumentError kdv_solve(u0, 1.0, 1.0, 1.0, 1.0, Inf, 1)
+    @test_throws ArgumentError kdv_solve([1.0, NaN, 0.0], 1.0, 1.0, 1.0, 1.0, 0.01, 1)
+    @test_throws ArgumentError kdv_solve([1.0, Inf, 0.0], 1.0, 1.0, 1.0, 1.0, 0.01, 0)
 
     uoff = OffsetKDVVector(u0, -3)
     @test kdv_solve(uoff, 1.0, 1.0, 1.0, 1.0, 0.01, 0) == u0

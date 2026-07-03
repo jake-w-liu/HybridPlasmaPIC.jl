@@ -5,6 +5,16 @@
     return value
 end
 
+function _check_velocity_component(comp::Int)
+    1 <= comp <= 3 || throw(ArgumentError("velocity component must be in 1:3, got $comp"))
+    return nothing
+end
+
+function _check_spatial_component(sdim::Int, ::Val{D}) where {D}
+    1 <= sdim <= D || throw(ArgumentError("spatial dimension must be in 1:$D, got $sdim"))
+    return nothing
+end
+
 """
     velocity_histogram(ps, comp; nbins=64, vmin, vmax) -> (centers, counts)
 
@@ -19,6 +29,7 @@ function velocity_histogram(
     vmax = nothing,
 ) where {D,T}
     nbins > 0 || throw(ArgumentError("nbins must be positive"))
+    _check_velocity_component(comp)
     v = ps.v[comp]
     w = ps.weight
     lo = _require_finite_hist_value("velocity lower bound", vmin === nothing ? minimum(v) : T(vmin))
@@ -55,6 +66,8 @@ function phase_space_histogram(
 ) where {D,T}
     nx > 0 || throw(ArgumentError("nx must be positive"))
     nv > 0 || throw(ArgumentError("nv must be positive"))
+    _check_spatial_component(sdim, Val(D))
+    _check_velocity_component(vcomp)
     x = ps.x[sdim]
     v = ps.v[vcomp]
     w = ps.weight

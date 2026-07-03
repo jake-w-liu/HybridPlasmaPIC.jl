@@ -15,6 +15,17 @@ struct TSC <: ShapeFunction end
 @inline width(::CIC) = 2
 @inline width(::TSC) = 3
 
+Base.@propagate_inbounds @inline function _particle_cell_position(
+    ps::ParticleSet{D,T},
+    g::FourierGrid{D,T},
+    d::Int,
+    p::Int,
+) where {D,T}
+    x = ps.x[d][p]
+    isfinite(x) || throw(ArgumentError("particle position x[$d][$p] must be finite"))
+    return x / g.dx[d]
+end
+
 # 1-D stencil at fractional cell position s: returns (base, weights), where the
 # touched nodes are base, base+1, … (0-based, to be wrapped mod n). Weights sum
 # to 1 (partition of unity) for every s.

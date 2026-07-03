@@ -19,6 +19,27 @@ Base.setindex!(v::OffsetParticleVector, x, i::Int) = (v.data[i-v.first_index+1] 
     @test_throws ArgumentError ParticleSet{0,Float64}(1)
     @test_throws ArgumentError ParticleSet{4,Float64}(1)
     @test_throws ArgumentError ParticleSet{:bad,Float64}(1)
+    @test_throws ArgumentError ParticleSet{true,Float64}(1)
+    @test_throws ArgumentError ParticleSet{Int8(1),Float64}(1)
+    @test_throws ArgumentError ParticleSet{UInt(2),Float64}(1)
+    @test_throws ArgumentError ParticleSet{true,Float64}(
+        (zeros(1),),
+        (zeros(1), zeros(1), zeros(1)),
+        ones(1),
+        UInt64[1],
+        UInt32[0],
+        1.0,
+        1.0,
+    )
+    @test_throws ArgumentError ParticleSet{Int8(1),Float64}(
+        (zeros(1),),
+        (zeros(1), zeros(1), zeros(1)),
+        ones(1),
+        UInt64[1],
+        UInt32[0],
+        1.0,
+        1.0,
+    )
     @test_throws ArgumentError ParticleSet{4,Float64}(
         (zeros(1), zeros(1), zeros(1), zeros(1)),
         (zeros(1), zeros(1), zeros(1)),

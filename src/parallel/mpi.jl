@@ -87,10 +87,10 @@ Use `MPI_Dims_create` to choose a Cartesian process grid for `nranks` ranks and
 `D` dimensions.
 """
 function mpi_dims_create(nranks::Integer, D::Integer)
-    nranks > 0 || throw(ArgumentError("nranks must be positive, got $nranks"))
-    D > 0 || throw(ArgumentError("D must be positive, got $D"))
+    nranks_i = _require_positive_intlike("nranks", nranks)
+    D_i = _require_positive_intlike("D", D)
     ensure_mpi_initialized!()
-    dims = MPI.Dims_create(Int(nranks), fill(0, Int(D)))
+    dims = MPI.Dims_create(nranks_i, fill(0, D_i))
     return Tuple(Int.(dims))
 end
 
@@ -156,10 +156,15 @@ function mpi_cartesian_neighbor(
     axis::Integer,
     offset::Integer,
 ) where {D}
+    1 <= axis <= D || throw(ArgumentError("axis must be in 1:$D, got $axis"))
     ax = Int(axis)
-    1 <= ax <= D || throw(ArgumentError("axis must be in 1:$D, got $axis"))
-    off = Int(offset)
-    coords = ntuple(d -> d == ax ? ctx.coords[d] + off : ctx.coords[d], D)
+    off = _rank_coordinate("offset", offset)
+    coords = ntuple(
+        d ->
+            d == ax ? _rank_coordinate("neighbor coordinate", BigInt(ctx.coords[d]) + off) :
+            ctx.coords[d],
+        D,
+    )
     return rank_index(ctx.layout, coords)
 end
 
@@ -196,8 +201,8 @@ const _MPI_CHECKPOINT_MANIFEST = "mpi_checkpoint_manifest.ser"
 _mpi_checkpoint_manifest_path(dir::AbstractString) = joinpath(dir, _MPI_CHECKPOINT_MANIFEST)
 
 function _mpi_checkpoint_rank_filename(logical_rank::Integer)
-    logical_rank >= 1 || throw(ArgumentError("logical rank must be positive, got $logical_rank"))
-    return string("rank_", lpad(string(Int(logical_rank)), 6, '0'), ".ser")
+    rank_i = _require_positive_intlike("logical rank", logical_rank)
+    return string("rank_", lpad(string(rank_i), 6, '0'), ".ser")
 end
 
 _mpi_checkpoint_rank_path(dir::AbstractString, logical_rank::Integer) =
@@ -829,8 +834,7 @@ function _validate_mpi_slab_array!(
         throw(ArgumentError("MPI communicator size must equal nranks(ctx.layout)"))
     MPI.Comm_size(ctx.comm) == ctx.mpi_size ||
         throw(ArgumentError("ctx.mpi_size does not match MPI communicator size"))
-    h = Int(halo)
-    h >= 1 || throw(ArgumentError("halo must be >= 1, got $halo"))
+    h = _require_positive_intlike("halo", halo)
     axis = _slab_axis(ctx.layout)
     axis == 0 && return h, axis
     size(A, axis) >= 3h ||

@@ -21,11 +21,7 @@ mutable struct HybridFields{D,T}
     floor_count::Base.RefValue{Int}
 end
 
-# `anisotropic=true` (a CGL closure) allocates the `pforce` ∇·P_e buffer full-size; scalar
-# closures get 0-length pforce (type-stable, never indexed on the scalar Ohm path) so the
-# common case carries no dead weight.
-function HybridFields{D,T}(nc::NTuple{D,Int}; anisotropic::Bool = false) where {D,T}
-    _check_spatial_dimension(D)
+function _hybrid_fields(::Val{D}, ::Type{T}, nc::NTuple{D,Int}, anisotropic::Bool) where {D,T}
     z() = zeros(T, nc)
     pf() = anisotropic ? zeros(T, nc) : zeros(T, ntuple(_ -> 0, D))
     HybridFields{D,T}(
@@ -41,6 +37,22 @@ function HybridFields{D,T}(nc::NTuple{D,Int}; anisotropic::Bool = false) where {
         ntuple(_ -> pf(), 3),
         Ref(0),
     )
+end
+
+# `anisotropic=true` (a CGL closure) allocates the `pforce` ∇·P_e buffer full-size; scalar
+# closures get 0-length pforce (type-stable, never indexed on the scalar Ohm path) so the
+# common case carries no dead weight.
+function HybridFields{D,T}(nc::NTuple{D,Int}; anisotropic::Bool = false) where {D,T}
+    _check_spatial_dimension(D)
+    return _hybrid_fields(Val(D), T, nc, anisotropic)
+end
+
+function HybridFields{D,T}(nc::Tuple{Vararg{Int}}; anisotropic::Bool = false) where {D,T}
+    _check_spatial_dimension(D)
+    length(nc) == D ||
+        throw(DimensionMismatch("grid size tuple length $(length(nc)) must equal D=$D"))
+    nct = ntuple(d -> nc[d], Val(D))
+    return _hybrid_fields(Val(D), T, nct, anisotropic)
 end
 
 # ---------------------------------------------------------------- moments

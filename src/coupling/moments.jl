@@ -19,7 +19,7 @@
     n = g.n
     stamp = CartesianIndices(ntuple(_ -> width(shape), D))
     @inbounds for (p, wi) in enumerate(eachindex(weight))
-        st = ntuple(d -> _stencil1d(shape, ps.x[d][p] / g.dx[d]), D)
+        st = ntuple(d -> _stencil1d(shape, _particle_cell_position(ps, g, d, p)), D)
         val = weight[wi] * value[wi]
         for c in stamp
             o = Tuple(c)
@@ -56,7 +56,7 @@ end
     n = g.n
     stamp = CartesianIndices(ntuple(_ -> width(shape), D))
     @inbounds for (p, wi) in enumerate(eachindex(weight))
-        st = ntuple(d -> _stencil1d(shape, ps.x[d][p] / g.dx[d]), D)
+        st = ntuple(d -> _stencil1d(shape, _particle_cell_position(ps, g, d, p)), D)
         val = weight[wi] * left[wi] * right[wi]
         for c in stamp
             o = Tuple(c)
@@ -203,5 +203,6 @@ pressure tensor produced by [`pressure_tensor!`](@ref).
 """
 function temperature_components(P::NTuple{6,<:Array{T,D}}, n::Array{T,D}; nfloor = 1e-6) where {T,D}
     nf = T(nfloor)
+    isfinite(nf) && nf > zero(T) || throw(ArgumentError("nfloor must be finite and positive"))
     return ntuple(c -> P[c] ./ max.(n, nf), 3)
 end

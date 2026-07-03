@@ -104,6 +104,30 @@ function ParticleSet{D,T}(
     return ParticleSet{D,T,X,V,W,I,G}(x, v, weight, id, tag, T(q), T(m))
 end
 
+function ParticleSet{D,T}(
+    x::Tuple,
+    v::Tuple,
+    weight::AbstractVector,
+    id::AbstractVector,
+    tag::AbstractVector,
+    q,
+    m,
+) where {D,T}
+    _check_spatial_dimension(D)
+    length(x) == D || throw(DimensionMismatch("position tuple length $(length(x)) must equal D=$D"))
+    length(v) == 3 || throw(DimensionMismatch("velocity tuple length $(length(v)) must equal 3"))
+    for d = 1:D
+        x[d] isa AbstractVector{T} || throw(ArgumentError("x[$d] must be an AbstractVector{$T}"))
+    end
+    for c = 1:3
+        v[c] isa AbstractVector{T} || throw(ArgumentError("v[$c] must be an AbstractVector{$T}"))
+    end
+    weight isa AbstractVector{T} || throw(ArgumentError("weight must be an AbstractVector{$T}"))
+    id isa AbstractVector{UInt64} || throw(ArgumentError("id must be an AbstractVector{UInt64}"))
+    tag isa AbstractVector{UInt32} || throw(ArgumentError("tag must be an AbstractVector{UInt32}"))
+    throw(ArgumentError("ParticleSet custom arrays must have compatible vector storage"))
+end
+
 nparticles(ps::ParticleSet) = length(ps.weight)
 Base.eltype(::ParticleSet{D,T}) where {D,T} = T
 

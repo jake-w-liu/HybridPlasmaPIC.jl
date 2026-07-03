@@ -73,6 +73,9 @@ function kdv_solve(
     isfinite(αT) || throw(ArgumentError("α must be finite"))
     isfinite(βT) || throw(ArgumentError("β must be finite"))
     isfinite(dtT) || throw(ArgumentError("dt must be finite"))
+    @inbounds for i in eachindex(u0)
+        isfinite(u0[i]) || throw(ArgumentError("u0[$i] must be finite"))
+    end
     nsteps_i = Int(nsteps)
     nsteps_i == 0 && return _real_copy(u0)
     k = collect(T(2π) .* FFTW.fftfreq(n, T(n) / LdT))   # angular wavenumber

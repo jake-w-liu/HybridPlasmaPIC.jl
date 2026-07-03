@@ -27,8 +27,8 @@ function PencilDecomposition3D(
     ranks::NTuple{2,<:Integer};
     periodic::NTuple{3,Bool} = (true, true, true),
 )
-    nn = ntuple(d -> Int(n[d]), 3)
-    rr = ntuple(d -> Int(ranks[d]), 2)
+    nn = ntuple(d -> _require_positive_intlike("n[$d]", n[d]), 3)
+    rr = ntuple(d -> _require_positive_intlike("ranks[$d]", ranks[d]), 2)
     return _pencil_decomposition3d_checked(nn, rr, periodic)
 end
 
@@ -41,8 +41,8 @@ function PencilDecomposition3D(
         throw(ArgumentError("PencilDecomposition3D grid sizes must be integers, got $n"))
     all(x -> x isa Integer, ranks) ||
         throw(ArgumentError("PencilDecomposition3D rank dimensions must be integers, got $ranks"))
-    nn = (Int(n[1]), Int(n[2]), Int(n[3]))
-    rr = (Int(ranks[1]), Int(ranks[2]))
+    nn = ntuple(d -> _require_positive_intlike("n[$d]", n[d]), 3)
+    rr = ntuple(d -> _require_positive_intlike("ranks[$d]", ranks[d]), 2)
     return _pencil_decomposition3d_checked(nn, rr, periodic)
 end
 
@@ -91,10 +91,9 @@ pencil_decomposition(n, ranks; kwargs...) = PencilDecomposition3D(n, ranks; kwar
 pencil_nranks(dec::PencilDecomposition3D) = prod(dec.ranks)
 
 function _check_pencil_rank(dec::PencilDecomposition3D, rank::Integer)
-    r = Int(rank)
-    1 <= r <= pencil_nranks(dec) ||
+    1 <= rank <= pencil_nranks(dec) ||
         throw(ArgumentError("pencil rank must be in 1:$(pencil_nranks(dec)), got $rank"))
-    return r
+    return Int(rank)
 end
 
 """
@@ -113,7 +112,20 @@ end
 Return the 1-based linear rank for 1-based pencil process coordinates.
 """
 function pencil_rank_index(dec::PencilDecomposition3D, coords::NTuple{2,<:Integer})
-    cc = ntuple(d -> Int(coords[d]), 2)
+    cc = ntuple(d -> _rank_coordinate("coords[$d]", coords[d]), 2)
+    return _pencil_rank_index_checked(dec, cc)
+end
+
+function pencil_rank_index(dec::PencilDecomposition3D, coords::Tuple)
+    length(coords) == 2 ||
+        throw(ArgumentError("pencil rank coordinates must have length 2, got $(length(coords))"))
+    all(x -> x isa Integer, coords) ||
+        throw(ArgumentError("pencil rank coordinates must be integers, got $coords"))
+    cc = ntuple(d -> _rank_coordinate("coords[$d]", coords[d]), 2)
+    return _pencil_rank_index_checked(dec, cc)
+end
+
+function _pencil_rank_index_checked(dec::PencilDecomposition3D, cc::NTuple{2,Int})
     all(d -> 1 <= cc[d] <= dec.ranks[d], 1:2) ||
         throw(ArgumentError("pencil rank coordinates $cc are outside 1:$(dec.ranks)"))
     return (cc[2] - 1) * dec.ranks[1] + cc[1]
@@ -146,7 +158,7 @@ function _partition_range(n::Int, parts::Int, coord::Int)
 end
 
 function _partition_owner(index::Integer, n::Int, parts::Int)
-    i = mod(Int(index) - 1, n) + 1
+    i = mod1(_rank_coordinate("index", index), n)
     return cld(i * parts, n)
 end
 
@@ -192,6 +204,20 @@ orientation. Since pencil decompositions here are fully periodic, out-of-range
 indices wrap onto the global grid before owner lookup.
 """
 function pencil_owner(dec::PencilDecomposition3D, index::NTuple{3,<:Integer}, orientation = :x)
+    idx = ntuple(d -> _rank_coordinate("index[$d]", index[d]), 3)
+    return _pencil_owner_checked(dec, idx, orientation)
+end
+
+function pencil_owner(dec::PencilDecomposition3D, index::Tuple, orientation = :x)
+    length(index) == 3 ||
+        throw(ArgumentError("pencil owner index must have length 3, got $(length(index))"))
+    all(x -> x isa Integer, index) ||
+        throw(ArgumentError("pencil owner index entries must be integers, got $index"))
+    idx = ntuple(d -> _rank_coordinate("index[$d]", index[d]), 3)
+    return _pencil_owner_checked(dec, idx, orientation)
+end
+
+function _pencil_owner_checked(dec::PencilDecomposition3D, index::NTuple{3,Int}, orientation)
     _, split_axes = _pencil_axes(_pencil_val(orientation))
     coords = (
         _partition_owner(index[split_axes[1]], dec.n[split_axes[1]], dec.ranks[1]),

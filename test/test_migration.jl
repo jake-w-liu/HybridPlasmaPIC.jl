@@ -49,6 +49,11 @@ end
     @test_throws ArgumentError rank_coords(layout, 0)
     @test_throws ArgumentError rank_of_position((NaN, 0.1), g, layout)
     @test_throws ArgumentError rank_of_position((0.1, Inf), g, layout)
+
+    huge = big(typemax(Int)) + 1
+    @test_throws ArgumentError LogicalRankLayout((huge,))
+    @test_throws ArgumentError rank_coords(LogicalRankLayout((2,)), huge)
+    @test_throws ArgumentError rank_index(LogicalRankLayout((2,)), (huge,))
 end
 
 @testset "multi-dimensional migration and transverse wrapping" begin
@@ -208,6 +213,13 @@ end
     @test stats == (exchanged = 2, filled = 2)
     @test b[1] == [-99.0, 10.0, 11.0, 12.0, 20.0]
     @test b[2] == [12.0, 20.0, 21.0, 22.0, -99.0]
+
+    huge = big(typemax(Int)) + 1
+    @test_throws ArgumentError exchange_field_halos!(
+        [copy(a[1])],
+        LogicalRankLayout((1,));
+        halo = huge,
+    )
 end
 
 @testset "tuple field halo exchange and validation" begin

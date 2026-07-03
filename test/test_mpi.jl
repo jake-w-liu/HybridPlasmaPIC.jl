@@ -34,6 +34,9 @@ end
     @test prod(mpi_dims_create(1, 3)) == 1
     @test_throws ArgumentError mpi_dims_create(0, 2)
     @test_throws ArgumentError mpi_dims_create(1, 0)
+    huge = big(typemax(Int)) + 1
+    @test_throws ArgumentError mpi_dims_create(huge, 1)
+    @test_throws ArgumentError mpi_dims_create(1, huge)
 end
 
 @testset "MPI Cartesian communicator over logical layout" begin
@@ -51,6 +54,9 @@ end
         @test mpi_cartesian_neighbor(ctx, 2, 1) === nothing
         @test mpi_cartesian_neighbor(ctx, 2, -1) === nothing
         @test_throws ArgumentError mpi_cartesian_neighbor(ctx, 0, 1)
+        huge = big(typemax(Int)) + 1
+        @test_throws ArgumentError mpi_cartesian_neighbor(ctx, huge, 1)
+        @test_throws ArgumentError mpi_cartesian_neighbor(ctx, 1, huge)
 
         desc = mpi_rank_layout_description(ctx)
         @test occursin("mpi;ranks=1", desc)
@@ -136,6 +142,8 @@ end
         mpi_field_stats = mpi_exchange_field_halos!(mpi_field, ctx; halo = 1, fill_value = -99.0)
         @test mpi_field_stats == (exchanged = 0, filled = 0)
         @test mpi_field == field[1]
+        huge = big(typemax(Int)) + 1
+        @test_throws ArgumentError mpi_exchange_field_halos!(copy(field[1]), ctx; halo = huge)
 
         moments = [[2.0, 10.0, 11.0, 12.0, 3.0]]
         moment_stats = exchange_ghost_moments!(moments, ctx.layout; halo = 1)

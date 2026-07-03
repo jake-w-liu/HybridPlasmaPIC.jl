@@ -38,7 +38,7 @@ function deposit_scalar_threaded!(
     # thread or a particle count too small to bother allocating partials for.
     if nth == 1 || Np == 0
         @inbounds for p = 1:Np
-            st = ntuple(d -> _stencil1d(shape, ps.x[d][p] / g.dx[d]), D)
+            st = ntuple(d -> _stencil1d(shape, _particle_cell_position(ps, g, d, p)), D)
             val = vals[val_first+p-1]
             for c in stamp
                 o = Tuple(c)
@@ -66,7 +66,7 @@ function deposit_scalar_threaded!(
         isempty(rng) && continue
         acc = partials[t]   # private to this thread: no other thread touches it
         @inbounds for p in rng
-            st = ntuple(d -> _stencil1d(shape, ps.x[d][p] / g.dx[d]), D)
+            st = ntuple(d -> _stencil1d(shape, _particle_cell_position(ps, g, d, p)), D)
             val = vals[val_first+p-1]
             for c in stamp
                 o = Tuple(c)

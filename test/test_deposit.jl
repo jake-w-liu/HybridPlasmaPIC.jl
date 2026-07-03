@@ -150,6 +150,26 @@ end
     @test_throws DimensionMismatch gather_scalar!(zeros(T, 1), zeros(T, 3, 4), ps, g, CIC())
 end
 
+@testset "deposit/gather reject non-finite particle positions" begin
+    T = Float64
+    g = FourierGrid((4,), (1.0,))
+    vals = T[1.0]
+    field = ones(T, g.n)
+
+    for shape in (NGP(), CIC(), TSC())
+        ps = ParticleSet{1,T}(1)
+        ps.x[1][1] = T(NaN)
+        @test_throws ArgumentError deposit_scalar!(zeros(T, g.n), ps, vals, g, shape)
+        @test_throws ArgumentError gather_scalar!(zeros(T, 1), field, ps, g, shape)
+
+        ps.x[1][1] = T(Inf)
+        @test_throws ArgumentError density!(zeros(T, g.n), ps, g, shape)
+        @test_throws ArgumentError momentum!(ntuple(_ -> zeros(T, g.n), 3), ps, g, shape)
+        @test_throws ArgumentError current!(ntuple(_ -> zeros(T, g.n), 3), ps, g, shape)
+        @test_throws ArgumentError pressure_tensor!(ntuple(_ -> zeros(T, g.n), 6), ps, g, shape)
+    end
+end
+
 @testset "deposit/gather AbstractVector indices are decoupled from particle indices" begin
     T = Float64
     g = FourierGrid((8,), (1.0,))
