@@ -58,20 +58,17 @@
 # ---- Electron subcycling -----------------------------------------------------
 # `n_sub` (default 1) splits each ion step `dt` into n_sub electron substeps of
 # dt_e = dt/n_sub. The fields and electrons are advanced on the FAST substep
-# (electrons resolve ω_pe and the EM CFL); the heavy ions are pushed ONCE over
-# the full dt using the field gathered at the substep that straddles their
-# half-level midpoint, and they contribute their (slowly varying) charge/current
-# to the field solve on every electron substep. n_sub=1 reproduces the single-
-# rate scheme exactly (and bit-for-bit reproduces the legacy immobile-ion run).
-#
-# KNOWN LIMITATION (verified 2026-07, deep-debug): with MOBILE ions AND n_sub≥2 the temporal
-# order drops to ~1 (cold self-convergence: n_sub=1 → 2.0; n_sub=2 → ~0.9→1.0). The heavy ions
-# are drifted the whole dt_ion at once on the straddling substep, so their charge snapshot on the
-# other substeps sits at x^n (before) or x^{n+1} (after) rather than the substep-consistent
-# x^{n+1/2±} — an O(dt) per-step charge/field error (NOT the initial-condition priming, which is
-# self-consistent here). n_sub=1 and the immobile-ion background are unaffected (2nd-order). A fix
-# would split the ion drift across substeps (drift dt_e each substep, kick once) so the deposited
-# ion charge is time-consistent; that is a subcycling-scheme change left for a dedicated pass.
+# (electrons resolve ω_pe and the EM CFL). The heavy ion VELOCITY is kicked once
+# per ion step (over dt_ion = n_sub·dt_e) on the FIRST substep, but its POSITION
+# is drifted dt_e on EVERY substep with the post-kick velocity, so the ion's
+# charge/current is deposited at the time-consistent position on each substep.
+# n_sub=1 reproduces the single-rate scheme exactly (and bit-for-bit reproduces
+# the legacy immobile-ion run). This drift-splitting makes the mobile scheme
+# 2nd-order in dt for ANY n_sub (verified 2026-07, deep-debug: cold self-
+# convergence rate → 2.0 for n_sub=1..4, both light and heavy ions) while keeping
+# exact Esirkepov charge conservation (per-substep residual ~1e-13). [Kicking on
+# the middle substep with the whole-dt_ion drift lumped the ion current into one
+# substep and left the others time-inconsistent → the earlier 1st-order behavior.]
 #
 # Verified oracles (test_empic1d.jl):
 #   (1) transverse EM-wave dispersion ω² = ω_pe² + c²k² (≥2 k values, <3%);
@@ -548,15 +545,20 @@ function _substep_em!(
     _drift_record_mid!(e, es.work, dt, L)
     apply_periodic!(e, (z,), (L,))
 
-    # push ions on the straddling substep (heavy: pushed once per full ion step)
+    # ion VELOCITY kick: once per full ion step, on the straddling substep so the field is
+    # time-centred; the heavy ion resolves the slow scale, so one kick per dt_ion = n_sub·dt is enough.
     if es.mobile && ions !== nothing && push_ions
         gather_scalar!(es.Exi, es.Ex, ions, g, es.shape)
         gather_scalar!(es.Eyi, es.Ey, ions, g, es.shape)
         gather_scalar!(es.Bzi, es.Bzc, ions, g, es.shape)
-        # ions advance over the FULL ion step dt_ion = n_sub·dt
-        dt_ion = T(es.n_sub) * dt
-        _push_velocities!(es, ions, es.Exi, es.Eyi, es.Bzi, dt_ion)
-        _drift_record_mid!(ions, es.worki, dt_ion, L)
+        _push_velocities!(es, ions, es.Exi, es.Eyi, es.Bzi, T(es.n_sub) * dt)
+    end
+    # ion POSITION drift: EVERY substep by dt (with the current ion velocity), so the ion charge and
+    # current deposited on each substep sit at the time-consistent position. Drifting the whole
+    # dt_ion at once on the straddling substep lumped the ion current into one substep → 1st-order;
+    # splitting it makes the n_sub≥2 mobile scheme 2nd-order (n_sub=1 is unchanged: dt = dt_ion).
+    if es.mobile && ions !== nothing
+        _drift_record_mid!(ions, es.worki, dt, L)
         apply_periodic!(ions, (z,), (L,))
     end
 
@@ -734,24 +736,13 @@ function step_empic!(
             es.Bz[i] += (dt_e / 2) * es.dEy[i]
         end
     end
-    # ions pushed on the substep straddling their half-level midpoint (middle one)
-    push_sub = (ns + 1) ÷ 2
-    # Seed the ion midpoint buffer with the ions' current positions x^n. The
-    # transverse-Jy deposit (_deposit_Jy_at_midpoints!) reads es.worki on EVERY
-    # substep, but the ion push that fills it only runs on s == push_sub. For
-    # n_sub ≥ 3 (push_sub > 1) the substeps s < push_sub run first, so without
-    # this seed they would deposit ion Jy from uninitialized memory (first step)
-    # or the previous step's stale midpoint — corrupting Ey. x^n is the ions'
-    # actual position on those pre-push substeps, so it is the correct seed. For
-    # n_sub ≤ 2 (push_sub == 1) the push fills worki before any read, so this is a
-    # no-op there and the tested n_sub=1,2 paths are bit-for-bit unchanged.
-    if es.mobile && push_sub > 1
-        xi = ions.x[1]
-        Lx = es.g.L[1]
-        @inbounds for p in eachindex(xi)
-            es.worki[p] = mod(xi[p], Lx)
-        end
-    end
+    # The heavy ion is kicked ONCE (on the first substep) so that every substep drifts it with the
+    # SAME post-kick velocity v^{n+1/2}; combined with the per-substep ion drift in _substep_em!,
+    # its charge/current is then time-consistent on every substep — the whole mobile scheme is
+    # 2nd-order for any n_sub. (Kicking on the middle substep instead left the pre-kick substeps
+    # drifting with the stale v^{n−1/2}, an O(dt) current error → 1st-order for n_sub≥3.) The ion
+    # drift now fills es.worki on every substep before the Jy deposit reads it, so no seed is needed.
+    push_sub = 1
     @inbounds for s = 1:ns
         _substep_em!(es, e, ions, dt_e, s == push_sub)
         es.time[] += dt_e

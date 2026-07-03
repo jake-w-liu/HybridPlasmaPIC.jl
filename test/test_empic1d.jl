@@ -531,3 +531,59 @@ end
     bad = ParticleSet{1,T}(100; q = 1.0, m = 1.0)      # m ≠ mi=100 (was silently ignored)
     @test_throws ArgumentError init_empic!(es, e, bad)
 end
+
+@testset "EMPIC1D mobile subcycling (n_sub≥2) is 2nd-order and charge-conserving" begin
+    # Splitting the ion drift across substeps (kick once on the first substep, drift dt_e each
+    # substep) makes the mobile n_sub≥2 scheme 2nd-order (was 1st-order: the ion was drifted the
+    # whole dt_ion at once, lumping its current into one substep) while keeping exact Esirkepov
+    # charge conservation.
+    T = Float64
+    L = 2π
+    k = 2π / L
+    A = 0.05
+    function ex(nsteps; n_sub)
+        n = 32
+        N = 400 * n
+        g = FourierGrid((n,), (T(L),))
+        e = ParticleSet{1,T}(N; q = -1.0, m = 1.0)
+        ions = ParticleSet{1,T}(N; q = 1.0, m = 16.0)
+        load_lattice_1d!(e, 0.0, T(L))
+        load_lattice_1d!(ions, 0.0, T(L))
+        set_density_weight!(e, 1.0, g)
+        set_density_weight!(ions, 1.0, g)
+        for p = 1:N
+            e.x[1][p] = mod(e.x[1][p] - (A / k) * sin(k * e.x[1][p]), L)
+        end
+        es = EMPIC1D(g, N; mobile = true, mi = 16.0, c = 8.0, n_sub = n_sub)
+        init_empic!(es, e, ions)
+        for _ = 1:nsteps
+            step_empic!(es, e, ions, 1.0 / nsteps)
+        end
+        abs(mode_amplitude(es.Ex, g, (1,)))
+    end
+    for ns in (2, 3)      # n_sub=1 is covered elsewhere; ≥3 kicks first for all n_sub
+        v = [ex(nsteps; n_sub = ns) for nsteps in (20, 40, 80, 160)]
+        @test log2(abs(v[1] - v[2]) / abs(v[2] - v[3])) > 1.6
+        @test log2(abs(v[2] - v[3]) / abs(v[3] - v[4])) > 1.6
+    end
+    # exact Esirkepov charge conservation per substep (dt_e) for a mobile n_sub=3 run
+    n = 32
+    N = 100 * n
+    g = FourierGrid((n,), (T(L),))
+    e = ParticleSet{1,T}(N; q = -1.0, m = 1.0)
+    ions = ParticleSet{1,T}(N; q = 1.0, m = 16.0)
+    load_lattice_1d!(e, 0.0, T(L))
+    load_lattice_1d!(ions, 0.0, T(L))
+    set_density_weight!(e, 1.0, g)
+    set_density_weight!(ions, 1.0, g)
+    load_maxwellian!(e, MersenneTwister(2), (0.1, 0.0, 0.0), (0.3, 0.3, 0.3))
+    es = EMPIC1D(g, N; mobile = true, mi = 16.0, c = 8.0, n_sub = 3)
+    init_empic!(es, e, ions)
+    dt = 0.02
+    cmax = 0.0
+    for _ = 1:20
+        step_empic!(es, e, ions, dt)
+        cmax = max(cmax, charge_conservation_residual(es, dt / 3))   # per-substep dt_e
+    end
+    @test cmax < 1e-10
+end
