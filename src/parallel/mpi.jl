@@ -644,6 +644,7 @@ function mpi_step!(
     migrate_particles::Bool = true,
 ) where {D,T}
     dtT = _validated_step_dt(T, dt, NB; min_NB = 1, name = "mpi_step!")
+    iszero(dtT) && return st        # dt=0 no-op: do not consume the one-time priming guard.
     _resize_hybrid_particle_workspaces!(st, nparticles(ps))
 
     g = st.g

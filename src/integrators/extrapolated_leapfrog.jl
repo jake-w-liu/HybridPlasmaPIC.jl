@@ -277,6 +277,8 @@ end
 
 function step!(st::HybridStepper{D,T}, ps::ParticleSet{D,T}, dt::Real; NB::Integer = 1) where {D,T}
     dtT = _validated_step_dt(T, dt, NB; min_NB = 1, name = "step!")
+    iszero(dtT) && return st        # dt=0 is a true no-op: advance nothing, and (critically) do
+    #                                 NOT consume the step==0 one-time leapfrog-priming guard.
     g = st.g
     h = dtT / 2
     nf = T(st.model.nfloor)

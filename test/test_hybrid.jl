@@ -287,3 +287,29 @@ end
     @test r1 > 1.6        # ≈2.0 with the fix; ≈1.0 (would fail) without it
     @test r2 > 1.6
 end
+
+@testset "step! dt=0 is a true no-op (preserves state and the priming guard)" begin
+    T = Float64
+    L = 2π
+    n = 16
+    N = 2000
+    g = FourierGrid((n,), (T(L),))
+    ps = ParticleSet{1,T}(N)
+    load_lattice_1d!(ps, 0.0, T(L))
+    set_density_weight!(ps, 1.0, g)
+    load_quiet_velocities!(ps, MersenneTwister(3), (0.0, 0.0, 0.0), (0.02, 0.02, 0.02))
+    st = HybridStepper(g, HybridModel(IsothermalElectrons(0.5)), CIC(), N)
+    fill!(st.fields.B[1], 1.0)
+    x = [(i - 1) * g.dx[1] for i = 1:n]
+    st.fields.B[2] .= 0.01 .* cos.(2π / L .* x)
+    init!(st, ps)
+    x0 = copy(ps.x[1])
+    v0 = copy(ps.v[1])
+    B0 = copy(st.fields.B[2])
+    s0 = st.step[]
+    step!(st, ps, 0.0; NB = 4)
+    # a dt=0 step advances nothing AND must NOT consume the one-time leapfrog priming (step==0),
+    # which would otherwise silently drop the run back to 1st-order.
+    @test ps.x[1] == x0 && ps.v[1] == v0 && st.fields.B[2] == B0
+    @test st.step[] == s0
+end

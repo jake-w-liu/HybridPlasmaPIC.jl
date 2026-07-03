@@ -218,6 +218,7 @@ function step_camcl!(
     NB::Integer = 2,
 ) where {D,T}
     dtT = _validated_step_dt(T, dt, NB; min_NB = 2, name = "step_camcl!")
+    iszero(dtT) && return st        # dt=0 no-op: do not consume the one-time priming guard.
     g = st.g
     h = dtT / 2
     nf = T(st.model.nfloor)
