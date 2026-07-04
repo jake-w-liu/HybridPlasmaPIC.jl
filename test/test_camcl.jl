@@ -102,6 +102,24 @@ end
     @test all(st.fields.B[c] == B0[c] for c = 1:3)
 end
 
+@testset "step_camcl! resizes particle workspaces after particle count changes" begin
+    T = Float64
+    g = FourierGrid((8,), (1.0,))
+    ps = ParticleSet{1,T}(4)
+    ps.x[1] .= T[0.2, 0.4, 0.6, 0.8]
+    ps.weight .= T(1 / 8)
+    st = CAMCLStepper(g, HybridModel(IsothermalElectrons(0.0)), CIC(), nparticles(ps))
+    st.fields.B[1] .= 1.0
+    init_camcl!(st, ps)
+
+    ps.x[1][1] = -0.1
+    ps.x[1][2] = 1.1
+    @test apply_absorbing!(ps, (0.0,), (1.0,)) == 2
+    @test step_camcl!(st, ps, 0.01) === st
+    @test length(st.Ep[1]) == nparticles(ps)
+    @test length(st.work) == nparticles(ps)
+end
+
 @testset "CAM-CL ion-acoustic ω = k·√Te (analytic oracle)" begin
     Te = 1.0
     m = 1

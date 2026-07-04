@@ -30,6 +30,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `PencilFFTs.jl`/`PencilArrays.jl` for fully periodic 3D distributed FFT plans,
   input/output allocation, forward/inverse transforms, and round-trip checks.
 
+### Fixed
+
+- Hall-MHD CGL electron closures now use the anisotropic pressure-force Ohm-law path.
+- Hybrid and CAM-CL steppers now resize particle workspaces after particle injection/removal.
+- Logical rank layouts now reject decompositions whose total rank count overflows `Int`.
+
 ## [0.1.0]
 
 First tagged release. HybridPlasmaPIC.jl is a dimension-parametric (1D3V / 2D3V /

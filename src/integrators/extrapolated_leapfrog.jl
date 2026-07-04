@@ -84,9 +84,11 @@ function HybridStepper(
     )
 end
 
-function _resize_hybrid_particle_workspaces!(st::HybridStepper{D,T}, n::Integer) where {D,T}
+function _resize_hybrid_particle_workspaces!(st, n::Integer)
     n >= 0 || throw(ArgumentError("particle workspace length must be nonnegative, got $n"))
     N = Int(n)
+    D = length(st.xmid)
+    T = eltype(st.work)
     length(st.work) == N &&
         all(length(st.Ep[c]) == N for c = 1:3) &&
         all(length(st.Bp[c]) == N for c = 1:3) &&
@@ -130,6 +132,7 @@ Compute the carried electric field E⁰ from the initial particle moments and
 `stepper.fields.B`. Call once after loading particles and setting B.
 """
 function init!(st::HybridStepper{D,T}, ps::ParticleSet{D,T}) where {D,T}
+    _resize_hybrid_particle_workspaces!(st, nparticles(ps))
     nf = T(st.model.nfloor)
     _moments!(st.fields.n, st.fields.ui, ps, st.g, st.shape, nf, st.work)
     ohms_law!(st.fields, st.model, st.g)
@@ -302,6 +305,7 @@ function step!(st::HybridStepper{D,T}, ps::ParticleSet{D,T}, dt::Real; NB::Integ
     dtT = _validated_step_dt(T, dt, NB; min_NB = 1, name = "step!")
     iszero(dtT) && return st        # dt=0 is a true no-op: advance nothing, and (critically) do
     #                                 NOT consume the step==0 one-time leapfrog-priming guard.
+    _resize_hybrid_particle_workspaces!(st, nparticles(ps))
     g = st.g
     h = dtT / 2
     nf = T(st.model.nfloor)

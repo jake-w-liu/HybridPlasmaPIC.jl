@@ -103,6 +103,7 @@ Compute the carried electric field E⁰ from the initial particle moments and
 [`step_camcl!`](@ref). Analogous to [`init!`](@ref) for `HybridStepper`.
 """
 function init_camcl!(st::CAMCLStepper{D,T}, ps::ParticleSet{D,T}) where {D,T}
+    _resize_hybrid_particle_workspaces!(st, nparticles(ps))
     nf = T(st.model.nfloor)
     _moments!(st.fields.n, st.fields.ui, ps, st.g, st.shape, nf, st.work)
     ohms_law!(st.fields, st.model, st.g)
@@ -219,6 +220,7 @@ function step_camcl!(
 ) where {D,T}
     dtT = _validated_step_dt(T, dt, NB; min_NB = 2, name = "step_camcl!")
     iszero(dtT) && return st        # dt=0 no-op: do not consume the one-time priming guard.
+    _resize_hybrid_particle_workspaces!(st, nparticles(ps))
     g = st.g
     h = dtT / 2
     nf = T(st.model.nfloor)

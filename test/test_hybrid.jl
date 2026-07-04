@@ -222,6 +222,49 @@ end
     @test all(st.fields.B[c] == B0[c] for c = 1:3)
 end
 
+@testset "step! resizes particle workspaces after particle count changes" begin
+    T = Float64
+    g = FourierGrid((8,), (1.0,))
+    ps = ParticleSet{1,T}(4)
+    ps.x[1] .= T[0.2, 0.4, 0.6, 0.8]
+    ps.weight .= T(1 / 8)
+    st = HybridStepper(g, HybridModel(IsothermalElectrons(0.0)), CIC(), nparticles(ps))
+    st.fields.B[1] .= 1.0
+    init!(st, ps)
+
+    ps.x[1][1] = -0.1
+    ps.x[1][2] = 1.1
+    @test apply_absorbing!(ps, (0.0,), (1.0,)) == 2
+    @test step!(st, ps, 0.01) === st
+    @test length(st.Ep[1]) == nparticles(ps)
+    @test length(st.work) == nparticles(ps)
+
+    ps2 = ParticleSet{1,T}(0)
+    st2 = HybridStepper(g, HybridModel(IsothermalElectrons(0.0)), CIC(), nparticles(ps2))
+    st2.fields.B[1] .= 1.0
+    init!(st2, ps2)
+    acc = Ref(0.0)
+    nextid = Ref(UInt64(1))
+    @test inject_face_1d!(
+        ps2,
+        MersenneTwister(4),
+        0.0,
+        +1,
+        1.0,
+        2.0,
+        0.0,
+        (0.0, 0.0),
+        0.3,
+        1.0,
+        0.5,
+        acc,
+        nextid,
+    ) == 4
+    @test step!(st2, ps2, 0.01) === st2
+    @test length(st2.Ep[1]) == nparticles(ps2)
+    @test length(st2.work) == nparticles(ps2)
+end
+
 @testset "compute_moments! from particles" begin
     T = Float64
     n = 32

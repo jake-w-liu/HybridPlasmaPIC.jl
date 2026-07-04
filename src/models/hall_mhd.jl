@@ -74,8 +74,8 @@ function HallMHDState(g::FourierGrid{D,T}, model::M) where {D,T,M<:HallMHDModel}
     return HallMHDState{D,T,M}(
         g,
         model,
-        HybridFields{D,T}(nc),
-        HybridFields{D,T}(nc),
+        HybridFields{D,T}(nc; anisotropic = is_anisotropic(model.closure)),
+        HybridFields{D,T}(nc; anisotropic = is_anisotropic(model.closure)),
         z(),
         vec3(),
         vec3(),
@@ -163,6 +163,48 @@ function _validate_hall_candidate!(st::HallMHDState{D,T}, n, u, B) where {D,T}
     return nothing
 end
 
+function _hall_ohms_law_fields!(
+    f::HybridFields{D,T},
+    model::HallMHDModel,
+    g::FourierGrid{D,T},
+) where {D,T}
+    if is_anisotropic(model.closure)
+        _ohm_ninv!(f.ninv, f.n, T(model.nfloor), f.floor_count)
+        anisotropic_pressure_force!(f.pforce, f.n, f.B, model.closure, g)
+        _ohm_Efield_aniso!(
+            f.E,
+            f.ui,
+            f.B,
+            f.J,
+            f.lapJ,
+            f.pforce,
+            f.ninv,
+            T(model.η),
+            T(model.ηH),
+            g,
+        )
+    else
+        _ohm_E!(
+            f.E,
+            f.n,
+            f.ui,
+            f.B,
+            f.J,
+            f.lapJ,
+            f.pe,
+            f.gradp,
+            f.ninv,
+            model.closure,
+            T(model.η),
+            T(model.ηH),
+            T(model.nfloor),
+            f.floor_count,
+            g,
+        )
+    end
+    return f
+end
+
 """
     hall_mhd_ohms_law!(state)
 
@@ -170,24 +212,7 @@ Update `state.fields.E`, `J`, electron pressure, pressure gradient, reciprocal
 density, and density-floor count from the current Hall-MHD `n`, `u`, and `B`.
 """
 function hall_mhd_ohms_law!(st::HallMHDState{D,T}) where {D,T}
-    model = st.model
-    _ohm_E!(
-        st.fields.E,
-        st.fields.n,
-        st.fields.ui,
-        st.fields.B,
-        st.fields.J,
-        st.fields.lapJ,
-        st.fields.pe,
-        st.fields.gradp,
-        st.fields.ninv,
-        model.closure,
-        T(model.η),
-        T(model.ηH),
-        T(model.nfloor),
-        st.fields.floor_count,
-        st.g,
-    )
+    _hall_ohms_law_fields!(st.fields, st.model, st.g)
     return st
 end
 
@@ -198,24 +223,7 @@ function _stage_ohms_law!(
     B::NTuple{3,<:Array{T,D}},
 ) where {D,T}
     _copy_hall_state!(st.stage.n, st.stage.ui, st.stage.B, n, u, B)
-    model = st.model
-    _ohm_E!(
-        st.stage.E,
-        st.stage.n,
-        st.stage.ui,
-        st.stage.B,
-        st.stage.J,
-        st.stage.lapJ,
-        st.stage.pe,
-        st.stage.gradp,
-        st.stage.ninv,
-        model.closure,
-        T(model.η),
-        T(model.ηH),
-        T(model.nfloor),
-        st.stage.floor_count,
-        st.g,
-    )
+    _hall_ohms_law_fields!(st.stage, st.model, st.g)
     return st.stage
 end
 

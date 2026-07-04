@@ -49,6 +49,30 @@ end
     @test hm.fields.floor_count[] == hf.floor_count[]
 end
 
+@testset "Hall-MHD supports CGL electron closure" begin
+    T = Float64
+    n = 32
+    L = 2π
+    g = FourierGrid((n,), (L,))
+    x = [(i - 1) * g.dx[1] for i = 1:n]
+    cgl = HallMHDState(g, HallMHDModel(CGLElectrons(0.4, 0.4, 1.0, 1.0); η = 0.02, nfloor = 1e-5))
+    iso = HallMHDState(g, HallMHDModel(IsothermalElectrons(0.4); η = 0.02, nfloor = 1e-5))
+
+    for st in (cgl, iso)
+        fill!(st.fields.n, 1.0)
+        st.fields.ui[1] .= @. 0.2 * sin(x)
+        st.fields.ui[2] .= @. 0.1 * cos(x)
+        st.fields.B[1] .= 1.0
+        hall_mhd_ohms_law!(st)
+    end
+
+    @test length(cgl.fields.pforce[1]) == n
+    for c = 1:3
+        @test maximum(abs, cgl.fields.E[c] .- iso.fields.E[c]) < 1e-12
+        @test maximum(abs, cgl.fields.J[c] .- iso.fields.J[c]) < 1e-12
+    end
+end
+
 @testset "Hall-MHD continuity RHS: advected density wave" begin
     T = Float64
     n = 64

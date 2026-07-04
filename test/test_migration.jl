@@ -52,6 +52,7 @@ end
 
     huge = big(typemax(Int)) + 1
     @test_throws ArgumentError LogicalRankLayout((huge,))
+    @test_throws ArgumentError LogicalRankLayout((typemax(Int), 2))
     @test_throws ArgumentError rank_coords(LogicalRankLayout((2,)), huge)
     @test_throws ArgumentError rank_index(LogicalRankLayout((2,)), (huge,))
 end
