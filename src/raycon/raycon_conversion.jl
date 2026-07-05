@@ -13,8 +13,10 @@
 #  - the (r,z) chain here deliberately has NO field-curvature corrections and
 #    the second-derivative chain omits ∂²(s,t)/∂(r,z)² terms — exactly as
 #    dispertok.m; the exact-eigenvalue tracing lives in raycon_dispersion.jl;
-#  - cld3x3 conversion is refused: upstream's 3×3 second derivatives carry a
-#    known sign bug (dispertok.m "FIX THIS: sgn_fix NOT ADDED BELOW");
+#  - cld3x3 conversion is the CORRECTED extension (upstream's 3×3 second
+#    derivatives carry a known sign bug — dispertok.m "FIX THIS"): derivatives
+#    come from exact determinant-sampling identities and the coupling is
+#    evaluated in the Tracy–Kaufman 2-D near-null subspace of the tensor;
 #  - a malformed hyperbola (|1+λ₄/λ₁| ≥ 0.1 or |λ₄/λ₃| ≤ 4) yields τ = 0 and
 #    no ray split, as upstream.
 
@@ -56,15 +58,35 @@ function cgamma(z::Number)
     return exp(lng)
 end
 
-# det-U (cld2x2) and its derivatives in dispertok's variables. Returns the
-# tensor, U, V, first derivatives in (r,z,kr,kz,ω), the gDij phase-space
-# gradients, and (need2nd) all second derivatives needed for the T2 Hessian.
+# real determinant of a small Hermitian matrix (for the conversion layer all
+# sampled matrices A ± G stay Hermitian, so the determinant is exactly real)
+@inline _hdet(A::Matrix{ComplexF64}) =
+    size(A, 1) == 2 ? real(A[1, 1] * A[2, 2] - A[1, 2] * A[2, 1]) :
+    real(
+        A[1, 1] * (A[2, 2] * A[3, 3] - A[2, 3] * A[3, 2]) -
+        A[1, 2] * (A[2, 1] * A[3, 3] - A[2, 3] * A[3, 1]) +
+        A[1, 3] * (A[2, 1] * A[3, 2] - A[2, 2] * A[3, 1]),
+    )
+
+# adjugate of a Hermitian 3×3 (transpose of the cofactor matrix)
+function _adj3(A::Matrix{ComplexF64})
+    return ComplexF64[
+        (A[2, 2]*A[3, 3]-A[2, 3]*A[3, 2]) -(A[1, 2] * A[3, 3] - A[1, 3] * A[3, 2]) (A[1, 2]*A[2, 3]-A[1, 3]*A[2, 2])
+        -(A[2, 1] * A[3, 3] - A[2, 3] * A[3, 1]) (A[1, 1]*A[3, 3]-A[1, 3]*A[3, 1]) -(A[1, 1] * A[2, 3] - A[1, 3] * A[2, 1])
+        (A[2, 1]*A[3, 2]-A[2, 2]*A[3, 1]) -(A[1, 1] * A[3, 2] - A[1, 2] * A[3, 1]) (A[1, 1]*A[2, 2]-A[1, 2]*A[2, 1])
+    ]
+end
+
+# det-U and its derivatives in dispertok's variables (:cld2x2 pinned against
+# the original MATLAB; :cld3x3 is the corrected extension — upstream's 3×3
+# second derivatives carry a known sign bug, so they are DERIVED here rather
+# than transcribed, via exact determinant-sampling identities). Returns the
+# tensor, U, first derivatives in (r,z,kr,kz,ω), the per-direction element-
+# derivative matrices G[α] = ∂DD/∂z_α, and (need2nd) the T2 Hessian.
 function _detU_core(prob::RayconProblem, y::NTuple{4,Float64}; need2nd::Bool = false)
+    prob.model === :cld3x3 && return _detU_core3(prob, y; need2nd)
     prob.model === :cld2x2 || throw(
-        ArgumentError(
-            "mode-conversion analysis supports :cld2x2 only (upstream's 3×3 second " *
-            "derivatives carry a known sign bug and are not ported)",
-        ),
+        ArgumentError("mode-conversion analysis requires :cld2x2 or :cld3x3 (got $(prob.model))"),
     )
     r, zc, kr, kz = y
     rho, theta = _poloidal_coords(prob.eq, r, zc)
@@ -144,6 +166,7 @@ function _detU_core(prob::RayconProblem, y::NTuple{4,Float64}; need2nd::Bool = f
     gD11 = ComplexF64[dD11dr, dD11dz, dD11dkr, dD11dkz]
     gD12 = ComplexF64[dD12dr, dD12dz, dD12dkr, dD12dkz]
     gD22 = ComplexF64[dD22dr, dD22dz, dD22dkr, dD22dkz]
+    G = ntuple(α -> ComplexF64[gD11[α] gD12[α]; conj(gD12[α]) gD22[α]], 4)
 
     base = (;
         rho,
@@ -161,6 +184,7 @@ function _detU_core(prob::RayconProblem, y::NTuple{4,Float64}; need2nd::Bool = f
         gD11,
         gD12,
         gD22,
+        G,
     )
     need2nd || return base
 
@@ -234,23 +258,207 @@ function _detU_core(prob::RayconProblem, y::NTuple{4,Float64}; need2nd::Bool = f
     return (; base..., T2)
 end
 
+# cld3x3 det-U core: the CORRECTED 3×3 extension of the dispertok conversion
+# layer (upstream's own 3×3 second derivatives are sign-broken; here U and its
+# derivatives are derived from the real form of the Hermitian determinant
+#
+#   U = D11·D22·D33 + 2·aR·b·c − D11·c² − D22·b² − D33·(aR² + Dst²),
+#
+# with D12 = aR − i·Dst, D13 = b, D23 = c all built from real quantities, so
+# every derivative is a compact product rule instead of upstream's ~200-line
+# expansions). Variable structure and chains follow the validated 2×2 path
+# (elements as functions of (s,t,kn,kb,kp,ω), fixed basis, no ∂²(s,t) terms).
+function _detU_core3(prob::RayconProblem, y::NTuple{4,Float64}; need2nd::Bool = false)
+    r, zc, kr, kz = y
+    rho, theta = _poloidal_coords(prob.eq, r, zc)
+    geo = magnetic_geometry(prob.eq, rho, theta)
+    st = _stix_local(prob, geo)
+    om = prob.omega
+    coom = prob.cnst.c / om
+    coomsq = coom^2
+    g = geo
+
+    kn = kr * g.ener + prob.kphi * g.enef + kz * g.enez
+    kb = kr * g.eber + prob.kphi * g.ebef + kz * g.ebez
+    kp = kr * g.eper + prob.kphi * g.epef + kz * g.epez
+    Nn = coom * kn
+    Nb = coom * kb
+    Np = coom * kp
+    Nn2 = Nn^2
+    Nb2 = Nb^2
+    Np2 = Np^2
+
+    D11 = Nb2 + Np2 - st.S
+    D22 = Nn2 + Np2 - st.S
+    D33 = Nn2 + Nb2 - st.P
+    aR = -Nn * Nb                 # Re(D12)
+    Dst = st.D                    # −Im(D12)
+    b = -Nn * Np                  # D13 (real)
+    c = -Nb * Np                  # D23 (real)
+    U = D11 * D22 * D33 + 2 * aR * b * c - D11 * c^2 - D22 * b^2 - D33 * (aR^2 + Dst^2)
+    DD = ComplexF64[
+        D11 (aR-im*Dst) b
+        (aR+im*Dst) D22 c
+        b c D33
+    ]
+
+    # ∂U/∂(element) partials of the real determinant form
+    pD11 = D22 * D33 - c^2
+    pD22 = D11 * D33 - b^2
+    pD33 = D11 * D22 - aR^2 - Dst^2
+    paR = 2 * (b * c - D33 * aR)
+    pb = 2 * (aR * c - D22 * b)
+    pc = 2 * (aR * b - D11 * c)
+    pDst = -2 * D33 * Dst
+
+    # element derivatives per variable x ∈ (s, t, kn, kb, kp, ω)
+    twoc = 2 * coom
+    # dU/dx = pD11·dD11 + pD22·dD22 + pD33·dD33 + paR·daR + pb·db + pc·dc + pDst·dDst
+    dUds = pD11 * (-st.dSds) + pD22 * (-st.dSds) + pD33 * (-st.dPds) + pDst * st.dDds
+    dUdt = pD11 * (-st.dSdt) + pD22 * (-st.dSdt) + pD33 * (-st.dPdt) + pDst * st.dDdt
+    dUdkn = pD22 * (twoc * Nn) + pD33 * (twoc * Nn) + paR * (-coom * Nb) + pb * (-coom * Np)
+    dUdkb = pD11 * (twoc * Nb) + pD33 * (twoc * Nb) + paR * (-coom * Nn) + pc * (-coom * Np)
+    dUdkp = pD11 * (twoc * Np) + pD22 * (twoc * Np) + pb * (-coom * Nn) + pc * (-coom * Nb)
+    dUdom =
+        pD11 * (-2 / om * (Nb2 + Np2) - st.dSdom) +
+        pD22 * (-2 / om * (Nn2 + Np2) - st.dSdom) +
+        pD33 * (-2 / om * (Nn2 + Nb2) - st.dPdom) +
+        paR * (-2 * aR / om) +
+        pb * (-2 * b / om) +
+        pc * (-2 * c / om) +
+        pDst * st.dDdom
+
+    # chain to (r, z, kr, kz) — dispertok conventions (no curvature terms)
+    dUdr = dUds * g.dsdr + dUdt * g.dtdr
+    dUdz = dUds * g.dsdz + dUdt * g.dtdz
+    dUdkr = dUdkn * g.ener + dUdkb * g.eber + dUdkp * g.eper
+    dUdkz = dUdkn * g.enez + dUdkb * g.ebez + dUdkp * g.epez
+
+    # per-direction element-derivative matrices G[α] = ∂DD/∂z_α
+    sα = (g.dsdr, g.dsdz, 0.0, 0.0)
+    tα = (g.dtdr, g.dtdz, 0.0, 0.0)
+    enα = (0.0, 0.0, g.ener, g.enez)
+    ebα = (0.0, 0.0, g.eber, g.ebez)
+    epα = (0.0, 0.0, g.eper, g.epez)
+    G = ntuple(4) do α
+        dD11 = -st.dSds * sα[α] - st.dSdt * tα[α] + twoc * Nb * ebα[α] + twoc * Np * epα[α]
+        dD22 = -st.dSds * sα[α] - st.dSdt * tα[α] + twoc * Nn * enα[α] + twoc * Np * epα[α]
+        dD33 = -st.dPds * sα[α] - st.dPdt * tα[α] + twoc * Nn * enα[α] + twoc * Nb * ebα[α]
+        daR = -coom * (Nb * enα[α] + Nn * ebα[α])
+        dDst = st.dDds * sα[α] + st.dDdt * tα[α]
+        db = -coom * (Np * enα[α] + Nn * epα[α])
+        dc = -coom * (Np * ebα[α] + Nb * epα[α])
+        ComplexF64[
+            dD11 (daR-im*dDst) db
+            (daR+im*dDst) dD22 dc
+            db dc dD33
+        ]
+    end
+
+    base = (; rho, theta, geo, st, DD, U, V = 0.5 * (D11 + D22), dUdr, dUdz, dUdkr, dUdkz, dUdom, G)
+    need2nd || return base
+
+    # ----- T2 Hessian over (r, z, kr, kz) -----
+    # T2 = bilinear part (products of element FIRST derivatives — computed by
+    # EXACT polynomial extraction from determinant samples, see _detU_bilinear)
+    # + adjugate part tr(adj(DD)·∂²DD) carrying the element second derivatives.
+    adjA = _adj3(DD)
+    # element second derivatives: (s,t) block via S/D/P, k-block constants
+    function _hd_pos(du2, duv, dv2, i, j)      # d²(·)/dz_i dz_j from (s,t) 2nd derivs
+        return du2 * sα[i] * sα[j] + duv * (sα[i] * tα[j] + tα[i] * sα[j]) + dv2 * tα[i] * tα[j]
+    end
+    T2 = zeros(4, 4)
+    for i = 1:4, j = i:4
+        # bilinear part
+        bil = _detU_bilinear(DD, U, G[i], G[j], i == j)
+        # adjugate part: HD = d²DD/dz_i dz_j
+        if i <= 2 && j <= 2
+            hd11 = -_hd_pos(st.dSds2, st.dSdst, st.dSdt2, i, j)
+            hd33 = -_hd_pos(st.dPds2, st.dPdst, st.dPdt2, i, j)
+            hdDst = _hd_pos(st.dDds2, st.dDdst, st.dDdt2, i, j)
+            HD = ComplexF64[
+                hd11 (-im*hdDst) 0.0
+                (im*hdDst) hd11 0.0
+                0.0 0.0 hd33
+            ]
+            T2[i, j] = bil + real(sum(adjA[a, b] * HD[b, a] for a = 1:3, b = 1:3))
+        elseif i >= 3 && j >= 3
+            hd11 = 2 * coomsq * (ebα[i] * ebα[j] + epα[i] * epα[j])
+            hd22 = 2 * coomsq * (enα[i] * enα[j] + epα[i] * epα[j])
+            hd33 = 2 * coomsq * (enα[i] * enα[j] + ebα[i] * ebα[j])
+            hdaR = -coomsq * (enα[i] * ebα[j] + ebα[i] * enα[j])
+            hdb = -coomsq * (enα[i] * epα[j] + epα[i] * enα[j])
+            hdc = -coomsq * (ebα[i] * epα[j] + epα[i] * ebα[j])
+            HD = ComplexF64[
+                hd11 hdaR hdb
+                hdaR hd22 hdc
+                hdb hdc hd33
+            ]
+            T2[i, j] = bil + real(sum(adjA[a, b] * HD[b, a] for a = 1:3, b = 1:3))
+        else
+            # mixed position-k: element second derivatives vanish in the
+            # dispertok variable structure (2×2 parity)
+            T2[i, j] = bil
+        end
+        T2[j, i] = T2[i, j]
+    end
+    return (; base..., T2)
+end
+
+# EXACT second-order coefficient extraction for det(A + q·Gi + p·Gj): the
+# determinant is a (bi)cubic polynomial, so symmetric sampling recovers the
+# quadratic/mixed coefficients exactly (only floating-point rounding, tamed by
+# scaling the increments to the matrix norm). For 2×2 this reduces exactly to
+# upstream's H = products-of-first-derivatives formulas.
+function _detU_bilinear(
+    A::Matrix{ComplexF64},
+    f0::Float64,
+    Gi::Matrix{ComplexF64},
+    Gj::Matrix{ComplexF64},
+    diag::Bool,
+)
+    normA = max(norm(A), 1e-300)
+    if diag
+        λ = normA / max(norm(Gi), 1e-300)
+        f⁺ = _hdet(A .+ λ .* Gi)
+        f⁻ = _hdet(A .- λ .* Gi)
+        return (f⁺ + f⁻ - 2 * f0) / λ^2
+    else
+        λi = normA / max(norm(Gi), 1e-300)
+        λj = normA / max(norm(Gj), 1e-300)
+        f⁺⁺ = _hdet(A .+ λi .* Gi .+ λj .* Gj)
+        f⁺⁻ = _hdet(A .+ λi .* Gi .- λj .* Gj)
+        f⁻⁺ = _hdet(A .- λi .* Gi .+ λj .* Gj)
+        f⁻⁻ = _hdet(A .- λi .* Gi .- λj .* Gj)
+        return (f⁺⁺ - f⁺⁻ - f⁻⁺ + f⁻⁻) / (4 * λi * λj)
+    end
+end
+
+# first directional derivative of det(A + q·G) at q = 0, exact for 2×2 and 3×3
+# (the cubic coefficient det(G) is subtracted for 3×3)
+function _detU_directional(A::Matrix{ComplexF64}, G::Matrix{ComplexF64})
+    normA = max(norm(A), 1e-300)
+    λ = normA / max(norm(G), 1e-300)
+    f⁺ = _hdet(A .+ λ .* G)
+    f⁻ = _hdet(A .- λ .* G)
+    c3 = size(A, 1) == 3 ? _hdet(Matrix(λ .* G)) : 0.0
+    return (f⁺ - f⁻) / (2 * λ) - c3 / λ
+end
+
 # Osculating-plane quantities at a point: unit velocity/acceleration directions
-# (normalized by the symplectic area A), H Hessian, saddle displacement.
+# (normalized by the symplectic area A), H Hessian of det-U along (q, p) with
+# elements linearized (the Tracy-Kaufman quadratic-form structure — for 2×2
+# identical to upstream's product formulas by the polynomial identities above),
+# and the saddle displacement.
 function _osculating(core, eqv::Vector{Float64}, epv::Vector{Float64})
-    dD11dq = sum(eqv .* core.gD11)
-    dD11dp = sum(epv .* core.gD11)
-    dD12dq = sum(eqv .* core.gD12)
-    dD12dp = sum(epv .* core.gD12)
-    dD22dq = sum(eqv .* core.gD22)
-    dD22dp = sum(epv .* core.gD22)
-    D11 = core.DD[1, 1]
-    D12 = core.DD[1, 2]
-    D22 = core.DD[2, 2]
-    H11 = real(2 * dD11dq * dD22dq - 2 * dD12dq * conj(dD12dq))
-    H22 = real(2 * dD11dp * dD22dp - 2 * dD12dp * conj(dD12dp))
-    H12 = real(dD11dq * dD22dp + dD11dp * dD22dq - 2 * real(dD12dq * conj(dD12dp)))
-    dUdq = real(dD11dq * D22 + D11 * dD22dq - 2 * real(D12 * conj(dD12dq)))
-    dUdp = real(dD11dp * D22 + D11 * dD22dp - 2 * real(D12 * conj(dD12dp)))
+    A = core.DD
+    Gq = eqv[1] .* core.G[1] .+ eqv[2] .* core.G[2] .+ eqv[3] .* core.G[3] .+ eqv[4] .* core.G[4]
+    Gp = epv[1] .* core.G[1] .+ epv[2] .* core.G[2] .+ epv[3] .* core.G[3] .+ epv[4] .* core.G[4]
+    dUdq = _detU_directional(A, Gq)
+    dUdp = _detU_directional(A, Gp)
+    H11 = _detU_bilinear(A, core.U, Gq, Gq, true)
+    H22 = _detU_bilinear(A, core.U, Gp, Gp, true)
+    H12 = _detU_bilinear(A, core.U, Gq, Gp, false)
     detH = H11 * H22 - H12^2
     Hm11 = H22 / detH
     Hm12 = -H12 / detH
@@ -269,8 +477,9 @@ end
 # back to the exact dominant eigenvector — verified to reproduce the iterated
 # result to ~1e-6 where both work.
 function _power_iterate(gd::Matrix{ComplexF64})
-    new = ComplexF64[1, 1]
-    old = ComplexF64[0, 0]
+    n = size(gd, 1)
+    new = ones(ComplexF64, n)
+    old = zeros(ComplexF64, n)
     for it = 1:100
         n1 = maximum(abs.((new .- old) ./ new))
         n2 = maximum(abs.((new .+ old) ./ new))
@@ -306,6 +515,8 @@ struct RayconConversion
     converged::Bool
     hyperbola_ok::Bool
     transmitted_ok::Bool
+    gdalf::Vector{Float64}      # ∇(uncoupled α-Hamiltonian) at the saddle
+    gdlam::Vector{Float64}      # ∇(uncoupled λ-Hamiltonian) at the saddle
 end
 
 "whether the analysis produced a usable ray split (all three validity gates)"
@@ -381,6 +592,8 @@ function analyze_conversion(
             false,
             false,
             false,
+            zeros(4),
+            zeros(4),
         )
     end
 
@@ -399,6 +612,8 @@ function analyze_conversion(
             true,
             false,
             false,
+            zeros(4),
+            zeros(4),
         )
     end
     return RayconConversion(
@@ -413,6 +628,8 @@ function analyze_conversion(
         true,
         true,
         coeff.transmitted_ok,
+        coeff.gdalf,
+        coeff.gdlam,
     )
 end
 
@@ -439,25 +656,45 @@ function _conversion_coefficients(
         beta = complex(0.0, 0.0),
         transmitted = y0,
         transmitted_ok = false,
+        gdalf = zeros(4),
+        gdlam = zeros(4),
     )
     vp = F.vectors[:, ind[4]]
     vm = F.vectors[:, ind[1]]
 
-    # uncoupled polarizations from the directional tensor gradients
-    # (MATLAB reshape([gD11·v, gD12·v, cgD12·v, gD22·v], 2, 2) is column-major)
-    _gdmat(v) = ComplexF64[
-        sum(cst.gD11 .* v) sum(conj.(cst.gD12) .* v)
-        sum(cst.gD12 .* v) sum(cst.gD22 .* v)
-    ]
-    pol1 = _power_iterate(_gdmat(vp))
-    pol2 = _power_iterate(_gdmat(vm))
+    # Effective 2×2 coupling problem. For :cld2x2 this is the tensor itself
+    # (MATLAB-pinned path). For :cld3x3 the conversion couples the TWO
+    # near-null branches only; the far-off-shell third branch (|λ₃| ≫ 0, the
+    # electrostatic polarization at ICRF frequencies) would dominate the
+    # polarization iteration if kept, so the problem is reduced to the
+    # near-null eigen-subspace at the saddle (the Tracy–Kaufman 2-D crossing
+    # subspace): D̃ = Vᴴ·DD·V, G̃[α] = Vᴴ·G[α]·V with V the two smallest-|λ|
+    # eigenvectors. When the third row/column decouples exactly this reduces
+    # to the 2×2 objects identically.
+    local Deff::Matrix{ComplexF64}
+    local Geff::NTuple{4,Matrix{ComplexF64}}
+    if size(cst.DD, 1) == 2
+        Deff = cst.DD
+        Geff = cst.G
+    else
+        FE = eigen(Hermitian(cst.DD))
+        order = sortperm(abs.(FE.values))
+        Vsub = FE.vectors[:, order[1:2]]
+        Deff = Vsub' * cst.DD * Vsub
+        Geff = ntuple(α -> Matrix{ComplexF64}(Vsub' * cst.G[α] * Vsub), 4)
+    end
 
-    # ∇(eᴴ·DD·e) for each uncoupled polarization
-    _gdpol(e) =
-        real.(
-            cst.gD11 .* abs2(e[1]) .+ 2 .* real.(cst.gD12 .* (e[1] * conj(e[2]))) .+
-            cst.gD22 .* abs2(e[2]),
-        )
+    # uncoupled polarizations from the directional tensor gradients. The
+    # MATLAB column-major reshape of the row layout [gD11·v gD12·v cgD12·v
+    # gD22·v] is exactly transpose(Σ_α v_α G̃_α) — verified against the
+    # original code for 2×2 at the reference saddle.
+    _gdmat(v) = transpose(v[1] .* Geff[1] .+ v[2] .* Geff[2] .+ v[3] .* Geff[3] .+ v[4] .* Geff[4])
+    pol1 = _power_iterate(Matrix(_gdmat(vp)))
+    pol2 = _power_iterate(Matrix(_gdmat(vm)))
+
+    # gradient of the uncoupled eikonal Hamiltonians in the conjugate-
+    # polarization convention: gdalf_α = Re(eᵀ·G̃_α·ē) (2×2-verified form)
+    _gdpol(e) = Float64[real(transpose(e) * (Geff[α] * conj(e))) for α = 1:4]
     gdalf = _gdpol(pol1)
     gdlam = _gdpol(pol2)
     braket = transpose(gdalf) * J4 * gdlam
@@ -465,7 +702,7 @@ function _conversion_coefficients(
     # reshape, i.e. the TRANSPOSED tensor — consistent with the transposed gd
     # matrices the polarizations are iterated on (conjugate-polarization
     # convention throughout). Verified against the original code at the saddle.
-    eta = (pol1' * transpose(cst.DD) * pol2) / sqrt(complex(braket))
+    eta = (pol1' * transpose(Deff) * pol2) / sqrt(complex(braket))
     eta2 = real(eta * conj(eta))
     tau = exp(-π * eta2)
     beta = sqrt(2π * tau) / (eta * cgamma(-im * eta2))
@@ -490,5 +727,14 @@ function _conversion_coefficients(
         ptrans = collect(y0) .+ fact .* dirvec
         transmitted = (ptrans[1], ptrans[2], ptrans[3], ptrans[4])
     end
-    return (; hyperbola_ok, eta2, tau, beta = ComplexF64(beta), transmitted, transmitted_ok)
+    return (;
+        hyperbola_ok,
+        eta2,
+        tau,
+        beta = ComplexF64(beta),
+        transmitted,
+        transmitted_ok,
+        gdalf,
+        gdlam,
+    )
 end

@@ -346,8 +346,48 @@ function _disp_core(
             )
     end
 
-    lvl1 =
-        (; base..., dD11_vec, dD12_vec, dD22_vec, dU_vec, dNndr, dNndz, dNbdr, dNbdz, dNpdr, dNpdz)
+    # toroidal-wavenumber derivative ∂U/∂kφ (needed by the eikonal-phase
+    # transport; kφ is constant along rays but the phase advances with it)
+    dD11dkf = dD11dkn * g.enef + dD11dkb * g.ebef + dD11dkp * g.epef
+    dD12dkf = dD12dkn * g.enef + dD12dkb * g.ebef + dD12dkp * g.epef
+    dD22dkf = dD22dkn * g.enef + dD22dkb * g.ebef + dD22dkp * g.epef
+    local dUdkf::Float64
+    if is3x3
+        dD13dkf = (-Np * coom) * g.enef + 0.0 * g.ebef + (-Nn * coom) * g.epef
+        dD23dkf = 0.0 * g.enef + (-Np * coom) * g.ebef + (-Nb * coom) * g.epef
+        dD33dkf = (2 * Nn * coom) * g.enef + (2 * Nb * coom) * g.ebef + 0.0 * g.epef
+        U1v = real((D22 - U) * (D33 - U) - D23 * cD23)
+        U2v = real((D11 - U) * (D33 - U) - D13 * cD13)
+        U3v = real((D11 - U) * (D22 - U) - D12 * cD12)
+        ss3 = U1v + U2v + U3v
+        dUdkf = real(
+            (
+                dD11dkf * U1v - (D11 - U) * 2 * real(cD23 * dD23dkf) + dD22dkf * U2v -
+                (D22 - U) * 2 * real(cD13 * dD13dkf) + dD33dkf * U3v -
+                (D33 - U) * 2 * real(cD12 * dD12dkf)
+            ) / ss3 +
+            2 * real(D12 * D23 * conj(dD13dkf) + D12 * dD23dkf * cD13 + dD12dkf * D23 * cD13) / ss3,
+        )
+    else
+        ss2 = real(D11 + D22 - 2 * U)
+        dUdkf =
+            real((dD11dkf * (D22 - U) + dD22dkf * (D11 - U)) / ss2 - 2 * real(cD12 * dD12dkf) / ss2)
+    end
+
+    lvl1 = (;
+        base...,
+        dD11_vec,
+        dD12_vec,
+        dD22_vec,
+        dU_vec,
+        dUdkf,
+        dNndr,
+        dNndz,
+        dNbdr,
+        dNbdz,
+        dNpdr,
+        dNpdz,
+    )
     need2nd || return lvl1
 
     # ----- second derivatives (dU_mat over (r, z, kr, kz)) -----

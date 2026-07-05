@@ -70,10 +70,13 @@ export RayconConstants,
     analyze_conversion,
     is_valid,
     integrate_ray,
+    integrate_ray_amplitude,
+    antenna_focusing,
     launch_ray,
     trace_rays,
     RayconTrace,
-    RayconConversion
+    RayconConversion,
+    AmplitudeTrace
 
 include("raycon_types.jl")
 include("raycon_solovev.jl")
@@ -81,6 +84,7 @@ include("raycon_magnetic.jl")
 include("raycon_dispersion.jl")
 include("raycon_conversion.jl")
 include("raycon_trace.jl")
+include("raycon_amplitude.jl")
 include("raycon_driver.jl")
 include("raycon_normalized.jl")
 

@@ -26,10 +26,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   unified with the package's Ω_ci normalization via `PlasmaUnits`-first
   methods (`RayconProblem(units; …)`, `launch_ray(units, …)`,
   `trace_rays(units, …)`, `integrate_ray(units, …)`, `cmod_units()`); the
-  SI layer remains as the MATLAB-pinned engine. Port notes, preserved upstream
-  quirks, and two upstream bugs found & fixed (a `∂D12/∂ω` sign and a swapped
-  `dkz²`/`dkr·dkz` pair) are documented in
-  `docs/superpowers/specs/2026-07-05-raycon-port-notes.md`. Tests RCN-001..011
+  SI layer remains as the MATLAB-pinned engine. Beyond the port, two layers
+  upstream ships broken or disabled are completed: cld3x3 mode-conversion
+  coefficients (exact determinant-sampling derivatives + Tracy–Kaufman
+  near-null-subspace coupling, reducing to the pinned 2×2 when the
+  electrostatic branch decouples) and WKB amplitude transport
+  (`integrate_ray_amplitude`, `trace_rays(amplitude=true)`: Riccati focusing
+  tensor, lnE²/eikonal phase, Maslov caustic switching, cyclotron/Landau/TTMP
+  damping with per-species deposition, conversion amplitude bookkeeping),
+  verified against symplectic tangent-map identities, stationary-phase
+  representation checks, and exact energy bookkeeping. Port notes, preserved
+  upstream quirks, and the upstream bugs found & fixed are documented in
+  `docs/superpowers/specs/2026-07-05-raycon-port-notes.md`. Tests RCN-001..015
   plus regression against reference data dumped from the original MATLAB code
   (`tools/raycon_reference.m`).
 - **Package quality and CI hardening.** JET static-analysis smoke test

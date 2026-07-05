@@ -58,3 +58,25 @@ for c in res.conversions
     )
 end
 isempty(res.conversions) && println("no mode conversion detected on this ray")
+
+# amplitude transport: focusing, absorption and per-species power deposition
+resa = trace_rays(
+    units,
+    prob;
+    s = 0.4,
+    theta = 0.001,
+    kr = -31.5 * di,
+    kz = 0.0,
+    sigma_span = 2.5e-2,
+    amplitude = true,
+)
+a1 = resa.amplitude[1]
+@printf(
+    "\namplitude (antenna ray): lnE² end = %.1f, Maslov transforms = %d\n",
+    a1.lnE2[end],
+    a1.nmaslov,
+)
+labels = ("e", "D", "He3")
+for s2 = 1:3
+    @printf("  deposited on %-3s: %.3f of launch E²\n", labels[s2], a1.dep[s2, end])
+end

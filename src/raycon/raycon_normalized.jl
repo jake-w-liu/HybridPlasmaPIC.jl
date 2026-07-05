@@ -141,6 +141,8 @@ cmod_units() = PlasmaUnits(; n0 = 1.0e20, B0 = 7.9, mi = 1.6726e-27)
     (t[1] / di, t[2] / di, t[3] * di, t[4] * di)
 
 function _normalize_conversion(cv::RayconConversion, di::Float64)
+    # the coupling gradients scale like ∇U over (r, z, kr, kz)
+    scaleg = g -> [g[1] * di, g[2] * di, g[3] / di, g[4] / di]
     return RayconConversion(
         _tuple_to_norm(cv.saddle, di),
         _tuple_to_norm(cv.incoming, di),
@@ -153,6 +155,8 @@ function _normalize_conversion(cv::RayconConversion, di::Float64)
         cv.converged,
         cv.hyperbola_ok,
         cv.transmitted_ok,
+        scaleg(cv.gdalf),
+        scaleg(cv.gdlam),
     )
 end
 
@@ -201,6 +205,70 @@ function integrate_ray(
     return RayconTrace(tr.sigma, yn, tr.mon2, tr.status, tr.zdot, tr.zddot)
 end
 
+# focusing-tensor columns scale by d_i² in x-space and by 1/d_i² while the ray
+# is in the k-space (Maslov-transformed) representation
+function _normalize_W!(W::Matrix{Float64}, inkspace::Vector{Bool}, di::Float64)
+    for j = 1:size(W, 2)
+        W[:, j] .*= inkspace[j] ? 1 / di^2 : di^2
+    end
+    return W
+end
+
+"""
+    antenna_focusing(units::PlasmaUnits, prob, y) -> Matrix
+
+Normalized antenna focusing tensor: `y` in (d_i, 1/d_i), result in 1/d_i².
+"""
+function antenna_focusing(units::PlasmaUnits, prob::RayconProblem, y::AbstractVector{<:Real})
+    di = Float64(inertial_length(units))
+    return antenna_focusing(prob, _state_to_SI(Float64.(y), di)) .* di^2
+end
+
+"""
+    integrate_ray_amplitude(units::PlasmaUnits, prob, y0, W0, sigma0, sigma_end;
+                            kwargs...)
+
+Normalized amplitude transport: `y0` in (d_i, 1/d_i), `W0` in 1/d_i²; the
+returned trace carries positions in d_i, wavenumbers in 1/d_i and the focusing
+tensor in 1/d_i² (d_i² for columns in the k-space representation). `lnE2`,
+`phase` and `dep` are dimensionless (relative to the launch E²).
+"""
+function integrate_ray_amplitude(
+    units::PlasmaUnits,
+    prob::RayconProblem,
+    y0::AbstractVector{<:Real},
+    W0::AbstractMatrix{<:Real},
+    sigma0::Real,
+    sigma_end::Real;
+    kwargs...,
+)
+    length(y0) == 4 || throw(ArgumentError("state must be (r, z, kr, kz)"))
+    di = Float64(inertial_length(units))
+    tr = integrate_ray_amplitude(
+        prob,
+        _state_to_SI(Float64.(y0), di),
+        Matrix{Float64}(W0) ./ di^2,
+        sigma0,
+        sigma_end;
+        kwargs...,
+    )
+    yn = copy(tr.y)
+    yn[1:2, :] ./= di
+    yn[3:4, :] .*= di
+    Wn = _normalize_W!(copy(tr.W), tr.inkspace, di)
+    return AmplitudeTrace(
+        tr.sigma,
+        yn,
+        Wn,
+        tr.lnE2,
+        tr.phase,
+        tr.dep,
+        tr.inkspace,
+        tr.nmaslov,
+        tr.status,
+    )
+end
+
 """
     trace_rays(units::PlasmaUnits, prob; s, theta, kr, kz, kwargs...)
 
@@ -219,7 +287,12 @@ function trace_rays(
     kwargs...,
 )
     di = Float64(inertial_length(units))
-    res = trace_rays(prob; s, theta, kr = kr / di, kz = kz / di, kwargs...)
+    # the antenna focusing tensor is supplied in 1/d_i² when given
+    kw = Dict{Symbol,Any}(pairs(kwargs))
+    if haskey(kw, :W0) && kw[:W0] !== nothing
+        kw[:W0] = Matrix{Float64}(kw[:W0]) ./ di^2
+    end
+    res = trace_rays(prob; s, theta, kr = kr / di, kz = kz / di, kw...)
     rays = map(res.rays) do r
         yn = copy(r.y)
         yn[1:2, :] ./= di
@@ -229,5 +302,27 @@ function trace_rays(
     conversions = map(res.conversions) do c
         (; ray = c.ray, sigma = c.sigma, conversion = _normalize_conversion(c.conversion, di))
     end
-    return (; rays, conversions)
+    if !haskey(res, :amplitude)
+        return (; rays, conversions)
+    end
+    amplitude = map(res.amplitude) do a
+        yn = copy(a.y)
+        if !isempty(yn)
+            yn[1:2, :] ./= di
+            yn[3:4, :] .*= di
+        end
+        Wn = isempty(a.W) ? copy(a.W) : _normalize_W!(copy(a.W), a.inkspace, di)
+        (;
+            sigma = a.sigma,
+            y = yn,
+            W = Wn,
+            lnE2 = a.lnE2,
+            phase = a.phase,
+            dep = a.dep,
+            inkspace = a.inkspace,
+            nmaslov = a.nmaslov,
+            status = a.status,
+        )
+    end
+    return (; rays, conversions, amplitude)
 end

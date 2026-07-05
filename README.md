@@ -100,7 +100,7 @@ Tolerances are the checklist's initial engineering targets.
 | EMPIC | EM PIC: 1D Esirkepov + 2D/3D spectral charge-conserving current | ✅ verified |
 | KDV-001 | KdV soliton + 2/3 dealiasing | ✅ verified |
 | RAY-001..009 | WKB hybrid-branch ray tracing: dispersion roots vs HYB-006 oracle (~1e-11), group velocity, stratified k(x)=ω/c(x) invariant, 1D≡2D≡3D media | ✅ verified |
-| RCN-001..011 | `Raycon` (RAYCON port, tokamak RF + mode conversion): FD oracles for every derivative layer, exact identities, C-Mod conversion run (τ, β) | ✅ verified |
+| RCN-001..015 | `Raycon` (RAYCON port, tokamak RF + mode conversion): FD oracles for every derivative layer, exact identities, C-Mod conversion run (τ, β), corrected cld3x3 coupling, amplitude transport vs symplectic tangent-map oracles | ✅ verified |
 | SHK-001 | Rankine–Hugoniot solver, residuals < 1e-10 | ✅ verified |
 | SHK-005 | Published external hybrid-code reference metadata + scalar comparison target | ✅ verified |
 | DIM-001 | 1D ≡ y-invariant 2D (operators + integrator) | ✅ verified |

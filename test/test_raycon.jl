@@ -290,18 +290,21 @@ end
     @test length(res0.rays) == 1
     @test res0.rays[1].status === :end_of_span
 
-    # cld3x3 traces without splitting instead of aborting mid-run
+    # cld3x3 conversion analysis (corrected extension) works end-to-end
     res3 = trace_rays(
         cmod_parameters(; model = :cld3x3);
         s = 0.4,
         theta = 0.001,
         kr = -31.5,
         kz = 0.0,
-        sigma_span = 5e-3,
+        sigma_span = 5e-2,
     )
-    @test length(res3.rays) == 1
-    @test isempty(res3.conversions)
-    @test res3.rays[1].status === :end_of_span
+    @test !isempty(res3.conversions)
+    @test length(res3.rays) == 1 + length(res3.conversions)
+    for c in res3.conversions
+        @test 0.0 < c.conversion.tau < 1.0
+        @test isfinite(abs(c.conversion.beta))
+    end
 end
 
 @testset "RCN-012 integrator/driver edge cases (review findings)" begin
@@ -460,17 +463,193 @@ end
     @test_throws ArgumentError dispersion_U(RCN_PROB, (NaN, 0.0, 1.0, 1.0))
     @test_throws ArgumentError trajectory_rhs(RCN_PROB, [1.0, 2.0, 3.0])
     @test_throws ArgumentError integrate_ray(RCN_PROB, [0.7, 0.0, -30.0, 0.0], 0.0, 0.0)
-    p3 = cmod_parameters(; model = :cld3x3)
+    # msw1x1 provides the launch estimate but not the eigenvalue tracer or
+    # the conversion analysis
+    pm = cmod_parameters(; model = :msw1x1)
+    @test isfinite(msw_dispersion(pm, (0.75, 0.0, -20.0, 0.0)))
+    @test_throws ArgumentError trajectory_rhs(pm, [0.75, 0.0, -20.0, 0.0])
     @test_throws ArgumentError analyze_conversion(
-        p3,
+        pm,
         [0.62, 0.02, 10.0, 3.0],
         [0.5, -0.3, 2000.0, 1000.0],
         [0.1, 0.2, -500.0, 300.0],
     )
-    # msw1x1 provides the launch estimate but not the eigenvalue tracer
-    pm = cmod_parameters(; model = :msw1x1)
-    @test isfinite(msw_dispersion(pm, (0.75, 0.0, -20.0, 0.0)))
-    @test_throws ArgumentError trajectory_rhs(pm, [0.75, 0.0, -20.0, 0.0])
+end
+
+@testset "RCN-014 cld3x3 conversion: corrected extension" begin
+    p3 = cmod_parameters(; model = :cld3x3)
+    R = HybridPlasmaPIC.Raycon
+    # exact identities of the 3×3 det-U core
+    for y in ((0.80, 0.05, -31.5, 5.0), (0.62, 0.02, 10.0, 3.0), (0.75, -0.10, -20.0, 0.0))
+        c3 = R._detU_core(p3, Float64.(y); need2nd = true)
+        # U equals the eigenvalue product of the assembled Hermitian tensor
+        @test isapprox(c3.U, prod(eigvals(Hermitian(c3.DD))); rtol = 1e-12)
+        # product-rule first derivatives match the independent determinant-
+        # sampling identity dU/dz_α = c₁[det(DD + q·G_α)]
+        for (α, an) in ((1, c3.dUdr), (2, c3.dUdz), (3, c3.dUdkr), (4, c3.dUdkz))
+            @test isapprox(
+                an,
+                R._detU_directional(c3.DD, Matrix(c3.G[α]));
+                rtol = 1e-10,
+                atol = 1e-10,
+            )
+        end
+        @test maximum(abs.(c3.T2 .- transpose(c3.T2))) == 0.0
+        @test all(isfinite, c3.T2)
+    end
+    # physics: at C-Mod parameters the electrostatic branch is far off-shell,
+    # so the 3×3 coefficients must reduce to the 2×2 ones up to a small
+    # correction (measured ~2.6%)
+    res2 = trace_rays(RCN_PROB; s = 0.4, theta = 0.001, kr = -31.5, kz = 0.0, sigma_span = 2e-2)
+    res3 = trace_rays(p3; s = 0.4, theta = 0.001, kr = -31.5, kz = 0.0, sigma_span = 2e-2)
+    @test !isempty(res2.conversions) && !isempty(res3.conversions)
+    c2 = res2.conversions[1].conversion
+    c3 = res3.conversions[1].conversion
+    @test isapprox(c3.tau, c2.tau; rtol = 0.1)
+    @test isapprox(c3.eta2, c2.eta2; rtol = 0.1)
+    @test isapprox(abs(c3.beta), abs(c2.beta); rtol = 0.1)
+    @test isapprox(c3.saddle[1], c2.saddle[1]; rtol = 1e-3)
+    # transmitted ray lands on the 3×3 dispersion surface
+    @test abs(dispersion_U(p3, collect(c3.transmitted))) <
+          1e-3 * abs(dispersion_U(p3, collect(c3.transmitted) .* 1.05))
+end
+
+@testset "RCN-015 amplitude transport: focusing, lnE², Maslov, deposition" begin
+    R = HybridPlasmaPIC.Raycon
+    y0 = launch_ray(RCN_PROB; s = 0.4, theta = 0.001, kr = -31.5, kz = 0.0)
+
+    # (a) tangent-map oracle: the Riccati-evolved focusing tensor and the
+    # transported lnE² must satisfy the exact symplectic relations
+    #   W(σ) = (S_kx + S_kk W0)(S_xx + S_xk W0)⁻¹,
+    #   lnE²(σ) = −ln|det(S_xx + S_xk W0)|
+    W0 = [50.0 5.0; 5.0 30.0]
+    σe = 2e-3
+    amp = integrate_ray_amplitude(RCN_PROB, y0, W0, 0.0, σe; damping = false)
+    @test amp.status === :end_of_span
+    @test amp.nmaslov == 0
+    u = vcat(y0, vec(Matrix{Float64}(I, 4, 4)))
+    nst = 2000
+    h = σe / nst
+    for _ = 1:nst
+        k1 = trajectory_rhs(RCN_PROB, u)
+        k2 = trajectory_rhs(RCN_PROB, u .+ h / 2 .* k1)
+        k3 = trajectory_rhs(RCN_PROB, u .+ h / 2 .* k2)
+        k4 = trajectory_rhs(RCN_PROB, u .+ h .* k3)
+        u = u .+ h / 6 .* (k1 .+ 2 .* k2 .+ 2 .* k3 .+ k4)
+    end
+    S = reshape(u[5:20], 4, 4)
+    M = S[1:2, 1:2] + S[1:2, 3:4] * W0
+    Wref = (S[3:4, 1:2] + S[3:4, 3:4] * W0) / M
+    Wend = [amp.W[1, end] amp.W[2, end]; amp.W[2, end] amp.W[3, end]]
+    @test maximum(abs.(Wend .- Wref)) <= 1e-4 * maximum(abs.(Wref))
+    @test abs(amp.lnE2[end] - (-log(abs(det(M))))) <= 1e-6
+
+    # (b) caustic crossing: a converging beam passes its focus via the Maslov
+    # switch; in the k-representation the x-amplitude follows from the
+    # stationary-phase identity lnE²ₓ = lnẼ² − 2ln2π − ln|det W̃|
+    W0c = [-2500.0 0.0; 0.0 -2500.0]
+    σc = 6e-3
+    ampc = integrate_ray_amplitude(RCN_PROB, y0, W0c, 0.0, σc; damping = false)
+    @test ampc.status === :end_of_span
+    @test ampc.nmaslov >= 1
+    uc = vcat(y0, vec(Matrix{Float64}(I, 4, 4)))
+    nstc = 6000
+    hc = σc / nstc
+    for _ = 1:nstc
+        k1 = trajectory_rhs(RCN_PROB, uc)
+        k2 = trajectory_rhs(RCN_PROB, uc .+ hc / 2 .* k1)
+        k3 = trajectory_rhs(RCN_PROB, uc .+ hc / 2 .* k2)
+        k4 = trajectory_rhs(RCN_PROB, uc .+ hc .* k3)
+        uc = uc .+ hc / 6 .* (k1 .+ 2 .* k2 .+ 2 .* k3 .+ k4)
+    end
+    Sc = reshape(uc[5:20], 4, 4)
+    Mc = Sc[1:2, 1:2] + Sc[1:2, 3:4] * W0c
+    Wrefc = (Sc[3:4, 1:2] + Sc[3:4, 3:4] * W0c) / Mc
+    Wstore = [ampc.W[1, end] ampc.W[2, end]; ampc.W[2, end] ampc.W[3, end]]
+    if ampc.inkspace[end]
+        @test maximum(abs.(inv(Wstore) .- Wrefc)) <= 1e-3 * maximum(abs.(Wrefc))
+        lnx = ampc.lnE2[end] - 2 * log(2π) - log(abs(det(Wstore)))
+        @test abs(lnx - (-log(abs(det(Mc))))) <= 1e-2
+    else
+        @test maximum(abs.(Wstore .- Wrefc)) <= 1e-3 * maximum(abs.(Wrefc))
+        @test abs(ampc.lnE2[end] - (-log(abs(det(Mc))))) <= 1e-2
+    end
+
+    # (c) damping: exact energy bookkeeping at the equation level, cold limit,
+    # resonance location, and decay
+    uu = vcat(y0, [10.0, 1.0, 5.0, -0.3, 0.0], zeros(3))
+    du_d = R._amp_rhs(RCN_PROB, uu, false, true)
+    du_0 = R._amp_rhs(RCN_PROB, uu, false, false)
+    @test isapprox(sum(du_d[10:12]), -(du_d[8] - du_0[8]) * exp(uu[8]); rtol = 1e-12)
+    pc = RayconProblem(;
+        eq = RCN_EQ,
+        amass = RCN_PROB.amass,
+        acharge = RCN_PROB.acharge,
+        n0 = RCN_PROB.n0,
+        na = RCN_PROB.na,
+        nb = RCN_PROB.nb,
+        t0 = [0.0, 0.0, 0.0],
+        ta = RCN_PROB.ta,
+        tb = RCN_PROB.tb,
+        freq = RCN_PROB.freq,
+        kphi = RCN_PROB.kphi,
+    )
+    y0c2 = launch_ray(pc; s = 0.4, theta = 0.001, kr = -31.5, kz = 0.0)
+    uc2 = vcat(y0c2, [10.0, 1.0, 5.0, -0.3, 0.0], zeros(3))
+    @test all(iszero, R._amp_rhs(pc, uc2, false, true)[10:12])
+    ampd = integrate_ray_amplitude(RCN_PROB, y0, zeros(2, 2), 0.0, 8e-3; damping = true)
+    @test ampd.status === :end_of_span
+    @test all(isfinite, ampd.dep)
+    @test all(ampd.dep[:, end] .>= 0)
+    # He3 fundamental layer: Ω_He3(R) = ω at R ≈ 0.672 m; deposition happens
+    # there and is He3-dominated (D's 2nd-harmonic layer lies outside the ray)
+    dHe = ampd.dep[3, :]
+    ihalf = findfirst(>=(0.5 * dHe[end]), dHe)
+    @test 0.65 <= ampd.y[1, ihalf] <= 0.72
+    @test dHe[end] > ampd.dep[1, end] > 1e6 * ampd.dep[2, end]
+    @test ampd.lnE2[end] < -100.0        # essentially complete absorption
+    ampu = integrate_ray_amplitude(RCN_PROB, y0, zeros(2, 2), 0.0, 8e-3; damping = false)
+    @test abs(ampu.lnE2[end]) < 10.0
+
+    # (d) trace_rays amplitude pass with conversion bookkeeping
+    res = trace_rays(
+        RCN_PROB;
+        s = 0.4,
+        theta = 0.001,
+        kr = -31.5,
+        kz = 0.0,
+        sigma_span = 2.5e-2,
+        amplitude = true,
+        damping = false,
+    )
+    @test length(res.amplitude) == length(res.rays)
+    @test all(a -> a.status in (:end_of_span, :parent_amplitude_unavailable), res.amplitude)
+    a1 = res.amplitude[1]
+    @test all(isfinite, a1.lnE2) && all(isfinite, a1.W)
+    for c in res.conversions
+        # transmitted child was born with the parent amplitude reduced by 2πη²
+        child = res.amplitude[1+findfirst(==(c), res.conversions)]
+        if child.status === :end_of_span && !isempty(child.lnE2)
+            @test isfinite(child.lnE2[1])
+        end
+    end
+
+    # (e) antenna focusing tensor is symmetric/finite and the validation gates
+    Want = antenna_focusing(RCN_PROB, y0)
+    @test size(Want) == (2, 2) && Want[1, 2] == Want[2, 1] && all(isfinite, Want)
+    @test_throws ArgumentError integrate_ray_amplitude(RCN_PROB, y0, [1.0 2.0; 3.0 4.0], 0.0, 1e-3)
+    @test_throws ArgumentError integrate_ray_amplitude(RCN_PROB, y0, zeros(2, 2), 0.0, 0.0)
+
+    # (f) normalized interface parity (x-space columns scale by d_i²)
+    units = cmod_units()
+    di = inertial_length(units)
+    y0n = launch_ray(units, RCN_PROB; s = 0.4, theta = 0.001, kr = -31.5 * di, kz = 0.0)
+    Wn = antenna_focusing(units, RCN_PROB, y0n)
+    @test isapprox(Wn, Want .* di^2; rtol = 1e-10)
+    ampn = integrate_ray_amplitude(units, RCN_PROB, y0n, W0 .* di^2, 0.0, σe; damping = false)
+    @test ampn.status === :end_of_span
+    @test isapprox(ampn.lnE2[end], amp.lnE2[end]; rtol = 1e-9, atol = 1e-12)
+    @test isapprox(ampn.W[1, end], amp.W[1, end] * di^2; rtol = 1e-9)
 end
 
 # ---------------------------------------------------------------- MATLAB reference
