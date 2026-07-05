@@ -8,6 +8,30 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **WKB ray tracing for the hybrid wave branches**
+  (`src/diagnostics/ray_tracing.jl`): warm Hall-MHD scalar dispersion relation
+  (verified against the HYB-006 eigenvalue oracle to ~1e-11), branch
+  frequencies/wavenumbers/group velocities, complex-step Hamiltonian
+  derivatives, and RK4 `trace_ray` through analytic media or snapshots of the
+  simulation's own grid fields (`AnalyticRayMedium`, `GridRayMedium`, 1D/2D/3D).
+  Tests RAY-001..009.
+- **`Raycon` submodule** (`src/raycon/`): full Julia port of the RAYCON
+  MATLAB package (Jaun–Kaufman–Tracy) for RF ray tracing with linear mode
+  conversion in tokamak plasmas — Solovev equilibrium, magnetic geometry with
+  basis-vector curvature derivatives, cold-plasma eigenvalue dispersion
+  (cld2x2/cld3x3), adaptive DP4(5) ray integration with conversion-monitor
+  events, saddle-point mode-conversion analysis with transmission
+  `τ = e^{−πη²}` and conversion coefficient `β` (complex Γ), ray splitting,
+  and the Alcator C-Mod ICRF reference case. The user-facing interface is
+  unified with the package's Ω_ci normalization via `PlasmaUnits`-first
+  methods (`RayconProblem(units; …)`, `launch_ray(units, …)`,
+  `trace_rays(units, …)`, `integrate_ray(units, …)`, `cmod_units()`); the
+  SI layer remains as the MATLAB-pinned engine. Port notes, preserved upstream
+  quirks, and two upstream bugs found & fixed (a `∂D12/∂ω` sign and a swapped
+  `dkz²`/`dkr·dkz` pair) are documented in
+  `docs/superpowers/specs/2026-07-05-raycon-port-notes.md`. Tests RCN-001..011
+  plus regression against reference data dumped from the original MATLAB code
+  (`tools/raycon_reference.m`).
 - **Package quality and CI hardening.** JET static-analysis smoke test
   (report-only), a `.JuliaFormatter.toml` (default style, 100-column margin), a
   formatting-check CI job, a scheduled (cron) CI run, a Windows runner in the

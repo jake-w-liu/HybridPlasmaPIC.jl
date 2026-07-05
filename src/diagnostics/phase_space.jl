@@ -75,7 +75,9 @@ function phase_space_histogram(
     v = ps.v[vcomp]
     w = ps.weight
     if isempty(x) && (xmin === nothing || xmax === nothing || vmin === nothing || vmax === nothing)
-        throw(ArgumentError("position and velocity bounds must be provided for empty particle sets"))
+        throw(
+            ArgumentError("position and velocity bounds must be provided for empty particle sets"),
+        )
     end
     xlo =
         _require_finite_hist_value("position lower bound", xmin === nothing ? minimum(x) : T(xmin))

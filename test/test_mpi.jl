@@ -146,7 +146,11 @@ end
         @test_throws ArgumentError mpi_exchange_field_halos!(copy(field[1]), ctx; halo = huge)
 
         moments = [[2.0, 10.0, 11.0, 12.0, 3.0]]
-        @test_throws ArgumentError exchange_ghost_moments!(deepcopy(moments), ctx.layout; halo = huge)
+        @test_throws ArgumentError exchange_ghost_moments!(
+            deepcopy(moments),
+            ctx.layout;
+            halo = huge,
+        )
         moment_stats = exchange_ghost_moments!(moments, ctx.layout; halo = 1)
         @test moment_stats == (exchanged = 0, dropped = 0)
         @test moments[1] == [2.0, 10.0, 11.0, 12.0, 3.0]

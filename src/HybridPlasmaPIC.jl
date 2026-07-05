@@ -109,6 +109,7 @@ include("diagnostics/spectra.jl")
 include("diagnostics/conservation.jl")        # energy/momentum budgets (needs kinetic_energy)
 include("diagnostics/shock_surface.jl")       # shock diag (needs PerpShock2D/3D)
 include("diagnostics/synthetic_spacecraft.jl")
+include("diagnostics/ray_tracing.jl")         # WKB ray tracing (needs _require_finite_point3)
 include("diagnostics/particle_history.jl")
 
 # --- Parallel ---
@@ -124,6 +125,7 @@ include("io/restart.jl")
 
 # --- Verification ---
 include("verification/normalization.jl")
+include("raycon/Raycon.jl")                   # RAYCON port (normalized API needs PlasmaUnits)
 include("verification/shock_sweep.jl")        # run_perp_shock (used by Oracles/Campaign)
 include("verification/shock_campaign.jl")
 include("verification/shock_convergence.jl")
@@ -359,6 +361,15 @@ export boundary_energy_flux,
     boundary_reflection_fraction,
     normal_incidence_frame
 export particle_work!, mixed_divcurl_residual
+export RayMedium,
+    AnalyticRayMedium,
+    GridRayMedium,
+    hybrid_wave_dispersion,
+    hybrid_wave_frequencies,
+    hybrid_wavenumbers,
+    wave_group_velocity,
+    trace_ray
+export Raycon
 export write_field, read_field, async_save
 export mach_sweep, convergence_study
 

@@ -16,6 +16,8 @@ using Test
     include("test_hall_mhd.jl")
     include("test_dispersion.jl")
     include("test_dispersion_oracle.jl")
+    include("test_ray_tracing.jl")
+    include("test_raycon.jl")
     include("test_phase_helpers.jl")
     include("test_provenance_log.jl")
     include("test_camcl.jl")

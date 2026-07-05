@@ -47,6 +47,34 @@ Faraday step with the `n+1/2` ion moments frozen (CAM/CL structure); the carried
 `E` is recomputed each step. Magnetic subcycling (`NB`) handles the whistler CFL
 (`Ω_ci Δt ≲ (Δx/d_i)²`).
 
+## Ray tracing (supporting methods)
+
+Two geometric-optics subsystems complement the PIC solvers:
+
+- **Hybrid-branch WKB rays** (`trace_ray`, `AnalyticRayMedium`,
+  `GridRayMedium`): Hamiltonian ray tracing of the warm Hall-MHD branches
+  (slow / Alfvén-ion-cyclotron / fast-whistler) through analytic media or
+  snapshots of the simulation's own `n` and `B` fields, in the code's
+  Ω_ci-normalized units. The scalar dispersion relation is verified against
+  the HYB-006 two-fluid eigenvalue oracle; Hamiltonian derivatives are exact
+  (complex-step); the recorded `|D|` residual monitors integration accuracy.
+- **`Raycon`** (`HybridPlasmaPIC.Raycon`): a full Julia port of the RAYCON
+  MATLAB package (Tracy, Kaufman & Jaun — PLA 290 (2001) 309; PPCF 49 (2007)
+  43; PoP 14 (2007) 082102) for RF ray tracing **with linear mode conversion**
+  in tokamak plasmas: Solovev equilibrium, cold-plasma eigenvalue dispersion,
+  adaptive ray integration with conversion-monitor events, saddle-point
+  analysis with transmission τ = e^{−πη²} and conversion coefficient β, and
+  ray splitting. **The user-facing interface follows this package's Ω_ci
+  normalization**: pass a `PlasmaUnits` as the first argument
+  (`RayconProblem(units; …)`, `launch_ray(units, prob; …)`,
+  `trace_rays(units, prob; …)`) and work in d_i / Ω_ci / v_A / B0 / n0
+  throughout; the same functions without `PlasmaUnits` are the raw SI engine
+  that is regression-pinned against the original MATLAB code
+  (`cmod_units()` + `cmod_parameters(units)` give the Alcator C-Mod ICRF
+  reference case). See
+  `docs/superpowers/specs/2026-07-05-raycon-port-notes.md` for the file-by-file
+  mapping, preserved upstream quirks, and the upstream bugs found & fixed.
+
 ## Verification status
 
 Benchmarks below are checked against **independent analytic oracles**.
@@ -71,6 +99,8 @@ Tolerances are the checklist's initial engineering targets.
 | ESPIC | electrostatic PIC: 1D Langmuir/two-stream + 2D/3D Poisson oracles | ✅ verified |
 | EMPIC | EM PIC: 1D Esirkepov + 2D/3D spectral charge-conserving current | ✅ verified |
 | KDV-001 | KdV soliton + 2/3 dealiasing | ✅ verified |
+| RAY-001..009 | WKB hybrid-branch ray tracing: dispersion roots vs HYB-006 oracle (~1e-11), group velocity, stratified k(x)=ω/c(x) invariant, 1D≡2D≡3D media | ✅ verified |
+| RCN-001..011 | `Raycon` (RAYCON port, tokamak RF + mode conversion): FD oracles for every derivative layer, exact identities, C-Mod conversion run (τ, β) | ✅ verified |
 | SHK-001 | Rankine–Hugoniot solver, residuals < 1e-10 | ✅ verified |
 | SHK-005 | Published external hybrid-code reference metadata + scalar comparison target | ✅ verified |
 | DIM-001 | 1D ≡ y-invariant 2D (operators + integrator) | ✅ verified |
