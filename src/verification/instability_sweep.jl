@@ -138,8 +138,14 @@ term, so `−∇×E = 0`) and only the *bulk* ion moments couple to the field, s
 `u_y` cancels and the ion-Weibel decays — verified. Here `B_z` grows exponentially, then
 saturates as the beams isotropize.
 
-    unstable ⇔ A = (u₀/vth)² > 1   (bimodal counter-streaming: streaming anisotropy
-                                    exceeds the thermal spread; Weibel 1959, Fried 1959)
+    unstable ⇔ A = (u₀/vth)² > A_c = (c·k_min/ω_pe)²,   k_min = 2π/L_y,  ω_pe = √n₀
+
+In an infinite domain any anisotropy is filamentation-unstable (Weibel 1959, Fried 1959
+prove growth for arbitrary `A > 0` — there is no `A = 1` threshold); the periodic box
+quantizes the transverse wavenumber, so growth requires the smallest admitted mode
+`k_min = 2π/L_y` to lie inside the unstable band `k²c² < ω_pe²·A`. This run uses
+`n₀ = 1` (`ω_pe = 1` in EMPIC units, `ε₀ = 1`), so the defaults `c = 3, L_y = 12π`
+give `A_c = 0.25`.
 
 Returns `(; wBz_max, anisotropy, unstable_theory, nsamples)` where `wBz_max` is the peak
 `B_z` magnetic energy `½∫B_z² dV` and `anisotropy = (u₀/vth)²`.
@@ -181,7 +187,8 @@ function weibel_growth(;
     )
 
     Np = Int(nppc) * prod(Int.(N))
-    es = EMPIC(g, Np; n0 = one(T), c = cT)
+    n0T = one(T)                                            # background density (ω_pe = √n₀)
+    es = EMPIC(g, Np; n0 = n0T, c = cT)
     e = ParticleSet{2,T}(Np; q = -one(T), m = one(T))
     rng = MersenneTwister(Int(seed))
     load_uniform!(e, rng, (zero(T), zero(T)), LT)
@@ -213,7 +220,11 @@ function weibel_growth(;
         ok += 1
     end
     A = (u0T / vthT)^2
-    return (; wBz_max = wmax, anisotropy = A, unstable_theory = A > one(T), nsamples = ok)
+    # box filamentation criterion: the mode grows iff k²c² < ω_pe²·A for the smallest
+    # transverse wavenumber the periodic box admits, k_min = 2π/L_y (infinite-domain
+    # theory is unstable for ANY A > 0; the box quantizes k). ω_pe = √n₀ (ε₀ = 1).
+    A_c = (cT * (T(2π) / LT[2]) / sqrt(n0T))^2
+    return (; wBz_max = wmax, anisotropy = A, unstable_theory = A > A_c, nsamples = ok)
 end
 
 """

@@ -335,6 +335,27 @@ end
     ρ_rand = abs(sum(p -> cis(-k1 * psr.x[1][p]), 1:N))
     @test ρ_quiet < ρ_rand / 50
     @test ρ_quiet < 1e-8
+    # low-k current noise: adjacent ± pairing must cancel Ĵ(k_m) = Σ v·e^{-ikx},
+    # not just ρ̂. A random load gives ~√N·vth ≈ 64; the old i ↔ i+N/2 pairing
+    # gave ~√(2N)·vth ≈ 90 at odd m. Bound verified ≥5× above the measured max
+    # (0.58 over 400 seeds × 3 components × modes m = 1:3).
+    for seed in (7, 11, 23)
+        psj = ParticleSet{1,T}(N)
+        load_lattice_1d!(psj, 0.0, 1.0)
+        load_quiet_velocities!(psj, MersenneTwister(seed), (0.0, 0.0, 0.0), (1.0, 1.0, 1.0))
+        for c = 1:3, m = 1:3
+            Ĵ = abs(sum(p -> psj.v[c][p] * cis(-2π * m * psj.x[1][p]), 1:N))
+            @test Ĵ < 0.05 * sqrt(N)
+        end
+    end
+    # odd N: the last unpaired particle gets u0, so Σv = N·u0 to roundoff
+    u0 = (0.3, -0.2, 0.1)
+    pso = ParticleSet{1,T}(129)
+    load_lattice_1d!(pso, 0.0, 1.0)
+    load_quiet_velocities!(pso, MersenneTwister(5), u0, (1.0, 1.0, 1.0))
+    for c = 1:3
+        @test abs(sum(pso.v[c]) - 129 * u0[c]) < 1e-12
+    end
 end
 
 @testset "particle loaders reject invalid inputs" begin

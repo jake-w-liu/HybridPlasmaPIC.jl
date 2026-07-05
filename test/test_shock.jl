@@ -2,9 +2,14 @@
 # must vanish; the hydrodynamic/parallel compression is cross-checked against
 # the closed-form gas-dynamic jump  X = (γ+1)M²/((γ−1)M²+2).
 
-using HybridPlasmaPIC, Test
+using HybridPlasmaPIC, Test, Random
 
 gas_compression(M, γ) = (γ + 1) * M^2 / ((γ - 1) * M^2 + 2)
+
+# stub RNG whose uniform draw is exactly 0.0 — probes the flux_speed a=0
+# Rayleigh branch at its rand()==0 corner (reachable with probability 2⁻⁵³)
+struct FluxSpeedZeroRNG <: Random.AbstractRNG end
+Base.rand(::FluxSpeedZeroRNG, ::Type{Float64}) = 0.0
 
 @testset "SHK-001 Rankine–Hugoniot" begin
     γ = 5 / 3
@@ -111,4 +116,46 @@ gas_compression(M, γ) = (γ + 1) * M^2 / ((γ - 1) * M^2 + 2)
             @test maximum(values(b.residuals)) < 1e-10
         end
     end
+
+    @testset "switch-on window (Bt₁ = 0 bifurcation)" begin
+        # field-aligned low-β upstream INSIDE the switch-on window: M_An² = 2.25 ∈
+        # (1, (γ+1)/(γ−1) = 4), β = 0.02. The physical downstream is the switch-on
+        # branch X = M_An², Bt₂ = √(17/12) from the energy jump; the gasdynamic
+        # root here crosses the Alfvén point (1→4) and is non-evolutionary.
+        up = MHDState(1.0, 1.5, 0.0, 0.01, 1.0, 0.0)
+        Bt2_ref = sqrt(17 / 12)                     # 1.190238…
+        brs = rh_branches(up, γ)
+        @test length(brs) >= 2                      # gasdynamic root AND switch-on
+        for b in brs
+            @test maximum(values(b.residuals)) < 1e-10
+            @test b.X > 1
+        end
+        so = only(b for b in brs if b.down.Bt > 0.1)
+        @test isapprox(so.X, 2.25; rtol = 1e-6)
+        @test isapprox(so.down.Bt, Bt2_ref; rtol = 1e-6)
+        @test isapprox(so.down.ux, 2 / 3; rtol = 1e-6)
+        @test isapprox(so.down.uy, 2 / 3 * Bt2_ref; rtol = 1e-6)
+        @test isapprox(so.down.p, 0.5516666666666666; rtol = 1e-6)
+        # the single-solution API selects the evolutionary (switch-on) branch
+        sol = rankine_hugoniot(up, γ)
+        @test isapprox(sol.X, 2.25; rtol = 1e-6)
+        @test isapprox(sol.down.Bt, Bt2_ref; rtol = 1e-6)
+        @test maximum(values(sol.residuals)) < 1e-10
+        # outside the window (M_An² = 9 > 4) the gasdynamic branch stays the
+        # unique, evolutionary solution — no spurious switch-on branch appears
+        brs_out = rh_branches(MHDState(1.0, 3.0, 0.0, 0.01, 1.0, 0.0), γ)
+        @test all(b.down.Bt == 0 for b in brs_out)
+    end
+end
+
+@testset "flux_speed stays finite when rand() returns exactly 0" begin
+    # Xoshiro Float64 draws hit exactly 0.0 with probability 2⁻⁵³; the a=0
+    # Rayleigh inverse CDF must invert on 1−U ∈ (0,1] (log1p), not log(U) = −Inf.
+    s0 = flux_speed(FluxSpeedZeroRNG(), 0.0, 1.0)
+    @test isfinite(s0)
+    @test s0 >= 0
+    # the drifting (a ≠ 0) bisection branch is finite at U = 0 too
+    sa = flux_speed(FluxSpeedZeroRNG(), 2.0, 1.0)
+    @test isfinite(sa)
+    @test sa >= 0
 end

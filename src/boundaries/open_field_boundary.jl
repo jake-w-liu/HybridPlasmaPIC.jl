@@ -9,6 +9,12 @@ arrays). Returns the number removed — the only sanctioned particle loss.
 function apply_absorbing!(ps::ParticleSet{D,T}, lo::NTuple{D}, hi::NTuple{D}) where {D,T}
     N = nparticles(ps)
     loT, hiT = _validated_open_interval(lo, hi, T)
+    @inbounds for d = 1:D
+        xd = ps.x[d]
+        for p in eachindex(xd)
+            isfinite(xd[p]) || throw(ArgumentError("particle position x[$d][$p] must be finite"))
+        end
+    end
     write = 0
     @inbounds for p = 1:N
         inside = true

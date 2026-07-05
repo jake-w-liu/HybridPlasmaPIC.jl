@@ -379,10 +379,15 @@ function step_shock!(
     injector === nothing || _inject_upstream!(sh, ps, injector, dtT)
     # 3. deposit moments
     deposit_moments!(sh, ps)
-    # 4. subcycle Bz
+    # 4. subcycle Bz — and pe alongside it when the :energy closure is on (same
+    #    time-centering as step_leroy_shock!: pe rides each Bz substep so the
+    #    Ohmic source tracks the evolving field; compute_E! only recomputes pe
+    #    for :polytropic, so without this the :energy pe would stay frozen at t=0).
     hb = dtT / NB
+    energy = sh.closure === :energy
     for _ = 1:NB
         _rk4_bz!(sh, hb)
+        energy && _rk4_pe_energy!(sh, hb)
     end
     # 5. recompute E for the next push
     compute_E!(sh)
@@ -550,17 +555,22 @@ function step_leroy_shock!(
     end
     # 2. two-ended recycle (NO wall): each exiting ion is reinserted in place, as
     #    fresh upstream inflow (prob p_up) or a downstream-reservoir ion (else).
+    #    Reinserted NORMAL speeds are flux-weighted (p(s) ∝ s·f_M, `flux_speed`),
+    #    not volume-Maxwellian: upstream face x=Lx, inward = −x, reservoir drifts
+    #    IN at V1 (a = +V1); downstream face x=0, inward = +x, reservoir drifts
+    #    OUT at V2 (a = −V2). A density-weighted draw here (e.g. |vth·randn|)
+    #    under-weights fast entrants and piles density up at the boundary.
     ε = Lx * T(1e-6)
     @inbounds for p in eachindex(ps.weight)
         if xp[p] < zero(T) || xp[p] > Lx
             if rand(rng, T) < bc.p_up                    # → upstream inflow at x=Lx
                 xp[p] = Lx - ε
-                vx[p] = -bc.V1 + bc.vthi * randn(rng, T)
+                vx[p] = -flux_speed(rng, bc.V1, bc.vthi)
                 vy[p] = bc.vthi * randn(rng, T)
                 vz[p] = bc.vthi * randn(rng, T)
             else                                         # → downstream reservoir at x=0 (into box)
                 xp[p] = ε
-                vx[p] = abs(bc.vth2 * randn(rng, T))
+                vx[p] = flux_speed(rng, -bc.V2, bc.vth2)
                 vy[p] = bc.vth2 * randn(rng, T)
                 vz[p] = bc.vth2 * randn(rng, T)
             end

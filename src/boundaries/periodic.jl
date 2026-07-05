@@ -15,10 +15,15 @@ function apply_periodic!(ps::ParticleSet{D,T}, lo::NTuple{D}, hi::NTuple{D}) whe
     end
     @inbounds for d = 1:D
         l = loT[d]
-        L = hiT[d] - loT[d]
+        h = hiT[d]
+        L = h - l
         xd = ps.x[d]
         for p in eachindex(xd)
             xd[p] = l + mod(xd[p] - l, L)
+            # float rounding can land exactly on hi (mod can return L, and l + m
+            # can round up to hi); x==hi is the same physical point as lo — fold
+            # it back so the half-open box [lo,hi) contract holds.
+            xd[p] >= h && (xd[p] = l)
         end
     end
     return ps

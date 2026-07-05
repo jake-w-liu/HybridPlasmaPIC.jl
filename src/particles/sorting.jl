@@ -3,14 +3,17 @@
 #
 # Sorting particles by their column-major cell index improves cache locality for
 # deposition/gather and makes per-cell operations (binning, diagnostics)
-# contiguous. The grid geometry comes from the FourierGrid (n, dx); cells are
-# indexed exactly like the deposition mesh: cell_d = clamp(floor(x_d/dx_d), 0, n_d-1).
+# contiguous. The grid geometry comes from the FourierGrid (n, L, dx); cells are
+# indexed exactly like the periodic deposition mesh: cell_d = floor(mod(x_d, L_d)/dx_d),
+# so out-of-box positions fold onto their periodic image (matching deposit_scalar!).
 
 """
     cell_index(ps::ParticleSet{D,T}, g::FourierGrid{D,T}) -> Vector{Int}
 
 Column-major linear cell index of every particle. For particle `p` the per-axis
-cell is `cell_d = clamp(floor(x_d / dx_d), 0, n_d-1)` and the returned 1-based
+cell is `cell_d = floor(mod(x_d, L_d) / dx_d)` — the periodic-wrap convention of
+the deposition mesh, so an out-of-box position is folded onto its periodic image
+and lands in the same cell `deposit_scalar!` deposits into. The returned 1-based
 linear index is `1 + Σ_d cell_d * stride_d` with `stride_1 = 1` and
 `stride_d = prod(n[1:d-1])`. Indices lie in `1:prod(g.n)`.
 """
@@ -25,6 +28,7 @@ end
 function cell_index(ps::ParticleSet{D,T}, g::FourierGrid{D,T}) where {D,T}
     N = nparticles(ps)
     n = g.n
+    L = g.L
     dx = g.dx
     _require_finite_particle_positions(ps)
     # column-major strides: stride[1]=1, stride[d]=prod(n[1:d-1])
@@ -33,12 +37,11 @@ function cell_index(ps::ParticleSet{D,T}, g::FourierGrid{D,T}) where {D,T}
     @inbounds for p = 1:N
         lin = 1
         for d = 1:D
-            c = floor(Int, ps.x[d][p] / dx[d])
-            if c < 0
-                c = 0
-            elseif c > n[d] - 1
-                c = n[d] - 1
-            end
+            # periodic wrap, matching _particle_cell_position (deposition):
+            # mod can round up to exactly L_d (e.g. x just below 0), which the
+            # deposition stencil wraps onto node 0 — fold that image to cell 0.
+            c = floor(Int, mod(ps.x[d][p], L[d]) / dx[d])
+            c >= n[d] && (c = 0)
             lin += c * strides[d]
         end
         out[p] = lin

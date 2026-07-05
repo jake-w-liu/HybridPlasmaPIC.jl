@@ -398,6 +398,38 @@ function kinetic_energy(ps::ParticleSet{D,T}) where {D,T}
     return T(0.5) * ps.m * s
 end
 
+"""
+    kinetic_energy_relativistic(ps, c) -> Real
+
+Total relativistic kinetic energy `Σ_p w m (γ_p − 1) c²` with
+`γ_p = 1/√(1 − |v_p|²/c²)`, for `relativistic = true` EMPIC runs (`ParticleSet`
+stores the velocity `v`; the relativistic pusher works in `u = γv` internally).
+In the Newtonian limit `|v| ≪ c` this reduces to [`kinetic_energy`](@ref)`(ps)`
+— the per-particle difference is `O(w m |v|⁴/c²)`, i.e. a relative `O(v²/c²)`.
+Throws `ArgumentError` if any particle has `|v| ≥ c`: the relativistic pusher
+keeps `|v| < c`, so such a particle is corrupted state, not a valid energy.
+"""
+function kinetic_energy_relativistic(ps::ParticleSet{D,T}, c::Real) where {D,T}
+    cT = _require_finite_positive_real("c", c, T)
+    c2 = cT * cT
+    s = zero(T)
+    vx, vy, vz = ps.v
+    @inbounds for p in eachindex(ps.weight)
+        v2 = vx[p]^2 + vy[p]^2 + vz[p]^2
+        v2 < c2 || throw(
+            ArgumentError(
+                "particle $p has |v| ≥ c (|v|² = $v2, c² = $c2): not a valid relativistic state",
+            ),
+        )
+        # (γ−1) = β²/(√(1−β²)(1+√(1−β²))): algebraically exact, and avoids the
+        # catastrophic cancellation of computing 1/√(1−β²) − 1 at small β.
+        β2 = v2 / c2
+        r = sqrt(one(T) - β2)
+        s += ps.weight[p] * β2 / (r * (one(T) + r))
+    end
+    return ps.m * c2 * s
+end
+
 "Magnetic energy ∫ ½|B|² dV (normalized units)."
 function magnetic_energy(B::NTuple{3,<:Array{T,D}}, g::FourierGrid{D,T}) where {D,T}
     _require_grid_tuple(:B, B, g)
@@ -408,21 +440,76 @@ function magnetic_energy(B::NTuple{3,<:Array{T,D}}, g::FourierGrid{D,T}) where {
     return T(0.5) * s * prod(g.dx)
 end
 
-"Electron internal energy ∫ p_e/(γ−1) dV (polytropic γ≠1; isothermal has no closed invariant)."
+"""
+    electron_internal_energy(n, closure, g) -> Real
+    electron_internal_energy(n, B, closure, g) -> Real
+
+Electron closure energy — the reservoir that closes the hybrid energy budget
+(see [`energy_budget`](@ref)):
+
+  - polytropic `γ ≠ 1`: internal energy `∫ p_e/(γ−1) dV`;
+  - `γ = 1` (isothermal): the electron **free energy**
+    `F_e = T_e ∫ n ln n dV = ∫ p_e ln n dV` (`p_e = T_e n`) — the exact γ→1
+    limit of the polytropic invariant `∫ (p_e − T_e n)/(γ−1) dV` (`∫ n dV` is
+    conserved), and the Lyapunov/budget term making `KE + ∫½|B|² dV + F_e`
+    exactly conserved at `η = 0`. Cells with `n ≤ 0` contribute `0` (the
+    `n ln n → 0⁺` limit; deposited densities are ≥ 0 and floored downstream);
+  - CGL (gyrotropic): the internal energy `∫ ½ tr(P_e) dV = ∫ (p_⊥ + p_∥/2) dV`
+    needs `|B|` — use the `(n, B, closure, g)` method (the density-only method
+    degrades to `NaN` for anisotropic closures, for backward compatibility).
+    The gyrotropic budget is exact modulo the anisotropic battery term
+    `∝ (p_⊥ − p_∥)`; see [`energy_budget`](@ref).
+"""
 function electron_internal_energy(
     n::Array{T,D},
     closure::ElectronClosure,
     g::FourierGrid{D,T},
 ) where {D,T}
     _require_grid_array(:n, n, g)
-    # a gyrotropic (CGL) closure has no scalar pressure ⇒ no scalar internal energy from this
-    # (density-only) interface; degrade to NaN like isothermal rather than throwing downstream.
+    # a gyrotropic (CGL) closure needs |B| for its internal energy — use the
+    # (n, B, closure, g) method; degrade to NaN here rather than throwing downstream.
     is_anisotropic(closure) && return T(NaN)
     γ = T(closure_gamma(closure))
-    γ == one(T) && return T(NaN)
     pe = similar(n)
     electron_pressure!(pe, n, closure)
+    if γ == one(T)
+        # isothermal free energy F_e = T_e ∫ n ln n dV = ∫ p_e ln n dV (p_e = T_e n)
+        s = zero(T)
+        @inbounds for I in eachindex(pe, n)
+            n[I] > zero(T) && (s += pe[I] * log(n[I]))
+        end
+        return s * prod(g.dx)
+    end
     return sum(pe) / (γ - one(T)) * prod(g.dx)
+end
+
+# scalar closures do not need B — accept it for interface symmetry with the CGL method
+function electron_internal_energy(
+    n::Array{T,D},
+    B::NTuple{3,<:Array{T,D}},
+    closure::ElectronClosure,
+    g::FourierGrid{D,T},
+) where {D,T}
+    _require_grid_tuple(:B, B, g)
+    return electron_internal_energy(n, closure, g)
+end
+
+function electron_internal_energy(
+    n::Array{T,D},
+    B::NTuple{3,<:Array{T,D}},
+    closure::CGLElectrons,
+    g::FourierGrid{D,T},
+) where {D,T}
+    _require_grid_array(:n, n, g)
+    _require_grid_tuple(:B, B, g)
+    # gyrotropic internal energy ½ tr(P_e) = p_⊥ + p_∥/2 with the CGL-slaved
+    # pressures p_⊥ = C_⊥ n|B|, p_∥ = C_∥ n³/|B|² (cgl_pperp / cgl_ppar).
+    s = zero(T)
+    @inbounds for I in eachindex(n, B[1], B[2], B[3])
+        Bmag = sqrt(B[1][I]^2 + B[2][I]^2 + B[3][I]^2)
+        s += T(cgl_pperp(closure, n[I], Bmag)) + T(0.5) * T(cgl_ppar(closure, n[I], Bmag))
+    end
+    return s * prod(g.dx)
 end
 
 """

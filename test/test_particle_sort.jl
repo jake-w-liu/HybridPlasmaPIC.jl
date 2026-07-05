@@ -6,7 +6,12 @@ function ref_cell_index(ps::ParticleSet{D,T}, g) where {D,T}
     N = nparticles(ps)
     out = Vector{Int}(undef, N)
     for p = 1:N
-        sub = ntuple(d -> clamp(floor(Int, ps.x[d][p] / g.dx[d]), 0, g.n[d] - 1), D)
+        # periodic wrap, matching the deposition mesh; mod can round to exactly
+        # L in floats, which folds onto cell 0
+        sub = ntuple(D) do d
+            c = floor(Int, mod(ps.x[d][p], g.L[d]) / g.dx[d])
+            c >= g.n[d] ? 0 : c
+        end
         # LinearIndices is column-major; +1 because sub is 0-based
         out[p] = LinearIndices(g.n)[(sub .+ 1)...]
     end
@@ -65,7 +70,7 @@ end
         @test all(1 .<= ci .<= prod(n))
     end
 
-    @testset "cell_index clamps out-of-box positions" begin
+    @testset "cell_index wraps out-of-box positions periodically" begin
         n = (5, 3)
         L = (5.0, 3.0)
         g = FourierGrid(n, L)
@@ -76,9 +81,12 @@ end
         ci = cell_index(ps, g)
         @test ci == ref_cell_index(ps, g)
         @test all(1 .<= ci .<= 15)
-        # particle 1 clamps to cell (0,0)->1 ; particle 2 clamps to (4,2)->15
-        @test ci[1] == 1
-        @test ci[2] == 15
+        # particle 1 wraps to cell (3,2)->14 ; particle 2 wraps to (0,2)->11,
+        # the same cells the periodic deposition mesh assigns
+        @test ci[1] == 14
+        @test ci[2] == 11
+        @test ci[3] == 1
+        @test ci[4] == 15
     end
 
     @testset "sort_particles! sorts + preserves data (D=$D)" for D in (1, 2, 3)

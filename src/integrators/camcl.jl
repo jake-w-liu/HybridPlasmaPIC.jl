@@ -15,12 +15,15 @@
 #
 #   • CL  (Cyclic LeapFrog): the magnetic field is subcycled with a
 #     time-reversible, non-dissipative cyclic leapfrog rather than RK4. Two
-#     staggered copies of B (offset by one substep) are advanced alternately by
-#     a full leapfrog kick each, "cycling" which copy leads; a final averaging of
-#     the two copies removes the odd-even (leapfrog) splitting error and lands
-#     both at n+1. CL is the magnetic mover Matthews pairs with CAM because it is
-#     cheap (one Ohm/curl evaluation per substep, vs four for RK4) and conserves
-#     magnetic energy far better than a dissipative scheme over many substeps.
+#     copies of B, staggered by h/2 inside the subcycle (kick-drift-kick form),
+#     PERSIST across particle steps and are advanced alternately by leapfrog
+#     kicks; the field the rest of the step consumes is their (output-only)
+#     average at n+1, which removes the odd-even (leapfrog) splitting error —
+#     see _cl_subcycle_B! for why persistence is essential to CL's neutral
+#     stability. CL is the magnetic mover Matthews pairs with CAM because it is
+#     cheap (one Ohm/curl evaluation per copy per substep, vs four for RK4) and
+#     conserves magnetic energy far better than a dissipative scheme over many
+#     substeps.
 #
 # Documented time levels over one step! advancing all by dt:
 #   particle position x   : integer n            (→ n+1)
@@ -47,8 +50,9 @@ mutable struct CAMCLStepper{D,T,SH<:ShapeFunction,M<:HybridModel}
     fn::Array{T,D}                     # frozen n^{n+1/2}
     fui::NTuple{3,Array{T,D}}          # frozen u_i^{n+1/2}
     Escr::NTuple{3,Array{T,D}}         # E scratch for the B subcycle
-    Blead::NTuple{3,Array{T,D}}        # leading CL copy of B
-    Blag::NTuple{3,Array{T,D}}         # lagging CL copy of B
+    Blead::NTuple{3,Array{T,D}}        # persistent CL copy, integer substep levels
+    Blag::NTuple{3,Array{T,D}}         # persistent CL copy, half levels inside the subcycle
+    Bout::NTuple{3,Array{T,D}}         # last CL output B (detects external edits of fields.B)
     rhs::NTuple{3,Array{T,D}}          # −∇×E scratch
     Ep::NTuple{3,Vector{T}}
     Bp::NTuple{3,Vector{T}}
@@ -57,6 +61,8 @@ mutable struct CAMCLStepper{D,T,SH<:ShapeFunction,M<:HybridModel}
     work::Vector{T}
     time::Base.RefValue{T}
     step::Base.RefValue{Int}
+    cl_h::Base.RefValue{T}             # substep size h the persistent CL pair was advanced with
+    cl_live::Base.RefValue{Bool}       # persistent CL pair valid to continue from?
 end
 
 function CAMCLStepper(
@@ -80,11 +86,12 @@ function CAMCLStepper(
         shape,
         HybridFields{D,T}(nc),
         zeros(T, nc),
-        ntuple(_ -> zeros(T, nc), Val(3)),
-        ntuple(_ -> zeros(T, nc), Val(3)),
-        ntuple(_ -> zeros(T, nc), Val(3)),
-        ntuple(_ -> zeros(T, nc), Val(3)),
-        ntuple(_ -> zeros(T, nc), Val(3)),
+        ntuple(_ -> zeros(T, nc), Val(3)),   # fui
+        ntuple(_ -> zeros(T, nc), Val(3)),   # Escr
+        ntuple(_ -> zeros(T, nc), Val(3)),   # Blead
+        ntuple(_ -> zeros(T, nc), Val(3)),   # Blag
+        ntuple(_ -> zeros(T, nc), Val(3)),   # Bout
+        ntuple(_ -> zeros(T, nc), Val(3)),   # rhs
         ntuple(_ -> zeros(T, Np), Val(3)),   # Ep
         ntuple(_ -> zeros(T, Np), Val(3)),   # Bp
         ntuple(_ -> zeros(T, Np), Val(3)),   # vpred
@@ -92,6 +99,8 @@ function CAMCLStepper(
         zeros(T, Np),
         Ref(zero(T)),
         Ref(0),
+        Ref(zero(T)),                        # cl_h
+        Ref(false),                          # cl_live
     )
 end
 
@@ -109,6 +118,7 @@ function init_camcl!(st::CAMCLStepper{D,T}, ps::ParticleSet{D,T}) where {D,T}
     ohms_law!(st.fields, st.model, st.g)
     st.time[] = zero(T)                 # (re)start at t=0; step==0 triggers leapfrog priming
     st.step[] = 0
+    st.cl_live[] = false                # re-bootstrap the persistent CL pair from fields.B
     return st
 end
 
@@ -140,40 +150,71 @@ end
 # Cyclic leapfrog of the magnetic field from n to n+1 over NB substeps of size h
 # (Matthews 1994, §3.2, "cyclic leapfrog"). CL integrates the first-order field
 # ODE  dB/dt = F(B) ≡ −∇×E(B; frozen moments)  with a leapfrog by carrying two
-# copies of B staggered by one substep h, so that the RHS is always evaluated at
-# the time level CENTRED for the copy being kicked (the source of leapfrog's
-# second-order accuracy and its time-reversibility / non-dissipation).
+# copies of B staggered by h/2, so that the RHS is always evaluated at the time
+# level CENTRED for the copy being kicked (the source of leapfrog's second-order
+# accuracy and its time-reversibility / non-dissipation).
 #
-# Time levels of the two copies (in units of h, both starting at B^n = level 0):
-#   • Half-step bootstrap puts the half-copy C at level 1/2 (integer copy A @ 0),
-#     staggering them by h/2.
-#   • Staggered leapfrog (NB steps of h): each kick is time-centred on the OTHER
-#     copy — A_{k+1}=A_k+h·F(C_{k+1/2}), C_{k+3/2}=C_{k+1/2}+h·F(A_{k+1}) — giving
-#     leapfrog's second-order accuracy and time-reversibility. After NB steps A is
-#     at level NB and C at level NB−1/2.
-#   • A final half-step synchronizes C to level NB; the two copies (both now at
-#     n+1) are AVERAGED, which cancels the odd/even (computational-mode) leapfrog
-#     splitting and lands the result centred EXACTLY at n+1 — Matthews' reason for
-#     the final average and for CL conserving magnetic energy far better than a
-#     dissipative scheme. (The prior full-step-bootstrap + (NB−1)×2h-kick variant
-#     averaged levels NB and NB−1, landing at n+1−h/2: an O(h) centring error.)
+# The two copies PERSIST across particle steps (A = st.Blead, C = st.Blag; both
+# land on the integer level n+1 at the end of every step, staggered by h/2 only
+# INSIDE the subcycle — a kick-drift-kick / Verlet arrangement of the staggered
+# leapfrog). Persistence is what makes the pair neutrally stable: the per-step
+# map (opening half C-kick, NB A-kicks interleaved with NB−1 C-kicks, closing
+# half C-kick, all unit-determinant shears) has unit-modulus eigenvalues for
+# every whistler mode with ω·h ≤ 2 (verified on the exact 2×2 mode map and in
+# code, see below). The previous variant re-initialized BOTH copies from the
+# single averaged B every particle step; that extra projection makes the
+# composition weakly unstable at ALL ω·h > 0 (measured per-step |m| = 1.008 at
+# ω·h = 1 and 1.11 at ω·h = 1.6 — production runs at recommended_dt(:camcl) blew
+# up in ~700–2000 steps).
 #
-# Stability: like any leapfrog, CL has a CFL bound tighter than RK4's; the
-# stiff whistler branch needs enough subcycles (NB) that ω_whistler·h ≲ 1.
-# Advances B from integer level n to integer level n+1, time-centred at n+1/2
-# with the frozen CAM moments — the level structure step_camcl! documents.
+# Second-order accuracy across the step seam: the closing half C-kick of step n
+# uses F(A^{n+1}) with step-n moments (frozen at n+1/2) and the opening half
+# C-kick of step n+1 uses F(A^{n+1}) with step-(n+1) moments (frozen at n+3/2);
+# their sum is one full kick centred exactly on the boundary n+1 evaluated with
+# the AVERAGE of the two adjacent frozen-moment fields — the moment-lag errors
+# cancel to O(dt²). (Keeping C permanently staggered across the seam instead
+# biases its kicks by h/2 against the moment centring and degrades the whole
+# stepper to 1st order — measured convergence ratios ~2 instead of ~4.)
+#
+# Output: the field the rest of the step consumes is Matthews' copy average
+# B^{n+1} = ½·(A + C), both at n+1, which cancels the odd/even (computational-
+# mode) leapfrog splitting. The average is OUTPUT-ONLY: it is never fed back
+# into the persistent pair, so it cannot re-create the restart instability; the
+# (bounded, |eig| = 1) computational mode merely rides along in (A, C).
+#
+# Re-bootstrap (A = C = B, one Matthews averaging event) happens only when the
+# pair cannot be continued: first step after init_camcl!, a change of substep
+# size h, an external edit of fields.B (detected against the stored last output
+# Bout), or copy drift max|A − C| > 10% of max|A|. The drift trigger is
+# Matthews' "average the copies occasionally": under real-axis damping
+# (η/ηH > 0) the leapfrog computational mode grows as e^{+νh} per substep
+# (det = 1: whatever damps the physical mode grows the parasitic one), and the
+# on-demand re-sync arrests it; in non-dissipative runs it never fires and CL
+# stays exactly neutral.
+#
+# Stability: neutrally stable for ω_whistler·h < 2 (measured on the stiffest
+# n=64 mode over 10⁴ steps: bounded non-normal beat envelopes with per-step
+# multiplier ≤ 1+1e-5, saturated by mid-run; non-finite at ω·h = 2.05), tighter
+# than RK4's 2.8 but two Ohm evaluations per substep instead of four. Advances B
+# from integer level n to integer level n+1, time-centred at n+1/2 with the
+# frozen CAM moments — the level structure step_camcl! documents.
 function _cl_subcycle_B!(st::CAMCLStepper{D,T}, dtT::T, NB::Integer) where {D,T}
     NB >= 2 || throw(ArgumentError("CAM-CL needs NB ≥ 2 magnetic subcycles (got $NB)"))
     B = st.fields.B
     h = dtT / NB
 
-    A = st.Blead        # integer-level copy
-    C = st.Blag         # half-level copy
-    for c = 1:3
-        copyto!(A[c], B[c])
-        copyto!(C[c], B[c])
+    A = st.Blead        # persistent copy, integer substep levels
+    C = st.Blag         # persistent copy, half levels inside the subcycle
+    if !(st.cl_live[] && st.cl_h[] == h && all(B[c] == st.Bout[c] for c = 1:3))
+        # (re)bootstrap: both copies from B at level 0 (a Matthews averaging
+        # event — rare by construction, see the drift trigger above).
+        for c = 1:3
+            copyto!(A[c], B[c])
+            copyto!(C[c], B[c])
+        end
     end
-    # half-step bootstrap: C → level 1/2 using F at level 0.
+    # opening half-kick: C → level 1/2 using F(A @ 0) — with the previous step's
+    # closing half-kick this forms one boundary-centred full kick (see above).
     _camcl_rhs!(st.rhs, A, st)
     for c = 1:3
         @. C[c] += (h / 2) * st.rhs[c]
@@ -192,14 +233,29 @@ function _cl_subcycle_B!(st::CAMCLStepper{D,T}, dtT::T, NB::Integer) where {D,T}
             end
         end
     end
-    # A @ NB, C @ NB−1/2: synchronize C to NB (final half-step), then average the
-    # two copies — cancels the odd/even leapfrog computational mode and lands
-    # centred EXACTLY at n+1 (verified exact for a constant RHS).
+    # A @ NB, C @ NB−1/2: closing half-kick synchronizes C to NB inside the
+    # persistent state; output B = ½(A + C) (Matthews' average, cancels the
+    # odd/even computational mode) WITHOUT feeding it back into the pair. Also
+    # measure the copies' drift to decide whether to re-sync next step.
     _camcl_rhs!(st.rhs, A, st)
-    for c = 1:3
-        @. C[c] += (h / 2) * st.rhs[c]
-        @. B[c] = T(0.5) * (A[c] + C[c])
+    drift = zero(T)
+    scale = zero(T)
+    @inbounds for c = 1:3
+        Ac, Cc, Rc, Bc, Oc = A[c], C[c], st.rhs[c], B[c], st.Bout[c]
+        for i in eachindex(Ac, Cc, Rc, Bc, Oc)
+            cs = Cc[i] + (h / 2) * Rc[i]
+            Cc[i] = cs
+            d = abs(Ac[i] - cs)
+            drift = ifelse(d > drift, d, drift)
+            a = abs(Ac[i])
+            scale = ifelse(a > scale, a, scale)
+            b = T(0.5) * (Ac[i] + cs)
+            Bc[i] = b
+            Oc[i] = b
+        end
     end
+    st.cl_h[] = h
+    st.cl_live[] = drift <= T(0.1) * scale      # else: re-sync (re-bootstrap) next step
     return B
 end
 

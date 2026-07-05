@@ -45,7 +45,7 @@ function ohms_law!(f::HybridFields{D,T}, model::HybridModel, g::FourierGrid{D,T}
             g,
         )
     end
-    _apply_electron_inertia!(f.E, T(model.de2), g)      # E ← E/(1+d_e²k²) if de2>0
+    _apply_electron_inertia!(f.E, T(model.de2), g)      # E_⊥ ← E_⊥/(1+d_e²k²) if de2>0
     return f.E
 end
 
@@ -350,16 +350,17 @@ end
 # ---------------------------------------------------------------- electron inertia
 
 # Apply the electron-inertia Fourier multiplier  f ← f / (1 + d_e² k²)  in place, using the
-# grid's shared FFT buffer/plans (same machinery as laplacian!). This is the leading-order
-# `(d_e²/n) ∂_t J` term of the generalized Ohm's law for the transverse field on a uniform
-# background, and it regularizes the whistler / reconnection at the electron inertial scale.
+# grid's shared FFT buffer/plans. This is the scalar multiplier for a purely k-TRANSVERSE
+# field: the operator is (1 + d_e²∇×∇×)⁻¹, so it uses the same Nyquist-zeroed first-derivative
+# wavenumbers (kvec) as curl!, and it must NOT be applied to a longitudinal field — for the
+# full E vector use `_apply_electron_inertia!`, which projects out the longitudinal part.
 function _inertia_filter!(f::Array{T,D}, de2::T, g::FourierGrid{D,T}) where {T,D}
     g.cbuf .= f
     g.plan * g.cbuf
     @inbounds for I in CartesianIndices(g.cbuf)
         k2 = zero(T)
         for d = 1:D
-            kk = g.kfull[d][I[d]]
+            kk = g.kvec[d][I[d]]
             k2 += kk * kk
         end
         g.cbuf[I] *= one(T) / (one(T) + de2 * k2)
@@ -369,17 +370,60 @@ function _inertia_filter!(f::Array{T,D}, de2::T, g::FourierGrid{D,T}) where {T,D
     return f
 end
 
-# Apply electron inertia to all three E components — a no-op (byte-identical) when de2==0,
-# the massless-electron default.
-@inline function _apply_electron_inertia!(
+# Apply electron inertia to the E field — a no-op (byte-identical) when de2==0, the
+# massless-electron default. The finite-electron-mass term of the generalized Ohm's law is
+# the leading-order `(d_e²/n) ∂_t J` with J = ∇×B, which is divergence-free; substituting
+# Faraday's law gives the implicit solve  (1 + d_e²∇×∇×) E = E₀ , i.e. per Fourier mode
+#
+#     Ê_⊥ ← Ê_⊥ / (1 + d_e²k²),   Ê_∥ unchanged,       P_⊥ = I − k̂k̂ᵀ
+#
+# equivalently  Ê ← Ê − (d_e²k²/(1+d_e²k²))·(Ê − k̂(k̂·Ê)). Only the k-transverse projection
+# is filtered (regularizing the whistler / reconnection at the electron inertial scale); the
+# longitudinal (electrostatic, e.g. −∇p_e/n) part passes exactly. Uses the Nyquist-zeroed
+# first-derivative wavenumbers `kvec` (the discrete curl's, as in project_divfree!), so DC
+# and pure-Nyquist modes — where the discrete ∇×∇× vanishes identically — pass unfiltered.
+function _apply_electron_inertia!(
     E::NTuple{3,<:Array{T,D}},
     de2::T,
     g::FourierGrid{D,T},
 ) where {T,D}
     if de2 != zero(T)
-        for c = 1:3
-            _inertia_filter!(E[c], de2, g)
+        for c = 1:2, d = c+1:3
+            Base.mightalias(E[c], E[d]) && throw(
+                ArgumentError("_apply_electron_inertia! components must not alias each other"),
+            )
         end
+        Ex = g.cbuf
+        Ey = g.tbuf
+        Ez = g.abuf
+        Ex .= E[1]
+        Ey .= E[2]
+        Ez .= E[3]
+        g.plan * Ex
+        g.plan * Ey
+        g.plan * Ez
+        kx = g.kvec[1]
+        ky = D >= 2 ? g.kvec[2] : kx
+        kz = D >= 3 ? g.kvec[3] : kx
+        @inbounds for I in CartesianIndices(Ex)
+            wx = kx[I[1]]
+            wy = D >= 2 ? ky[I[2]] : zero(T)
+            wz = D >= 3 ? kz[I[3]] : zero(T)
+            k2 = wx * wx + wy * wy + wz * wz
+            if k2 > 0
+                fac = de2 * k2 / (one(T) + de2 * k2)
+                lng = (wx * Ex[I] + wy * Ey[I] + wz * Ez[I]) / k2   # (k·Ê)/k²
+                Ex[I] -= fac * (Ex[I] - wx * lng)
+                Ey[I] -= fac * (Ey[I] - wy * lng)
+                Ez[I] -= fac * (Ez[I] - wz * lng)
+            end
+        end
+        g.iplan * Ex
+        g.iplan * Ey
+        g.iplan * Ez
+        E[1] .= real.(Ex)
+        E[2] .= real.(Ey)
+        E[3] .= real.(Ez)
     end
     return E
 end

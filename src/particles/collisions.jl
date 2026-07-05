@@ -175,76 +175,60 @@ end
 
 # ---------------------------------------------------------------- Coulomb (Takizuka-Abe)
 
-"""
-    collide_coulomb!(ps::ParticleSet{D,T}, gcoeff, dt; rng=Random.default_rng(),
-                     u_floor=1e-3) -> ps
-
-One **Takizuka-Abe (1977)** binary-Coulomb collision substep. The particles are
-randomly paired; each pair's relative velocity `g = v_i − v_j` is rotated by a polar
-scattering angle `Θ` (azimuth `Φ` uniform) with `δ = tan(Θ/2)` drawn from
-`𝒩(0, ⟨δ²⟩)`, `⟨δ²⟩ = gcoeff·dt / max(|g|, u_floor)³`. The `|g|⁻³` velocity dependence
-is the physical Coulomb law (slow particles scatter through larger angles); `gcoeff`
-bundles the collisional prefactor `n·lnΛ·(qᵢqⱼ/…)²` in the code's normalized units, so
-it sets the collisionality. Each pair is updated about its **weighted centre of mass**
-`V = (wᵢvᵢ+wⱼvⱼ)/(wᵢ+wⱼ)`:
-
-    v_i ← V + (wⱼ/(wᵢ+wⱼ)) g',   v_j ← V − (wᵢ/(wᵢ+wⱼ)) g',   g' = R(Θ,Φ) g
-
-Because `|g'| = |g|` (a pure rotation) this conserves each pair's momentum **and**
-energy exactly for arbitrary weights (to roundoff), hence the whole-set `Σwv` and
-`Σw|v|²`. Unlike BGK ([`collide_bgk!`]) this reproduces true Coulomb velocity-space
-diffusion and relaxes a temperature **anisotropy** toward isotropy at the physical,
-speed-dependent rate.
-
-Whole-set pairing (0-D velocity-space relaxation, same scope as `collide_bgk!`);
-cell-local pairing is the spatially-resolved upgrade. `gcoeff ≥ 0`, `dt ≥ 0`;
-fewer than two particles is a no-op. Returns `ps`.
-"""
-function collide_coulomb!(
-    ps::ParticleSet{D,T},
-    gcoeff::Real,
-    dt::Real;
-    rng = Random.default_rng(),
-    u_floor::Real = 1e-3,
-) where {D,T}
-    gc = _require_finite_nonnegative_real("collision coefficient gcoeff", gcoeff, T)
-    dtT = _require_finite_nonnegative_real("dt", dt, T)
-    uf = _require_finite_positive_real("u_floor", u_floor, T)
-    N = nparticles(ps)
-    (N < 2 || gc == 0 || dtT == 0) && return ps
-
-    vx, vy, vz = ps.v
-    w = ps.weight
-    twoπ = 2 * T(π)
-
-    # ponytail: randperm allocates an 8N-byte index vector per call (like collide_bgk!'s
-    # falses(N)); fine for a per-step operator called standalone. If wired into a hot step
-    # loop, pass a persistent Vector{Int} scratch and Random.shuffle!(rng, work) instead.
-    idx = randperm(rng, N)
-    npair = N ÷ 2
-    @inbounds for k = 1:npair
-        i = idx[2k-1]
-        j = idx[2k]
+# One Takizuka-Abe pair scatter with variance ⟨δ²⟩ = gcdt·(max(wᵢ,wⱼ)/w̄) / max(|g|, uf)³.
+# All particles of a set share the ONE physical mass ps.m, so the physical kick is the
+# symmetric half-kick about the true midpoint (vᵢ+vⱼ)/2 regardless of macro-particle
+# weight. Unequal weights use the CORRECTED rejection scheme (Higginson, Holod & Link,
+# JCP 413 (2020) 109450, eqs. 31-32, fixing Nanbu & Yonemura 1998 / Sentoku & Kemp 2008):
+# each partner accepts its update with probability w_other/max(wᵢ,wⱼ) AND the pair
+# variance is scaled by max(wᵢ,wⱼ)/w̄ (w̄ = mean set weight), so every particle's expected
+# per-step variance is E_partner[(w_other/wmax)·(wmax/w̄)]·⟨δ²⟩ = ⟨δ²⟩ — the physical
+# relaxation rate independent of the weight distribution — while momentum and energy are
+# conserved in expectation (exactly, per pair, for equal weights: both accept, factor 1).
+# When ⟨δ²⟩ > 1 the Gaussian tan(Θ/2) model is invalid (the sampled Θ → π, g' ≈ −g is a
+# statistical no-op, so relaxation would STALL as collisionality rises); the pair then
+# draws an isotropic scattering angle instead (strong-collision limit, Nanbu 1997 /
+# Pérez et al. 2012), so relaxation saturates at the collision rate.
+@inline function _coulomb_pair_scatter!(
+    vx,
+    vy,
+    vz,
+    w,
+    i::Int,
+    j::Int,
+    gcdt::T,
+    wbar::T,
+    uf::T,
+    twoπ::T,
+    rng,
+) where {T}
+    @inbounds begin
         wi = w[i]
         wj = w[j]
-        wsum = wi + wj
-        wsum > 0 || continue
+        wmax = max(wi, wj)
+        wmax > 0 || return nothing
 
         gx = vx[i] - vx[j]
         gy = vy[i] - vy[j]
         gz = vz[i] - vz[j]
         gmag = sqrt(gx * gx + gy * gy + gz * gz)
-        gmag > 0 || continue                   # identical velocities: no relative motion
+        gmag > 0 || return nothing             # identical velocities: no relative motion
 
-        Vx = (wi * vx[i] + wj * vx[j]) / wsum
-        Vy = (wi * vy[i] + wj * vy[j]) / wsum
-        Vz = (wi * vz[i] + wj * vz[j]) / wsum
+        Mx = (vx[i] + vx[j]) / 2               # TRUE midpoint (same-mass pair)
+        My = (vy[i] + vy[j]) / 2
+        Mz = (vz[i] + vz[j]) / 2
 
-        var = gc * dtT / max(gmag, uf)^3       # Takizuka-Abe ⟨δ²⟩
-        δ = sqrt(var) * randn(rng, T)
-        δ2 = δ * δ
-        cosθ = (one(T) - δ2) / (one(T) + δ2)   # δ = tan(Θ/2) ⇒ cosΘ,sinΘ
-        sinθ = 2δ / (one(T) + δ2)
+        # Takizuka-Abe ⟨δ²⟩, weight-corrected: × max(wᵢ,wⱼ)/w̄ (Higginson 2020 eq. 31)
+        var = gcdt * (wmax / wbar) / max(gmag, uf)^3
+        if var > 1                              # large-angle regime → isotropic scatter
+            cosθ = 2 * rand(rng, T) - one(T)
+            sinθ = sqrt(max(zero(T), one(T) - cosθ * cosθ))
+        else
+            δ = sqrt(var) * randn(rng, T)
+            δ2 = δ * δ
+            cosθ = (one(T) - δ2) / (one(T) + δ2)   # δ = tan(Θ/2) ⇒ cosΘ,sinΘ
+            sinθ = 2δ / (one(T) + δ2)
+        end
         φ = twoπ * rand(rng, T)
         cosφ = cos(φ)
         sinφ = sin(φ)
@@ -267,14 +251,125 @@ function collide_coulomb!(
         gpx = gx + Δgx
         gpy = gy + Δgy
         gpz = gz + Δgz
-        fi = wj / wsum
-        fj = wi / wsum
-        vx[i] = Vx + fi * gpx
-        vy[i] = Vy + fi * gpy
-        vz[i] = Vz + fi * gpz
-        vx[j] = Vx - fj * gpx
-        vy[j] = Vy - fj * gpy
-        vz[j] = Vz - fj * gpz
+        # Rejection step: the max-weight partner is probabilistically skipped (equal
+        # weights short-circuit — no draw, both always accept).
+        if wi == wj || rand(rng, T) < wj / wmax
+            vx[i] = Mx + gpx / 2
+            vy[i] = My + gpy / 2
+            vz[i] = Mz + gpz / 2
+        end
+        if wi == wj || rand(rng, T) < wi / wmax
+            vx[j] = Mx - gpx / 2
+            vy[j] = My - gpy / 2
+            vz[j] = Mz - gpz / 2
+        end
+    end
+    return nothing
+end
+
+"""
+    collide_coulomb!(ps::ParticleSet{D,T}, gcoeff, dt; rng=Random.default_rng(),
+                     u_floor=1e-3) -> ps
+
+One **Takizuka-Abe (1977)** binary-Coulomb collision substep. The particles are
+randomly paired; each pair's relative velocity `g = v_i − v_j` is rotated by a polar
+scattering angle `Θ` (azimuth `Φ` uniform) with `δ = tan(Θ/2)` drawn from
+`𝒩(0, ⟨δ²⟩)`, `⟨δ²⟩ = gcoeff·dt / max(|g|, u_floor)³`. The `|g|⁻³` velocity dependence
+is the physical Coulomb law (slow particles scatter through larger angles); `gcoeff`
+bundles the collisional prefactor `n·lnΛ·(qᵢqⱼ/…)²` in the code's normalized units, so
+it sets the collisionality. When `⟨δ²⟩ > 1` the small-angle Gaussian model is invalid
+(`Θ → π` degenerates into a velocity swap), so the pair draws an **isotropic**
+scattering angle instead (`cosΘ` uniform on [−1,1] — the strong-collision limit, Nanbu
+1997 / Pérez et al. 2012): relaxation saturates with collisionality instead of stalling.
+
+All particles of a set share the one physical mass `ps.m`, so each partner is kicked
+**symmetrically about the true midpoint** `M = (vᵢ+vⱼ)/2`:
+
+    v_i ← M + g'/2,   v_j ← M − g'/2,   g' = R(Θ,Φ) g
+
+For **unequal macro-particle weights** the update is applied via the corrected rejection
+scheme (Higginson, Holod & Link, JCP 413 (2020) 109450, fixing Nanbu & Yonemura 1998 /
+Sentoku & Kemp 2008): the pair's `⟨δ²⟩` is scaled by `max(wᵢ,wⱼ)/w̄` (`w̄` = mean set
+weight), particle `i` accepts its update with probability `wⱼ/max(wᵢ,wⱼ)` and `j` with
+`wᵢ/max(wᵢ,wⱼ)`. Every particle's expected per-step scattering variance is then the
+nominal `⟨δ²⟩` — the physical relaxation rate independent of the weight distribution —
+and `Σwv` and `Σw|v|²` are conserved **in expectation**. Equal weights accept both
+updates always (variance factor ≡ 1), and `|g'| = |g|` (a pure rotation) then conserves
+each pair's momentum **and** energy exactly (to roundoff), hence the whole-set totals.
+Unlike BGK ([`collide_bgk!`]) this reproduces true Coulomb velocity-space diffusion and
+relaxes a temperature **anisotropy** toward isotropy at the physical, speed-dependent
+rate.
+
+Whole-set pairing (0-D velocity-space relaxation, same scope as `collide_bgk!`);
+cell-local pairing is the spatially-resolved upgrade. Odd `N` uses the Takizuka-Abe
+triplet: the first three particles of the permutation form the pairs (1,2),(2,3),(3,1),
+each scattered with **half** the variance (small-angle variances add linearly), so every
+particle collides every step at the nominal rate. `gcoeff ≥ 0`, `dt ≥ 0`; fewer than
+two particles is a no-op. Returns `ps`.
+"""
+function collide_coulomb!(
+    ps::ParticleSet{D,T},
+    gcoeff::Real,
+    dt::Real;
+    rng = Random.default_rng(),
+    u_floor::Real = 1e-3,
+) where {D,T}
+    gc = _require_finite_nonnegative_real("collision coefficient gcoeff", gcoeff, T)
+    dtT = _require_finite_nonnegative_real("dt", dt, T)
+    uf = _require_finite_positive_real("u_floor", u_floor, T)
+    N = nparticles(ps)
+    (N < 2 || gc == 0 || dtT == 0) && return ps
+
+    vx, vy, vz = ps.v
+    w = ps.weight
+    twoπ = 2 * T(π)
+    gcdt = gc * dtT
+
+    # Mean macro-particle weight w̄ normalizes the per-pair variance factor max(wᵢ,wⱼ)/w̄
+    # (Higginson 2020): the scheme is then invariant under re-partitioning the same
+    # physical plasma into different macro-weights at fixed gcoeff, and reduces exactly
+    # to plain Takizuka-Abe for uniform weights (factor ≡ 1).
+    Wtot = zero(T)
+    @inbounds for p = 1:N
+        Wtot += w[p]
+    end
+    Wtot > 0 || return ps                       # all-zero weights: nothing to do
+    wbar = Wtot / N
+
+    # ponytail: randperm allocates an 8N-byte index vector per call (like collide_bgk!'s
+    # falses(N)); fine for a per-step operator called standalone. If wired into a hot step
+    # loop, pass a persistent Vector{Int} scratch and Random.shuffle!(rng, work) instead.
+    idx = randperm(rng, N)
+    base = 0
+    if isodd(N)
+        # Takizuka-Abe odd-N prescription: the first three particles of the permutation
+        # form the pairs (1,2),(2,3),(3,1), each scattered with HALF the variance (the
+        # small-angle variances add linearly, so each triplet particle still accumulates
+        # the full per-step ⟨δ²⟩), and every particle collides every step.
+        i1 = idx[1]
+        i2 = idx[2]
+        i3 = idx[3]
+        halfgcdt = gcdt / 2
+        _coulomb_pair_scatter!(vx, vy, vz, w, i1, i2, halfgcdt, wbar, uf, twoπ, rng)
+        _coulomb_pair_scatter!(vx, vy, vz, w, i2, i3, halfgcdt, wbar, uf, twoπ, rng)
+        _coulomb_pair_scatter!(vx, vy, vz, w, i3, i1, halfgcdt, wbar, uf, twoπ, rng)
+        base = 3
+    end
+    npair = (N - base) ÷ 2
+    @inbounds for k = 1:npair
+        _coulomb_pair_scatter!(
+            vx,
+            vy,
+            vz,
+            w,
+            idx[base+2k-1],
+            idx[base+2k],
+            gcdt,
+            wbar,
+            uf,
+            twoπ,
+            rng,
+        )
     end
     return ps
 end

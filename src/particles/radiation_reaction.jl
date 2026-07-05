@@ -15,8 +15,9 @@ spatially uniform fields `E, B` (3-tuples, per unit `q/m`). For each particle of
 
 The relativistic momentum `p = γ v` is advanced `p ← p + F_rad·dt` and `v` recovered via
 `γ = √(1 + |p|²/c²)`, so `|v| < c` is preserved. `K` is the radiation-reaction coefficient
-(∝ the classical electron radius). A gyrating ultrarelativistic particle in a magnetic
-field cools synchrotron-like, `d(1/γ)/dt ≈ K B²` (so `1/γ ≈ 1/γ₀ + K B² t`).
+(∝ the classical electron radius). A gyrating particle in a magnetic field cools
+synchrotron-like, `d(1/γ)/dt = K v⁴ B²/c² ≈ K c² B²` ultrarelativistically (so
+`1/γ ≈ 1/γ₀ + K c² B² t`; this reduces to the familiar `K B²` rate only when `c = 1`).
 
 The momentum decay is integrated exactly as `p ← p·exp(−K γ χ² dt)` (an exponential
 integrator), so it is **unconditionally stable**: `|v|` always shrinks toward zero, never

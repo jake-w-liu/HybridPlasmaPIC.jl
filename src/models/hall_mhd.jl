@@ -2,7 +2,7 @@
 #
 # Normalized equations on the same FourierGrid operators as the hybrid PIC model:
 #   ∂n/∂t = -∇·(n u)
-#   ∂u/∂t = -u·∇u + (J×B - ∇p_i)/n
+#   ∂u/∂t = -u·∇u + (J×B - ∇p_i - ∇p_e)/n
 #   J = ∇×B
 #   E = -u×B + (J×B)/n - ∇p_e/n + ηJ - ηH∇²J
 #   ∂B/∂t = -∇×E
@@ -251,6 +251,7 @@ function _hall_mhd_rhs!(
     gradient!(st.gradn, n, g)
     Ti = T(model.Ti)
     nfloor = T(model.nfloor)
+    aniso = is_anisotropic(model.closure)
     Bx, By, Bz = B
     Jx, Jy, Jz = stage.J
     for c = 1:3
@@ -269,7 +270,16 @@ function _hall_mhd_rhs!(
             else
                 Jx[I] * By[I] - Jy[I] * Bx[I]
             end
+            # total pressure force: ion ∇p_i = Ti∇n on the spatial components, plus
+            # the electron pressure the stage Ohm's law computed (scalar ∇p_e on the
+            # spatial components, CGL ∇·P_e on all three) — the same force it puts
+            # into E as −∇p_e/n, which must also act on the quasineutral bulk fluid.
             pressure = c <= D ? Ti * st.gradn[c][I] : zero(T)
+            if aniso
+                pressure += stage.pforce[c][I]
+            elseif c <= D
+                pressure += stage.gradp[c][I]
+            end
             du[c][I] = -adv + (lorentz - pressure) / max(n[I], nfloor)
         end
     end

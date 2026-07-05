@@ -64,6 +64,83 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **Full physics/math audit of the simulator core** (37 adversarially verified
+  findings; every fix carries a new discriminating regression oracle):
+  - Hall-MHD momentum equation now includes the electron-pressure force
+    `−∇p_e/n` (scalar closures) / `−(∇·P_e)/n` (CGL). Warm-electron runs
+    previously had no electron acoustic physics at all; ion-acoustic dispersion
+    now verified against `ω = k√(Ti+Te)` to 8 digits, and `Te = 0` trajectories
+    are bit-identical to before.
+  - Electron-inertia filter `1/(1+d_e²k²)` now acts only on the k-transverse
+    projection of `E`; the longitudinal/electrostatic field used for the ion
+    push is no longer spuriously damped (was up to ~53% wrong at `k·d_e ~ 1`).
+  - Quiet-start velocity pairing switched from `i ↔ i+N/2` to adjacent lattice
+    indices: deposited thermal-current noise at odd harmonics drops ~900× below
+    the random-load level (the old pairing *amplified* it by √2). Odd particle
+    counts are now accepted (last particle carries the drift exactly).
+  - `recommended_dt` uses the spectral-corner `|k|max = √Σ(π/dx_d)²` (the old
+    single-axis Nyquist under-resolved multi-D whistlers by up to D×, blowing
+    up 2D diagonal-B₀ runs at the recommended step) and accepts `η`/`ηH`
+    keywords to cap the step by the resistive/hyper-resistive real-axis rates.
+  - CAM-CL cyclic-leapfrog B-subcycle now keeps its two staggered copies
+    persistent across particle steps (Matthews-style output-only averaging,
+    drift-triggered re-sync). The previous restart-and-average composition was
+    weakly unstable at every `ω·h > 0`; the scheme is now neutrally stable to
+    its true measured limit `ω·h ≤ 2` and remains 2nd-order accurate.
+  - EMPIC's spectral continuity correction now zeroes pure-Nyquist deposited
+    current (all-`k`-zeroed mode combinations other than DC); EMPIC1D likewise
+    zeroes the transverse Nyquist current. This removes a random-walking
+    grid-Nyquist sawtooth in `E` and restores EMPIC ↔ EMPIC1D equivalence to
+    machine precision.
+  - Rankine-Hugoniot solver handles the field-aligned (`Bt1 = 0`) bifurcation:
+    `rh_branches` now returns the switch-on branch (closed-form `X = M_An²`
+    solution, flux residuals ~1e-16) and `rankine_hugoniot` prefers the
+    evolutionary branch, instead of silently returning the non-evolutionary
+    gasdynamic compression (1.74× wrong in the switch-on window).
+  - Leroy shock-boundary reinsertion now draws flux-weighted velocities
+    (`flux_speed`) at both ends instead of density-weighted half-Maxwellians
+    (removes a ~30% spurious boundary-layer density pile-up); `PerpShock` with
+    `closure = :energy` now advances `p_e` in `step_shock!` (it was frozen at
+    the initial profile); `flux_speed`'s Rayleigh branch uses `log1p(−u)` so a
+    `rand() == 0` draw can no longer inject an infinite-speed particle.
+  - Takizuka–Abe Coulomb collisions: unequal macro-weight pairs now scatter
+    symmetrically about the true velocity midpoint with the
+    Higginson–Holod–Link (JCP 2020) rejection/variance-scaling correction
+    (relaxation rates are now weight-independent; weights previously acted as
+    masses, biasing rates by O(1)); a large-angle isotropic fallback replaces
+    the Gaussian `tan(Θ/2)` sample when `⟨δ²⟩ > 1` (relaxation now saturates
+    monotonically with collisionality instead of stalling); odd particle
+    counts use the T&A triplet at half variance (no particle skipped).
+  - Energy budgets close for every wired closure: isothermal
+    `electron_internal_energy` returns the free energy `T_e∫n ln n dV` (the
+    exact `γ→1` invariant — the documented "no closed invariant" claim was
+    false), CGL runs get the gyrotropic `∫(p_⊥+p_∥/2) dV` via a new
+    `electron_internal_energy(n, B, closure, g)` method, and
+    `energy_budget(...; de2)` adds the electron-inertia reservoir
+    `∫d_e²|J|²/2 dV`. New exported `kinetic_energy_relativistic(ps, c)`
+    completes energy bookkeeping for relativistic EMPIC runs. Docstrings for
+    `resistive_dissipation`, `jdotE_density`, and `momentum_budget` no longer
+    misattribute energy/momentum channels.
+  - `weibel_growth` classifies stability with the finite-box criterion
+    `A > (c·k_min/ω_pe)²` (the previous `A > 1` threshold does not exist in
+    the linear theory); `reproduce_established_shock` gates the measured
+    compression against the run's actual `X_RH` instead of the `M→∞` ceiling.
+  - Boundary/indexing edge cases: `apply_periodic!` can no longer return
+    `x == hi` (half-open contract restored), `apply_absorbing!` rejects
+    non-finite positions instead of counting blow-ups as absorption, and
+    `cell_index` wraps periodically exactly like the deposition mesh instead
+    of clamping.
+  - `semi_implicit` whistler demo gives the Nyquist bin its physical
+    `ω = c·k²` (the field is complex; no reality constraint), and the
+    radiation-reaction docstring states the `c`-dependent cooling law
+    `d(1/γ)/dt = K v⁴B²/c²`.
+  - Replaced ~10 tautological test oracles (tests that encoded the same wrong
+    assumption as the implementation) with discriminating physics oracles:
+    quiet-start current spectrum, longitudinal-inertia invariance, 2D
+    diagonal-B₀ and CAM-CL stability at `recommended_dt`, switch-on RH window,
+    warm-electron ion-acoustic dispersion, unequal-weight collision rates and
+    `gcoeff` monotonicity, isothermal/CGL/inertia budget conservation, EMPIC
+    Nyquist exclusion, and boundary-seam contracts (`test_boundary_edges.jl`).
 - Hall-MHD CGL electron closures now use the anisotropic pressure-force Ohm-law path.
 - Hybrid and CAM-CL steppers now resize particle workspaces after particle injection/removal.
 - Logical rank layouts now reject decompositions whose total rank count overflows `Int`.

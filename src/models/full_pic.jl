@@ -359,6 +359,31 @@ function _add_transverse_Jy!(
     return es.Jy
 end
 
+# Remove the Nyquist DFT mode of a real grid vector in place (no-op for odd n):
+# f_i -= (-1)^(i-1) · (1/n) Σ_j (-1)^(j-1) f_j. The spectral ∂x zeroes the
+# Nyquist multiplier, so ∂xBz has no Nyquist content and Ey's Nyquist mode would
+# otherwise integrate the raw deposition noise of Jy with no restoring term —
+# the same undamped random walk _esirkepov_Jx! excludes from the longitudinal
+# channel, and the transverse twin of EMPIC's continuity correction, which
+# zeroes every current component on the pure-Nyquist modes.
+function _zero_nyquist_mode!(f::Vector{T}) where {T}
+    n = length(f)
+    iseven(n) || return f
+    acc = zero(T)
+    s = one(T)
+    @inbounds for i = 1:n
+        acc += s * f[i]
+        s = -s
+    end
+    acc /= n
+    s = one(T)
+    @inbounds for i = 1:n
+        f[i] -= s * acc
+        s = -s
+    end
+    return f
+end
+
 # ---------------------------------------------------------------- relativistic push
 
 # Relativistic Boris push for a single particle (Birdsall & Langdon / Vay-free
@@ -620,6 +645,7 @@ function _deposit_Jy_at_midpoints!(
             xi[p] = es.Bzi[p]
         end
     end
+    _zero_nyquist_mode!(es.Jy)     # drop the unrepresentable Nyquist mode (see helper)
     return es.Jy
 end
 
@@ -840,7 +866,8 @@ The mover uses a leapfrog Maxwell update:
 `E^{n+1} = E^n + dt(c^2 curl(B^{n+1/2}) - J^{n+1/2})`.
 The midpoint particle current is spectrally corrected only in its longitudinal
 component so that `Δρ/dt + div(J) = 0` holds to roundoff on the represented
-Fourier modes.
+Fourier modes; the pure-Nyquist mode combinations (`k² = 0` but not DC), which
+are outside the spectral operators' range, are zeroed in all components.
 """
 mutable struct EMPIC{D,T,G,SH<:ShapeFunction}
     g::G
@@ -1100,6 +1127,7 @@ function _correct_current_continuity!(es::EMPIC{D,T}, dt::T) where {D,T}
         delta[I] = Complex{T}(es.rho_np1[I] - es.rho_n[I])
     end
     g.plan * delta
+    dc = first(CartesianIndices(delta))          # the true k=0 mode (all indices 1)
     @inbounds for I in CartesianIndices(delta)
         k2 = _spectral_k2(g, I)
         if k2 != 0
@@ -1108,6 +1136,26 @@ function _correct_current_continuity!(es::EMPIC{D,T}, dt::T) where {D,T}
             idx = Tuple(I)
             for d = 1:D
                 buffers[d][I] += (-im * g.kvec[d][idx[d]] / k2) * defect
+            end
+        elseif I != dc
+            # k2 == 0 covers the true DC mode AND every pure DC/Nyquist index
+            # combination (kvec zeros the per-axis Nyquist entry). Only DC is
+            # physical (net current, kept from the raw deposit). The Nyquist
+            # combinations are structurally outside the spectral operators'
+            # range: every derivative vanishes there, so raw deposition noise
+            # would integrate into E as an undamped random walk (a growing
+            # grid-Nyquist sawtooth felt by particles through the gather).
+            # Zero ALL current components there, exactly as _esirkepov_Jx!
+            # (longitudinal) and _deposit_Jy_at_midpoints! (transverse) do in
+            # EMPIC1D. Mixed modes (e.g. Nyquist in x with k_y ≠ 0, so k2 ≠ 0)
+            # are deliberately left alone: the axis-Nyquist J component there
+            # is transverse to the effective wavevector — raw, like every
+            # transverse current — and the curl coupling on the remaining axes
+            # gives E a restoring term, so it stays bounded (verified in 2D:
+            # no secular (Nyq_x,k_y) growth over 500 steps, unlike the
+            # pre-fix pure-Nyquist modes, which grew without bound).
+            for c = 1:3
+                buffers[c][I] = zero(Complex{T})
             end
         end
     end

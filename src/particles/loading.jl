@@ -116,9 +116,14 @@ end
 """
     load_quiet_velocities!(ps, rng, u0::NTuple{3}, vth::NTuple{3})
 
-Quiet-start velocities using mirrored pairs: particle `i` and `i+N/2` get
-`u0 ± g`, so the thermal momentum cancels exactly (Σ v = N·u0 to roundoff).
-Requires an even particle count.
+Quiet-start velocities using mirrored pairs of adjacent particles: particles
+`p` and `p+1` (p odd) get `u0 ± g`, so the thermal momentum cancels exactly
+(Σ v = N·u0 to roundoff). After a lattice load each ± pair is co-located to
+within one lattice spacing, so the deposited thermal current cancels to
+O(k·Δx_p) at every mode. (Pairing `i ↔ i+N/2` instead would place partners
+half a box apart, doubling — not cancelling — the current-noise power at every
+odd harmonic.) For odd `N` the last particle gets `v = u0`, preserving the
+exact momentum cancellation.
 """
 function load_quiet_velocities!(
     ps::ParticleSet{D,T},
@@ -127,15 +132,16 @@ function load_quiet_velocities!(
     vth::NTuple{3},
 ) where {D,T}
     N = nparticles(ps)
-    iseven(N) || throw(ArgumentError("quiet start needs an even particle count"))
-    half = N ÷ 2
     u, s = _validated_velocity_moments(u0, vth, T)
     @inbounds for c = 1:3
         vc = ps.v[c]
-        for i = 1:half
+        for p = 1:2:N-1
             g = s[c] * randn(rng, T)
-            vc[i] = u[c] + g
-            vc[i+half] = u[c] - g
+            vc[p] = u[c] + g
+            vc[p+1] = u[c] - g
+        end
+        if isodd(N)
+            vc[N] = u[c]
         end
     end
     return ps

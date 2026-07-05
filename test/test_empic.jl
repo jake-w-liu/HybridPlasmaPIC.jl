@@ -293,3 +293,62 @@ end
     @test r1 > 1.6
     @test r2 > 1.6
 end
+
+@testset "EMPIC ↔ EMPIC1D spectral equivalence incl. Nyquist current exclusion" begin
+    # The continuity correction zeroes the pure-Nyquist current modes (as
+    # _esirkepov_Jx! / _deposit_Jy_at_midpoints! do in EMPIC1D), so the two 1D
+    # solvers must agree to roundoff on EVERY Fourier mode and Ex must never
+    # accumulate a grid-Nyquist sawtooth. Pre-fix: the raw |Ĵx_Nyq| survived
+    # only in EMPIC (1.5e-4 after one step here), Ex's Nyquist mode
+    # random-walked to a few % of max|Ex|, and the solvers drifted apart by
+    # ~2.5% within 200 steps.
+    T = Float64
+    n = 32
+    L = 2π
+    N = 1280
+    dt = 0.01
+    g1 = FourierGrid((n,), (L,))
+    g2 = FourierGrid((n,), (L,))
+    rng = MersenneTwister(1234)
+    e1 = ParticleSet{1,T}(N; q = -1.0, m = 1.0)
+    load_uniform!(e1, rng, (0.0,), (L,))
+    set_density_weight!(e1, 1.0, g1)
+    for p = 1:N
+        e1.v[1][p] = 0.1 * randn(rng)
+        e1.v[2][p] = 0.1 * randn(rng)     # exercise the transverse Jy channel
+    end
+    e2 = ParticleSet{1,T}(N; q = -1.0, m = 1.0)
+    e2.x[1] .= e1.x[1]
+    for c = 1:3
+        e2.v[c] .= e1.v[c]
+    end
+    e2.weight .= e1.weight
+    es1 = EMPIC1D(g1, N; n0 = 1.0, c = 5.0, shape = CIC())
+    es2 = EMPIC(g2, N; n0 = 1.0, c = 5.0, shape = CIC())
+    init_empic!(es1, e1)
+    init_empic!(es2, e2)
+
+    nyq(f) = abs(fft(complex.(f))[length(f)÷2+1]) / length(f)
+
+    # one step: current spectra agree on ALL modes; Nyquist current is zero
+    step_empic!(es1, e1, dt)
+    step_empic!(es2, e2, dt)
+    @test maximum(abs.(fft(complex.(es1.Jx)) .- fft(complex.(es2.J[1])))) / n < 1e-14
+    @test maximum(abs.(fft(complex.(es1.Jy)) .- fft(complex.(es2.J[2])))) / n < 1e-14
+    @test nyq(es2.J[1]) < 1e-15
+    @test nyq(es2.J[2]) < 1e-15
+
+    # 300 steps: solvers stay equivalent to roundoff and the Nyquist mode of
+    # Ex stays at machine zero (measured 9e-15 / 5.5e-16 with the fix; the
+    # pre-fix values 2.5e-2 / ≳1e-3 fail these bounds by many orders)
+    nyqmax = 0.0
+    for _ = 2:300
+        step_empic!(es1, e1, dt)
+        step_empic!(es2, e2, dt)
+        nyqmax = max(nyqmax, nyq(es2.E[1]) / maximum(abs.(es2.E[1])))
+    end
+    @test maximum(abs.(es1.Ex .- es2.E[1])) / maximum(abs.(es1.Ex)) < 1e-12
+    @test maximum(abs.(es1.Ey .- es2.E[2])) / maximum(abs.(es1.Ey)) < 1e-12
+    @test nyqmax < 1e-13
+    @test charge_conservation_residual(es2, dt) < 1e-10
+end

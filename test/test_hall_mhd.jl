@@ -121,6 +121,58 @@ end
     @test maximum(abs, rhs.du[1] .- expected) < 1e-12
 end
 
+@testset "Hall-MHD ion-acoustic dispersion carries electron pressure" begin
+    # Warm-electron oracle: with uniform B ∥ k the seeded density mode oscillates at
+    # ω = k√(Ti+Te) (isothermal ions + electrons), so the closure's −∇p_e/n must
+    # accelerate the bulk fluid — a Te=0 momentum test cannot see that coupling.
+    n = 64
+    L = 2π
+    k = 2π / L
+    g = FourierGrid((n,), (L,))
+    x = [(i - 1) * g.dx[1] for i = 1:n]
+    for (Te, Ti) in ((0.5, 0.0), (0.5, 0.3))
+        st = HallMHDState(g, HallMHDModel(IsothermalElectrons(Te); Ti = Ti))
+        ε = 1e-3
+        st.fields.n .= @. 1 + ε * cos(k * x)
+        st.fields.B[1] .= 1.0
+        hall_mhd_ohms_law!(st)
+        proj(s) = sum((s.fields.n[i] - 1) * cos(k * x[i]) for i = 1:n)
+        ts = [0.0]
+        as = [proj(st)]
+        for _ = 1:1000                              # t = 20, ≳2 acoustic periods
+            step_hall_mhd!(st, 0.02)
+            push!(ts, st.time[])
+            push!(as, proj(st))
+        end
+        # fit ω from the linearly interpolated zero crossings of a(t) ∝ cos(ωt)
+        crossings = Float64[]
+        for i = 1:length(as)-1
+            if (as[i] > 0) != (as[i+1] > 0)
+                push!(crossings, ts[i] + (ts[i+1] - ts[i]) * as[i] / (as[i] - as[i+1]))
+            end
+        end
+        @test length(crossings) >= 4
+        ωfit = π * (length(crossings) - 1) / (crossings[end] - crossings[1])
+        @test isapprox(ωfit, k * sqrt(Ti + Te); rtol = 1e-3)   # measured rel.err ≈ 8e-8
+    end
+end
+
+@testset "Hall-MHD CGL pressure-tensor force enters momentum" begin
+    n = 64
+    L = 2π
+    g = FourierGrid((n,), (L,))
+    x = [(i - 1) * g.dx[1] for i = 1:n]
+    st = HallMHDState(g, HallMHDModel(CGLElectrons(0.4, 0.3, 1.0, 1.0); Ti = 0.0))
+    st.fields.n .= @. 1 + 0.1 * cos(x)
+    st.fields.B[1] .= 1.0                           # uniform B ⇒ J = 0 ⇒ du = -(∇·P_e)/n
+    hall_mhd_ohms_law!(st)
+    rhs = hall_mhd_rhs!(st)
+    @test maximum(abs, rhs.du[1]) > 1e-3
+    for c = 1:3
+        @test maximum(abs, rhs.du[c] .- (@. -st.fields.pforce[c] / st.fields.n)) < 1e-13
+    end
+end
+
 @testset "Hall-MHD RK4 uniform equilibrium and mutation safety" begin
     T = Float64
     g = FourierGrid((16, 8), (2π, 2π))
@@ -176,20 +228,37 @@ end
 end
 
 @testset "Hall-MHD polytropic closure survives transient RK4 predictor undershoot" begin
-    # An RK4 predictor stage can drive a cell's density transiently below 0 even when the
+    # An RK4 predictor stage can hand the RHS a density transiently below 0 even when the
     # committed state is healthy; the polytropic pressure `(n/n0)^γ` must not throw a
-    # DomainError on a negative base (non-integer γ). The step must complete and stay finite.
+    # DomainError on a negative base (non-integer γ). Feed the RHS exactly such a stage
+    # state: it must evaluate finite instead of throwing. (The RHS is tested directly
+    # because grid-sampled advective undershoot needs u·k·dt beyond the RK4 stability
+    # limit; the original stepped scenario survived its 5 steps only while the inert
+    # pre-fix p_e left those unstable modes exactly unseeded, and died at step 9.)
     g = FourierGrid((16, 4), (2π, 2π))
     st = HallMHDState(g, HallMHDModel(PolytropicElectrons(0.5, 1.0, 5 / 3); Ti = 0.0, η = 0.0))
     xs = [(i - 1) * g.dx[1] for i = 1:16]
     for j = 1:4, i = 1:16
-        st.fields.n[i, j] = 1 + 0.9 * cos(xs[i])       # min committed density ~0.1 ≫ nfloor
+        st.fields.n[i, j] = 1 + 1.01 * cos(xs[i])      # min cell −0.01: an undershot stage
         st.fields.B[3][i, j] = 1.0
-        st.fields.ui[1][i, j] = 50.0                   # strong flow ⇒ predictor undershoot
+        st.fields.ui[1][i, j] = 0.5
+    end
+    rhs = hall_mhd_rhs!(st)                            # negative base reaches the closure
+    @test all(isfinite, rhs.dn)
+    @test all(all(isfinite, rhs.du[c]) for c = 1:3)
+    @test all(all(isfinite, rhs.dB[c]) for c = 1:3)
+
+    # And a committed step from a healthy warm-polytropic state completes and stays
+    # finite (whistler ω·dt ≈ 1.3 and acoustic/advective ω·dt ≪ 1 at dt = 0.01).
+    st2 = HallMHDState(g, HallMHDModel(PolytropicElectrons(0.5, 1.0, 5 / 3); Ti = 0.1))
+    for j = 1:4, i = 1:16
+        st2.fields.n[i, j] = 1 + 0.3 * cos(xs[i])
+        st2.fields.B[3][i, j] = 1.0
+        st2.fields.ui[1][i, j] = 0.5
     end
     for _ = 1:5
-        step_hall_mhd!(st, 0.02)
+        step_hall_mhd!(st2, 0.01)
     end
-    @test all(isfinite, st.fields.n)
-    @test minimum(st.fields.n) > 0
+    @test all(isfinite, st2.fields.n)
+    @test minimum(st2.fields.n) > 0
 end

@@ -65,7 +65,11 @@ function flux_speed(rng, a::T, σ::T) where {T}
     aT, σT = _validated_flux_sampler_params(a, σ)
     σT == zero(T) && return max(aT, zero(T))
     if aT == 0
-        return σT * sqrt(-2 * log(rand(rng, T)))
+        # Rayleigh inverse CDF on 1−U ∈ (0,1]: rand ∈ [0,1) can return exactly 0
+        # (probability 2⁻⁵³ per Float64 draw), and log(rand) = −Inf would emit an
+        # infinite-speed particle; log1p(−U) keeps every sample finite (same law,
+        # since 1−U is uniform on (0,1]).
+        return σT * sqrt(-2 * log1p(-rand(rng, T)))
     end
     hi = aT + 14σT
     # For a < −14σ the inward flux ∝ exp(−14²/2) ≈ 0 and the bracket [0, hi]

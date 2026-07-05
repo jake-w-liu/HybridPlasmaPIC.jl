@@ -38,8 +38,12 @@ function case_07_closure_budget_filter_diagnostics(artifact_dir::AbstractString)
         ),
     )
     isothermal_budget = energy_budget(ps, B, density, IsothermalElectrons(1.0), g)
-    isothermal_error =
-        isnan(isothermal_budget.electron_internal) && isnan(isothermal_budget.total) ? 0.0 : 1.0
+    # isothermal electron free energy F_e = T_e ∫ n ln n dV (γ→1 limit of ∫ p_e/(γ−1) dV)
+    isothermal_ref = 1.0 * sum(density .* log.(density)) * prod(g.dx)
+    isothermal_error = max(
+        abs(isothermal_budget.electron_internal - isothermal_ref),
+        abs(isothermal_budget.total - (kinetic_ref + magnetic_ref + isothermal_ref)),
+    )
 
     J = (fill(2.0, n), fill(0.0, n), fill(-1.0, n))
     E = (fill(3.0, n), fill(5.0, n), fill(4.0, n))
@@ -75,12 +79,12 @@ function case_07_closure_budget_filter_diagnostics(artifact_dir::AbstractString)
             1e-12,
         ),
         (
-            "isothermal_budget_nan_contract_error",
-            isothermal_error,
-            0.0,
+            "isothermal_free_energy_budget_abs_error",
+            isothermal_budget.electron_internal,
+            isothermal_ref,
             "absolute",
             isothermal_error,
-            0.0,
+            1e-12,
         ),
         (
             "jdotE_density_integral_max_abs_error",

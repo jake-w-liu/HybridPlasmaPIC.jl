@@ -13,7 +13,9 @@ using Random, LinearAlgebra, Serialization
     # phase is the (2,2)-Padé of e^{-iωdt}: error O((ωdt)³).
     ω, dt = 0.7, 0.1
     @test abs(angle(cn_multiplier(ω, dt)) - (-ω * dt)) < (ω * dt)^3
-    @test HybridPlasmaPIC._whistler_omega(8, 2π, 1.0)[5] == 0.0
+    # Nyquist bin (m = n/2): b is complex and ω = c k² is even in k, so the mode
+    # oscillates at the full ω = c·(π n/L)² = (8/2)² = 16 (was wrongly pinned to 0).
+    @test HybridPlasmaPIC._whistler_omega(8, 2π, 1.0)[5] == 16.0
 
     # full-spectrum stiff whistler: CN conserves energy, explicit Euler blows up.
     rc = run_whistler(; method = :cn, n = 128, dt = 0.6, nsteps = 200)

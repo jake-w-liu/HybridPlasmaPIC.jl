@@ -154,20 +154,20 @@ end
 end
 
 # ---- Takizuka-Abe binary Coulomb collisions (collide_coulomb!) ----------------
-# Oracles: exact per-pair (hence whole-set) momentum + energy conservation for
-# arbitrary weights (the weighted-centre-of-mass rotation), and physical relaxation
-# of a temperature anisotropy toward isotropy.
+# Oracles: exact per-pair (hence whole-set) momentum + energy conservation for EQUAL
+# weights (pure rotation about the pair midpoint); conservation in EXPECTATION for
+# unequal weights (Higginson et al. 2020 rejection scheme); relaxation rate independent
+# of the macro-weight distribution; isotropization monotone in collisionality (isotropic
+# large-angle fallback); odd-N triplet so every particle collides at the nominal rate.
 
-@testset "TA-001 Coulomb momentum & energy conservation (weighted)" begin
+@testset "TA-001 Coulomb momentum & energy conservation (equal weights: exact)" begin
     T = Float64
     N = 20_000
     rng = MersenneTwister(2024)
     ps = ParticleSet{1,T}(N)
     load_maxwellian!(ps, rng, (0.4, -0.3, 0.2), (1.0, 1.6, 0.7))
-    for p = 1:N
-        ps.weight[p] = 0.5 + rand(rng)            # heterogeneous weights
-    end
-
+    fill!(ps.weight, 1.0)                         # equal weights ⇒ both partners always
+    # accept their update ⇒ each pair is a pure midpoint rotation ⇒ exact conservation
     P0, E0 = set_totals(ps)
     crng = MersenneTwister(99)
     for _ = 1:20
@@ -176,10 +176,46 @@ end
     P1, E1 = set_totals(ps)
 
     scale = sqrt(P0[1]^2 + P0[2]^2 + P0[3]^2) + 1.0
-    @test abs(P1[1] - P0[1]) / scale < 1e-10       # weighted-CM update ⇒ exact momentum
+    @test abs(P1[1] - P0[1]) / scale < 1e-10       # midpoint update ⇒ exact momentum
     @test abs(P1[2] - P0[2]) / scale < 1e-10
     @test abs(P1[3] - P0[3]) / scale < 1e-10
     @test abs(E1 - E0) / E0 < 1e-10                # pure rotation |g'|=|g| ⇒ exact energy
+end
+
+@testset "TA-001b Coulomb conservation in expectation (unequal weights)" begin
+    # With unequal weights the rejection scheme (Higginson, Holod & Link 2020) conserves
+    # Σwv and Σw|v|² in EXPECTATION only; each run's drift is a zero-mean random walk.
+    # Measured over the 8 pinned collision seeds below (deterministic): per-run dE/E0
+    # std = 4.4e-4, max |dE/E0| = 9.3e-4, max component |dP|/scale = 3.8e-3;
+    # mean dE/E0 = -1.7e-4 (1.1 SE from zero), mean dPx/scale = +2.1e-4 (0.6 SE).
+    # Bounds: per-run ≥ 3.2x the measured max; means ≈ 3.6-3.9x the measured SE.
+    T = Float64
+    N = 20_000
+    dEs = Float64[]
+    dPxs = Float64[]
+    dPmaxs = Float64[]
+    for seed = 1:8
+        ps = ParticleSet{1,T}(N)
+        rng = MersenneTwister(2024)
+        load_maxwellian!(ps, rng, (0.4, -0.3, 0.2), (1.0, 1.6, 0.7))
+        for p = 1:N
+            ps.weight[p] = 0.5 + rand(rng)        # heterogeneous weights
+        end
+        P0, E0 = set_totals(ps)
+        crng = MersenneTwister(1000 + seed)
+        for _ = 1:20
+            collide_coulomb!(ps, 0.8, 0.05; rng = crng)
+        end
+        P1, E1 = set_totals(ps)
+        scale = sqrt(P0[1]^2 + P0[2]^2 + P0[3]^2) + 1.0
+        push!(dEs, (E1 - E0) / E0)
+        push!(dPxs, (P1[1] - P0[1]) / scale)
+        push!(dPmaxs, maximum(abs.(P1 .- P0)) / scale)
+    end
+    @test maximum(abs.(dEs)) < 3e-3                # per-run energy drift bounded
+    @test maximum(dPmaxs) < 1.2e-2                 # per-run momentum drift bounded
+    @test abs(mean(dEs)) < 6e-4                    # conserved in expectation (energy)
+    @test abs(mean(dPxs)) < 1.2e-3                 # conserved in expectation (momentum)
 end
 
 @testset "TA-002 Coulomb isotropization of a bi-Maxwellian" begin
@@ -244,6 +280,140 @@ end
         collide_coulomb!(pb, 2.0, 0.05; rng = MersenneTwister(42))
     end
     @test pa.v[1] == pb.v[1] && pa.v[2] == pb.v[2] && pa.v[3] == pb.v[3]
+end
+
+@testset "TA-004 Coulomb relaxation rate independent of macro-particle weights" begin
+    # Discriminating rate oracle: the SAME physical anisotropic Maxwellian loaded twice —
+    # uniform weights vs velocity-independent alternating weights {0.1, 1.9} — must relax
+    # its weighted anisotropy at the same physical rate. Pre-fix (weight-weighted-COM
+    # kinematics, no variance correction) the endpoints differed by ≈ 0.18 (log-decay
+    # ratio ≈ 1.7-1.8); post-fix, measured across 4 seeds: |A60u - A60m| = 0.014-0.034
+    # (finite-N estimator noise, dt-independent), log-decay ratio = 1.04-1.11.
+    T = Float64
+    N = 20_000
+    waniso(ps) = (Tx = comp_temp(ps, 1);
+    Tp = (comp_temp(ps, 2) + comp_temp(ps, 3)) / 2;
+    (Tx - Tp) / (Tx + Tp))
+    for seed in (555, 999)
+        psu = ParticleSet{1,T}(N)
+        load_maxwellian!(psu, MersenneTwister(31), (0.0, 0.0, 0.0), (2.0, 0.5, 0.5))
+        fill!(psu.weight, 1.0)
+        psm = ParticleSet{1,T}(N)
+        load_maxwellian!(psm, MersenneTwister(31), (0.0, 0.0, 0.0), (2.0, 0.5, 0.5))
+        for p = 1:N
+            psm.weight[p] = isodd(p) ? 0.1 : 1.9  # velocity-independent mixed weights
+        end
+        A0u, A0m = waniso(psu), waniso(psm)
+        ru = MersenneTwister(seed)
+        rm = MersenneTwister(seed)
+        for _ = 1:60
+            collide_coulomb!(psu, 10.0, 0.05; rng = ru)
+            collide_coulomb!(psm, 10.0, 0.05; rng = rm)
+        end
+        Au, Am = waniso(psu), waniso(psm)
+        @test A0u > 0.5 && A0m > 0.5
+        @test Au < 0.45 && Am < 0.45              # both actually relaxed (from ≈ 0.88)
+        @test abs(Au - Am) < 0.06                 # rates agree (pre-fix diff ≈ 0.18)
+        r = log(A0u / Au) / log(A0m / Am)
+        @test 0.7 < r < 1.3                       # decay-rate ratio (pre-fix ≈ 1.75)
+    end
+end
+
+@testset "TA-005 Coulomb isotropization monotone in collisionality" begin
+    # Large-angle-fallback oracle: residual anisotropy after 3 identical steps must be
+    # non-increasing in gcoeff. Pre-fix (Gaussian tan(Θ/2) with ⟨δ²⟩ ≫ 1, no fallback)
+    # it was NON-monotonic and stalled: A3 ≈ 0.33, 1.10, 2.62, 2.97, 3.02 from A0 = 2.98
+    # over gcoeff = 1e-2..1e8. Post-fix measured A3 ≈ 0.28-0.30 then 0.17-0.19 flat
+    # (isotropic-scatter saturation), seed spread ≈ ±0.02. The slow population
+    # (vth = 0.02/0.01, u_floor = 1e-3 default) makes ⟨δ²⟩ > 1 the dominant regime.
+    T = Float64
+    N = 20_000
+    ar(ps) = comp_temp(ps, 1) / ((comp_temp(ps, 2) + comp_temp(ps, 3)) / 2) - 1
+    ps0 = ParticleSet{1,T}(N)
+    load_maxwellian!(ps0, MersenneTwister(7), (0.0, 0.0, 0.0), (0.02, 0.01, 0.01))
+    fill!(ps0.weight, 1.0)
+    A0 = ar(ps0)
+    A3 = Float64[]
+    for gc in (1e-2, 1.0, 1e2, 1e4, 1e8)
+        ps = ParticleSet{1,T}(N)
+        load_maxwellian!(ps, MersenneTwister(7), (0.0, 0.0, 0.0), (0.02, 0.01, 0.01))
+        fill!(ps.weight, 1.0)
+        crng = MersenneTwister(11)
+        for _ = 1:3
+            collide_coulomb!(ps, gc, 0.01; rng = crng)
+        end
+        push!(A3, ar(ps))
+    end
+    @test A0 > 2.5
+    @test all(A3[k+1] <= A3[k] + 0.02 for k = 1:4) # monotone within MC slack
+    @test A3[end] < 0.3                            # saturated fast isotropization
+    @test A3[end] <= A3[1]                         # high gcoeff relaxes most (pre-fix: least)
+end
+
+@testset "TA-006 odd-N Takizuka-Abe triplet" begin
+    T = Float64
+    # (a) strong collisions: EVERY particle's velocity changes every call (pre-fix odd N
+    # left exactly one particle per call bit-identical). Measured: 0 identical in 200
+    # calls at N = 3 and N = 5.
+    for N in (3, 5)
+        rng = MersenneTwister(42)
+        ps = ParticleSet{1,T}(N)
+        for p = 1:N
+            ps.v[1][p] = randn(rng)
+            ps.v[2][p] = randn(rng)
+            ps.v[3][p] = randn(rng)
+        end
+        fill!(ps.weight, 1.0)
+        nident = 0
+        for _ = 1:100
+            snap = (copy(ps.v[1]), copy(ps.v[2]), copy(ps.v[3]))
+            collide_coulomb!(ps, 1e4, 1.0; rng = rng)
+            for p = 1:N
+                if ps.v[1][p] == snap[1][p] && ps.v[2][p] == snap[2][p] && ps.v[3][p] == snap[3][p]
+                    nident += 1
+                end
+            end
+        end
+        @test nident == 0
+    end
+    # (b) the halved triplet variances sum to the nominal per-particle small-angle rate:
+    # with v1 = 0, v2 = x̂, v3 = ŷ (g12 = g31 = 1, g23 = √2) every permutation pairs all
+    # three, so E|Δv_p|² = (gc·dt/2)(1/g_pq + 1/g_pr) + O(⟨δ²⟩²). Particle 1 gives
+    # gc·dt — exactly the even-N pair rate at g = 1. Measured/predicted = 0.996-1.01
+    # (MC SE ≈ 0.7-1% at M = 20_000): rtol 0.05 ≈ 5σ; triplet/pair measured 0.986.
+    gcdt = 2e-4
+    M = 20_000
+    rng3 = MersenneTwister(2718)
+    acc = zeros(3)
+    ps3 = ParticleSet{1,T}(3)
+    fill!(ps3.weight, 1.0)
+    for _ = 1:M
+        ps3.v[1] .= T[0.0, 1.0, 0.0]
+        ps3.v[2] .= T[0.0, 0.0, 1.0]
+        ps3.v[3] .= 0.0
+        collide_coulomb!(ps3, gcdt, 1.0; rng = rng3)
+        acc[1] += ps3.v[1][1]^2 + ps3.v[2][1]^2 + ps3.v[3][1]^2
+        acc[2] += (ps3.v[1][2] - 1.0)^2 + ps3.v[2][2]^2 + ps3.v[3][2]^2
+        acc[3] += ps3.v[1][3]^2 + (ps3.v[2][3] - 1.0)^2 + ps3.v[3][3]^2
+    end
+    acc ./= M
+    @test isapprox(acc[1], gcdt; rtol = 0.05)
+    @test isapprox(acc[2], gcdt * (1 + 1 / sqrt(2)) / 2; rtol = 0.05)
+    @test isapprox(acc[3], gcdt * (1 + 1 / sqrt(2)) / 2; rtol = 0.05)
+    rng2 = MersenneTwister(3141)
+    acc2 = 0.0
+    ps2 = ParticleSet{1,T}(2)
+    fill!(ps2.weight, 1.0)
+    for _ = 1:M
+        ps2.v[1] .= T[0.0, 1.0]
+        ps2.v[2] .= 0.0
+        ps2.v[3] .= 0.0
+        collide_coulomb!(ps2, gcdt, 1.0; rng = rng2)
+        acc2 += ps2.v[1][1]^2 + ps2.v[2][1]^2 + ps2.v[3][1]^2
+    end
+    acc2 /= M
+    @test isapprox(acc2, gcdt; rtol = 0.05)        # even-N pair baseline
+    @test 0.93 < acc[1] / acc2 < 1.07              # odd-N rate matches even-N
 end
 
 # ---- Monte-Carlo neutral collisions (collide_neutral_mcc!) --------------------

@@ -235,10 +235,12 @@ function reproduce_established_shock(;
     measured = (; frozen_ratio = r.frozen_ratio)
     reference = (; frozen_ratio = 1.0)               # established flux-freezing
     cmp = compare_to_reference(measured, reference; rtol = rtolT)
-    # established kinetic ordering: 1 < n₂ ≤ strong-shock fluid maximum (γ+1)/(γ-1).
-    # (Uses the robust thermodynamic compression ceiling rather than the
-    # front-speed-fit-dependent RH value, which is noisy at modest run lengths.)
-    Xmax = (γe + 1) / (γe - 1)
-    ordering_ok = isfinite(r.n2) && 1 < r.n2 < Xmax * (1 + rtolT)
+    # established kinetic ordering: 1 < n₂ < X_RH — the collisionless compression
+    # sits below the run's fluid Rankine–Hugoniot value. r.X_rh is evaluated at
+    # the realized Mach from the mass-conservation shock speed (not a front fit),
+    # so it is a robust per-run ceiling; gating on the M→∞ limit (γe+1)/(γe−1)
+    # instead would leave compressions in (X_RH, (γe+1)/(γe−1)) — physically
+    # impossible at the run's Mach number — undetected.
+    ordering_ok = isfinite(r.n2) && isfinite(r.X_rh) && 1 < r.n2 < r.X_rh * (1 + rtolT)
     return (; pass = cmp.pass && ordering_ok, measured = r, reference, comparison = cmp)
 end

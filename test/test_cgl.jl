@@ -107,8 +107,13 @@ end
         c,
         g,
     )
-    # electron_internal_energy degrades to NaN for CGL (no scalar pressure) rather than throwing
+    # electron_internal_energy: the density-only method degrades to NaN for CGL (needs |B|;
+    # kept for backward compatibility), while the (n, B, closure, g) method computes the
+    # gyrotropic internal energy ∫ (p_⊥ + p_∥/2) dV — checked against the uniform-field value.
     @test isnan(electron_internal_energy(ones(N), c, g))
+    Bu = (zeros(N), zeros(N), fill(2.0, N))
+    @test electron_internal_energy(ones(N), Bu, c, g) ≈
+          (cgl_pperp(c, 1.0, 2.0) + cgl_ppar(c, 1.0, 2.0) / 2) * 2π
     # CAM-CL rejects anisotropic closures at construction (frozen scalar ∇p_e is incompatible)
     @test_throws ArgumentError CAMCLStepper(g, HybridModel(c), CIC(), 100)
 end
@@ -125,4 +130,47 @@ end
     ohms_law!(f, model, g)                                    # must not MethodError
     @test eltype(f.E[1]) === T
     @test all(all(isfinite, f.E[c]) for c = 1:3)
+end
+
+@testset "CGL-006 energy budget closes with the gyrotropic internal energy" begin
+    # 1D compressive run ⊥ B (B0 = ẑ, bulk u_x = 0.2 sin x): KE + ∫½|B|² alone
+    # swings by ~half the KE swing as compression does work against P_e; adding
+    # ∫(p_⊥ + p_∥/2) dV (the electron_internal term energy_budget now computes
+    # from B) closes the budget to a few per cent of the KE swing — exact modulo
+    # the anisotropic battery term (measured: 0.505·sKE → 0.046·sKE, corr 0.998).
+    T = Float64
+    N = 32
+    L = 2π
+    npc = 300
+    g = FourierGrid((N,), (L,))
+    clo = CGLElectrons(0.5, 0.5, 1.0, 1.0)
+    Np = npc * N
+    ps = ParticleSet{1,T}(Np)
+    load_lattice_1d!(ps, 0.0, L)
+    set_density_weight!(ps, 1.0, g)
+    load_quiet_velocities!(ps, MersenneTwister(2), (0.0, 0.0, 0.0), (0.1, 0.1, 0.1))
+    st = HybridStepper(g, HybridModel(clo), CIC(), Np)
+    fill!(st.fields.B[3], 1.0)
+    ps.v[1] .+= 0.2 .* sin.((2π / L) .* ps.x[1])       # compressive bulk flow ⊥ B
+    init!(st, ps)
+    b0 = energy_budget(ps, st.fields.B, st.fields.n, clo, g)
+    @test isfinite(b0.total) && b0.electron_internal > 0
+    @test b0.electron_internal == electron_internal_energy(st.fields.n, st.fields.B, clo, g)
+    KE = [kinetic_energy(ps)]
+    EB = [magnetic_energy(st.fields.B, g)]
+    EI = [electron_internal_energy(st.fields.n, st.fields.B, clo, g)]
+    for _ = 1:300
+        step!(st, ps, 0.02; NB = 4)
+        push!(KE, kinetic_energy(ps))
+        push!(EB, magnetic_energy(st.fields.B, g))
+        push!(EI, electron_internal_energy(st.fields.n, st.fields.B, clo, g))
+    end
+    swing(v) = maximum(v) - minimum(v)
+    sKE = swing(KE)
+    sKEB = swing(KE .+ EB)
+    sTOT = swing(KE .+ EB .+ EI)
+    @info "CGL budget swings" sKE sKEB sTOT
+    @test sKEB > 0.3 * sKE                  # without E_int the budget is open
+    @test sTOT < 0.15 * sKE                 # with E_int it closes (measured 4.6%)
+    @test sTOT < 0.3 * sKEB                 # the E_int term does the closing
 end

@@ -33,8 +33,9 @@ x=Lx and the reflecting-wall node x=0):
   bulk-only fluid estimate `½ n (u_x²+u_y²) u_x` (no ion thermal flux).
 * `enthalpy`  — the electron ENTHALPY flux `γ_e/(γ_e−1)·p_e·u_x` = internal
   energy `p_e/(γ_e−1)·u_x` plus pressure work `p_e·u_x` (the term previously
-  omitted). Non-finite for the isothermal limit γ_e→1 (no internal-energy
-  invariant), as in `energy_budget`.
+  omitted). Non-finite for the isothermal limit γ_e→1: the enthalpy density
+  `p_e/(γ_e−1)` itself diverges there (unlike `energy_budget`, whose isothermal
+  total closes via the free energy `T_e ∫ n ln n dV`).
 * `total`     — `magnetic .+ kinetic .+ enthalpy`.
 
 Sign convention: positive = energy carried in +x. Inflowing upstream plasma

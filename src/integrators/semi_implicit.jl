@@ -31,11 +31,15 @@ quadratic invariants and is unconditionally stable; the phase is the rational
 "Forward-Euler per-step factor for `∂t b = −iω b` (|·| = √(1+ω²dt²) > 1)."
 @inline euler_multiplier(ω::Real, dt::Real) = 1 - im * ω * dt
 
-# whistler angular frequencies ω_k = c k² on an n-point periodic grid of length L
+# whistler angular frequencies ω_k = c k² on an n-point periodic grid of length L.
+# The evolved field b = b_y + i b_z is COMPLEX (no conjugate-symmetry constraint)
+# and ω = c k² is even in k, so the Nyquist bin m = n/2 (even n) gets its full
+# ω = c·(π n/L)² — zeroing it is the odd-derivative (ik) convention, which does
+# not apply to an even operator (cf. the laplacian! Nyquist handling, §3).
 function _whistler_omega(n::Integer, L::Real, c::Real)
     ω = Vector{Float64}(undef, n)
     @inbounds for m = 0:n-1
-        mp = iseven(n) && m == n ÷ 2 ? 0 : (m <= n ÷ 2 ? m : m - n)
+        mp = m <= n ÷ 2 ? m : m - n
         k = 2π * mp / L
         ω[m+1] = c * k^2
     end

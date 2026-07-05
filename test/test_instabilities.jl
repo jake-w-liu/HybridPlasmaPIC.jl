@@ -49,10 +49,10 @@ end
     # Counter-streaming electron beams (full PIC): B_z grows from shot noise; the
     # hybrid model cannot do this (B=0 fixed point), so this uses EMPIC. Fast config.
     cfg = (N = (8, 64), L = (4π, 8π), nppc = 40, nsteps = 300, c = 3.0, dt = 0.05, seed = 1)
-    u = weibel_growth(; u0 = 0.6, vth = 0.1, cfg...)   # A = (6)² = 36 ≫ 1 (unstable)
+    u = weibel_growth(; u0 = 0.6, vth = 0.1, cfg...)   # A = (6)² = 36 ≫ A_c (unstable)
     s = weibel_growth(; u0 = 0.0, vth = 0.1, cfg...)   # A = 0 (single Maxwellian, stable)
 
-    @test u.unstable_theory && !s.unstable_theory       # bimodal-streaming threshold
+    @test u.unstable_theory && !s.unstable_theory       # box filamentation threshold
     @test u.anisotropy > 1 && s.anisotropy == 0
     @test u.wBz_max > 1e-2                              # B_z grows to a macroscopic level
     @test s.wBz_max < 1e-3                              # no streaming ⇒ shot-noise floor
@@ -74,6 +74,20 @@ end
     )
     @test_throws ArgumentError weibel_growth(; u0 = 0.6, vth = -1.0)
     @test_throws ArgumentError weibel_growth(; u0 = -1.0)
+end
+
+@testset "weibel_growth: box-quantized filamentation threshold" begin
+    # A_c = (c·k_min/ω_pe)² with k_min = 2π/L_y and ω_pe = √n₀ = 1: the default
+    # c = 3, L_y = 12π give A_c = 0.25 — NOT the old A > 1 heuristic (Weibel/Fried
+    # predict growth for ANY A > 0 in an infinite domain; the box quantizes k).
+    # Classifier-only check: a minimal 1-step run keeps the same c, L (hence A_c).
+    tiny = (N = (4, 4), L = (4π, 12π), nppc = 1, nsteps = 1, c = 3.0, dt = 0.05, seed = 1)
+    bu = weibel_growth(; u0 = 0.08, vth = 0.1, tiny...)          # A = 0.64 > 0.25
+    bs = weibel_growth(; u0 = 0.1 * sqrt(0.1), vth = 0.1, tiny...) # A = 0.10 < 0.25
+    @test bu.anisotropy ≈ 0.64
+    @test bs.anisotropy ≈ 0.1
+    @test bu.unstable_theory        # was false under the A > 1 heuristic (0.25 < A < 1 band)
+    @test !bs.unstable_theory       # below the box cutoff: k_min lies outside the unstable band
 end
 
 @testset "reconnection_growth: Harris-sheet tearing (2D hybrid)" begin
