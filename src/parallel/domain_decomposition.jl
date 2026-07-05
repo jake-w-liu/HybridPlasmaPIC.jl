@@ -265,7 +265,7 @@ function exchange_ghost_moments!(
     halo::Integer = 1,
     clear_ghosts::Bool = true,
 ) where {T,D}
-    h = Int(halo)
+    h = _require_positive_intlike("halo", halo)
     axis = _validate_halo_arrays!(rank_arrays, layout, h)
     axis == 0 && return (; exchanged = 0, dropped = 0)
 

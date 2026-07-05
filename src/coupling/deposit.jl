@@ -16,6 +16,7 @@ function deposit_scalar!(
     length(vals) == nparticles(ps) || throw(DimensionMismatch("vals length ≠ particle count"))
     size(out) == g.n ||
         throw(DimensionMismatch("out size $(size(out)) does not match grid size $(g.n)"))
+    _validate_particle_positions(ps)
     fill!(out, zero(T))
     n = g.n
     stamp = CartesianIndices(ntuple(_ -> width(shape), D))

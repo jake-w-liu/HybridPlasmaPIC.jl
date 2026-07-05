@@ -126,6 +126,28 @@ end
     @test sum(ph) ≈ ps.weight[1]
 end
 
+@testset "histograms handle empty particle sets with explicit bounds" begin
+    ps = ParticleSet{1,Float64}(0)
+    @test_throws ArgumentError velocity_histogram(ps, 1; nbins = 8)
+    @test_throws ArgumentError phase_space_histogram(ps, 1, 1; nx = 4, nv = 4)
+    _, h = velocity_histogram(ps, 1; nbins = 8, vmin = -1.0, vmax = 1.0)
+    @test length(h) == 8
+    @test sum(h) == 0.0
+    _, _, ph = phase_space_histogram(
+        ps,
+        1,
+        1;
+        nx = 4,
+        nv = 4,
+        xmin = 0.0,
+        xmax = 1.0,
+        vmin = -1.0,
+        vmax = 1.0,
+    )
+    @test size(ph) == (4, 4)
+    @test sum(ph) == 0.0
+end
+
 @testset "histograms reject non-finite data and bounds" begin
     ps = ParticleSet{1,Float64}(2)
     ps.x[1] .= [0.0, 1.0]

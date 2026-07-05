@@ -96,6 +96,20 @@ end
     end
 end
 
+@testset "NGP half-cell ties translate by one cell" begin
+    T = Float64
+    g = FourierGrid((4,), (4.0,))
+    ps = ParticleSet{1,T}(1)
+    vals = T[1.0]
+    n1 = zeros(T, g.n)
+    n2 = zeros(T, g.n)
+    ps.x[1][1] = T(0.5) * g.dx[1]
+    deposit_scalar!(n1, ps, vals, g, NGP())
+    ps.x[1][1] += g.dx[1]
+    deposit_scalar!(n2, ps, vals, g, NGP())
+    @test n2 == circshift(n1, 1)
+end
+
 @testset "DEP-005 noise scaling N^(-1/2)" begin
     T = Float64
     ncell = 64
@@ -167,6 +181,32 @@ end
         @test_throws ArgumentError momentum!(ntuple(_ -> zeros(T, g.n), 3), ps, g, shape)
         @test_throws ArgumentError current!(ntuple(_ -> zeros(T, g.n), 3), ps, g, shape)
         @test_throws ArgumentError pressure_tensor!(ntuple(_ -> zeros(T, g.n), 6), ps, g, shape)
+
+        ps2 = ParticleSet{1,T}(2)
+        ps2.x[1] .= T[0.1, Inf]
+        dep = fill(T(9), g.n)
+        gout = fill(T(9), 2)
+        @test_throws ArgumentError deposit_scalar!(dep, ps2, T[2.0, 3.0], g, shape)
+        @test dep == fill(T(9), g.n)
+        @test_throws ArgumentError gather_scalar!(gout, field, ps2, g, shape)
+        @test gout == fill(T(9), 2)
+    end
+end
+
+@testset "periodic deposit/gather wrap huge finite positions before integer stencils" begin
+    T = Float64
+    g = FourierGrid((4,), (1.0,))
+    ps = ParticleSet{1,T}(1)
+    ps.x[1][1] = T(1e100)
+    vals = T[1.0]
+    field = zeros(T, g.n)
+    outp = zeros(T, 1)
+    for shape in (NGP(), CIC(), TSC())
+        dep = zeros(T, g.n)
+        deposit_scalar!(dep, ps, vals, g, shape)
+        @test sum(dep) ≈ 1.0
+        gather_scalar!(outp, field, ps, g, shape)
+        @test isfinite(outp[1])
     end
 end
 

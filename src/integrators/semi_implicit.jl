@@ -35,7 +35,7 @@ quadratic invariants and is unconditionally stable; the phase is the rational
 function _whistler_omega(n::Integer, L::Real, c::Real)
     ω = Vector{Float64}(undef, n)
     @inbounds for m = 0:n-1
-        mp = m <= n ÷ 2 ? m : m - n
+        mp = iseven(n) && m == n ÷ 2 ? 0 : (m <= n ÷ 2 ? m : m - n)
         k = 2π * mp / L
         ω[m+1] = c * k^2
     end

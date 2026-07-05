@@ -650,6 +650,7 @@ function mpi_step!(
 ) where {D,T}
     dtT = _validated_step_dt(T, dt, NB; min_NB = 1, name = "mpi_step!")
     iszero(dtT) && return st        # dt=0 no-op: do not consume the one-time priming guard.
+    qm = _validated_qm(ps)
     _resize_hybrid_particle_workspaces!(st, nparticles(ps))
 
     g = st.g
@@ -660,7 +661,6 @@ function mpi_step!(
 
     gather_vector!(st.Ep, st.fields.E, ps, g, st.shape)
     gather_vector!(st.Bp, st.fields.B, ps, g, st.shape)
-    qm = ps.q / ps.m
     # prime the leapfrog once: loaded v is physical v^0 → v^{-1/2} for 2nd-order accuracy.
     st.step[] == 0 && _prime_leapfrog!(ps.v, st.Ep, st.Bp, qm, h, nparticles(ps))
     vx, vy, vz = ps.v
@@ -713,7 +713,7 @@ function mpi_step!(
     # re-deposit uses the MPI moment routine; particles are still pre-migration (as for step 4).
     gather_vector!(st.Ep, st.fields.E, ps, g, st.shape)
     gather_vector!(st.Bp, st.fields.B, ps, g, st.shape)
-    _predict_half_kick!(st.vpred, ps.v, st.Ep, st.Bp, ps.q / ps.m, h, nparticles(ps))
+    _predict_half_kick!(st.vpred, ps.v, st.Ep, st.Bp, _validated_qm(ps), h, nparticles(ps))
     pspred = ParticleSet{D,T}(ps.x, st.vpred, ps.weight, ps.id, ps.tag, ps.q, ps.m)
     mpi_compute_moments!(st.fields, pspred, g, st.shape, nf, ctx; work = st.work, gpu_status)
     ohms_law!(st.fields, st.model, st.g)

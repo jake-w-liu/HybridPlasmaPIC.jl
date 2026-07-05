@@ -32,6 +32,9 @@ function velocity_histogram(
     _check_velocity_component(comp)
     v = ps.v[comp]
     w = ps.weight
+    if isempty(v) && (vmin === nothing || vmax === nothing)
+        throw(ArgumentError("velocity bounds must be provided for empty particle sets"))
+    end
     lo = _require_finite_hist_value("velocity lower bound", vmin === nothing ? minimum(v) : T(vmin))
     hi = _require_finite_hist_value("velocity upper bound", vmax === nothing ? maximum(v) : T(vmax))
     hi <= lo && (hi = lo + one(T))           # degenerate range ⇒ avoid /0 (NaN→crash)
@@ -71,6 +74,9 @@ function phase_space_histogram(
     x = ps.x[sdim]
     v = ps.v[vcomp]
     w = ps.weight
+    if isempty(x) && (xmin === nothing || xmax === nothing || vmin === nothing || vmax === nothing)
+        throw(ArgumentError("position and velocity bounds must be provided for empty particle sets"))
+    end
     xlo =
         _require_finite_hist_value("position lower bound", xmin === nothing ? minimum(x) : T(xmin))
     xhi =

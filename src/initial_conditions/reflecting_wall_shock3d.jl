@@ -87,6 +87,9 @@ function PerpShock3D(
     B0 = 1.0,
     nfloor = 1e-6,
 ) where {T<:AbstractFloat}
+    nxI = _require_positive_intlike("nx", nx)
+    nyI = _require_positive_intlike("ny", ny)
+    nzI = _require_positive_intlike("nz", nz)
     LxT = _require_finite_positive_real("Lx", Lx, T)
     LyT = _require_finite_positive_real("Ly", Ly, T)
     LzT = _require_finite_positive_real("Lz", Lz, T)
@@ -96,25 +99,25 @@ function PerpShock3D(
     τT = _require_finite_real("τ", τ, T)
     B0T = _require_finite_real("B0", B0, T)
     nfloorT = _require_finite_positive_real("nfloor", nfloor, T)
-    sbp = SBP1D(nx, LxT)
-    x = collect(range(zero(T), LxT; length = nx))
-    y = [(j - 1) * LyT / ny for j = 1:ny]
-    z = [(k - 1) * LzT / nz for k = 1:nz]
-    A() = zeros(T, nx, ny, nz)
+    sbp = SBP1D(nxI, LxT)
+    x = collect(range(zero(T), LxT; length = nxI))
+    y = [(j - 1) * LyT / nyI for j = 1:nyI]
+    z = [(k - 1) * LzT / nzI for k = 1:nzI]
+    A() = zeros(T, nxI, nyI, nzI)
     V() = (A(), A(), A())
     Bx = A()
     By = A()
-    Bz = fill(B0T, nx, ny, nz)            # B0 along ẑ
+    Bz = fill(B0T, nxI, nyI, nzI)         # B0 along ẑ
     PerpShock3D{T}(
         sbp,
-        nx,
-        ny,
-        nz,
+        nxI,
+        nyI,
+        nzI,
         LxT,
         LyT,
         LzT,
-        LyT / ny,
-        LzT / nz,
+        LyT / nyI,
+        LzT / nzI,
         x,
         y,
         z,
@@ -261,9 +264,10 @@ function deposit_moments3d!(sh::PerpShock3D{T}, ps::ParticleSet{3,T}) where {T}
     H = sh.sbp.H
     vol_yz = sh.dy * sh.dz
     @inbounds for iz = 1:sh.nz, iy = 1:sh.ny, ix = 1:sh.nx
+        vol = H[ix] * vol_yz
         ws = sh.wsum[ix, iy, iz]
-        sh.n[ix, iy, iz] = ws / (H[ix] * vol_yz)
-        wsf = max(ws, nf)
+        sh.n[ix, iy, iz] = ws / vol
+        wsf = max(ws, nf * vol)
         sh.u[1][ix, iy, iz] = sh.mx[ix, iy, iz] / wsf
         sh.u[2][ix, iy, iz] = sh.my[ix, iy, iz] / wsf
         sh.u[3][ix, iy, iz] = sh.mz[ix, iy, iz] / wsf
@@ -502,7 +506,14 @@ function step_shock3d!(
 end
 
 "Particle weight for a uniform load over [0,Lx]×[0,Ly]×[0,Lz] depositing density n0."
-shock3d_density_weight(n0, Lx, Ly, Lz, Np) = n0 * Lx * Ly * Lz / Np
+function shock3d_density_weight(n0, Lx, Ly, Lz, Np)
+    isfinite(n0) && n0 >= 0 || throw(ArgumentError("n0 must be finite and non-negative"))
+    isfinite(Lx) && Lx > 0 || throw(ArgumentError("Lx must be finite and positive"))
+    isfinite(Ly) && Ly > 0 || throw(ArgumentError("Ly must be finite and positive"))
+    isfinite(Lz) && Lz > 0 || throw(ArgumentError("Lz must be finite and positive"))
+    N = _require_positive_intlike("Np", Np)
+    return n0 * Lx * Ly * Lz / N
+end
 
 """
     shock_surface3d(sh) -> (xs, mean_xs, sigma_xs)

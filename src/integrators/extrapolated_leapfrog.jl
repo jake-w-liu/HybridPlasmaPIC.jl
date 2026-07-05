@@ -291,10 +291,11 @@ end
 # convergence rate 1 → 2). Unmagnetized behavior is unchanged (u_i drops out of Ohm's law when
 # B=0). Generic over the stepper (HybridStepper/CAMCLStepper share Ep/Bp/vpred/work). No alloc.
 function _recenter_carried_E!(st, ps::ParticleSet{D,T}, dtT::T) where {D,T}
+    qm = _validated_qm(ps)
     g = st.g
     gather_vector!(st.Ep, st.fields.E, ps, g, st.shape)   # E^{n+1}
     gather_vector!(st.Bp, st.fields.B, ps, g, st.shape)   # B^{n+1}
-    _predict_half_kick!(st.vpred, ps.v, st.Ep, st.Bp, ps.q / ps.m, dtT / 2, length(ps.weight))
+    _predict_half_kick!(st.vpred, ps.v, st.Ep, st.Bp, qm, dtT / 2, length(ps.weight))
     pspred = ParticleSet{D,T}(ps.x, st.vpred, ps.weight, ps.id, ps.tag, ps.q, ps.m)
     _moments!(st.fields.n, st.fields.ui, pspred, g, st.shape, T(st.model.nfloor), st.work)
     ohms_law!(st.fields, st.model, g)
@@ -305,6 +306,7 @@ function step!(st::HybridStepper{D,T}, ps::ParticleSet{D,T}, dt::Real; NB::Integ
     dtT = _validated_step_dt(T, dt, NB; min_NB = 1, name = "step!")
     iszero(dtT) && return st        # dt=0 is a true no-op: advance nothing, and (critically) do
     #                                 NOT consume the step==0 one-time leapfrog-priming guard.
+    qm = _validated_qm(ps)
     _resize_hybrid_particle_workspaces!(st, nparticles(ps))
     g = st.g
     h = dtT / 2
@@ -315,7 +317,6 @@ function step!(st::HybridStepper{D,T}, ps::ParticleSet{D,T}, dt::Real; NB::Integ
     # 1. push particles with carried E^n, B^n
     gather_vector!(st.Ep, st.fields.E, ps, g, st.shape)
     gather_vector!(st.Bp, st.fields.B, ps, g, st.shape)
-    qm = ps.q / ps.m
     # prime the leapfrog once: loaded v is physical v^0 → v^{-1/2} for 2nd-order (see above).
     st.step[] == 0 && _prime_leapfrog!(ps.v, st.Ep, st.Bp, qm, h, length(ps.weight))
     vx, vy, vz = ps.v

@@ -296,6 +296,7 @@ subspace.
 """
 function step_hall_mhd!(st::HallMHDState{D,T}, dt::Real; project_b::Bool = true) where {D,T}
     dtT = _validated_nonnegative_dt(T, dt; name = "step_hall_mhd!")
+    iszero(dtT) && return st
 
     _copy_hall_state!(st.n0, st.u0, st.B0, st.fields.n, st.fields.ui, st.fields.B)
 

@@ -36,6 +36,28 @@ end
     @test_throws ArgumentError ElectrostaticPIC(g4, 1; n0 = 1.0)
 end
 
+@testset "Electrostatic PIC resizes particle buffers after particle count changes" begin
+    T = Float64
+
+    g1 = FourierGrid((8,), (2π,))
+    e1 = ParticleSet{1,T}(2; q = -1.0, m = 1.0)
+    load_lattice_1d!(e1, 0.0, 2π)
+    set_density_weight!(e1, 1.0, g1)
+    es1 = Electrostatic1D(g1, 1; n0 = 1.0)
+    init_espic!(es1, e1)
+    @test length(es1.Ep) == nparticles(e1)
+    @test step_espic!(es1, e1, 0.01) === es1
+
+    g2 = FourierGrid((8, 8), (2π, 2π))
+    e2 = ParticleSet{2,T}(4; q = -1.0, m = 1.0)
+    load_lattice!(e2, (0.0, 0.0), g2.L, (2, 2))
+    set_density_weight!(e2, 1.0, g2)
+    es2 = ElectrostaticPIC(g2, 1; n0 = 1.0)
+    init_espic!(es2, e2)
+    @test all(length(Ep) == nparticles(e2) for Ep in es2.Ep)
+    @test step_espic!(es2, e2, 0.01) === es2
+end
+
 @testset "ElectrostaticPIC 2D spectral Poisson oracle" begin
     nx, ny = 32, 24
     Lx, Ly = 2π, 2π

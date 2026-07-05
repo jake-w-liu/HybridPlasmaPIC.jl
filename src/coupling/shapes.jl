@@ -23,14 +23,21 @@ Base.@propagate_inbounds @inline function _particle_cell_position(
 ) where {D,T}
     x = ps.x[d][p]
     isfinite(x) || throw(ArgumentError("particle position x[$d][$p] must be finite"))
-    return x / g.dx[d]
+    return mod(x, g.L[d]) / g.dx[d]
+end
+
+function _validate_particle_positions(ps::ParticleSet{D}) where {D}
+    @inbounds for p in eachindex(ps.weight), d = 1:D
+        isfinite(ps.x[d][p]) || throw(ArgumentError("particle position x[$d][$p] must be finite"))
+    end
+    return nothing
 end
 
 # 1-D stencil at fractional cell position s: returns (base, weights), where the
 # touched nodes are base, base+1, … (0-based, to be wrapped mod n). Weights sum
 # to 1 (partition of unity) for every s.
 @inline function _stencil1d(::NGP, s::T) where {T}
-    c = round(Int, s)
+    c = floor(Int, s + T(0.5))
     return (c, (one(T),))
 end
 @inline function _stencil1d(::CIC, s::T) where {T}

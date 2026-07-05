@@ -100,6 +100,23 @@ end
     @test all(ps.x[d] == x0[d] for d = 1:1)
     @test all(ps.v[c] == v0[c] for c = 1:3)
     @test all(st.fields.B[c] == B0[c] for c = 1:3)
+
+    ps_bad = ParticleSet{1,T}(4; q = 1.0, m = 0.0)
+    load_lattice_1d!(ps_bad, 0.0, 2π)
+    set_density_weight!(ps_bad, 1.0, g)
+    st_bad = CAMCLStepper(g, HybridModel(IsothermalElectrons(0.0)), NGP(), nparticles(ps_bad))
+    fill!(st_bad.fields.B[3], 1.0)
+    init_camcl!(st_bad, ps_bad)
+    x_bad0 = ntuple(d -> copy(ps_bad.x[d]), 1)
+    v_bad0 = ntuple(c -> copy(ps_bad.v[c]), 3)
+    Ep_bad0 = ntuple(c -> copy(st_bad.Ep[c]), 3)
+    Bp_bad0 = ntuple(c -> copy(st_bad.Bp[c]), 3)
+    @test_throws ArgumentError step_camcl!(st_bad, ps_bad, 0.1; NB = 2)
+    @test st_bad.step[] == 0
+    @test all(ps_bad.x[d] == x_bad0[d] for d = 1:1)
+    @test all(ps_bad.v[c] == v_bad0[c] for c = 1:3)
+    @test all(st_bad.Ep[c] == Ep_bad0[c] for c = 1:3)
+    @test all(st_bad.Bp[c] == Bp_bad0[c] for c = 1:3)
 end
 
 @testset "step_camcl! resizes particle workspaces after particle count changes" begin

@@ -54,7 +54,13 @@ function load_lattice!(
     hi::NTuple{D},
     counts::NTuple{D,Int},
 ) where {D,T}
-    prod(counts) == nparticles(ps) || throw(ArgumentError("N must equal prod(counts)"))
+    total = 1
+    @inbounds for d = 1:D
+        counts[d] > 0 || throw(ArgumentError("counts[$d] must be positive"))
+        total <= div(typemax(Int), counts[d]) || throw(ArgumentError("prod(counts) must fit in Int"))
+        total *= counts[d]
+    end
+    total == nparticles(ps) || throw(ArgumentError("N must equal prod(counts)"))
     loT, hiT = _validated_open_interval(lo, hi, T)
     @inbounds for (p, I) in enumerate(CartesianIndices(counts))
         t = Tuple(I)

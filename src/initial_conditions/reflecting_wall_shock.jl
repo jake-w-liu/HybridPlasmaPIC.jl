@@ -230,9 +230,10 @@ function deposit_moments!(sh::PerpShock{T}, ps::ParticleSet{1,T}) where {T}
     end
     nf = sh.nfloor
     @inbounds for i = 1:N
+        vol = sh.s.H[i]
         ws = sh.wsum[i]
-        sh.n[i] = ws / sh.s.H[i]
-        wsf = max(ws, nf)
+        sh.n[i] = ws / vol
+        wsf = max(ws, nf * vol)
         sh.ux[i] = sh.mx[i] / wsf
         sh.uy[i] = sh.my[i] / wsf
     end
@@ -586,4 +587,9 @@ end
 Particle weight so a uniform load over the SBP domain `[0, Lx]` deposits density
 `n0` (∫n dx = Σw exactly with the SBP norm as node volume): `w = n0·Lx/N`.
 """
-shock_density_weight(n0, Lx, N) = n0 * Lx / N
+function shock_density_weight(n0, Lx, N)
+    isfinite(n0) && n0 >= 0 || throw(ArgumentError("n0 must be finite and non-negative"))
+    isfinite(Lx) && Lx > 0 || throw(ArgumentError("Lx must be finite and positive"))
+    Np = _require_positive_intlike("N", N)
+    return n0 * Lx / Np
+end

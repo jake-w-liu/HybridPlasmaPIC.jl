@@ -220,6 +220,7 @@ function step_camcl!(
 ) where {D,T}
     dtT = _validated_step_dt(T, dt, NB; min_NB = 2, name = "step_camcl!")
     iszero(dtT) && return st        # dt=0 no-op: do not consume the one-time priming guard.
+    qm = _validated_qm(ps)
     _resize_hybrid_particle_workspaces!(st, nparticles(ps))
     g = st.g
     h = dtT / 2
@@ -230,7 +231,6 @@ function step_camcl!(
     # 1. Boris push with carried E^n, B^n:  v^{n−1/2}→v^{n+1/2}, x^n→x^{n+1}.
     gather_vector!(st.Ep, st.fields.E, ps, g, st.shape)
     gather_vector!(st.Bp, st.fields.B, ps, g, st.shape)
-    qm = ps.q / ps.m
     # prime the leapfrog once: loaded v is physical v^0 → v^{-1/2} for 2nd-order accuracy.
     st.step[] == 0 && _prime_leapfrog!(ps.v, st.Ep, st.Bp, qm, h, length(ps.weight))
     vx, vy, vz = ps.v

@@ -39,6 +39,19 @@ end
     @test_throws ArgumentError PerpShock(8, 1.0; η = NaN)
     @test_throws ArgumentError PerpShock(8, 1.0; η = -0.1)
     @test_throws ArgumentError PerpShock(8, 1.0; nfloor = 0.0)
+    @test_throws ArgumentError shock_density_weight(1.0, 1.0, 0)
+end
+
+@testset "PerpShock moment velocity floor uses density units" begin
+    T = Float64
+    sh = PerpShock(3, T(1.0); nfloor = T(0.2))
+    ps = ParticleSet{1,T}(1)
+    ps.x[1][1] = T(0.5)
+    ps.v[1][1] = T(1.0)
+    ps.weight[1] = T(0.15)
+    deposit_moments!(sh, ps)
+    @test sh.n[2] > sh.nfloor
+    @test sh.ux[2] ≈ 1.0
 end
 
 @testset "SHK-002 reflecting-wall perpendicular shock" begin

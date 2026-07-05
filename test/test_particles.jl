@@ -266,6 +266,20 @@ end
         ([0.0], [0.0], [1.0]),
         0.1,
     )
+
+    ps = ParticleSet{1,T}(2)
+    ps.x[1] .= T[0.0, 0.0]
+    ps.v[1] .= T[1.0, 1.0]
+    x0 = copy(ps.x[1])
+    v0 = ntuple(c -> copy(ps.v[c]), 3)
+    @test_throws ArgumentError push_gathered!(
+        ps,
+        (T[0.0, NaN], T[0.0, 0.0], T[0.0, 0.0]),
+        (T[0.0, 0.0], T[0.0, 0.0], T[0.0, 0.0]),
+        0.1,
+    )
+    @test ps.x[1] == x0
+    @test all(ps.v[c] == v0[c] for c = 1:3)
 end
 
 @testset "PUSH-004 timestep convergence order" begin
@@ -332,6 +346,12 @@ end
     @test_throws ArgumentError load_uniform!(ps, rng, (1.0,), (0.0,))
     @test_throws ArgumentError load_lattice!(ps, (0.0,), (NaN,), (2,))
     @test_throws ArgumentError load_lattice!(ps, (1.0,), (0.0,), (2,))
+    @test_throws ArgumentError load_lattice!(ps, (0.0,), (1.0,), (0,))
+    ps2 = ParticleSet{2,Float64}(6)
+    ps2.x[1] .= 42.0
+    ps2.x[2] .= 43.0
+    @test_throws ArgumentError load_lattice!(ps2, (0.0, 0.0), (1.0, 1.0), (-2, -3))
+    @test all(==(42.0), ps2.x[1]) && all(==(43.0), ps2.x[2])
 
     @test_throws ArgumentError set_density_weight!(ps, NaN, g)
     @test_throws ArgumentError set_density_weight!(ps, -1.0, g)
@@ -381,6 +401,25 @@ end
     apply_reflecting!(ps, (0.0,), (10.0,))
     @test ps.x[1][1] < 10.0          # strictly inside; was == 10.0 before the fix
     @test ps.v[1][1] == -1.0
+end
+
+@testset "particle boundaries reject non-finite positions before mutation" begin
+    T = Float64
+
+    ps = ParticleSet{1,T}(2)
+    ps.x[1] .= T[0.2, Inf]
+    x0 = copy(ps.x[1])
+    @test_throws ArgumentError apply_periodic!(ps, (0.0,), (1.0,))
+    @test ps.x[1][1] == x0[1] && isinf(ps.x[1][2])
+
+    ps = ParticleSet{1,T}(2)
+    ps.x[1] .= T[1.2, Inf]
+    ps.v[1] .= T[1.0, -1.0]
+    x0 = copy(ps.x[1])
+    v0 = copy(ps.v[1])
+    @test_throws ArgumentError apply_reflecting!(ps, (0.0,), (1.0,))
+    @test ps.x[1][1] == x0[1] && isinf(ps.x[1][2])
+    @test ps.v[1] == v0
 end
 
 @testset "particle boundaries reject invalid bounds" begin

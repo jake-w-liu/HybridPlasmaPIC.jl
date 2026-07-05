@@ -65,6 +65,18 @@ function ElectrostaticPIC(g::FourierGrid{D,T}, Nparticles::Integer; n0 = 1.0) wh
     )
 end
 
+function _resize_espic_particle_workspaces!(es::Electrostatic1D, N::Integer)
+    length(es.Ep) == N || resize!(es.Ep, N)
+    return es
+end
+
+function _resize_espic_particle_workspaces!(es::ElectrostaticPIC, N::Integer)
+    for c = 1:3
+        length(es.Ep[c]) == N || resize!(es.Ep[c], N)
+    end
+    return es
+end
+
 "Solve −∂²φ = ρ/ε0, E = −∂φ, spectrally: Ê_m = −i ρ̂_m/(ε0 k_m), Ê_0 = 0."
 function poisson_E!(es::Electrostatic1D{T}) where {T}
     g = es.g
@@ -139,6 +151,7 @@ end
 "Deposit electron density and solve the field (call once after loading)."
 function init_espic!(es::Electrostatic1D{T}, e::ParticleSet{1,T}) where {T}
     _require_espic_electrons(e)
+    _resize_espic_particle_workspaces!(es, nparticles(e))
     density!(es.ne, e, es.g, CIC())
     poisson_E!(es)
     es.primed[] = false                 # re-arm the one-time priming for the next step
@@ -147,6 +160,7 @@ end
 
 function init_espic!(es::ElectrostaticPIC{D,T}, e::ParticleSet{D,T}) where {D,T}
     _require_espic_electrons(e)
+    _resize_espic_particle_workspaces!(es, nparticles(e))
     density!(es.ne, e, es.g, CIC())
     poisson_E!(es)
     es.primed[] = false                 # re-arm the one-time priming for the next step
@@ -163,6 +177,7 @@ function step_espic!(es::Electrostatic1D{T}, e::ParticleSet{1,T}, dt::Real) wher
     _require_espic_electrons(e)
     dtT = _validated_nonnegative_dt(T, dt; name = "step_espic!")
     iszero(dtT) && return es            # dt=0 no-op: do not consume the one-time priming
+    _resize_espic_particle_workspaces!(es, nparticles(e))
     g = es.g
     L = g.L[1]
     qm = -one(T)
@@ -202,6 +217,7 @@ function step_espic!(es::ElectrostaticPIC{D,T}, e::ParticleSet{D,T}, dt::Real) w
     _require_espic_electrons(e)
     dtT = _validated_nonnegative_dt(T, dt; name = "step_espic!")
     iszero(dtT) && return es            # dt=0 no-op: do not consume the one-time priming
+    _resize_espic_particle_workspaces!(es, nparticles(e))
     g = es.g
     gather_vector!(es.Ep, es.E, e, g, CIC())
     qm = e.q / e.m

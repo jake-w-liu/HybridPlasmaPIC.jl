@@ -36,8 +36,25 @@ end
     @test_throws ArgumentError PerpShock3D(8, 4, 4, 1.0, 1.0, 0.0)
     @test_throws ArgumentError PerpShock3D(8, 4, 4, 1.0, 1.0, 1.0; Te = -0.1)
     @test_throws ArgumentError PerpShock3D(8, 4, 4, 1.0, 1.0, 1.0; γe = 1.0)
+    @test_throws ArgumentError PerpShock3D(8, 0, 4, 1.0, 1.0, 1.0)
+    @test_throws ArgumentError PerpShock3D(8, 4, 0, 1.0, 1.0, 1.0)
     @test_throws ArgumentError PerpShock3D(8, 4, 4, 1.0, 1.0, 1.0; η = NaN)
     @test_throws ArgumentError PerpShock3D(8, 4, 4, 1.0, 1.0, 1.0; η = -0.1)
+    @test_throws ArgumentError shock3d_density_weight(1.0, 1.0, 1.0, 1.0, 0)
+end
+
+@testset "PerpShock3D moment velocity floor uses density units" begin
+    T = Float64
+    sh = PerpShock3D(3, 4, 4, T(1.0), T(1.0), T(1.0); nfloor = T(0.2))
+    ps = ParticleSet{3,T}(1)
+    ps.x[1][1] = T(0.5)
+    ps.x[2][1] = T(0.0)
+    ps.x[3][1] = T(0.0)
+    ps.v[1][1] = T(1.0)
+    ps.weight[1] = T(0.01)
+    deposit_moments3d!(sh, ps)
+    @test sh.n[2, 1, 1] > sh.nfloor
+    @test sh.u[1][2, 1, 1] ≈ 1.0
 end
 
 @testset "Shock3D operators & div-B" begin

@@ -68,6 +68,17 @@ end
     @test abs(E1 - E0) / E0 < 1e-10
 end
 
+@testset "BGK conserves energy when selected subset is cold" begin
+    T = Float64
+    ps = ParticleSet{1,T}(3)
+    ps.v[1] .= T[0.0, 0.0, 10.0]
+    P0, E0 = set_totals(ps)
+    collide_bgk!(ps, 1.0, 1.0; rng = MersenneTwister(4))
+    P1, E1 = set_totals(ps)
+    @test all(P1[c] ≈ P0[c] for c = 1:3)
+    @test E1 ≈ E0 rtol = 1e-14 atol = 1e-14
+end
+
 @testset "BGK-003 isotropization of a bi-Maxwellian" begin
     T = Float64
     N = 20_000
@@ -210,7 +221,10 @@ end
     @test ps.v[1] == snap[1] && ps.v[2] == snap[2] && ps.v[3] == snap[3]
     @test_throws ArgumentError collide_coulomb!(ps, -1.0, 0.1)
     @test_throws ArgumentError collide_coulomb!(ps, 1.0, -0.1)
+    @test_throws ArgumentError collide_coulomb!(ps, Inf, 0.1)
+    @test_throws ArgumentError collide_coulomb!(ps, 1.0, Inf)
     @test_throws ArgumentError collide_coulomb!(ps, 1.0, 0.1; u_floor = 0.0)
+    @test ps.v[1] == snap[1] && ps.v[2] == snap[2] && ps.v[3] == snap[3]
     # single particle: no pair → no-op, no error
     ps1 = ParticleSet{1,T}(1)
     ps1.v[1][1] = 0.7

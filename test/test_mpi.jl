@@ -146,6 +146,7 @@ end
         @test_throws ArgumentError mpi_exchange_field_halos!(copy(field[1]), ctx; halo = huge)
 
         moments = [[2.0, 10.0, 11.0, 12.0, 3.0]]
+        @test_throws ArgumentError exchange_ghost_moments!(deepcopy(moments), ctx.layout; halo = huge)
         moment_stats = exchange_ghost_moments!(moments, ctx.layout; halo = 1)
         @test moment_stats == (exchanged = 0, dropped = 0)
         @test moments[1] == [2.0, 10.0, 11.0, 12.0, 3.0]
@@ -186,6 +187,23 @@ end
         fill!(f.ui[2], 3.0)
         fill!(f.ui[3], 4.0)
         status = GPUAwareMPIStatus(false, false, false, :test, "host-only one-rank test")
+
+        badmass = ParticleSet{1,Float64}(4; q = 1.0, m = 0.0)
+        load_lattice_1d!(badmass, 0.0, 10.0)
+        set_density_weight!(badmass, 1.0, g)
+        st_bad = HybridStepper(g, HybridModel(IsothermalElectrons(0.0)), NGP(), nparticles(badmass))
+        fill!(st_bad.fields.B[3], 1.0)
+        mpi_init!(st_bad, badmass, ctx; gpu_status = status)
+        x_bad0 = copy(badmass.x[1])
+        v_bad0 = ntuple(c -> copy(badmass.v[c]), 3)
+        Ep_bad0 = ntuple(c -> copy(st_bad.Ep[c]), 3)
+        Bp_bad0 = ntuple(c -> copy(st_bad.Bp[c]), 3)
+        @test_throws ArgumentError mpi_step!(st_bad, badmass, ctx, 0.1; NB = 1, gpu_status = status)
+        @test st_bad.step[] == 0
+        @test badmass.x[1] == x_bad0
+        @test all(badmass.v[c] == v_bad0[c] for c = 1:3)
+        @test all(st_bad.Ep[c] == Ep_bad0[c] for c = 1:3)
+        @test all(st_bad.Bp[c] == Bp_bad0[c] for c = 1:3)
 
         @test_throws ArgumentError mpi_compute_moments!(
             f,

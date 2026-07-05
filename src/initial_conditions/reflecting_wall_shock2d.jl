@@ -181,9 +181,10 @@ function deposit_moments2d!(sh::PerpShock2D{T}, ps::ParticleSet{2,T}) where {T}
     H = sh.sbp.H
     dy = sh.dy
     @inbounds for j = 1:sh.ny, i = 1:sh.nx
+        vol = H[i] * dy
         ws = sh.wsum[i, j]
-        sh.n[i, j] = ws / (H[i] * dy)
-        wsf = max(ws, nf)
+        sh.n[i, j] = ws / vol
+        wsf = max(ws, nf * vol)
         sh.ux[i, j] = sh.mx[i, j] / wsf
         sh.uy[i, j] = sh.my[i, j] / wsf
         sh.uz[i, j] = sh.mz[i, j] / wsf
@@ -227,18 +228,21 @@ function _d2x!(d2::Matrix{T}, f::Matrix{T}, dx::T) where {T}
 end
 
 # Magnetic flux is frozen to the ion bulk flow (motional induction): with the
-# frozen n+1/2 ion velocity (u_x,u_y), Faraday of the motional field −u×B gives
-#   ∂t Bz = −∂x(u_x Bz) − ∂y(u_y Bz) + η ∂xx Bz   (+ inflow SAT toward B0).
+# frozen n+1/2 ion velocity (u_x,u_y), Faraday of the motional field −u×B plus
+# resistive Ohm term ηJ gives
+#   ∂t Bz = −∂x(u_x Bz) − ∂y(u_y Bz) + η(∂xx + ∂yy)Bz   (+ inflow SAT toward B0).
 # This is the 2D analog of the verified 1D flux form (stable advection — no stiff
 # Hall whistler in the field advance; the Hall/pressure terms enter only the
-# particle electric field via compute_E2d!). Reduces to −∂x(u_x Bz) when y-uniform.
+# particle electric field via compute_E2d!). Reduces to the 1D flux-plus-resistivity form when y-uniform.
 function _bz_rhs2d!(dB::Matrix{T}, Bz_trial::Matrix{T}, sh::PerpShock2D{T}) where {T}
     @. sh.Jx = sh.ux * Bz_trial                       # F_x = u_x Bz (scratch)
     @. sh.Jy = sh.uy * Bz_trial                       # F_y = u_y Bz (scratch)
     sbp_deriv_x!(sh.dEy_x, sh.Jx, sh.sbp)             # ∂x F_x
     fourier_deriv_y!(sh.dEx_y, sh.Jy, sh.ywork)       # ∂y F_y
     _d2x!(sh.d2, Bz_trial, sh.sbp.dx)
-    @. dB = -(sh.dEy_x + sh.dEx_y) + sh.η * sh.d2
+    fourier_deriv_y!(sh.Jx, Bz_trial, sh.ywork)
+    fourier_deriv_y!(sh.Jy, sh.Jx, sh.ywork)
+    @. dB = -(sh.dEy_x + sh.dEx_y) + sh.η * (sh.d2 + sh.Jy)
     τH = sh.τ / sh.sbp.H[sh.nx]
     @inbounds for j = 1:sh.ny
         dB[sh.nx, j] += -τH * (Bz_trial[sh.nx, j] - sh.B0)
@@ -345,7 +349,13 @@ function step_shock2d!(
 end
 
 "Particle weight for a uniform load over [0,Lx]×[0,Ly] depositing density n0."
-shock2d_density_weight(n0, Lx, Ly, Np) = n0 * Lx * Ly / Np
+function shock2d_density_weight(n0, Lx, Ly, Np)
+    isfinite(n0) && n0 >= 0 || throw(ArgumentError("n0 must be finite and non-negative"))
+    isfinite(Lx) && Lx > 0 || throw(ArgumentError("Lx must be finite and positive"))
+    isfinite(Ly) && Ly > 0 || throw(ArgumentError("Ly must be finite and positive"))
+    N = _require_positive_intlike("Np", Np)
+    return n0 * Lx * Ly / N
+end
 
 """
     shock_surface(sh) -> (xs, mean_xs, sigma_xs)

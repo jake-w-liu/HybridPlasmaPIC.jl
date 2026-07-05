@@ -156,8 +156,8 @@ function collide_bgk!(
     # and Wsub|ū|² is exactly the mean-flow energy of the corrected subset, so
     # K_target ≥ 0 by construction (Eold ≥ Wsub|ū|² by Cauchy–Schwarz).
     Emean = Wsub * (ūx^2 + ūy^2 + ūz^2)
-    Ktarget = Eold - Emean
-    if K1 > 0 && Ktarget > 0
+    Ktarget = max(Eold - Emean, zero(T))
+    if K1 > 0
         α = sqrt(Ktarget / K1)
         @inbounds for p = 1:N
             sel[p] || continue
@@ -207,16 +207,14 @@ function collide_coulomb!(
     rng = Random.default_rng(),
     u_floor::Real = 1e-3,
 ) where {D,T}
-    gcoeff >= 0 || throw(ArgumentError("collision coefficient gcoeff must be ≥ 0"))
-    dt >= 0 || throw(ArgumentError("dt must be ≥ 0"))
+    gc = _require_finite_nonnegative_real("collision coefficient gcoeff", gcoeff, T)
+    dtT = _require_finite_nonnegative_real("dt", dt, T)
     uf = _require_finite_positive_real("u_floor", u_floor, T)
     N = nparticles(ps)
-    (N < 2 || gcoeff == 0 || dt == 0) && return ps
+    (N < 2 || gc == 0 || dtT == 0) && return ps
 
     vx, vy, vz = ps.v
     w = ps.weight
-    gc = T(gcoeff)
-    dtT = T(dt)
     twoπ = 2 * T(π)
 
     # ponytail: randperm allocates an 8N-byte index vector per call (like collide_bgk!'s

@@ -68,6 +68,20 @@ end
     @test_throws ArgumentError PerpShock2D(8, 4, 1.0, 1.0; γe = 1.0)
     @test_throws ArgumentError PerpShock2D(8, 4, 1.0, 1.0; η = NaN)
     @test_throws ArgumentError PerpShock2D(8, 4, 1.0, 1.0; η = -0.1)
+    @test_throws ArgumentError shock2d_density_weight(1.0, 1.0, 1.0, 0)
+end
+
+@testset "PerpShock2D moment velocity floor uses density units" begin
+    T = Float64
+    sh = PerpShock2D(3, 4, T(1.0), T(1.0); nfloor = T(0.2))
+    ps = ParticleSet{2,T}(1)
+    ps.x[1][1] = T(0.5)
+    ps.x[2][1] = T(0.0)
+    ps.v[1][1] = T(1.0)
+    ps.weight[1] = T(0.03)
+    deposit_moments2d!(sh, ps)
+    @test sh.n[2, 1] > sh.nfloor
+    @test sh.ux[2, 1] ≈ 1.0
 end
 
 @testset "PerpShock2D transverse FFT workspace" begin
@@ -75,6 +89,19 @@ end
     @test sh.ywork isa FourierDerivYWorkspace
     compute_E2d!(sh)
     @test (@allocated compute_E2d!(sh)) == 0
+end
+
+@testset "PerpShock2D resistivity diffuses transverse Bz modes" begin
+    η = 0.1
+    sh = PerpShock2D(5, 16, 1.0, 2π; η, τ = 0.0, B0 = 0.0, Te = 0.0)
+    for j = 1:sh.ny, i = 1:sh.nx
+        sh.Bz[i, j] = sin(sh.y[j])
+        sh.n[i, j] = 1.0
+    end
+    K = zeros(size(sh.Bz))
+    HybridPlasmaPIC._bz_rhs2d!(K, sh.Bz, sh)
+    expected = [-η * sin(sh.y[j]) for i = 1:sh.nx, j = 1:sh.ny]
+    @test maximum(abs, K .- expected) < 1e-12
 end
 
 @testset "Phase-11 2D perpendicular shock" begin

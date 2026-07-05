@@ -139,6 +139,13 @@ end
     @test all(st.fields.ui[c] == u0[c] for c = 1:3)
     @test all(st.fields.B[c] == B0[c] for c = 1:3)
 
+    @test step_hall_mhd!(st, 0.0) === st
+    @test st.step[] == 0
+    @test st.time[] == 0.0
+    @test st.fields.n == n0
+    @test all(st.fields.ui[c] == u0[c] for c = 1:3)
+    @test all(st.fields.B[c] == B0[c] for c = 1:3)
+
     for _ = 1:5
         step_hall_mhd!(st, 0.05)
     end

@@ -16,6 +16,7 @@ function gather_scalar!(
     length(out) == nparticles(ps) || throw(DimensionMismatch("out length ≠ particle count"))
     size(field) == g.n ||
         throw(DimensionMismatch("field size $(size(field)) does not match grid size $(g.n)"))
+    _validate_particle_positions(ps)
     n = g.n
     stamp = CartesianIndices(ntuple(_ -> width(shape), D))
     @inbounds for (p, oi) in enumerate(eachindex(out))

@@ -8,6 +8,12 @@ Wrap positions into `[lo, hi)` on every axis. Particle count is unchanged.
 function apply_periodic!(ps::ParticleSet{D,T}, lo::NTuple{D}, hi::NTuple{D}) where {D,T}
     loT, hiT = _validated_open_interval(lo, hi, T)
     @inbounds for d = 1:D
+        xd = ps.x[d]
+        for p in eachindex(xd)
+            isfinite(xd[p]) || throw(ArgumentError("particle position x[$d][$p] must be finite"))
+        end
+    end
+    @inbounds for d = 1:D
         l = loT[d]
         L = hiT[d] - loT[d]
         xd = ps.x[d]

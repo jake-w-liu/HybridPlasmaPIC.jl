@@ -128,6 +128,14 @@ function push_gathered!(
     Ex, Ey, Ez = E
     Bx, By, Bz = B
     @inbounds for p in eachindex(ps.weight)
+        _require_finite_field_sample("E[1]", Ex[p], T)
+        _require_finite_field_sample("E[2]", Ey[p], T)
+        _require_finite_field_sample("E[3]", Ez[p], T)
+        _require_finite_field_sample("B[1]", Bx[p], T)
+        _require_finite_field_sample("B[2]", By[p], T)
+        _require_finite_field_sample("B[3]", Bz[p], T)
+    end
+    @inbounds for p in eachindex(ps.weight)
         nx, ny, nz = boris_kick(
             vx[p],
             vy[p],

@@ -10,6 +10,12 @@ Assumes at most one reflection per step (true when |v·dt| < box length).
 function apply_reflecting!(ps::ParticleSet{D,T}, lo::NTuple{D}, hi::NTuple{D}) where {D,T}
     loT, hiT = _validated_open_interval(lo, hi, T)
     @inbounds for d = 1:D
+        xd = ps.x[d]
+        for p in eachindex(xd)
+            isfinite(xd[p]) || throw(ArgumentError("particle position x[$d][$p] must be finite"))
+        end
+    end
+    @inbounds for d = 1:D
         l = loT[d]
         h = hiT[d]
         xd = ps.x[d]
