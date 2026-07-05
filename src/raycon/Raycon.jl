@@ -34,11 +34,18 @@
 #   - flux-surface root finding to 1e-12 (upstream fzero TolX 1e-4);
 #   - our own Dormand–Prince 4(5) integrator with the upstream tolerances;
 #     conversion/caustic monitors are recorded at accepted steps;
-#   - cld3x3 mode-conversion analysis is refused with an error: upstream's 3x3
-#     second-derivative expressions carry a known sign bug (dispertok.m lines
-#     476-477 "FIX THIS"); 3x3 ray TRACING is fully supported;
-#   - the (upstream-disabled) amplitude-transport machinery is ported where it
-#     is load-bearing for 'Con' runs; full 'Amp' evolution is not claimed.
+#   - cld3x3 mode-conversion analysis is implemented with corrected math
+#     (upstream's 3x3 second-derivative expressions carry a known sign bug,
+#     dispertok.m lines 476-477 "FIX THIS"): exact polynomial extraction of
+#     the determinant derivatives plus Tracy–Kaufman near-null-subspace
+#     coupling, reducing to the pinned 2x2 result when the electrostatic
+#     branch decouples (RCN-014);
+#   - the (upstream-disabled) amplitude-transport layer is completed rather
+#     than skipped: integrate_ray_amplitude / trace_rays(amplitude=true)
+#     evolve the Riccati focusing tensor, lnE² and eikonal phase with Maslov
+#     caustic switching, cyclotron/Landau/TTMP damping with per-species
+#     deposition, and conversion amplitude bookkeeping, verified against
+#     symplectic tangent-map oracles (RCN-015).
 
 module Raycon
 
