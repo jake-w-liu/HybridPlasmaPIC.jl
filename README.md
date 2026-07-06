@@ -161,6 +161,7 @@ stability of the chosen integrator. In 1D, in the fine-grid limit
 | **Hall-MHD** | periodic single-fluid Hall-MHD with the same electron closures; ion pressure `p_i = Ti·n`; the electron pressure force acts in both Ohm's law and the bulk momentum equation; explicit RK4 with divergence-free projection | `HallMHDModel`, `HallMHDState`, `step_hall_mhd!` |
 | **Electrostatic PIC** | full-kinetic electrons over a neutralizing background; spectral Poisson solve; leapfrog with one-time velocity priming; 1D/2D/3D | `ElectrostaticPIC` (or `Electrostatic1D`), `init_espic!`, `step_espic!` |
 | **Electromagnetic PIC** | full EM PIC with kinetic electrons, optional mobile ions (`mobile = true`), optional relativistic Boris push (`relativistic = true`), spectral charge-conserving current (continuity holds to roundoff on every represented mode), Gauss-law initialization; `EMPIC1D` additionally offers electron subcycling `n_sub` | `EMPIC`, `EMPIC1D`, `init_empic!`, `step_empic!`, `charge_conservation_residual` |
+| **Fusion geometry / gyrokinetics / AMR** | integrated tokamak-oriented building blocks: toroidal curvilinear metric operators, guiding-centre gyrokinetics, and finite-volume AMR primitives alongside the existing mesh/model subsystems | `ToroidalGrid`, `metric_gradient`, `GuidingCentre`, `push_guiding_centre!`, `AMRGrid`, `refine` |
 | **KdV reference** | integrating-factor pseudo-spectral KdV solver + analytic soliton, used as a nonlinear-wave verification target | `kdv_solve`, `kdv_soliton` |
 
 The PIC models share the grid, particle, and diagnostic infrastructure with
@@ -371,8 +372,8 @@ src/
   initial_conditions/     Rankine–Hugoniot, shocks, ramps, KdV
   integrators/            HybridStepper, CAM-CL, recommended_dt, CN whistler demo
   io/                     checkpoint/restart, metadata, field dumps
-  meshes/                 pointer notes (concrete operators live in SpectralOperators.jl)
-  models/                 hybrid PIC, Hall-MHD, electrostatic & electromagnetic PIC
+  meshes/                 Cartesian, local FD, toroidal curvilinear, and AMR mesh utilities
+  models/                 hybrid PIC, Hall-MHD, electrostatic/electromagnetic PIC, gyrokinetics
   parallel/               rank layouts, MPI, threads, GPU/extension hooks
   particles/              ParticleSet{D}, loaders, Boris push, collisions, sorting
   raycon/                 RAYCON port (tokamak RF mode conversion)

@@ -45,6 +45,8 @@ include("utils/validation.jl")
 # --- Meshes ---
 include("meshes/cartesian_mesh.jl")
 include("meshes/local_finite_difference.jl")
+include("meshes/curvilinear_mesh.jl")
+include("meshes/adaptive_mesh_refinement.jl")
 
 # --- Particles ---
 include("models/abstract_model.jl")
@@ -101,6 +103,7 @@ include("initial_conditions/instabilities.jl")
 include("models/electrostatic.jl")
 include("models/full_pic.jl")
 include("models/hall_mhd.jl")
+include("models/gyrokinetics.jl")
 
 # --- Diagnostics ---
 include("diagnostics/pressure_tensor.jl")
@@ -206,6 +209,21 @@ export MHDState, rankine_hugoniot
 export save_checkpoint, load_checkpoint!
 export kdv_soliton, kdv_solve
 export SBP1D, sbp_deriv!, sbp_deriv, sbp_deriv_x!, FourierDerivYWorkspace, fourier_deriv_y!
+export ToroidalGrid,
+    gridsize,
+    scale_factors,
+    jacobian,
+    to_cartesian,
+    metric_gradient,
+    metric_divergence,
+    AMRGrid,
+    ncells,
+    cell_center,
+    refine_flags,
+    refine,
+    restrict!,
+    prolong!,
+    effective_resolution
 export PerpShock,
     ShockInjector, init_shock!, step_shock!, deposit_moments!, compute_E!, shock_density_weight
 export LeroyBoundary, step_leroy_shock!
@@ -310,6 +328,13 @@ export RunMetadata, capture_metadata, CHECKPOINT_SCHEMA_VERSION, save_run, load_
 export PlasmaUnits, alfven_speed, gyrofrequency, inertial_length, to_SI, to_normalized
 export rh_branches
 export SpectralOperators, exp_filter!, dealias_two_thirds!, fft_friendly_size, with_fftw_wisdom
+export GuidingCentre,
+    exb_drift,
+    gradb_drift,
+    curvature_drift,
+    drift_velocity,
+    push_guiding_centre!,
+    gyroaverage
 export CAMCLStepper, init_camcl!, step_camcl!
 export EMPIC, EMPIC1D, init_empic!, step_empic!, em_field_energy, charge_conservation_residual
 export HallMHDModel, HallMHDState, hall_mhd_ohms_law!, hall_mhd_rhs!, step_hall_mhd!
