@@ -71,7 +71,9 @@ function main(args = ARGS)
     println("PlotlySupply ", version, " at ", path)
     println("Plot metadata written to ", metadata)
     for output in outputs
-        output === nothing || println("PDF written: ", output)
+        for path in _plot_output_paths(output)
+            println("PDF written: ", path)
+        end
     end
     return 0
 end

@@ -86,6 +86,7 @@ const _CASE_LABELS = Dict(
     "22_shock_spacecraft_diagnostics" => "22_",
     "23_shock_multidim_ramp_validation" => "23_",
     "24_shock_driver_sweep_validation" => "24_",
+    "33_raycon_paper_validation" => "33_",
 )
 
 function _case_label(id::AbstractString)
@@ -123,6 +124,18 @@ function _save_pdf(path::AbstractString, fig)
     mkpath(dirname(path))
     PlotlySupply.savefig(path, fig)
     return path
+end
+
+function _plot_output_paths(output)
+    output === nothing && return String[]
+    if output isa AbstractVector
+        paths = String[]
+        for item in output
+            append!(paths, _plot_output_paths(item))
+        end
+        return paths
+    end
+    return [String(output)]
 end
 
 function _summary_plot(artifact_dir::AbstractString, selected::Vector{String} = String[])
@@ -272,6 +285,10 @@ function _write_plot_metadata(
     path::AbstractString,
     outputs,
 )
+    output_paths = String[]
+    for output in outputs
+        append!(output_paths, _plot_output_paths(output))
+    end
     metadata_path = joinpath(artifact_dir, "plot_metadata.csv")
     mkpath(artifact_dir)
     open(metadata_path, "w") do io
@@ -279,7 +296,7 @@ function _write_plot_metadata(
         println(io, "plotlysupply_version,", version)
         println(io, "plotlysupply_path,\"", replace(path, "\"" => "\"\""), "\"")
         println(io, "template,", PlotlySupply.get_default_template())
-        println(io, "pdf_count,", count(!isnothing, outputs))
+        println(io, "pdf_count,", length(output_paths))
     end
     return metadata_path
 end
@@ -289,6 +306,8 @@ function _run_single_plot_main(plotter::Function, args; default_artifact_dir::Ab
     version, path = _require_plotlysupply_180()
     output = plotter(options.artifact_dir)
     println("PlotlySupply ", version, " at ", path)
-    output === nothing || println("PDF written: ", output)
+    for path in _plot_output_paths(output)
+        println("PDF written: ", path)
+    end
     return 0
 end

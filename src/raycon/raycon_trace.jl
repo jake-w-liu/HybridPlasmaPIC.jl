@@ -4,12 +4,10 @@
 #
 # The upstream code integrates dz/dσ = J∇U with MATLAB ode45 (RelTol 1e-6,
 # AbsTol 1e-7 for 'Con', InitialStep 1e-7·span) and records the conversion
-# monitor mon2 = |tr DD| along the ray; a terminal event fires where the
-# quadratic fit of the last 6 monitor samples has zero time-derivative (the
-# closest approach of the avoided crossing), after a 15-sample warmup. This
-# port records monitors at accepted steps and applies the same fit/eventing;
-# the event resolves at step resolution (the conversion analysis only needs a
-# point near the monitor minimum, as upstream notes).
+# monitor mon2 = |tr DD| along the ray. This port records monitors at accepted
+# steps and stops at a bracketed local minimum of mon2 after a 15-sample warmup;
+# the conversion analysis needs the closest-approach point, not an earlier
+# derivative-fit crossing while the monitor is still falling.
 
 # Dormand–Prince 4(5) coefficients
 const _DP_A = (
@@ -41,15 +39,22 @@ struct RayconTrace
     zddot::Vector{Float64}
 end
 
-# quadratic least-squares fit of v(t) over the given samples; returns the
-# coefficients (c0, c1, c2) of c0 + c1·τ + c2·τ² with τ = t/t[1] (upstream
-# rescaling). Times must be positive.
-function _quadfit(ts::AbstractVector{Float64}, vs::AbstractVector{Float64})
-    sca = ts[1]
-    τ = ts ./ sca
-    A = hcat(ones(length(τ)), τ, τ .^ 2)
-    cf = A \ vs
-    return cf[1], cf[2], cf[3], sca
+function _event_derivatives(sigmas::Vector{Float64}, ys::Matrix{Float64}, idx::Integer)
+    idx >= 3 || throw(ArgumentError("event derivatives require at least two previous states"))
+    t0 = sigmas[idx]
+    tm1 = sigmas[idx-1]
+    tm2 = sigmas[idx-2]
+    zv0 = ys[:, idx]
+    zm1 = ys[:, idx-1]
+    zm2 = ys[:, idx-2]
+    dm2 = (tm2 - tm1) * (tm2 - t0)
+    dm1 = (tm1 - tm2) * (tm1 - t0)
+    d0d = (t0 - tm2) * (t0 - tm1)
+    zdot =
+        zm2 ./ dm2 .* (t0 - tm1) .+ zm1 ./ dm1 .* (t0 - tm2) .+
+        zv0 ./ d0d .* (2 * t0 - tm1 - tm2)
+    zddot = 2 .* (zm2 ./ dm2 .+ zm1 ./ dm1 .+ zv0 ./ d0d)
+    return zdot, zddot
 end
 
 """
@@ -103,8 +108,6 @@ function integrate_ray(
         rethrow()
     end
 
-    adjcnv = NaN                    # event normalization (upstream adjinit)
-    lastev = NaN                    # previous event value
     nacc = 1
     ks = Vector{Vector{Float64}}(undef, 7)
     # step-underflow scale follows the σ-SPAN (a span of 1e-8 uses steps far
@@ -167,48 +170,20 @@ function integrate_ray(
             rethrow()
         end
 
-        # ---- conversion event (trajectory.m 'events' + normalization) ----
-        if detect_conversion && nacc > warmup && length(mons) >= 6 && sigmas[end-5] > 0
-            ts = sigmas[end-5:end]
-            vs = mons[end-5:end]
-            c0, c1, c2, sca = _quadfit(ts, vs)
-            τnow = σ / sca
-            moncnv = c1 + 2 * c2 * τnow          # fitted d(mon2)/dτ at current σ
-            if isnan(adjcnv)
-                adjcnv = moncnv != 0 ? 1 / moncnv : 1.0
+        # ---- conversion event: bracketed minimum of the conversion monitor ----
+        if detect_conversion && nacc > warmup && length(mons) >= 4
+            event_idx = length(mons) - 1
+            if event_idx >= 3 &&
+               event_idx > warmup &&
+               mons[event_idx] <= mons[event_idx-1] &&
+               mons[event_idx] <= mons[event_idx+1]
+                zdot, zddot = _event_derivatives(sigmas, ys, event_idx)
+                resize!(sigmas, event_idx)
+                resize!(mons, event_idx)
+                ys = ys[:, 1:event_idx]
+                status = :conversion_event
+                break
             end
-            ev = adjcnv * moncnv
-            if !isnan(lastev) && isfinite(ev) && sign(ev) != sign(lastev) && ev != 0
-                # confirmation fit on |mon2| (ray.m 'convert_which'): a minimum
-                # requires positive curvature and a derivative sign change
-                n5 = min(5, length(mons) - 1) + 1
-                t5 = sigmas[end-n5+1:end]
-                v5 = abs.(mons[end-n5+1:end])
-                d0, d1, d2, s5 = _quadfit(t5, v5)
-                τs = t5 ./ s5
-                z1a = d1 + 2 * d2 * τs[1]
-                z1b = d1 + 2 * d2 * τs[end]
-                if d2 > 0 && sign(z1a) != sign(z1b)
-                    # detection point: velocity/acceleration by 3-point divided
-                    # differences of the trajectory (ray.m 'convert_list')
-                    t0 = sigmas[end]
-                    tm1 = sigmas[end-1]
-                    tm2 = sigmas[end-2]
-                    zv0 = ys[:, end]
-                    zm1 = ys[:, end-1]
-                    zm2 = ys[:, end-2]
-                    dm2 = (tm2 - tm1) * (tm2 - t0)
-                    dm1 = (tm1 - tm2) * (tm1 - t0)
-                    d0d = (t0 - tm2) * (t0 - tm1)
-                    zdot =
-                        zm2 ./ dm2 .* (t0 - tm1) .+ zm1 ./ dm1 .* (t0 - tm2) .+
-                        zv0 ./ d0d .* (2 * t0 - tm1 - tm2)
-                    zddot = 2 .* (zm2 ./ dm2 .+ zm1 ./ dm1 .+ zv0 ./ d0d)
-                    status = :conversion_event
-                    break
-                end
-            end
-            lastev = ev
         end
         if σ >= σe
             status = :end_of_span
