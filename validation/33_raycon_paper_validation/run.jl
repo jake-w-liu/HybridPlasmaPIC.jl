@@ -4,17 +4,13 @@ if !isdefined(@__MODULE__, :ValidationCase)
     include(joinpath(@__DIR__, "..", "common.jl"))
 end
 
-const RAYCON_TRACY_REFERENCE =
-    "Tracy et al. 2001 Eq. (22); Tracy, Kaufman, and Jaun 2007 Eq. (58)"
+const RAYCON_TRACY_REFERENCE = "Tracy et al. 2001 Eq. (22); Tracy, Kaufman, and Jaun 2007 Eq. (58)"
 
-const RAYCON_JAUN_REFERENCE =
-    "Jaun et al. 2007 PPCF Figs. 3-4 and Sec. 3.1 D(20%He3) JET mid-plane case"
+const RAYCON_JAUN_REFERENCE = "Jaun et al. 2007 PPCF Figs. 3-4 and Sec. 3.1 D(20%He3) JET mid-plane case"
 
-const RAYCON_JAUN_OFFMID_REFERENCE =
-    "Jaun et al. 2007 PPCF Figs. 6-7 D(20%He3) off-mid-plane case"
+const RAYCON_JAUN_OFFMID_REFERENCE = "Jaun et al. 2007 PPCF Figs. 6-7 D(20%He3) off-mid-plane case"
 
-const RAYCON_JAUN_DH_REFERENCE =
-    "Jaun et al. 2007 PPCF Figs. 9-10 and Sec. 4 D(20%H) strong-coupling case"
+const RAYCON_JAUN_DH_REFERENCE = "Jaun et al. 2007 PPCF Figs. 9-10 and Sec. 4 D(20%H) strong-coupling case"
 
 function _jet_dhe3_paper_problem()
     # The Jaun Fig. 3 trajectory follows the bundled upstream jet06 preset:
@@ -154,11 +150,7 @@ function _trace_rays_from_state(
     return (; rays, conversions)
 end
 
-function _write_phase_space_overlay!(
-    path::AbstractString,
-    result,
-    conversions,
-)
+function _write_phase_space_overlay!(path::AbstractString, result, conversions)
     rows = Tuple{String,Int,Float64,Float64,String}[]
     for (i, ray) in enumerate(result.rays)
         for j = 1:size(ray.y, 2)
@@ -168,7 +160,10 @@ function _write_phase_space_overlay!(
     for (i, c) in enumerate(conversions)
         push!(rows, ("computed_conversion_$i", 1, c.incoming[1], c.incoming[3], "incoming"))
         push!(rows, ("computed_conversion_$i", 2, c.saddle[1], c.saddle[3], "saddle"))
-        push!(rows, ("computed_conversion_$i", 3, c.transmitted[1], c.transmitted[3], "transmitted"))
+        push!(
+            rows,
+            ("computed_conversion_$i", 3, c.transmitted[1], c.transmitted[3], "transmitted"),
+        )
     end
     paper_points = (
         ("paper_label_1_launch", 3.50, -27.0),
@@ -180,11 +175,7 @@ function _write_phase_space_overlay!(
     for (i, (label, r, kr)) in enumerate(paper_points)
         push!(rows, (label, i, r, kr, "paper_target"))
     end
-    return _write_csv(
-        path,
-        ("series", "point_index", "R_m", "kR_inv_m", "kind"),
-        rows,
-    )
+    return _write_csv(path, ("series", "point_index", "R_m", "kR_inv_m", "kind"), rows)
 end
 
 function _write_rz_trace_overlay!(path::AbstractString, result, paper_points)
@@ -197,22 +188,27 @@ function _write_rz_trace_overlay!(path::AbstractString, result, paper_points)
     for entry in result.conversions
         c = entry.conversion
         i = length(rows) + 1
-        push!(rows, ("conversion_$(entry.ray)_incoming", i, c.incoming[1], c.incoming[2], "incoming"))
+        push!(
+            rows,
+            ("conversion_$(entry.ray)_incoming", i, c.incoming[1], c.incoming[2], "incoming"),
+        )
         push!(rows, ("conversion_$(entry.ray)_saddle", i + 1, c.saddle[1], c.saddle[2], "saddle"))
         push!(
             rows,
-            ("conversion_$(entry.ray)_transmitted", i + 2, c.transmitted[1], c.transmitted[2], "transmitted"),
+            (
+                "conversion_$(entry.ray)_transmitted",
+                i + 2,
+                c.transmitted[1],
+                c.transmitted[2],
+                "transmitted",
+            ),
         )
     end
     for (i, point) in enumerate(paper_points)
         label, r, z = point
         push!(rows, (String(label), i, Float64(r), Float64(z), "paper_target"))
     end
-    return _write_csv(
-        path,
-        ("series", "point_index", "R_m", "Z_m", "kind"),
-        rows,
-    )
+    return _write_csv(path, ("series", "point_index", "R_m", "Z_m", "kind"), rows)
 end
 
 function _write_conversion_summary!(path::AbstractString, result)
@@ -372,14 +368,15 @@ function _case_33_raycon_paper_validation(artifact_dir::AbstractString)
         end
     else
         tau_formula_errors = [
-            abs(c.tau - exp(-pi * c.eta2)) for c in conversions if isfinite(c.tau) && isfinite(c.eta2)
+            abs(c.tau - exp(-pi * c.eta2)) for
+            c in conversions if isfinite(c.tau) && isfinite(c.eta2)
         ]
         beta_unitarity_errors = [
-            abs(c.tau^2 + abs2(c.beta) - 1.0) for c in conversions if isfinite(c.tau) && isfinite(abs(c.beta))
+            abs(c.tau^2 + abs2(c.beta) - 1.0) for
+            c in conversions if isfinite(c.tau) && isfinite(abs(c.beta))
         ]
-        transmitted_U = [
-            abs(Raycon.dispersion_U(prob, collect(c.transmitted))) for c in conversions
-        ]
+        transmitted_U =
+            [abs(Raycon.dispersion_U(prob, collect(c.transmitted))) for c in conversions]
 
         _push_abs_metric!(
             rows,
@@ -508,11 +505,13 @@ function _case_33_raycon_paper_validation(artifact_dir::AbstractString)
         id = id,
         category = "raycon",
         reference_kind = "published_external_paper",
-        reference =
-            RAYCON_TRACY_REFERENCE * "; " *
-            RAYCON_JAUN_REFERENCE * "; " *
-            RAYCON_JAUN_OFFMID_REFERENCE * "; " *
-            RAYCON_JAUN_DH_REFERENCE,
+        reference = RAYCON_TRACY_REFERENCE *
+                    "; " *
+                    RAYCON_JAUN_REFERENCE *
+                    "; " *
+                    RAYCON_JAUN_OFFMID_REFERENCE *
+                    "; " *
+                    RAYCON_JAUN_DH_REFERENCE,
         rows = rows,
         artifact = artifact,
         notes = notes,

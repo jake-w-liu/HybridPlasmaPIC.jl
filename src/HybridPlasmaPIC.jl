@@ -329,12 +329,7 @@ export PlasmaUnits, alfven_speed, gyrofrequency, inertial_length, to_SI, to_norm
 export rh_branches
 export SpectralOperators, exp_filter!, dealias_two_thirds!, fft_friendly_size, with_fftw_wisdom
 export GuidingCentre,
-    exb_drift,
-    gradb_drift,
-    curvature_drift,
-    drift_velocity,
-    push_guiding_centre!,
-    gyroaverage
+    exb_drift, gradb_drift, curvature_drift, drift_velocity, push_guiding_centre!, gyroaverage
 export CAMCLStepper, init_camcl!, step_camcl!
 export EMPIC, EMPIC1D, init_empic!, step_empic!, em_field_energy, charge_conservation_residual
 export HallMHDModel, HallMHDState, hall_mhd_ohms_law!, hall_mhd_rhs!, step_hall_mhd!

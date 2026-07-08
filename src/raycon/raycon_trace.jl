@@ -51,8 +51,7 @@ function _event_derivatives(sigmas::Vector{Float64}, ys::Matrix{Float64}, idx::I
     dm1 = (tm1 - tm2) * (tm1 - t0)
     d0d = (t0 - tm2) * (t0 - tm1)
     zdot =
-        zm2 ./ dm2 .* (t0 - tm1) .+ zm1 ./ dm1 .* (t0 - tm2) .+
-        zv0 ./ d0d .* (2 * t0 - tm1 - tm2)
+        zm2 ./ dm2 .* (t0 - tm1) .+ zm1 ./ dm1 .* (t0 - tm2) .+ zv0 ./ d0d .* (2 * t0 - tm1 - tm2)
     zddot = 2 .* (zm2 ./ dm2 .+ zm1 ./ dm1 .+ zv0 ./ d0d)
     return zdot, zddot
 end

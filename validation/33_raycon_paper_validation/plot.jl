@@ -43,8 +43,7 @@ function _plot_phase_space_overlay(artifact_dir::AbstractString)
         push!(
             marker_symbols,
             kind == "paper_target" ? "x" :
-            kind == "saddle" ? "diamond" :
-            kind == "transmitted" ? "square" : "circle",
+            kind == "saddle" ? "diamond" : kind == "transmitted" ? "square" : "circle",
         )
         push!(marker_sizes, kind == "computed_ray" ? 0 : 9)
         push!(linewidths, kind == "computed_ray" ? 2.0 : 0.0)
@@ -96,8 +95,7 @@ function _plot_rz_trace_overlay(
         push!(
             marker_symbols,
             kind == "paper_target" ? "x" :
-            kind == "saddle" ? "diamond" :
-            kind == "transmitted" ? "square" : "circle",
+            kind == "saddle" ? "diamond" : kind == "transmitted" ? "square" : "circle",
         )
         push!(marker_sizes, kind == "computed_ray" ? 0 : 9)
         push!(linewidths, kind == "computed_ray" ? 2.0 : 0.0)

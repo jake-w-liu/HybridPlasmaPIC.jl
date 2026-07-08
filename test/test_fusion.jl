@@ -80,8 +80,13 @@ end
     )
     @test _tuple_maxabs(gc.X, (0.0, 0.0, 0.1)) < 1e-14
     @test gc.vpar ≈ 0.7
-    @test gyroaverage(x -> x[1]^2 + x[2]^2 + x[3]^2, (1.0, 2.0, 3.0), 0.5, (0.0, 0.0, 1.0); n = 32) ≈
-          14.25
+    @test gyroaverage(
+        x -> x[1]^2 + x[2]^2 + x[3]^2,
+        (1.0, 2.0, 3.0),
+        0.5,
+        (0.0, 0.0, 1.0);
+        n = 32,
+    ) ≈ 14.25
     @test_throws ArgumentError gyroaverage(x -> x[1], (0.0, 0.0, 0.0), 1.0, (0.0, 0.0, 1.0); n = 2)
 
     B = (0.3, -1.2, 2.0)
