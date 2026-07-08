@@ -4,16 +4,16 @@ if !isdefined(@__MODULE__, :_save_pdf)
     include(joinpath(@__DIR__, "..", "plot_common.jl"))
 end
 
-function plot_21_published_preisser2020_summary(artifact_dir::AbstractString)
+function plot_25_leroy1982_perp_shock(artifact_dir::AbstractString)
     return _metric_plot(
         artifact_dir,
-        "21_published_preisser2020_summary.csv",
-        "21_published_preisser2020_summary.pdf";
-        title = "Preisser 2020 published-summary validation",
+        "25_leroy1982_perp_shock.csv",
+        "25_leroy1982_perp_shock.pdf";
+        title = "Leroy 1982 perpendicular-shock validation",
     )
 end
 
-VALIDATION_PLOT = plot_21_published_preisser2020_summary
+VALIDATION_PLOT = plot_25_leroy1982_perp_shock
 
 if abspath(PROGRAM_FILE) == @__FILE__
     exit(

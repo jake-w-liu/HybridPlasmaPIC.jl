@@ -59,8 +59,8 @@ function case_14_parallel_backend_extension_validation(artifact_dir::AbstractStr
             free_mpi_communicator!(ctx)
         end
     catch err
-        mpi_error = NaN
-        mpi_notes = "MPI local communicator check skipped: $(typeof(err))"
+        mpi_error = 1.0
+        mpi_notes = "MPI local communicator check failed: $(typeof(err))"
     end
 
     artifact = joinpath(artifact_dir, "14_parallel_backend_extension_validation.csv")
@@ -95,44 +95,18 @@ function case_14_parallel_backend_extension_validation(artifact_dir::AbstractStr
             0.0,
         ),
         ("field_halo_exchange_error", halo_error, 0.0, "absolute", halo_error, 0.0),
+        ("mpi_single_rank_cartesian_error", mpi_error, 0.0, "absolute", mpi_error, 0.0),
     )
     _write_metric_csv(artifact, rows)
-    results = _metric_rows_to_results(
+    return _metric_rows_to_results(
         id = id,
         category = "parallel_backend_extensions",
         reference_kind = "analytic",
-        reference = "CPU backend contracts, pencil ownership/ranges, deterministic local halo exchange",
+        reference = "CPU backend contracts, pencil ownership/ranges, deterministic local halo exchange, and MPI.jl COMM_WORLD size-1 Cartesian communicator",
         rows = rows,
         artifact = artifact,
+        notes = mpi_notes,
     )
-    if isfinite(mpi_error)
-        mpirows = (("mpi_single_rank_cartesian_error", mpi_error, 0.0, "absolute", mpi_error, 0.0),)
-        append!(
-            results,
-            _metric_rows_to_results(
-                id = id,
-                category = "mpi_serial_smoke",
-                reference_kind = "external_library",
-                reference = "MPI.jl COMM_WORLD size-1 Cartesian communicator",
-                rows = mpirows,
-                artifact = artifact,
-                notes = mpi_notes,
-            ),
-        )
-    else
-        push!(
-            results,
-            _skip_result(
-                id = id,
-                category = "mpi_serial_smoke",
-                reference_kind = "external_library",
-                reference = "MPI.jl COMM_WORLD size-1 Cartesian communicator",
-                metric = "mpi_single_rank_cartesian_error",
-                notes = mpi_notes,
-            ),
-        )
-    end
-    return results
 end
 
 

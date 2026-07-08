@@ -20,35 +20,33 @@ function case_30_ion_cyclotron_instability(artifact_dir::AbstractString)
     unstable_grows = max(0.0, 0.05 - u.ratio_max)
     stable_quiet = max(0.0, s.ratio_max - 0.02)
     threshold_ok = (u.unstable_theory && !s.unstable_theory) ? 0.0 : 1.0
+    separation = u.ratio_max / max(s.ratio_max, eps(Float64))
+    separation_error = max(0.0, 100.0 - separation)
 
     artifact = joinpath(artifact_dir, "$(id).csv")
     rows = (
         ("emic_unstable_transverse_growth", u.ratio_max, 0.05, "margin", unstable_grows, 0.0),
         ("emic_sub_threshold_stays_at_noise", s.ratio_max, 0.0, "margin", stable_quiet, 0.0),
         ("emic_threshold_matches_theory", threshold_ok, 0.0, "absolute", threshold_ok, 0.0),
+        (
+            "emic_unstable_vs_stable_energy_separation",
+            separation,
+            100.0,
+            "margin",
+            separation_error,
+            0.0,
+        ),
     )
     _write_metric_csv(artifact, rows)
-    gated = _metric_rows_to_results(
+    return _metric_rows_to_results(
         id = id,
         category = "kinetic_instability",
         reference_kind = "analytic",
         reference = "EMIC threshold A > 0.43/β_∥^0.43 (Gary 1993, Theory of Space Plasma Microinstabilities)",
         rows = rows,
         artifact = artifact,
+        notes = "The unstable EMIC case must grow well above noise, the sub-threshold control must stay quiet, and the measured energy separation must exceed 100x.",
     )
-    skip = _skip_result(
-        id = id,
-        category = "kinetic_instability",
-        reference_kind = "analytic",
-        reference = "EMIC growth vs threshold",
-        metric = "emic_transverse_energy",
-        artifact = basename(artifact),
-        notes = "unstable (A=$(round(u.T_anisotropy-1,digits=2)),β∥=$(round(u.beta_par,digits=2))): " *
-                "δB_⊥/B₀ energy → $(round(u.ratio_max,digits=3)); sub-threshold " *
-                "(A=$(round(s.T_anisotropy-1,digits=2))): → $(round(s.ratio_max,digits=4)) (noise); " *
-                "separation $(round(u.ratio_max/max(s.ratio_max,1e-12),digits=0))×.",
-    )
-    return vcat(gated, [skip])
 end
 
 VALIDATION_CASE = ValidationCase(

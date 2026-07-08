@@ -4,16 +4,16 @@ if !isdefined(@__MODULE__, :_save_pdf)
     include(joinpath(@__DIR__, "..", "plot_common.jl"))
 end
 
-function plot_21_published_preisser2020_summary(artifact_dir::AbstractString)
+function plot_32_magnetic_reconnection(artifact_dir::AbstractString)
     return _metric_plot(
         artifact_dir,
-        "21_published_preisser2020_summary.csv",
-        "21_published_preisser2020_summary.pdf";
-        title = "Preisser 2020 published-summary validation",
+        "32_magnetic_reconnection.csv",
+        "32_magnetic_reconnection.pdf";
+        title = "Harris-sheet reconnection validation",
     )
 end
 
-VALIDATION_PLOT = plot_21_published_preisser2020_summary
+VALIDATION_PLOT = plot_32_magnetic_reconnection
 
 if abspath(PROGRAM_FILE) == @__FILE__
     exit(

@@ -22,35 +22,33 @@ function case_31_weibel_instability(artifact_dir::AbstractString)
     unstable_grows = max(0.0, 0.02 - u.wBz_max)
     stable_quiet = max(0.0, s.wBz_max - 0.005)
     threshold_ok = (u.unstable_theory && !s.unstable_theory) ? 0.0 : 1.0
+    separation = u.wBz_max / max(s.wBz_max, eps(Float64))
+    separation_error = max(0.0, 100.0 - separation)
 
     artifact = joinpath(artifact_dir, "$(id).csv")
     rows = (
         ("weibel_unstable_Bz_growth", u.wBz_max, 0.02, "margin", unstable_grows, 0.0),
         ("weibel_no_stream_stays_at_noise", s.wBz_max, 0.0, "margin", stable_quiet, 0.0),
         ("weibel_threshold_matches_theory", threshold_ok, 0.0, "absolute", threshold_ok, 0.0),
+        (
+            "weibel_streaming_vs_control_Bz_energy_separation",
+            separation,
+            100.0,
+            "margin",
+            separation_error,
+            0.0,
+        ),
     )
     _write_metric_csv(artifact, rows)
-    gated = _metric_rows_to_results(
+    return _metric_rows_to_results(
         id = id,
         category = "kinetic_instability",
         reference_kind = "analytic",
         reference = "Weibel current-filamentation threshold A=(u₀/vth)²>1 (Weibel 1959; Fried 1959)",
         rows = rows,
         artifact = artifact,
+        notes = "The streaming full-EM-PIC case must grow Bz above noise, the no-streaming control must stay quiet, and the measured Bz-energy separation must exceed 100x.",
     )
-    skip = _skip_result(
-        id = id,
-        category = "kinetic_instability",
-        reference_kind = "analytic",
-        reference = "Weibel B_z growth vs threshold (full EM-PIC)",
-        metric = "weibel_Bz_energy",
-        artifact = basename(artifact),
-        notes = "counter-streaming (A=$(round(Int, u.anisotropy))): peak B_z energy → " *
-                "$(round(u.wBz_max, digits = 4)); no streaming (A=0): → " *
-                "$(round(s.wBz_max, digits = 5)) (shot noise); separation " *
-                "$(round(u.wBz_max / max(s.wBz_max, 1e-12), digits = 0))×.",
-    )
-    return vcat(gated, [skip])
 end
 
 VALIDATION_CASE = ValidationCase(

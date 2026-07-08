@@ -33,6 +33,8 @@ function case_32_magnetic_reconnection(artifact_dir::AbstractString)
     unstable_grows = max(0.0, 3.0 - u.growth)          # sheet m=1 grows ≥3× (measured ~13×)
     stable_quiet = max(0.0, s.growth - 2.0)            # uniform m=1 stays ≤2× (measured ~1.1×)
     threshold_ok = (u.tearing_theory && !s.tearing_theory) ? 0.0 : 1.0
+    separation = u.growth / max(s.growth, eps(Float64))
+    separation_error = max(0.0, 5.0 - separation)
 
     artifact = joinpath(artifact_dir, "$(id).csv")
     rows = (
@@ -46,29 +48,25 @@ function case_32_magnetic_reconnection(artifact_dir::AbstractString)
             threshold_ok,
             0.0,
         ),
+        (
+            "reconnection_sheet_vs_uniform_m1_flux_separation",
+            separation,
+            5.0,
+            "margin",
+            separation_error,
+            0.0,
+        ),
     )
     _write_metric_csv(artifact, rows)
-    gated = _metric_rows_to_results(
+    return _metric_rows_to_results(
         id = id,
         category = "kinetic_instability",
         reference_kind = "analytic",
         reference = "Harris-sheet tearing instability, unstable ⇔ kx·λ<1 (Furth-Killeen-Rosenbluth 1963)",
         rows = rows,
         artifact = artifact,
+        notes = "The Harris sheet must grow the coherent m=1 reconnecting field, the uniform-field control must stay flat, and the measured sheet/control separation must exceed 5x.",
     )
-    skip = _skip_result(
-        id = id,
-        category = "kinetic_instability",
-        reference_kind = "analytic",
-        reference = "reconnection m=1 tearing growth vs uniform control",
-        metric = "reconnected_flux_m1",
-        artifact = basename(artifact),
-        notes = "Harris sheet (kx·λ=$(round(2π / 25.6 * 0.5, digits = 3))<1): coherent m=1 " *
-                "B_y power → $(round(u.growth, digits = 1))× seed; uniform B_x: → " *
-                "$(round(s.growth, digits = 2))× (flat); separation " *
-                "$(round(u.growth / max(s.growth, 1e-12), digits = 0))×.",
-    )
-    return vcat(gated, [skip])
 end
 
 VALIDATION_CASE = ValidationCase(

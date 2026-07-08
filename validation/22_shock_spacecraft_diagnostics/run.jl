@@ -8,7 +8,8 @@ function case_22_shock_spacecraft_diagnostics(artifact_dir::AbstractString)
     id = "22_shock_spacecraft_diagnostics"
 
     xf, width = shock_front([2.0, 2.0, 1.0, 1.0], [0.0, 1.0, 2.0, 3.0])
-    shock_front_error = max(abs(xf - 2.0), abs(width - 1.0))
+    expected_width = 8 / 3
+    shock_front_error = max(abs(xf - 2.0), abs(width - expected_width))
 
     ps = ParticleSet{1,Float64}(3)
     ps.id .= UInt64[10, 20, 30]
@@ -100,7 +101,7 @@ function case_22_shock_spacecraft_diagnostics(artifact_dir::AbstractString)
         (
             "shock_front_position_width_max_abs_error",
             max(xf, width),
-            2.0,
+            max(2.0, expected_width),
             "absolute",
             shock_front_error,
             1e-12,

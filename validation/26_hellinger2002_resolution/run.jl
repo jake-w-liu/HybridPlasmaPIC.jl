@@ -74,6 +74,8 @@ function case_26_hellinger2002_resolution(artifact_dir::AbstractString)
     cold_rises = (g_cold_fine > 1.3 * g_cold_coarse) ? 0.0 : 1.0
     # and the cold case steepens more strongly than the hot case (the discriminator)
     cold_steeper = (g_cold_fine / g_cold_coarse > g_hot_fine / g_hot_coarse) ? 0.0 : 1.0
+    hot_magnitude_rel = abs(g_hot_fine - 5.0) / 5.0
+    cold_magnitude_rel = abs(g_cold_fine - 13.0) / 13.0
 
     artifact = joinpath(artifact_dir, "$(id).csv")
     rows = (
@@ -87,27 +89,33 @@ function case_26_hellinger2002_resolution(artifact_dir::AbstractString)
         ),
         ("beta0.2_gradient_rises_with_refinement", cold_rises, 0.0, "absolute", cold_rises, 0.0),
         ("cold_steepens_more_than_hot", cold_steeper, 0.0, "absolute", cold_steeper, 0.0),
+        (
+            "beta1.0_gradient_magnitude_vs_Hellinger_fig1_rel_error",
+            g_hot_fine,
+            5.0,
+            "relative",
+            hot_magnitude_rel,
+            0.3,
+        ),
+        (
+            "beta0.2_gradient_magnitude_vs_Hellinger_fig1_rel_error",
+            g_cold_fine,
+            13.0,
+            "relative",
+            cold_magnitude_rel,
+            0.3,
+        ),
     )
     _write_metric_csv(artifact, rows)
-    gated = _metric_rows_to_results(
+    return _metric_rows_to_results(
         id = id,
         category = "published_shock_benchmark",
         reference_kind = "literature_digitized",
         reference = "Hellinger et al. 2002 GRL 29(24):2234, doi:10.1029/2002GL015915 (Fig 1)",
         rows = rows,
         artifact = artifact,
+        notes = "The case validates both Hellinger's qualitative result (hot shocks are nearly resolution-independent; cold shocks steepen with refinement) and the digitized order-of-magnitude Fig. 1 gradients at the resolvable dx values.",
     )
-    skip = _skip_result(
-        id = id,
-        category = "published_shock_benchmark",
-        reference_kind = "literature_digitized",
-        reference = "Hellinger 2002 Fig 1 (magnitudes, ~5)",
-        metric = "max_gradient_magnitudes",
-        artifact = basename(artifact),
-        notes = "β_p=1.0: $(round(g_hot_coarse,digits=1))(dx=.32) ~ $(round(g_hot_fine,digits=1))(dx=.16) [Hellinger ~5]; " *
-                "β_p=0.2: $(round(g_cold_coarse,digits=1)) -> $(round(g_cold_fine,digits=1)) (rises) [Hellinger rises 5->13->25]",
-    )
-    return vcat(gated, [skip])
 end
 
 VALIDATION_CASE = ValidationCase(

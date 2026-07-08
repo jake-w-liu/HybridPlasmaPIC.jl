@@ -10,6 +10,8 @@
 #
 # This is the nonlinear analog of case 27 (NHDS dispersion): a live external plasma code,
 # run from source, cross-checking our shock. VPIC source/binary/output are GITIGNORED.
+# This all-validation case treats a missing or unparseable VPIC profile as a failed
+# validation, not a skip.
 
 if !isdefined(@__MODULE__, :ValidationCase)
     include(joinpath(@__DIR__, "..", "common.jl"))
@@ -49,17 +51,18 @@ function case_28_hybridvpic_perp_shock(artifact_dir::AbstractString)
         end
     end
     if !isfile(prof)
-        return [
-            _skip_result(
-                id = id,
-                category = cat,
-                reference_kind = refkind,
-                reference = ref,
-                metric = "vpic_perp_shock_overlay",
-                notes = "Hybrid-VPIC not built (needs git+cmake+MPI; macOS installs OpenMPI via brew); " *
-                        "run validation/28_hybridvpic_perp_shock/build_vpic.sh first.",
-            ),
-        ]
+        artifact = joinpath(artifact_dir, "$(id).csv")
+        rows = (("hybridvpic_profile_available_error", 1.0, 0.0, "absolute", 1.0, 0.0),)
+        _write_metric_csv(artifact, rows)
+        return _metric_rows_to_results(
+            id = id,
+            category = cat,
+            reference_kind = refkind,
+            reference = ref,
+            rows = rows,
+            artifact = artifact,
+            notes = "Hybrid-VPIC not built (needs git+cmake+MPI; macOS installs OpenMPI via brew); run validation/28_hybridvpic_perp_shock/build_vpic.sh first.",
+        )
     end
 
     x = Float64[]
@@ -70,16 +73,21 @@ function case_28_hybridvpic_perp_shock(artifact_dir::AbstractString)
         push!(x, parse(Float64, f[1]))
         push!(bz, parse(Float64, f[2]))
     end
-    length(x) < 20 && return [
-        _skip_result(
+    if length(x) < 20
+        artifact = joinpath(artifact_dir, "$(id).csv")
+        rows =
+            (("hybridvpic_profile_parse_error", length(x), 20.0, "margin", 20.0 - length(x), 0.0),)
+        _write_metric_csv(artifact, rows)
+        return _metric_rows_to_results(
             id = id,
             category = cat,
             reference_kind = refkind,
             reference = ref,
-            metric = "vpic_perp_shock_overlay",
-            notes = "VPIC profile unparseable / too short.",
-        ),
-    ]
+            rows = rows,
+            artifact = artifact,
+            notes = "Hybrid-VPIC profile unparseable or too short.",
+        )
+    end
 
     v = _vpic_shock_metrics(x, bz; taui = 30.0, Vd = 4.0)
     # ours at the matched shock-frame M_A
@@ -98,6 +106,9 @@ function case_28_hybridvpic_perp_shock(artifact_dir::AbstractString)
     over_band = max(0.0, 1.1 - v.overshoot, v.overshoot - 1.5)            # VPIC overshoot in Leroy's band
     kinetic_lt_fluid = max(0.0, v.compression - Xrh)                       # VPIC compresses ≤ fluid RH
     ov_agree = abs(o.overshoot - v.overshoot) / v.overshoot                # ours vs VPIC overshoot
+    comp_agree = abs(o.compression - v.compression) / v.compression
+    ma6_rel = abs(v.MA - 6.0) / 6.0
+    profile_count_error = max(0.0, 20.0 - length(x))
 
     # VPIC profile (gitignored) for plotting the external shock structure
     overlay = joinpath(artifact_dir, "$(id)_vpic_profile.csv")
@@ -115,30 +126,34 @@ function case_28_hybridvpic_perp_shock(artifact_dir::AbstractString)
             0.0,
         ),
         ("ours_vs_vpic_overshoot_rel_error", o.overshoot, v.overshoot, "relative", ov_agree, 0.25),
+        (
+            "ours_vs_vpic_compression_rel_error",
+            o.compression,
+            v.compression,
+            "relative",
+            comp_agree,
+            0.15,
+        ),
+        ("hybridvpic_shockframe_MA6_rel_error", v.MA, 6.0, "relative", ma6_rel, 0.05),
+        (
+            "hybridvpic_profile_point_count_error",
+            length(x),
+            20.0,
+            "margin",
+            profile_count_error,
+            0.0,
+        ),
     )
     _write_metric_csv(artifact, rows)
-    gated = _metric_rows_to_results(
+    return _metric_rows_to_results(
         id = id,
         category = cat,
         reference_kind = refkind,
         reference = ref,
         rows = rows,
         artifact = artifact,
+        notes = "Hybrid-VPIC provides an independent nonlinear perpendicular-shock profile. The validation checks VPIC's shock regime, kinetic compression bound, and ours-vs-VPIC compression/overshoot agreement.",
     )
-    skip = _skip_result(
-        id = id,
-        category = cat,
-        reference_kind = refkind,
-        reference = ref,
-        metric = "ours_vs_hybridvpic_perp_shock",
-        artifact = basename(overlay),
-        notes = "Hybrid-VPIC (external): M_A=$(round(v.MA,digits=2)), compression=$(round(v.compression,digits=2)), " *
-                "overshoot=$(round(v.overshoot,digits=2)). Ours: compression=$(round(o.compression,digits=2)) " *
-                "(≈fluid RH=$(round(Xrh,digits=2)); our RH-init holds the fluid state, VPIC self-consistently " *
-                "compresses LESS — the kinetic<fluid effect), overshoot=$(round(o.overshoot,digits=2)) " *
-                "(per-snapshot; clean ~1.33 / energy-closure ~1.27 ≈ VPIC). Consistent with Leroy 1982 (1.26).",
-    )
-    return vcat(gated, [skip])
 end
 
 VALIDATION_CASE = ValidationCase(

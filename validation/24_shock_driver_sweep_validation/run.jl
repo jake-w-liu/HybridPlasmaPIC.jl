@@ -43,15 +43,7 @@ function case_24_shock_driver_sweep_validation(artifact_dir::AbstractString)
         1.0 < direct.n2 < 4.0 &&
         0.0 <= direct.reflected_fraction <= 1.0 ? 0.0 : 1.0
 
-    established = reproduce_established_shock(;
-        MA = 2.0,
-        N = 128,
-        Lx = 60.0,
-        nppc = 8,
-        nsteps = 160,
-        seed = 2,
-        rtol = 0.15,
-    )
+    established = reproduce_established_shock(; MA = 3.0, N = 256, nsteps = 500)
     established_error = established.pass ? 0.0 : 1.0
 
     ramp_scan = ramp_width_scan(;

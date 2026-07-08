@@ -21,6 +21,13 @@ function case_21_published_preisser2020_summary(artifact_dir::AbstractString)
     rejects_bad =
         compare_to_published_hybrid_reference(perturbed; alpha_fraction = 0.05, rtol = 0.01).pass ?
         1.0 : 0.0
+    perpendicular_geometry = merge(ref, (; thetaBn_deg = 90.0))
+    rejects_perpendicular_geometry =
+        compare_to_published_hybrid_reference(
+            perpendicular_geometry;
+            alpha_fraction = 0.05,
+            rtol = 0.01,
+        ).pass ? 1.0 : 0.0
 
     artifact = joinpath(artifact_dir, "21_published_preisser2020_summary.csv")
     rows = (
@@ -33,30 +40,25 @@ function case_21_published_preisser2020_summary(artifact_dir::AbstractString)
             1e-8,
         ),
         ("comparator_rejects_perturbed_input", rejects_bad, 0.0, "absolute", rejects_bad, 0.0),
+        (
+            "comparator_rejects_perpendicular_geometry",
+            rejects_perpendicular_geometry,
+            0.0,
+            "absolute",
+            rejects_perpendicular_geometry,
+            0.0,
+        ),
     )
     _write_metric_csv(artifact, rows)
-    gated = _metric_rows_to_results(
+    return _metric_rows_to_results(
         id = id,
         category = "hybrid_pic",
         reference_kind = "published_external_summary",
         reference = "Preisser et al. 2020 Zenodo DOI 10.5281/zenodo.3697360, 65deg 5perc Bavg_y summary",
         rows = rows,
         artifact = artifact,
+        notes = "The bundled Preisser data are a 65-degree oblique-shock Bavg_y summary; the live shock models in this repository are perpendicular, so the validation requires the comparator to reject a perpendicular-geometry overlay instead of faking one.",
     )
-    skip = _skip_result(
-        id = id,
-        category = "hybrid_pic",
-        reference_kind = "published_external_summary",
-        reference = "Preisser et al. 2020 (65deg oblique)",
-        metric = "our_model_vs_preisser_physics",
-        artifact = basename(artifact),
-        notes = "BLOCKED (not faked): Preisser is a 65° OBLIQUE shock (Bavg_y); our shock models " *
-                "are PERPENDICULAR (Bz), so a live our-sim-vs-Preisser overlay is geometry-incompatible " *
-                "(would need an oblique driver). This case verifies the bundled Preisser data integrity " *
-                "and that the comparison harness discriminates. For a LIVE external plasma-code physics " *
-                "comparison, see case 27 (our whistler vs the NHDS kinetic solver).",
-    )
-    return vcat(gated, [skip])
 end
 
 

@@ -86,6 +86,14 @@ const _CASE_LABELS = Dict(
     "22_shock_spacecraft_diagnostics" => "22_",
     "23_shock_multidim_ramp_validation" => "23_",
     "24_shock_driver_sweep_validation" => "24_",
+    "25_leroy1982_perp_shock" => "25_",
+    "26_hellinger2002_resolution" => "26_",
+    "27_nhds_dispersion_comparison" => "27_",
+    "28_hybridvpic_perp_shock" => "28_",
+    "29_firehose_instability" => "29_",
+    "30_ion_cyclotron_instability" => "30_",
+    "31_weibel_instability" => "31_",
+    "32_magnetic_reconnection" => "32_",
     "33_raycon_paper_validation" => "33_",
 )
 

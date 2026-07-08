@@ -87,26 +87,17 @@ function case_16_pic1d_hdf5_extension_validation(artifact_dir::AbstractString)
         ),
     ]
 
+    h5_error = 1.0
     try
         @eval import HDF5
         h5_error = Base.invokelatest(_hdf5_roundtrip_error)
-        push!(
-            rows,
-            ("hdf5_extension_roundtrip_max_abs_error", h5_error, 0.0, "absolute", h5_error, 0.0),
-        )
     catch err
-        push!(
-            results,
-            _skip_result(
-                id = id,
-                category = "hdf5_extension",
-                reference_kind = "external_library",
-                reference = "HDF5.jl package extension",
-                metric = "hdf5_extension_roundtrip_max_abs_error",
-                notes = "Skipped because HDF5 extension is not loadable: $(typeof(err))",
-            ),
-        )
+        h5_error = 1.0
     end
+    push!(
+        rows,
+        ("hdf5_extension_roundtrip_max_abs_error", h5_error, 0.0, "absolute", h5_error, 0.0),
+    )
     _write_metric_csv(artifact, rows)
     append!(
         results,

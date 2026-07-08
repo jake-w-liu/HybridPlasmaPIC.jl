@@ -12,18 +12,17 @@ function case_17_distributed_fft_roundtrip(artifact_dir::AbstractString)
         @eval import PencilFFTs
     catch err
         artifact = joinpath(artifact_dir, "17_distributed_fft_roundtrip.csv")
-        _write_skip_metric_csv(artifact, "roundtrip_max_abs_error")
-        return [
-            _skip_result(
-                id = id,
-                category = "parallel_fft",
-                reference_kind = "external_library",
-                reference = "PencilFFTs/PencilArrays extension compared with FFTW",
-                metric = "roundtrip_max_abs_error",
-                artifact = basename(artifact),
-                notes = "Skipped because PencilFFTs/PencilArrays dependencies are not loadable: $(typeof(err))",
-            ),
-        ]
+        rows = (("distributed_fft_dependencies_available_error", 1.0, 0.0, "absolute", 1.0, 0.0),)
+        _write_metric_csv(artifact, rows)
+        return _metric_rows_to_results(
+            id = id,
+            category = "parallel_fft",
+            reference_kind = "external_library",
+            reference = "PencilFFTs/PencilArrays extension compared with FFTW",
+            rows = rows,
+            artifact = artifact,
+            notes = "PencilFFTs/PencilArrays dependencies are not loadable: $(typeof(err))",
+        )
     end
 
     return Base.invokelatest(_case_17_distributed_fft_roundtrip_loaded, artifact_dir)
