@@ -14,10 +14,10 @@
     ToroidalGrid(R0, a, Nr, Nθ, Nφ; T=Float64)
 
 A toroidal `(r,θ,φ)` grid on the torus of major radius `R0` and minor radius `a`.
-`r` uses `Nr` cell centres on `(0, a]` (offset `dr/2` to avoid the `r=0` axis
+`r` uses `Nr` cell centres on `(0, a)` (offset `dr/2` to avoid the `r=0` axis
 singularity); `θ, φ` are periodic with `Nθ, Nφ` nodes on `[0, 2π)`.
 """
-struct ToroidalGrid{T}
+struct ToroidalGrid{T<:AbstractFloat}
     R0::T
     r::Vector{T}
     θ::Vector{T}
@@ -28,17 +28,27 @@ struct ToroidalGrid{T}
 end
 
 function ToroidalGrid(R0::Real, a::Real, Nr::Integer, Nθ::Integer, Nφ::Integer; T::Type = Float64)
-    (Nr >= 3 && Nθ >= 3 && Nφ >= 3) ||
+    isconcretetype(T) && T <: AbstractFloat ||
+        throw(ArgumentError("ToroidalGrid T must be a concrete AbstractFloat type"))
+    counts = (Nr, Nθ, Nφ)
+    all(n -> 3 <= n <= typemax(Int), counts) ||
         throw(ArgumentError("need Nr >= 3 and Nθ,Nφ >= 3 for the finite-difference stencils"))
-    a > 0 || throw(ArgumentError("minor radius a must be > 0"))
-    R0 > a || throw(ArgumentError("R0 must exceed a (no self-intersecting torus)"))
-    dr = T(a) / Nr
-    dθ = 2 * T(π) / Nθ
-    dφ = 2 * T(π) / Nφ
-    r = T[dr * (i - T(0.5)) for i = 1:Nr]
-    θ = T[dθ * (j - 1) for j = 1:Nθ]
-    φ = T[dφ * (k - 1) for k = 1:Nφ]
-    return ToroidalGrid{T}(T(R0), r, θ, φ, dr, dθ, dφ)
+    Nri, Nθi, Nφi = Int.(counts)
+    aT = _require_finite_positive_real("minor radius a", a, T)
+    R0T = _require_finite_positive_real("major radius R0", R0, T)
+    R0T > aT || throw(ArgumentError("R0 must exceed a (no self-intersecting torus)"))
+    dr = aT / Nri
+    dθ = T(2) * T(π) / Nθi
+    dφ = T(2) * T(π) / Nφi
+    all(x -> isfinite(x) && x > zero(T), (dr, dθ, dφ)) || throw(
+        ArgumentError(
+            "ToroidalGrid spacings must remain finite and positive at precision $T",
+        ),
+    )
+    r = T[dr * (i - T(0.5)) for i = 1:Nri]
+    θ = T[dθ * (j - 1) for j = 1:Nθi]
+    φ = T[dφ * (k - 1) for k = 1:Nφi]
+    return ToroidalGrid{T}(R0T, r, θ, φ, dr, dθ, dφ)
 end
 
 gridsize(g::ToroidalGrid) = (length(g.r), length(g.θ), length(g.φ))
@@ -63,8 +73,11 @@ end
 
 "Cartesian position of `(r,θ,φ)`."
 function to_cartesian(g::ToroidalGrid{T}, r::Real, θ::Real, φ::Real) where {T}
-    R = g.R0 + T(r) * cos(T(θ))
-    return (R * cos(T(φ)), R * sin(T(φ)), T(r) * sin(T(θ)))
+    rT = _require_finite_real("r", r, T)
+    θT = _require_finite_real("θ", θ, T)
+    φT = _require_finite_real("φ", φ, T)
+    R = g.R0 + rT * cos(θT)
+    return (R * cos(φT), R * sin(φT), rT * sin(θT))
 end
 
 @inline _dperiodic(f, lo, hi, h) = (f[hi] - f[lo]) / (2h)

@@ -6,12 +6,26 @@ _tuple_maxabs(a, b) = maximum(abs.(a .- b))
     @test_throws ArgumentError ToroidalGrid(3.0, 1.0, 2, 8, 8)
     @test_throws ArgumentError ToroidalGrid(3.0, 1.0, 8, 2, 8)
     @test_throws ArgumentError ToroidalGrid(3.0, 1.0, 8, 8, 2)
+    @test_throws ArgumentError ToroidalGrid(Inf, 1.0, 8, 8, 8)
+    @test_throws ArgumentError ToroidalGrid(3.0, Inf, 8, 8, 8)
+    @test_throws ArgumentError ToroidalGrid(3.0, 0.0, 8, 8, 8)
+    @test_throws ArgumentError ToroidalGrid(1.0, 1.0, 8, 8, 8)
+    @test_throws ArgumentError ToroidalGrid(3.0, 1.0, big(typemax(Int)) + 1, 8, 8)
+    @test_throws ArgumentError ToroidalGrid(3.0, 1.0, 8, 8, 8; T = Int)
+    @test_throws ArgumentError ToroidalGrid(3.0, 1.0, 8, 8, 8; T = AbstractFloat)
 
     g = ToroidalGrid(3.0, 1.0, 8, 10, 12)
     @test gridsize(g) == (8, 10, 12)
     @test scale_factors(g, 2, 3) == (1.0, g.r[2], 3.0 + g.r[2] * cos(g.θ[3]))
     @test jacobian(g, 2, 3) ≈ g.r[2] * (3.0 + g.r[2] * cos(g.θ[3]))
     @test _tuple_maxabs(to_cartesian(g, 0.5, π / 2, 0.0), (3.0, 0.0, 0.5)) < 1e-14
+    @test_throws ArgumentError to_cartesian(g, Inf, 0.0, 0.0)
+    @test_throws ArgumentError to_cartesian(g, 0.5, NaN, 0.0)
+    @test_throws ArgumentError to_cartesian(g, 0.5, 0.0, Inf)
+
+    g32 = ToroidalGrid(3.0, 1.0, 8, 8, 8; T = Float32)
+    @test g32 isa ToroidalGrid{Float32}
+    @test all(isfinite, (g32.R0, g32.dr, g32.dθ, g32.dφ))
 
     f = [g.r[i]^2 * cos(g.θ[j]) * sin(g.φ[k]) for i = 1:8, j = 1:10, k = 1:12]
     gr, gθ, gφ = metric_gradient(g, f)
