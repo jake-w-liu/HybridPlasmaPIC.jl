@@ -70,6 +70,49 @@ _tuple_maxabs(a, b) = maximum(abs.(a .- b))
         e_exact = max(e_exact, abs(d[i, j, k] - da))
     end
     @test e_exact < 1e-10
+
+    # The metric flux Fr=r*R*Ar vanishes at the coordinate axis.  For
+    # Ar=r^2/R it is exactly r^3, so the axis-aware inner stencil must recover
+    # dFr/dr=3r^2 without the sign reversal of a regular one-sided stencil.
+    for Naxis in (3, 4, 5, 16)
+        axis = ToroidalGrid(3.0, 1.0, Naxis, Naxis, Naxis)
+        Nr, Nθ, Nφ = gridsize(axis)
+        axis_Ar =
+            [axis.r[i]^2 / (axis.R0 + axis.r[i] * cos(axis.θ[j])) for i = 1:Nr, j = 1:Nθ, k = 1:Nφ]
+        axis_zero = zeros(Nr, Nθ, Nφ)
+        axis_div = metric_divergence(axis, axis_Ar, axis_zero, axis_zero)
+        for i = 1:Nr-1
+            R = axis.R0 + axis.r[i] * cos(axis.θ[2])
+            @test axis_div[i, 2, 1] ≈ 3axis.r[i] / R rtol = 1e-13 atol = 1e-14
+        end
+    end
+
+    function max_divergence_error(N)
+        gg = ToroidalGrid(3.0, 1.0, N, N, N)
+        Nr, Nθ, Nφ = gridsize(gg)
+        Ar = Array{Float64}(undef, Nr, Nθ, Nφ)
+        Aθ = similar(Ar)
+        Aφ = similar(Ar)
+        exact = similar(Ar)
+        for k = 1:Nφ, j = 1:Nθ, i = 1:Nr
+            r = gg.r[i]
+            θ = gg.θ[j]
+            φ = gg.φ[k]
+            R = gg.R0 + r * cos(θ)
+            Ar[i, j, k] = r^2 * sin(θ) * cos(φ)
+            Aθ[i, j, k] = r * cos(θ) * sin(φ)
+            Aφ[i, j, k] = r * sin(θ) * sin(φ)
+            dFr = (3r^2 * R + r^3 * cos(θ)) * sin(θ) * cos(φ)
+            dFθ = (-r^2 * sin(θ) * cos(θ) - R * r * sin(θ)) * sin(φ)
+            dFφ = r^2 * sin(θ) * cos(φ)
+            exact[i, j, k] = (dFr + dFθ + dFφ) / (r * R)
+        end
+        computed = metric_divergence(gg, Ar, Aθ, Aφ)
+        return maximum(abs.(computed .- exact))
+    end
+    div_e16 = max_divergence_error(16)
+    div_e32 = max_divergence_error(32)
+    @test div_e32 < div_e16 / 3
 end
 
 @testset "fusion: guiding-centre gyrokinetics" begin

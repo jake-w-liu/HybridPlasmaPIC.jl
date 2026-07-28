@@ -41,9 +41,7 @@ function ToroidalGrid(R0::Real, a::Real, Nr::Integer, Nθ::Integer, Nφ::Integer
     dθ = T(2) * T(π) / Nθi
     dφ = T(2) * T(π) / Nφi
     all(x -> isfinite(x) && x > zero(T), (dr, dθ, dφ)) || throw(
-        ArgumentError(
-            "ToroidalGrid spacings must remain finite and positive at precision $T",
-        ),
+        ArgumentError("ToroidalGrid spacings must remain finite and positive at precision $T"),
     )
     r = T[dr * (i - T(0.5)) for i = 1:Nri]
     θ = T[dθ * (j - 1) for j = 1:Nθi]
@@ -121,6 +119,33 @@ function metric_gradient(g::ToroidalGrid{T}, f::AbstractArray{T,3}) where {T}
     return gr, gθ, gφ
 end
 
+@inline function _radial_flux_derivative(Fr, i, j, k, dr, Nr)
+    if i == 1
+        # At the coordinate axis, Fr = r*R*Ar is exactly zero for every
+        # bounded physical Ar.  Including that known value with the first
+        # three cell-centred fluxes gives a cubic-exact derivative at r=dr/2.
+        return (Fr[1, j, k] / 2 + 2 * Fr[2, j, k] / 3 - Fr[3, j, k] / 10) / dr
+    elseif i == Nr
+        # J is bounded away from zero at the outer edge, so the usual
+        # second-order one-sided derivative retains second-order accuracy.
+        return (3Fr[Nr, j, k] - 4Fr[Nr-1, j, k] + Fr[Nr-2, j, k]) / (2dr)
+    elseif Nr == 3
+        # Cubic interpolation through Fr(0)=0 and all three cell centres.
+        return (-3Fr[1, j, k] / 2 + 2Fr[2, j, k] / 3 + 3Fr[3, j, k] / 10) / dr
+    elseif i == 2
+        # Cubic-exact forward-biased derivative.
+        return (-2Fr[1, j, k] - 3Fr[2, j, k] + 6Fr[3, j, k] - Fr[4, j, k]) / (6dr)
+    elseif i == Nr - 1
+        # Cubic-exact backward-biased derivative.
+        return (Fr[Nr-3, j, k] - 6Fr[Nr-2, j, k] + 3Fr[Nr-1, j, k] + 2Fr[Nr, j, k]) / (6dr)
+    else
+        # The fourth-order centred stencil keeps the flux-derivative error
+        # below O(dr^3), which is needed near J=rR=O(dr) for the divergence
+        # itself to remain at least second-order accurate.
+        return (Fr[i-2, j, k] - 8Fr[i-1, j, k] + 8Fr[i+1, j, k] - Fr[i+2, j, k]) / (12dr)
+    end
+end
+
 """
     metric_divergence(g, Ar, Aθ, Aφ) -> divA
 
@@ -159,13 +184,7 @@ function metric_divergence(
                 r = g.r[i]
                 R = g.R0 + r * cos(g.θ[j])
                 J = r * R
-                if i == 1
-                    dFr = (-3Fr[1, j, k] + 4Fr[2, j, k] - Fr[3, j, k]) / (2 * g.dr)
-                elseif i == Nr
-                    dFr = (3Fr[Nr, j, k] - 4Fr[Nr-1, j, k] + Fr[Nr-2, j, k]) / (2 * g.dr)
-                else
-                    dFr = (Fr[i+1, j, k] - Fr[i-1, j, k]) / (2 * g.dr)
-                end
+                dFr = _radial_flux_derivative(Fr, i, j, k, g.dr, Nr)
                 dFθ = (Fθ[i, jp, k] - Fθ[i, jm, k]) / (2 * g.dθ)
                 dFφ = (Fφ[i, j, kp] - Fφ[i, j, km]) / (2 * g.dφ)
                 out[i, j, k] = (dFr + dFθ + dFφ) / J
