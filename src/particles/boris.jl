@@ -38,7 +38,8 @@ end
 
 @inline function _validated_qm(ps::ParticleSet{D,T}) where {D,T<:AbstractFloat}
     q = _require_finite_real("particle charge q", ps.q, T)
-    qm = q / T(ps.m)
+    m = _require_finite_positive_real("particle mass m", ps.m, T)
+    qm = q / m
     isfinite(qm) || throw(ArgumentError("particle charge-to-mass ratio q/m must be finite"))
     return qm
 end

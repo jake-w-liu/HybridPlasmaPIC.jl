@@ -235,12 +235,18 @@ end
         (0.0, 0.0, 1.0),
         0.1,
     )
-    @test_throws ArgumentError push_uniform!(
-        seeded_particle(; m = 0.0),
-        (0.0, 0.0, 0.0),
-        (0.0, 0.0, 1.0),
-        0.1,
-    )
+    for invalid_mass in (0.0, -1.0, Inf, -Inf, NaN)
+        bad_mass = seeded_particle(; m = invalid_mass)
+        bad_mass_state = (copy(bad_mass.x[1]), ntuple(c -> copy(bad_mass.v[c]), 3))
+        @test_throws ArgumentError push_uniform!(
+            bad_mass,
+            (0.0, 0.0, 0.0),
+            (0.0, 0.0, 1.0),
+            0.1,
+        )
+        @test bad_mass.x[1] == bad_mass_state[1]
+        @test all(bad_mass.v[c] == bad_mass_state[2][c] for c = 1:3)
+    end
 
     @test_throws ArgumentError push_gathered!(
         seeded_particle(),
@@ -260,12 +266,18 @@ end
         ([0.0], [0.0], [1.0]),
         0.1,
     )
-    @test_throws ArgumentError push_gathered!(
-        seeded_particle(; m = 0.0),
-        ([0.0], [0.0], [0.0]),
-        ([0.0], [0.0], [1.0]),
-        0.1,
-    )
+    for invalid_mass in (0.0, -1.0, Inf, -Inf, NaN)
+        bad_mass = seeded_particle(; m = invalid_mass)
+        bad_mass_state = (copy(bad_mass.x[1]), ntuple(c -> copy(bad_mass.v[c]), 3))
+        @test_throws ArgumentError push_gathered!(
+            bad_mass,
+            ([0.0], [0.0], [0.0]),
+            ([0.0], [0.0], [1.0]),
+            0.1,
+        )
+        @test bad_mass.x[1] == bad_mass_state[1]
+        @test all(bad_mass.v[c] == bad_mass_state[2][c] for c = 1:3)
+    end
 
     ps = ParticleSet{1,T}(2)
     ps.x[1] .= T[0.0, 0.0]
