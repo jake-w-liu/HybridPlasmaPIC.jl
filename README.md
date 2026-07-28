@@ -30,12 +30,12 @@ global mutable state — simulations are explicit
 
 ## Installation
 
-Requires **Julia 1.12 or later**. Until `SpectralOperators.jl` (the sibling
-package providing the Fourier/SBP operators) is registered, add it first:
+Requires **Julia 1.12 or later**. `SpectralOperators.jl` (the sibling package
+providing the Fourier/SBP operators) is in the General registry, so it resolves
+automatically as a dependency:
 
 ```julia
 using Pkg
-Pkg.add(url = "https://github.com/jake-w-liu/SpectralOperators.jl.git")
 Pkg.add(url = "https://github.com/jake-w-liu/HybridPlasmaPIC.jl.git")
 ```
 

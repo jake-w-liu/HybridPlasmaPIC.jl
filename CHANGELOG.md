@@ -62,6 +62,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `PencilFFTs.jl`/`PencilArrays.jl` for fully periodic 3D distributed FFT plans,
   input/output allocation, forward/inverse transforms, and round-trip checks.
 
+### Changed
+
+- `SpectralOperators.jl` is now resolved from the General registry instead of a
+  pinned GitHub URL; the `[sources]` override was removed from `Project.toml`
+  and `validation/Project.toml`. Installing HybridPlasmaPIC no longer requires
+  adding the operator package by URL first.
+- Raised the `SpectralOperators` compat floor to `0.1.1`. The re-exported
+  `fft_friendly_size` in 0.1.0 searched upward one integer at a time, which does
+  not terminate in practical time above the largest 7-smooth `Int`; 0.1.1
+  enumerates `2^a·3^b·5^c·7^d` instead. 0.1.1 also rejects grids whose spacings
+  or Fourier wavenumbers are not finite and representable in the element type.
+
 ### Fixed
 
 - **Full physics/math audit of the simulator core** (37 adversarially verified
