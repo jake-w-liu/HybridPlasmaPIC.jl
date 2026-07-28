@@ -75,12 +75,25 @@ end
 @testset "fusion: guiding-centre gyrokinetics" begin
     @test _tuple_maxabs(exb_drift((0.0, 1.0, 0.0), (0.0, 0.0, 2.0)), (0.5, 0.0, 0.0)) < 1e-14
     @test_throws ArgumentError exb_drift((1.0, 0.0, 0.0), (0.0, 0.0, 0.0))
+    @test_throws ArgumentError exb_drift((1.0, 0.0, 0.0), (0.0, 0.0, Inf))
+    @test_throws DimensionMismatch exb_drift((1.0, 0.0), (0.0, 0.0, 1.0))
 
     vg = gradb_drift(1.0, 1.0, 1.0, (0.0, 0.0, 2.0), (3.0, 0.0, 0.0))
     @test _tuple_maxabs(vg, (0.0, 6 / 16, 0.0)) < 1e-14
+    @test_throws ArgumentError gradb_drift(-1.0, 1.0, 1.0, (0.0, 0.0, 2.0), (3.0, 0.0, 0.0))
+    @test_throws ArgumentError gradb_drift(1.0, 0.0, 1.0, (0.0, 0.0, 2.0), (3.0, 0.0, 0.0))
+    @test_throws ArgumentError gradb_drift(1.0, 1.0, -1.0, (0.0, 0.0, 2.0), (3.0, 0.0, 0.0))
 
     vc = curvature_drift(1.0, 1.0, 1.0, (0.0, 0.0, 2.0), (0.5, 0.0, 0.0))
     @test _tuple_maxabs(vc, (0.0, 0.25, 0.0)) < 1e-14
+    @test_throws ArgumentError curvature_drift(Inf, 1.0, 1.0, (0.0, 0.0, 2.0), (0.5, 0.0, 0.0))
+
+    @test_throws ArgumentError GuidingCentre((0.0, 0.0, 0.0), Inf, 0.0, 1.0, 1.0)
+    @test_throws ArgumentError GuidingCentre((0.0, 0.0, 0.0), 0.0, -1.0, 1.0, 1.0)
+    @test_throws ArgumentError GuidingCentre((0.0, 0.0, 0.0), 0.0, 0.0, 0.0, 1.0)
+    @test_throws ArgumentError GuidingCentre((0.0, 0.0, 0.0), 0.0, 0.0, 1.0, -1.0)
+    gc_int = GuidingCentre((0, 0, 0), 0, 0, 1, 1)
+    @test gc_int isa GuidingCentre{Float64}
 
     gc = GuidingCentre((0.0, 0.0, 0.0), 0.5, 0.0, 1.0, 1.0)
     push_guiding_centre!(
@@ -94,6 +107,27 @@ end
     )
     @test _tuple_maxabs(gc.X, (0.0, 0.0, 0.1)) < 1e-14
     @test gc.vpar ≈ 0.7
+    gc_before = (gc.X, gc.vpar, gc.μ, gc.q, gc.m)
+    @test_throws ArgumentError push_guiding_centre!(
+        gc;
+        dt = Inf,
+        E = (0.0, 0.0, 0.0),
+        B = (0.0, 0.0, 1.0),
+        gradB = (0.0, 0.0, 0.0),
+        κ = (0.0, 0.0, 0.0),
+        gradpar_B = 0.0,
+    )
+    @test (gc.X, gc.vpar, gc.μ, gc.q, gc.m) == gc_before
+    @test_throws ArgumentError push_guiding_centre!(
+        gc;
+        dt = 0.1,
+        E = (Inf, 0.0, 0.0),
+        B = (0.0, 0.0, 1.0),
+        gradB = (0.0, 0.0, 0.0),
+        κ = (0.0, 0.0, 0.0),
+        gradpar_B = 0.0,
+    )
+    @test (gc.X, gc.vpar, gc.μ, gc.q, gc.m) == gc_before
     @test gyroaverage(
         x -> x[1]^2 + x[2]^2 + x[3]^2,
         (1.0, 2.0, 3.0),
@@ -102,6 +136,8 @@ end
         n = 32,
     ) ≈ 14.25
     @test_throws ArgumentError gyroaverage(x -> x[1], (0.0, 0.0, 0.0), 1.0, (0.0, 0.0, 1.0); n = 2)
+    @test_throws ArgumentError gyroaverage(x -> x[1], (0.0, 0.0, 0.0), -1.0, (0.0, 0.0, 1.0))
+    @test_throws ArgumentError gyroaverage(x -> x[1], (0.0, 0.0, 0.0), 1.0, (0.0, 0.0, Inf))
 
     B = (0.3, -1.2, 2.0)
     vtot = drift_velocity(;
