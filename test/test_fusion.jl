@@ -148,4 +148,33 @@ end
     mass_coarse = AMRGrid(Float64[exp(-((i - 8.0) / 3)^2) for i = 1:16], 0.1)
     mass_fine = refine(mass_coarse)
     @test sum(mass_fine.u) * mass_fine.dx ≈ sum(mass_coarse.u) * mass_coarse.dx rtol = 1e-13
+
+    @testset "geometry validation is finite and transactional" begin
+        @test_throws ArgumentError AMRGrid(Float64[], 1.0)
+        @test_throws ArgumentError AMRGrid([1.0], 0.0)
+        @test_throws ArgumentError AMRGrid([1.0], -1.0)
+        @test_throws ArgumentError AMRGrid([1.0], Inf)
+        @test_throws ArgumentError AMRGrid([1.0], 1.0; x0 = NaN)
+        @test_throws ArgumentError refine_flags([1.0, 2.0, 1.0], Inf)
+        @test_throws ArgumentError refine_flags([1.0, 2.0, 1.0], NaN)
+
+        integer_grid = AMRGrid([1, 2, 3], 0.5)
+        @test eltype(integer_grid.u) === Float64
+        @test integer_grid.dx == 0.5
+
+        bad_dx = AMRGrid(fill(-7.0, 6), 0.2; x0 = coarse.x0)
+        bad_dx_before = copy(bad_dx.u)
+        @test_throws ArgumentError prolong!(bad_dx, coarse)
+        @test bad_dx.u == bad_dx_before
+
+        bad_origin = AMRGrid(fill(-9.0, 6), coarse.dx / 2; x0 = coarse.x0 + 1)
+        bad_origin_before = copy(bad_origin.u)
+        @test_throws ArgumentError prolong!(bad_origin, coarse)
+        @test bad_origin.u == bad_origin_before
+
+        coarse_out = AMRGrid(fill(-11.0, 3), coarse.dx; x0 = coarse.x0)
+        coarse_out_before = copy(coarse_out.u)
+        @test_throws ArgumentError restrict!(coarse_out, bad_origin)
+        @test coarse_out.u == coarse_out_before
+    end
 end
