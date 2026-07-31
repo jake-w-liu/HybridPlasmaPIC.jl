@@ -17,6 +17,15 @@ function Random.randn(rng::TinyBGKRNG, ::Type{Float64})
     return isodd(rng.draw) ? 1.0e-200 : -1.0e-200
 end
 
+mutable struct InvalidNeutralRNG <: AbstractRNG
+    normal_draw::Int
+end
+Random.rand(::InvalidNeutralRNG, ::Type{Float64}) = 0.0
+function Random.randn(rng::InvalidNeutralRNG, ::Type{Float64})
+    rng.normal_draw += 1
+    return rng.normal_draw == 4 ? Inf : 0.0
+end
+
 # Whole-set weighted totals: momentum (3-vec) and kinetic energy Σ w |v|².
 function set_totals(ps)
     w = ps.weight
@@ -547,12 +556,76 @@ end
         collide_neutral_mcc!(ps, 1.0; nσ = 1.0e6, T_n = 0.0, m_n = mn, rng = ZeroBGKRNG())
 
         ratio = mp >= mn ? mn / mp : mp / mn
+        μp = mp >= mn ? 1 / (1 + ratio) : ratio / (1 + ratio)
         μn = mp >= mn ? ratio / (1 + ratio) : 1 / (1 + ratio)
-        @test ps.v[1][1] ≈ 2 * (1 - μn)
+        @test ps.v[1][1] ≈ 2 * μp
         @test ps.v[2][1] == 0.0
         @test ps.v[3][1] ≈ -2 * μn
         @test all(isfinite, Iterators.flatten(ps.v))
     end
+
+    # The light-particle contribution is representable even though 1 - μn rounds
+    # to zero. Evaluate the expected COM term directly as (mp/mn)*v ≈ 1.
+    ps = ParticleSet{1,Float64}(1; m = 1.0)
+    ps.v[1][1] = 1.0e308
+    collide_neutral_mcc!(ps, 1.0; nσ = 1.0e6, T_n = 0.0, m_n = 1.0e308, rng = ZeroBGKRNG())
+    @test ps.v[1][1] ≈ 1.0
+    @test ps.v[3][1] ≈ -1.0e308
+    @test all(isfinite, Iterators.flatten(ps.v))
+end
+
+@testset "neutral MCC errors are transactional" begin
+    ps = ParticleSet{1,Float64}(2)
+    ps.v[1] .= (0.0, -1.0e308)
+    snap = map(copy, ps.v)
+    work = map(similar, ps.v)
+
+    # Particle 1 has a valid proposal; particle 2's finite relative velocity
+    # overflows. Neither proposal is committed.
+    @test_throws ArgumentError collide_neutral_mcc!(
+        ps,
+        1.0;
+        nσ = 1.0e6,
+        T_n = 0.0,
+        m_n = 1.0,
+        u_n = (1.0e308, 0.0, 0.0),
+        rng = ZeroBGKRNG(),
+        work,
+    )
+    @test all(ps.v[c] == snap[c] for c = 1:3)
+
+    # A non-finite neutral sample on particle 2 likewise cannot leave particle
+    # 1's otherwise-valid update partially applied.
+    ps.v[1] .= (1.0, 2.0)
+    snap = map(copy, ps.v)
+    @test_throws ArgumentError collide_neutral_mcc!(
+        ps,
+        1.0;
+        nσ = 1.0e6,
+        T_n = 1.0,
+        m_n = 1.0,
+        rng = InvalidNeutralRNG(0),
+        work,
+    )
+    @test all(ps.v[c] == snap[c] for c = 1:3)
+
+    @test_throws ArgumentError collide_neutral_mcc!(ps, 1.0; nσ = 1.0, T_n = 0.0, work = ps.v)
+    @test all(ps.v[c] == snap[c] for c = 1:3)
+
+    alloc_ps = ParticleSet{1,Float64}(32)
+    alloc_ps.v[1] .= 1.0
+    alloc_work = map(similar, alloc_ps.v)
+    alloc_rng = MersenneTwister(9)
+    collide_neutral_mcc!(alloc_ps, 0.1; nσ = 1.0, T_n = 0.2, rng = alloc_rng, work = alloc_work)
+    bytes = @allocated collide_neutral_mcc!(
+        alloc_ps,
+        0.1;
+        nσ = 1.0,
+        T_n = 0.2,
+        rng = alloc_rng,
+        work = alloc_work,
+    )
+    @test bytes == 0
 end
 
 # ---- electron-impact ionization (ionize_mcc!) ---------------------------------

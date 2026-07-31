@@ -421,9 +421,42 @@ function _require_finite_particle_velocities(ps::ParticleSet, context::AbstractS
     return nothing
 end
 
+function _neutral_velocity_work(ps::ParticleSet{D,T}, work) where {D,T}
+    if work === nothing
+        return ntuple(c -> copy(ps.v[c]), 3)
+    end
+    (work isa Tuple && length(work) == 3) ||
+        throw(ArgumentError("collide_neutral_mcc!: work must be a 3-tuple of velocity vectors"))
+    for c = 1:3
+        work[c] isa AbstractVector{T} ||
+            throw(ArgumentError("collide_neutral_mcc!: work[$c] must be an AbstractVector{$T}"))
+        axes(work[c]) == axes(ps.v[c]) || throw(
+            DimensionMismatch(
+                "collide_neutral_mcc!: work[$c] axes $(axes(work[c])) do not match particle axes $(axes(ps.v[c]))",
+            ),
+        )
+    end
+    for c = 1:3
+        for d = 1:3
+            Base.mightalias(work[c], ps.v[d]) && throw(
+                ArgumentError("collide_neutral_mcc!: work must not alias particle velocities"),
+            )
+        end
+        for d = (c+1):3
+            Base.mightalias(work[c], work[d]) &&
+                throw(ArgumentError("collide_neutral_mcc!: work components must not alias"))
+        end
+    end
+    for c = 1:3
+        copyto!(work[c], ps.v[c])
+    end
+    return work
+end
+
 """
     collide_neutral_mcc!(ps::ParticleSet{D,T}, dt; nσ, T_n, m_n=1.0,
-                         u_n=(0.0,0.0,0.0), rng=Random.default_rng()) -> ps
+                         u_n=(0.0,0.0,0.0), rng=Random.default_rng(),
+                         work=nothing) -> ps
 
 One **Monte-Carlo-collision (MCC)** substep of elastic scattering off a background
 **neutral gas** — a thermal reservoir at temperature `T_n`, mass `m_n`, bulk drift
@@ -440,7 +473,10 @@ the charged population relaxes toward the neutral distribution: its temperature 
 `T_n` and its drift toward `u_n` (full thermalization when `m_p = m_n`).
 
 `nσ ≥ 0`, `T_n ≥ 0`, `dt ≥ 0`, `m_n > 0`. Elastic only (inelastic excitation and
-ionization are the upgrade path). Returns `ps`.
+ionization are the upgrade path). The update is transactional: invalid sampled or
+computed states throw without changing `ps`. By default this uses three temporary
+velocity vectors; repeated callers can pass a non-aliasing 3-tuple of particle-length
+vectors as `work` to reuse that storage. Returns `ps`.
 """
 function collide_neutral_mcc!(
     ps::ParticleSet{D,T},
@@ -450,6 +486,7 @@ function collide_neutral_mcc!(
     m_n::Real = 1.0,
     u_n::NTuple{3,<:Real} = (0.0, 0.0, 0.0),
     rng = Random.default_rng(),
+    work = nothing,
 ) where {D,T}
     nσT = _require_finite_nonnegative_real("nσ (density×cross-section)", nσ, T)
     dtT = _validated_nonnegative_dt(T, dt; name = "collide_neutral_mcc!")
@@ -471,21 +508,32 @@ function collide_neutral_mcc!(
     # mp*v can overflow even when the centre-of-mass velocity is representable.
     if mp >= mnT
         ratio = mnT / mp
-        μn = ratio / (one(T) + ratio)
+        denom = one(T) + ratio
+        μp = one(T) / denom
+        μn = ratio / denom
     else
         ratio = mp / mnT
-        μn = one(T) / (one(T) + ratio)
+        denom = one(T) + ratio
+        μp = ratio / denom
+        μn = one(T) / denom
     end
-    μp = one(T) - μn
+    vnew = _neutral_velocity_work(ps, work)
+    nvx, nvy, nvz = vnew
     twoπ = 2 * T(π)
     @inbounds for p = 1:N
         vnx = unx + vthn * randn(rng, T)            # sample a neutral partner
         vny = uny + vthn * randn(rng, T)
         vnz = unz + vthn * randn(rng, T)
+        (isfinite(vnx) && isfinite(vny) && isfinite(vnz)) ||
+            throw(ArgumentError("collide_neutral_mcc!: sampled neutral velocity must be finite"))
         gx = vx[p] - vnx
         gy = vy[p] - vny
         gz = vz[p] - vnz
+        (isfinite(gx) && isfinite(gy) && isfinite(gz)) ||
+            throw(ArgumentError("collide_neutral_mcc!: relative velocity exceeds numeric range"))
         gmag = hypot(gx, gy, gz)
+        isfinite(gmag) ||
+            throw(ArgumentError("collide_neutral_mcc!: relative speed exceeds numeric range"))
         gmag > 0 || continue
         Pcoll = -expm1(-nσT * gmag * dtT)           # 1 − exp(−nσ|g|dt)
         rand(rng, T) < Pcoll || continue
@@ -495,9 +543,17 @@ function collide_neutral_mcc!(
         cosχ = 2 * rand(rng, T) - one(T)            # isotropic elastic scatter in CM
         sinχ = sqrt(max(zero(T), one(T) - cosχ * cosχ))
         φ = twoπ * rand(rng, T)
-        vx[p] = Vx + μn * gmag * sinχ * cos(φ)
-        vy[p] = Vy + μn * gmag * sinχ * sin(φ)
-        vz[p] = Vz + μn * gmag * cosχ
+        outx = Vx + μn * gmag * sinχ * cos(φ)
+        outy = Vy + μn * gmag * sinχ * sin(φ)
+        outz = Vz + μn * gmag * cosχ
+        (isfinite(outx) && isfinite(outy) && isfinite(outz)) ||
+            throw(ArgumentError("collide_neutral_mcc!: scattered velocity must be finite"))
+        nvx[p] = outx
+        nvy[p] = outy
+        nvz[p] = outz
+    end
+    for c = 1:3
+        copyto!(ps.v[c], vnew[c])
     end
     return ps
 end
