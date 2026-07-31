@@ -17,6 +17,17 @@ function Random.randn(rng::TinyBGKRNG, ::Type{Float64})
     return isodd(rng.draw) ? 1.0e-200 : -1.0e-200
 end
 
+mutable struct SubnormalBGKRNG <: AbstractRNG
+    draw::Int
+end
+Random.rand(::SubnormalBGKRNG, ::Type{Float64}) = 0.0
+function Random.randn(rng::SubnormalBGKRNG, ::Type{Float64})
+    rng.draw += 1
+    # With vth = 1e154/√3, this rounds each sampled deviation to √(min subnormal).
+    value = sqrt(nextfloat(0.0)) / (1.0e154 / sqrt(3.0))
+    return isodd(rng.draw) ? value : -value
+end
+
 mutable struct InvalidNeutralRNG <: AbstractRNG
     normal_draw::Int
 end
@@ -117,9 +128,10 @@ end
     @test all(isfinite, Iterators.flatten(ps.v))
 end
 
-@testset "BGK clears residual deviations when sampled variance underflows" begin
+@testset "BGK stages a no-op when sampled variance underflows" begin
     ps = ParticleSet{1,Float64}(3)
     ps.v[1] .= (-1.0, 0.0, 1.0)
+    snap = map(copy, ps.v)
     P0, E0 = set_totals(ps)
 
     collide_bgk!(ps, 1.0, 1000.0; rng = TinyBGKRNG(0))
@@ -127,9 +139,7 @@ end
     P1, E1 = set_totals(ps)
     @test all(isapprox(P1[c], P0[c]; rtol = 1e-14, atol = 1e-14) for c = 1:3)
     @test E1 ≈ E0 rtol = 1e-14 atol = 1e-14
-    @test ps.v[1][3] == 0.0
-    @test all(iszero, ps.v[2])
-    @test all(iszero, ps.v[3])
+    @test all(ps.v[c] == snap[c] for c = 1:3)
 end
 
 @testset "BGK-003 isotropization of a bi-Maxwellian" begin
@@ -239,6 +249,152 @@ end
     snap = map(copy, ps.v)
     @test_throws ArgumentError collide_bgk!(ps, 1.0, 1000.0; rng = InvalidNeutralRNG(0), work)
     @test all(ps.v[c] == snap[c] for c = 1:3)
+
+    alloc_ps = ParticleSet{1,Float64}(32)
+    alloc_ps.v[1] .= range(-1.0, 1.0; length = 32)
+    alloc_work = map(similar, alloc_ps.v)
+    selection_work = falses(32)
+    alloc_rng = MersenneTwister(17)
+    collide_bgk!(alloc_ps, 10.0, 1.0; rng = alloc_rng, work = alloc_work, selection_work)
+    bytes = @allocated collide_bgk!(
+        alloc_ps,
+        10.0,
+        1.0;
+        rng = alloc_rng,
+        work = alloc_work,
+        selection_work,
+    )
+    @test bytes == 0
+    alloc_snap = map(copy, alloc_ps.v)
+    @test_throws DimensionMismatch collide_bgk!(
+        alloc_ps,
+        10.0,
+        1.0;
+        work = alloc_work,
+        selection_work = falses(31),
+    )
+    @test all(alloc_ps.v[c] == alloc_snap[c] for c = 1:3)
+
+    cross_work = map(similar, alloc_ps.v)
+    foreach(v -> fill!(v, 1.25), cross_work)
+    cross_snap = map(copy, cross_work)
+    selection_alias = view(reinterpret(Bool, cross_work[1]), 1:nparticles(alloc_ps))
+    @test Base.mightalias(selection_alias, cross_work[1])
+    @test_throws ArgumentError collide_bgk!(
+        alloc_ps,
+        10.0,
+        1.0;
+        work = cross_work,
+        selection_work = selection_alias,
+    )
+    @test all(cross_work[c] == cross_snap[c] for c = 1:3)
+    @test all(alloc_ps.v[c] == alloc_snap[c] for c = 1:3)
+end
+
+@testset "BGK weighted variance avoids unweighted square overflow" begin
+    ps = ParticleSet{1,Float64}(2)
+    ps.weight .= (1.0, 1.0e-300)
+    ps.v[1] .= (0.0, 1.0e200)
+    momentum0 = sum(ps.weight[p] * ps.v[1][p] for p = 1:2)
+    energy0 = sum((sqrt(ps.weight[p]) * ps.v[1][p])^2 for p = 1:2)
+
+    collide_bgk!(ps, 1.0, 1000.0; rng = ZeroBGKRNG(), work = map(similar, ps.v))
+
+    momentum1 = sum(ps.weight[p] * ps.v[1][p] for p = 1:2)
+    energy1 = sum((sqrt(ps.weight[p]) * ps.v[1][p])^2 for p = 1:2)
+    @test all(isfinite, Iterators.flatten(ps.v))
+    @test momentum1 ≈ momentum0 rtol = 1.0e-14
+    @test energy1 ≈ energy0 rtol = 1.0e-14
+
+    averaged = ParticleSet{1,Float64}(1000)
+    averaged.v[1][end] = 1.0e155
+    function weighted_mean_and_variance(v, w)
+        total_weight = sum(BigFloat(wp) for wp in w)
+        μ = sum(BigFloat(w[p]) * BigFloat(v[p]) for p in eachindex(v)) / total_weight
+        variance = sum(BigFloat(w[p]) * (BigFloat(v[p]) - μ)^2 for p in eachindex(v)) / total_weight
+        return μ, variance
+    end
+    mean0, variance0 = weighted_mean_and_variance(averaged.v[1], averaged.weight)
+
+    collide_bgk!(averaged, 1.0, 1000.0; rng = ZeroBGKRNG(), work = map(similar, averaged.v))
+
+    mean1, variance1 = weighted_mean_and_variance(averaged.v[1], averaged.weight)
+    @test all(isfinite, Iterators.flatten(averaged.v))
+    @test mean1 ≈ mean0 rtol = 1.0e-14
+    @test variance1 ≈ variance0 rtol = 1.0e-14
+
+    subnormal = ParticleSet{1,Float64}(1025)
+    subnormal.weight[end] = nextfloat(0.0)
+    subnormal.v[1][end] = 1.0e307
+    mean0, variance0 = weighted_mean_and_variance(subnormal.v[1], subnormal.weight)
+
+    collide_bgk!(subnormal, 1.0, 1000.0; rng = ZeroBGKRNG(), work = map(similar, subnormal.v))
+
+    mean1, variance1 = weighted_mean_and_variance(subnormal.v[1], subnormal.weight)
+    @test all(isfinite, Iterators.flatten(subnormal.v))
+    @test mean1 ≈ mean0 rtol = 1.0e-12
+    @test variance1 ≈ variance0 rtol = 1.0e-12
+
+    opposite = ParticleSet{1,Float64}(2)
+    opposite.weight .= (1.0, nextfloat(0.0))
+    opposite.v[1] .= (-1.0e308, 1.0e308)
+    opposite_snap = map(copy, opposite.v)
+    mean0, variance0 = weighted_mean_and_variance(opposite.v[1], opposite.weight)
+
+    collide_bgk!(opposite, 1.0, 1000.0; rng = ZeroBGKRNG(), work = map(similar, opposite.v))
+
+    mean1, variance1 = weighted_mean_and_variance(opposite.v[1], opposite.weight)
+    @test all(opposite.v[c] == opposite_snap[c] for c = 1:3)
+    @test mean1 == mean0
+    @test variance1 == variance0
+
+    min_variance = ParticleSet{1,Float64}(4)
+    amplitude = sqrt(nextfloat(0.0))
+    min_variance.v[1] .= (-amplitude, amplitude, -amplitude, amplitude)
+    min_variance_snap = map(copy, min_variance.v)
+    mean0, variance0 = weighted_mean_and_variance(min_variance.v[1], min_variance.weight)
+
+    collide_bgk!(min_variance, 1.0, 1000.0; rng = ZeroBGKRNG(), work = map(similar, min_variance.v))
+
+    mean1, variance1 = weighted_mean_and_variance(min_variance.v[1], min_variance.weight)
+    @test all(min_variance.v[c] == min_variance_snap[c] for c = 1:3)
+    @test mean1 == mean0
+    @test variance1 == variance0
+
+    subnormal_sample = ParticleSet{1,Float64}(2)
+    subnormal_sample.v[1] .= (-1.0e154, 1.0e154)
+    subnormal_sample_snap = map(copy, subnormal_sample.v)
+    collide_bgk!(
+        subnormal_sample,
+        1.0,
+        1000.0;
+        rng = SubnormalBGKRNG(0),
+        work = map(similar, subnormal_sample.v),
+    )
+    @test all(subnormal_sample.v[c] == subnormal_sample_snap[c] for c = 1:3)
+
+    unrepresentable_weight = ParticleSet{1,Float64}(2)
+    unrepresentable_weight.weight .= (floatmax(Float64), nextfloat(0.0))
+    unrepresentable_weight.v[1] .= (0.0, 1.0e308)
+    unrepresentable_snap = map(copy, unrepresentable_weight.v)
+    @test_throws ArgumentError collide_bgk!(unrepresentable_weight, 1.0, 1000.0; rng = ZeroBGKRNG())
+    @test all(unrepresentable_weight.v[c] == unrepresentable_snap[c] for c = 1:3)
+
+    dominant_new_weight = ParticleSet{1,Float64}(2)
+    dominant_new_weight.weight .= (1.0e-130, 1.0)
+    dominant_new_weight.v[1] .= (2.4e142, -1.4e93)
+    mean0, variance0 =
+        weighted_mean_and_variance(dominant_new_weight.v[1], dominant_new_weight.weight)
+    energy0 = variance0 + mean0^2
+
+    collide_bgk!(dominant_new_weight, 1.0, 1000.0; rng = MersenneTwister(9))
+
+    mean1, variance1 =
+        weighted_mean_and_variance(dominant_new_weight.v[1], dominant_new_weight.weight)
+    energy1 = variance1 + mean1^2
+    @test all(isfinite, Iterators.flatten(dominant_new_weight.v))
+    @test mean1 ≈ mean0 rtol = 1.0e-14
+    @test energy1 ≈ energy0 rtol = 1.0e-14
 end
 
 # ---- Takizuka-Abe binary Coulomb collisions (collide_coulomb!) ----------------

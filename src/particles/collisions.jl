@@ -11,9 +11,81 @@
 # pre-scatter values, the global totals are conserved independently of the
 # untouched particles.
 
+@inline function _scaled_centered_component(rms_scale::T, value::T, center::T) where {T}
+    difference = value - center
+    isfinite(difference) && return rms_scale * difference
+    return rms_scale * value - rms_scale * center
+end
+
+@inline function _scaled_ssq_add(scale::T, ssq::T, value::T) where {T}
+    isfinite(value) || return T(Inf), one(T)
+    iszero(value) && return scale, ssq
+    magnitude = abs(value)
+    if scale < magnitude
+        ratio = scale / magnitude
+        return magnitude, one(T) + ssq * ratio * ratio
+    end
+    ratio = magnitude / scale
+    return scale, ssq + ratio * ratio
+end
+
+@inline function _accumulate_normalized_deviation(
+    scale::T,
+    ssq::T,
+    wp::T,
+    sqrt_total_weight::T,
+    x::T,
+    y::T,
+    z::T,
+    center_x::T,
+    center_y::T,
+    center_z::T,
+) where {T}
+    rms_scale = sqrt(wp) / sqrt_total_weight
+    dx = _scaled_centered_component(rms_scale, x, center_x)
+    dy = _scaled_centered_component(rms_scale, y, center_y)
+    dz = _scaled_centered_component(rms_scale, z, center_z)
+    scale, ssq = _scaled_ssq_add(scale, ssq, dx)
+    scale, ssq = _scaled_ssq_add(scale, ssq, dy)
+    return _scaled_ssq_add(scale, ssq, dz)
+end
+
+@inline function _scaled_ssq_energy(scale::T, ssq::T) where {T}
+    iszero(scale) && return zero(T)
+    norm = scale * sqrt(ssq)
+    return norm * norm
+end
+
+@inline function _finite_muldiv(a::T, b::T, denominator::T) where {T}
+    (iszero(a) || iszero(b)) && return zero(T)
+    af, ae = frexp(a)
+    bf, be = frexp(b)
+    df, de = frexp(denominator)
+    return ldexp((af * bf) / df, ae + be - de)
+end
+
+@inline function _convex_weighted_mean(
+    current::T,
+    value::T,
+    old_weight::T,
+    new_weight::T,
+    total_weight::T,
+) where {T}
+    current == value && return current
+    old_fraction = old_weight / total_weight
+    new_fraction = new_weight / total_weight
+    old_term =
+        iszero(old_fraction) ? _finite_muldiv(old_weight, current, total_weight) :
+        old_fraction * current
+    new_term =
+        iszero(new_fraction) ? _finite_muldiv(new_weight, value, total_weight) :
+        new_fraction * value
+    return old_term + new_term
+end
+
 """
     collide_bgk!(ps::ParticleSet{D,T}, ν, dt; rng=Random.default_rng(),
-                 work=nothing) -> ps
+                 work=nothing, selection_work=nothing) -> ps
 
 Apply one BGK collision substep of duration `dt` at collision frequency `ν`.
 
@@ -27,10 +99,13 @@ the whole-set totals `Σ w v` and `Σ w |v|²` are conserved exactly to roundoff
 
 Finite `ν ≥ 0`, finite `dt ≥ 0`, finite velocities, and finite non-negative
 macro-particle weights are required. `ν·dt = 0`, fewer than two particles, or
-an all-zero-weight set is a no-op. The sampled update is transactional: an
-invalid sampled or corrected state throws without changing `ps`. By default
-this uses three temporary velocity vectors; repeated callers can pass a
-non-aliasing 3-tuple of particle-length vectors as `work`. Returns `ps`.
+an all-zero-weight set is a no-op. Every positive weight must remain nonzero
+when normalized by the largest weight. The sampled update is transactional: an
+invalid sampled state throws without changing `ps`, while an affine correction
+that is not representable leaves the selected state unchanged. By default this
+uses three temporary velocity vectors; repeated callers can pass a non-aliasing
+3-tuple of particle-length vectors as `work` and a particle-length
+`AbstractVector{Bool}` as `selection_work`. Returns `ps`.
 """
 function collide_bgk!(
     ps::ParticleSet{D,T},
@@ -38,6 +113,7 @@ function collide_bgk!(
     dt::Real;
     rng = Random.default_rng(),
     work = nothing,
+    selection_work = nothing,
 ) where {D,T}
     νT = _require_finite_nonnegative_real("collision frequency ν", ν, T)
     dtT = _validated_nonnegative_dt(T, dt; name = "collide_bgk!")
@@ -57,6 +133,7 @@ function collide_bgk!(
     end
     # Need at least two particles to have a fluctuation to relax/correct.
     (N < 2 || iszero(νT) || iszero(dtT) || iszero(wmax)) && return ps
+    _require_nonaliasing_collision_scratch(selection_work, "selection_work", work, "collide_bgk!")
 
     # --- whole-set weighted mean velocity u and scalar temperature T ----------
     Wtot = zero(T)
@@ -65,37 +142,49 @@ function collide_bgk!(
     uz = zero(T)
     @inbounds for p = 1:N
         wp = w[p] / wmax
+        (w[p] > zero(T) && iszero(wp)) && throw(
+            ArgumentError(
+                "collide_bgk!: particle $p positive weight is below the normalized numeric range relative to the largest weight",
+            ),
+        )
         iszero(wp) && continue
         Wnew = Wtot + wp
-        old_fraction = Wtot / Wnew
-        new_fraction = wp / Wnew
-        ux = old_fraction * ux + new_fraction * vx[p]
-        uy = old_fraction * uy + new_fraction * vy[p]
-        uz = old_fraction * uz + new_fraction * vz[p]
+        ux = _convex_weighted_mean(ux, vx[p], Wtot, wp, Wnew)
+        uy = _convex_weighted_mean(uy, vy[p], Wtot, wp, Wnew)
+        uz = _convex_weighted_mean(uz, vz[p], Wtot, wp, Wnew)
         Wtot = Wnew
     end
     (isfinite(ux) && isfinite(uy) && isfinite(uz)) ||
         throw(ArgumentError("collide_bgk!: weighted mean velocity exceeds numeric range"))
 
-    s2 = zero(T)
+    thermal_scale = zero(T)
+    thermal_ssq = one(T)
+    sqrt_Wtot = sqrt(Wtot)
     @inbounds for p = 1:N
         wp = w[p] / wmax
         iszero(wp) && continue
-        dx = vx[p] - ux
-        dy = vy[p] - uy
-        dz = vz[p] - uz
-        q = dx * dx + dy * dy + dz * dz
-        snew = s2 + wp * q
-        isfinite(snew) || throw(ArgumentError("collide_bgk!: thermal energy exceeds numeric range"))
-        s2 = snew
+        thermal_scale, thermal_ssq = _accumulate_normalized_deviation(
+            thermal_scale,
+            thermal_ssq,
+            wp,
+            sqrt_Wtot,
+            vx[p],
+            vy[p],
+            vz[p],
+            ux,
+            uy,
+            uz,
+        )
     end
+    s2 = _scaled_ssq_energy(thermal_scale, thermal_ssq)
+    isfinite(s2) || throw(ArgumentError("collide_bgk!: thermal energy exceeds numeric range"))
     # scalar temperature (per-component variance) → isotropic thermal speed
-    Tscalar = s2 / (3 * Wtot)
+    Tscalar = s2 / 3
     vth = sqrt(Tscalar)
 
     # --- select the scattered subset (Bernoulli with p = 1 − exp(−ν dt)) ------
     Pcoll = -expm1(-νT * dtT)                    # = 1 − exp(−ν dt), accurate near 0
-    sel = falses(N)
+    sel = _collision_selection_work(ps, selection_work, "collide_bgk!")
     nsel = 0
     @inbounds for p = 1:N
         if rand(rng, T) < Pcoll
@@ -117,27 +206,35 @@ function collide_bgk!(
         wp = w[p] / wmax
         iszero(wp) && continue
         Wnew = Wsub + wp
-        old_fraction = Wsub / Wnew
-        new_fraction = wp / Wnew
-        ūx = old_fraction * ūx + new_fraction * vx[p]
-        ūy = old_fraction * ūy + new_fraction * vy[p]
-        ūz = old_fraction * ūz + new_fraction * vz[p]
+        ūx = _convex_weighted_mean(ūx, vx[p], Wsub, wp, Wnew)
+        ūy = _convex_weighted_mean(ūy, vy[p], Wsub, wp, Wnew)
+        ūz = _convex_weighted_mean(ūz, vz[p], Wsub, wp, Wnew)
         Wsub = Wnew
     end
     Wsub > 0 || return ps
-    Ktarget = zero(T)
+    target_scale = zero(T)
+    target_ssq = one(T)
+    sqrt_Wsub = sqrt(Wsub)
     @inbounds for p = 1:N
         sel[p] || continue
         wp = w[p] / wmax
         iszero(wp) && continue
-        dx = vx[p] - ūx
-        dy = vy[p] - ūy
-        dz = vz[p] - ūz
-        Knew = Ktarget + wp * (dx * dx + dy * dy + dz * dz)
-        isfinite(Knew) ||
-            throw(ArgumentError("collide_bgk!: selected thermal energy exceeds numeric range"))
-        Ktarget = Knew
+        target_scale, target_ssq = _accumulate_normalized_deviation(
+            target_scale,
+            target_ssq,
+            wp,
+            sqrt_Wsub,
+            vx[p],
+            vy[p],
+            vz[p],
+            ūx,
+            ūy,
+            ūz,
+        )
     end
+    Ktarget = _scaled_ssq_energy(target_scale, target_ssq)
+    isfinite(Ktarget) ||
+        throw(ArgumentError("collide_bgk!: selected thermal energy exceeds numeric range"))
 
     # --- resample the subset from the local drifting Maxwellian ---------------
     vnew = _collision_velocity_work(ps, work, "collide_bgk!")
@@ -154,7 +251,7 @@ function collide_bgk!(
         nvz[p] = sz
     end
 
-    # --- momentum correction: shift so subset momentum = pre-scatter value ----
+    # --- affine correction: restore the subset's momentum and thermal energy ---
     # Current post-resample subset weighted mean:
     n̄x = zero(T)
     n̄y = zero(T)
@@ -165,80 +262,75 @@ function collide_bgk!(
         wp = w[p] / wmax
         iszero(wp) && continue
         Wnew = Wnewsub + wp
-        old_fraction = Wnewsub / Wnew
-        new_fraction = wp / Wnew
-        n̄x = old_fraction * n̄x + new_fraction * nvx[p]
-        n̄y = old_fraction * n̄y + new_fraction * nvy[p]
-        n̄z = old_fraction * n̄z + new_fraction * nvz[p]
+        n̄x = _convex_weighted_mean(n̄x, nvx[p], Wnewsub, wp, Wnew)
+        n̄y = _convex_weighted_mean(n̄y, nvy[p], Wnewsub, wp, Wnew)
+        n̄z = _convex_weighted_mean(n̄z, nvz[p], Wnewsub, wp, Wnew)
         Wnewsub = Wnew
     end
-    δx = ūx - n̄x
-    δy = ūy - n̄y
-    δz = ūz - n̄z
-    @inbounds for p = 1:N
-        sel[p] || continue
-        nvx[p] += δx
-        nvy[p] += δy
-        nvz[p] += δz
-    end
-
-    # --- energy correction: rescale fluctuations about the (now-exact) mean ----
-    K1 = zero(T)
+    # Measure the original sampled deviations. Applying a rounded shift first can
+    # turn identical samples into a common nonzero residual that is then amplified.
+    sampled_scale = zero(T)
+    sampled_ssq = one(T)
     @inbounds for p = 1:N
         sel[p] || continue
         wp = w[p] / wmax
         iszero(wp) && continue
-        dx = nvx[p] - ūx
-        dy = nvy[p] - ūy
-        dz = nvz[p] - ūz
-        Knew = K1 + wp * (dx * dx + dy * dy + dz * dz)
-        isfinite(Knew) ||
-            throw(ArgumentError("collide_bgk!: corrected thermal energy exceeds numeric range"))
-        K1 = Knew
+        sampled_scale, sampled_ssq = _accumulate_normalized_deviation(
+            sampled_scale,
+            sampled_ssq,
+            wp,
+            sqrt_Wsub,
+            nvx[p],
+            nvy[p],
+            nvz[p],
+            n̄x,
+            n̄y,
+            n̄z,
+        )
     end
+    K1 = _scaled_ssq_energy(sampled_scale, sampled_ssq)
+    isfinite(K1) ||
+        throw(ArgumentError("collide_bgk!: corrected thermal energy exceeds numeric range"))
+    restore_original = false
     if K1 > 0
         α = sqrt(Ktarget) / sqrt(K1)
-        @inbounds for p = 1:N
-            sel[p] || continue
-            nvx[p] = ūx + α * (nvx[p] - ūx)
-            nvy[p] = ūy + α * (nvy[p] - ūy)
-            nvz[p] = ūz + α * (nvz[p] - ūz)
+        restore_original = !isfinite(α)
+        if !restore_original
+            @inbounds for p = 1:N
+                sel[p] || continue
+                corrected_x = ūx + α * (nvx[p] - n̄x)
+                corrected_y = ūy + α * (nvy[p] - n̄y)
+                corrected_z = ūz + α * (nvz[p] - n̄z)
+                if !(isfinite(corrected_x) && isfinite(corrected_y) && isfinite(corrected_z))
+                    restore_original = true
+                    break
+                end
+                nvx[p] = corrected_x
+                nvy[p] = corrected_y
+                nvz[p] = corrected_z
+            end
         end
     elseif Ktarget > 0
         # A degenerate random source (or finite-precision collapse) can give every
         # resampled particle the same velocity, so there is no fluctuation to
-        # rescale. Seed an exactly momentum-balanced pair along x with the target
-        # energy. This branch has probability zero for an ideal continuous normal
-        # draw, but is required for the documented conservation guarantee.
-        i = 0
-        j = 0
-        @inbounds for p = 1:N
-            (sel[p] && w[p] / wmax > 0) || continue
-            if i == 0
-                i = p
-            else
-                j = p
-                break
-            end
-        end
-        j != 0 || throw(
-            ArgumentError(
-                "collide_bgk!: nonzero thermal energy requires at least two selected positive-weight particles",
-            ),
-        )
-        wi = w[i] / wmax
-        wj = w[j] / wmax
-        wij = wi + wj
-        ai = sqrt(Ktarget) * sqrt(wj / wij) / sqrt(wi)
-        aj = sqrt(Ktarget) * sqrt(wi / wij) / sqrt(wj)
+        # rescale. Preserve the original selected state transactionally instead
+        # of synthesizing deviations that may not be representable at this scale.
+        restore_original = true
+    else
         @inbounds for p = 1:N
             sel[p] || continue
             nvx[p] = ūx
             nvy[p] = ūy
             nvz[p] = ūz
         end
-        nvx[i] = ūx + ai
-        nvx[j] = ūx - aj
+    end
+    if restore_original
+        @inbounds for p = 1:N
+            sel[p] || continue
+            nvx[p] = vx[p]
+            nvy[p] = vy[p]
+            nvz[p] = vz[p]
+        end
     end
 
     @inbounds for p = 1:N
@@ -465,6 +557,47 @@ function _require_finite_particle_velocities(ps::ParticleSet, context::AbstractS
     return nothing
 end
 
+function _mightalias_particle_storage(candidate, ps::ParticleSet)
+    for d = 1:length(ps.x)
+        Base.mightalias(candidate, ps.x[d]) && return true
+    end
+    for c = 1:3
+        Base.mightalias(candidate, ps.v[c]) && return true
+    end
+    Base.mightalias(candidate, ps.weight) && return true
+    Base.mightalias(candidate, ps.id) && return true
+    Base.mightalias(candidate, ps.tag) && return true
+    return false
+end
+
+function _require_nonaliasing_collision_scratch(candidate, candidate_name, work, context)
+    (candidate === nothing || work === nothing) && return nothing
+    (work isa Tuple && length(work) == 3) || return nothing
+    for c = 1:3
+        Base.mightalias(candidate, work[c]) &&
+            throw(ArgumentError("$context: $candidate_name must not alias work[$c]"))
+    end
+    return nothing
+end
+
+function _collision_selection_work(ps::ParticleSet, selection_work, context::AbstractString)
+    N = nparticles(ps)
+    if selection_work === nothing
+        return falses(N)
+    end
+    selection_work isa AbstractVector{Bool} ||
+        throw(ArgumentError("$context: selection_work must be an AbstractVector{Bool}"))
+    axes(selection_work, 1) == Base.OneTo(N) || throw(
+        DimensionMismatch(
+            "$context: selection_work axes $(axes(selection_work, 1)) do not match particle axes $(Base.OneTo(N))",
+        ),
+    )
+    _mightalias_particle_storage(selection_work, ps) &&
+        throw(ArgumentError("$context: selection_work must not alias particle storage"))
+    fill!(selection_work, false)
+    return selection_work
+end
+
 function _collision_velocity_work(ps::ParticleSet{D,T}, work, context::AbstractString) where {D,T}
     if work === nothing
         return ntuple(c -> copy(ps.v[c]), 3)
@@ -481,10 +614,8 @@ function _collision_velocity_work(ps::ParticleSet{D,T}, work, context::AbstractS
         )
     end
     for c = 1:3
-        for d = 1:3
-            Base.mightalias(work[c], ps.v[d]) &&
-                throw(ArgumentError("$context: work must not alias particle velocities"))
-        end
+        _mightalias_particle_storage(work[c], ps) &&
+            throw(ArgumentError("$context: work must not alias particle storage"))
         for d = (c+1):3
             Base.mightalias(work[c], work[d]) &&
                 throw(ArgumentError("$context: work components must not alias"))
