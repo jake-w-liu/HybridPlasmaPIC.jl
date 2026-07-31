@@ -786,11 +786,66 @@ end
     @test na == nbb && ea.v[1] == eb.v[1] && ia.v[1] == ib.v[1]
 end
 
+@testset "ionization validates neutral pair creation before mutation" begin
+    electrons = ParticleSet{1,Float64}(2; q = -1.0, m = 1.0)
+    electrons.x[1] .= (0.25, 0.75)
+    electrons.v[1] .= 2.0
+    ions = ParticleSet{1,Float64}(0; q = 1.0, m = 100.0)
+
+    function unchanged(electrons, ions, x0, v0, w0)
+        return nparticles(electrons) == 2 &&
+               nparticles(ions) == 0 &&
+               all(isequal(electrons.x[d], x0[d]) for d = 1:1) &&
+               all(isequal(electrons.v[c], v0[c]) for c = 1:3) &&
+               isequal(electrons.weight, w0)
+    end
+
+    for (qe, qi) in ((1.0, 1.0), (-1.0, -1.0), (-1.0, 2.0), (NaN, 1.0), (-1.0, Inf))
+        electrons.q = qe
+        ions.q = qi
+        x0 = map(copy, electrons.x)
+        v0 = map(copy, electrons.v)
+        w0 = copy(electrons.weight)
+        @test_throws ArgumentError ionize_mcc!(
+            electrons,
+            ions,
+            1.0;
+            nσ_iz = 1.0e6,
+            E_iz = 0.5,
+            rng = ZeroBGKRNG(),
+        )
+        @test unchanged(electrons, ions, x0, v0, w0)
+    end
+    electrons.q = -1.0
+    ions.q = 1.0
+
+    for (field, bad) in
+        ((:position, NaN), (:position, Inf), (:weight, -1.0), (:weight, NaN), (:weight, Inf))
+        field === :position ? (electrons.x[1][2] = bad) : (electrons.weight[2] = bad)
+        x0 = map(copy, electrons.x)
+        v0 = map(copy, electrons.v)
+        w0 = copy(electrons.weight)
+        @test_throws ArgumentError ionize_mcc!(
+            electrons,
+            ions,
+            1.0;
+            nσ_iz = 1.0e6,
+            E_iz = 0.5,
+            rng = ZeroBGKRNG(),
+        )
+        @test unchanged(electrons, ions, x0, v0, w0)
+        electrons.x[1][2] = 0.75
+        electrons.weight[2] = 1.0
+    end
+end
+
 @testset "IZ-003 threaded id counter ⇒ globally-unique ids (self-heal + no reuse under removal)" begin
     T = Float64
     el = ParticleSet{2,T}(200; q = -1.0, m = 1.0)          # pre-existing ids 1..200
     ions = ParticleSet{2,T}(0; q = 1.0, m = 100.0)
     for p = 1:200
+        el.x[1][p] = 0.25
+        el.x[2][p] = 0.75
         el.v[1][p] = 2.0
     end
     fill!(el.weight, 1.0)
@@ -831,6 +886,8 @@ end
     el0 = ParticleSet{2,T}(10; q = -1.0, m = 1.0)
     ions0 = ParticleSet{2,T}(0; q = 1.0, m = 100.0)
     for p = 1:10
+        el0.x[1][p] = 0.25
+        el0.x[2][p] = 0.75
         el0.v[1][p] = 2.0
     end
     fill!(el0.weight, 1.0)

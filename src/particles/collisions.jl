@@ -599,8 +599,10 @@ neutral reservoir supplies the secondary/ion energy and absorbs recoil momentum;
 the secondaries are born at rest, so the weighted electron-population energy loses **exactly**
 `E_iz Σ_{p∈ionized} w_p` (equal to `nionized·E_iz` only for unit macro-particle weights).
 
-`nσ_iz ≥ 0`, `E_iz ≥ 0`, `T_n ≥ 0`, `dt ≥ 0`, `m_n > 0`. Elastic-secondary reservoir model
-(a differential-cross-section secondary spectrum is the upgrade). Returns the ionization count.
+`nσ_iz ≥ 0`, `E_iz ≥ 0`, `T_n ≥ 0`, `dt ≥ 0`, `m_n > 0`. The electron species must
+have finite negative charge and the ion species the exactly opposite positive charge, as required
+by the neutral pair-creation model. Elastic-secondary reservoir model (a
+differential-cross-section secondary spectrum is the upgrade). Returns the ionization count.
 
 **Particle ids.** Pass a persistent per-species monotonic counter `e_nextid`/`i_nextid`
 (`Ref{UInt64}`, as [`inject_face_1d!`](@ref) does) to give newborns **globally unique** ids
@@ -629,6 +631,13 @@ function ionize_mcc!(
     mnT = _require_finite_positive_real("m_n", m_n, T)
     me = _require_finite_positive_real("electron mass", electrons.m, T)
     _require_finite_positive_real("ion mass", ions.m, T)
+    qe = _require_finite_real("electron charge", electrons.q, T)
+    qi = _require_finite_real("ion charge", ions.q, T)
+    qe < zero(T) || throw(ArgumentError("ionize_mcc!: electron species charge must be negative"))
+    qi > zero(T) || throw(ArgumentError("ionize_mcc!: ion species charge must be positive"))
+    qi == -qe || throw(
+        ArgumentError("ionize_mcc!: electron and ion species charges must be exactly opposite"),
+    )
     unx = _require_finite_real("u_n[1]", u_n[1], T)
     uny = _require_finite_real("u_n[2]", u_n[2], T)
     unz = _require_finite_real("u_n[3]", u_n[3], T)
@@ -653,6 +662,24 @@ function ionize_mcc!(
     end
     nb = length(born)
     nb == 0 && return 0
+
+    # These fields are copied into newborns. Validate the complete selected batch
+    # before reserving ids, cooling a primary, or appending either species.
+    @inbounds for p in born
+        wp = ew[p]
+        (isfinite(wp) && wp >= zero(T)) || throw(
+            ArgumentError(
+                "ionize_mcc!: ionized electron $p weight must be finite and non-negative",
+            ),
+        )
+        for d = 1:D
+            isfinite(ex[d][p]) || throw(
+                ArgumentError(
+                    "ionize_mcc!: ionized electron $p position component $d must be finite",
+                ),
+            )
+        end
+    end
 
     # Reserve both species' complete id ranges before cooling a primary or appending a
     # newborn. This keeps id exhaustion an exception-safe input error instead of leaving
