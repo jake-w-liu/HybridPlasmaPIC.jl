@@ -477,6 +477,24 @@ end
 
 # ---------------------------------------------------------------- electron-impact ionization
 
+function _reserve_ionization_ids(
+    ids::AbstractVector{UInt64},
+    nextid::Union{Nothing,Base.RefValue{UInt64}},
+    count::Int,
+    species::AbstractString,
+)
+    count > 0 || throw(ArgumentError("ionization id reservation requires a positive count"))
+    livemax = isempty(ids) ? zero(UInt64) : maximum(ids)
+    livemax < typemax(UInt64) ||
+        throw(ArgumentError("ionize_mcc!: $species particle id space is exhausted"))
+    livefirst = livemax + one(UInt64)
+    requested = nextid === nothing ? livefirst : max(max(nextid[], one(UInt64)), livefirst)
+    countU = UInt64(count)
+    countU <= typemax(UInt64) - requested ||
+        throw(ArgumentError("ionize_mcc!: $species particle id counter is exhausted"))
+    return requested, requested + countU
+end
+
 """
     ionize_mcc!(electrons::ParticleSet{D,T}, ions::ParticleSet{D,T}, dt;
                 nσ_iz, E_iz, T_n=0.0, m_n=1.0, u_n=(0.0,0.0,0.0),
@@ -545,37 +563,20 @@ function ionize_mcc!(
         speed = sqrt(v2)
         Pcoll = -expm1(-nσT * speed * dtT)
         rand(rng, T) < Pcoll || continue
-        scale = sqrt((ke - Eiz) / ke)              # cool the primary: KE ← KE − E_iz (0<scale<1)
-        evx[p] *= scale
-        evy[p] *= scale
-        evz[p] *= scale
         push!(born, p)
     end
     nb = length(born)
     nb == 0 && return 0
 
-    # build newborn secondary electrons + ions (batched: one append each). The default ctor
-    # ids (1..nb) would collide with the first nb existing particles, so assign base+k: from a
-    # threaded monotonic counter when supplied (globally unique, never reused — advance it by
-    # nb), else from max(live id) (unique vs the live set only). See the docstring / id note.
+    # Reserve both species' complete id ranges before cooling a primary or appending a
+    # newborn. This keeps id exhaustion an exception-safe input error instead of leaving
+    # cooled primaries, duplicate ids, or a wrapped monotonic counter.
+    first_e, next_e = _reserve_ionization_ids(electrons.id, e_nextid, nb, "electron")
+    first_i, next_i = _reserve_ionization_ids(ions.id, i_nextid, nb, "ion")
+
+    # Build newborn secondary electrons + ions off-state (batched: one append each).
     new_e = ParticleSet{D,T}(nb; q = electrons.q, m = electrons.m)
     new_i = ParticleSet{D,T}(nb; q = ions.q, m = ions.m)
-    nbU = UInt64(nb)
-    # newborn ids = base+k. With a threaded counter, base = max(counter−1, live max): the
-    # counter (advanced by nb) makes ids globally unique and never reused even across particle
-    # removal, while the max(·, live max) keeps them above the live set so even a low-
-    # initialised counter cannot collide with existing particles. Without a counter, base is
-    # the live max (unique vs the current live set only — a removed id may later be reissued).
-    livemax_e = isempty(electrons.id) ? zero(UInt64) : maximum(electrons.id)
-    livemax_i = isempty(ions.id) ? zero(UInt64) : maximum(ions.id)
-    # subtract AFTER the max so it never underflows (a 0-valued counter would wrap
-    # e_nextid[]-1 to typemax and corrupt the ids); this treats nextid=0 as "start at 1".
-    base_e =
-        e_nextid === nothing ? livemax_e : max(e_nextid[], livemax_e + one(UInt64)) - one(UInt64)
-    base_i =
-        i_nextid === nothing ? livemax_i : max(i_nextid[], livemax_i + one(UInt64)) - one(UInt64)
-    e_nextid === nothing || (e_nextid[] = base_e + one(UInt64) + nbU)
-    i_nextid === nothing || (i_nextid[] = base_i + one(UInt64) + nbU)
     @inbounds for (k, p) in enumerate(born)
         for d = 1:D
             new_e.x[d][k] = ex[d][p]               # born at the incident position
@@ -589,10 +590,20 @@ function ionize_mcc!(
         new_i.v[3][k] = unz + vthn * randn(rng, T)
         new_e.weight[k] = ew[p]                    # inherit the incident macro-particle weight
         new_i.weight[k] = ew[p]
-        new_e.id[k] = base_e + UInt64(k)
-        new_i.id[k] = base_i + UInt64(k)
+        new_e.id[k] = first_e + UInt64(k - 1)
+        new_i.id[k] = first_i + UInt64(k - 1)
+    end
+    @inbounds for p in born
+        v2 = evx[p]^2 + evy[p]^2 + evz[p]^2
+        ke = T(0.5) * me * v2
+        scale = sqrt((ke - Eiz) / ke)              # cool the primary: KE ← KE − E_iz (0<scale<1)
+        evx[p] *= scale
+        evy[p] *= scale
+        evz[p] *= scale
     end
     append_particles!(electrons, new_e)
     append_particles!(ions, new_i)
+    e_nextid === nothing || (e_nextid[] = next_e)
+    i_nextid === nothing || (i_nextid[] = next_i)
     return nb
 end

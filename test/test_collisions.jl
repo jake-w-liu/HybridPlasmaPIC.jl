@@ -639,3 +639,55 @@ end
     @test all(>(UInt64(10)), el0.id[11:end])               # newborns above the live max
     @test z[] > UInt64(10)                                  # counter self-healed, no wrap
 end
+
+@testset "IZ-004 ionization id exhaustion is exception-safe" begin
+    function exhausted_species(; counter)
+        el = ParticleSet{1,Float64}(1; q = -1.0, m = 1.0)
+        el.x[1][1] = 0.25
+        el.v[1][1] = 2.0
+        el.id[1] = typemax(UInt64)
+        ions = ParticleSet{1,Float64}(0; q = 1.0, m = 100.0)
+        ev0 = map(copy, el.v)
+        eid0 = copy(el.id)
+        counter0 = counter === nothing ? nothing : counter[]
+
+        @test_throws ArgumentError ionize_mcc!(
+            el,
+            ions,
+            1.0;
+            nσ_iz = 1.0e6,
+            E_iz = 0.5,
+            e_nextid = counter,
+            rng = MersenneTwister(1),
+        )
+
+        @test nparticles(el) == 1
+        @test nparticles(ions) == 0
+        @test all(el.v[c] == ev0[c] for c = 1:3)
+        @test el.id == eid0
+        if counter !== nothing
+            @test counter[] == counter0
+        end
+    end
+
+    exhausted_species(; counter = nothing)
+    exhausted_species(; counter = Ref(typemax(UInt64)))
+
+    el = ParticleSet{1,Float64}(1; q = -1.0, m = 1.0)
+    el.x[1][1] = 0.25
+    el.v[1][1] = 2.0
+    ions = ParticleSet{1,Float64}(1; q = 1.0, m = 100.0)
+    ions.id[1] = typemax(UInt64)
+    ev0 = map(copy, el.v)
+    @test_throws ArgumentError ionize_mcc!(
+        el,
+        ions,
+        1.0;
+        nσ_iz = 1.0e6,
+        E_iz = 0.5,
+        rng = MersenneTwister(1),
+    )
+    @test all(el.v[c] == ev0[c] for c = 1:3)
+    @test nparticles(el) == 1
+    @test nparticles(ions) == 1
+end
