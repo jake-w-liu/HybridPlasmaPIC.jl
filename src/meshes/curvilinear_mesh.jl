@@ -80,6 +80,15 @@ end
 
 @inline _dperiodic(f, lo, hi, h) = (f[hi] - f[lo]) / (2h)
 
+function _require_toroidal_field(g::ToroidalGrid, name::Symbol, A::AbstractArray{<:Any,3})
+    expected_size = gridsize(g)
+    size(A) == expected_size || throw(DimensionMismatch("$name must be $expected_size"))
+    expected_axes = ntuple(d -> Base.OneTo(expected_size[d]), 3)
+    axes(A) == expected_axes ||
+        throw(ArgumentError("$name must use one-based axes $expected_axes, got $(axes(A))"))
+    return nothing
+end
+
 """
     metric_gradient(g, f) -> (gr, gθ, gφ)
 
@@ -90,7 +99,7 @@ the `r` boundaries, and periodic central differences in `θ,φ`.
 """
 function metric_gradient(g::ToroidalGrid{T}, f::AbstractArray{T,3}) where {T}
     Nr, Nθ, Nφ = gridsize(g)
-    size(f) == (Nr, Nθ, Nφ) || throw(DimensionMismatch("f must be $(gridsize(g))"))
+    _require_toroidal_field(g, :f, f)
     gr = similar(f)
     gθ = similar(f)
     gφ = similar(f)
@@ -119,30 +128,63 @@ function metric_gradient(g::ToroidalGrid{T}, f::AbstractArray{T,3}) where {T}
     return gr, gθ, gφ
 end
 
-@inline function _radial_flux_derivative(Fr, i, j, k, dr, Nr)
+@inline function _radial_metric_flux(g, Ar, i, j, k, cosθ)
+    r = g.r[i]
+    return r * (g.R0 + r * cosθ) * Ar[i, j, k]
+end
+
+@inline function _radial_flux_derivative(g, Ar, i, j, k, cosθ, Nr)
+    dr = g.dr
     if i == 1
         # At the coordinate axis, Fr = r*R*Ar is exactly zero for every
         # bounded physical Ar.  Including that known value with the first
         # three cell-centred fluxes gives a cubic-exact derivative at r=dr/2.
-        return (Fr[1, j, k] / 2 + 2 * Fr[2, j, k] / 3 - Fr[3, j, k] / 10) / dr
+        return (
+            _radial_metric_flux(g, Ar, 1, j, k, cosθ) / 2 +
+            2 * _radial_metric_flux(g, Ar, 2, j, k, cosθ) / 3 -
+            _radial_metric_flux(g, Ar, 3, j, k, cosθ) / 10
+        ) / dr
     elseif i == Nr
         # J is bounded away from zero at the outer edge, so the usual
         # second-order one-sided derivative retains second-order accuracy.
-        return (3Fr[Nr, j, k] - 4Fr[Nr-1, j, k] + Fr[Nr-2, j, k]) / (2dr)
+        return (
+            3 * _radial_metric_flux(g, Ar, Nr, j, k, cosθ) -
+            4 * _radial_metric_flux(g, Ar, Nr - 1, j, k, cosθ) +
+            _radial_metric_flux(g, Ar, Nr - 2, j, k, cosθ)
+        ) / (2dr)
     elseif Nr == 3
         # Cubic interpolation through Fr(0)=0 and all three cell centres.
-        return (-3Fr[1, j, k] / 2 + 2Fr[2, j, k] / 3 + 3Fr[3, j, k] / 10) / dr
+        return (
+            -3 * _radial_metric_flux(g, Ar, 1, j, k, cosθ) / 2 +
+            2 * _radial_metric_flux(g, Ar, 2, j, k, cosθ) / 3 +
+            3 * _radial_metric_flux(g, Ar, 3, j, k, cosθ) / 10
+        ) / dr
     elseif i == 2
         # Cubic-exact forward-biased derivative.
-        return (-2Fr[1, j, k] - 3Fr[2, j, k] + 6Fr[3, j, k] - Fr[4, j, k]) / (6dr)
+        return (
+            -2 * _radial_metric_flux(g, Ar, 1, j, k, cosθ) -
+            3 * _radial_metric_flux(g, Ar, 2, j, k, cosθ) +
+            6 * _radial_metric_flux(g, Ar, 3, j, k, cosθ) -
+            _radial_metric_flux(g, Ar, 4, j, k, cosθ)
+        ) / (6dr)
     elseif i == Nr - 1
         # Cubic-exact backward-biased derivative.
-        return (Fr[Nr-3, j, k] - 6Fr[Nr-2, j, k] + 3Fr[Nr-1, j, k] + 2Fr[Nr, j, k]) / (6dr)
+        return (
+            _radial_metric_flux(g, Ar, Nr - 3, j, k, cosθ) -
+            6 * _radial_metric_flux(g, Ar, Nr - 2, j, k, cosθ) +
+            3 * _radial_metric_flux(g, Ar, Nr - 1, j, k, cosθ) +
+            2 * _radial_metric_flux(g, Ar, Nr, j, k, cosθ)
+        ) / (6dr)
     else
         # The fourth-order centred stencil keeps the flux-derivative error
         # below O(dr^3), which is needed near J=rR=O(dr) for the divergence
         # itself to remain at least second-order accurate.
-        return (Fr[i-2, j, k] - 8Fr[i-1, j, k] + 8Fr[i+1, j, k] - Fr[i+2, j, k]) / (12dr)
+        return (
+            _radial_metric_flux(g, Ar, i - 2, j, k, cosθ) -
+            8 * _radial_metric_flux(g, Ar, i - 1, j, k, cosθ) +
+            8 * _radial_metric_flux(g, Ar, i + 1, j, k, cosθ) -
+            _radial_metric_flux(g, Ar, i + 2, j, k, cosθ)
+        ) / (12dr)
     end
 end
 
@@ -161,32 +203,27 @@ function metric_divergence(
 ) where {T}
     Nr, Nθ, Nφ = gridsize(g)
     for (nm, A) in ((:Ar, Ar), (:Aθ, Aθ), (:Aφ, Aφ))
-        size(A) == (Nr, Nθ, Nφ) || throw(DimensionMismatch("$nm must be $(gridsize(g))"))
+        _require_toroidal_field(g, nm, A)
     end
     out = similar(Ar)
-    Fr = similar(Ar)
-    Fθ = similar(Aθ)
-    Fφ = similar(Aφ)
-    @inbounds for k = 1:Nφ, j = 1:Nθ, i = 1:Nr
-        r = g.r[i]
-        R = g.R0 + r * cos(g.θ[j])
-        Fr[i, j, k] = r * R * Ar[i, j, k]
-        Fθ[i, j, k] = R * Aθ[i, j, k]
-        Fφ[i, j, k] = r * Aφ[i, j, k]
-    end
     @inbounds for k = 1:Nφ
         kp = k == Nφ ? 1 : k + 1
         km = k == 1 ? Nφ : k - 1
         for j = 1:Nθ
             jp = j == Nθ ? 1 : j + 1
             jm = j == 1 ? Nθ : j - 1
+            cosθ = cos(g.θ[j])
+            cosθp = cos(g.θ[jp])
+            cosθm = cos(g.θ[jm])
             for i = 1:Nr
                 r = g.r[i]
-                R = g.R0 + r * cos(g.θ[j])
+                R = g.R0 + r * cosθ
                 J = r * R
-                dFr = _radial_flux_derivative(Fr, i, j, k, g.dr, Nr)
-                dFθ = (Fθ[i, jp, k] - Fθ[i, jm, k]) / (2 * g.dθ)
-                dFφ = (Fφ[i, j, kp] - Fφ[i, j, km]) / (2 * g.dφ)
+                dFr = _radial_flux_derivative(g, Ar, i, j, k, cosθ, Nr)
+                Rjp = g.R0 + r * cosθp
+                Rjm = g.R0 + r * cosθm
+                dFθ = (Rjp * Aθ[i, jp, k] - Rjm * Aθ[i, jm, k]) / (2 * g.dθ)
+                dFφ = (r * Aφ[i, j, kp] - r * Aφ[i, j, km]) / (2 * g.dφ)
                 out[i, j, k] = (dFr + dFθ + dFφ) / J
             end
         end

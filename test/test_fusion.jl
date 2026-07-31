@@ -2,6 +2,13 @@ using HybridPlasmaPIC, Test
 
 _tuple_maxabs(a, b) = maximum(abs.(a .- b))
 
+struct ZeroBasedCube{T} <: AbstractArray{T,3}
+    parent::Array{T,3}
+end
+Base.size(a::ZeroBasedCube) = size(a.parent)
+Base.axes(a::ZeroBasedCube) = ntuple(d -> 0:(size(a, d)-1), 3)
+Base.getindex(a::ZeroBasedCube, i::Int, j::Int, k::Int) = a.parent[i+1, j+1, k+1]
+
 @testset "fusion: toroidal curvilinear mesh" begin
     @test_throws ArgumentError ToroidalGrid(3.0, 1.0, 2, 8, 8)
     @test_throws ArgumentError ToroidalGrid(3.0, 1.0, 8, 2, 8)
@@ -36,6 +43,17 @@ _tuple_maxabs(a, b) = maximum(abs.(a .- b))
     div = metric_divergence(g, ones(gridsize(g)), zeros(gridsize(g)), zeros(gridsize(g)))
     @test size(div) == gridsize(g)
     @test all(isfinite, div)
+
+    offset = ZeroBasedCube(ones(gridsize(g)))
+    @test_throws ArgumentError metric_gradient(g, offset)
+    @test_throws ArgumentError metric_divergence(g, offset, offset, offset)
+
+    alloc_grid = ToroidalGrid(3.0, 1.0, 20, 24, 16)
+    alloc_Ar = rand(gridsize(alloc_grid)...)
+    alloc_zero = zeros(gridsize(alloc_grid))
+    metric_divergence(alloc_grid, alloc_Ar, alloc_zero, alloc_zero)
+    divergence_bytes = @allocated metric_divergence(alloc_grid, alloc_Ar, alloc_zero, alloc_zero)
+    @test divergence_bytes < 2sizeof(alloc_Ar)
 
     ffun(r, θ, φ) = r^2 * cos(θ) * sin(φ)
     grad_an(r, θ, φ, R) = (2r * cos(θ) * sin(φ), -r * sin(θ) * sin(φ), (r^2 * cos(θ) * cos(φ)) / R)
