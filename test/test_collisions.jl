@@ -679,6 +679,17 @@ end
     @test electrons.v[1][1] == 1.0e200
     @test all(isfinite, Iterators.flatten(electrons.v))
     @test all(isfinite, Iterators.flatten(ions.v))
+
+    tiny_electrons = ParticleSet{1,Float64}(1; q = -1.0, m = 1.0)
+    tiny_electrons.x[1][1] = 0.5
+    tiny_electrons.v[1][1] = 1.0e-200
+    tiny_ions = ParticleSet{1,Float64}(0; q = 1.0, m = 100.0)
+    tiny_nb =
+        ionize_mcc!(tiny_electrons, tiny_ions, 1.0; nσ_iz = 1.0e300, E_iz = 0.0, rng = ZeroBGKRNG())
+    @test tiny_nb == 1
+    @test tiny_electrons.v[1][1] == 1.0e-200
+    @test nparticles(tiny_electrons) == 2
+    @test nparticles(tiny_ions) == 1
 end
 
 @testset "IZ-002 ionization: threshold, edge cases, validation & determinism" begin

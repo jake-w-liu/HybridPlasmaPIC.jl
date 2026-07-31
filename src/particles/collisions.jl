@@ -640,13 +640,12 @@ function ionize_mcc!(
     evx, evy, evz = electrons.v
     ex = electrons.x
     ew = electrons.weight
+    ionization_speed = sqrt(T(2)) * sqrt(Eiz) / sqrt(me)
 
     born = Int[]                                   # incident electrons that ionized
     @inbounds for p = 1:Ne
-        v2 = evx[p]^2 + evy[p]^2 + evz[p]^2
-        ke = T(0.5) * me * v2
-        ke > Eiz || continue                       # below the ionization threshold
-        speed = sqrt(v2)
+        speed = hypot(evx[p], evy[p], evz[p])
+        speed > ionization_speed || continue       # below the ionization threshold
         Pcoll = -expm1(-nσT * speed * dtT)
         rand(rng, T) < Pcoll || continue
         push!(born, p)
@@ -694,13 +693,11 @@ function ionize_mcc!(
         new_i.id[k] = first_i + UInt64(k - 1)
     end
     @inbounds for p in born
-        v2 = evx[p]^2 + evy[p]^2 + evz[p]^2
-        ke = T(0.5) * me * v2
-        # The ratio form remains finite when a representable velocity has v² and
-        # kinetic energy above the floating-point range. In that limit Eiz/ke
-        # rounds to zero, correctly leaving the velocity unchanged at machine
-        # precision instead of evaluating Inf/Inf and writing NaN.
-        scale = sqrt(max(zero(T), one(T) - Eiz / ke))
+        speed = hypot(evx[p], evy[p], evz[p])
+        loss_ratio = ionization_speed / speed
+        # KE'/KE = 1 - Eiz/KE = 1 - (v_threshold/|v|)^2.
+        # This ratio neither squares a tiny speed nor forms Inf/Inf at high energy.
+        scale = sqrt(max(zero(T), one(T) - loss_ratio * loss_ratio))
         evx[p] *= scale
         evy[p] *= scale
         evz[p] *= scale
