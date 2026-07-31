@@ -368,79 +368,173 @@ end
     i::Int,
     j::Int,
     gcdt::T,
+    log_gcdt::T,
     wbar::T,
+    log_wbar::T,
+    weight_scale::T,
     uf::T,
     twoπ::T,
     rng,
 ) where {T}
     @inbounds begin
-        wi = w[i]
-        wj = w[j]
+        wi = w[i] / weight_scale
+        wj = w[j] / weight_scale
         wmax = max(wi, wj)
         wmax > 0 || return nothing
 
         gx = vx[i] - vx[j]
         gy = vy[i] - vy[j]
         gz = vz[i] - vz[j]
-        gmag = sqrt(gx * gx + gy * gy + gz * gz)
+        (isfinite(gx) && isfinite(gy) && isfinite(gz)) ||
+            throw(ArgumentError("collide_coulomb!: relative velocity exceeds numeric range"))
+        gmag = hypot(gx, gy, gz)
+        isfinite(gmag) ||
+            throw(ArgumentError("collide_coulomb!: relative speed exceeds numeric range"))
         gmag > 0 || return nothing             # identical velocities: no relative motion
 
-        Mx = (vx[i] + vx[j]) / 2               # TRUE midpoint (same-mass pair)
-        My = (vy[i] + vy[j]) / 2
-        Mz = (vz[i] + vz[j]) / 2
+        # Divide before adding so a representable same-mass midpoint does not
+        # overflow when both velocities are large and have the same sign.
+        Mx = vx[i] / 2 + vx[j] / 2
+        My = vy[i] / 2 + vy[j] / 2
+        Mz = vz[i] / 2 + vz[j] / 2
 
-        # Takizuka-Abe ⟨δ²⟩, weight-corrected: × max(wᵢ,wⱼ)/w̄ (Higginson 2020 eq. 31)
-        var = gcdt * (wmax / wbar) / max(gmag, uf)^3
-        if var > 1                              # large-angle regime → isotropic scatter
+        # Takizuka-Abe ⟨δ²⟩, weight-corrected: × max(wᵢ,wⱼ)/w̄ (Higginson 2020 eq. 31).
+        # The ordinary-range path avoids transcendental work in this hot loop.
+        # Fall back to logs only when an intermediate product over/underflows.
+        speed = max(gmag, uf)
+        numerator = gcdt * (wmax / wbar)
+        speed2 = speed * speed
+        denominator = speed2 * speed
+        use_fast =
+            isfinite(numerator) &&
+            numerator > zero(T) &&
+            isfinite(denominator) &&
+            denominator > zero(T)
+        if use_fast
+            var = numerator / denominator
+            large_angle = !isfinite(var) || var > one(T)
+        else
+            logvar = log_gcdt + log(wmax) - log_wbar - 3 * log(speed)
+            large_angle = logvar > zero(T)
+            var = large_angle ? one(T) : exp(logvar)
+        end
+        if large_angle                           # large-angle regime → isotropic scatter
             cosθ = 2 * rand(rng, T) - one(T)
             sinθ = sqrt(max(zero(T), one(T) - cosθ * cosθ))
         else
             δ = sqrt(var) * randn(rng, T)
-            δ2 = δ * δ
-            cosθ = (one(T) - δ2) / (one(T) + δ2)   # δ = tan(Θ/2) ⇒ cosΘ,sinΘ
-            sinθ = 2δ / (one(T) + δ2)
+            isfinite(δ) ||
+                throw(ArgumentError("collide_coulomb!: sampled scattering angle must be finite"))
+            if abs(δ) <= one(T)
+                δ2 = δ * δ
+                denom = one(T) + δ2
+                cosθ = (one(T) - δ2) / denom
+                sinθ = 2δ / denom
+            else
+                invδ = one(T) / δ
+                invδ2 = invδ * invδ
+                denom = one(T) + invδ2
+                cosθ = (invδ2 - one(T)) / denom
+                sinθ = 2invδ / denom
+            end
         end
         φ = twoπ * rand(rng, T)
-        cosφ = cos(φ)
-        sinφ = sin(φ)
+        (isfinite(cosθ) && isfinite(sinθ) && isfinite(φ)) ||
+            throw(ArgumentError("collide_coulomb!: sampled scattering direction must be finite"))
+        sinφ, cosφ = sincos(φ)
 
-        gperp = sqrt(gx * gx + gy * gy)
-        if gperp > 0                            # rotate g by (Θ,Φ) — Takizuka & Abe 1977 eq.
-            Δgx =
-                (gx / gperp) * gz * sinθ * cosφ - (gy / gperp) * gmag * sinθ * sinφ -
-                gx * (one(T) - cosθ)
-            Δgy =
-                (gy / gperp) * gz * sinθ * cosφ + (gx / gperp) * gmag * sinθ * sinφ -
-                gy * (one(T) - cosθ)
-            Δgz = -gperp * sinθ * cosφ - gz * (one(T) - cosθ)
-        else                                    # g along ±z: rotate the z-aligned vector directly
-            Δgx = gmag * sinθ * cosφ
-            Δgy = gmag * sinθ * sinφ
-            Δgz = -gz * (one(T) - cosθ)          # gz = ±gmag ⇒ |g'| = gmag preserved
+        # Rotate the unit relative-velocity vector, renormalize against roundoff,
+        # and only then restore its magnitude. Direct O(gmag) sums can overflow
+        # transiently even though every component of the result is bounded.
+        invgmag = inv(gmag)
+        if isfinite(invgmag)
+            ugx = gx * invgmag
+            ugy = gy * invgmag
+            ugz = gz * invgmag
+        else
+            ugx = gx / gmag
+            ugy = gy / gmag
+            ugz = gz / gmag
         end
-
-        gpx = gx + Δgx
-        gpy = gy + Δgy
-        gpz = gz + Δgz
+        ugperp = hypot(ugx, ugy)
+        if ugperp > 0                           # Takizuka & Abe 1977 rotation
+            invugperp = inv(ugperp)
+            if isfinite(invugperp)
+                xperp = ugx * invugperp
+                yperp = ugy * invugperp
+            else
+                xperp = ugx / ugperp
+                yperp = ugy / ugperp
+            end
+            polar_term = ugz * sinθ * cosφ
+            azimuthal_term = sinθ * sinφ
+            ugpx = ugx * cosθ + xperp * polar_term - yperp * azimuthal_term
+            ugpy = ugy * cosθ + yperp * polar_term + xperp * azimuthal_term
+            ugpz = ugz * cosθ - ugperp * sinθ * cosφ
+        else                                    # g along ±z
+            ugpx = sinθ * cosφ
+            ugpy = sinθ * sinφ
+            ugpz = ugz * cosθ
+        end
+        ugpmag = hypot(ugpx, ugpy, ugpz)
+        (isfinite(ugpmag) && ugpmag > zero(T)) ||
+            throw(ArgumentError("collide_coulomb!: rotated relative direction must be finite"))
+        invugpmag = inv(ugpmag)
+        gpx = gmag * (ugpx * invugpmag)
+        gpy = gmag * (ugpy * invugpmag)
+        gpz = gmag * (ugpz * invugpmag)
+        (isfinite(gpx) && isfinite(gpy) && isfinite(gpz)) ||
+            throw(ArgumentError("collide_coulomb!: rotated relative velocity must be finite"))
         # Rejection step: the max-weight partner is probabilistically skipped (equal
         # weights short-circuit — no draw, both always accept).
-        if wi == wj || rand(rng, T) < wj / wmax
-            vx[i] = Mx + gpx / 2
-            vy[i] = My + gpy / 2
-            vz[i] = Mz + gpz / 2
-        end
-        if wi == wj || rand(rng, T) < wi / wmax
-            vx[j] = Mx - gpx / 2
-            vy[j] = My - gpy / 2
-            vz[j] = Mz - gpz / 2
-        end
+        accept_i = wi == wj || rand(rng, T) < wj / wmax
+        accept_j = wi == wj || rand(rng, T) < wi / wmax
+        vix = accept_i ? Mx + gpx / 2 : vx[i]
+        viy = accept_i ? My + gpy / 2 : vy[i]
+        viz = accept_i ? Mz + gpz / 2 : vz[i]
+        vjx = accept_j ? Mx - gpx / 2 : vx[j]
+        vjy = accept_j ? My - gpy / 2 : vy[j]
+        vjz = accept_j ? Mz - gpz / 2 : vz[j]
+        (
+            isfinite(vix) &&
+            isfinite(viy) &&
+            isfinite(viz) &&
+            isfinite(vjx) &&
+            isfinite(vjy) &&
+            isfinite(vjz)
+        ) || throw(ArgumentError("collide_coulomb!: scattered velocity must be finite"))
+        vx[i] = vix
+        vy[i] = viy
+        vz[i] = viz
+        vx[j] = vjx
+        vy[j] = vjy
+        vz[j] = vjz
     end
     return nothing
 end
 
+function _collision_permutation(rng, ps::ParticleSet, index_work, context::AbstractString)
+    N = nparticles(ps)
+    index_work === nothing && return randperm(rng, N)
+    index_work isa AbstractVector{Int} ||
+        throw(ArgumentError("$context: index_work must be an AbstractVector{Int}"))
+    axes(index_work, 1) == Base.OneTo(N) || throw(
+        DimensionMismatch(
+            "$context: index_work axes $(axes(index_work, 1)) do not match particle axes $(Base.OneTo(N))",
+        ),
+    )
+    _mightalias_particle_storage(index_work, ps) &&
+        throw(ArgumentError("$context: index_work must not alias particle storage"))
+    @inbounds for p = 1:N
+        index_work[p] = p
+    end
+    shuffle!(rng, index_work)
+    return index_work
+end
+
 """
     collide_coulomb!(ps::ParticleSet{D,T}, gcoeff, dt; rng=Random.default_rng(),
-                     u_floor=1e-3) -> ps
+                     u_floor=1e-3, work=nothing, index_work=nothing) -> ps
 
 One **Takizuka-Abe (1977)** binary-Coulomb collision substep. The particles are
 randomly paired; each pair's relative velocity `g = v_i − v_j` is rotated by a polar
@@ -476,7 +570,13 @@ cell-local pairing is the spatially-resolved upgrade. Odd `N` uses the Takizuka-
 triplet: the first three particles of the permutation form the pairs (1,2),(2,3),(3,1),
 each scattered with **half** the variance (small-angle variances add linearly), so every
 particle collides every step at the nominal rate. `gcoeff ≥ 0`, `dt ≥ 0`; fewer than
-two particles is a no-op. Returns `ps`.
+two particles or an all-zero-weight set is a no-op. Velocities and macro-particle
+weights must be finite and non-negative, and every positive weight must remain
+nonzero when normalized by the largest weight. Updates are staged transactionally
+in three temporary velocity vectors; repeated callers can pass non-aliasing
+particle-length vectors as `work`. A supplied particle-length
+`AbstractVector{Int}` in `index_work` also reuses the pairing permutation storage.
+Returns `ps`.
 """
 function collide_coulomb!(
     ps::ParticleSet{D,T},
@@ -484,17 +584,27 @@ function collide_coulomb!(
     dt::Real;
     rng = Random.default_rng(),
     u_floor::Real = 1e-3,
+    work = nothing,
+    index_work = nothing,
 ) where {D,T}
     gc = _require_finite_nonnegative_real("collision coefficient gcoeff", gcoeff, T)
     dtT = _require_finite_nonnegative_real("dt", dt, T)
     uf = _require_finite_positive_real("u_floor", u_floor, T)
+    _require_finite_particle_velocities(ps, "collide_coulomb!")
     N = nparticles(ps)
-    (N < 2 || gc == 0 || dtT == 0) && return ps
-
-    vx, vy, vz = ps.v
     w = ps.weight
-    twoπ = 2 * T(π)
+    weight_scale = zero(T)
+    @inbounds for p = 1:N
+        wp = w[p]
+        (isfinite(wp) && wp >= zero(T)) || throw(
+            ArgumentError("collide_coulomb!: particle $p weight must be finite and non-negative"),
+        )
+        weight_scale = max(weight_scale, wp)
+    end
+    (N < 2 || iszero(gc) || iszero(dtT) || iszero(weight_scale)) && return ps
+    _require_nonaliasing_collision_scratch(index_work, "index_work", work, "collide_coulomb!")
     gcdt = gc * dtT
+    log_gcdt = log(gc) + log(dtT)
 
     # Mean macro-particle weight w̄ normalizes the per-pair variance factor max(wᵢ,wⱼ)/w̄
     # (Higginson 2020): the scheme is then invariant under re-partitioning the same
@@ -502,15 +612,23 @@ function collide_coulomb!(
     # to plain Takizuka-Abe for uniform weights (factor ≡ 1).
     Wtot = zero(T)
     @inbounds for p = 1:N
-        Wtot += w[p]
+        normalized_weight = w[p] / weight_scale
+        (w[p] > zero(T) && iszero(normalized_weight)) && throw(
+            ArgumentError(
+                "collide_coulomb!: particle $p positive weight is below the normalized numeric range relative to the largest weight",
+            ),
+        )
+        Wtot += normalized_weight
     end
-    Wtot > 0 || return ps                       # all-zero weights: nothing to do
-    wbar = Wtot / N
+    isfinite(Wtot) ||
+        throw(ArgumentError("collide_coulomb!: normalized total weight exceeds numeric range"))
+    wbar = Wtot / T(N)
+    log_wbar = log(wbar)
 
-    # ponytail: randperm allocates an 8N-byte index vector per call (like collide_bgk!'s
-    # falses(N)); fine for a per-step operator called standalone. If wired into a hot step
-    # loop, pass a persistent Vector{Int} scratch and Random.shuffle!(rng, work) instead.
-    idx = randperm(rng, N)
+    vnew = _collision_velocity_work(ps, work, "collide_coulomb!")
+    vx, vy, vz = vnew
+    idx = _collision_permutation(rng, ps, index_work, "collide_coulomb!")
+    twoπ = 2 * T(π)
     base = 0
     if isodd(N)
         # Takizuka-Abe odd-N prescription: the first three particles of the permutation
@@ -521,9 +639,55 @@ function collide_coulomb!(
         i2 = idx[2]
         i3 = idx[3]
         halfgcdt = gcdt / 2
-        _coulomb_pair_scatter!(vx, vy, vz, w, i1, i2, halfgcdt, wbar, uf, twoπ, rng)
-        _coulomb_pair_scatter!(vx, vy, vz, w, i2, i3, halfgcdt, wbar, uf, twoπ, rng)
-        _coulomb_pair_scatter!(vx, vy, vz, w, i3, i1, halfgcdt, wbar, uf, twoπ, rng)
+        half_log_gcdt = log_gcdt - log(T(2))
+        _coulomb_pair_scatter!(
+            vx,
+            vy,
+            vz,
+            w,
+            i1,
+            i2,
+            halfgcdt,
+            half_log_gcdt,
+            wbar,
+            log_wbar,
+            weight_scale,
+            uf,
+            twoπ,
+            rng,
+        )
+        _coulomb_pair_scatter!(
+            vx,
+            vy,
+            vz,
+            w,
+            i2,
+            i3,
+            halfgcdt,
+            half_log_gcdt,
+            wbar,
+            log_wbar,
+            weight_scale,
+            uf,
+            twoπ,
+            rng,
+        )
+        _coulomb_pair_scatter!(
+            vx,
+            vy,
+            vz,
+            w,
+            i3,
+            i1,
+            halfgcdt,
+            half_log_gcdt,
+            wbar,
+            log_wbar,
+            weight_scale,
+            uf,
+            twoπ,
+            rng,
+        )
         base = 3
     end
     npair = (N - base) ÷ 2
@@ -536,11 +700,17 @@ function collide_coulomb!(
             idx[base+2k-1],
             idx[base+2k],
             gcdt,
+            log_gcdt,
             wbar,
+            log_wbar,
+            weight_scale,
             uf,
             twoπ,
             rng,
         )
+    end
+    for c = 1:3
+        copyto!(ps.v[c], vnew[c])
     end
     return ps
 end

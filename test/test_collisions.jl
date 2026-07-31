@@ -37,6 +37,26 @@ function Random.randn(rng::InvalidNeutralRNG, ::Type{Float64})
     return rng.normal_draw == 4 ? Inf : 0.0
 end
 
+mutable struct InvalidCoulombRNG <: AbstractRNG
+    inner::MersenneTwister
+    normal_draw::Int
+end
+Random.rand(rng::InvalidCoulombRNG, args...) = rand(rng.inner, args...)
+Random.rand(rng::InvalidCoulombRNG, sampler::Random.LessThan) = rand(rng.inner, sampler)
+Random.rand(rng::InvalidCoulombRNG, ::Type{Float64}) = rand(rng.inner, Float64)
+function Random.randn(rng::InvalidCoulombRNG, ::Type{Float64})
+    rng.normal_draw += 1
+    return rng.normal_draw == 2 ? Inf : randn(rng.inner)
+end
+
+struct NearRangeCoulombRNG <: AbstractRNG
+    inner::MersenneTwister
+end
+Random.rand(rng::NearRangeCoulombRNG, args...) = rand(rng.inner, args...)
+Random.rand(rng::NearRangeCoulombRNG, sampler::Random.LessThan) = rand(rng.inner, sampler)
+Random.rand(rng::NearRangeCoulombRNG, ::Type{Float64}) = rand(rng.inner, Float64)
+Random.randn(::NearRangeCoulombRNG, ::Type{Float64}) = 1.0e154
+
 # Whole-set weighted totals: momentum (3-vec) and kinetic energy Σ w |v|².
 function set_totals(ps)
     w = ps.weight
@@ -505,6 +525,18 @@ end
     @test_throws ArgumentError collide_coulomb!(ps, 1.0, Inf)
     @test_throws ArgumentError collide_coulomb!(ps, 1.0, 0.1; u_floor = 0.0)
     @test ps.v[1] == snap[1] && ps.v[2] == snap[2] && ps.v[3] == snap[3]
+    original_weight = ps.weight[2]
+    for bad_weight in (-1.0, Inf, NaN)
+        ps.weight[2] = bad_weight
+        @test_throws ArgumentError collide_coulomb!(ps, 1.0, 0.1)
+        @test ps.v[1] == snap[1] && ps.v[2] == snap[2] && ps.v[3] == snap[3]
+    end
+    ps.weight[2] = original_weight
+    ps.v[3][2] = Inf
+    badsnap = map(copy, ps.v)
+    @test_throws ArgumentError collide_coulomb!(ps, 1.0, 0.1)
+    @test all(isequal(ps.v[c], badsnap[c]) for c = 1:3)
+    ps.v[3][2] = snap[3][2]
     # single particle: no pair → no-op, no error
     ps1 = ParticleSet{1,T}(1)
     ps1.v[1][1] = 0.7
@@ -524,6 +556,151 @@ end
         collide_coulomb!(pb, 2.0, 0.05; rng = MersenneTwister(42))
     end
     @test pa.v[1] == pb.v[1] && pa.v[2] == pb.v[2] && pa.v[3] == pb.v[3]
+end
+
+@testset "Coulomb extreme scales, transactionality, and reusable work" begin
+    function scaled_pair(gc, dt, g)
+        ps = ParticleSet{1,Float64}(2)
+        ps.v[1] .= (0.0, g)
+        collide_coulomb!(
+            ps,
+            gc,
+            dt;
+            rng = MersenneTwister(71),
+            u_floor = 1.0e-250,
+            work = map(similar, ps.v),
+            index_work = Vector{Int}(undef, 2),
+        )
+        return map(v -> v ./ g, ps.v)
+    end
+
+    baseline = scaled_pair(0.1, 1.0, 1.0)
+    for (gc, dt) in ((1.0e300, 1.0e100), (1.0e-300, 1.0e-100))
+        g = exp((log(gc) + log(dt) - log(0.1)) / 3)
+        extreme = scaled_pair(gc, dt, g)
+        @test maximum(abs, reduce(vcat, extreme) .- reduce(vcat, baseline)) < 1.0e-12
+    end
+
+    unit = ParticleSet{1,Float64}(4)
+    huge = ParticleSet{1,Float64}(4)
+    for ps in (unit, huge)
+        ps.v[1] .= (-1.0, -0.2, 0.4, 1.5)
+        ps.v[2] .= (0.2, 0.1, -0.3, 0.7)
+    end
+    fill!(unit.weight, 1.0)
+    fill!(huge.weight, floatmax(Float64))
+    collide_coulomb!(unit, 2.0, 0.05; rng = MersenneTwister(42))
+    collide_coulomb!(huge, 2.0, 0.05; rng = MersenneTwister(42))
+    @test all(unit.v[c] == huge.v[c] for c = 1:3)
+
+    midpoint = ParticleSet{1,Float64}(2)
+    midpoint.v[1] .= (9.0e307, 1.0e308)
+    midpoint0 = map(copy, midpoint.v)
+    collide_coulomb!(midpoint, 1.0, 1.0; rng = MersenneTwister(1))
+    @test all(isfinite, Iterators.flatten(midpoint.v))
+    @test all(isapprox(midpoint.v[c], midpoint0[c]; rtol = 2eps()) for c = 1:3)
+
+    near_range = ParticleSet{1,Float64}(2)
+    for c = 1:3
+        near_range.v[c] .= (5.0e307, -5.0e307)
+    end
+    g0 = ntuple(c -> near_range.v[c][1] - near_range.v[c][2], 3)
+    gmag0 = hypot(g0...)
+    collide_coulomb!(
+        near_range,
+        floatmax(Float64),
+        floatmax(Float64);
+        rng = NearRangeCoulombRNG(MersenneTwister(73)),
+        work = map(similar, near_range.v),
+        index_work = Vector{Int}(undef, 2),
+    )
+    g1 = ntuple(c -> near_range.v[c][1] - near_range.v[c][2], 3)
+    @test all(isfinite, Iterators.flatten(near_range.v))
+    @test g1 != g0
+    @test hypot(g1...) ≈ gmag0 rtol = 8eps()
+
+    transactional = ParticleSet{1,Float64}(4)
+    transactional.v[1] .= (-1.0, -0.3, 0.4, 1.2)
+    snap = map(copy, transactional.v)
+    work = map(similar, transactional.v)
+    index_work = Vector{Int}(undef, 4)
+    invalid_rng = InvalidCoulombRNG(MersenneTwister(8), 0)
+    @test_throws ArgumentError collide_coulomb!(
+        transactional,
+        1.0e-4,
+        1.0;
+        rng = invalid_rng,
+        work,
+        index_work,
+    )
+    @test invalid_rng.normal_draw == 2
+    @test all(transactional.v[c] == snap[c] for c = 1:3)
+
+    overflow_pair = ParticleSet{1,Float64}(2)
+    overflow_pair.v[1] .= (floatmax(Float64), -floatmax(Float64))
+    overflow_snap = map(copy, overflow_pair.v)
+    @test_throws ArgumentError collide_coulomb!(overflow_pair, 1.0, 1.0; rng = MersenneTwister(1))
+    @test all(overflow_pair.v[c] == overflow_snap[c] for c = 1:3)
+    @test_throws ArgumentError collide_coulomb!(transactional, 1.0, 1.0; work = transactional.v)
+    @test all(transactional.v[c] == snap[c] for c = 1:3)
+    position_snap = copy(transactional.x[1])
+    position_work = (transactional.x[1], similar(transactional.v[2]), similar(transactional.v[3]))
+    @test_throws ArgumentError collide_coulomb!(transactional, 1.0, 1.0; work = position_work)
+    @test transactional.x[1] == position_snap
+    @test all(transactional.v[c] == snap[c] for c = 1:3)
+    id_snap = copy(transactional.id)
+    @test_throws ArgumentError collide_coulomb!(
+        transactional,
+        1.0,
+        1.0;
+        index_work = reinterpret(Int, transactional.id),
+    )
+    @test transactional.id == id_snap
+    @test all(transactional.v[c] == snap[c] for c = 1:3)
+    cross_work = map(similar, transactional.v)
+    foreach(v -> fill!(v, 1.25), cross_work)
+    cross_snap = map(copy, cross_work)
+    index_alias = reinterpret(Int, cross_work[1])
+    @test Base.mightalias(index_alias, cross_work[1])
+    @test_throws ArgumentError collide_coulomb!(
+        transactional,
+        1.0,
+        1.0;
+        work = cross_work,
+        index_work = index_alias,
+    )
+    @test all(cross_work[c] == cross_snap[c] for c = 1:3)
+    @test all(transactional.v[c] == snap[c] for c = 1:3)
+
+    unrepresentable_weight = ParticleSet{1,Float64}(2)
+    unrepresentable_weight.weight .= (floatmax(Float64), nextfloat(0.0))
+    unrepresentable_weight.v[1] .= (-1.0, 1.0)
+    unrepresentable_snap = map(copy, unrepresentable_weight.v)
+    @test_throws ArgumentError collide_coulomb!(unrepresentable_weight, 1.0, 1.0)
+    @test all(unrepresentable_weight.v[c] == unrepresentable_snap[c] for c = 1:3)
+
+    alloc_ps = ParticleSet{1,Float64}(32)
+    alloc_ps.v[1] .= range(-1.0, 1.0; length = 32)
+    alloc_work = map(similar, alloc_ps.v)
+    alloc_indices = Vector{Int}(undef, 32)
+    alloc_rng = MersenneTwister(3)
+    collide_coulomb!(
+        alloc_ps,
+        0.1,
+        0.1;
+        rng = alloc_rng,
+        work = alloc_work,
+        index_work = alloc_indices,
+    )
+    bytes = @allocated collide_coulomb!(
+        alloc_ps,
+        0.1,
+        0.1;
+        rng = alloc_rng,
+        work = alloc_work,
+        index_work = alloc_indices,
+    )
+    @test bytes == 0
 end
 
 @testset "TA-004 Coulomb relaxation rate independent of macro-particle weights" begin
