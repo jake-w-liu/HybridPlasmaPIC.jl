@@ -354,16 +354,43 @@ end
 # field: the operator is (1 + d_e²∇×∇×)⁻¹, so it uses the same Nyquist-zeroed first-derivative
 # wavenumbers (kvec) as curl!, and it must NOT be applied to a longitudinal field — for the
 # full E vector use `_apply_electron_inertia!`, which projects out the longitudinal part.
+@inline function _scaled_inertia_radius(de2::T, wx::T, wy::T, wz::T) where {T}
+    scale = max(abs(wx), abs(wy), abs(wz))
+    scale == zero(T) && return zero(T)
+    nx = wx / scale
+    ny = wy / scale
+    nz = wz / scale
+    return sqrt(de2) * scale * sqrt(nx * nx + ny * ny + nz * nz)
+end
+
+@inline function _one_over_one_plus_square(q::T) where {T}
+    if q <= one(T)
+        q2 = q * q
+        return one(T) / (one(T) + q2)
+    end
+    iq = inv(q)
+    iq2 = iq * iq
+    return iq2 / (one(T) + iq2)
+end
+
+@inline function _square_over_one_plus_square(q::T) where {T}
+    if q <= one(T)
+        q2 = q * q
+        return q2 / (one(T) + q2)
+    end
+    iq = inv(q)
+    return one(T) / (one(T) + iq * iq)
+end
+
 function _inertia_filter!(f::Array{T,D}, de2::T, g::FourierGrid{D,T}) where {T,D}
     g.cbuf .= f
     g.plan * g.cbuf
     @inbounds for I in CartesianIndices(g.cbuf)
-        k2 = zero(T)
-        for d = 1:D
-            kk = g.kvec[d][I[d]]
-            k2 += kk * kk
-        end
-        g.cbuf[I] *= one(T) / (one(T) + de2 * k2)
+        wx = g.kvec[1][I[1]]
+        wy = D >= 2 ? g.kvec[2][I[2]] : zero(T)
+        wz = D >= 3 ? g.kvec[3][I[3]] : zero(T)
+        q = _scaled_inertia_radius(de2, wx, wy, wz)
+        g.cbuf[I] *= _one_over_one_plus_square(q)
     end
     g.iplan * g.cbuf
     f .= real.(g.cbuf)
@@ -409,13 +436,18 @@ function _apply_electron_inertia!(
             wx = kx[I[1]]
             wy = D >= 2 ? ky[I[2]] : zero(T)
             wz = D >= 3 ? kz[I[3]] : zero(T)
-            k2 = wx * wx + wy * wy + wz * wz
-            if k2 > 0
-                fac = de2 * k2 / (one(T) + de2 * k2)
-                lng = (wx * Ex[I] + wy * Ey[I] + wz * Ez[I]) / k2   # (k·Ê)/k²
-                Ex[I] -= fac * (Ex[I] - wx * lng)
-                Ey[I] -= fac * (Ey[I] - wy * lng)
-                Ez[I] -= fac * (Ez[I] - wz * lng)
+            scale = max(abs(wx), abs(wy), abs(wz))
+            if scale > 0
+                nx = wx / scale
+                ny = wy / scale
+                nz = wz / scale
+                n2 = nx * nx + ny * ny + nz * nz
+                q = sqrt(de2) * scale * sqrt(n2)
+                fac = _square_over_one_plus_square(q)
+                lng = (nx * Ex[I] + ny * Ey[I] + nz * Ez[I]) / n2
+                Ex[I] -= fac * (Ex[I] - nx * lng)
+                Ey[I] -= fac * (Ey[I] - ny * lng)
+                Ez[I] -= fac * (Ez[I] - nz * lng)
             end
         end
         g.iplan * Ex

@@ -144,6 +144,29 @@ end
     @test all(E2[c] == E2c[c] for c = 1:3)
 end
 
+@testset "electron inertia remains finite at extreme Float32 grid scales" begin
+    N = 8
+    f = Float32[sinpi(2 * (i - 1) / N) for i = 1:N]
+
+    gsmall = FourierGrid((N,), (Float32(1.0e-37),))
+    filtered = _inertia_filter!(copy(f), 1.0f0, gsmall)
+    @test all(isfinite, filtered)
+    @test maximum(abs, filtered) < 10eps(Float32)
+
+    E = (copy(f), copy(f), copy(f))
+    _apply_electron_inertia!(E, 1.0f0, gsmall)
+    @test all(all(isfinite, E[c]) for c = 1:3)
+    @test E[1] ≈ f rtol = 10eps(Float32) atol = 10eps(Float32)
+    @test maximum(abs, E[2]) < 10eps(Float32)
+    @test maximum(abs, E[3]) < 10eps(Float32)
+
+    glarge = FourierGrid((N,), (Float32(1.0e38),))
+    Elarge = (copy(f), copy(f), copy(f))
+    _apply_electron_inertia!(Elarge, floatmax(Float32), glarge)
+    @test all(all(isfinite, Elarge[c]) for c = 1:3)
+    @test all(isapprox(Elarge[c], f; rtol = 10eps(Float32), atol = 10eps(Float32)) for c = 1:3)
+end
+
 @testset "INERTIA-002 massless no-op + de2>0 stable, deterministic, distinct" begin
     T = Float64
     N = 64
