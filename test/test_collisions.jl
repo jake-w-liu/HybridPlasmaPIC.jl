@@ -623,6 +623,38 @@ end
     @test_throws ArgumentError ionize_mcc!(el2, i2, 0.1; nσ_iz = 1.0, E_iz = -0.5)
     @test_throws ArgumentError ionize_mcc!(el2, i2, 0.1; nσ_iz = 1.0, E_iz = 0.5, T_n = -1.0)
     @test_throws ArgumentError ionize_mcc!(el2, i2, 0.1; nσ_iz = 1.0, E_iz = 0.5, m_n = 0.0)
+    state = (map(copy, el2.v), nparticles(el2), nparticles(i2))
+    for bad in (Inf, NaN)
+        @test_throws ArgumentError ionize_mcc!(el2, i2, 0.1; nσ_iz = bad, E_iz = 0.5)
+        @test_throws ArgumentError ionize_mcc!(el2, i2, bad; nσ_iz = 1.0, E_iz = 0.5)
+        @test_throws ArgumentError ionize_mcc!(el2, i2, 0.1; nσ_iz = 1.0, E_iz = bad)
+        @test_throws ArgumentError ionize_mcc!(el2, i2, 0.1; nσ_iz = 1.0, E_iz = 0.5, T_n = bad)
+        @test_throws ArgumentError ionize_mcc!(el2, i2, 0.1; nσ_iz = 1.0, E_iz = 0.5, m_n = bad)
+        @test_throws ArgumentError ionize_mcc!(
+            el2,
+            i2,
+            0.1;
+            nσ_iz = 1.0,
+            E_iz = 0.5,
+            u_n = (bad, 0.0, 0.0),
+        )
+        @test all(isequal(el2.v[c], state[1][c]) for c = 1:3)
+        @test nparticles(el2) == state[2] && nparticles(i2) == state[3]
+    end
+    for (species, bad_mass) in Iterators.product((el2, i2), (-1.0, 0.0, Inf, NaN))
+        original_mass = species.m
+        species.m = bad_mass
+        @test_throws ArgumentError ionize_mcc!(el2, i2, 0.1; nσ_iz = 1.0, E_iz = 0.5)
+        @test all(isequal(el2.v[c], state[1][c]) for c = 1:3)
+        @test nparticles(el2) == state[2] && nparticles(i2) == state[3]
+        species.m = original_mass
+    end
+    el2.v[2][1] = Inf
+    badstate = map(copy, el2.v)
+    @test_throws ArgumentError ionize_mcc!(el2, i2, 0.1; nσ_iz = 1.0, E_iz = 0.5)
+    @test all(isequal(el2.v[c], badstate[c]) for c = 1:3)
+    @test nparticles(el2) == state[2] && nparticles(i2) == state[3]
+    el2.v[2][1] = state[1][2][1]
     # deterministic for a fixed rng (count + all created velocities)
     ea = ParticleSet{2,T}(3000; q = -1.0, m = 1.0)
     ia = ParticleSet{2,T}(0; q = 1.0, m = 50.0)

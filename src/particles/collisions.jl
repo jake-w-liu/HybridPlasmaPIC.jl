@@ -565,19 +565,22 @@ function ionize_mcc!(
     i_nextid::Union{Nothing,Base.RefValue{UInt64}} = nothing,
     rng = Random.default_rng(),
 ) where {D,T}
-    nσ_iz >= 0 || throw(ArgumentError("nσ_iz must be ≥ 0"))
-    dt >= 0 || throw(ArgumentError("dt must be ≥ 0"))
+    nσT = _require_finite_nonnegative_real("nσ_iz", nσ_iz, T)
+    dtT = _validated_nonnegative_dt(T, dt; name = "ionize_mcc!")
     Eiz = _require_finite_nonnegative_real("E_iz", E_iz, T)
     TnT = _require_finite_nonnegative_real("T_n", T_n, T)
     mnT = _require_finite_positive_real("m_n", m_n, T)
+    me = _require_finite_positive_real("electron mass", electrons.m, T)
+    _require_finite_positive_real("ion mass", ions.m, T)
+    unx = _require_finite_real("u_n[1]", u_n[1], T)
+    uny = _require_finite_real("u_n[2]", u_n[2], T)
+    unz = _require_finite_real("u_n[3]", u_n[3], T)
+    _require_finite_particle_velocities(electrons, "ionize_mcc!")
     Ne = nparticles(electrons)
-    (Ne == 0 || nσ_iz == 0 || dt == 0) && return 0
+    (Ne == 0 || iszero(nσT) || iszero(dtT)) && return 0
 
-    me = T(electrons.m)
-    nσT = T(nσ_iz)
-    dtT = T(dt)
     vthn = sqrt(TnT / mnT)
-    unx, uny, unz = T(u_n[1]), T(u_n[2]), T(u_n[3])
+    isfinite(vthn) || throw(ArgumentError("ionize_mcc!: neutral thermal speed must be finite"))
     evx, evy, evz = electrons.v
     ex = electrons.x
     ew = electrons.weight
@@ -609,12 +612,26 @@ function ionize_mcc!(
             new_e.x[d][k] = ex[d][p]               # born at the incident position
             new_i.x[d][k] = ex[d][p]
         end
-        new_e.v[1][k] = unx + vthn * randn(rng, T) # secondary e⁻ from the neutral Maxwellian
-        new_e.v[2][k] = uny + vthn * randn(rng, T)
-        new_e.v[3][k] = unz + vthn * randn(rng, T)
-        new_i.v[1][k] = unx + vthn * randn(rng, T) # ion from the neutral Maxwellian
-        new_i.v[2][k] = uny + vthn * randn(rng, T)
-        new_i.v[3][k] = unz + vthn * randn(rng, T)
+        ev1 = unx + vthn * randn(rng, T)           # secondary e⁻ from neutral Maxwellian
+        ev2 = uny + vthn * randn(rng, T)
+        ev3 = unz + vthn * randn(rng, T)
+        iv1 = unx + vthn * randn(rng, T)           # ion from the neutral Maxwellian
+        iv2 = uny + vthn * randn(rng, T)
+        iv3 = unz + vthn * randn(rng, T)
+        (
+            isfinite(ev1) &&
+            isfinite(ev2) &&
+            isfinite(ev3) &&
+            isfinite(iv1) &&
+            isfinite(iv2) &&
+            isfinite(iv3)
+        ) || throw(ArgumentError("ionize_mcc!: sampled newborn velocities must be finite"))
+        new_e.v[1][k] = ev1
+        new_e.v[2][k] = ev2
+        new_e.v[3][k] = ev3
+        new_i.v[1][k] = iv1
+        new_i.v[2][k] = iv2
+        new_i.v[3][k] = iv3
         new_e.weight[k] = ew[p]                    # inherit the incident macro-particle weight
         new_i.weight[k] = ew[p]
         new_e.id[k] = first_e + UInt64(k - 1)
