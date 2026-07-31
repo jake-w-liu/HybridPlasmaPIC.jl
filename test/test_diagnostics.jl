@@ -53,6 +53,21 @@ end
     @test nbuf[1] == 2.0
     @test map(m -> m[1], mom) == (2.0, 6.0, 6.0)
 
+    for bad_floor in (0.0, -1.0, NaN, Inf)
+        P0 = map(copy, P)
+        @test_throws ArgumentError pressure_tensor!(
+            P,
+            ps,
+            g,
+            NGP();
+            nfloor = bad_floor,
+            work,
+            nbuf,
+            mom,
+        )
+        @test all(isequal(P[c], P0[c]) for c = 1:6)
+    end
+
     pressure_tensor!(P, ps, g, NGP(); work, nbuf, mom)
     @test (@allocated pressure_tensor!(P, ps, g, NGP(); work, nbuf, mom)) <= 128
     @test_throws DimensionMismatch pressure_tensor!(

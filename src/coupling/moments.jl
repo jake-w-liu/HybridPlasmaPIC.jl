@@ -147,6 +147,7 @@ function pressure_tensor!(
     nbuf::Union{Nothing,Array{T,D}} = nothing,
     mom::Union{Nothing,NTuple{3,<:Array{T,D}}} = nothing,
 ) where {D,T}
+    nf = _require_finite_positive_real("nfloor", nfloor, T)
     Np = nparticles(ps)
     nbuf === nothing && (nbuf = similar(P[1]))
     mom === nothing && (mom = ntuple(_ -> similar(P[1]), 3))
@@ -173,7 +174,6 @@ function pressure_tensor!(
     end
 
     ΔV = prod(g.dx)
-    nf = T(nfloor)
     mq = ps.m
     for (idx, (i, j)) in enumerate(_PT_PAIRS)
         vi = ps.v[i]
