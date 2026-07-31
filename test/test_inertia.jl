@@ -161,6 +161,10 @@ end
     @test maximum(abs, E[3]) < 10eps(Float32)
 
     glarge = FourierGrid((N,), (Float32(1.0e38),))
+    filtered_large = _inertia_filter!(copy(f), floatmax(Float32), glarge)
+    @test all(isfinite, filtered_large)
+    @test filtered_large ≈ f rtol = 10eps(Float32) atol = 10eps(Float32)
+
     Elarge = (copy(f), copy(f), copy(f))
     _apply_electron_inertia!(Elarge, floatmax(Float32), glarge)
     @test all(all(isfinite, Elarge[c]) for c = 1:3)
