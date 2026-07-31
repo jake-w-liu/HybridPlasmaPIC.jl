@@ -40,6 +40,57 @@ end
     return aT, σT
 end
 
+# Scaled complementary error function for x ≥ 0, using the Numerical Recipes
+# minimax form. Unlike `1-erf(x)`, this retains relative accuracy in the tail.
+@inline function _erfcx_positive(x::T) where {T}
+    t = one(T) / (one(T) + T(0.5) * x)
+    p =
+        T(-1.26551223) +
+        t * (
+            T(1.00002368) +
+            t * (
+                T(0.37409196) +
+                t * (
+                    T(0.09678418) +
+                    t * (
+                        T(-0.18628806) +
+                        t * (
+                            T(0.27886807) +
+                            t * (
+                                T(-1.13520398) +
+                                t * (T(1.48851587) + t * (T(-0.82215223) + t * T(0.17087277)))
+                            )
+                        )
+                    )
+                )
+            )
+        )
+    return t * exp(p)
+end
+
+# H(b) = ∫₀∞ x exp(-b*x-x²/2) dx. The erfcx form is stable for moderate b;
+# its subtraction loses digits for large b, where the optimally-truncated
+# asymptotic series is rapidly accurate.
+function _negative_flux_shape(b::T) where {T}
+    if b < T(6)
+        R = sqrt(T(π) / T(2)) * _erfcx_positive(b / sqrt(T(2)))
+        return max(one(T) - b * R, zero(T))
+    end
+    invb = inv(b)
+    invb2 = invb * invb
+    term = invb2
+    total = term
+    for n = 1:64
+        nextterm = term * T(2n + 1) * invb2
+        nextterm >= term && break
+        candidate = isodd(n) ? total - nextterm : total + nextterm
+        total = candidate
+        nextterm <= eps(T) * abs(total) && break
+        term = nextterm
+    end
+    return max(total, zero(T))
+end
+
 """
     flux_per_density(a, σ)
 
@@ -50,8 +101,23 @@ normal drift `a` (into the domain) and normal thermal speed `σ`:
 function flux_per_density(a::T, σ::T) where {T}
     aT, σT = _validated_flux_sampler_params(a, σ)
     σT == zero(T) && return max(aT, zero(T))
+    if aT < zero(T)
+        b = -aT / σT
+        return σT / sqrt(T(2π)) * exp(-(b * b) / 2) * _negative_flux_shape(b)
+    end
     return aT / 2 * (one(T) + _erf(aT / (σT * sqrt(T(2))))) +
            σT / sqrt(T(2π)) * exp(-aT^2 / (2σT^2))
+end
+
+function _negative_flux_speed(rng, b::T, σ::T) where {T}
+    tiny = nextfloat(zero(T))
+    while true
+        # Gamma(shape=2, rate=b) envelope: q(x) ∝ x*exp(-b*x).
+        y = -log1p(-rand(rng, T)) - log1p(-rand(rng, T))
+        x = max(y / b, tiny)
+        rand(rng, T) < exp(-(x * x) / 2) || continue
+        return max(σ * x, tiny)
+    end
 end
 
 """
@@ -71,14 +137,11 @@ function flux_speed(rng, a::T, σ::T) where {T}
         # since 1−U is uniform on (0,1]).
         return σT * sqrt(-2 * log1p(-rand(rng, T)))
     end
+    if aT < zero(T)
+        b = -aT / σT
+        b >= one(T) && return _negative_flux_speed(rng, b, σT)
+    end
     hi = aT + 14σT
-    # For a < −14σ the inward flux ∝ exp(−14²/2) ≈ 0 and the bracket [0, hi]
-    # inverts (hi < 0), so the bisection below could return s < 0. The inward
-    # speed limit there is 0⁺; clamp so this exported sampler honours its
-    # documented s>0 contract instead of emitting a negative speed.
-    # ponytail: one guard covers the degenerate far-outward-drift case; a full
-    # log-space CDF inversion would be needed only if that regime carried flux.
-    hi > zero(T) || return zero(T)
     Z = _flux_integral(hi, aT, σT)
     U = rand(rng, T)
     lo = zero(T)

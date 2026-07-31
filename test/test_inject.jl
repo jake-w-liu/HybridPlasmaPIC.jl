@@ -19,6 +19,25 @@ function flux_mean_oracle(a, σ)
     return num / den
 end
 
+function negative_flux_oracle(a, σ)
+    b = BigFloat(-a / σ)
+    xmax = max(BigFloat(2), BigFloat(12) / b)
+    N = 400_000
+    dx = xmax / N
+    den = zero(BigFloat)
+    num = zero(BigFloat)
+    for i = 1:N
+        x = (BigFloat(i) - big"0.5") * dx
+        wt = x * exp(-b * x - x^2 / 2)
+        den += wt
+        num += x * wt
+    end
+    shape = den * dx
+    flux = BigFloat(σ) / sqrt(big(2π)) * exp(-(b^2) / 2) * shape
+    mean_speed = BigFloat(σ) * num / den
+    return Float64(flux), Float64(mean_speed)
+end
+
 @testset "flux sampler reproduces inward-flux moments (LOAD)" begin
     rng = MersenneTwister(1)
     M = 400_000   # SE ≪ rtol for this M
@@ -50,16 +69,16 @@ end
     @test all(<=(2.0), ps.x[1])   # swept slab face_x .. face_x + a*dt
 end
 
-@testset "flux sampler never returns a negative speed for far-outward drift" begin
+@testset "flux sampler resolves the strong outward-drift tail" begin
     rng = MersenneTwister(11)
-    # a < −14σ ⇒ bracket [0, a+14σ] inverts; the sampler must still honour s>0
-    # (limit 0⁺), never emit a negative inward speed.
-    for (a, σ) in ((-5.0, 0.1), (-2.0, 0.1), (-1.5, 0.1), (-100.0, 1.0))
-        for _ = 1:1000
-            s = flux_speed(rng, a, σ)
-            @test s >= 0
-        end
+    for (a, σ) in ((-0.5, 0.1), (-1.5, 0.1))
+        flux_ref, mean_ref = negative_flux_oracle(a, σ)
+        @test isapprox(flux_per_density(a, σ), flux_ref; rtol = 2e-5)
+        samples = [flux_speed(rng, a, σ) for _ = 1:100_000]
+        @test all(>(0), samples)
+        @test isapprox(mean(samples), mean_ref; rtol = 0.01)
     end
+    @test flux_per_density(-1.5, 0.1) > 0
     # the reachable, positive-flux regime is unchanged and stays strictly positive
     for _ = 1:1000
         @test flux_speed(rng, 2.0, 1.0) > 0
