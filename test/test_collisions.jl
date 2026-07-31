@@ -8,6 +8,15 @@ struct ZeroBGKRNG <: AbstractRNG end
 Random.rand(::ZeroBGKRNG, ::Type{Float64}) = 0.0
 Random.randn(::ZeroBGKRNG, ::Type{Float64}) = 0.0
 
+mutable struct TinyBGKRNG <: AbstractRNG
+    draw::Int
+end
+Random.rand(::TinyBGKRNG, ::Type{Float64}) = 0.0
+function Random.randn(rng::TinyBGKRNG, ::Type{Float64})
+    rng.draw += 1
+    return isodd(rng.draw) ? 1.0e-200 : -1.0e-200
+end
+
 # Whole-set weighted totals: momentum (3-vec) and kinetic energy Σ w |v|².
 function set_totals(ps)
     w = ps.weight
@@ -97,6 +106,21 @@ end
     @test all(isapprox(P1[c], P0[c]; rtol = 1e-14, atol = 1e-14) for c = 1:3)
     @test E1 ≈ E0 rtol = 1e-14 atol = 1e-14
     @test all(isfinite, Iterators.flatten(ps.v))
+end
+
+@testset "BGK clears residual deviations when sampled variance underflows" begin
+    ps = ParticleSet{1,Float64}(3)
+    ps.v[1] .= (-1.0, 0.0, 1.0)
+    P0, E0 = set_totals(ps)
+
+    collide_bgk!(ps, 1.0, 1000.0; rng = TinyBGKRNG(0))
+
+    P1, E1 = set_totals(ps)
+    @test all(isapprox(P1[c], P0[c]; rtol = 1e-14, atol = 1e-14) for c = 1:3)
+    @test E1 ≈ E0 rtol = 1e-14 atol = 1e-14
+    @test ps.v[1][3] == 0.0
+    @test all(iszero, ps.v[2])
+    @test all(iszero, ps.v[3])
 end
 
 @testset "BGK-003 isotropization of a bi-Maxwellian" begin

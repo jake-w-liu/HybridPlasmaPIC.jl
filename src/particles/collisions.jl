@@ -192,6 +192,12 @@ function collide_bgk!(
         wij = wi + wj
         ai = sqrt((Ktarget / wi) * (wj / wij))
         aj = sqrt((Ktarget / wj) * (wi / wij))
+        @inbounds for p = 1:N
+            sel[p] || continue
+            vx[p] = ūx
+            vy[p] = ūy
+            vz[p] = ūz
+        end
         vx[i] = ūx + ai
         vx[j] = ūx - aj
     end
