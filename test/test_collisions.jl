@@ -630,7 +630,7 @@ end
 
 # ---- electron-impact ionization (ionize_mcc!) ---------------------------------
 # Oracles: pair creation (Ne,Ni each +nb → net-neutral), and — with cold neutrals —
-# an EXACT electron-population energy loss of nb·E_iz (each primary cooled by E_iz).
+# an exact weighted electron-population energy loss of E_iz*Σborn w.
 
 @testset "IZ-001 ionization: pair creation & exact energy cost" begin
     T = Float64
@@ -645,8 +645,7 @@ end
     end
     fill!(el.weight, 1.0)
     E_iz = 0.5
-    eKE(ps) = 0.5 * ps.m * sum(@. ps.v[1]^2 + ps.v[2]^2 + ps.v[3]^2)
-    E0 = eKE(el)
+    E0 = kinetic_energy(el)
     nb = ionize_mcc!(
         el,
         ions,
@@ -661,10 +660,27 @@ end
     @test nparticles(el) == Ne0 + nb               # a secondary electron per ionization
     @test nparticles(ions) == nb                   # an ion per ionization (net-neutral)
     # cold neutrals ⇒ secondaries born at rest ⇒ electrons lose EXACTLY nb·E_iz
-    @test isapprox(E0 - eKE(el), nb * E_iz; rtol = 1e-12)
+    @test isapprox(E0 - kinetic_energy(el), nb * E_iz; rtol = 1e-12)
     # newborns get unique ids (no collision with the incident 1..Ne0 ids)
     @test length(unique(el.id)) == nparticles(el)
     @test length(unique(ions.id)) == nparticles(ions)
+end
+
+@testset "ionization energy cost includes macro-particle weights" begin
+    electrons = ParticleSet{1,Float64}(3; q = -1.0, m = 1.0)
+    electrons.x[1] .= (0.1, 0.2, 0.3)
+    electrons.v[1] .= 2.0
+    electrons.weight .= (0.5, 2.0, 3.0)
+    ions = ParticleSet{1,Float64}(0; q = 1.0, m = 100.0)
+    Eiz = 0.5
+    E0 = kinetic_energy(electrons)
+
+    nb = ionize_mcc!(electrons, ions, 1.0; nσ_iz = 1.0e6, E_iz = Eiz, T_n = 0.0, rng = ZeroBGKRNG())
+
+    @test nb == 3
+    @test E0 - kinetic_energy(electrons) ≈ Eiz * sum((0.5, 2.0, 3.0))
+    @test electrons.weight[4:6] == [0.5, 2.0, 3.0]
+    @test ions.weight == [0.5, 2.0, 3.0]
 end
 
 @testset "ionization cooling remains finite when kinetic energy overflows" begin

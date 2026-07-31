@@ -596,7 +596,8 @@ probability `P = 1 − exp(−nσ_iz·|v|·dt)`. On ionization:
 `electrons` and `ions` grow by the number of ionizations (in place, via `append_particles!`),
 which is returned. Net charge change per event is zero (`+1 e⁻`, `+1 ion` from a neutral). The
 neutral reservoir supplies the secondary/ion energy and absorbs recoil momentum; with `T_n=0`
-the secondaries are born at rest, so the electron population loses **exactly** `nionized·E_iz`.
+the secondaries are born at rest, so the weighted electron-population energy loses **exactly**
+`E_iz Σ_{p∈ionized} w_p` (equal to `nionized·E_iz` only for unit macro-particle weights).
 
 `nσ_iz ≥ 0`, `E_iz ≥ 0`, `T_n ≥ 0`, `dt ≥ 0`, `m_n > 0`. Elastic-secondary reservoir model
 (a differential-cross-section secondary spectrum is the upgrade). Returns the ionization count.
