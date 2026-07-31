@@ -190,6 +190,79 @@ end
     end
 end
 
+@testset "inject_face_1d! rejects invalid metering state before mutation" begin
+    rng = MersenneTwister(13)
+    for acc0 in (-1.0, NaN, Inf)
+        ps = ParticleSet{1,Float64}(0)
+        acc = Ref(acc0)
+        nid = Ref(UInt64(1))
+        @test_throws ArgumentError inject_face_1d!(
+            ps,
+            rng,
+            0.0,
+            +1,
+            0.0,
+            1.0,
+            0.0,
+            (0.0, 0.0),
+            0.0,
+            1.0,
+            1.0,
+            acc,
+            nid,
+        )
+        @test nparticles(ps) == 0
+        @test isequal(acc[], acc0)
+        @test nid[] == UInt64(1)
+    end
+
+    for nid0 in (UInt64(0), typemax(UInt64))
+        ps = ParticleSet{1,Float64}(0)
+        acc = Ref(0.0)
+        nid = Ref(nid0)
+        @test_throws ArgumentError inject_face_1d!(
+            ps,
+            rng,
+            0.0,
+            +1,
+            1.0,
+            1.0,
+            0.0,
+            (0.0, 0.0),
+            0.0,
+            1.0,
+            1.0,
+            acc,
+            nid,
+        )
+        @test nparticles(ps) == 0
+        @test acc[] == 0.0
+        @test nid[] == nid0
+    end
+
+    ps = ParticleSet{1,Float64}(0)
+    acc = Ref(0.0)
+    nid = Ref(UInt64(1))
+    @test_throws ArgumentError inject_face_1d!(
+        ps,
+        rng,
+        0.0,
+        +1,
+        floatmax(Float64),
+        1.0,
+        0.0,
+        (0.0, 0.0),
+        0.0,
+        2.0,
+        1.0,
+        acc,
+        nid,
+    )
+    @test nparticles(ps) == 0
+    @test acc[] == 0.0
+    @test nid[] == UInt64(1)
+end
+
 @testset "inject_face_1d! delivers the target number flux" begin
     T = Float64
     n0 = 1.0

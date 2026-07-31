@@ -125,21 +125,49 @@ function inject_face_1d!(
     dtT = _validated_nonnegative_dt(T, dt; name = "inject_face_1d!")
     wT = _require_finite_positive_real("w", w, T)
     fpn0 = flux_per_density(aT, σT)
-    acc[] += float(n0T) * float(fpn0) * float(dtT) / float(wT)
-    Ninj = floor(Int, acc[])
-    acc[] -= Ninj
-    Ninj == 0 && return 0
-    s_in = T(inward)
-    @inbounds for _ = 1:Ninj
-        s = flux_speed(rng, aT, σT)
-        push!(ps.x[1], face_xT + s_in * s * dtT * rand(rng, T))   # fly-in within the swept slab
-        push!(ps.v[1], s_in * s)
-        push!(ps.v[2], ut1 + σtT * randn(rng, T))
-        push!(ps.v[3], ut2 + σtT * randn(rng, T))
-        push!(ps.weight, wT)
-        push!(ps.id, nextid[])
-        nextid[] += one(UInt64)
-        push!(ps.tag, UInt32(1))                                      # tag=1 ⇒ injected
+    acc0 = acc[]
+    (isfinite(acc0) && acc0 >= 0) ||
+        throw(ArgumentError("inject_face_1d!: acc[] must be finite and non-negative"))
+    increment = Float64(n0T) * Float64(fpn0) * Float64(dtT) / Float64(wT)
+    (isfinite(increment) && increment >= 0) ||
+        throw(ArgumentError("inject_face_1d!: injected particle count must be finite"))
+    acc1 = acc0 + increment
+    (isfinite(acc1) && acc1 < Float64(typemax(Int))) ||
+        throw(ArgumentError("inject_face_1d!: injected particle count exceeds Int capacity"))
+    Ninj = floor(Int, acc1)
+    if Ninj == 0
+        acc[] = acc1
+        return 0
     end
+
+    firstid = nextid[]
+    firstid > 0 || throw(ArgumentError("inject_face_1d!: nextid[] must be positive"))
+    ninjU = UInt64(Ninj)
+    ninjU <= typemax(UInt64) - firstid ||
+        throw(ArgumentError("inject_face_1d!: particle id counter exhausted"))
+
+    batch = ParticleSet{1,T}(Ninj; q = ps.q, m = ps.m)
+    s_in = T(inward)
+    @inbounds for k = 1:Ninj
+        s = flux_speed(rng, aT, σT)
+        (isfinite(s) && s >= 0) ||
+            throw(ArgumentError("inject_face_1d!: flux sampler returned an invalid speed"))
+        x = face_xT + s_in * s * dtT * rand(rng, T)   # fly-in within the swept slab
+        vx = s_in * s
+        vy = ut1 + σtT * randn(rng, T)
+        vz = ut2 + σtT * randn(rng, T)
+        (isfinite(x) && isfinite(vx) && isfinite(vy) && isfinite(vz)) ||
+            throw(ArgumentError("inject_face_1d!: sampled particle state must be finite"))
+        batch.x[1][k] = x
+        batch.v[1][k] = vx
+        batch.v[2][k] = vy
+        batch.v[3][k] = vz
+        batch.weight[k] = wT
+        batch.id[k] = firstid + UInt64(k - 1)
+        batch.tag[k] = UInt32(1)                                      # tag=1 ⇒ injected
+    end
+    append_particles!(ps, batch)
+    acc[] = acc1 - Ninj
+    nextid[] = firstid + ninjU
     return Ninj
 end
