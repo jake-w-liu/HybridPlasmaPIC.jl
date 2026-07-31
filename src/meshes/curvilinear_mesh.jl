@@ -128,62 +128,65 @@ function metric_gradient(g::ToroidalGrid{T}, f::AbstractArray{T,3}) where {T}
     return gr, gθ, gφ
 end
 
-@inline function _radial_metric_flux(g, Ar, i, j, k, cosθ)
-    r = g.r[i]
-    return r * (g.R0 + r * cosθ) * Ar[i, j, k]
+@inline function _normalized_radial_metric_flux(g, Ar, sample_i, target_i, j, k, cosθ)
+    sample_r = g.r[sample_i]
+    target_r = g.r[target_i]
+    sample_R = g.R0 + sample_r * cosθ
+    target_R = g.R0 + target_r * cosθ
+    return (sample_r / target_r) * (sample_R / target_R) * Ar[sample_i, j, k]
 end
 
-@inline function _radial_flux_derivative(g, Ar, i, j, k, cosθ, Nr)
+@inline function _radial_divergence(g, Ar, i, j, k, cosθ, Nr)
     dr = g.dr
     if i == 1
         # At the coordinate axis, Fr = r*R*Ar is exactly zero for every
         # bounded physical Ar.  Including that known value with the first
         # three cell-centred fluxes gives a cubic-exact derivative at r=dr/2.
         return (
-            _radial_metric_flux(g, Ar, 1, j, k, cosθ) / 2 +
-            2 * _radial_metric_flux(g, Ar, 2, j, k, cosθ) / 3 -
-            _radial_metric_flux(g, Ar, 3, j, k, cosθ) / 10
+            _normalized_radial_metric_flux(g, Ar, 1, i, j, k, cosθ) / 2 +
+            2 * _normalized_radial_metric_flux(g, Ar, 2, i, j, k, cosθ) / 3 -
+            _normalized_radial_metric_flux(g, Ar, 3, i, j, k, cosθ) / 10
         ) / dr
     elseif i == Nr
         # J is bounded away from zero at the outer edge, so the usual
         # second-order one-sided derivative retains second-order accuracy.
         return (
-            3 * _radial_metric_flux(g, Ar, Nr, j, k, cosθ) -
-            4 * _radial_metric_flux(g, Ar, Nr - 1, j, k, cosθ) +
-            _radial_metric_flux(g, Ar, Nr - 2, j, k, cosθ)
+            3 * _normalized_radial_metric_flux(g, Ar, Nr, i, j, k, cosθ) -
+            4 * _normalized_radial_metric_flux(g, Ar, Nr - 1, i, j, k, cosθ) +
+            _normalized_radial_metric_flux(g, Ar, Nr - 2, i, j, k, cosθ)
         ) / (2dr)
     elseif Nr == 3
         # Cubic interpolation through Fr(0)=0 and all three cell centres.
         return (
-            -3 * _radial_metric_flux(g, Ar, 1, j, k, cosθ) / 2 +
-            2 * _radial_metric_flux(g, Ar, 2, j, k, cosθ) / 3 +
-            3 * _radial_metric_flux(g, Ar, 3, j, k, cosθ) / 10
+            -3 * _normalized_radial_metric_flux(g, Ar, 1, i, j, k, cosθ) / 2 +
+            2 * _normalized_radial_metric_flux(g, Ar, 2, i, j, k, cosθ) / 3 +
+            3 * _normalized_radial_metric_flux(g, Ar, 3, i, j, k, cosθ) / 10
         ) / dr
     elseif i == 2
         # Cubic-exact forward-biased derivative.
         return (
-            -2 * _radial_metric_flux(g, Ar, 1, j, k, cosθ) -
-            3 * _radial_metric_flux(g, Ar, 2, j, k, cosθ) +
-            6 * _radial_metric_flux(g, Ar, 3, j, k, cosθ) -
-            _radial_metric_flux(g, Ar, 4, j, k, cosθ)
+            -2 * _normalized_radial_metric_flux(g, Ar, 1, i, j, k, cosθ) -
+            3 * _normalized_radial_metric_flux(g, Ar, 2, i, j, k, cosθ) +
+            6 * _normalized_radial_metric_flux(g, Ar, 3, i, j, k, cosθ) -
+            _normalized_radial_metric_flux(g, Ar, 4, i, j, k, cosθ)
         ) / (6dr)
     elseif i == Nr - 1
         # Cubic-exact backward-biased derivative.
         return (
-            _radial_metric_flux(g, Ar, Nr - 3, j, k, cosθ) -
-            6 * _radial_metric_flux(g, Ar, Nr - 2, j, k, cosθ) +
-            3 * _radial_metric_flux(g, Ar, Nr - 1, j, k, cosθ) +
-            2 * _radial_metric_flux(g, Ar, Nr, j, k, cosθ)
+            _normalized_radial_metric_flux(g, Ar, Nr - 3, i, j, k, cosθ) -
+            6 * _normalized_radial_metric_flux(g, Ar, Nr - 2, i, j, k, cosθ) +
+            3 * _normalized_radial_metric_flux(g, Ar, Nr - 1, i, j, k, cosθ) +
+            2 * _normalized_radial_metric_flux(g, Ar, Nr, i, j, k, cosθ)
         ) / (6dr)
     else
         # The fourth-order centred stencil keeps the flux-derivative error
         # below O(dr^3), which is needed near J=rR=O(dr) for the divergence
         # itself to remain at least second-order accurate.
         return (
-            _radial_metric_flux(g, Ar, i - 2, j, k, cosθ) -
-            8 * _radial_metric_flux(g, Ar, i - 1, j, k, cosθ) +
-            8 * _radial_metric_flux(g, Ar, i + 1, j, k, cosθ) -
-            _radial_metric_flux(g, Ar, i + 2, j, k, cosθ)
+            _normalized_radial_metric_flux(g, Ar, i - 2, i, j, k, cosθ) -
+            8 * _normalized_radial_metric_flux(g, Ar, i - 1, i, j, k, cosθ) +
+            8 * _normalized_radial_metric_flux(g, Ar, i + 1, i, j, k, cosθ) -
+            _normalized_radial_metric_flux(g, Ar, i + 2, i, j, k, cosθ)
         ) / (12dr)
     end
 end
@@ -218,13 +221,13 @@ function metric_divergence(
             for i = 1:Nr
                 r = g.r[i]
                 R = g.R0 + r * cosθ
-                J = r * R
-                dFr = _radial_flux_derivative(g, Ar, i, j, k, cosθ, Nr)
+                radial_divergence = _radial_divergence(g, Ar, i, j, k, cosθ, Nr)
                 Rjp = g.R0 + r * cosθp
                 Rjm = g.R0 + r * cosθm
-                dFθ = (Rjp * Aθ[i, jp, k] - Rjm * Aθ[i, jm, k]) / (2 * g.dθ)
-                dFφ = (r * Aφ[i, j, kp] - r * Aφ[i, j, km]) / (2 * g.dφ)
-                out[i, j, k] = (dFr + dFθ + dFφ) / J
+                poloidal_divergence =
+                    ((Rjp / R) * Aθ[i, jp, k] - (Rjm / R) * Aθ[i, jm, k]) / (2 * g.dθ) / r
+                toroidal_divergence = (Aφ[i, j, kp] - Aφ[i, j, km]) / (2 * g.dφ) / R
+                out[i, j, k] = radial_divergence + poloidal_divergence + toroidal_divergence
             end
         end
     end

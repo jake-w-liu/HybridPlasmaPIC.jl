@@ -33,6 +33,11 @@ using HybridPlasmaPIC:
     @test is_anisotropic(ci) && !is_anisotropic(IsothermalElectrons(0.5))
     @test_throws ArgumentError CGLElectrons(0.6, 0.3, -1.0, 1.0)
     @test_throws ArgumentError CGLElectrons(-0.6, 0.3, 1.0, 1.0)
+
+    extreme_perp = CGLElectrons(1.0e308, 0.0, 1.0e308, 2.0)
+    @test extreme_perp.Cperp == 0.5
+    extreme_par = CGLElectrons(0.0, 1.0e-300, 1.0e30, 1.0e200)
+    @test extreme_par.Cpar ≈ 1.0e10 rtol = 2eps(Float64)
 end
 
 @testset "CGL-002 pressure-tensor divergence ∇·P_e vs analytic" begin
@@ -61,6 +66,53 @@ end
     # uniform n, B ⇒ zero force
     anisotropic_pressure_force!(Fp, fill(1.3, N), (fill(0.5, N), fill(0.5, N), fill(0.7, N)), c, g)
     @test maximum(abs.(Fp[1]) .+ abs.(Fp[2]) .+ abs.(Fp[3])) < 1e-14
+
+    # Squaring this finite uniform field overflows, and an unscaled FFT of the
+    # finite pressure DC mode does too. Its analytic pressure force is exactly zero.
+    huge_B = (fill(1.0e308, N), zeros(N), zeros(N))
+    anisotropic_pressure_force!(Fp, ones(N), huge_B, CGLElectrons(0.5, 0.5, 1.0, 1.0), g)
+    @test all(all(isfinite, Fp[c]) for c = 1:3)
+    @test all(all(iszero, Fp[c]) for c = 1:3)
+
+    # The Fourier coefficients remain finite here, but multiplying them by the
+    # short-domain wavenumber overflows unless the rescaling bound includes the
+    # spectral multiplier as well as the unnormalised transform.
+    high_k = 100.0
+    high_N = 16
+    high_L = 2π / high_k
+    high_g = FourierGrid((high_N,), (high_L,))
+    high_x = (0:high_N-1) .* (high_L / high_N)
+    high_n = 2.0e306 .+ 1.0e306 .* sin.(high_k .* high_x)
+    high_Fp = ntuple(_ -> zeros(high_N), 3)
+    anisotropic_pressure_force!(
+        high_Fp,
+        high_n,
+        (zeros(high_N), zeros(high_N), ones(high_N)),
+        CGLElectrons(1.0, 0.0, 1.0, 1.0),
+        high_g,
+    )
+    high_gradient = 1.0e308 .* cos.(high_k .* high_x)
+    @test all(isfinite, high_Fp[1])
+    @test maximum(abs.(high_Fp[1] ./ 1.0e308 .- high_gradient ./ 1.0e308)) < 32eps()
+
+    # Exercise the same multiplier-aware scaling through the field-aligned
+    # stress divergence, independently of the perpendicular gradient.
+    stress_N = 32
+    stress_g = FourierGrid((stress_N,), (high_L,))
+    stress_x = (0:stress_N-1) .* (high_L / stress_N)
+    stress_n = 1 .+ 0.1 .* sin.(high_k .* stress_x)
+    stress_Fp = ntuple(_ -> zeros(stress_N), 3)
+    anisotropic_pressure_force!(
+        stress_Fp,
+        stress_n,
+        (ones(stress_N), zeros(stress_N), zeros(stress_N)),
+        CGLElectrons(0.0, 1.0e306, 1.0, 1.0),
+        stress_g,
+    )
+    stress_reference = 3.0e307 .* stress_n .^ 2 .* cos.(high_k .* stress_x)
+    @test all(isfinite, stress_Fp[1])
+    @test maximum(abs.(stress_Fp[1] ./ 1.0e307 .- stress_reference ./ 1.0e307)) < 256eps()
+    @test all(iszero, stress_Fp[2]) && all(iszero, stress_Fp[3])
 end
 
 @testset "CGL-003 well-posed hybrid run: stable, deterministic, distinct from scalar" begin

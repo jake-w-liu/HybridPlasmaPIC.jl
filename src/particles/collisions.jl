@@ -64,6 +64,32 @@ end
     return ldexp((af * bf) / df, ae + be - de)
 end
 
+@inline function _finite_product3(a::T, b::T, c::T) where {T}
+    (iszero(a) || iszero(b) || iszero(c)) && return zero(T)
+    af, ae = frexp(a)
+    bf, be = frexp(b)
+    cf, ce = frexp(c)
+    return ldexp(af * bf * cf, ae + be + ce)
+end
+
+# `rate * speed * dt` can overflow in the first multiplication and then be
+# brought back into range by a subnormal `dt` (or underflow before a large third
+# factor). Reconstruct the product from mantissas/exponents only on that rare
+# path so ordinary collision loops retain the inexpensive direct expression.
+@inline function _collision_probability(rate::T, speed::T, dt::T) where {T}
+    rate_speed = rate * speed
+    optical_depth = rate_speed * dt
+    if !(
+        isfinite(rate_speed) &&
+        abs(rate_speed) >= floatmin(T) &&
+        isfinite(optical_depth) &&
+        abs(optical_depth) >= floatmin(T)
+    )
+        optical_depth = _finite_product3(rate, speed, dt)
+    end
+    return -expm1(-optical_depth)
+end
+
 @inline function _convex_weighted_mean(
     current::T,
     value::T,
@@ -740,6 +766,19 @@ function _mightalias_particle_storage(candidate, ps::ParticleSet)
     return false
 end
 
+function _particle_sets_mightalias(a::ParticleSet, b::ParticleSet)
+    for d = 1:length(a.x)
+        _mightalias_particle_storage(a.x[d], b) && return true
+    end
+    for c = 1:3
+        _mightalias_particle_storage(a.v[c], b) && return true
+    end
+    _mightalias_particle_storage(a.weight, b) && return true
+    _mightalias_particle_storage(a.id, b) && return true
+    _mightalias_particle_storage(a.tag, b) && return true
+    return false
+end
+
 function _require_nonaliasing_collision_scratch(candidate, candidate_name, work, context)
     (candidate === nothing || work === nothing) && return nothing
     (work isa Tuple && length(work) == 3) || return nothing
@@ -879,7 +918,7 @@ function collide_neutral_mcc!(
         isfinite(gmag) ||
             throw(ArgumentError("collide_neutral_mcc!: relative speed exceeds numeric range"))
         gmag > 0 || continue
-        Pcoll = -expm1(-nσT * gmag * dtT)           # 1 − exp(−nσ|g|dt)
+        Pcoll = _collision_probability(nσT, gmag, dtT) # 1 − exp(−nσ|g|dt)
         rand(rng, T) < Pcoll || continue
         Vx = μp * vx[p] + μn * vnx                  # centre-of-mass velocity
         Vy = μp * vy[p] + μn * vny
@@ -982,6 +1021,8 @@ function ionize_mcc!(
     qi == -qe || throw(
         ArgumentError("ionize_mcc!: electron and ion species charges must be exactly opposite"),
     )
+    _particle_sets_mightalias(electrons, ions) &&
+        throw(ArgumentError("ionize_mcc!: electron and ion particle storage must not alias"))
     unx = _require_finite_real("u_n[1]", u_n[1], T)
     uny = _require_finite_real("u_n[2]", u_n[2], T)
     unz = _require_finite_real("u_n[3]", u_n[3], T)
@@ -1000,7 +1041,7 @@ function ionize_mcc!(
     @inbounds for p = 1:Ne
         speed = hypot(evx[p], evy[p], evz[p])
         speed > ionization_speed || continue       # below the ionization threshold
-        Pcoll = -expm1(-nσT * speed * dtT)
+        Pcoll = _collision_probability(nσT, speed, dtT)
         rand(rng, T) < Pcoll || continue
         push!(born, p)
     end

@@ -57,6 +57,10 @@ Random.rand(rng::NearRangeCoulombRNG, sampler::Random.LessThan) = rand(rng.inner
 Random.rand(rng::NearRangeCoulombRNG, ::Type{Float64}) = rand(rng.inner, Float64)
 Random.randn(::NearRangeCoulombRNG, ::Type{Float64}) = 1.0e154
 
+struct Fixed08RNG <: AbstractRNG end
+Random.rand(::Fixed08RNG, ::Type{Float64}) = 0.8
+Random.randn(::Fixed08RNG, ::Type{Float64}) = 0.0
+
 # Whole-set weighted totals: momentum (3-vec) and kinetic energy Σ w |v|².
 function set_totals(ps)
     w = ps.weight
@@ -996,6 +1000,41 @@ end
     @test bytes == 0
 end
 
+@testset "MCC optical depth survives recoverable intermediate overflow" begin
+    # The first two factors overflow, but the complete product is about one.
+    # A draw of 0.8 must therefore exceed P=1-exp(-1)≈0.632 rather than see
+    # the spuriously saturated P=1 produced by left-to-right multiplication.
+    dt = 1.0e-320
+    rate = 1.0e200
+    speed = 1.0e120
+    optical_depth = BigFloat(rate) * BigFloat(speed) * BigFloat(dt)
+    @test Float64(-expm1(-optical_depth)) < 0.8
+
+    # A nonzero subnormal intermediate is also lossy: multiplying it by a
+    # large final factor can otherwise magnify its rounding error by 33%.
+    tiny_rate = nextfloat(0.0)
+    rescued_probability = HybridPlasmaPIC._collision_probability(tiny_rate, 1.5, 1.0e308)
+    rescued_oracle = Float64(setprecision(256) do
+        depth = BigFloat(tiny_rate) * BigFloat(1.5) * BigFloat(1.0e308)
+        -expm1(-depth)
+    end)
+    @test rescued_probability == rescued_oracle
+
+    neutral = ParticleSet{1,Float64}(1; m = 1.0)
+    neutral.v[1][1] = speed
+    neutral0 = map(copy, neutral.v)
+    collide_neutral_mcc!(neutral, dt; nσ = rate, T_n = 0.0, m_n = 1.0, rng = Fixed08RNG())
+    @test all(neutral.v[c] == neutral0[c] for c = 1:3)
+
+    electrons = ParticleSet{1,Float64}(1; q = -1.0, m = 1.0)
+    electrons.x[1][1] = 0.25
+    electrons.v[1][1] = speed
+    ions = ParticleSet{1,Float64}(0; q = 1.0, m = 100.0)
+    @test ionize_mcc!(electrons, ions, dt; nσ_iz = rate, E_iz = 0.0, rng = Fixed08RNG()) == 0
+    @test nparticles(electrons) == 1
+    @test nparticles(ions) == 0
+end
+
 # ---- electron-impact ionization (ionize_mcc!) ---------------------------------
 # Oracles: pair creation (Ne,Ni each +nb → net-neutral), and — with cold neutrals —
 # an exact weighted electron-population energy loss of E_iz*Σborn w.
@@ -1205,6 +1244,32 @@ end
         electrons.x[1][2] = 0.75
         electrons.weight[2] = 1.0
     end
+
+    shared = ParticleSet{1,Float64}(1; q = -1.0, m = 1.0)
+    shared.x[1][1] = 0.25
+    shared.v[1][1] = 2.0
+    aliased_ions =
+        ParticleSet{1,Float64}(shared.x, shared.v, shared.weight, shared.id, shared.tag, 1.0, 100.0)
+    shared_state = (
+        map(copy, shared.x),
+        map(copy, shared.v),
+        copy(shared.weight),
+        copy(shared.id),
+        copy(shared.tag),
+    )
+    @test_throws ArgumentError ionize_mcc!(
+        shared,
+        aliased_ions,
+        1.0;
+        nσ_iz = 1.0e6,
+        E_iz = 0.0,
+        rng = Fixed08RNG(),
+    )
+    @test all(shared.x[d] == shared_state[1][d] for d = 1:1)
+    @test all(shared.v[c] == shared_state[2][c] for c = 1:3)
+    @test shared.weight == shared_state[3]
+    @test shared.id == shared_state[4]
+    @test shared.tag == shared_state[5]
 end
 
 @testset "IZ-003 threaded id counter ⇒ globally-unique ids (self-heal + no reuse under removal)" begin

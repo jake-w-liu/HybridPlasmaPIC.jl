@@ -53,6 +53,93 @@ end
     @test nbuf[1] == 2.0
     @test map(m -> m[1], mom) == (2.0, 6.0, 6.0)
 
+    extreme = ParticleSet{1,T}(2)
+    extreme.x[1] .= 0.0
+    offset = 1.0e154
+    extreme.v[1] .= (offset, nextfloat(offset))
+    Pextreme = ntuple(_ -> zeros(T, 1), 6)
+    pressure_tensor!(Pextreme, extreme, g, NGP())
+    mean_big = (BigFloat(extreme.v[1][1]) + BigFloat(extreme.v[1][2])) / 2
+    expected_big = sum((BigFloat(v) - mean_big)^2 for v in extreme.v[1])
+    @test Pextreme[1][1] == Float64(expected_big)
+    @test all(isfinite, Iterators.flatten(Pextreme))
+
+    asymmetric = ParticleSet{1,T}(2)
+    asymmetric.x[1] .= 0.0
+    tiny_weight = nextfloat(0.0)
+    asymmetric.weight .= tiny_weight
+    asymmetric.v[1] .= (0.0, 1.0e-200)
+    asymmetric.v[2] .= (0.0, 1.0e300)
+    Pasymmetric = ntuple(_ -> zeros(T, 1), 6)
+    pressure_tensor!(Pasymmetric, asymmetric, g, NGP(); nfloor = tiny_weight)
+    expected_xy = Float64(BigFloat(tiny_weight) / 2 * BigFloat(1.0e-200) * BigFloat(1.0e300))
+    expected_yy = Float64(BigFloat(tiny_weight) / 2 * BigFloat(1.0e300)^2)
+    @test Pasymmetric[4][1] == expected_xy
+    @test Pasymmetric[2][1] == expected_yy
+    @test all(isfinite, Iterators.flatten(Pasymmetric))
+
+    floored = ParticleSet{1,T}(2; m = 2.0)
+    floored.x[1] .= 0.0
+    floored.weight .= tiny_weight
+    floored.v[1] .= (0.0, 1.0e300)
+    Pfloored = ntuple(_ -> zeros(T, 1), 6)
+    density_floor = 4tiny_weight
+    pressure_tensor!(Pfloored, floored, g, NGP(); nfloor = density_floor)
+    expected_floored = Float64(
+        BigFloat(floored.m) * (
+            BigFloat(tiny_weight) * BigFloat(1.0e300)^2 -
+            (BigFloat(tiny_weight) * BigFloat(1.0e300))^2 / BigFloat(density_floor)
+        ),
+    )
+    @test Pfloored[1][1] == expected_floored
+
+    wide = ParticleSet{1,T}(2)
+    wide.x[1] .= 0.0
+    wide.weight .= (1.0e183, 1.0e25)
+    wide.v[1] .= (1.0e-285, -1.0e-282)
+    wide.v[2] .= (1.0e-289, -1.0e31)
+    wide.v[3] .= (1.0e-235, 1.0e293)
+    Pwide = ntuple(_ -> zeros(T, 1), 6)
+    pressure_tensor!(Pwide, wide, g, NGP(); nfloor = nextfloat(0.0))
+    expected_wide = setprecision(BigFloat, 1024) do
+        total_weight = sum(BigFloat, wide.weight)
+        mean_velocity = ntuple(
+            c ->
+                sum(BigFloat(wide.weight[p]) * BigFloat(wide.v[c][p]) for p = 1:2) / total_weight,
+            3,
+        )
+        map(((1, 1), (2, 2), (3, 3), (1, 2), (1, 3), (2, 3))) do (i, j)
+            Float64(
+                sum(
+                    BigFloat(wide.weight[p]) *
+                    (BigFloat(wide.v[i][p]) - mean_velocity[i]) *
+                    (BigFloat(wide.v[j][p]) - mean_velocity[j]) for p = 1:2
+                ),
+            )
+        end
+    end
+    @test map(first, Pwide) == expected_wide
+    @test !any(isnan, Iterators.flatten(Pwide))
+
+    cancelling = ParticleSet{1,T}(4)
+    cancelling.x[1] .= 0.0
+    cancelling.weight .= 1.0
+    amplitude = 1.0e154
+    cancelling.v[1] .= (amplitude, -amplitude, amplitude, -amplitude)
+    cancelling.v[2] .= (amplitude, -amplitude, -amplitude, amplitude)
+    Pcancelling = ntuple(_ -> zeros(T, 1), 6)
+    pressure_tensor!(Pcancelling, cancelling, g, NGP(); nfloor = nextfloat(0.0))
+    @test map(first, Pcancelling) == (Inf, Inf, 0.0, 0.0, 0.0, 0.0)
+
+    separated = ParticleSet{1,T}(6)
+    separated.x[1] .= 0.0
+    separated.weight .= 1.0
+    separated.v[1] .= (amplitude, 1.0, -amplitude, -1.0, amplitude, -amplitude)
+    separated.v[2] .= (amplitude, 1.0, amplitude, -1.0, -amplitude, -amplitude)
+    Pseparated = ntuple(_ -> zeros(T, 1), 6)
+    pressure_tensor!(Pseparated, separated, g, NGP(); nfloor = nextfloat(0.0))
+    @test map(first, Pseparated) == (Inf, Inf, 0.0, 2.0, 0.0, 0.0)
+
     for bad_floor in (0.0, -1.0, NaN, Inf)
         P0 = map(copy, P)
         @test_throws ArgumentError pressure_tensor!(
@@ -98,6 +185,14 @@ end
         nbuf,
         mom,
     )
+
+    weights0 = copy(ps.weight)
+    P0 = map(copy, P)
+    @test_throws ArgumentError pressure_tensor!(P, ps, g, NGP(); work = ps.weight, nbuf, mom)
+    @test ps.weight == weights0
+    @test all(P[c] == P0[c] for c = 1:6)
+    @test_throws ArgumentError pressure_tensor!(P, ps, g, NGP(); work, nbuf = P[1], mom)
+    @test all(P[c] == P0[c] for c = 1:6)
 end
 
 @testset "3D smoke: operators + integrator" begin

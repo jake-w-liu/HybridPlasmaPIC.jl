@@ -27,6 +27,7 @@ function deposit_scalar_threaded!(
     length(vals) == nparticles(ps) || throw(DimensionMismatch("vals length ≠ particle count"))
     size(out) == g.n ||
         throw(DimensionMismatch("out size $(size(out)) does not match grid size $(g.n)"))
+    _validate_particle_positions(ps)
     fill!(out, zero(T))
     Np = length(vals)
     val_first = firstindex(vals)

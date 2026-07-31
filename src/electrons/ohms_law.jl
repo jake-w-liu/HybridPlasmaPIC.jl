@@ -223,6 +223,81 @@ function _validate_anisotropic_pressure_force(
     return bf
 end
 
+@inline function _cgl_fft_input_scale(magnitude::T, gain::T, n::Int) where {T}
+    isfinite(gain) && gain >= zero(T) ||
+        throw(ArgumentError("CGL spectral multiplier bound must be finite and nonnegative"))
+    iszero(magnitude) && return one(T)
+    safe_magnitude = (floatmax(T) / T(8) / T(n)) / max(one(T), gain)
+    magnitude <= safe_magnitude && return one(T)
+    ratio = magnitude / safe_magnitude
+    isfinite(ratio) || return floatmax(T)
+    return ratio < floatmax(T) ? nextfloat(ratio) : floatmax(T)
+end
+
+@inline function _require_cgl_rescalable(field, scale)
+    isone(scale) && return nothing
+    @inbounds for value in field
+        !iszero(value) &&
+            iszero(value / scale) &&
+            throw(
+                ArgumentError("CGL pressure dynamic range is too wide for lossless FFT rescaling"),
+            )
+    end
+    return nothing
+end
+
+function _cgl_gradient!(gradient, field::Array{T,D}, g::FourierGrid{D,T}) where {T,D}
+    magnitude = maximum(abs, field; init = zero(T))
+    isfinite(magnitude) || throw(ArgumentError("CGL perpendicular pressure must be finite"))
+    gain = maximum(d -> maximum(abs, g.kvec[d]), 1:D)
+    input_scale = _cgl_fft_input_scale(magnitude, gain, length(field))
+    _require_cgl_rescalable(field, input_scale)
+    if isone(input_scale)
+        gradient!(gradient, field, g)
+    else
+        field ./= input_scale
+        try
+            gradient!(gradient, field, g)
+            for d = 1:D
+                gradient[d] .*= input_scale
+            end
+        finally
+            field .*= input_scale
+        end
+    end
+    return gradient
+end
+
+function _cgl_divergence!(out, vector, g::FourierGrid{D,T}) where {D,T}
+    magnitude = zero(T)
+    gain = zero(T)
+    for d = 1:D
+        magnitude = max(magnitude, maximum(abs, vector[d]; init = zero(T)))
+        gain += maximum(abs, g.kvec[d])
+    end
+    isfinite(magnitude) || throw(ArgumentError("CGL field-aligned stress must be finite"))
+    input_scale = _cgl_fft_input_scale(magnitude, gain, length(out))
+    for d = 1:D
+        _require_cgl_rescalable(vector[d], input_scale)
+    end
+    if isone(input_scale)
+        divergence!(out, vector, g)
+    else
+        for d = 1:D
+            vector[d] ./= input_scale
+        end
+        try
+            divergence!(out, vector, g)
+            out .*= input_scale
+        finally
+            for d = 1:D
+                vector[d] .*= input_scale
+            end
+        end
+    end
+    return out
+end
+
 function _anisotropic_pressure_force_core!(
     Fp,
     n,
@@ -238,19 +313,23 @@ function _anisotropic_pressure_force_core!(
     bf,
 )
     D = ndims(n)
+    Tfield = eltype(n)
     Bx, By, Bz = B
     bx, by, bz = bvec
     @inbounds for I in eachindex(n)
-        bm = max(sqrt(Bx[I]^2 + By[I]^2 + Bz[I]^2), bf)
+        bm = max(hypot(Bx[I], By[I], Bz[I]), bf)
+        isfinite(bm) || throw(ArgumentError("CGL magnetic-field magnitude must be finite"))
         bx[I] = Bx[I] / bm
         by[I] = By[I] / bm
         bz[I] = Bz[I] / bm
-        pp = closure.Cperp * n[I] * bm            # p_⊥ = C_⊥ n|B|
-        ppar = closure.Cpar * n[I]^3 / bm^2       # p_∥ = C_∥ n³/|B|²
+        pp = Tfield(cgl_pperp(closure, n[I], bm))  # p_⊥ = C_⊥ n|B|
+        ppar = Tfield(cgl_ppar(closure, n[I], bm)) # p_∥ = C_∥ n³/|B|²
+        (isfinite(pp) && isfinite(ppar)) ||
+            throw(ArgumentError("CGL pressure exceeds numeric range"))
         pperp[I] = pp
         dp[I] = ppar - pp                          # Δp = p_∥ − p_⊥
     end
-    gradient!(gp, pperp, g)                        # ∇p_⊥ (D spatial components)
+    _cgl_gradient!(gp, pperp, g)                   # ∇p_⊥ (D spatial components)
     @inbounds for i = 1:3
         bi = bvec[i]
         for j = 1:D                                # V^(i)_j = Δp b_j b_i
@@ -260,7 +339,7 @@ function _anisotropic_pressure_force_core!(
                 Vj[I] = dp[I] * bj[I] * bi[I]
             end
         end
-        divergence!(divi, Vwork, g)                # Σ_j ∂_j( Δp b_j b_i )
+        _cgl_divergence!(divi, Vwork, g)            # Σ_j ∂_j( Δp b_j b_i )
         Fi = Fp[i]
         if i <= D
             gpi = gp[i]

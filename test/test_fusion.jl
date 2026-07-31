@@ -44,6 +44,29 @@ Base.getindex(a::ZeroBasedCube, i::Int, j::Int, k::Int) = a.parent[i+1, j+1, k+1
     @test size(div) == gridsize(g)
     @test all(isfinite, div)
 
+    large = ToroidalGrid(2.0e200, 1.0e200, 8, 8, 8)
+    large_ones = ones(gridsize(large))
+    large_zero = zeros(gridsize(large))
+    large_divergence = metric_divergence(large, large_ones, large_zero, large_zero)
+    large_exact = [
+        inv(large.r[i]) + cos(large.θ[j]) / (large.R0 + large.r[i] * cos(large.θ[j])) for
+        i = 1:8, j = 1:8, k = 1:8
+    ]
+    @test all(isfinite, large_divergence)
+    @test maximum(abs.((large_divergence .- large_exact) ./ large_exact)) < 1.0e-12
+
+    large_Aφ = [sin(large.φ[k]) for i = 1:8, j = 1:8, k = 1:8]
+    large_poloidal = metric_divergence(large, large_zero, large_ones, large_zero)
+    large_toroidal = metric_divergence(large, large_zero, large_zero, large_Aφ)
+    poloidal_exact = [
+        -sin(large.θ[j]) * (sin(large.dθ) / large.dθ) / (large.R0 + large.r[i] * cos(large.θ[j])) for i = 1:8, j = 1:8, k = 1:8
+    ]
+    toroidal_exact = [
+        cos(large.φ[k]) * (sin(large.dφ) / large.dφ) / (large.R0 + large.r[i] * cos(large.θ[j])) for i = 1:8, j = 1:8, k = 1:8
+    ]
+    @test large_poloidal ≈ poloidal_exact rtol = 5.0e-14 atol = 1.0e-215
+    @test large_toroidal ≈ toroidal_exact rtol = 5.0e-14 atol = 1.0e-215
+
     offset = ZeroBasedCube(ones(gridsize(g)))
     @test_throws ArgumentError metric_gradient(g, offset)
     @test_throws ArgumentError metric_divergence(g, offset, offset, offset)

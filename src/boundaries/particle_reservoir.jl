@@ -34,6 +34,17 @@ end
     )
 end
 
+# Dimensionless form of the same integral, with x=s/σ and d=a/σ. The
+# common σ² factor cancels during inverse-CDF sampling; omitting it prevents
+# recoverable overflow when both drift and thermal speed are large.
+@inline function _flux_shape_integral(x::T, d::T) where {T}
+    u0 = -d
+    u1 = x - d
+    r2 = sqrt(T(2))
+    return d * sqrt(T(π) / 2) * (_erf(u1 / r2) - _erf(u0 / r2)) + exp(-(u0 * u0) / 2) -
+           exp(-(u1 * u1) / 2)
+end
+
 @inline function _validated_flux_sampler_params(a::T, σ::T) where {T}
     aT = _require_finite_real("a", a, T)
     σT = _require_finite_nonnegative_real("σ", σ, T)
@@ -91,6 +102,30 @@ function _negative_flux_shape(b::T) where {T}
     return max(total, zero(T))
 end
 
+@inline function _negative_flux_per_density(σ::T, b::T) where {T}
+    normal_decay_limit = sqrt(-T(2) * log(floatmin(T)))
+    if b <= normal_decay_limit
+        decay = exp(-(b * b) / 2)
+        if decay >= floatmin(T)
+            # Retain the ordinary-range operation order and its established
+            # accuracy whenever the Gaussian itself is normally representable.
+            return σ / sqrt(T(2π)) * decay * _negative_flux_shape(b)
+        end
+    end
+
+    # In the recoverable tail, exp(-b²/2) may underflow even though its
+    # product with a large σ is finite. Split it into two exp(-b²/4)
+    # factors and place the finite prefactor between them. Once a half-decay
+    # is below the smallest subnormal, even floatmax(T) cannot rescue the full
+    # decay, so returning zero is the correctly rounded result.
+    half_decay_limit = T(2) * sqrt(-log(nextfloat(zero(T))))
+    b <= half_decay_limit || return zero(T)
+    half_decay = exp(-(b * b) / 4)
+    iszero(half_decay) && return zero(T)
+    prefactor = σ / sqrt(T(2π)) * _negative_flux_shape(b)
+    return (prefactor * half_decay) * half_decay
+end
+
 """
     flux_per_density(a, σ)
 
@@ -101,12 +136,12 @@ normal drift `a` (into the domain) and normal thermal speed `σ`:
 function flux_per_density(a::T, σ::T) where {T}
     aT, σT = _validated_flux_sampler_params(a, σ)
     σT == zero(T) && return max(aT, zero(T))
+    d = aT / σT
     if aT < zero(T)
-        b = -aT / σT
-        return σT / sqrt(T(2π)) * exp(-(b * b) / 2) * _negative_flux_shape(b)
+        b = -d
+        return _negative_flux_per_density(σT, b)
     end
-    return aT / 2 * (one(T) + _erf(aT / (σT * sqrt(T(2))))) +
-           σT / sqrt(T(2π)) * exp(-aT^2 / (2σT^2))
+    return aT / 2 * (one(T) + _erf(d / sqrt(T(2)))) + σT / sqrt(T(2π)) * exp(-(d * d) / 2)
 end
 
 function _negative_flux_speed(rng, b::T, σ::T) where {T}
@@ -137,19 +172,38 @@ function flux_speed(rng, a::T, σ::T) where {T}
         # since 1−U is uniform on (0,1]).
         return σT * sqrt(-2 * log1p(-rand(rng, T)))
     end
+    d = aT / σT
     if aT < zero(T)
-        b = -aT / σT
+        b = -d
         b >= one(T) && return _negative_flux_speed(rng, b, σT)
     end
-    hi = aT + 14σT
-    Z = _flux_integral(hi, aT, σT)
+    # If d overflowed, or d+14 rounds back to d, the entire thermal width is
+    # below the representable spacing at a: every finite sample rounds to a.
+    (!isfinite(d) || (aT > zero(T) && d + T(14) == d)) && return aT
+    hi = d + T(14)
+    Z = _flux_shape_integral(hi, d)
+    (isfinite(Z) && Z > zero(T)) ||
+        throw(ArgumentError("flux_speed: flux CDF normalization must be finite and positive"))
     U = rand(rng, T)
     lo = zero(T)
-    for _ = 1:60
-        m = (lo + hi) / 2
-        (_flux_integral(m, aT, σT) / Z < U) ? (lo = m) : (hi = m)
+    _, drift_exponent = frexp(abs(d))
+    for _ = 1:(64+max(0, drift_exponent))
+        m = lo + (hi - lo) / 2
+        (_flux_shape_integral(m, d) / Z < U) ? (lo = m) : (hi = m)
     end
-    return (lo + hi) / 2
+    x = lo + (hi - lo) / 2
+    speed = σT * x
+    isfinite(speed) || throw(ArgumentError("flux_speed: sampled speed exceeds numeric range"))
+    return max(speed, nextfloat(zero(T)))
+end
+
+@inline function _injection_increment(n0::Float64, flux::Float64, dt::Float64, weight::Float64)
+    (iszero(n0) || iszero(flux) || iszero(dt)) && return 0.0
+    nf, ne = frexp(n0)
+    ff, fe = frexp(flux)
+    df, de = frexp(dt)
+    wf, we = frexp(weight)
+    return ldexp((nf * ff * df) / wf, ne + fe + de - we)
 end
 
 """
@@ -191,7 +245,7 @@ function inject_face_1d!(
     acc0 = acc[]
     (isfinite(acc0) && acc0 >= 0) ||
         throw(ArgumentError("inject_face_1d!: acc[] must be finite and non-negative"))
-    increment = Float64(n0T) * Float64(fpn0) * Float64(dtT) / Float64(wT)
+    increment = _injection_increment(Float64(n0T), Float64(fpn0), Float64(dtT), Float64(wT))
     (isfinite(increment) && increment >= 0) ||
         throw(ArgumentError("inject_face_1d!: injected particle count must be finite"))
     acc1 = acc0 + increment

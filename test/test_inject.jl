@@ -33,9 +33,33 @@ function negative_flux_oracle(a, σ)
         num += x * wt
     end
     shape = den * dx
-    flux = BigFloat(σ) / sqrt(big(2π)) * exp(-(b^2) / 2) * shape
+    flux = BigFloat(σ) / sqrt(BigFloat(2) * BigFloat(π)) * exp(-(b^2) / 2) * shape
     mean_speed = BigFloat(σ) * num / den
     return Float64(flux), Float64(mean_speed)
+end
+
+function negative_shape_asymptotic_oracle(b::BigFloat)
+    invb2 = inv(b)^2
+    term = invb2
+    total = term
+    for n = 1:10_000
+        nextterm = term * BigFloat(2n + 1) * invb2
+        nextterm >= term && break
+        total += isodd(n) ? -nextterm : nextterm
+        nextterm <= eps(BigFloat) * abs(total) && break
+        term = nextterm
+    end
+    return total
+end
+
+function negative_tail_flux_oracle(σ, b)
+    return setprecision(BigFloat, 1024) do
+        σbig = BigFloat(σ)
+        bbig = BigFloat(b)
+        σbig / sqrt(BigFloat(2) * BigFloat(π)) *
+        exp(-(bbig^2) / 2) *
+        negative_shape_asymptotic_oracle(bbig)
+    end
 end
 
 @testset "flux sampler reproduces inward-flux moments (LOAD)" begin
@@ -83,6 +107,85 @@ end
     for _ = 1:1000
         @test flux_speed(rng, 2.0, 1.0) > 0
     end
+end
+
+@testset "negative-tail flux survives Gaussian underflow" begin
+    for (T, σ, tail_points) in (
+        (Float64, 1.0e300, (30.0, 38.0, 40.0, 50.0, 55.0)),
+        (Float32, 1.0f30, (10.0f0, 14.0f0, 15.0f0, 18.0f0, 21.0f0)),
+    )
+        tiny = nextfloat(zero(T))
+        for b in tail_points
+            a = -b * σ
+            expected = T(negative_tail_flux_oracle(σ, -a / σ))
+            actual = flux_per_density(a, σ)
+            if iszero(expected)
+                @test iszero(actual)
+            elseif expected < floatmin(T)
+                @test abs(actual - expected) <= 2tiny
+            else
+                @test isapprox(actual, expected; rtol = 16eps(T))
+            end
+        end
+
+        gaussian_normal_limit = sqrt(-T(2) * log(floatmin(T)))
+        for b in (prevfloat(gaussian_normal_limit), nextfloat(gaussian_normal_limit))
+            a = -b * σ
+            expected = T(negative_tail_flux_oracle(σ, -a / σ))
+            actual = flux_per_density(a, σ)
+            # The tail is conditioned by exp(-b²/2): one rounding error in
+            # b² is amplified by O(b²), even when the returned flux is normal.
+            @test isapprox(actual, expected; rtol = 4b^2 * eps(T), atol = 2tiny)
+        end
+
+        @test flux_per_density(-floatmax(T), one(T)) == zero(T)
+        @test flux_per_density(floatmax(T), one(T)) == floatmax(T)
+        @test flux_per_density(-one(T), tiny) == zero(T)
+        @test flux_per_density(one(T), tiny) == one(T)
+        positive_scale = T === Float32 ? T(1.0e30) : T(1.0e300)
+        @test flux_per_density(positive_scale, positive_scale) / positive_scale ≈
+              flux_per_density(one(T), one(T)) rtol = 4eps(T)
+    end
+
+    @test flux_per_density(-4.0e301, 1.0e300) == 9.128344722912974e-52
+end
+
+@testset "flux arithmetic is scale-stable near the Float64 range" begin
+    scale = 1.0e200
+    unit_flux = flux_per_density(1.0, 1.0)
+    scaled_flux = flux_per_density(scale, scale)
+    @test isfinite(scaled_flux)
+    @test scaled_flux / scale ≈ unit_flux rtol = 2eps(Float64)
+
+    unit_speed = flux_speed(MersenneTwister(19), 1.0, 1.0)
+    scaled_speed = flux_speed(MersenneTwister(19), scale, scale)
+    @test isfinite(scaled_speed)
+    @test scaled_speed / scale ≈ unit_speed rtol = 2eps(Float64)
+
+    # n0*flux overflows before a subnormal dt brings the complete metered
+    # increment back to O(1).
+    ps = ParticleSet{1,Float64}(0)
+    acc = Ref(0.5)
+    nextid = Ref(UInt64(1))
+    ninj = inject_face_1d!(
+        ps,
+        MersenneTwister(20),
+        0.0,
+        +1,
+        1.0e200,
+        1.0e120,
+        0.0,
+        (0.0, 0.0),
+        0.0,
+        1.0e-320,
+        1.0,
+        acc,
+        nextid,
+    )
+    @test ninj == 1
+    @test nparticles(ps) == 1
+    @test isfinite(acc[]) && 0.0 <= acc[] < 1.0
+    @test nextid[] == UInt64(2)
 end
 
 @testset "inject_face_1d! validates inputs before mutation" begin

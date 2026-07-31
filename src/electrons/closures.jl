@@ -81,19 +81,64 @@ struct CGLElectrons{T} <: ElectronClosure
     Cpar::T    # p_∥ B² / n³
 end
 
+@inline function _cgl_perp_coefficient(pressure::T, density::T, field::T) where {T}
+    iszero(pressure) && return zero(T)
+    pf, pe = frexp(pressure)
+    nf, ne = frexp(density)
+    bf, be = frexp(field)
+    return ldexp(pf / (nf * bf), pe - ne - be)
+end
+
+@inline function _cgl_parallel_coefficient(pressure::T, density::T, field::T) where {T}
+    iszero(pressure) && return zero(T)
+    pf, pe = frexp(pressure)
+    nf, ne = frexp(density)
+    bf, be = frexp(field)
+    return ldexp((pf * bf * bf) / (nf * nf * nf), pe + 2be - 3ne)
+end
+
+@inline function _cgl_perpendicular_pressure(coefficient::T, density::T, field::T) where {T}
+    (iszero(coefficient) || iszero(density) || iszero(field)) && return zero(T)
+    value = coefficient * density * field
+    isfinite(value) && !iszero(value) && return value
+    return _finite_product3(coefficient, density, field)
+end
+
+@inline function _cgl_parallel_pressure(coefficient::T, density::T, field::T) where {T}
+    (iszero(coefficient) || iszero(density)) && return zero(T)
+    numerator = coefficient * density * density * density
+    denominator = field * field
+    value = numerator / denominator
+    isfinite(value) && !iszero(value) && return value
+    cf, ce = frexp(coefficient)
+    nf, ne = frexp(density)
+    bf, be = frexp(field)
+    return ldexp((cf * nf * nf * nf) / (bf * bf), ce + 3ne - 2be)
+end
+
 function CGLElectrons(p_perp0::Real, p_par0::Real, n0::Real, B0::Real)
     T = float(promote_type(typeof(p_perp0), typeof(p_par0), typeof(n0), typeof(B0)))
     pp0 = _require_finite_nonnegative_real("p_perp0", p_perp0, T)
     ppa0 = _require_finite_nonnegative_real("p_par0", p_par0, T)
     n0T = _require_finite_positive_real("n0", n0, T)
     B0T = _require_finite_positive_real("B0", B0, T)
-    return CGLElectrons{T}(pp0 / (n0T * B0T), ppa0 * B0T^2 / n0T^3)
+    Cperp = _cgl_perp_coefficient(pp0, n0T, B0T)
+    Cpar = _cgl_parallel_coefficient(ppa0, n0T, B0T)
+    isfinite(Cperp) && isfinite(Cpar) ||
+        throw(ArgumentError("CGL invariant coefficient exceeds numeric range"))
+    (iszero(pp0) || !iszero(Cperp)) ||
+        throw(ArgumentError("CGL perpendicular invariant coefficient is below numeric range"))
+    (iszero(ppa0) || !iszero(Cpar)) ||
+        throw(ArgumentError("CGL parallel invariant coefficient is below numeric range"))
+    return CGLElectrons{T}(Cperp, Cpar)
 end
 
 "Perpendicular CGL electron pressure `p_⊥ = C_⊥ n |B|` at density `n`, field magnitude `Bmag`."
-@inline cgl_pperp(c::CGLElectrons{T}, n, Bmag) where {T} = c.Cperp * T(n) * T(Bmag)
+@inline cgl_pperp(c::CGLElectrons{T}, n, Bmag) where {T} =
+    _cgl_perpendicular_pressure(c.Cperp, T(n), T(Bmag))
 "Parallel CGL electron pressure `p_∥ = C_∥ n³ / |B|²`."
-@inline cgl_ppar(c::CGLElectrons{T}, n, Bmag) where {T} = c.Cpar * T(n)^3 / T(Bmag)^2
+@inline cgl_ppar(c::CGLElectrons{T}, n, Bmag) where {T} =
+    _cgl_parallel_pressure(c.Cpar, T(n), T(Bmag))
 
 closure_gamma(::CGLElectrons) = 5 / 3      # effective γ; the anisotropic budget is separate
 
