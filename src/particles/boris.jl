@@ -52,6 +52,31 @@ end
     return ntuple(c -> _require_finite_real("$(name)[$c]", field[c], T), 3)
 end
 
+function _require_subluminal_velocities(
+    ps::ParticleSet{D,T},
+    c::T,
+    context::AbstractString,
+) where {D,T<:AbstractFloat}
+    vx, vy, vz = ps.v
+    @inbounds for p in eachindex(ps.weight)
+        ux = vx[p]
+        uy = vy[p]
+        uz = vz[p]
+        (isfinite(ux) && isfinite(uy) && isfinite(uz)) ||
+            throw(ArgumentError("$context: particle $p velocity must be finite"))
+        βx = ux / c
+        βy = uy / c
+        βz = uz / c
+        β2 = βx * βx + βy * βy + βz * βz
+        (isfinite(β2) && β2 < one(T)) || throw(
+            ArgumentError(
+                "$context: particle $p has |v| ≥ c (|v|²/c² = $β2): not a valid relativistic state",
+            ),
+        )
+    end
+    return nothing
+end
+
 @inline function _require_finite_field_sample(
     name::AbstractString,
     value::Real,

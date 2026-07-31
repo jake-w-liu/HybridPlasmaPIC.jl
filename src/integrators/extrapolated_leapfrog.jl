@@ -243,8 +243,15 @@ Advance the plasma one timestep `dt` with `NB` magnetic subcycles (periodic box)
         o = one(c)
         @inbounds for p = 1:np
             v0x, v0y, v0z = vx[p], vy[p], vz[p]
-            β2 = (v0x * v0x + v0y * v0y + v0z * v0z) / c2
-            β2 >= o && (β2 = o - eps(c))
+            βx = v0x / c
+            βy = v0y / c
+            βz = v0z / c
+            β2 = βx * βx + βy * βy + βz * βz
+            (isfinite(β2) && β2 < o) || throw(
+                ArgumentError(
+                    "_prime_leapfrog!: input velocity must be finite and satisfy |v| < c",
+                ),
+            )
             g0 = o / sqrt(o - β2)
             ax = qm * (ex[p] + (v0y * bz[p] - v0z * by[p]))
             ay = qm * (ey[p] + (v0z * bx[p] - v0x * bz[p]))

@@ -110,6 +110,31 @@ end
     @test es.step[] == step0
 end
 
+@testset "EMPIC rejects invalid relativistic velocities before mutation" begin
+    g = FourierGrid((4, 4), (2π, 2π))
+    e = ParticleSet{2,Float64}(16; q = -1.0, m = 1.0)
+    load_lattice!(e, (0.0, 0.0), g.L, (4, 4))
+    set_density_weight!(e, 1.0, g)
+    es = EMPIC(g, 16; c = 5.0, relativistic = true)
+    init_empic!(es, e)
+    e.v[1][end] = 5.5
+    x0 = map(copy, e.x)
+    v0 = map(copy, e.v)
+    E0 = map(copy, es.E)
+    B0 = map(copy, es.B)
+    rho_n0, rho_np10 = copy(es.rho_n), copy(es.rho_np1)
+    time0, step0 = es.time[], es.step[]
+
+    @test_throws ArgumentError step_empic!(es, e, 0.01)
+
+    @test all(e.x[d] == x0[d] for d = 1:2)
+    @test all(e.v[c] == v0[c] for c = 1:3)
+    @test all(es.E[c] == E0[c] for c = 1:3)
+    @test all(es.B[c] == B0[c] for c = 1:3)
+    @test es.rho_n == rho_n0 && es.rho_np1 == rho_np10
+    @test es.time[] == time0 && es.step[] == step0
+end
+
 @testset "EMPIC init preserves transverse field and enforces Gauss law" begin
     T = Float64
     nx, ny = 16, 8

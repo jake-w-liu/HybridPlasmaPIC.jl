@@ -109,6 +109,32 @@ end
     @test es.step[] == step0
 end
 
+@testset "EMPIC1D rejects invalid relativistic velocities before mutation" begin
+    g = FourierGrid((8,), (2π,))
+    e = ParticleSet{1,Float64}(8; q = -1.0, m = 1.0)
+    load_lattice_1d!(e, 0.0, 2π)
+    set_density_weight!(e, 1.0, g)
+    es = EMPIC1D(g, 8; c = 5.0, relativistic = true)
+    init_empic!(es, e)
+
+    for bad_velocity in (5.0, NaN)
+        e.v[1][end] = bad_velocity
+        x0 = map(copy, e.x)
+        v0 = map(copy, e.v)
+        Ex0, Ey0, Bz0 = copy(es.Ex), copy(es.Ey), copy(es.Bz)
+        rho_n0, rho_np10 = copy(es.rho_n), copy(es.rho_np1)
+        time0, step0 = es.time[], es.step[]
+
+        @test_throws ArgumentError step_empic!(es, e, 0.01)
+
+        @test all(isequal(e.x[d], x0[d]) for d = 1:1)
+        @test all(isequal(e.v[c], v0[c]) for c = 1:3)
+        @test es.Ex == Ex0 && es.Ey == Ey0 && es.Bz == Bz0
+        @test es.rho_n == rho_n0 && es.rho_np1 == rho_np10
+        @test es.time[] == time0 && es.step[] == step0
+    end
+end
+
 # dominant positive-frequency peak of a complex time series (parabolic interp)
 function _em_peakfreq(series, dt)
     Nt = length(series)

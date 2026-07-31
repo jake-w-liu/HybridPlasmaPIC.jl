@@ -74,6 +74,29 @@ end
         0.1;
         K = 0.01,
     )
+
+    bad = ParticleSet{1,T}(2)
+    bad.v[1] .= (0.8, 1.0)
+    bad0 = map(copy, bad.v)
+    @test_throws ArgumentError apply_radiation_reaction!(
+        bad,
+        (0.0, 0.0, 0.0),
+        (0.0, 0.0, 1.0),
+        0.1;
+        K = 0.01,
+    )
+    @test all(bad.v[c] == bad0[c] for c = 1:3)
+
+    bad.v[1][2] = NaN
+    bad0 = map(copy, bad.v)
+    @test_throws ArgumentError apply_radiation_reaction!(
+        bad,
+        (0.0, 0.0, 0.0),
+        (0.0, 0.0, 1.0),
+        0.1;
+        K = 0.01,
+    )
+    @test all(isequal(bad.v[c], bad0[c]) for c = 1:3)
 end
 
 @testset "ANT-001 antenna injects −dt·∇×E_ant, divergence-free" begin

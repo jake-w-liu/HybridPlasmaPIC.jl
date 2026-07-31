@@ -404,10 +404,12 @@ end
     c::T,
 ) where {T}
     c2 = c * c
-    # guard against superluminal input (β²≥1 would give NaN γ and poison the
-    # fields): clamp β² to just below 1 so γ stays finite.
-    β2 = (vx * vx + vy * vy + vz * vz) / c2
-    β2 >= one(T) && (β2 = one(T) - eps(T))
+    βx = vx / c
+    βy = vy / c
+    βz = vz / c
+    β2 = βx * βx + βy * βy + βz * βz
+    (isfinite(β2) && β2 < one(T)) ||
+        throw(ArgumentError("_boris_rel: input velocity must be finite and satisfy |v| < c"))
     ginit = one(T) / sqrt(one(T) - β2)
     # to momentum u = γ v
     ux = ginit * vx
@@ -668,8 +670,13 @@ end
             v0x = vx[p]
             v0y = vy[p]
             v0z = vz[p]
-            β2 = (v0x * v0x + v0y * v0y + v0z * v0z) / c2
-            β2 >= o && (β2 = o - eps(c))
+            βx = v0x / c
+            βy = v0y / c
+            βz = v0z / c
+            β2 = βx * βx + βy * βy + βz * βz
+            (isfinite(β2) && β2 < o) || throw(
+                ArgumentError("_prime_empic1d!: input velocity must be finite and satisfy |v| < c"),
+            )
             g0 = o / sqrt(o - β2)
             ax = qm * (Exp[p] + v0y * bz)                 # a = qm(E + v×B), B=(0,0,B_z)
             ay = qm * (Eyp[p] - v0x * bz)
@@ -714,6 +721,10 @@ function step_empic!(
     end
     dtT = _validated_nonnegative_dt(T, dt; name = "step_empic!")
     iszero(dtT) && return es            # dt=0 no-op: do not consume the one-time priming
+    if es.relativistic
+        _require_subluminal_velocities(e, es.c, "step_empic!")
+        es.mobile && _require_subluminal_velocities(ions, es.c, "step_empic! ion species")
+    end
     _ensure_electron_buffers!(es, nparticles(e))
     if es.mobile
         _ensure_ion_buffers!(es, nparticles(ions))
@@ -1331,6 +1342,10 @@ function step_empic!(
     end
     dtT = _validated_nonnegative_dt(T, dt; name = "step_empic!")
     iszero(dtT) && return es            # dt=0 no-op: do not consume the one-time priming
+    if es.relativistic
+        _require_subluminal_velocities(e, es.c, "step_empic!")
+        es.mobile && _require_subluminal_velocities(ions, es.c, "step_empic! ion species")
+    end
     _ensure_empic_electron_buffers!(es, nparticles(e))
     if es.mobile
         _ensure_empic_ion_buffers!(es, nparticles(ions))

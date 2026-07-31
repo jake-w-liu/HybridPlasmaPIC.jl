@@ -38,6 +38,7 @@ function apply_radiation_reaction!(
     (all(isfinite, E) && all(isfinite, B)) ||
         throw(ArgumentError("apply_radiation_reaction!: E and B must be finite"))
     (K == 0 || dt == 0) && return ps
+    _require_subluminal_velocities(ps, cT, "apply_radiation_reaction!")
     Ex, Ey, Ez = T(E[1]), T(E[2]), T(E[3])
     Bx, By, Bz = T(B[1]), T(B[2]), T(B[3])
     KT = T(K)
@@ -49,7 +50,6 @@ function apply_radiation_reaction!(
         uy = vy[p]
         uz = vz[p]
         v2 = ux * ux + uy * uy + uz * uz
-        v2 < c2 || continue                                # skip (numerically) superluminal
         γ = one(T) / sqrt(one(T) - v2 / c2)
         wx = Ex + (uy * Bz - uz * By)                      # w = E + v×B
         wy = Ey + (uz * Bx - ux * Bz)
