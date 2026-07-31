@@ -467,8 +467,16 @@ function collide_neutral_mcc!(
     vthn = sqrt(TnT / mnT)                          # neutral thermal speed √(T_n/m_n)
     isfinite(vthn) ||
         throw(ArgumentError("collide_neutral_mcc!: neutral thermal speed must be finite"))
-    invM = one(T) / (mp + mnT)
-    μn = mnT * invM                                 # v ← V + μn g'
+    # Form the mass fractions from a ratio ≤ 1. Directly evaluating mp + mnT or
+    # mp*v can overflow even when the centre-of-mass velocity is representable.
+    if mp >= mnT
+        ratio = mnT / mp
+        μn = ratio / (one(T) + ratio)
+    else
+        ratio = mp / mnT
+        μn = one(T) / (one(T) + ratio)
+    end
+    μp = one(T) - μn
     twoπ = 2 * T(π)
     @inbounds for p = 1:N
         vnx = unx + vthn * randn(rng, T)            # sample a neutral partner
@@ -477,13 +485,13 @@ function collide_neutral_mcc!(
         gx = vx[p] - vnx
         gy = vy[p] - vny
         gz = vz[p] - vnz
-        gmag = sqrt(gx * gx + gy * gy + gz * gz)
+        gmag = hypot(gx, gy, gz)
         gmag > 0 || continue
         Pcoll = -expm1(-nσT * gmag * dtT)           # 1 − exp(−nσ|g|dt)
         rand(rng, T) < Pcoll || continue
-        Vx = (mp * vx[p] + mnT * vnx) * invM        # centre-of-mass velocity
-        Vy = (mp * vy[p] + mnT * vny) * invM
-        Vz = (mp * vz[p] + mnT * vnz) * invM
+        Vx = μp * vx[p] + μn * vnx                  # centre-of-mass velocity
+        Vy = μp * vy[p] + μn * vny
+        Vz = μp * vz[p] + μn * vnz
         cosχ = 2 * rand(rng, T) - one(T)            # isotropic elastic scatter in CM
         sinχ = sqrt(max(zero(T), one(T) - cosχ * cosχ))
         φ = twoπ * rand(rng, T)

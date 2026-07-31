@@ -539,6 +539,22 @@ end
     @test pa.v[1] == pb.v[1] && pa.v[2] == pb.v[2] && pa.v[3] == pb.v[3]
 end
 
+@testset "neutral MCC centre-of-mass arithmetic is stable for extreme masses" begin
+    for (mp, mn) in ((1.0e308, 1.0e308), (1.0e308, 1.0), (1.0, 1.0e308))
+        ps = ParticleSet{1,Float64}(1; m = mp)
+        ps.v[1][1] = 2.0
+
+        collide_neutral_mcc!(ps, 1.0; nσ = 1.0e6, T_n = 0.0, m_n = mn, rng = ZeroBGKRNG())
+
+        ratio = mp >= mn ? mn / mp : mp / mn
+        μn = mp >= mn ? ratio / (1 + ratio) : 1 / (1 + ratio)
+        @test ps.v[1][1] ≈ 2 * (1 - μn)
+        @test ps.v[2][1] == 0.0
+        @test ps.v[3][1] ≈ -2 * μn
+        @test all(isfinite, Iterators.flatten(ps.v))
+    end
+end
+
 # ---- electron-impact ionization (ionize_mcc!) ---------------------------------
 # Oracles: pair creation (Ne,Ni each +nb → net-neutral), and — with cold neutrals —
 # an EXACT electron-population energy loss of nb·E_iz (each primary cooled by E_iz).
