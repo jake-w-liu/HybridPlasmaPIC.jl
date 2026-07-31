@@ -499,6 +499,30 @@ end
     @test_throws ArgumentError collide_neutral_mcc!(ps, -0.1; nσ = 1.0, T_n = 0.3)
     @test_throws ArgumentError collide_neutral_mcc!(ps, 0.1; nσ = 1.0, T_n = -0.3)
     @test_throws ArgumentError collide_neutral_mcc!(ps, 0.1; nσ = 1.0, T_n = 0.3, m_n = 0.0)
+    for bad in (Inf, NaN)
+        @test_throws ArgumentError collide_neutral_mcc!(ps, 0.1; nσ = bad, T_n = 0.3)
+        @test_throws ArgumentError collide_neutral_mcc!(ps, bad; nσ = 1.0, T_n = 0.3)
+        @test_throws ArgumentError collide_neutral_mcc!(
+            ps,
+            0.1;
+            nσ = 1.0,
+            T_n = 0.3,
+            u_n = (bad, 0.0, 0.0),
+        )
+        @test ps.v[1] == snap[1] && ps.v[2] == snap[2] && ps.v[3] == snap[3]
+    end
+    original_mass = ps.m
+    for bad_mass in (-1.0, 0.0, Inf, NaN)
+        ps.m = bad_mass
+        @test_throws ArgumentError collide_neutral_mcc!(ps, 0.1; nσ = 1.0, T_n = 0.3)
+        @test ps.v[1] == snap[1] && ps.v[2] == snap[2] && ps.v[3] == snap[3]
+    end
+    ps.m = original_mass
+    ps.v[2][1] = Inf
+    badsnap = map(copy, ps.v)
+    @test_throws ArgumentError collide_neutral_mcc!(ps, 0.1; nσ = 1.0, T_n = 0.3)
+    @test all(isequal(ps.v[c], badsnap[c]) for c = 1:3)
+    ps.v[2][1] = snap[2][1]
     # deterministic for a fixed rng
     pa = ParticleSet{1,T}(2000)
     load_maxwellian!(pa, MersenneTwister(5), (0.0, 0.0, 0.0), (1.2, 1.2, 1.2))

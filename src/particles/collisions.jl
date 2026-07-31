@@ -411,6 +411,16 @@ end
 
 # ---------------------------------------------------------------- neutral MCC (elastic)
 
+function _require_finite_particle_velocities(ps::ParticleSet, context::AbstractString)
+    @inbounds for p in eachindex(ps.weight)
+        for c = 1:3
+            isfinite(ps.v[c][p]) ||
+                throw(ArgumentError("$context: particle $p velocity component $c must be finite"))
+        end
+    end
+    return nothing
+end
+
 """
     collide_neutral_mcc!(ps::ParticleSet{D,T}, dt; nσ, T_n, m_n=1.0,
                          u_n=(0.0,0.0,0.0), rng=Random.default_rng()) -> ps
@@ -441,19 +451,22 @@ function collide_neutral_mcc!(
     u_n::NTuple{3,<:Real} = (0.0, 0.0, 0.0),
     rng = Random.default_rng(),
 ) where {D,T}
-    nσ >= 0 || throw(ArgumentError("nσ (density×cross-section) must be ≥ 0"))
-    dt >= 0 || throw(ArgumentError("dt must be ≥ 0"))
+    nσT = _require_finite_nonnegative_real("nσ (density×cross-section)", nσ, T)
+    dtT = _validated_nonnegative_dt(T, dt; name = "collide_neutral_mcc!")
     TnT = _require_finite_nonnegative_real("T_n", T_n, T)
     mnT = _require_finite_positive_real("m_n", m_n, T)
+    mp = _require_finite_positive_real("particle mass ps.m", ps.m, T)
+    unx = _require_finite_real("u_n[1]", u_n[1], T)
+    uny = _require_finite_real("u_n[2]", u_n[2], T)
+    unz = _require_finite_real("u_n[3]", u_n[3], T)
+    _require_finite_particle_velocities(ps, "collide_neutral_mcc!")
     N = nparticles(ps)
-    (N == 0 || nσ == 0 || dt == 0) && return ps
+    (N == 0 || iszero(nσT) || iszero(dtT)) && return ps
 
     vx, vy, vz = ps.v
-    mp = T(ps.m)
-    nσT = T(nσ)
-    dtT = T(dt)
     vthn = sqrt(TnT / mnT)                          # neutral thermal speed √(T_n/m_n)
-    unx, uny, unz = T(u_n[1]), T(u_n[2]), T(u_n[3])
+    isfinite(vthn) ||
+        throw(ArgumentError("collide_neutral_mcc!: neutral thermal speed must be finite"))
     invM = one(T) / (mp + mnT)
     μn = mnT * invM                                 # v ← V + μn g'
     twoπ = 2 * T(π)
