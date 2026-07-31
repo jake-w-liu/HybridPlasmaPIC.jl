@@ -224,6 +224,34 @@ end
     @test maximum(abs, (pe .- pe0) .- (@. dt * u0 * p0 * ε * k * sin(k * x))) < 1e-12
 end
 
+@testset "electron pressure rejects invalid inputs before mutation" begin
+    g = FourierGrid((8,), (2π,))
+    pe = collect(range(0.5, 0.8; length = 8))
+    ue = (fill(0.1, 8), zeros(8), zeros(8))
+    pe0 = copy(pe)
+
+    for dt in (-0.1, Inf, NaN)
+        @test_throws ArgumentError advance_electron_pressure!(pe, ue, dt, 5 / 3, g)
+        @test pe == pe0
+    end
+    for γe in (-1.0, 0.0, Inf, NaN)
+        @test_throws ArgumentError advance_electron_pressure!(pe, ue, 0.01, γe, g)
+        @test pe == pe0
+    end
+
+    badue = (zeros(7), zeros(8), zeros(8))
+    @test_throws DimensionMismatch advance_electron_pressure!(pe, badue, 0.01, 5 / 3, g)
+    @test pe == pe0
+
+    badpe = copy(pe[1:7])
+    badpe0 = copy(badpe)
+    @test_throws DimensionMismatch advance_electron_pressure!(badpe, ue, 0.01, 5 / 3, g)
+    @test badpe == badpe0
+
+    @test advance_electron_pressure!(pe, ue, 0.0, 5 / 3, g) === pe
+    @test pe == pe0
+end
+
 @testset "electron pressure: adiabatic invariant pe/n^γe conserved (energy closure)" begin
     # Integration-level check: evolving p_e (adiabatic equation) and n (continuity
     # ∂t n = −∇·(n u)) under the SAME compressive flow must materially conserve the

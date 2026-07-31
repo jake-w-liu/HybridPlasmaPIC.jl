@@ -14,12 +14,20 @@ function advance_electron_pressure!(
     γe,
     g::FourierGrid{D,T},
 ) where {D,T}
+    dtT = _validated_nonnegative_dt(T, dt; name = "advance_electron_pressure!")
+    γ = _require_finite_positive_real("γe", γe, T)
+    size(pe) == g.n ||
+        throw(DimensionMismatch("pe size $(size(pe)) does not match grid size $(g.n)"))
+    for c = 1:3
+        size(ue[c]) == g.n ||
+            throw(DimensionMismatch("ue[$c] size $(size(ue[c])) does not match grid size $(g.n)"))
+    end
+    iszero(dtT) && return pe
+
     gradpe = ntuple(_ -> similar(pe), D)
     gradient!(gradpe, pe, g)
     divu = similar(pe)
     divergence!(divu, ue, g)
-    dtT = T(dt)
-    γ = T(γe)
     @inbounds for I in eachindex(pe)
         adv = zero(T)
         for d = 1:D
