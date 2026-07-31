@@ -199,11 +199,46 @@ end
     @test ps.v[1] == snap[1] && ps.v[2] == snap[2] && ps.v[3] == snap[3]
     @test_throws ArgumentError collide_bgk!(ps, -1.0, 0.1)
     @test_throws ArgumentError collide_bgk!(ps, 1.0, -0.1)
+    @test_throws ArgumentError collide_bgk!(ps, Inf, 0.1)
+    @test_throws ArgumentError collide_bgk!(ps, 1.0, Inf)
+    @test ps.v[1] == snap[1] && ps.v[2] == snap[2] && ps.v[3] == snap[3]
+
+    original_weight = ps.weight[2]
+    for bad_weight in (-1.0, Inf, NaN)
+        ps.weight[2] = bad_weight
+        @test_throws ArgumentError collide_bgk!(ps, 1.0, 0.1)
+        @test ps.v[1] == snap[1] && ps.v[2] == snap[2] && ps.v[3] == snap[3]
+    end
+    ps.weight[2] = original_weight
+    ps.v[2][2] = Inf
+    badsnap = map(copy, ps.v)
+    @test_throws ArgumentError collide_bgk!(ps, 1.0, 0.1)
+    @test all(isequal(ps.v[c], badsnap[c]) for c = 1:3)
+    ps.v[2][2] = snap[2][2]
+
     # single particle: no fluctuation to relax → no-op, no error
     ps1 = ParticleSet{1,T}(1)
     ps1.v[1][1] = 0.7
     collide_bgk!(ps1, 10.0, 1.0)
     @test ps1.v[1][1] == 0.7
+end
+
+@testset "BGK normalizes huge weights and stages sampled updates" begin
+    ps = ParticleSet{1,Float64}(2)
+    fill!(ps.weight, floatmax(Float64))
+    ps.v[1] .= (-1.0, 1.0)
+    work = map(similar, ps.v)
+
+    collide_bgk!(ps, 1.0, 1000.0; rng = ZeroBGKRNG(), work)
+    @test sum(ps.v[1]) == 0.0
+    @test sum(abs2, ps.v[1]) ≈ 2.0
+    @test all(iszero, ps.v[2])
+    @test all(iszero, ps.v[3])
+
+    ps.v[1] .= (-1.0, 1.0)
+    snap = map(copy, ps.v)
+    @test_throws ArgumentError collide_bgk!(ps, 1.0, 1000.0; rng = InvalidNeutralRNG(0), work)
+    @test all(ps.v[c] == snap[c] for c = 1:3)
 end
 
 # ---- Takizuka-Abe binary Coulomb collisions (collide_coulomb!) ----------------
