@@ -13,7 +13,7 @@ function ohms_law!(f::HybridFields{D,T}, model::HybridModel, g::FourierGrid{D,T}
         # compile time from the closure type, so scalar closures take the branch below
         # with zero overhead and byte-identical behavior.
         _ohm_ninv!(f.ninv, f.n, T(model.nfloor), f.floor_count)
-        anisotropic_pressure_force!(f.pforce, f.n, f.B, model.closure, g)
+        _anisotropic_pressure_force!(f, f.n, f.B, model.closure, g)
         _ohm_Efield_aniso!(
             f.E,
             f.ui,
@@ -202,17 +202,15 @@ components only); the second is the divergence of the field-aligned stress, done
 this reduces to `∇p_⊥`, i.e. the scalar `∇p_e`. `|B|` is floored by `bfloor` to protect
 `b`.
 
-ponytail: allocates scratch per call and is invoked once per B-subcycle stage; the FFT
-gradients dominate its cost. A preallocated per-stepper workspace would remove the
-allocation if CGL runs become a profiled hot path.
+Direct calls allocate their scratch. Solver calls reuse `HybridFields` workspaces so
+repeated CGL Ohm and magnetic-subcycle evaluations do not allocate full grids.
 """
-function anisotropic_pressure_force!(
+function _validate_anisotropic_pressure_force(
     Fp::NTuple{3,<:Array{T,D}},
     n::Array{T,D},
     B::NTuple{3,<:Array{T,D}},
-    closure::CGLElectrons,          # closure precision is independent of the field T (like the
-    g::FourierGrid{D,T};            # scalar closures): the C⊥/C∥ constants promote into the loop
-    bfloor::Real = 1e-12,
+    g::FourierGrid{D,T},
+    bfloor::Real,
 ) where {D,T}
     bf = _require_finite_positive_real("bfloor", bfloor, T)
     size(n) == g.n || throw(DimensionMismatch("n size $(size(n)) does not match grid size $(g.n)"))
@@ -222,12 +220,26 @@ function anisotropic_pressure_force!(
         size(Fp[c]) == g.n ||
             throw(DimensionMismatch("Fp[$c] size $(size(Fp[c])) does not match grid size $(g.n)"))
     end
+    return bf
+end
+
+function _anisotropic_pressure_force_core!(
+    Fp,
+    n,
+    B,
+    closure,
+    g,
+    bvec,
+    pperp,
+    dp,
+    gp,
+    Vwork,
+    divi,
+    bf,
+)
+    D = ndims(n)
     Bx, By, Bz = B
-    bx = similar(n)
-    by = similar(n)
-    bz = similar(n)
-    pperp = similar(n)
-    dp = similar(n)
+    bx, by, bz = bvec
     @inbounds for I in eachindex(n)
         bm = max(sqrt(Bx[I]^2 + By[I]^2 + Bz[I]^2), bf)
         bx[I] = Bx[I] / bm
@@ -238,11 +250,7 @@ function anisotropic_pressure_force!(
         pperp[I] = pp
         dp[I] = ppar - pp                          # Δp = p_∥ − p_⊥
     end
-    bvec = (bx, by, bz)
-    gp = ntuple(_ -> similar(n), D)
     gradient!(gp, pperp, g)                        # ∇p_⊥ (D spatial components)
-    Vwork = ntuple(_ -> similar(n), D)
-    divi = similar(n)
     @inbounds for i = 1:3
         bi = bvec[i]
         for j = 1:D                                # V^(i)_j = Δp b_j b_i
@@ -266,6 +274,68 @@ function anisotropic_pressure_force!(
         end
     end
     return Fp
+end
+
+function anisotropic_pressure_force!(
+    Fp::NTuple{3,<:Array{T,D}},
+    n::Array{T,D},
+    B::NTuple{3,<:Array{T,D}},
+    closure::CGLElectrons,          # closure precision is independent of the field T (like the
+    g::FourierGrid{D,T};            # scalar closures): the C⊥/C∥ constants promote into the loop
+    bfloor::Real = 1e-12,
+) where {D,T}
+    bf = _validate_anisotropic_pressure_force(Fp, n, B, g, bfloor)
+    bvec = ntuple(_ -> similar(n), 3)
+    pperp = similar(n)
+    dp = similar(n)
+    gp = ntuple(_ -> similar(n), D)
+    Vwork = ntuple(_ -> similar(n), D)
+    divi = similar(n)
+    return _anisotropic_pressure_force_core!(
+        Fp,
+        n,
+        B,
+        closure,
+        g,
+        bvec,
+        pperp,
+        dp,
+        gp,
+        Vwork,
+        divi,
+        bf,
+    )
+end
+
+function _anisotropic_pressure_force!(
+    f::HybridFields{D,T},
+    n::Array{T,D},
+    B::NTuple{3,<:Array{T,D}},
+    closure::CGLElectrons,
+    g::FourierGrid{D,T};
+    bfloor::Real = 1e-12,
+) where {D,T}
+    bf = _validate_anisotropic_pressure_force(f.pforce, n, B, g, bfloor)
+    size(f.cgl_dp) == g.n || throw(
+        DimensionMismatch(
+            "CGL pressure workspace size $(size(f.cgl_dp)) does not match grid size $(g.n)",
+        ),
+    )
+    Vwork = ntuple(d -> f.lapJ[d], D)
+    return _anisotropic_pressure_force_core!(
+        f.pforce,
+        n,
+        B,
+        closure,
+        g,
+        f.J,
+        f.pe,
+        f.cgl_dp,
+        f.gradp,
+        Vwork,
+        f.pe,
+        bf,
+    )
 end
 
 # 1/n with the density floor — the closure-independent part of the Ohm prep, used by the

@@ -156,7 +156,7 @@ end
         # the gyrotropic force depends on the field DIRECTION b, so it must track the trial
         # B within the subcycle (a step-frozen b would misalign as B_⊥ grows and drive a
         # numerical instability); recompute ∇·P_e(n^{n+1/2}, B_trial) each stage.
-        anisotropic_pressure_force!(f.pforce, st.fn, Btrial, st.model.closure, st.g)
+        _anisotropic_pressure_force!(f, st.fn, Btrial, st.model.closure, st.g)
         _ohm_Efield_aniso!(
             st.Escr,
             st.fui,

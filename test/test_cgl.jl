@@ -132,6 +132,23 @@ end
     @test all(all(isfinite, f.E[c]) for c = 1:3)
 end
 
+@testset "CGL solver pressure workspace avoids per-call grid allocations" begin
+    N = (64, 64)
+    g = FourierGrid(N, (2π, 2π))
+    f = HybridPlasmaPIC.HybridFields{2,Float64}(N; anisotropic = true)
+    fill!(f.n, 1.0)
+    fill!(f.B[1], 1.0)
+    model = HybridModel(CGLElectrons(0.5, 0.4, 1.0, 1.0))
+    ohms_law!(f, model, g)
+
+    bytes = @allocated ohms_law!(f, model, g)
+
+    @test bytes < sizeof(f.n)
+    @test size(f.cgl_dp) == N
+    scalar = HybridPlasmaPIC.HybridFields{2,Float64}(N)
+    @test isempty(scalar.cgl_dp)
+end
+
 @testset "CGL-006 energy budget closes with the gyrotropic internal energy" begin
     # 1D compressive run ⊥ B (B0 = ẑ, bulk u_x = 0.2 sin x): KE + ∫½|B|² alone
     # swings by ~half the KE swing as compression does work against P_e; adding

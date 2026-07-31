@@ -18,12 +18,13 @@ mutable struct HybridFields{D,T}
     ninv::Array{T,D}
     lapJ::NTuple{3,Array{T,D}}        # ∇²J workspace (hyperresistivity)
     pforce::NTuple{3,Array{T,D}}      # ∇·P_e output (anisotropic/CGL only; 0-length for scalar)
+    cgl_dp::Array{T,D}                # p∥-p⊥ scratch (anisotropic/CGL only; 0-length for scalar)
     floor_count::Base.RefValue{Int}
 end
 
 function _hybrid_fields(::Val{D}, ::Type{T}, nc::NTuple{D,Int}, anisotropic::Bool) where {D,T}
     z() = zeros(T, nc)
-    pf() = anisotropic ? zeros(T, nc) : zeros(T, ntuple(_ -> 0, D))
+    cgl() = anisotropic ? zeros(T, nc) : zeros(T, ntuple(_ -> 0, D))
     HybridFields{D,T}(
         z(),
         ntuple(_ -> z(), 3),
@@ -34,14 +35,15 @@ function _hybrid_fields(::Val{D}, ::Type{T}, nc::NTuple{D,Int}, anisotropic::Boo
         ntuple(_ -> z(), D),
         z(),
         ntuple(_ -> z(), 3),
-        ntuple(_ -> pf(), 3),
+        ntuple(_ -> cgl(), 3),
+        cgl(),
         Ref(0),
     )
 end
 
-# `anisotropic=true` (a CGL closure) allocates the `pforce` ∇·P_e buffer full-size; scalar
-# closures get 0-length pforce (type-stable, never indexed on the scalar Ohm path) so the
-# common case carries no dead weight.
+# `anisotropic=true` (a CGL closure) allocates the `pforce` ∇·P_e buffers and `cgl_dp`
+# scratch full-size; scalar closures get 0-length CGL arrays (type-stable, never indexed on
+# the scalar Ohm path) so the common case carries no dead weight.
 function HybridFields{D,T}(nc::NTuple{D,Int}; anisotropic::Bool = false) where {D,T}
     _check_spatial_dimension(D)
     return _hybrid_fields(Val(D), T, nc, anisotropic)

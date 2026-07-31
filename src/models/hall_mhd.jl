@@ -170,7 +170,7 @@ function _hall_ohms_law_fields!(
 ) where {D,T}
     if is_anisotropic(model.closure)
         _ohm_ninv!(f.ninv, f.n, T(model.nfloor), f.floor_count)
-        anisotropic_pressure_force!(f.pforce, f.n, f.B, model.closure, g)
+        _anisotropic_pressure_force!(f, f.n, f.B, model.closure, g)
         _ohm_Efield_aniso!(
             f.E,
             f.ui,
