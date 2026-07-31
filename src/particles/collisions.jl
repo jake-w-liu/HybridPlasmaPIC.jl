@@ -165,6 +165,35 @@ function collide_bgk!(
             vy[p] = ūy + α * (vy[p] - ūy)
             vz[p] = ūz + α * (vz[p] - ūz)
         end
+    elseif Ktarget > 0
+        # A degenerate random source (or finite-precision collapse) can give every
+        # resampled particle the same velocity, so there is no fluctuation to
+        # rescale. Seed an exactly momentum-balanced pair along x with the target
+        # energy. This branch has probability zero for an ideal continuous normal
+        # draw, but is required for the documented conservation guarantee.
+        i = 0
+        j = 0
+        @inbounds for p = 1:N
+            (sel[p] && w[p] > 0) || continue
+            if i == 0
+                i = p
+            else
+                j = p
+                break
+            end
+        end
+        j != 0 || throw(
+            ArgumentError(
+                "collide_bgk!: nonzero thermal energy requires at least two selected positive-weight particles",
+            ),
+        )
+        wi = w[i]
+        wj = w[j]
+        wij = wi + wj
+        ai = sqrt((Ktarget / wi) * (wj / wij))
+        aj = sqrt((Ktarget / wj) * (wi / wij))
+        vx[i] = ūx + ai
+        vx[j] = ūx - aj
     end
     # Rescaling about ū leaves the subset mean (hence momentum) unchanged and sets
     # subset energy to Wsub|ū|² + Ktarget = Eold. Both subset totals restored ⇒

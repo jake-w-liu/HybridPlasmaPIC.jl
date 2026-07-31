@@ -4,6 +4,10 @@
 
 using HybridPlasmaPIC, Test, Random, Statistics
 
+struct ZeroBGKRNG <: AbstractRNG end
+Random.rand(::ZeroBGKRNG, ::Type{Float64}) = 0.0
+Random.randn(::ZeroBGKRNG, ::Type{Float64}) = 0.0
+
 # Whole-set weighted totals: momentum (3-vec) and kinetic energy Σ w |v|².
 function set_totals(ps)
     w = ps.weight
@@ -77,6 +81,22 @@ end
     P1, E1 = set_totals(ps)
     @test all(P1[c] ≈ P0[c] for c = 1:3)
     @test E1 ≈ E0 rtol = 1e-14 atol = 1e-14
+end
+
+@testset "BGK conserves energy after a zero-variance random draw" begin
+    ps = ParticleSet{1,Float64}(2)
+    ps.weight .= (1.0, 3.0)
+    ps.v[1] .= (-2.0, 4.0)
+    ps.v[2] .= (1.0, -1.0)
+    ps.v[3] .= (0.5, 2.0)
+    P0, E0 = set_totals(ps)
+
+    collide_bgk!(ps, 1.0, 1000.0; rng = ZeroBGKRNG())
+
+    P1, E1 = set_totals(ps)
+    @test all(isapprox(P1[c], P0[c]; rtol = 1e-14, atol = 1e-14) for c = 1:3)
+    @test E1 ≈ E0 rtol = 1e-14 atol = 1e-14
+    @test all(isfinite, Iterators.flatten(ps.v))
 end
 
 @testset "BGK-003 isotropization of a bi-Maxwellian" begin
