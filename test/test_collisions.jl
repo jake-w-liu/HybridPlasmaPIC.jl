@@ -594,6 +594,20 @@ end
     @test length(unique(ions.id)) == nparticles(ions)
 end
 
+@testset "ionization cooling remains finite when kinetic energy overflows" begin
+    electrons = ParticleSet{1,Float64}(1; q = -1.0, m = 1.0)
+    electrons.x[1][1] = 0.25
+    electrons.v[1][1] = 1.0e200
+    ions = ParticleSet{1,Float64}(0; q = 1.0, m = 100.0)
+
+    nb = ionize_mcc!(electrons, ions, 1.0; nσ_iz = 1.0e6, E_iz = 0.5, rng = ZeroBGKRNG())
+
+    @test nb == 1
+    @test electrons.v[1][1] == 1.0e200
+    @test all(isfinite, Iterators.flatten(electrons.v))
+    @test all(isfinite, Iterators.flatten(ions.v))
+end
+
 @testset "IZ-002 ionization: threshold, edge cases, validation & determinism" begin
     T = Float64
     # below threshold (KE = 0.125 < E_iz = 0.5) ⇒ no ionization, no growth

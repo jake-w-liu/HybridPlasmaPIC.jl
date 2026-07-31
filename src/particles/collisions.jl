@@ -640,7 +640,11 @@ function ionize_mcc!(
     @inbounds for p in born
         v2 = evx[p]^2 + evy[p]^2 + evz[p]^2
         ke = T(0.5) * me * v2
-        scale = sqrt((ke - Eiz) / ke)              # cool the primary: KE ← KE − E_iz (0<scale<1)
+        # The ratio form remains finite when a representable velocity has v² and
+        # kinetic energy above the floating-point range. In that limit Eiz/ke
+        # rounds to zero, correctly leaving the velocity unchanged at machine
+        # precision instead of evaluating Inf/Inf and writing NaN.
+        scale = sqrt(max(zero(T), one(T) - Eiz / ke))
         evx[p] *= scale
         evy[p] *= scale
         evz[p] *= scale
