@@ -263,6 +263,20 @@ end
     @test !any(refine_flags(coarse.u, 1e-12))
     @test_throws ArgumentError refine_flags(coarse.u, -1.0)
 
+    @test !any(refine_flags(fill(floatmax(Float64), 3), 1.0))
+    @test refine_flags([1e308, -0.5, -1e308], 0.5) == Bool[false, true, false]
+    tiny = nextfloat(0.0)
+    crossed_scale = [floatmax(Float64), -tiny, -floatmax(Float64)]
+    crossed_oracle = Float64(setprecision(4096) do
+        BigFloat(crossed_scale[3]) -
+        2BigFloat(crossed_scale[2]) +
+        BigFloat(crossed_scale[1])
+    end)
+    @test HybridPlasmaPIC._amr_second_difference(crossed_scale, 2) == crossed_oracle
+    @test refine_flags(crossed_scale, 0.0) == Bool[false, true, false]
+    integer_extreme = [typemax(Int), typemin(Int), typemax(Int)]
+    @test refine_flags(integer_extreme, 10) == Bool[false, true, false]
+
     back = AMRGrid(similar(coarse.u), coarse.dx; x0 = coarse.x0)
     restrict!(back, fine)
     @test back.u ≈ coarse.u
@@ -282,6 +296,46 @@ end
     mass_coarse = AMRGrid(Float64[exp(-((i - 8.0) / 3)^2) for i = 1:16], 0.1)
     mass_fine = refine(mass_coarse)
     @test sum(mass_fine.u) * mass_fine.dx ≈ sum(mass_coarse.u) * mass_coarse.dx rtol = 1e-13
+
+    @testset "extreme-scale transfers stay finite when the result is representable" begin
+        for T in (Float32, Float64)
+            M = floatmax(T)
+            quarter_M = M / T(4)
+            extreme_coarse = AMRGrid(T[0, -M, 0, M, 0], one(T))
+            extreme_fine = refine(extreme_coarse)
+            expected = T[
+                quarter_M,
+                -quarter_M,
+                -M,
+                -M,
+                -quarter_M,
+                quarter_M,
+                M,
+                M,
+                quarter_M,
+                -quarter_M,
+            ]
+            @test all(isfinite, extreme_fine.u)
+            @test extreme_fine.u == expected
+
+            extreme_back = AMRGrid(similar(extreme_coarse.u), extreme_coarse.dx)
+            restrict!(extreme_back, extreme_fine)
+            @test extreme_back.u == extreme_coarse.u
+
+            one_coarse = AMRGrid(T[0], one(T))
+            same_large = AMRGrid(fill(M, 2), T(0.5))
+            restrict!(one_coarse, same_large)
+            @test one_coarse.u == T[M]
+
+            smallest = nextfloat(zero(T))
+            same_smallest = AMRGrid(fill(smallest, 2), T(0.5))
+            restrict!(one_coarse, same_smallest)
+            @test one_coarse.u == T[smallest]
+
+            @test (@allocated prolong!(extreme_fine, extreme_coarse)) == 0
+            @test (@allocated restrict!(extreme_back, extreme_fine)) == 0
+        end
+    end
 
     @testset "geometry validation is finite and transactional" begin
         @test_throws ArgumentError AMRGrid(Float64[], 1.0)
