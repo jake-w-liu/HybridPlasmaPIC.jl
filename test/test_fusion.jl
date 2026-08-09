@@ -172,6 +172,86 @@ end
     @test _tuple_maxabs(vc, (0.0, 0.25, 0.0)) < 1e-14
     @test_throws ArgumentError curvature_drift(Inf, 1.0, 1.0, (0.0, 0.0, 2.0), (0.5, 0.0, 0.0))
 
+    @testset "scale-safe drift arithmetic" begin
+        for scale in (1e-200, 1e200)
+            Eextreme = (0.0, scale, 0.0)
+            Bextreme = (0.0, 0.0, scale)
+            grad_extreme = (scale, 0.0, 0.0)
+            κextreme = (scale, 0.0, 0.0)
+            @test collect(exb_drift(Eextreme, Bextreme)) ≈ [1.0, 0.0, 0.0] rtol = 8eps()
+            @test collect(gradb_drift(1.0, 1.0, 1.0, Bextreme, grad_extreme)) ≈
+                  [0.0, inv(2scale), 0.0] rtol = 16eps()
+            @test collect(curvature_drift(1.0, 1.0, 1.0, Bextreme, κextreme)) ≈ [0.0, 1.0, 0.0] rtol =
+                16eps()
+        end
+
+        M = floatmax(Float64)
+        cancellation_args = (;
+            vpar = 0.5,
+            vperp = 1.0,
+            q = 1.0,
+            m = 2.0,
+            E = (0.0, 0.75M, 0.0),
+            B = (0.0, 0.0, 1.0),
+            gradB = (0.0, -0.75M, 0.0),
+            κ = (0.0, M, 0.0),
+        )
+        cancellation_total = drift_velocity(; cancellation_args...)
+        cancellation_oracle = Float64(
+            setprecision(2048) do
+                BigFloat(cancellation_args.E[2]) - BigFloat(cancellation_args.gradB[2]) -
+                BigFloat(cancellation_args.κ[2]) / 2
+            end,
+        )
+        @test all(isfinite, cancellation_total)
+        @test cancellation_total == (cancellation_oracle, 0.0, 0.0)
+
+        ratio_numerators = (-7.392147589140323e-207, -5.024715391148077e126)
+        ratio_denominators = (5.97155727804291e-38, -1.4093084331804231e281)
+        ratio_oracle = Float64(
+            (Rational{BigInt}(ratio_numerators[1]) * Rational{BigInt}(ratio_numerators[2])) /
+            (Rational{BigInt}(ratio_denominators[1]) * Rational{BigInt}(ratio_denominators[2])),
+        )
+        @test ratio_oracle == -nextfloat(0.0)
+        @test HybridPlasmaPIC._gyro_scaled_ratio(ratio_numerators, ratio_denominators) ==
+              ratio_oracle
+
+        Ealloc = (0.5, 0.2, -0.1)
+        Balloc = (0.3, -1.2, 2.0)
+        grad_alloc = (0.4, 0.0, 0.3)
+        κalloc = (0.1, -0.2, 0.05)
+        drift_args = (;
+            vpar = 0.7,
+            vperp = 1.1,
+            q = 1.0,
+            m = 1.0,
+            E = Ealloc,
+            B = Balloc,
+            gradB = grad_alloc,
+            κ = κalloc,
+        )
+        exb_drift(Ealloc, Balloc)
+        gradb_drift(drift_args.vperp, drift_args.q, drift_args.m, Balloc, grad_alloc)
+        curvature_drift(drift_args.vpar, drift_args.q, drift_args.m, Balloc, κalloc)
+        drift_velocity(; drift_args...)
+        @test (@allocated exb_drift(Ealloc, Balloc)) == 0
+        @test (@allocated gradb_drift(
+            drift_args.vperp,
+            drift_args.q,
+            drift_args.m,
+            Balloc,
+            grad_alloc,
+        )) == 0
+        @test (@allocated curvature_drift(
+            drift_args.vpar,
+            drift_args.q,
+            drift_args.m,
+            Balloc,
+            κalloc,
+        )) == 0
+        @test (@allocated drift_velocity(; drift_args...)) == 0
+    end
+
     @test_throws ArgumentError GuidingCentre((0.0, 0.0, 0.0), Inf, 0.0, 1.0, 1.0)
     @test_throws ArgumentError GuidingCentre((0.0, 0.0, 0.0), 0.0, -1.0, 1.0, 1.0)
     @test_throws ArgumentError GuidingCentre((0.0, 0.0, 0.0), 0.0, 0.0, 0.0, 1.0)
@@ -223,6 +303,22 @@ end
     @test_throws ArgumentError gyroaverage(x -> x[1], (0.0, 0.0, 0.0), -1.0, (0.0, 0.0, 1.0))
     @test_throws ArgumentError gyroaverage(x -> x[1], (0.0, 0.0, 0.0), 1.0, (0.0, 0.0, Inf))
 
+    constant_max = _ -> floatmax(Float64)
+    @test gyroaverage(constant_max, (0.0, 0.0, 0.0), 1.0, (0.0, 0.0, 1.0); n = 16) ==
+          floatmax(Float64)
+    smallest = nextfloat(0.0)
+    @test gyroaverage(_ -> smallest, (0.0, 0.0, 0.0), 1.0, (0.0, 0.0, 1.0); n = 16) == smallest
+    ring_square = x -> x[1]^2 + x[2]^2
+    @test gyroaverage(ring_square, (0.0, 0.0, 0.0), 1.0, (0.0, 0.0, 1e-200); n = 16) ≈ 1.0 rtol =
+        8eps()
+    @test gyroaverage(ring_square, (0.0, 0.0, 0.0), 1.0, (0.0, 0.0, 1e200); n = 16) ≈ 1.0 rtol =
+        8eps()
+    @test_throws ArgumentError gyroaverage(_ -> Inf, (0.0, 0.0, 0.0), 1.0, (0.0, 0.0, 1.0))
+    @test_throws ArgumentError gyroaverage(_ -> 1 + im, (0.0, 0.0, 0.0), 1.0, (0.0, 0.0, 1.0))
+    constant_one = _ -> 1.0
+    gyroaverage(constant_one, (0.0, 0.0, 0.0), 1.0, (0.0, 0.0, 1.0); n = 16)
+    @test (@allocated gyroaverage(constant_one, (0.0, 0.0, 0.0), 1.0, (0.0, 0.0, 1.0); n = 16)) == 0
+
     B = (0.3, -1.2, 2.0)
     vtot = drift_velocity(;
         vpar = 0.7,
@@ -252,6 +348,63 @@ end
     @test abs(gc2.X[2]) < 1e-12
     @test gc2.X[3] ≈ 0.5 rtol = 1e-12
     @test gc2.vpar ≈ 0.5
+
+    tiny_field = 1e-200
+    gc3 = GuidingCentre((0.0, 0.0, 0.0), 0.0, 0.0, 1.0, 1.0)
+    push_guiding_centre!(
+        gc3;
+        dt = 0.1,
+        E = (tiny_field, 0.0, 0.0),
+        B = (0.0, 0.0, tiny_field),
+        gradB = (0.0, 0.0, 0.0),
+        κ = (0.0, 0.0, 0.0),
+        gradpar_B = 0.0,
+    )
+    @test collect(gc3.X) ≈ [0.0, -0.1, 0.0] rtol = 8eps()
+    @test gc3.vpar == 0.0
+
+    gc4 = GuidingCentre((0.0, 0.0, 0.0), 0.0, 1e200, 1e200, 1e200)
+    push_guiding_centre!(
+        gc4;
+        dt = 1.0,
+        E = (0.0, 0.0, 1e200),
+        B = (0.0, 0.0, 1.0),
+        gradB = (0.0, 0.0, 0.0),
+        κ = (0.0, 0.0, 0.0),
+        gradpar_B = 1e200,
+    )
+    @test gc4.vpar == 0.0
+    @test all(isfinite, gc4.X)
+
+    t = nextfloat(0.0)
+    M = floatmax(Float64)
+    expected_force = Float64(setprecision(4096) do
+        BigFloat(2t) * BigFloat(M) - BigFloat(M) * BigFloat(t)
+    end)
+    @test HybridPlasmaPIC._gyro_scaled_product_difference(2t, M, M, t) == expected_force
+    gc5 = GuidingCentre((0.0, 0.0, 0.0), 0.0, M, 2t, M)
+    push_guiding_centre!(
+        gc5;
+        dt = M,
+        E = (0.0, 0.0, M),
+        B = (0.0, 0.0, 1.0),
+        gradB = (0.0, 0.0, 0.0),
+        κ = (0.0, 0.0, 0.0),
+        gradpar_B = t,
+    )
+    @test gc5.vpar == expected_force
+    @test all(isfinite, gc5.X)
+
+    push_args = (;
+        dt = 0.01,
+        E = (0.0, 1.0, 0.0),
+        B = (0.0, 0.0, 1.0),
+        gradB = (0.0, 0.0, 0.0),
+        κ = (0.0, 0.0, 0.0),
+        gradpar_B = 0.0,
+    )
+    push_guiding_centre!(gc3; push_args...)
+    @test (@allocated push_guiding_centre!(gc3; push_args...)) == 0
 end
 
 @testset "fusion: adaptive mesh refinement" begin
@@ -267,11 +420,11 @@ end
     @test refine_flags([1e308, -0.5, -1e308], 0.5) == Bool[false, true, false]
     tiny = nextfloat(0.0)
     crossed_scale = [floatmax(Float64), -tiny, -floatmax(Float64)]
-    crossed_oracle = Float64(setprecision(4096) do
-        BigFloat(crossed_scale[3]) -
-        2BigFloat(crossed_scale[2]) +
-        BigFloat(crossed_scale[1])
-    end)
+    crossed_oracle = Float64(
+        setprecision(4096) do
+            BigFloat(crossed_scale[3]) - 2BigFloat(crossed_scale[2]) + BigFloat(crossed_scale[1])
+        end,
+    )
     @test HybridPlasmaPIC._amr_second_difference(crossed_scale, 2) == crossed_oracle
     @test refine_flags(crossed_scale, 0.0) == Bool[false, true, false]
     integer_extreme = [typemax(Int), typemin(Int), typemax(Int)]
@@ -303,18 +456,8 @@ end
             quarter_M = M / T(4)
             extreme_coarse = AMRGrid(T[0, -M, 0, M, 0], one(T))
             extreme_fine = refine(extreme_coarse)
-            expected = T[
-                quarter_M,
-                -quarter_M,
-                -M,
-                -M,
-                -quarter_M,
-                quarter_M,
-                M,
-                M,
-                quarter_M,
-                -quarter_M,
-            ]
+            expected =
+                T[quarter_M, -quarter_M, -M, -M, -quarter_M, quarter_M, M, M, quarter_M, -quarter_M]
             @test all(isfinite, extreme_fine.u)
             @test extreme_fine.u == expected
 

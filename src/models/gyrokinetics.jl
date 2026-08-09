@@ -3,7 +3,6 @@
 @inline _dot3(a, b) = a[1] * b[1] + a[2] * b[2] + a[3] * b[3]
 @inline _cross3(a, b) =
     (a[2] * b[3] - a[3] * b[2], a[3] * b[1] - a[1] * b[3], a[1] * b[2] - a[2] * b[1])
-@inline _norm3(a) = sqrt(_dot3(a, a))
 @inline _scale3(s, a) = (s * a[1], s * a[2], s * a[3])
 @inline _add3(a, b) = (a[1] + b[1], a[2] + b[2], a[3] + b[3])
 @inline _sub3(a, b) = (a[1] - b[1], a[2] - b[2], a[3] - b[3])
@@ -19,7 +18,11 @@ end
 
 function _convert_finite_vector3(name::AbstractString, a, ::Type{T}) where {T<:AbstractFloat}
     _require_finite_vector3(name, a)
-    return ntuple(i -> _require_finite_real("$name[$i]", a[i], T), 3)
+    return ntuple(3) do i
+        value = T(a[i])
+        isfinite(value) || throw(ArgumentError("$name[$i] must be finite and representable as $T"))
+        return value
+    end
 end
 
 function _require_finite_scalar(name::AbstractString, x)
@@ -40,12 +43,174 @@ function _require_nonnegative_scalar(name::AbstractString, x)
     return x
 end
 
+@inline function _gyro_scaled_vector(a)
+    values = promote(float(a[1]), float(a[2]), float(a[3]))
+    scale = max(abs(values[1]), abs(values[2]), abs(values[3]))
+    if iszero(scale)
+        z = zero(scale)
+        return scale, (z, z, z)
+    end
+    return scale, (values[1] / scale, values[2] / scale, values[3] / scale)
+end
+
+@noinline function _gyro_exact_ratio(
+    numerators::Tuple,
+    denominators::Tuple,
+    ::Type{T},
+) where {T<:AbstractFloat}
+    exact = Rational{BigInt}(one(T))
+    for x in numerators
+        exact *= Rational{BigInt}(x)
+    end
+    for x in denominators
+        exact /= Rational{BigInt}(x)
+    end
+    return T(exact)
+end
+
+@inline function _gyro_ratio_needs_exact(result::T) where {T<:Union{Float16,Float32,Float64}}
+    return iszero(result) ||
+           !isfinite(result) ||
+           issubnormal(result) ||
+           abs(result) >= floatmax(T) / T(2)
+end
+
+@inline _gyro_ratio_needs_exact(result) = iszero(result) || !isfinite(result)
+
+# Evaluate a product ratio through binary mantissas so finite final values are
+# retained even when a direct numerator or denominator would overflow or underflow.
+@inline function _gyro_scaled_ratio(numerators::Tuple, denominators::Tuple)
+    promoted = promote_type(map(typeof, numerators)..., map(typeof, denominators)...)
+    T = float(promoted)
+    converted_numerators = map(T, numerators)
+    converted_denominators = map(T, denominators)
+    mantissa = one(T)
+    exponent = 0
+    for x in converted_numerators
+        iszero(x) && return zero(T)
+        m, e = frexp(x)
+        mantissa *= m
+        exponent += e
+    end
+    for x in converted_denominators
+        m, e = frexp(x)
+        mantissa /= m
+        exponent -= e
+    end
+    result = ldexp(mantissa, exponent)
+    if _gyro_ratio_needs_exact(result) &&
+       all(isfinite, converted_numerators) &&
+       all(isfinite, converted_denominators)
+        return _gyro_exact_ratio(converted_numerators, converted_denominators, T)
+    end
+    return result
+end
+
+@inline function _gyro_compensated_add(total, correction, term)
+    updated = total + term
+    correction += abs(total) >= abs(term) ? (total - updated) + term : (term - updated) + total
+    return updated, correction
+end
+
+@inline function _gyro_compensated_sum3(a, b, c)
+    values = promote(a, b, c)
+    total = zero(values[1])
+    correction = zero(values[1])
+    total, correction = _gyro_compensated_add(total, correction, values[1])
+    total, correction = _gyro_compensated_add(total, correction, values[2])
+    total, correction = _gyro_compensated_add(total, correction, values[3])
+    return total + correction
+end
+
+@inline function _gyro_compensated_sum4(a, b, c, d)
+    values = promote(a, b, c, d)
+    total = zero(values[1])
+    correction = zero(values[1])
+    total, correction = _gyro_compensated_add(total, correction, values[1])
+    total, correction = _gyro_compensated_add(total, correction, values[2])
+    total, correction = _gyro_compensated_add(total, correction, values[3])
+    total, correction = _gyro_compensated_add(total, correction, values[4])
+    return total + correction
+end
+
+# Combine three finite drift terms without an order-dependent overflow. Large
+# opposite-signed terms are combined first; otherwise a common scale is used.
+@inline function _gyro_scaled_sum3(a, b, c)
+    x, y, z = promote(float(a), float(b), float(c))
+    if abs(x) < abs(y)
+        x, y = y, x
+    end
+    if abs(y) < abs(z)
+        y, z = z, y
+    end
+    if abs(x) < abs(y)
+        x, y = y, x
+    end
+
+    if !iszero(y) && signbit(x) != signbit(y)
+        result = _gyro_compensated_sum3(x, y, z)
+        isfinite(result) && return result
+    elseif !iszero(z) && signbit(x) != signbit(z)
+        result = _gyro_compensated_sum3(x, z, y)
+        isfinite(result) && return result
+    end
+
+    scale = max(abs(x), abs(y), abs(z))
+    iszero(scale) && return zero(scale)
+    scaled_sum = _gyro_compensated_sum3(x / scale, y / scale, z / scale)
+    return _gyro_scaled_ratio((scale, scaled_sum), (one(scale),))
+end
+
+@inline function _gyro_product_parts(a, b)
+    ma, ea = frexp(a)
+    mb, eb = frexp(b)
+    product = ma * mb
+    error = fma(ma, mb, -product)
+    return product, error, ea + eb
+end
+
+@inline function _gyro_scaled_product(a, b)
+    (iszero(a) || iszero(b)) && return zero(a * b)
+    product, error, exponent = _gyro_product_parts(a, b)
+    return ldexp(product + error, exponent)
+end
+
+# Evaluate `a*b - c*d` from aligned exact product expansions, avoiding `Inf-Inf`
+# and crossed-scale underflow when the mathematical result is representable.
+@inline function _gyro_scaled_product_difference(a, b, c, d)
+    aT, bT, cT, dT = promote(float(a), float(b), float(c), float(d))
+    left_zero = iszero(aT) || iszero(bT)
+    right_zero = iszero(cT) || iszero(dT)
+    left_zero && right_zero && return zero(aT)
+    left_zero && return -_gyro_scaled_product(cT, dT)
+    right_zero && return _gyro_scaled_product(aT, bT)
+
+    left, left_error, left_exponent = _gyro_product_parts(aT, bT)
+    right, right_error, right_exponent = _gyro_product_parts(cT, dT)
+    common_exponent = max(left_exponent, right_exponent)
+    left_shift = left_exponent - common_exponent
+    right_shift = right_exponent - common_exponent
+    difference = _gyro_compensated_sum4(
+        ldexp(left, left_shift),
+        -ldexp(right, right_shift),
+        ldexp(left_error, left_shift),
+        -ldexp(right_error, right_shift),
+    )
+    return ldexp(difference, common_exponent)
+end
+
+@inline function _gyro_nonzero_field(B)
+    _require_finite_vector3("B", B)
+    scale, scaled = _gyro_scaled_vector(B)
+    scale > zero(scale) ||
+        throw(ArgumentError("magnetic field magnitude must be finite and positive"))
+    scaled_norm = hypot(scaled[1], scaled[2], scaled[3])
+    direction = ntuple(i -> scaled[i] / scaled_norm, 3)
+    return scale, scaled_norm, direction
+end
+
 function _normalize3(a)
-    _require_finite_vector3("vector", a)
-    n = _norm3(a)
-    isfinite(n) && n > zero(n) ||
-        throw(ArgumentError("cannot normalize a zero or non-finite vector"))
-    return _scale3(inv(n), a)
+    return _gyro_nonzero_field(a)[3]
 end
 
 """
@@ -55,11 +220,10 @@ The `E×B` drift `v_E = (E × B)/B^2`. `E` and `B` are 3-component vectors.
 """
 function exb_drift(E, B)
     _require_finite_vector3("E", E)
-    _require_finite_vector3("B", B)
-    B2 = _dot3(B, B)
-    isfinite(B2) && B2 > zero(B2) ||
-        throw(ArgumentError("magnetic field magnitude must be finite and positive"))
-    drift = _scale3(inv(B2), _cross3(E, B))
+    Bscale, Bscaled_norm, b = _gyro_nonzero_field(B)
+    Escale, Escaled = _gyro_scaled_vector(E)
+    direction = _cross3(Escaled, b)
+    drift = ntuple(i -> _gyro_scaled_ratio((Escale, direction[i]), (Bscale, Bscaled_norm)), 3)
     _require_finite_vector3("E×B drift", drift)
     return drift
 end
@@ -74,12 +238,17 @@ function gradb_drift(vperp, q, m, B, gradB)
     _require_finite_scalar("q", q)
     q != zero(q) || throw(ArgumentError("charge q must be nonzero"))
     _require_positive_scalar("m", m)
-    _require_finite_vector3("B", B)
     _require_finite_vector3("gradB", gradB)
-    Bmag = _norm3(B)
-    isfinite(Bmag) && Bmag > zero(Bmag) ||
-        throw(ArgumentError("magnetic field magnitude must be finite and positive"))
-    drift = _scale3(m * vperp^2 / (2 * q * Bmag^3), _cross3(B, gradB))
+    Bscale, Bscaled_norm, b = _gyro_nonzero_field(B)
+    grad_scale, grad_scaled = _gyro_scaled_vector(gradB)
+    direction = _cross3(b, grad_scaled)
+    drift = ntuple(
+        i -> _gyro_scaled_ratio(
+            (m, vperp, vperp, grad_scale, direction[i]),
+            (2, q, Bscale, Bscale, Bscaled_norm, Bscaled_norm),
+        ),
+        3,
+    )
     _require_finite_vector3("grad-B drift", drift)
     return drift
 end
@@ -94,12 +263,14 @@ function curvature_drift(vpar, q, m, B, κ)
     _require_finite_scalar("q", q)
     q != zero(q) || throw(ArgumentError("charge q must be nonzero"))
     _require_positive_scalar("m", m)
-    _require_finite_vector3("B", B)
     _require_finite_vector3("κ", κ)
-    B2 = _dot3(B, B)
-    isfinite(B2) && B2 > zero(B2) ||
-        throw(ArgumentError("magnetic field magnitude must be finite and positive"))
-    drift = _scale3(m * vpar^2 / (q * B2), _cross3(B, κ))
+    Bscale, Bscaled_norm, b = _gyro_nonzero_field(B)
+    κscale, κscaled = _gyro_scaled_vector(κ)
+    direction = _cross3(b, κscaled)
+    drift = ntuple(
+        i -> _gyro_scaled_ratio((m, vpar, vpar, κscale, direction[i]), (q, Bscale, Bscaled_norm)),
+        3,
+    )
     _require_finite_vector3("curvature drift", drift)
     return drift
 end
@@ -109,10 +280,14 @@ end
 
 Total perpendicular guiding-centre drift `v_E + v_∇B + v_κ`.
 """
-drift_velocity(; vpar, vperp, q, m, E, B, gradB, κ) = _add3(
-    _add3(exb_drift(E, B), gradb_drift(vperp, q, m, B, gradB)),
-    curvature_drift(vpar, q, m, B, κ),
-)
+function drift_velocity(; vpar, vperp, q, m, E, B, gradB, κ)
+    vE = exb_drift(E, B)
+    vgradB = gradb_drift(vperp, q, m, B, gradB)
+    vcurvature = curvature_drift(vpar, q, m, B, κ)
+    drift = ntuple(i -> _gyro_scaled_sum3(vE[i], vgradB[i], vcurvature[i]), 3)
+    _require_finite_vector3("total drift", drift)
+    return drift
+end
 
 """
     GuidingCentre(X, vpar, μ, q, m)
@@ -164,16 +339,18 @@ perpendicular drifts plus parallel streaming `v∥ b`; `v∥` advances by
 function push_guiding_centre!(gc::GuidingCentre{T}; dt, E, B, gradB, κ, gradpar_B) where {T}
     _validate_guiding_centre(gc)
     dtT = _require_finite_real("dt", dt, T)
+    (iszero(dt) || !iszero(dtT)) ||
+        throw(ArgumentError("dt must be finite and representable as $T"))
     ET = _convert_finite_vector3("E", E, T)
     BT = _convert_finite_vector3("B", B, T)
     gradBT = _convert_finite_vector3("gradB", gradB, T)
     κT = _convert_finite_vector3("κ", κ, T)
     gradparT = _require_finite_real("gradpar_B", gradpar_B, T)
-    Bmag = _norm3(BT)
-    isfinite(Bmag) && Bmag > zero(T) ||
-        throw(ArgumentError("magnetic field magnitude must be finite and positive"))
-    b = _scale3(inv(Bmag), BT)
-    vperp = sqrt(2 * gc.μ * Bmag / gc.m)
+    Bscale, Bscaled_norm, b = _gyro_nonzero_field(BT)
+    vperp2 = _gyro_scaled_ratio((T(2), gc.μ, Bscale, Bscaled_norm), (gc.m,))
+    isfinite(vperp2) && vperp2 >= zero(T) ||
+        throw(ArgumentError("local perpendicular speed is not finite and representable as $T"))
+    vperp = sqrt(vperp2)
     vd = drift_velocity(;
         vpar = gc.vpar,
         vperp,
@@ -184,9 +361,14 @@ function push_guiding_centre!(gc::GuidingCentre{T}; dt, E, B, gradB, κ, gradpar
         gradB = gradBT,
         κ = κT,
     )
-    new_X = _add3(gc.X, _scale3(dtT, _add3(vd, _scale3(gc.vpar, b))))
-    Epar = _dot3(ET, b)
-    new_vpar = gc.vpar + dtT * (gc.q * Epar - gc.μ * gradparT) / gc.m
+    velocity = ntuple(i -> _gyro_scaled_sum3(vd[i], gc.vpar * b[i], zero(T)), 3)
+    step = ntuple(i -> _gyro_scaled_ratio((dtT, velocity[i]), (one(T),)), 3)
+    new_X = _add3(gc.X, step)
+    Escale, Escaled = _gyro_scaled_vector(ET)
+    Epar = _gyro_scaled_ratio((Escale, _dot3(Escaled, b)), (one(T),))
+    force = _gyro_scaled_product_difference(gc.q, Epar, gc.μ, gradparT)
+    delta_vpar = _gyro_scaled_ratio((dtT, force), (gc.m,))
+    new_vpar = gc.vpar + delta_vpar
     _require_finite_vector3("updated X", new_X)
     _require_finite_scalar("updated vpar", new_vpar)
 
@@ -217,12 +399,48 @@ function gyroaverage(f, X::NTuple{3,T}, ρ, B; n::Integer = 16) where {T<:Abstra
     ρT = _require_finite_nonnegative_real("ρ", ρ, T)
     b = _normalize3(BT)
     e1, e2 = _perp_basis(b)
-    pt = _add3(XT, _scale3(ρT, e1))
-    s = f(pt)
-    @inbounds for k = 2:nring
+    scale = zero(T)
+    total = zero(T)
+    correction = zero(T)
+    @inbounds for k = 1:nring
         φ = 2 * T(π) * (k - 1) / nring
         pt = _add3(XT, _add3(_scale3(ρT * cos(φ), e1), _scale3(ρT * sin(φ), e2)))
-        s += f(pt)
+        raw_sample = f(pt)
+        raw_sample isa Real || throw(ArgumentError("f must return real scalar values"))
+        isfinite(raw_sample) || throw(ArgumentError("f must return finite values"))
+        sample = float(raw_sample) + zero(T)
+        isfinite(sample) ||
+            throw(ArgumentError("f return values must be representable as a finite float"))
+        magnitude = abs(sample)
+        if magnitude > scale
+            if iszero(scale)
+                total = zero(sample)
+                correction = zero(sample)
+            else
+                factor = scale / magnitude
+                scaled_total = total * factor
+                scaled_correction = correction * factor
+                (
+                    !iszero(total) && iszero(scaled_total) ||
+                    !iszero(correction) && iszero(scaled_correction)
+                ) && throw(
+                    ArgumentError("sample dynamic range is too wide for lossless normalisation"),
+                )
+                total = scaled_total
+                correction = scaled_correction
+            end
+            scale = magnitude
+        end
+        if !iszero(scale)
+            normalised = sample / scale
+            !iszero(sample) &&
+                iszero(normalised) &&
+                throw(ArgumentError("sample dynamic range is too wide for lossless normalisation"))
+            total, correction = _gyro_compensated_add(total, correction, normalised)
+        else
+            total += sample
+        end
     end
-    return s / nring
+    iszero(scale) && return total
+    return _gyro_scaled_ratio((scale, total + correction), (nring,))
 end
