@@ -132,6 +132,141 @@ using Test
     end
 end
 
+@testset "AMR prolongation rounds complete child values" begin
+    function exact_children(values)
+        T = eltype(values)
+        exact = Rational{BigInt}.(values)
+        n = length(values)
+        result = T[]
+        for i = 1:n
+            adjustment =
+                n == 1 ? zero(exact[i]) :
+                i == 1 ? (exact[2] - exact[1]) / 4 :
+                i == n ? (exact[n] - exact[n-1]) / 4 : (exact[i+1] - exact[i-1]) / 8
+            push!(result, T(exact[i] - adjustment), T(exact[i] + adjustment))
+        end
+        return result
+    end
+
+    rng = MersenneTwister(621)
+    for (T, U) in ((Float16, UInt16), (Float32, UInt32), (Float64, UInt64))
+        M, tiny = floatmax(T), nextfloat(zero(T))
+        # Rounding the interior slope before subtracting it from M/8 loses
+        # the representable minimum-subnormal child.
+        coarse = AMRGrid(T[8tiny, M/8, M], one(T))
+        @test refine(coarse).u[3] == tiny
+        # A rounded normalized value can rescale to the smallest normal even
+        # when the exact child rounds to its subnormal neighbor. Check both
+        # signs, both child orientations, and nearby subnormal lattice values.
+        for sign in (-one(T), one(T)), neighbor in (-8:8), small in (0:16)
+            values = sign .* T[0, floatmin(T)+T(neighbor)*tiny, T(small)*tiny]
+            @test refine(AMRGrid(values, one(T))).u == exact_children(values)
+            @test refine(AMRGrid(reverse(values), one(T))).u == exact_children(reverse(values))
+        end
+        for values in (
+            T[8tiny, M/8, M],
+            T[M, M/8, 8tiny],
+            T[-8tiny, -M/8, -M],
+            T[M, M],
+            T[-M, M],
+            T[tiny, tiny],
+            T[tiny, -tiny, tiny],
+            T[1, nextfloat(one(T)), 1],
+            T[prevfloat(one(T)), 1, nextfloat(one(T))],
+        )
+            @test refine(AMRGrid(values, one(T))).u == exact_children(values)
+        end
+
+        for n in (2, 3, 5), _ = 1:150
+            values = map(1:n) do _
+                while true
+                    value = reinterpret(T, rand(rng, U))
+                    isfinite(value) && return value
+                end
+            end
+            @test refine(AMRGrid(values, one(T))).u == exact_children(values)
+        end
+
+        # Affine dyadic profiles reproduce exact fine-cell averages, including
+        # both one-sided boundaries, and conserve their finite-volume integral.
+        for slope in (-2, 0, 2)
+            coarse = AMRGrid(T[3 + slope * (i - 0.5) for i = 1:8], one(T))
+            fine = refine(coarse)
+            @test fine.u == T[3 + slope * (i / 2 - 0.25) for i = 1:16]
+            @test sum(Float64, fine.u) / 2 == sum(Float64, coarse.u)
+        end
+        for value in (zero(T), -zero(T), tiny, M, T(Inf), T(NaN))
+            expected = T[value-zero(T), value+zero(T)]
+            @test isequal(refine(AMRGrid(T[value], one(T))).u, expected)
+        end
+        zeros_grid = AMRGrid(fill(-zero(T), 3), one(T))
+        @test isequal(refine(zeros_grid).u, repeat(T[-zero(T), zero(T)], 3))
+
+        for exceptional in (T(Inf), T(-Inf), T(NaN))
+            values = T[1, exceptional, 3]
+            expected = T[]
+            for i = 1:3
+                adjustment =
+                    i == 1 ? (values[2] - values[1]) / T(4) :
+                    i == 3 ? (values[3] - values[2]) / T(4) : (values[3] - values[1]) / T(8)
+                push!(expected, values[i] - adjustment, values[i] + adjustment)
+            end
+            @test isequal(refine(AMRGrid(values, one(T))).u, expected)
+        end
+
+        # Include rounded ordinary slopes and ties: exact reconstruction must
+        # not require heap allocations in these common finite-volume profiles.
+        for values in (
+            T.(sin.(range(0, 2pi; length = 512))),
+            rand(rng, T, 512),
+            repeat(T[1, nextfloat(one(T)), 1], 100),
+        )
+            coarse = AMRGrid(values, one(T))
+            fine = refine(coarse)
+            prolong!(fine, coarse)
+            @test (@allocated prolong!(fine, coarse)) == 0
+            @test fine.u == exact_children(values)
+        end
+    end
+
+    # Preserve stored input bits if a caller lowers its BigFloat precision.
+    # Build independent exact values before entering the lower-precision scope.
+    stored = setprecision(256) do
+        delta = BigFloat(2)^(-100)
+        inputs = (BigFloat[8delta, 1, 8], BigFloat[1+delta, 5], BigFloat[5, 1+delta])
+        [(values, Rational{BigInt}.(values)) for values in inputs]
+    end
+    for bits in (24, 64), mode in (RoundNearest, RoundDown, RoundUp, RoundToZero)
+        setprecision(bits) do
+            setrounding(BigFloat, mode) do
+                for (values, exact) in stored
+                    n = length(values)
+                    expected = BigFloat[]
+                    for i = 1:n
+                        adjustment =
+                            i == 1 ? (exact[2] - exact[1]) / 4 :
+                            i == n ? (exact[n] - exact[n-1]) / 4 : (exact[i+1] - exact[i-1]) / 8
+                        push!(
+                            expected,
+                            BigFloat(exact[i] - adjustment),
+                            BigFloat(exact[i] + adjustment),
+                        )
+                    end
+                    fine = refine(AMRGrid(values, BigFloat(1)))
+                    @test fine.u == expected
+                    @test all(x -> precision(x) == bits, fine.u)
+                    @test precision(BigFloat) == bits
+                    @test rounding(BigFloat) == mode
+                end
+                for _ = 1:100
+                    values = BigFloat[ldexp(BigFloat(randn(rng)), rand(rng, -100:100)) for _ = 1:3]
+                    @test refine(AMRGrid(values, BigFloat(1))).u == exact_children(values)
+                end
+            end
+        end
+    end
+end
+
 @testset "AMR cell centers retain the complete coordinate" begin
     exact_center(g, i) = promote_type(eltype(g.u), typeof(i))(
         Rational{BigInt}(g.x0) + (2BigInt(i) - 1) * Rational{BigInt}(g.dx) / 2,

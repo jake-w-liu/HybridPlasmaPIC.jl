@@ -127,6 +127,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- AMR prolongation rounds each complete reconstructed child value, preserving
+  small results when a large slope cancels the cell mean. Exact fallback also
+  handles the smallest-normal boundary and retained BigFloat input precision;
+  ordinary measured hardware-float profiles remain allocation-free.
+
 - AMR cell centers retain representable coordinates across intermediate overflow
   and large half-cell indices, including Float16 rounding boundaries and stored
   BigFloat precision.

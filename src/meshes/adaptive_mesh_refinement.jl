@@ -70,6 +70,45 @@ end
     return total, error
 end
 
+# The two components are exact and their addition is safe at the working scale.
+# A result above the smallest normal (or overflow) preserves this single
+# rounding under binary rescaling. Subnormals and the smallest normal share a
+# rounding boundary where rescaling can round again and need certification.
+@inline function _amr_round_exact_pair(high::T, low::T, power::Int) where {T}
+    result = ldexp(high + low, power)
+    iszero(low) && return result, true
+    ordinary =
+        T <: Union{Float16,Float32,Float64} ? abs(result) > floatmin(T) :
+        T === BigFloat && !iszero(result)
+    return result, ordinary
+end
+
+# Callers supply exact, safely scaled components under round-to-nearest.
+@inline function _amr_round_scaled_sum3(a::T, b::T, c::T, power::Int) where {T}
+    first, e1 = _amr_two_sum(a, b)
+    high, e2 = _amr_two_sum(first, c)
+    low, e3 = _amr_two_sum(e1, e2)
+    if iszero(e3)
+        result, certified = _amr_round_exact_pair(high, low, power)
+        certified && return result, true
+    end
+    value, e4 = _amr_two_sum(high, low)
+    error_hi, error_lo = _amr_two_sum(e4, e3)
+    if iszero(error_lo)
+        result, certified = _amr_round_exact_pair(value, error_hi, power)
+        certified && return result, true
+    end
+
+    result = ldexp(value, power)
+    # The exact normalized result is value + error_hi + error_lo. Reversible
+    # rescaling and an error strictly inside both rounding midpoints certify it.
+    if isfinite(result) && ldexp(result, -power) == value
+        radius = min(value - prevfloat(value), nextfloat(value) - value) / T(2)
+        abs(error_hi) + abs(error_lo) < radius && return result, true
+    end
+    return result, false
+end
+
 @inline function _amr_compensated_sum4(a::T, b::T, c::T, d::T) where {T}
     total = zero(T)
     correction = zero(T)
@@ -182,33 +221,60 @@ end
        _amr_normalisation_loses_precision(c, cn)
         return _amr_exact_second_difference(a, b, c)
     end
-    first, e1 = _amr_two_sum(an, -T(2) * bn)
-    high, e2 = _amr_two_sum(first, cn)
-    low, e3 = _amr_two_sum(e1, e2)
-    value, e4 = _amr_two_sum(high, low)
-    error_hi, error_lo = _amr_two_sum(e4, e3)
-    result = ldexp(value, power)
-    iszero(error_hi) && iszero(error_lo) && return result
-
-    # The exact normalized result is value + error_hi + error_lo. Reversible
-    # rescaling and an error strictly inside both rounding midpoints certify
-    # the result. Ties and any possible double rounding use the exact fallback.
-    if isfinite(result) && ldexp(result, -power) == value
-        radius = min(value - prevfloat(value), nextfloat(value) - value) / T(2)
-        abs(error_hi) + abs(error_lo) < radius && return result
-    end
-    return _amr_exact_second_difference(a, b, c)
+    result, certified = _amr_round_scaled_sum3(an, -T(2) * bn, cn, power)
+    return certified ? result : _amr_exact_second_difference(a, b, c)
 end
 
 @inline _amr_second_difference(u::AbstractVector, i::Int) = u[i+1] - 2u[i] + u[i-1]
 
-# Form `(a-b)*fraction` without overflowing the subtraction. The fractions used
-# by prolongation are exact powers of two.
-@inline function _amr_scaled_difference(a::T, b::T, fraction::T) where {T<:AbstractFloat}
-    if isfinite(a) && isfinite(b)
-        return _amr_scaled_product_difference(a, fraction, b, fraction)
+@noinline function _amr_exact_reconstruction(a::T, b::T, c::T, shift::Int) where {T}
+    exact =
+        _amr_exact_rational(a) +
+        (_amr_exact_rational(b) - _amr_exact_rational(c)) / (BigInt(1) << -shift)
+    return T(exact)
+end
+
+# Reconstruct both children from the same unrounded slope. Rounding the slope
+# first can erase a representable child when it cancels against the cell mean.
+@inline function _amr_reconstruction_pair(a::T, b::T, c::T, shift::Int) where {T}
+    scale = max(abs(a), abs(b), abs(c))
+    iszero(scale) && return a - zero(T), a + zero(T)
+    if !isfinite(scale)
+        adjustment = ldexp(c - b, shift)
+        return a - adjustment, a + adjustment
     end
-    return (a - b) * fraction
+    if T === BigFloat && rounding(BigFloat) != RoundNearest
+        return _amr_exact_reconstruction(a, b, c, shift), _amr_exact_reconstruction(a, c, b, shift)
+    end
+
+    fraction = ldexp(one(T), shift)
+    inverse_fraction = inv(fraction)
+    bn, cn = b * fraction, c * fraction
+    # With |a,b,c| <= max/2 and fraction <= 1/4, all intermediate sums are
+    # bounded by 3max/4. Reversible scaling proves no input bits were discarded.
+    direct =
+        T <: Union{Float16,Float32,Float64} &&
+        scale <= floatmax(T) / T(2) &&
+        bn * inverse_fraction == b &&
+        cn * inverse_fraction == c
+    if direct
+        an, power = a, 0
+    else
+        _, power = frexp(scale)
+        an, bn, cn = ldexp(a, -power), ldexp(b, shift - power), ldexp(c, shift - power)
+        if _amr_normalisation_loses_precision(a, an) ||
+           _amr_normalisation_loses_precision(b, bn) ||
+           _amr_normalisation_loses_precision(c, cn)
+            return _amr_exact_reconstruction(a, b, c, shift),
+            _amr_exact_reconstruction(a, c, b, shift)
+        end
+    end
+    left, left_certified = _amr_round_scaled_sum3(an, bn, -cn, power)
+    right, right_certified = _amr_round_scaled_sum3(an, cn, -bn, power)
+    return (
+        left_certified ? left : _amr_exact_reconstruction(a, b, c, shift),
+        right_certified ? right : _amr_exact_reconstruction(a, c, b, shift),
+    )
 end
 
 # `(a+b)/2` overflows for two large equal children, whereas evaluating each half
@@ -261,16 +327,16 @@ coarse cell `i` maps to fine cells `2i-1, 2i`; endpoint slopes are one-sided.
 function prolong!(fine::AMRGrid{T}, coarse::AMRGrid{T}) where {T}
     n = _validate_refinement_pair(fine, coarse)
     u = coarse.u
-    quarter = inv(T(4))
-    eighth = inv(T(8))
+    if n == 1
+        fine.u[1] = u[1] - zero(T)
+        fine.u[2] = u[1] + zero(T)
+        return fine
+    end
     @inbounds for i = 1:n
-        adjustment =
-            n == 1 ? zero(T) :
-            i == 1 ? _amr_scaled_difference(u[2], u[1], quarter) :
-            i == n ? _amr_scaled_difference(u[n], u[n-1], quarter) :
-            _amr_scaled_difference(u[i+1], u[i-1], eighth)
-        fine.u[2i-1] = u[i] - adjustment
-        fine.u[2i] = u[i] + adjustment
+        left = i == 1 ? u[i] : u[i-1]
+        right = i == n ? u[i] : u[i+1]
+        shift = i == 1 || i == n ? -2 : -3
+        fine.u[2i-1], fine.u[2i] = _amr_reconstruction_pair(u[i], left, right, shift)
     end
     return fine
 end
