@@ -111,3 +111,58 @@ Final full-package integration is a separate gate after the outstanding slices.
 
 The serial publication follow-up now has a [dedicated implementation plan](SERIAL_PUBLICATION_PLAN.md),
 including path, permission, asynchronous snapshot and failure-cleanup contracts.
+
+## IO-010 serialization-contract implementation brief
+
+Reviewed before production edits; final gates remain pending.
+
+1. **Mode:** repair canonical configuration validation.
+2. **Requirement:** reject relationships and resources that cannot survive
+   serialization before publication or restore mutation. Preserve independent
+   mutable parameters, shared Arrays/Refs/cycles, ordinary Dict/IdDict/Set,
+   standalone views and disjoint logical views. Validate incoming retained
+   graphs too; already-detached legacy bytes cannot reveal their lost links.
+3. **Evidence:** public checkpoint/archive probes pass 36 assertions per native
+   version (`/tmp/hybrid-io010-recon-v2-{112,113}.log`). Repeated, overlapping and
+   parent-linked Array-backed views, separately held mutable indices, dictionary
+   backing links and native FFT plans lose relationships or handles. Scalar/Ref
+   pointers become null; pointer arrays retain addresses. No resource was executed.
+4. **Verified cause:** Julia's `Serialization.jl:193` nulls pointers, lines
+   287–291 copy Array-backed SubArrays, and lines 378–388 rebuild dictionaries.
+   The existing validator checks solver ownership, not internal reconstruction.
+5. **Contract:** reject copied view storage or mutable indices exposed elsewhere,
+   exposed dictionary backing storage, native FFT plans and non-null pointers,
+   including nested arrays. Preserve safe value codecs such as Regex and BigInt.
+   Custom serializers own their reconstruction semantics; validation does not
+   establish safety for arbitrary integer-encoded handles or external callbacks.
+6. **Owner:** `_validate_checkpoint_configuration` in `src/io/checkpoint.jl`,
+   shared by Hybrid, CAM-CL, EM and Hall configuration capture/restore, scalar and
+   collection checkpoints, archives and MPI preflight. ES has no custom graph.
+   Generic `save_run` and `async_save` retain generic Serialization behavior.
+7. **Compatibility:** no schema or global Serialization changes. Previously
+   accepted graphs with demonstrated loss now fail explicitly. Existing mutable
+   configuration/type restoration and solver-owned-storage rejection remain.
+8. **Strategy:** extend the bounded walker with edge/storage ownership. Separate
+   stored edges from synthetic iteration; inspect repeated views before identity
+   deduplication. Preserve logical-versus-parent metadata traversal, opaque spare
+   capacity, primitive fast paths and cycle bounds. Reuse overlap predicates and
+   explicit safe-codec owners without serializing during validation.
+9. **Verification:** both native versions; all configurable families, layouts,
+   Float32/64 and 1D–3D; save/archive/incoming rollback and mutation-dependent
+   continuation. Real MPI must reject a bad graph on one rank collectively while
+   preserving the previous generation and destinations. Check resources,
+   concrete/package JET, formatter and neighboring IO/repro/MPI tests. Disjoint
+   view positives reject a blanket ban; repeated-view negatives reject early
+   deduplication; unused-capacity positives reject indiscriminate reflection.
+
+Before implementation, this contract was extended to distinct Array headers
+sharing storage. A vector and `reshape(vector, 2, 2)` share storage before
+serialization but detach afterward. Both-version public probes pass 42 assertions
+in `/tmp/hybrid-io010-recon-v3-{112,113}.log`. Preserve repeated references to one
+Array; reject overlapping storage represented by distinct serialization owners.
+
+The initial candidate passes 33 Julia 1.12 contract assertions, including safe
+numeric/regex values, null pointers, disjoint views, shared arrays, cycles,
+read-only grid geometry and immutable-versus-mutable wrapper edges:
+`/tmp/hybrid-io010-contract-v1-112.log`. This is intermediate evidence, not a final
+verification result.

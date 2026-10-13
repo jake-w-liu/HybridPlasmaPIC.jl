@@ -123,6 +123,15 @@ The first tracing attempt used `@timed` and measured 16 B extra on ordinary call
 its failed log is retained as `...v3-resources-traced112.log`. The corrected trace
 uses the original `@allocated` expression (`...v3-resources-traced-v2-112.log`).
 
+A conditional-comparison minimum selector was tested in a separate v4 prototype;
+it was not promoted. It passes 800 selector comparisons and 152 ordinary
+bitwise/allocation checks on Julia 1.12.7. Eight configurations, with nine
+alternating timing pairs each, have prototype/current median ratios
+1.056–4.351; every measured median is slower. Shared-machine timing does not
+identify a compiler cause. Logs: `/tmp/hybrid-energy-selector-v4-comparison112.log`
+and `/tmp/hybrid-energy-selector-v4-performance112.log`. The pushed minimum
+selector remains unchanged.
+
 ## Relativistic-energy follow-up
 
 Trace the diagnostic's independent speed check, stable gamma-minus-one formula,
@@ -131,3 +140,16 @@ against exact stored components and the shared pusher's narrower supported
 range before editing. Preserve the Newtonian limit, valid empty populations,
 error visibility, writable views and ordinary cost. This plan does not claim
 that the radiation candidate or field-energy repair fixes particle energy.
+
+The relativistic diagnostic also accepts strictly superluminal stored velocity
+tuples when its rounded squared sum falls below c², and rejects valid tuples
+when that sum rounds up to c². Exact rational comparisons prove both directions
+for Float16/32/64. The 33 boundary assertions and 12 compatibility assertions
+pass on each native version in
+`/tmp/hybrid-relativistic-energy-boundary112.log` and `113.log`, using frozen
+`fe519e9` production code. These are additional defect witnesses, not repair tests.
+The compatibility checks retain signed weights (including exact cancellation),
+negative weighted energy and visible nonfinite mass behavior. The diagnostic's
+accepted exact speed boundary must be specified separately from the pusher's
+explicitly narrower representable beta-squared contract; simply calling the
+pusher preflight would retain valid-input rejections.
