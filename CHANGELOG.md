@@ -84,6 +84,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Timestep recommendations retain representable whistler, resistive, and gyro
+  limits when intermediate powers or products exceed floating-point range.
+
 - CI tests both Julia 1.12 and the latest stable Julia release. Test failures
   propagate through the log-capture pipeline, and each version retains its own log.
 

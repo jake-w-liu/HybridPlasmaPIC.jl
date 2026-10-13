@@ -92,17 +92,46 @@ function recommended_dt(
     (isfinite(Ω_ci) && Ω_ci > 0) || throw(ArgumentError("Ω_ci must be finite and > 0, got $Ω_ci"))
     (isfinite(η) && η >= 0) || throw(ArgumentError("η must be finite and ≥ 0, got $η"))
     (isfinite(ηH) && ηH >= 0) || throw(ArgumentError("ηH must be finite and ≥ 0, got $ηH"))
-    kmax = sqrt(sum(dx -> abs2(π / dx), g.dx))          # spectral-corner |k| (stiffest mode)
-    K = kmax * d_i
-    ω_w = 0.5 * (sqrt(K^4 + 4 * K^2) + K^2) * Ω_ci      # whistler ω_W(k_max)
-    ν = η * kmax^2 + ηH * kmax^4                        # explicit real-axis decay rate at k_max
     C = _integrator_stability_limit(integrator)
-    if ν > 0 && (integrator === :leapfrog || integrator === :camcl)
+    Creal = _integrator_real_axis_limit(integrator)
+    R = promote_type(
+        Float64,
+        T,
+        typeof(float(safety)),
+        typeof(float(d_i)),
+        typeof(float(Ω_ci)),
+        typeof(float(η)),
+        typeof(float(ηH)),
+    )
+    log_safety = log(R(safety))
+    log_Ω = log(R(Ω_ci))
+    log_gyro = log_safety + log(R(0.3)) - log_Ω
+    isinf(C) && isinf(Creal) && return float(exp(log_gyro))
+
+    # Evaluate the documented limits in log space: k^4, K^2*Ω_ci, or NB*C
+    # can overflow/underflow while the final timestep remains representable.
+    # Scaling by the smallest spacing also keeps the corner norm bounded.
+    dxmin = R(minimum(g.dx))
+    log_k = log(R(π)) - log(dxmin) + log(sum(dx -> abs2(dxmin / dx), g.dx)) / 2
+    log_K = log_k + log(R(d_i))
+    log_ω = if log_K >= 0
+        log_Ω + 2log_K + log((hypot(one(log_K), 2exp(-log_K)) + 1) / 2)
+    else
+        half_K = exp(log_K) / 2
+        log_Ω + log_K + log(hypot(half_K, one(half_K)) + half_K)
+    end
+    damped = η > 0 || ηH > 0
+    if damped && (integrator === :leapfrog || integrator === :camcl)
         C = _CL_DAMPED_WHISTLER_LIMIT                   # damped CL: re-syncs inject restart error
     end
-    dt_whistler = isfinite(C) ? safety * NB * C / ω_w : T(Inf)
-    dt_gyro = safety * 0.3 / Ω_ci                       # Boris gyro-accuracy limit
-    Creal = _integrator_real_axis_limit(integrator)
-    dt_real = ν > 0 ? safety * NB * Creal / ν : T(Inf)  # real-axis (η/ηH) limit
-    return float(min(dt_whistler, dt_gyro, dt_real))
+    log_subcycle = log_safety + log(NB)
+    log_dt = min(log_subcycle + log(C) - log_ω, log_gyro)
+    if damped
+        log_resistive = iszero(η) ? -Inf : log(R(η)) + 2log_k
+        log_hyper = iszero(ηH) ? -Inf : log(R(ηH)) + 4log_k
+        lo, hi = minmax(log_resistive, log_hyper)
+        log_ν = hi + log1p(exp(lo - hi))
+        log_dt = min(log_dt, log_subcycle + log(Creal) - log_ν)
+    end
+    return float(exp(log_dt))
 end

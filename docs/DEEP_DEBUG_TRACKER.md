@@ -15,7 +15,8 @@ completeness. Comparative leadership requires reproducible external benchmarks.
 - Inspected package exports, manifests, CI, contribution rules, README, tests,
   validation catalog, hybrid integrators, coupling kernels, and checkpoint paths.
 - Installed Julia versions are 1.12.7 and 1.13.1. The official Julia downloads page
-  lists 1.13.1 (2026-09-25) as the current stable release. CI now includes both the
+  [lists 1.13.1 (2026-09-25)](https://julialang.org/downloads/manual-downloads/)
+  as the current stable release. CI now includes both the
   minimum supported minor (1.12) and the moving latest stable version (`1`).
 - Initial full suites were started in the live worktree on Julia 1.13.1 and
   1.12.7. Concurrent test/code edits mean these runs cannot prove the final
@@ -70,7 +71,7 @@ performance review. “Pending” means no current-run completion claim.
 | RESTART-001 | CAM-CL lacked checkpoint/archive methods and requires persistent magnetic state | Pushed (`1138317`) | 710 checkpoint/archive/MPI assertions pass, including 1D–3D, Float32/64, phase resets, edited fields, timestep/subcycle changes, malformed-state rejection, and exact continuation |
 | CI-001 | Only Julia 1.12 was exercised; the test pipeline could mask failures | Pushed (`68b854d`) | YAML/matrix/artifact wiring checks pass; explicit CI Bash returns 1 for failed pipelines and 0 for successful ones; full version suites running separately |
 | FORMAT-001 | Three files failed CI's JuliaFormatter 1 formatting rules | Pushed (`cf53bc4`) | Read-only scan with JuliaFormatter 1.0.62 identified exactly three Julia files; formatting-only repairs are idempotent and their diff was inspected. Contributor instructions now specify the CI formatter major |
-| CFL-001 | Timestep recommendation lost representable results through intermediate overflow/underflow | Implemented; verifying | Valid 4-cell grid of length 1e-80 returned zero instead of the 512-bit oracle's 1.4184965709927286e-162. Logarithmic evaluation passed initial 3,141 numeric-range assertions and existing CFL/stability tests; expanded Float32-parameter tests running on both Julia versions |
+| CFL-001 | Timestep recommendation lost representable results through intermediate overflow/underflow | Verified; committing | Valid 4-cell grid of length 1e-80 returned zero instead of the 512-bit oracle's 1.4184965709927286e-162. Logarithmic evaluation passes 3,802 helper/range/coupled-stability assertions on each of Julia 1.12.7 and 1.13.1 (`test/test_phase_helpers.jl`) |
 
 ## Completeness roadmap
 

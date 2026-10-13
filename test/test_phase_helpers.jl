@@ -120,6 +120,66 @@ end
     @test_throws ArgumentError recommended_dt(g; ηH = Inf)
 end
 
+@testset "recommended_dt retains representable limits across numeric scales" begin
+    function reference_dt(
+        g;
+        integrator,
+        NB = 1,
+        safety = 0.8,
+        d_i = 1.0,
+        Ω_ci = 1.0,
+        η = 0.0,
+        ηH = 0.0,
+    )
+        setprecision(BigFloat, 512) do
+            k = sqrt(sum(dx -> (big(π) / BigFloat(dx))^2, g.dx))
+            K = k * BigFloat(d_i)
+            omega = (sqrt(K^4 + 4K^2) + K^2) * BigFloat(Ω_ci) / 2
+            decay = BigFloat(η) * k^2 + BigFloat(ηH) * k^4
+            s = BigFloat(safety)
+            gyro = s * BigFloat(0.3) / BigFloat(Ω_ci)
+            integrator === :cn && return Float64(gyro)
+            cl = integrator in (:camcl, :leapfrog)
+            oscillatory_limit = cl ? (decay > 0 ? 0.3 : 2.0) : 2.8
+            real_limit = cl ? 0.25 : 2.785
+            wave = s * BigFloat(NB) * BigFloat(oscillatory_limit) / omega
+            damping = decay > 0 ? s * BigFloat(NB) * BigFloat(real_limit) / decay : big(Inf)
+            return Float64(min(gyro, wave, damping))
+        end
+    end
+
+    cases = (
+        (;),
+        (; η = 1e-300),
+        (; ηH = 1e-300),
+        (; η = 1e300, ηH = 1e300),
+        (; d_i = 1e-140, Ω_ci = 1e-200, η = 1e-300),
+        (; d_i = 1e160, Ω_ci = 1e-300),
+        (; d_i = 1e-160, Ω_ci = 1e300),
+        (; Ω_ci = 1e-300),
+        (; safety = 1e-300, Ω_ci = 1e-300),
+        (; safety = nextfloat(0.0), Ω_ci = nextfloat(0.0)),
+        (; NB = typemax(Int)),
+        (; safety = 0.7f0, d_i = 0.3f0, Ω_ci = 1.1f0, η = 0.05f0, ηH = 0.02f0),
+        (; safety = 1.0f-30, d_i = 1.0f-20, Ω_ci = 1.0f-30, ηH = 1.0f-30),
+    )
+    for T in (Float32, Float64), D = 1:3
+        scales = T === Float32 ? (1e-10, 1.0, 1e10) : (1e-140, 1e-80, 1.0, 1e80, 1e140)
+        for scale in scales
+            g = FourierGrid(ntuple(_ -> 4, D), ntuple(d -> T(scale * 2^(d - 1)), D))
+            for integrator in (:rk4, :camcl, :leapfrog, :cn), options in cases
+                actual = recommended_dt(g; integrator, options...)
+                expected = reference_dt(g; integrator, options...)
+                @test !isnan(actual)
+                @test isapprox(actual, expected; rtol = 2e-12, atol = nextfloat(0.0))
+                if isfinite(expected) && expected > 0
+                    @test isfinite(actual) && actual > 0
+                end
+            end
+        end
+    end
+end
+
 @testset "§10.3 a HybridStepper run at recommended_dt is stable" begin
     T = Float64
     n, L = 32, 2π
