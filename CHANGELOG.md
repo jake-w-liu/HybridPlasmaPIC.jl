@@ -134,6 +134,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Shared checkpoint validation rejects nonfinite or negative simulation time
+  before saving or restoring hybrid, CAM-CL, electromagnetic PIC and Hall-MHD
+  state. Valid time origins, signed zero and terminal step counters remain valid.
+
 - General EMPIC charge-continuity diagnostics retain the true zero-frequency
   mode, so changes in total charge contribute to the residual. Pure Nyquist
   combinations outside the spectral derivative range remain excluded.

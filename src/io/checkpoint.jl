@@ -161,6 +161,7 @@ function _validate_checkpoint_clock_state(s, ::Type{T}) where {T}
             "checkpoint time type $(typeof(s.time)) ≠ $T (would silently convert on restore)",
         ),
     )
+    _require_finite_nonnegative_real("checkpoint time", s.time, T)
     s.step isa Int || throw(
         ArgumentError(
             "checkpoint step type $(typeof(s.step)) ≠ Int (would fail or convert on restore)",
@@ -489,8 +490,6 @@ function _validate_checkpoint_state(s, st::_ElectromagneticCheckpointStepper)
     s.n_sub isa Int && s.n_sub >= 1 ||
         throw(ArgumentError("checkpoint n_sub must be a positive Int"))
     _validate_checkpoint_time_state(s, T)
-    isfinite(s.time) && s.time >= zero(T) ||
-        throw(ArgumentError("checkpoint time must be finite and nonnegative"))
     s.last_sub_dt isa T ||
         throw(ArgumentError("checkpoint last_sub_dt type $(typeof(s.last_sub_dt)) ≠ $T"))
     isfinite(s.last_sub_dt) && zero(T) <= s.last_sub_dt <= s.last_dt ||
@@ -568,7 +567,6 @@ function _validate_checkpoint_state(s, st::HallMHDState{D,T}) where {D,T}
         nfloor = s.model.nfloor,
     )
     _validate_checkpoint_clock_state(s, T)
-    _require_finite_nonnegative_real("checkpoint time", s.time, T)
     s.floor_count isa Int && 0 <= s.floor_count <= length(st.fields.n) ||
         throw(ArgumentError("checkpoint floor_count must be an Int within the grid cell count"))
     _validate_checkpoint_fields(s.fields, _hall_checkpoint_fields(st))
