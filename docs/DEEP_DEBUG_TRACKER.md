@@ -28,8 +28,10 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   passed**. Julia 1.12.7: **106,661 passed, 1 failed**; the sole failure was
   the JET report-count gate (31 findings against a ceiling of 30). The checkpoint
   inference repair passes focused JET checks on both versions without increasing
-  the ceiling. New full-suite runs at immutable `c76e39c` are active on both
-  versions; their results are pending. Logs:
+  the ceiling. Full-suite runs at immutable `c76e39c` passed **117,438/117,438
+  tests on each of Julia 1.12.7 and 1.13.1** (48m56.7s and 37m37.6s respectively;
+  both processes exited successfully). Later fixes have separate focused
+  evidence and still require a final integrated run. Logs:
   `/tmp/hybrid-full-1138317-julia112.log` and `/tmp/hybrid-full-1138317-julia113.log`.
   New-run logs: `/tmp/hybrid-full-c76e39c-julia112.log` and
   `/tmp/hybrid-full-c76e39c-julia113.log`.
@@ -76,7 +78,7 @@ performance review. “Pending” means no current-run completion claim.
 | Diagnostics and ray/Raycon solvers | Inventory complete; detailed pass pending | Independent references, units, transport/conversion invariants |
 | Checkpoints/archives/field I/O | Independent audit active; defects confirmed | Configuration identity, exact bytes/checksums, atomic failure, restart |
 | Threads/MPI/distributed FFT/GPU | Interfaces inspected; full pass pending | Real multirank tests, backend equivalence, ownership, hardware benchmarks |
-| Packaging/quality/examples/validation | Julia 1.13 full suite passed at `1138317`; Julia 1.12 had one JET-count failure; inference repair pushed, both full suites active at `c76e39c` | CI-version tests, Aqua/JET findings, formatting, examples, validation cases |
+| Packaging/quality/examples/validation | Full suites pass 117,438 assertions on each Julia version at `c76e39c`; later changes have focused checks | CI-version tests, Aqua/JET findings, formatting, examples, validation cases |
 
 ## Verified findings and fixes
 
@@ -106,7 +108,7 @@ performance review. “Pending” means no current-run completion claim.
 | HALL-003 | Final magnetic projection can produce an infinite electric field that Hall-MHD accepts | Pushed (`f96502c`) | Validate final E before committing candidate fields. Hall suite: 558 assertions pass on each of Julia 1.12.7 and 1.13.1; 156 new checks include unchanged rejected state, an unprojected retry and a finite projected neighbor. Independent comparison: 108 successful steps match prior fields/clock exactly, with unchanged allocations. Projected nonfinite B is already rejected by the spectral curl input guard (16 additional checks). Logs: `/tmp/hall_final_e_final_julia112.log`, `/tmp/hall_final_e_final_julia113.log`, `/tmp/hall_final_e_final_comparison.log`, `/tmp/hall_projected_b_guard.log` |
 | RESTART-004 | Hall-MHD has no checkpoint/archive interface and carries inactive stage history | Pushed (`5c47d75`) | Add no-particle methods preserving all public fields and the retained stage `lapJ`. Focused Hall tests: 2,418 assertions on each Julia version; combined I/O/repro on 1.12: 7,110 assertions. Covers Float32/64, 1D–3D, three closures, initialization/live states, model changes, mutable closure ownership, array identity, rejection rollback and exact continuation. JET remains 24 reports on 1.12 and 22 on 1.13; Hall capture/validate/restore concrete analysis has zero reports. Logs: `/tmp/hybrid-io-hall-regressions112.log`, `/tmp/hybrid-io-hall-focused113.log` |
 | GYRO-002 | Parallel velocity loses representable results by rounding field projection, force, acceleration and final addition separately | Pushed (`e9991e9`) | Compensated binary factors retain the complete expression; exact rational evaluation handles uncertain cancellation/range boundaries. Fusion: 550 assertions pass on each Julia version; 59,623 independent certificate/range/physical assertions pass on 1.12, including Float16 residual-underflow witnesses. Measured nonstationary and certified-equilibrium paths allocate 0 B; an uncertified mass=3 equilibrium still allocates 8,296 B. Local nonstationary latency increased about 20%; certified-equilibrium latency increased 36–44%. Logs: `/tmp/gyro_certified_final_112.log`, `/tmp/gyro_certified_final_latest.log`, `/tmp/gyro_certified_interleaved_performance.log` |
-| PERF-002 | Hall-MHD repeats forward transforms for each velocity-gradient axis | Verified; commit in this change | Shared gradient in 2D/3D removes 12/24 forward FFTs per RK4 step. Hall tests: 627 assertions pass on each Julia version, including independent helical-wave, fourth-order convergence and nonlinear advection oracles. 108 normal-grid trajectory comparisons are exact; extreme anisotropic scaling can round differently. Benchmark `benchmark/hall_mhd_gradients.jl`: median baseline/current CPU ratios 1.085 at 128² and 1.133 at 64³; wall results vary, including mixed 2D repeats. Allocations increase 384 B/step in 2D/3D, unchanged in 1D. Logs: `/tmp/hall_gradient_final_julia112.log`, `/tmp/hall_gradient_final_julia113.log`, `/tmp/hall_gradient_final_comparison.log`, `/tmp/hall_gradient_repo_benchmark.log` |
+| PERF-002 | Hall-MHD repeats forward transforms for each velocity-gradient axis | Pushed (`870b544`) | Shared gradient in 2D/3D removes 12/24 forward FFTs per RK4 step. Hall tests: 627 assertions pass on each Julia version, including independent helical-wave, fourth-order convergence and nonlinear advection oracles. 108 normal-grid trajectory comparisons are exact; extreme anisotropic scaling can round differently. Benchmark `benchmark/hall_mhd_gradients.jl`: median baseline/current CPU ratios 1.085 at 128² and 1.133 at 64³; wall results vary, including mixed 2D repeats. Allocations increase 384 B/step in 2D/3D, unchanged in 1D. Logs: `/tmp/hall_gradient_final_julia112.log`, `/tmp/hall_gradient_final_julia113.log`, `/tmp/hall_gradient_final_comparison.log`, `/tmp/hall_gradient_repo_benchmark.log` |
 
 ## Completeness roadmap
 
