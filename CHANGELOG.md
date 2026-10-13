@@ -80,6 +80,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- HDF5 field writes preserve logical values for ranges, transposes, and strided
+  views. Contiguous arrays and views retain the direct write path.
+
 - Electrostatic PIC retains the previous timestep so variable-step particle kicks
   span the correct half-time levels; fixed-step results remain unchanged.
 

@@ -15,8 +15,10 @@ completeness. Comparative leadership requires reproducible external benchmarks.
 - Inspected package exports, manifests, CI, contribution rules, README, tests,
   validation catalog, hybrid integrators, coupling kernels, and checkpoint paths.
 - Julia 1.12.7 matches the CI minor version; the default local Julia is 1.13.1.
-- Full `Pkg.test()` started on 1.13.1; result pending. A dependency-extension
-  precompile error appeared before tests started and needs resolution/verification.
+- Initial full suites were started in the live worktree on Julia 1.13.1 and
+  1.12.7. Concurrent test/code edits mean these runs cannot prove the final
+  revision; final full-suite checks will use an immutable checkout. The 1.13.1
+  log also reports SHA compatibility and extension-precompilation issues to assess.
 - Baseline kernel harness: derivative 2.67 µs / 0 B; CIC deposit 305.29 µs for
   12,800 particles; hybrid step 1.54 ms for 3,200 particles. These are local
   measurements, not portable performance targets.
@@ -52,9 +54,11 @@ performance review. “Pending” means no current-run completion claim.
 | --- | --- | --- | --- |
 | PERF-001 | Vector gather repeats the same stencil three times | Pushed (`58fa769`) | 304 focused assertions plus hybrid/CAM-CL suites pass; reproducible speed/allocation comparison in `benchmark/benchmarks.jl` |
 | IO-001 | `save_run` rejects its own valid dictionary output | Pushed (`d1db13d`) | Exact serialized bytes hashed under schema 4; 159 metadata/archive/field/async assertions pass, including cross-process and corruption cases |
-| TIME-001 | ES/EM PIC accepts changed `dt` but uses the wrong half-step interval | ES verified; EM underway | ES suite passes, including 180 new phase/convergence assertions; independent original-code comparison gives bitwise equal fixed-step positions, velocities and fields |
+| TIME-001 | ES/EM PIC accepts changed `dt` but uses the wrong half-step interval | ES pushed (`def6548`); EM underway | ES suite passes, including 180 new phase/convergence assertions; independent original-code comparison gives bitwise equal fixed-step positions, velocities and fields |
 | IO-002 | Same-grid checkpoint silently accepts different model parameters | Confirmed; repair planned | Restore Te=0.1 state into Te=2.0 stepper: next-step Ex differs by 1.133; record/validate model and shape |
 | IO-003 | Truncated field file allocates declared payload before checking available bytes | Pushed (`c7b1c6f`) | 76 field/async/metadata assertions pass, including malformed extents, bounded allocation, empty and 0D arrays |
+
+| IO-004 | HDF5 silently writes incorrect values from column-gapped views; range-backed arrays throw | Verified; committing | 61 extension assertions pass, covering exact data/type/shape, contiguous-buffer identity and error recovery |
 
 ## Completeness roadmap
 
