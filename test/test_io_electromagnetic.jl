@@ -409,3 +409,164 @@ end
         end
     end
 end
+
+function io_em_shared_empty(electrons::ParticleSet{D,T}, name, component, mass) where {D,T}
+    ions = ParticleSet{D,T}(0; m = mass)
+    if name === :x
+        ions.x = Base.setindex(ions.x, electrons.x[component], component)
+    elseif name === :v
+        ions.v = Base.setindex(ions.v, electrons.v[component], component)
+    else
+        setproperty!(ions, name, getproperty(electrons, name))
+    end
+    return ions
+end
+
+function io_em_empty_weight_wrapper(ps::ParticleSet{D,T}, owner, kind) where {D,T}
+    storage = T === Float32 ? owner.tag : owner.id
+    weights = kind === :indices ? view(ones(T, 3), owner.id) : reinterpret(T, storage)
+    kind === :nested && (weights = view(weights, :))
+    return ParticleSet{D,T}(ps.x, ps.v, weights, ps.id, ps.tag, ps.q, ps.m)
+end
+
+@testset "EM restart rejects empty wrappers coupled to a resized population" begin
+    for T in (Float32, Float64), (State, D) in ((EMPIC1D, 1), (EMPIC, 1), (EMPIC, 2), (EMPIC, 3))
+        g = FourierGrid(ntuple(_ -> 3, D), ntuple(_ -> T(2π), D))
+        for empty_electrons in (true, false)
+            electrons = ParticleSet{D,T}(empty_electrons ? 0 : 2; q = -one(T))
+            ions = ParticleSet{D,T}(empty_electrons ? 3 : 0; m = T(16))
+            for ps in (electrons, ions), x in ps.x
+                fill!(x, T(0.3))
+            end
+            st = State(g, nparticles(electrons); mobile = true, mi = T(16))
+            mktemp() do path, io
+                close(io)
+                save_checkpoint(path, st, electrons, ions)
+                for kind in (:reinterpret, :nested, :indices)
+                    target = State(g, 1; mobile = true, mi = T(25), c = T(5))
+                    e2 = ParticleSet{D,T}(0; q = -one(T))
+                    i2 = ParticleSet{D,T}(0; m = T(25))
+                    if empty_electrons
+                        e2 = io_em_empty_weight_wrapper(e2, i2, kind)
+                    else
+                        i2 = io_em_empty_weight_wrapper(i2, e2, kind)
+                    end
+                    io_em_reject_unchanged(target, e2, i2, path)
+                    bytes = read(path)
+                    @test_throws ArgumentError save_checkpoint(path, target, e2, i2)
+                    @test read(path) == bytes
+                    @test_throws ArgumentError archive_run(path, target, e2, i2; rng_seed = 3)
+                    @test read(path) == bytes
+                    serialize(path, HybridPlasmaPIC._checkpoint_state(target, e2, i2))
+                    io_em_reject_unchanged(target, e2, i2, path)
+                    write(path, bytes)
+
+                    # An empty wrapper with an independent backing buffer is valid.
+                    independent = ParticleSet{D,T}(0)
+                    if empty_electrons
+                        e2 = io_em_empty_weight_wrapper(e2, independent, kind)
+                    else
+                        i2 = io_em_empty_weight_wrapper(i2, independent, kind)
+                    end
+                    @test load_checkpoint!(target, e2, i2, path) === target
+                    @test isequal(io_em_particle_values(e2), io_em_particle_values(electrons))
+                    @test isequal(io_em_particle_values(i2), io_em_particle_values(ions))
+                    step_empic!(st, electrons, ions, T(0.001))
+                    step_empic!(target, e2, i2, T(0.001))
+                    @test isequal(io_em_fields(target), io_em_fields(st))
+                    @test isequal(io_em_particle_values(e2), io_em_particle_values(electrons))
+                    @test isequal(io_em_particle_values(i2), io_em_particle_values(ions))
+                    save_checkpoint(path, st, electrons, ions)
+                end
+            end
+        end
+    end
+end
+
+@testset "EM checkpoints reject shared empty storage before resizing either species" begin
+    for T in (Float32, Float64), (State, D) in ((EMPIC1D, 1), (EMPIC, 1), (EMPIC, 2), (EMPIC, 3))
+        st, electrons, ions = io_em_run(State, T, Val(D); mobile = true)
+        step_empic!(st, electrons, ions, T(0.002))
+        target = State(st.g, 1; mobile = true, mi = T(25), c = T(5))
+        empty_e = ParticleSet{D,T}(0; q = -one(T))
+        components = (
+            ntuple(d -> (:x, d), D)...,
+            ntuple(c -> (:v, c), 3)...,
+            (:weight, 1),
+            (:id, 1),
+            (:tag, 1),
+        )
+        mktemp() do path, io
+            close(io)
+            save_checkpoint(path, st, electrons, ions)
+            io_em_reject_unchanged(target, empty_e, empty_e, path)
+            for (name, component) in components
+                shared_i = io_em_shared_empty(empty_e, name, component, st.mi)
+                io_em_reject_unchanged(target, empty_e, shared_i, path)
+            end
+            empty_i = ParticleSet{D,T}(0; m = T(25))
+            arrays = (
+                empty_e.x...,
+                empty_e.v...,
+                empty_e.weight,
+                empty_e.id,
+                empty_e.tag,
+                empty_i.x...,
+                empty_i.v...,
+                empty_i.weight,
+                empty_i.id,
+                empty_i.tag,
+            )
+            @test load_checkpoint!(target, empty_e, empty_i, path) === target
+            @test io_em_bytes(target, empty_e, empty_i) == io_em_bytes(st, electrons, ions)
+            restored_arrays = (
+                empty_e.x...,
+                empty_e.v...,
+                empty_e.weight,
+                empty_e.id,
+                empty_e.tag,
+                empty_i.x...,
+                empty_i.v...,
+                empty_i.weight,
+                empty_i.id,
+                empty_i.tag,
+            )
+            @test all(a === b for (a, b) in zip(arrays, restored_arrays))
+            for (dt, ns) in ((T(0.001), 1), (T(0.003), 3))
+                st.n_sub = target.n_sub = ns
+                step_empic!(st, electrons, ions, dt)
+                step_empic!(target, empty_e, empty_i, dt)
+                @test io_em_bytes(target, empty_e, empty_i) == io_em_bytes(st, electrons, ions)
+            end
+
+            # Empty saved populations must obey the same independent-storage contract.
+            empty_st = State(st.g, 0; mobile = true, mi = st.mi)
+            e0 = ParticleSet{D,T}(0; q = -one(T))
+            i0 = ParticleSet{D,T}(0; m = st.mi)
+            save_checkpoint(path, empty_st, e0, i0)
+            bytes = read(path)
+            saved = deserialize(path)
+            for (name, component) in components
+                shared_i = io_em_shared_empty(e0, name, component, st.mi)
+                @test_throws ArgumentError save_checkpoint(path, empty_st, e0, shared_i)
+                @test read(path) == bytes
+                @test_throws ArgumentError archive_run(path, empty_st, e0, shared_i; rng_seed = 3)
+                @test read(path) == bytes
+                shared_record = HybridPlasmaPIC._checkpoint_particle_state(shared_i)
+                # Use the original empty electron arrays too, preserving the stored alias.
+                packed = merge(
+                    saved,
+                    (
+                        electrons = HybridPlasmaPIC._checkpoint_particle_state(e0),
+                        ions = shared_record,
+                    ),
+                )
+                serialize(path, packed)
+                io_em_reject_unchanged(target, empty_e, empty_i, path)
+                write(path, bytes)
+            end
+            @test load_checkpoint!(target, empty_e, empty_i, path) === target
+            @test io_em_bytes(target, empty_e, empty_i) == io_em_bytes(empty_st, e0, i0)
+        end
+    end
+end

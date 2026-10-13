@@ -1391,3 +1391,92 @@ end
     @test nparticles(el) == 1
     @test nparticles(ions) == 1
 end
+
+@testset "ionization rejects shared empty storage and preserves independent empty species" begin
+    for T in (Float32, Float64), D = 1:3
+        electrons = ParticleSet{D,T}(0; q = -one(T))
+        ions = ParticleSet{D,T}(0; m = T(100))
+        for name in (:x, :v, :weight, :id, :tag)
+            shared = ParticleSet{D,T}(
+                name === :x ? electrons.x : ions.x,
+                name === :v ? electrons.v : ions.v,
+                name === :weight ? electrons.weight : ions.weight,
+                name === :id ? electrons.id : ions.id,
+                name === :tag ? electrons.tag : ions.tag,
+                one(T),
+                T(100),
+            )
+            rng = MersenneTwister(17)
+            untouched_rng = copy(rng)
+            e_nextid, i_nextid = Ref(UInt64(3)), Ref(UInt64(5))
+            @test_throws ArgumentError ionize_mcc!(
+                electrons,
+                shared,
+                T(0.1);
+                nσ_iz = one(T),
+                E_iz = T(0.5),
+                rng,
+                e_nextid,
+                i_nextid,
+            )
+            @test nparticles(electrons) == nparticles(shared) == 0
+            @test (e_nextid[], i_nextid[]) == (UInt64(3), UInt64(5))
+            @test rand(rng) == rand(untouched_rng)
+        end
+        rng = MersenneTwister(17)
+        untouched_rng = copy(rng)
+        @test ionize_mcc!(electrons, ions, T(0.1); nσ_iz = one(T), E_iz = T(0.5), rng) == 0
+        @test nparticles(electrons) == nparticles(ions) == 0
+        @test rand(rng) == rand(untouched_rng)
+    end
+end
+
+@testset "Particle storage alias checks include empty wrappers and retain disjoint views" begin
+    for T in (Float32, Float64)
+        storage = zeros(T, 6)
+        independent = zeros(T, 6)
+        empty = T[]
+        other_empty = T[]
+        indices = Int[]
+        for (a, b, aliases) in (
+            (empty, empty, true),
+            (empty, other_empty, false),
+            (view(empty, :), empty, true),
+            (view(empty, :), view(other_empty, :), false),
+            (view(storage, 1:0), storage, true),
+            (view(storage, 1:0), view(independent, 1:0), false),
+            (view(storage, 1:3), view(storage, 4:6), false),
+            (view(storage, 1:3), view(storage, 3:6), true),
+            (view(storage, indices), indices, true),
+            (view(storage, indices), view(independent, indices), true),
+            (view(storage, indices), view(independent, Int[]), false),
+        )
+            @test HybridPlasmaPIC._particle_arrays_mightalias(a, b) === aliases
+            @test HybridPlasmaPIC._particle_arrays_mightalias(b, a) === aliases
+        end
+        electrons = ParticleSet{1,T}(0; q = -one(T))
+        ions = ParticleSet{1,T}(0; m = T(100))
+        buffer = T === Float32 ? ions.tag : ions.id
+        electrons = ParticleSet{1,T}(
+            electrons.x,
+            electrons.v,
+            reinterpret(T, buffer),
+            electrons.id,
+            electrons.tag,
+            electrons.q,
+            electrons.m,
+        )
+        rng = MersenneTwister(17)
+        untouched_rng = copy(rng)
+        @test_throws ArgumentError ionize_mcc!(
+            electrons,
+            ions,
+            T(0.1);
+            nσ_iz = one(T),
+            E_iz = T(0.5),
+            rng,
+        )
+        @test nparticles(electrons) == nparticles(ions) == 0
+        @test rand(rng) == rand(untouched_rng)
+    end
+end

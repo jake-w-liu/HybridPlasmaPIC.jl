@@ -753,16 +753,49 @@ function _require_finite_particle_velocities(ps::ParticleSet, context::AbstractS
     return nothing
 end
 
+function _particle_backing_mightalias(a::AbstractArray, b::AbstractArray)
+    (a === b || Base.mightalias(a, b)) && return true
+    pa, pb = parent(a), parent(b)
+    pa === a || (_particle_backing_mightalias(pa, b) && return true)
+    pb === b || (_particle_backing_mightalias(a, pb) && return true)
+    # A view's mutable indices can grow along with another particle array even
+    # when its data parent is independent. Ranges contain no resizable storage.
+    if a isa SubArray
+        for index in parentindices(a)
+            index isa AbstractArray &&
+                !(index isa AbstractRange) &&
+                _particle_backing_mightalias(index, b) &&
+                return true
+        end
+    end
+    if b isa SubArray
+        for index in parentindices(b)
+            index isa AbstractArray &&
+                !(index isa AbstractRange) &&
+                _particle_backing_mightalias(a, index) &&
+                return true
+        end
+    end
+    return false
+end
+
+function _particle_arrays_mightalias(a::AbstractArray, b::AbstractArray)
+    (a === b || Base.mightalias(a, b)) && return true
+    # Empty arrays have no overlapping elements, but wrappers can still share
+    # storage whose later resize would change another particle component.
+    return (isempty(a) || isempty(b)) && _particle_backing_mightalias(a, b)
+end
+
 function _mightalias_particle_storage(candidate, ps::ParticleSet)
     for d = 1:length(ps.x)
-        Base.mightalias(candidate, ps.x[d]) && return true
+        _particle_arrays_mightalias(candidate, ps.x[d]) && return true
     end
     for c = 1:3
-        Base.mightalias(candidate, ps.v[c]) && return true
+        _particle_arrays_mightalias(candidate, ps.v[c]) && return true
     end
-    Base.mightalias(candidate, ps.weight) && return true
-    Base.mightalias(candidate, ps.id) && return true
-    Base.mightalias(candidate, ps.tag) && return true
+    _particle_arrays_mightalias(candidate, ps.weight) && return true
+    _particle_arrays_mightalias(candidate, ps.id) && return true
+    _particle_arrays_mightalias(candidate, ps.tag) && return true
     return false
 end
 

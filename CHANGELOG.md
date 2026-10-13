@@ -127,6 +127,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Particle storage checks recognize shared empty vectors, reinterpret wrappers,
+  and views with shared mutable indices. Checkpoint restoration, hybrid
+  collection evolution and ionization reject these coupled buffers before
+  mutation, while independent empty storage and disjoint nonempty views remain
+  supported.
+
 - AMR restriction preserves cancellation when BigFloat child values retain
   more precision than the caller's current setting. The complete average is
   rounded once at the working precision; hardware-float paths are unchanged.

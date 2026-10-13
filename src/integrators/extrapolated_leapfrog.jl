@@ -120,20 +120,14 @@ function _require_independent_hybrid_species(species)
         arrays = (ps.x..., ps.v..., ps.weight, ps.id, ps.tag)
         for (j, a) in enumerate(arrays)
             for k = 1:(j-1)
-                (a === arrays[k] || Base.mightalias(a, arrays[k])) &&
+                _particle_arrays_mightalias(a, arrays[k]) &&
                     throw(ArgumentError("hybrid particle components must not alias"))
             end
         end
         for (j, other) in enumerate(species)
             j >= i && break
-            # Empty vectors can report no memory overlap even when identical;
-            # restoring or resizing them must not couple two populations.
-            other_arrays = (other.x..., other.v..., other.weight, other.id, other.tag)
-            for a in arrays, b in other_arrays
-                (a === b || Base.mightalias(a, b)) && throw(
-                    ArgumentError("hybrid populations must have independent particle storage"),
-                )
-            end
+            _particle_sets_mightalias(ps, other) &&
+                throw(ArgumentError("hybrid populations must have independent particle storage"))
         end
     end
     return nothing

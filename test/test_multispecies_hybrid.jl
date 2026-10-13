@@ -270,6 +270,35 @@ end
     end
 end
 
+@testset "Hybrid collections reject empty wrappers sharing component or species storage" begin
+    for T in (Float32, Float64), D = 1:3, St in (HybridStepper, CAMCLStepper)
+        st, species, _, _ = multi_uniform(T, Val(D); integrator = St)
+        multi_init!(st, species)
+        multi_step!(st, species, T(0.001))
+        for same_population in (false, true)
+            empty = ParticleSet{D,T}(0)
+            other = ParticleSet{D,T}(0)
+            owner = same_population ? empty : other
+            buffer = T === Float32 ? owner.tag : owner.id
+            wrapped = ParticleSet{D,T}(
+                empty.x,
+                empty.v,
+                reinterpret(T, buffer),
+                empty.id,
+                empty.tag,
+                empty.q,
+                empty.m,
+            )
+            population = [species[1], wrapped, other]
+            before = multi_public_state(st, population)
+            @test_throws ArgumentError multi_init!(st, population)
+            @test multi_public_state(st, population) == before
+            @test_throws ArgumentError multi_step!(st, population, T(0.001))
+            @test multi_public_state(st, population) == before
+        end
+    end
+end
+
 function multi_wave_error(St, steps; variable = false)
     N, L, B0, amplitude = 16, 2π, 0.8, 1e-7
     g = FourierGrid((N,), (L,))
