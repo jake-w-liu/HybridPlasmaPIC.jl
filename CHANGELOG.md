@@ -8,6 +8,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- CAM-CL checkpoint/restart and run archives preserve persistent magnetic copies,
+  subcycle phase, and particle timestep history. Restores validate the integrator
+  and all saved field components before modifying the destination.
+
 - **WKB ray tracing for the hybrid wave branches**
   (`src/diagnostics/ray_tracing.jl`): warm Hall-MHD scalar dispersion relation
   (verified against the HYB-006 eigenvalue oracle to ~1e-11), branch

@@ -4,7 +4,7 @@
 # Three additive utilities, all built on existing infrastructure (no new deps):
 #
 #   * archive_run / load_archive — a provenance-stamped, checksum-verified snapshot
-#     of a full HybridStepper + ParticleSet run state. This layers the run-metadata
+#     of a HybridStepper/CAMCLStepper + ParticleSet run state. This layers the run-metadata
 #     wrapper (save_run/load_run + capture_metadata/RunMetadata from metadata.jl)
 #     over the same deterministic state that checkpoint.jl restarts from, so an
 #     archive is self-describing (who/when/which commit/which seed) AND integrity
@@ -25,17 +25,19 @@
 # ---------------------------------------------------------------- archive
 
 """
-    archive_run(path, st::HybridStepper, ps::ParticleSet; rng_seed,
+    archive_run(path, st, ps::ParticleSet; rng_seed,
                 normalization="Omega_ci", filter_desc="", boundary_desc="periodic",
                 diagnostic_desc="", rank_layout="") -> path
 
 Write a provenance-stamped, checksum-verified archive of the run state at `path`.
+Supports [`HybridStepper`](@ref) and [`CAMCLStepper`](@ref).
 
 The archive captures the deterministic simulation state (model and shape
 configuration, particle phase space + provenance, the canonical magnetic field
 `st.fields.B`, the carried electric field `st.fields.E`, the grid identity
 `st.g.n`/`st.g.L`, the `time`/`step` counters, and `last_dt` for the particle
-velocity time level — the same state [`save_checkpoint`](@ref) restarts from) together with a
+velocity time level, plus the persistent magnetic copies and subcycle phase for
+CAM-CL — the same state [`save_checkpoint`](@ref) restarts from) together with a
 [`RunMetadata`](@ref) record built via [`capture_metadata`](@ref). It is written
 through [`save_run`](@ref), so the file carries the schema tag and an integrity
 checksum over the state.
@@ -48,7 +50,7 @@ leave it empty for the serial default.
 """
 function archive_run(
     path::AbstractString,
-    st::HybridStepper{D,T},
+    st::_HybridCheckpointStepper{D,T},
     ps::ParticleSet{D,T};
     rng_seed::Integer,
     normalization::AbstractString = "Omega_ci",

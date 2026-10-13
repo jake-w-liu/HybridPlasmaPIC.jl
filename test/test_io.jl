@@ -18,6 +18,117 @@ mutable struct CheckpointParameterizedShape <: ShapeFunction
     parameters::Vector{Float64}
 end
 
+function build_camcl_checkpoint_run(::Type{T}, ::Val{D}) where {T,D}
+    n = ntuple(d -> d == 1 ? 8 : 4, D)
+    L = ntuple(_ -> T(2π), D)
+    counts = ntuple(d -> 2n[d], D)
+    g = FourierGrid(n, L)
+    ps = ParticleSet{D,T}(prod(counts))
+    load_lattice!(ps, ntuple(_ -> zero(T), D), L, counts)
+    set_density_weight!(ps, one(T), g)
+    ps.v[1] .= T(0.03) .* sin.(ps.x[1])
+    ps.v[2] .= T(0.01) .* cos.(ps.x[1])
+    st = CAMCLStepper(g, HybridModel(IsothermalElectrons(T(0.1))), CIC(), nparticles(ps))
+    fill!(st.fields.B[1], one(T))
+    for I in CartesianIndices(n)
+        x = T(I[1] - 1) * g.dx[1]
+        st.fields.B[2][I] = T(0.05) * sin(x)
+        st.fields.B[3][I] = T(0.02) * cos(x)
+    end
+    init_camcl!(st, ps)
+    return ps, st
+end
+
+@testset "CAM-CL checkpoint preserves persistent field and particle phases" begin
+    for T in (Float32, Float64),
+        D in (1, 2, 3),
+        scenario in (:initial, :live, :reset, :edited, :inactive)
+
+        ps, st = build_camcl_checkpoint_run(T, Val(D))
+        dt = T(0.02)
+        if scenario != :initial
+            for _ = 1:3
+                step_camcl!(st, ps, dt; NB = 2)
+            end
+            @test st.cl_live[]
+        end
+        if scenario == :reset
+            init_camcl!(st, ps)
+            @test st.cl_h[] > zero(T)
+        elseif scenario == :edited
+            st.fields.B[2][1] += T(0.001)
+            @test st.fields.B[2] != st.Bout[2]
+        elseif scenario == :inactive
+            st.cl_live[] = false
+        end
+        mktemp() do path, io
+            close(io)
+            @test save_checkpoint(path, st, ps) == path
+            grid = FourierGrid(st.g.n, st.g.L)
+            restored = CAMCLStepper(grid, st.model, st.shape, 1)
+            particles = ParticleSet{D,T}(1)
+            @test load_checkpoint!(restored, particles, path) === restored
+            @test HybridPlasmaPIC._checkpoint_state(restored, particles) ==
+                  HybridPlasmaPIC._checkpoint_state(st, ps)
+            @test length(restored.work) == nparticles(ps)
+            # Equal substeps first exercise pair persistence; changes afterward
+            # exercise the same rebootstrap decisions as uninterrupted evolution.
+            for (next_dt, NB) in ((dt, 2), (dt / 2, 2), (dt / 2, 4), (dt, 4))
+                step_camcl!(st, ps, next_dt; NB)
+                step_camcl!(restored, particles, next_dt; NB)
+                @test HybridPlasmaPIC._checkpoint_state(restored, particles) ==
+                      HybridPlasmaPIC._checkpoint_state(st, ps)
+            end
+        end
+    end
+end
+
+@testset "CAM-CL checkpoint validates persistent state before mutation" begin
+    ps, st = build_camcl_checkpoint_run(Float64, Val(1))
+    step_camcl!(st, ps, 0.02; NB = 2)
+    mktemp() do path, io
+        close(io)
+        save_checkpoint(path, st, ps)
+        state = deserialize(path)
+        destination = CAMCLStepper(st.g, HybridModel(IsothermalElectrons(2.0)), CIC(), 1)
+        particles = ParticleSet{1,Float64}(1)
+        fill!(particles.x[1], 0.75)
+        before = deepcopy(HybridPlasmaPIC._checkpoint_state(destination, particles))
+        missing_phase = (; (k => v for (k, v) in pairs(state) if k != :cl_h)...)
+        malformed = (
+            merge(state, (Blead = (state.Blead[1], state.Blead[2]),)),
+            merge(state, (Blag = ([1.0], state.Blag[2], state.Blag[3]),)),
+            merge(state, (Bout = map(x -> Float32.(x), state.Bout),)),
+            merge(state, (cl_h = NaN,)),
+            merge(state, (cl_h = -0.01,)),
+            merge(state, (cl_h = 0.01f0,)),
+            merge(state, (cl_h = 0.0, cl_live = true)),
+            merge(state, (cl_live = 1,)),
+            missing_phase,
+        )
+        for bad in malformed
+            serialize(path, bad)
+            @test_throws ArgumentError load_checkpoint!(destination, particles, path)
+            @test HybridPlasmaPIC._checkpoint_state(destination, particles) == before
+            @test length(destination.work) == 1
+        end
+    end
+end
+
+@testset "checkpoints reject switching the field integrator" begin
+    ps, camcl = build_camcl_checkpoint_run(Float64, Val(1))
+    hybrid = HybridStepper(camcl.g, camcl.model, camcl.shape, nparticles(ps))
+    for (source, target) in ((camcl, hybrid), (hybrid, camcl))
+        before = deepcopy(HybridPlasmaPIC._checkpoint_state(target, ps))
+        mktemp() do path, io
+            close(io)
+            save_checkpoint(path, source, ps)
+            @test_throws ArgumentError load_checkpoint!(target, ps, path)
+            @test HybridPlasmaPIC._checkpoint_state(target, ps) == before
+        end
+    end
+end
+
 function build_run(seed)
     T = Float64
     n = 16
@@ -305,6 +416,7 @@ end
     st = HybridStepper(g, HybridModel(IsothermalElectrons(0.5)), CIC(), 32)
     ps = ParticleSet{1,Float64}(32)
     legacy = (
+        integrator = :rk4,
         D = 1,
         T = Float64,
         ncell = st.g.n,
@@ -336,6 +448,7 @@ end
     fill!(ps.x[1], 0.25)
     fill!(st.fields.B[1], 7.0)
     legacy = (
+        integrator = :rk4,
         D = 1,
         T = Float64,
         ncell = st.g.n,
@@ -371,6 +484,7 @@ end
     fill!(st.fields.B[1], 9.0)
     fill!(st.fields.E[1], 8.0)
     legacy = (
+        integrator = :rk4,
         D = 1,
         T = Float64,
         ncell = st.g.n,
@@ -407,6 +521,7 @@ end
     st.step[] = 3
     st.time[] = 0.75
     base = (
+        integrator = :rk4,
         D = 1,
         T = Float64,
         ncell = st.g.n,

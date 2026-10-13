@@ -61,7 +61,8 @@ performance review. “Pending” means no current-run completion claim.
 | IO-004 | HDF5 silently writes incorrect values from column-gapped views; range-backed arrays throw | Pushed (`b228b3f`) | 61 extension assertions pass, covering exact data/type/shape, contiguous-buffer identity and error recovery |
 | TIME-002 | Hybrid/CAM-CL/MPI use incorrect kick interval after changing dt | Pushed (`236d5d9`) | 277 phase/convergence/MPI assertions; hybrid/CAM-CL/MPI regressions and real 2-rank suite pass; fixed-step comparison with original code is bitwise equal |
 | IO-005 | Checkpoint restore fails on matching-length particle views and can partially mutate destination | Pushed (`236d5d9`) | 271 checkpoint/archive assertions pass, including 60 view/unsupported-resize assertions |
-| PKG-001 | SHA compatibility excluded Julia 1.13’s bundled SHA 1.0 | Verified; committing | Installed-version compatibility check plus 60 metadata assertions pass on each of Julia 1.12.7 and 1.13.1 |
+| PKG-001 | SHA compatibility excluded Julia 1.13’s bundled SHA 1.0 | Pushed (`4b5611d`) | Installed-version compatibility check plus 60 metadata assertions pass on each of Julia 1.12.7 and 1.13.1 |
+| RESTART-001 | CAM-CL lacked checkpoint/archive methods and requires persistent magnetic state | Verified; committing | 710 checkpoint/archive/MPI assertions pass, including 1D–3D, Float32/64, phase resets, edited fields, timestep/subcycle changes, malformed-state rejection, and exact continuation |
 
 ## Completeness roadmap
 
@@ -72,11 +73,11 @@ benchmark before implementation. The roadmap remains open to new findings.
 | Priority | Capability / gap | Plan and completion evidence | State |
 | --- | --- | --- | --- |
 | 1 | Reliable variable-step evolution | Correct phase state in ES/EM, hybrid/CAM-CL and MPI; preserve it in checkpoints; verify analytic trajectories and convergence | Active |
-| 1 | Restart across production solvers | CAM-CL lacks save/load methods and needs persistent Blead/Blag/Bout/cl_h/cl_live beyond Hybrid state. Implement shared checkpoint path with integrator-specific persistent fields, then extend other models | CAM-CL implementation active |
+| 1 | Restart across production solvers | CAM-CL implemented through the shared checkpoint path, preserving Blead/Blag/Bout/cl_h/cl_live. Electrostatic restart is next; assess other models afterward | CAM-CL verified; electrostatic design active |
 | 1 | Reproducible archives and bounded field I/O | Fix checksum representation and malformed-file allocation; cross-process and corruption tests | Active |
 | 2 | Multispecies hybrid evolution | `compute_moments_multi!` exists; built-in hybrid steppers document one proton species. Design shared-field multispecies advancement and conservation/dispersion benchmarks | Planned |
 | 2 | Evolving electron pressure integrated into steppers | Standalone `advance_electron_pressure!` exists; built-in periodic steppers use algebraic closures. Define transport/heating coupling and energy-budget acceptance | Planned |
-| 2 | Multidimensional EM electron subcycling | README limits `n_sub` to `EMPIC1D`; extend common EM path with charge-continuity and dispersion checks | Planned |
+| 2 | Multidimensional EM electron subcycling | Extend the common EM path with charge-continuity, Gauss-law, species phase, and coupled convergence checks | Implementation active |
 | 2 | Nonperiodic EM-PIC boundaries | README declares periodic EM-PIC only; design compatible field/particle boundaries with reflection/transmission and charge tests | Planned |
 | 3 | Production distributed stepping | MPI reference stepping replicates fields; design domain-owned fields/moments with migration and distributed operators; verify serial equivalence and scaling | Planned |
 | 3 | Production GPU kernels | README claims array plumbing only; implement coupled gather/push/deposit/field paths with backend equivalence, memory and throughput measurements | Planned |

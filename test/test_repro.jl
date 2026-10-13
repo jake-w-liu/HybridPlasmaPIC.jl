@@ -128,6 +128,26 @@ end
     end
 end
 
+@testset "CAM-CL archive preserves the restart state" begin
+    g, model, initial, ps = _build_run(; N = 32)
+    st = CAMCLStepper(g, model, CIC(), nparticles(ps))
+    for c = 1:3
+        st.fields.B[c] .= initial.fields.B[c]
+    end
+    init_camcl!(st, ps)
+    step_camcl!(st, ps, 0.01)
+    mktempdir() do dir
+        checkpoint_path = joinpath(dir, "checkpoint.bin")
+        archive_path = joinpath(dir, "archive.bin")
+        save_checkpoint(checkpoint_path, st, ps)
+        archive_run(archive_path, st, ps; rng_seed = 7)
+        @test deserialize(checkpoint_path) == load_archive(archive_path).state
+        @test load_archive(archive_path).state.integrator === :camcl
+        @test load_archive(archive_path).state.cl_live == st.cl_live[]
+        @test load_archive(archive_path).state.cl_h == st.cl_h[]
+    end
+end
+
 @testset "archive_run validates rng_seed range" begin
     _, _, st, ps = _build_run(; N = 16)
     mktemp() do path, io

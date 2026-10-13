@@ -4,12 +4,16 @@
 # restart is: model and shape, particle phase space + provenance, canonical B,
 # carried E, time/step counters, and the previous particle timestep. The frozen
 # n+1/2 moments are scratch recomputed every step, so they are not stored.
+# CAM-CL also retains its two magnetic copies, prior output, and subcycle phase.
 # ponytail: stdlib Serialization (no extra dep). Swap for HDF5 when cross-version
 # or cross-language portability is needed.
 
 using Serialization
 
+const _HybridCheckpointStepper{D,T} = Union{HybridStepper{D,T},CAMCLStepper{D,T}}
+
 const _CHECKPOINT_REQUIRED_FIELDS = (
+    :integrator,
     :D,
     :T,
     :ncell,
@@ -118,19 +122,46 @@ function _validate_checkpoint_particle_state(s, ::Val{D}) where {D}
     return nothing
 end
 
-function _validate_checkpoint_field_state(s, st)
-    s.B isa Tuple || throw(ArgumentError("checkpoint B fields must be stored as a tuple"))
-    s.E isa Tuple || throw(ArgumentError("checkpoint E fields must be stored as a tuple"))
-    length(s.B) == 3 || throw(ArgumentError("checkpoint has $(length(s.B)) B arrays, expected 3"))
-    length(s.E) == 3 || throw(ArgumentError("checkpoint has $(length(s.E)) E arrays, expected 3"))
+function _validate_checkpoint_field_components(name::Symbol, components, reference)
+    components isa Tuple ||
+        throw(ArgumentError("checkpoint $name fields must be stored as a tuple"))
+    length(components) == 3 ||
+        throw(ArgumentError("checkpoint has $(length(components)) $name arrays, expected 3"))
     for c = 1:3
-        _validate_checkpoint_array(Symbol(:B, c), s.B[c], st.fields.B[c])
-        _validate_checkpoint_array(Symbol(:E, c), s.E[c], st.fields.E[c])
+        _validate_checkpoint_array(Symbol(name, c), components[c], reference[c])
     end
     return nothing
 end
 
-function _validate_checkpoint_state(s, st::HybridStepper{D,T}) where {D,T}
+function _validate_checkpoint_field_state(s, st)
+    _validate_checkpoint_field_components(:B, s.B, st.fields.B)
+    _validate_checkpoint_field_components(:E, s.E, st.fields.E)
+    return nothing
+end
+
+function _validate_checkpoint_integrator_state(s, st::_HybridCheckpointStepper{D,T}) where {D,T}
+    expected = st isa CAMCLStepper ? :camcl : :rk4
+    s.integrator === expected ||
+        throw(ArgumentError("checkpoint integrator $(s.integrator) ≠ $expected"))
+    if st isa CAMCLStepper
+        for name in (:Blead, :Blag, :Bout, :cl_h, :cl_live)
+            hasproperty(s, name) || throw(ArgumentError("checkpoint is missing $name"))
+        end
+        for name in (:Blead, :Blag, :Bout)
+            _validate_checkpoint_field_components(name, getproperty(s, name), getproperty(st, name))
+        end
+        s.cl_h isa T || throw(ArgumentError("checkpoint cl_h type $(typeof(s.cl_h)) ≠ $T"))
+        s.cl_live isa Bool || throw(ArgumentError("checkpoint cl_live must be a Bool"))
+        isfinite(s.cl_h) && s.cl_h >= zero(T) ||
+            throw(ArgumentError("checkpoint cl_h must be finite and nonnegative"))
+        s.cl_live &&
+            iszero(s.cl_h) &&
+            throw(ArgumentError("checkpoint live cyclic-leapfrog state requires positive cl_h"))
+    end
+    return nothing
+end
+
+function _validate_checkpoint_state(s, st::_HybridCheckpointStepper{D,T}) where {D,T}
     _validate_checkpoint_container(s)
     s.D == D || throw(ArgumentError("checkpoint dimension $(s.D) ≠ $D"))
     s.T == T || throw(
@@ -147,11 +178,13 @@ function _validate_checkpoint_state(s, st::HybridStepper{D,T}) where {D,T}
     _validate_checkpoint_scalar_state(s, T)
     _validate_checkpoint_particle_state(s, Val(D))
     _validate_checkpoint_field_state(s, st)
+    _validate_checkpoint_integrator_state(s, st)
     return nothing
 end
 
-function _checkpoint_state(st::HybridStepper{D,T}, ps::ParticleSet{D,T}) where {D,T}
-    return (
+function _checkpoint_state(st::_HybridCheckpointStepper{D,T}, ps::ParticleSet{D,T}) where {D,T}
+    common = (
+        integrator = st isa CAMCLStepper ? :camcl : :rk4,
         D = D,
         T = T,
         ncell = st.g.n,
@@ -171,6 +204,19 @@ function _checkpoint_state(st::HybridStepper{D,T}, ps::ParticleSet{D,T}) where {
         step = st.step[],
         last_dt = st.last_dt[],
     )
+    if st isa CAMCLStepper
+        return merge(
+            common,
+            (
+                Blead = st.Blead,
+                Blag = st.Blag,
+                Bout = st.Bout,
+                cl_h = st.cl_h[],
+                cl_live = st.cl_live[],
+            ),
+        )
+    end
+    return common
 end
 
 function _validate_checkpoint_destination(ps::ParticleSet, N::Int)
@@ -186,7 +232,11 @@ function _validate_checkpoint_destination(ps::ParticleSet, N::Int)
     return nothing
 end
 
-function _restore_checkpoint_state!(st::HybridStepper{D,T}, ps::ParticleSet{D,T}, s) where {D,T}
+function _restore_checkpoint_state!(
+    st::_HybridCheckpointStepper{D,T},
+    ps::ParticleSet{D,T},
+    s,
+) where {D,T}
     _validate_checkpoint_state(s, st)
     N = length(s.weight)
     _validate_checkpoint_destination(ps, N)
@@ -216,6 +266,13 @@ function _restore_checkpoint_state!(st::HybridStepper{D,T}, ps::ParticleSet{D,T}
     st.time[] = s.time
     st.step[] = s.step
     st.last_dt[] = s.last_dt
+    if st isa CAMCLStepper
+        for name in (:Blead, :Blag, :Bout), c = 1:3
+            copyto!(getproperty(st, name)[c], getproperty(s, name)[c])
+        end
+        st.cl_h[] = s.cl_h
+        st.cl_live[] = s.cl_live
+    end
     return st
 end
 
@@ -224,10 +281,12 @@ end
 
 Serialize the restartable state (model, shape, particles, B, carried E, time,
 step, and previous timestep for the staggered particle velocities) to `path`.
+Supports [`HybridStepper`](@ref) and [`CAMCLStepper`](@ref); CAM-CL checkpoints
+also preserve the persistent cyclic-leapfrog field copies and subcycle phase.
 """
 function save_checkpoint(
     path::AbstractString,
-    st::HybridStepper{D,T},
+    st::_HybridCheckpointStepper{D,T},
     ps::ParticleSet{D,T},
 ) where {D,T}
     state = _checkpoint_state(st, ps)
@@ -240,16 +299,17 @@ end
     load_checkpoint!(stepper, ps, path)
 
 Restore a checkpoint into a `stepper`/`ps` of matching dimension, precision,
-grid, and concrete model/shape types (particle arrays are resized to match).
+grid, integrator, and concrete model/shape types (particle arrays are resized to match).
 Destination arrays that do not support resizing must already have the saved
 particle count; writable views are restored in place.
 The checkpoint replaces the destination's model and shape parameters, including
 custom mutable parameters, so restored evolution uses the saved physics.
-Checkpoints without configuration or timestep-history fields are rejected. After loading, `step!`
-continues bitwise-identically to the original run with the same stepping inputs.
+Checkpoints without integrator, configuration, or timestep-history fields are rejected.
+After loading, `step!` or `step_camcl!` continues bitwise-identically to the
+original run with the same stepping inputs.
 """
 function load_checkpoint!(
-    st::HybridStepper{D,T},
+    st::_HybridCheckpointStepper{D,T},
     ps::ParticleSet{D,T},
     path::AbstractString,
 ) where {D,T}
