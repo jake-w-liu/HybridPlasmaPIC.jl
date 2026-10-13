@@ -37,6 +37,7 @@ using SpectralOperators:
 
 include("extensions.jl")
 include("utils/validation.jl")
+include("utils/exact_arithmetic.jl")
 
 # §5.3 source tree. Grouped by subsystem directory; include order is the original
 # verified dependency order. Spectral and mixed SBP/Fourier operators live in the

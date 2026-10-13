@@ -1,6 +1,7 @@
 using Test
 
 @testset "HybridPlasmaPIC" begin
+    include("test_exact_arithmetic.jl")
     include("test_operators.jl")
     include("test_spectral_extra.jl")
     include("test_particles.jl")

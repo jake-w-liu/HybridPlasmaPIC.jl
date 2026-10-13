@@ -134,6 +134,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- AMR exact fallbacks round hardware floats directly from the complete rational
+  result, avoiding a second rounding through ambient BigFloat precision. Shared
+  exact conversion also retains stored BigFloat inputs and the caller's BigFloat
+  rounding mode. Tests use independent rounding-cell and dyadic oracles.
+
 - Particle storage checks recognize shared empty vectors, reinterpret wrappers,
   and views with shared mutable indices. Checkpoint restoration, hybrid
   collection evolution and ionization reject these coupled buffers before

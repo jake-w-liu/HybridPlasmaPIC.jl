@@ -53,8 +53,8 @@ function cell_center(g::AMRGrid{T}, i::Integer) where {T}
 end
 
 @noinline function _amr_exact_cell_center(g::AMRGrid, i::Integer, ::Type{W}) where {W}
-    exact = _amr_exact_rational(g.x0) + (2BigInt(i) - 1) * _amr_exact_rational(g.dx) / 2
-    return W(exact)
+    exact = _exact_rational(g.x0) + (2BigInt(i) - 1) * _exact_rational(g.dx) / 2
+    return _from_exact(W, exact)
 end
 
 @inline function _amr_compensated_add(total::T, correction::T, term::T) where {T}
@@ -176,21 +176,12 @@ end
     return precision(value) > precision(BigFloat) || (!iszero(value) && iszero(normalised))
 end
 
-_amr_exact_rational(value) = Rational{BigInt}(value)
-function _amr_exact_rational(value::BigFloat)
-    # Julia's Rational conversion scales in the current BigFloat precision.
-    # Preserve stored input bits even when the caller has lowered that precision.
-    return setprecision(BigFloat, precision(value)) do
-        Rational{BigInt}(value)
-    end
-end
-
 # Rational{BigInt} exactly represents every finite binary floating-point input.
 # This cold fallback handles scaling loss and uncertified final rounding.
 @noinline function _amr_exact_second_difference(a::T, b::T, c::T) where {T<:AbstractFloat}
-    ar = _amr_exact_rational(a)
-    br = _amr_exact_rational(b)
-    cr = _amr_exact_rational(c)
+    ar = _exact_rational(a)
+    br = _exact_rational(b)
+    cr = _exact_rational(c)
     exact = if signbit(a) != signbit(c)
         (ar + cr) - 2br
     elseif !iszero(b) && signbit(a) == signbit(b)
@@ -198,7 +189,7 @@ end
     else
         (ar + cr) - 2br
     end
-    return T(exact)
+    return _from_exact(T, exact)
 end
 
 @inline function _amr_second_difference(u::AbstractVector{T}, i::Int) where {T<:AbstractFloat}
@@ -228,10 +219,8 @@ end
 @inline _amr_second_difference(u::AbstractVector, i::Int) = u[i+1] - 2u[i] + u[i-1]
 
 @noinline function _amr_exact_reconstruction(a::T, b::T, c::T, shift::Int) where {T}
-    exact =
-        _amr_exact_rational(a) +
-        (_amr_exact_rational(b) - _amr_exact_rational(c)) / (BigInt(1) << -shift)
-    return T(exact)
+    exact = _exact_rational(a) + (_exact_rational(b) - _exact_rational(c)) / (BigInt(1) << -shift)
+    return _from_exact(T, exact)
 end
 
 # Reconstruct both children from the same unrounded slope. Rounding the slope
@@ -285,7 +274,7 @@ end
            (precision(a) > precision(BigFloat) || precision(b) > precision(BigFloat))
             # Normalization would round stored input bits before cancellation.
             # Form the complete dyadic average before rounding to working precision.
-            return T((_amr_exact_rational(a) + _amr_exact_rational(b)) / 2)
+            return _from_exact(T, (_exact_rational(a) + _exact_rational(b)) / 2)
         end
         half = inv(T(2))
         return _amr_scaled_product_difference(a, half, -b, half)

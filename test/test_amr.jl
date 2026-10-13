@@ -2,6 +2,45 @@ using HybridPlasmaPIC
 using Random
 using Test
 
+# AMR oracle expressions are dyadic. Represent the complete exact value at a
+# precision large enough for both integers, then round directly to the target.
+# Avoid Base's ambient-precision Rational-to-hardware-float conversion.
+function amr_oracle_round(::Type{T}, exact::Rational{BigInt}) where {T}
+    n, d = numerator(exact), denominator(exact)
+    @assert ispow2(d)
+    wide = setprecision(BigFloat, max(2, ndigits(n; base = 2), ndigits(d; base = 2))) do
+        BigFloat(n) / BigFloat(d)
+    end
+    return T === BigFloat ? BigFloat(wide; precision = precision(BigFloat)) : T(wide, RoundNearest)
+end
+
+@testset "AMR exact outputs ignore ambient BigFloat settings" begin
+    for T in (Float16, Float32, Float64)
+        tiny, unit = nextfloat(zero(T)), eps(one(T))
+        for bits in (16, 53, 256, 2048), mode in (RoundNearest, RoundDown, RoundUp, RoundToZero)
+            setprecision(bits) do
+                setrounding(BigFloat, mode) do
+                    for sign in (-one(T), one(T)), direction in (-1, 0, 1)
+                        expected = sign * (direction > 0 ? nextfloat(one(T)) : one(T))
+                        coarse = AMRGrid(sign .* T[8direction*tiny, 1+unit, 4unit], one(T))
+                        @test refine(coarse).u[3] == expected
+                        values = sign .* T[1, -unit/4, direction*tiny]
+                        @test HybridPlasmaPIC._amr_second_difference(values, 2) == expected
+                    end
+                    # This index takes the exact complete-coordinate fallback.
+                    # The oracle retains its half-integer before final rounding.
+                    grid = AMRGrid(T[0], tiny; x0 = tiny)
+                    i = typemax(Int)
+                    exact = Rational{BigInt}(tiny) * (2BigInt(i) + 1) / 2
+                    @test cell_center(grid, i) == amr_oracle_round(T, exact)
+                    @test precision(BigFloat) == bits
+                    @test rounding(BigFloat) == mode
+                end
+            end
+        end
+    end
+end
+
 @testset "AMR restriction preserves stored-precision cancellation" begin
     rng = MersenneTwister(318)
     for stored_bits in (128, 256, 512)
@@ -30,7 +69,7 @@ using Test
                     output = coarse.u
                     @test restrict!(coarse, fine) === coarse
                     @test coarse.u === output
-                    @test coarse.u == BigFloat.(exact)
+                    @test coarse.u == [amr_oracle_round(BigFloat, value) for value in exact]
                     @test all(x -> precision(x) == bits, coarse.u)
                     @test precision(BigFloat) == bits
                     @test rounding(BigFloat) == mode
@@ -45,7 +84,9 @@ using Test
         pairs = [(M, M), (M, -M), (tiny, tiny), (tiny, zero(T)), (-tiny, zero(T))]
         append!(pairs, [Tuple(rand(rng, T, 2)) for _ = 1:100])
         values = T[value for pair in pairs for value in pair]
-        expected = T[(Rational{BigInt}(a) + Rational{BigInt}(b)) / 2 for (a, b) in pairs]
+        expected = [
+            amr_oracle_round(T, (Rational{BigInt}(a) + Rational{BigInt}(b)) / 2) for (a, b) in pairs
+        ]
         fine = AMRGrid(values, T(0.5))
         coarse = AMRGrid(zeros(T, length(pairs)), one(T))
         @test restrict!(coarse, fine) === coarse
@@ -61,8 +102,10 @@ using Test
 end
 
 @testset "AMR refinement curvature" begin
-    exact_curvature(a, b, c) =
-        typeof(a)(Rational{BigInt}(a) - 2Rational{BigInt}(b) + Rational{BigInt}(c))
+    exact_curvature(a, b, c) = amr_oracle_round(
+        typeof(a),
+        Rational{BigInt}(a) - 2Rational{BigInt}(b) + Rational{BigInt}(c),
+    )
 
     function check_curvature(a::T, b::T, c::T) where {T}
         u = T[a, b, c]
@@ -132,7 +175,7 @@ end
             values, exact
         end
         setprecision(24) do
-            expected = BigFloat(precise_curvature)
+            expected = amr_oracle_round(BigFloat, precise_curvature)
             @test HybridPlasmaPIC._amr_second_difference(precise_values, 2) == expected
             @test refine_flags(precise_values, 0) == Bool[false, true, false]
             @test !any(refine_flags(precise_values, expected))
@@ -158,7 +201,7 @@ end
                 setrounding(BigFloat, mode) do
                     for (abc, exact) in zip(values, exacts)
                         @test HybridPlasmaPIC._amr_second_difference(collect(abc), 2) ==
-                              BigFloat(exact)
+                              amr_oracle_round(BigFloat, exact)
                     end
                     @test rounding(BigFloat) == mode
                 end
@@ -201,7 +244,11 @@ end
                 n == 1 ? zero(exact[i]) :
                 i == 1 ? (exact[2] - exact[1]) / 4 :
                 i == n ? (exact[n] - exact[n-1]) / 4 : (exact[i+1] - exact[i-1]) / 8
-            push!(result, T(exact[i] - adjustment), T(exact[i] + adjustment))
+            push!(
+                result,
+                amr_oracle_round(T, exact[i] - adjustment),
+                amr_oracle_round(T, exact[i] + adjustment),
+            )
         end
         return result
     end
@@ -306,8 +353,8 @@ end
                             i == n ? (exact[n] - exact[n-1]) / 4 : (exact[i+1] - exact[i-1]) / 8
                         push!(
                             expected,
-                            BigFloat(exact[i] - adjustment),
-                            BigFloat(exact[i] + adjustment),
+                            amr_oracle_round(BigFloat, exact[i] - adjustment),
+                            amr_oracle_round(BigFloat, exact[i] + adjustment),
                         )
                     end
                     fine = refine(AMRGrid(values, BigFloat(1)))
@@ -326,7 +373,8 @@ end
 end
 
 @testset "AMR cell centers retain the complete coordinate" begin
-    exact_center(g, i) = promote_type(eltype(g.u), typeof(i))(
+    exact_center(g, i) = amr_oracle_round(
+        promote_type(eltype(g.u), typeof(i)),
         Rational{BigInt}(g.x0) + (2BigInt(i) - 1) * Rational{BigInt}(g.dx) / 2,
     )
 
@@ -393,7 +441,7 @@ end
     end
     setprecision(24) do
         grid, exact = values
-        @test cell_center(grid, 2) == BigFloat(exact)
+        @test cell_center(grid, 2) == amr_oracle_round(BigFloat, exact)
         @test precision(BigFloat) == 24
     end
 end
