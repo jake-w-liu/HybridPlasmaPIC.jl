@@ -21,6 +21,9 @@
 #   particle velocity v : half     n−1/2    (→ n+1/2)
 #   electric field  Ex,Ey : integer n       (→ n+1)
 #   magnetic field  Bz    : half   n−1/2    (→ n+1/2)
+# For changing timesteps, the half levels lie dt_previous/2 behind and dt/2
+# ahead of the integer time. Velocity and B kicks span their sum, while position
+# drifts, continuity, and the electric-field update use the new dt.
 #
 # A single field/electron substep advances all of these by one dt (the cycle is
 # documented in _substep_em!):
@@ -132,6 +135,8 @@ mutable struct EMPIC1D{T,G,SH<:ShapeFunction}
     worki::Vector{T}
     time::Base.RefValue{T}
     step::Base.RefValue{Int}
+    last_dt::Base.RefValue{T}       # preceding full ion drift interval
+    last_sub_dt::Base.RefValue{T}   # preceding electron/field drift interval
 end
 
 function EMPIC1D(
@@ -183,6 +188,8 @@ function EMPIC1D(
         T[],       # worki
         Ref(zero(T)),
         Ref(0),
+        Ref(zero(T)),
+        Ref(zero(T)),
     )
 end
 
@@ -533,6 +540,8 @@ function init_empic!(
     end
     es.time[] = zero(T)                 # (re)start at t=0; step==0 triggers leapfrog priming
     es.step[] = 0
+    es.last_dt[] = zero(T)
+    es.last_sub_dt[] = zero(T)
     return es
 end
 
@@ -540,7 +549,7 @@ end
 
 # One field+electron substep of size dt. Pushes the electrons `e` always; pushes
 # the ions `ions` only when `push_ions` is true (heavy ions are pushed once per
-# full ion step, on the substep straddling their midpoint). When mobile, the ions
+# full ion step, on its first substep). When mobile, the ions
 # always contribute their charge (rho snapshots) and current to the field solve.
 function _substep_em!(
     es::EMPIC1D{T},
@@ -548,37 +557,41 @@ function _substep_em!(
     ions::Union{Nothing,ParticleSet{1,T}},
     dt::T,
     push_ions::Bool,
+    dt_previous::T,
+    dt_ion_push::T,
 ) where {T}
     g = es.g
     n = g.n[1]
     L = g.L[1]
     c2 = es.c * es.c
     z = zero(T)
+    kick_dt = dt_previous / 2 + dt / 2
 
     # snapshot ρ^n (from x^n) for the charge-conserving current
     _charge_density!(es.rho_n, es.ne, es, e, ions)
 
-    # (1) time-centered Bz^n = Bz^{n−1/2} − (dt/2)∂xEy^n  (for the particle push)
+    # (1) center B using the preceding substep's half interval, which is where
+    # the stored field lies relative to the current integer time.
     deriv!(es.dEy, es.Ey, g, 1)
     @inbounds for i = 1:n
-        es.Bzc[i] = es.Bz[i] - (dt / 2) * es.dEy[i]
+        es.Bzc[i] = es.Bz[i] - (dt_previous / 2) * es.dEy[i]
     end
 
     # (2) gather fields at time n and push electrons
     gather_scalar!(es.Exp, es.Ex, e, g, es.shape)
     gather_scalar!(es.Eyp, es.Ey, e, g, es.shape)
     gather_scalar!(es.Bzp, es.Bzc, e, g, es.shape)
-    _push_velocities!(es, e, es.Exp, es.Eyp, es.Bzp, dt)
+    _push_velocities!(es, e, es.Exp, es.Eyp, es.Bzp, kick_dt)
     _drift_record_mid!(e, es.work, dt, L)
     apply_periodic!(e, (z,), (L,))
 
-    # ion VELOCITY kick: once per full ion step, on the straddling substep so the field is
-    # time-centred; the heavy ion resolves the slow scale, so one kick per dt_ion = n_sub·dt is enough.
+    # The ion kick spans its preceding and next half levels, once on the first
+    # substep; each electron substep below drifts with that new ion velocity.
     if es.mobile && ions !== nothing && push_ions
         gather_scalar!(es.Exi, es.Ex, ions, g, es.shape)
         gather_scalar!(es.Eyi, es.Ey, ions, g, es.shape)
         gather_scalar!(es.Bzi, es.Bzc, ions, g, es.shape)
-        _push_velocities!(es, ions, es.Exi, es.Eyi, es.Bzi, T(es.n_sub) * dt)
+        _push_velocities!(es, ions, es.Exi, es.Eyi, es.Bzi, dt_ion_push)
     end
     # ion POSITION drift: EVERY substep by dt (with the current ion velocity), so the ion charge and
     # current deposited on each substep sit at the time-consistent position. Drifting the whole
@@ -596,9 +609,9 @@ function _substep_em!(
     _charge_density!(es.rho_np1, es.ne, es, e, ions)
     _esirkepov_Jx!(es, e, ions, dt)
 
-    # (4) Bz full leapfrog advance: Bz^{n+1/2} = Bz^{n−1/2} − dt ∂xEy^n
+    # (4) Advance B between its preceding and next half levels.
     @inbounds for i = 1:n
-        es.Bz[i] -= dt * es.dEy[i]
+        es.Bz[i] -= kick_dt * es.dEy[i]
     end
 
     # (5) E advance:
@@ -704,8 +717,10 @@ end
 
 Advance the electromagnetic 1D PIC one full ion step `dt`. With `es.n_sub > 1`
 the electrons and fields are advanced in `n_sub` substeps of `dt/n_sub`; the ions
-(when `es.mobile`) are pushed once over the full `dt`. Time levels follow the
-header of `empic1d.jl`. Returns `es`.
+(when `es.mobile`) receive one kick between their ion half levels. Time levels follow the
+header of `full_pic.jl`. Changes in `dt` or `n_sub` retain the electron, ion,
+and magnetic-field half levels from the preceding step; zero timesteps leave
+this staggering unchanged. Returns `es`.
 """
 function step_empic!(
     es::EMPIC1D{T},
@@ -720,7 +735,11 @@ function step_empic!(
         _require_empic_ions(ions, es.mi)
     end
     dtT = _validated_nonnegative_dt(T, dt; name = "step_empic!")
+    ns = es.n_sub
+    ns >= 1 || throw(ArgumentError("n_sub must be ≥ 1"))
     iszero(dtT) && return es            # dt=0 no-op: do not consume the one-time priming
+    dt_e = dtT / ns
+    dt_e > zero(T) || throw(ArgumentError("dt/n_sub must be representable and positive"))
     if es.relativistic
         _require_subluminal_velocities(e, es.c, "step_empic!")
         es.mobile && _require_subluminal_velocities(ions, es.c, "step_empic! ion species")
@@ -729,8 +748,8 @@ function step_empic!(
     if es.mobile
         _ensure_ion_buffers!(es, nparticles(ions))
     end
-    ns = es.n_sub
-    dt_e = dtT / ns
+    dt_previous = es.step[] == 0 ? dt_e : es.last_sub_dt[]
+    dt_ion_push = es.step[] == 0 ? dtT : es.last_dt[] / 2 + dtT / 2
     # prime the leapfrog once (both species): loaded v is physical v^0 → v^{-1/2} for 2nd order.
     if es.step[] == 0
         g0 = es.g
@@ -759,7 +778,7 @@ function step_empic!(
                 es.Eyi,
                 es.Bzi,
                 ions.q / ions.m,
-                (T(ns) * dt_e) / 2,
+                dtT / 2,
                 nparticles(ions),
                 es.relativistic,
                 es.c,
@@ -781,10 +800,13 @@ function step_empic!(
     # drift now fills es.worki on every substep before the Jy deposit reads it, so no seed is needed.
     push_sub = 1
     @inbounds for s = 1:ns
-        _substep_em!(es, e, ions, dt_e, s == push_sub)
+        _substep_em!(es, e, ions, dt_e, s == push_sub, dt_previous, dt_ion_push)
+        dt_previous = dt_e
         es.time[] += dt_e
     end
     es.step[] += 1
+    es.last_dt[] = dtT
+    es.last_sub_dt[] = dt_e
     return es
 end
 
@@ -908,6 +930,7 @@ mutable struct EMPIC{D,T,G,SH<:ShapeFunction}
     worki::Vector{T}
     time::Base.RefValue{T}
     step::Base.RefValue{Int}
+    last_dt::Base.RefValue{T}       # preceding drift interval sets the v and B half levels
 end
 
 function EMPIC(
@@ -956,6 +979,7 @@ function EMPIC(
         T[],
         Ref(zero(T)),
         Ref(0),
+        Ref(zero(T)),
     )
 end
 
@@ -1276,6 +1300,7 @@ function init_empic!(
     _enforce_gauss!(es)
     es.time[] = zero(T)                 # (re)start at t=0; step==0 triggers leapfrog priming
     es.step[] = 0
+    es.last_dt[] = zero(T)
     return es
 end
 
@@ -1284,26 +1309,28 @@ function _substep_empic!(
     e::ParticleSet{D,T},
     ions::Union{Nothing,ParticleSet{D,T}},
     dt::T,
+    dt_previous::T,
 ) where {D,T}
     g = es.g
     c2 = es.c * es.c
+    kick_dt = dt_previous / 2 + dt / 2
     _charge_density!(es.rho_n, es.ne, es, e, ions)
 
     curl!(es.curlE, es.E, g)
     @inbounds for c = 1:3, I in eachindex(es.B[c])
-        es.Bc[c][I] = es.B[c][I] - (dt / 2) * es.curlE[c][I]
+        es.Bc[c][I] = es.B[c][I] - (dt_previous / 2) * es.curlE[c][I]
     end
 
     gather_vector!(es.Ep, es.E, e, g, es.shape)
     gather_vector!(es.Bp, es.Bc, e, g, es.shape)
-    _push_velocities!(es, e, es.Ep, es.Bp, dt)
+    _push_velocities!(es, e, es.Ep, es.Bp, kick_dt)
     _drift_record_mid!(e, es.mide, dt, g.L)
     apply_periodic!(e, ntuple(_ -> zero(T), D), g.L)
 
     if es.mobile && ions !== nothing
         gather_vector!(es.Epi, es.E, ions, g, es.shape)
         gather_vector!(es.Bpi, es.Bc, ions, g, es.shape)
-        _push_velocities!(es, ions, es.Epi, es.Bpi, dt)
+        _push_velocities!(es, ions, es.Epi, es.Bpi, kick_dt)
         _drift_record_mid!(ions, es.midi, dt, g.L)
         apply_periodic!(ions, ntuple(_ -> zero(T), D), g.L)
     end
@@ -1313,7 +1340,7 @@ function _substep_empic!(
     _correct_current_continuity!(es, dt)
 
     @inbounds for c = 1:3, I in eachindex(es.B[c])
-        es.B[c][I] -= dt * es.curlE[c][I]
+        es.B[c][I] -= kick_dt * es.curlE[c][I]
     end
     curl!(es.curlB, es.B, g)
     @inbounds for c = 1:3, I in eachindex(es.E[c])
@@ -1326,7 +1353,10 @@ end
     step_empic!(es::EMPIC, electrons[, ions], dt)
 
 Advance the dimension-parametric EM PIC state by one step. The optional ion
-species is required when `mobile=true` and ignored otherwise.
+species is required when `mobile=true` and ignored otherwise. When `dt` changes,
+velocity and magnetic-field kicks span `(last_dt + dt)/2` between half levels;
+the position and electric-field updates use `dt`. Zero timesteps leave this
+staggering unchanged.
 """
 function step_empic!(
     es::EMPIC{D,T},
@@ -1378,9 +1408,11 @@ function step_empic!(
             es.B[c][I] += h * es.curlE[c][I]
         end
     end
-    _substep_empic!(es, e, ions, dtT)
+    dt_previous = es.step[] == 0 ? dtT : es.last_dt[]
+    _substep_empic!(es, e, ions, dtT, dt_previous)
     es.time[] += dtT
     es.step[] += 1
+    es.last_dt[] = dtT
     return es
 end
 

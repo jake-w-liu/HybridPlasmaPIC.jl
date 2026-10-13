@@ -80,6 +80,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Electromagnetic PIC tracks particle and magnetic-field half-time levels when
+  timesteps change, including separate electron/ion intervals in subcycled
+  `EMPIC1D`. Invalid subcycle counts and unrepresentable substeps fail before mutation.
+
 - Hybrid, CAM-CL, and replicated MPI stepping retain particle half-time levels
   across timestep changes. Hybrid checkpoints and archives now preserve timestep
   history and model/shape parameters, restoring the saved physics. Writable

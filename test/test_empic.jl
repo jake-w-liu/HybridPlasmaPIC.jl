@@ -10,7 +10,7 @@ function _empic_peakfreq(series, dt)
     mag = abs.(S)
     best = 2
     bm = -1.0
-    for j = 2:Nt÷2
+    for j = 2:(Nt÷2)
         if mag[j+1] > bm
             bm = mag[j+1]
             best = j
@@ -376,4 +376,186 @@ end
     @test maximum(abs.(es1.Ey .- es2.E[2])) / maximum(abs.(es1.Ey)) < 1e-12
     @test nyqmax < 1e-13
     @test charge_conservation_residual(es2, dt) < 1e-10
+end
+
+@testset "EM PIC changing timestep preserves electron and ion half levels" begin
+    # Constant E gives an exact momentum oracle, including relativistic motion.
+    # Zero-weight tracers leave the imposed field unchanged through Maxwell.
+    for (constructor, D) in ((EMPIC1D, 1), (EMPIC, 1), (EMPIC, 2), (EMPIC, 3)),
+        relativistic in (false, true),
+        mobile in (false, true)
+
+        g = FourierGrid(ntuple(_ -> 4, D), ntuple(_ -> 10.0, D))
+        e = ParticleSet{D,Float64}(1; q = -1.0, m = 1.0)
+        ions = ParticleSet{D,Float64}(1; q = 1.0, m = 16.0)
+        e.weight .= 0.0
+        ions.weight .= 0.0
+        for d = 1:D
+            e.x[d] .= 1.0
+            ions.x[d] .= 2.0
+        end
+        es = constructor(g, 1; n0 = 0.0, c = 2.0, mobile, mi = 16.0, relativistic)
+        species = mobile ? ions : nothing
+        init_empic!(es, e, species)
+        function set_field!()
+            if es isa EMPIC1D
+                es.Ex .= -0.7
+                es.Ey .= 0.2
+            else
+                es.E[1] .= -0.7
+                es.E[2] .= 0.2
+            end
+        end
+        set_field!()
+        elapsed = 0.0
+        for (dt, n_sub) in ((0.1, 2), (0.2, 3), (0.05, 1))
+            es isa EMPIC1D && (es.n_sub = n_sub)
+            previous_dt = es.last_dt[]
+            step_empic!(es, e, species, 0.0)
+            @test es.last_dt[] == previous_dt
+            step_empic!(es, e, species, dt)
+            elapsed += dt
+            electron_dt = es isa EMPIC1D ? dt / n_sub : dt
+            for (s, acceleration, h) in
+                ((e, (0.7, -0.2, 0.0), electron_dt), (ions, (-0.7 / 16, 0.2 / 16, 0.0), dt))
+                s === ions && !mobile && continue
+                u = ntuple(c -> acceleration[c] * (elapsed - h / 2), 3)
+                gamma = relativistic ? sqrt(1 + sum(abs2, u) / es.c^2) : 1.0
+                @test [s.v[c][1] for c = 1:3] ≈ collect(u) ./ gamma atol = 2e-15
+                if !relativistic
+                    for d = 1:D
+                        x0 = s === e ? 1.0 : 2.0
+                        @test s.x[d][1] ≈ x0 + acceleration[d] * elapsed^2 / 2 atol = 2e-15
+                    end
+                end
+            end
+        end
+        before = (deepcopy(e.x), deepcopy(e.v), es.time[], es.step[], es.last_dt[])
+        for dt in (NaN, Inf, -0.1)
+            @test_throws ArgumentError step_empic!(es, e, species, dt)
+            @test (e.x, e.v, es.time[], es.step[], es.last_dt[]) == before
+        end
+        # Reinitialization takes freshly loaded physical velocities; a previous
+        # run's unequal timesteps must not leak into the next run's prime.
+        for c = 1:3
+            e.v[c] .= 0.0
+            ions.v[c] .= 0.0
+        end
+        init_empic!(es, e, species)
+        @test es.last_dt[] == 0.0
+        es isa EMPIC1D && @test es.last_sub_dt[] == 0.0
+        set_field!()
+        step_empic!(es, e, species, 0.08)
+        u = (0.7 * 0.04, -0.2 * 0.04, 0.0)
+        gamma = relativistic ? sqrt(1 + sum(abs2, u) / es.c^2) : 1.0
+        @test [e.v[c][1] for c = 1:3] ≈ collect(u) ./ gamma atol = 2e-15
+    end
+end
+
+@testset "EM PIC changing timestep preserves Maxwell time staggering" begin
+    function variable_dt_vacuum_error(constructor, refinement)
+        g = FourierGrid((16,), (2π,))
+        e = ParticleSet{1,Float64}(0; q = -1.0, m = 1.0)
+        es = constructor(g, 0; n0 = 0.0, c = 2.0)
+        init_empic!(es, e)
+        E = es isa EMPIC1D ? es.Ey : es.E[2]
+        B = es isa EMPIC1D ? es.Bz : es.B[3]
+        x = range(0.0; step = g.dx[1], length = g.n[1])
+        E .= sin.(x)
+        for (count, dt) in ((10refinement, 0.04 / refinement), (20refinement, 0.02 / refinement))
+            for _ = 1:count
+                step_empic!(es, e, dt)
+            end
+        end
+        # Analytic vacuum mode: Ey=sin(x)cos(ct), Bz=-cos(x)sin(ct)/c.
+        # E is at t=0.8, while the stored B trails it by the last dt/2.
+        Eerror = maximum(abs, E .- cos(1.6) .* sin.(x))
+        Berror = maximum(abs, B .+ sin(2 * (0.8 - 0.01 / refinement)) / 2 .* cos.(x))
+        return (Eerror, Berror)
+    end
+    for constructor in (EMPIC1D, EMPIC)
+        errors = [variable_dt_vacuum_error(constructor, r) for r in (1, 2, 4)]
+        for component = 1:2, level = 1:2
+            @test log2(errors[level][component] / errors[level+1][component]) > 1.8
+        end
+    end
+end
+
+@testset "EM PIC changing timestep gyro-orbit convergence" begin
+    function variable_dt_gyro_error(constructor, relativistic, refinement)
+        g = FourierGrid((8,), (10.0,))
+        e = ParticleSet{1,Float64}(1; q = -1.0, m = 1.0)
+        e.weight .= 0.0
+        e.x[1] .= 1.0
+        e.v[1] .= 1.0
+        es = constructor(g, 1; n0 = 0.0, c = 2.0, relativistic)
+        init_empic!(es, e)
+        if es isa EMPIC1D
+            es.Bz .= 1.0
+        else
+            es.B[3] .= 1.0
+        end
+        for (count, dt) in ((10refinement, 0.04 / refinement), (20refinement, 0.02 / refinement))
+            for _ = 1:count
+                step_empic!(es, e, dt)
+            end
+        end
+        omega = relativistic ? sqrt(1 - 1 / es.c^2) : 1.0
+        return abs(e.x[1][1] - (1 + sin(omega * 0.8) / omega))
+    end
+    for constructor in (EMPIC1D, EMPIC), relativistic in (false, true)
+        errors = [variable_dt_gyro_error(constructor, relativistic, r) for r in (1, 2, 4)]
+        @test all(log2(errors[j] / errors[j+1]) > 1.8 for j = 1:2)
+    end
+end
+
+@testset "EM PIC changing timestep retains charge and Gauss constraints" begin
+    for (constructor, D) in ((EMPIC1D, 1), (EMPIC, 1), (EMPIC, 2), (EMPIC, 3))
+        g = FourierGrid(ntuple(_ -> 8, D), ntuple(_ -> 2π, D))
+        e = ParticleSet{D,Float64}(8^D; q = -1.0, m = 1.0)
+        ions = ParticleSet{D,Float64}(8^D; q = 1.0, m = 16.0)
+        for s in (e, ions)
+            load_lattice!(s, ntuple(_ -> 0.0, D), g.L, ntuple(_ -> 8, D))
+            set_density_weight!(s, 1.0, g)
+        end
+        @. e.x[1] -= 0.02 * sin(e.x[1])
+        e.v[1] .= 0.05
+        ions.v[1] .= 0.02
+        es = constructor(g, nparticles(e); mobile = true, mi = 16.0, c = 2.0)
+        init_empic!(es, e, ions)
+        for (dt, n_sub) in ((0.01, 1), (0.005, 3), (0.02, 2), (0.01, 1))
+            es isa EMPIC1D && (es.n_sub = n_sub)
+            step_empic!(es, e, ions, dt)
+            sub_dt = es isa EMPIC1D ? dt / n_sub : dt
+            delta_hat = fft(es.rho_np1 .- es.rho_n)
+            dc = first(CartesianIndices(delta_hat))
+            for I in CartesianIndices(delta_hat)
+                if I != dc && all(iszero(g.kvec[d][I[d]]) for d = 1:D)
+                    delta_hat[I] = 0
+                end
+            end
+            delta = real.(ifft(delta_hat))
+            divJ = similar(delta)
+            if es isa EMPIC1D
+                deriv!(divJ, es.Jx, g, 1)
+            else
+                divergence!(divJ, es.J, g)
+            end
+            # Density is normalized to one. Keep the DC conservation check,
+            # whose deposition roundoff can dominate a tiny density increment;
+            # bound absolute charge error rather than divide it by that increment.
+            @test maximum(abs, delta .+ sub_dt .* divJ) < 32eps(Float64)
+            @test charge_conservation_residual(es, sub_dt) * maximum(abs, delta) < 32eps(Float64)
+            if es isa EMPIC1D
+                rhohat = fft(es.rho_np1)
+                rhohat[1] = rhohat[g.n[1]÷2+1] = 0
+                rho = real.(ifft(rhohat))
+                divE = similar(rho)
+                deriv!(divE, es.Ex, g, 1)
+                @test maximum(abs, divE .- rho) < 1e-12
+            else
+                @test _empic_gauss_residual(es, es.rho_np1) < 1e-12
+            end
+        end
+    end
 end

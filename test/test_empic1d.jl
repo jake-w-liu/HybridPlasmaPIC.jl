@@ -142,7 +142,7 @@ function _em_peakfreq(series, dt)
     mag = abs.(S)
     best = 2
     bm = -1.0
-    for j = 2:Nt÷2
+    for j = 2:(Nt÷2)
         mag[j+1] > bm && (bm = mag[j+1]; best = j)
     end
     a = mag[best]
@@ -612,4 +612,31 @@ end
         cmax = max(cmax, charge_conservation_residual(es, dt / 3))   # per-substep dt_e
     end
     @test cmax < 1e-10
+end
+
+@testset "EMPIC1D validates changed subcycling before mutation" begin
+    g = FourierGrid((8,), (2π,))
+    e = ParticleSet{1,Float64}(1; q = -1.0, m = 1.0)
+    e.weight .= 0.0
+    es = EMPIC1D(g, 1; n0 = 0.0)
+    init_empic!(es, e)
+    es.Ex .= 1.0
+    step_empic!(es, e, 0.1)
+    before = (
+        deepcopy(e.x),
+        deepcopy(e.v),
+        copy(es.Ex),
+        es.time[],
+        es.step[],
+        es.last_dt[],
+        es.last_sub_dt[],
+    )
+    for n_sub in (0, -1)
+        es.n_sub = n_sub
+        @test_throws ArgumentError step_empic!(es, e, 0.1)
+        @test (e.x, e.v, es.Ex, es.time[], es.step[], es.last_dt[], es.last_sub_dt[]) == before
+    end
+    es.n_sub = 2
+    @test_throws ArgumentError step_empic!(es, e, nextfloat(0.0))
+    @test (e.x, e.v, es.Ex, es.time[], es.step[], es.last_dt[], es.last_sub_dt[]) == before
 end
