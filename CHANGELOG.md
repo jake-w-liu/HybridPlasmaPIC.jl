@@ -84,6 +84,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- CI tests both Julia 1.12 and the latest stable Julia release. Test failures
+  propagate through the log-capture pipeline, and each version retains its own log.
+
 - SHA compatibility accepts both the 0.7 and 1.x standard-library versions,
   including SHA 1.0 shipped with Julia 1.13.
 

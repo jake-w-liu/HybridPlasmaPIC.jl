@@ -21,15 +21,20 @@ concurrency:
 
 jobs:
   test:
-    name: Julia 1.12 (ubuntu)
+    name: Julia ${{ matrix.julia-version }} (ubuntu)
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        julia-version: ['1.12', '1'] # Minimum supported minor and latest stable.
     steps:
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v2
         with:
-          version: '1.12'   # the development version; see julia compat in Project.toml
+          version: ${{ matrix.julia-version }}
       - uses: julia-actions/cache@v2
       - name: Instantiate and test
+        shell: bash # Includes pipefail so tee cannot hide a failed test run.
         run: |
           julia --project=. -e '
             using Pkg
@@ -39,7 +44,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-log
+          name: test-log-julia-${{ matrix.julia-version }}
           path: test-log.txt
           if-no-files-found: warn
       - uses: julia-actions/julia-processcoverage@v1

@@ -14,12 +14,17 @@ completeness. Comparative leadership requires reproducible external benchmarks.
 - Starting revision: `905ea1b`; clean worktree; remote `main` matched that revision.
 - Inspected package exports, manifests, CI, contribution rules, README, tests,
   validation catalog, hybrid integrators, coupling kernels, and checkpoint paths.
-- Julia 1.12.7 matches the CI minor version; the default local Julia is 1.13.1.
+- Installed Julia versions are 1.12.7 and 1.13.1. The official Julia downloads page
+  lists 1.13.1 (2026-09-25) as the current stable release. CI now includes both the
+  minimum supported minor (1.12) and the moving latest stable version (`1`).
 - Initial full suites were started in the live worktree on Julia 1.13.1 and
   1.12.7. Concurrent test/code edits mean these runs cannot prove the final
   revision; both were stopped through their own launch sessions after this was confirmed.
   Final full-suite checks will use an immutable checkout. The 1.13.1
   log also reports SHA compatibility and extension-precompilation issues to assess.
+- Full package suites are now running from isolated, fixed `1138317` checkouts
+  on Julia 1.12.7 and 1.13.1; no final result yet. Logs:
+  `/tmp/hybrid-full-1138317-julia112.log` and `/tmp/hybrid-full-1138317-julia113.log`.
 - Baseline kernel harness: derivative 2.67 µs / 0 B; CIC deposit 305.29 µs for
   12,800 particles; hybrid step 1.54 ms for 3,200 particles. These are local
   measurements, not portable performance targets.
@@ -62,7 +67,8 @@ performance review. “Pending” means no current-run completion claim.
 | TIME-002 | Hybrid/CAM-CL/MPI use incorrect kick interval after changing dt | Pushed (`236d5d9`) | 277 phase/convergence/MPI assertions; hybrid/CAM-CL/MPI regressions and real 2-rank suite pass; fixed-step comparison with original code is bitwise equal |
 | IO-005 | Checkpoint restore fails on matching-length particle views and can partially mutate destination | Pushed (`236d5d9`) | 271 checkpoint/archive assertions pass, including 60 view/unsupported-resize assertions |
 | PKG-001 | SHA compatibility excluded Julia 1.13’s bundled SHA 1.0 | Pushed (`4b5611d`) | Installed-version compatibility check plus 60 metadata assertions pass on each of Julia 1.12.7 and 1.13.1 |
-| RESTART-001 | CAM-CL lacked checkpoint/archive methods and requires persistent magnetic state | Verified; committing | 710 checkpoint/archive/MPI assertions pass, including 1D–3D, Float32/64, phase resets, edited fields, timestep/subcycle changes, malformed-state rejection, and exact continuation |
+| RESTART-001 | CAM-CL lacked checkpoint/archive methods and requires persistent magnetic state | Pushed (`1138317`) | 710 checkpoint/archive/MPI assertions pass, including 1D–3D, Float32/64, phase resets, edited fields, timestep/subcycle changes, malformed-state rejection, and exact continuation |
+| CI-001 | Only Julia 1.12 was exercised; the test pipeline could mask failures | Verified; committing | YAML/matrix/artifact wiring checks pass; explicit CI Bash returns 1 for failed pipelines and 0 for successful ones; full version suites running separately |
 
 ## Completeness roadmap
 
@@ -89,7 +95,9 @@ benchmark before implementation. The roadmap remains open to new findings.
 
 ## Verification commands
 
-- Full package/quality suite: `julia +1.12 --project=. -e 'using Pkg; Pkg.test()'`.
+- Full package/quality suite in immutable checkouts, on both Julia 1.12 and latest
+  stable: `julia +1.12 --project=. -e 'using Pkg; Pkg.test()'` and
+  `julia +1.13.1 --project=. -e 'using Pkg; Pkg.test()'`.
 - Coupling: `julia +1.12 --project=. test/test_deposit.jl`.
 - Kernel timing/allocation: `julia +1.12 --project=. benchmark/benchmarks.jl`.
 - Validation: `julia +1.12 --project=validation validation/run_validation.jl --quick`
