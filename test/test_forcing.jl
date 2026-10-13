@@ -5,6 +5,8 @@
 using HybridPlasmaPIC, Test, Random
 using HybridPlasmaPIC: FourierGrid, ParticleSet, divergence!, curl!
 
+include("test_radiation_inputs.jl")
+
 @testset "RR-001 radiation reaction: synchrotron cooling rate vs analytic" begin
     T = Float64
     γof(vx) = 1 / sqrt(1 - vx^2)

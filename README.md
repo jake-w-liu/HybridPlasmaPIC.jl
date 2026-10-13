@@ -200,8 +200,9 @@ standalone verification tool.
   a neutral Maxwellian reservoir, and electron-impact ionization with exact
   energy-threshold bookkeeping and unique newborn particle ids.
 - `apply_radiation_reaction!(ps, E, B, dt; K, c)` — the dominant `γ²` term of
-  the reduced Landau–Lifshitz drag, integrated as an exact exponential decay
-  (unconditionally stable).
+  the reduced Landau–Lifshitz drag, using an exponential substep with the initial
+  drag rate held fixed. Inputs must remain finite in particle precision;
+  [extreme-range arithmetic repairs](docs/RADIATION_REACTION_PLAN.md) remain open.
 
 ## Shocks
 

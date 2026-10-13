@@ -13,16 +13,18 @@ spatially uniform fields `E, B` (3-tuples, per unit `q/m`). For each particle of
 
     w = E + v×B,   χ² = |w|² − (v·E/c)²,   F_rad = −K γ² χ² v
 
-The relativistic momentum `p = γ v` is advanced `p ← p + F_rad·dt` and `v` recovered via
-`γ = √(1 + |p|²/c²)`, so `|v| < c` is preserved. `K` is the radiation-reaction coefficient
+The relativistic momentum is `p = γ v`; after its drag substep, recover `v` via
+`γ = √(1 + |p|²/c²)`. `K` is the radiation-reaction coefficient
 (∝ the classical electron radius). A gyrating particle in a magnetic field cools
 synchrotron-like, `d(1/γ)/dt = K v⁴ B²/c² ≈ K c² B²` ultrarelativistically (so
 `1/γ ≈ 1/γ₀ + K c² B² t`; this reduces to the familiar `K B²` rate only when `c = 1`).
 
-The momentum decay is integrated exactly as `p ← p·exp(−K γ χ² dt)` (an exponential
-integrator), so it is **unconditionally stable**: `|v|` always shrinks toward zero, never
-reverses or spuriously heats, for any `K·dt`. `K ≥ 0`, `dt ≥ 0`, `c > 0`; `E, B` finite;
-`K=0` or `dt=0` is a no-op. Returns `ps`.
+The exponential substep `p ← p·exp(−K γ χ² dt)` holds the initial drag rate fixed.
+It approximates the nonlinear drag equation; it is exact only for that frozen
+rate. Extreme finite scales can still lose numeric range in the invariant or
+momentum arithmetic. `K ≥ 0`, `dt ≥ 0`, `c > 0`; these
+parameters and `E, B` must remain finite in the particle precision. Inputs are
+validated before a `K=0` or `dt=0` no-op. Returns `ps`.
 """
 function apply_radiation_reaction!(
     ps::ParticleSet{D,T},
@@ -34,15 +36,13 @@ function apply_radiation_reaction!(
 ) where {D,T}
     K >= 0 || throw(ArgumentError("radiation-reaction coefficient K must be ≥ 0"))
     dt >= 0 || throw(ArgumentError("dt must be ≥ 0"))
+    KT = _require_finite_nonnegative_real("radiation-reaction coefficient K", K, T)
+    dtT = _validated_nonnegative_dt(T, dt; name = "apply_radiation_reaction!")
     cT = _require_finite_positive_real("c", c, T)
-    (all(isfinite, E) && all(isfinite, B)) ||
-        throw(ArgumentError("apply_radiation_reaction!: E and B must be finite"))
-    (K == 0 || dt == 0) && return ps
+    Ex, Ey, Ez = _validated_uniform_field("E", E, T)
+    Bx, By, Bz = _validated_uniform_field("B", B, T)
+    (iszero(KT) || iszero(dtT)) && return ps
     _require_subluminal_velocities(ps, cT, "apply_radiation_reaction!")
-    Ex, Ey, Ez = T(E[1]), T(E[2]), T(E[3])
-    Bx, By, Bz = T(B[1]), T(B[2]), T(B[3])
-    KT = T(K)
-    dtT = T(dt)
     c2 = cT * cT
     vx, vy, vz = ps.v
     @inbounds for p in eachindex(vx)

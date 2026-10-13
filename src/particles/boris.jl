@@ -49,7 +49,11 @@ end
     field::NTuple{3},
     ::Type{T},
 ) where {T<:AbstractFloat}
-    return ntuple(c -> _require_finite_real("$(name)[$c]", field[c], T), 3)
+    return ntuple(3) do c
+        value = T(field[c])
+        isfinite(value) || throw(ArgumentError("$(name)[$c] must be finite"))
+        value
+    end
 end
 
 function _require_subluminal_velocities(

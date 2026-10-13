@@ -138,6 +138,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Radiation reaction validates fields, coefficient and timestep after conversion
+  to particle precision, including no-op calls, before changing particles.
+  Shared uniform-field validation constructs error labels only on failure,
+  retaining allocation-free ordinary calls. Extreme-range radiation arithmetic
+  remains under repair; the documentation now states its limitation.
+
 - MPI checkpoint saves validate all ranks and publish a new manifest only after
   all new rank files close. Recoverable failures before publication preserve the
   previous checkpoint. Cleanup removes only owned files, rejects generation
