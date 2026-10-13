@@ -100,6 +100,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Hall-MHD rejects a nonfinite final electric field before committing the
+  candidate step. This includes overflow created by the final magnetic
+  projection; rejected steps preserve public fields and clock.
+
 - Hall-MHD accepts density exactly equal to `nfloor`, consistently with the
   shared Ohm-law floor. Densities below the floor still reject the step before
   changing public fields or the simulation clock.

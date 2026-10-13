@@ -332,7 +332,7 @@ end
 
 Advance one explicit RK4 step for periodic Hall-MHD. The candidate final state is
 checked for finite values and positive density, projected when requested, and
-used to compute the final Ohm's law before it replaces the current state.
+used to compute a finite final electric field before it replaces the current state.
 `project_b=true` projects the final magnetic field onto its divergence-free
 subspace. A failed step leaves the current fields, time, and step count unchanged.
 """
@@ -378,6 +378,9 @@ function step_hall_mhd!(st::HallMHDState{D,T}, dt::Real; project_b::Bool = true)
     _validate_hall_candidate!(st, candidate.n, candidate.ui, candidate.B)
     project_b && project_b!(candidate, st.g)
     _hall_ohms_law_fields!(candidate, st.model, st.g)
+    for electric in candidate.E
+        _require_all_finite("Hall-MHD electric field", electric, "step_hall_mhd!")
+    end
     _commit_hall_fields!(st.fields, candidate)
     st.time[] = next_time
     st.step[] = next_step

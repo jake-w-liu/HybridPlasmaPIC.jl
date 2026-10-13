@@ -357,3 +357,54 @@ end
         @test st.step[] == 2
     end
 end
+
+@testset "Hall-MHD rejects nonfinite final electric fields before commit" begin
+    for T in (Float32, Float64),
+        D = 1:3,
+        closure in (IsothermalElectrons(0.0), PolytropicElectrons(0.0, 1.0, 5 / 3))
+
+        g = FourierGrid(ntuple(_ -> 4, D), ntuple(_ -> T(2π), D))
+        st = HallMHDState(g, HallMHDModel(closure))
+        st.fields.n .= one(T)
+        large = T(2) * sqrt(floatmax(T))
+        # Disjoint u_y and longitudinal B_x give exactly zero RHS. Projection
+        # spreads B_x into the occupied velocity plane, overflowing u_y*B_x
+        # only in the final Ohm solve; the RK4 physical candidate stays finite.
+        for I in CartesianIndices(st.fields.n)
+            if I[1] == 1
+                st.fields.ui[2][I] = large
+            else
+                st.fields.B[1][I] = large
+            end
+        end
+        hall_mhd_ohms_law!(st)
+        @test all(all(isfinite, a) for a in st.fields.E)
+        rhs = hall_mhd_rhs!(st)
+        @test all(all(iszero, a) for a in (rhs.dn, rhs.du..., rhs.dB...))
+        before = _hall_fields_snapshot(st.fields)
+        references = map(name -> getfield(st.fields, name), fieldnames(typeof(st.fields)))
+        @test_throws ErrorException step_hall_mhd!(st, T(0.01))
+        @test _hall_fields_snapshot(st.fields) == before
+        @test (st.time[], st.step[]) == (zero(T), 0)
+        @test all(all(isfinite, a) for a in (st.stage.n, st.stage.ui..., st.stage.B...))
+        @test any(any(!isfinite, a) for a in st.stage.E)
+
+        # The same physical state is admissible when projection is disabled.
+        step_hall_mhd!(st, T(0.01); project_b = false)
+        @test _hall_fields_snapshot(st.fields) == before
+        @test (st.time[], st.step[]) == (T(0.01), 1)
+        @test all(
+            getfield(st.fields, name) === reference for
+            (name, reference) in zip(fieldnames(typeof(st.fields)), references)
+        )
+
+        # Scaling both fields down keeps the projected electric field finite;
+        # the validation must accept that neighboring physical configuration.
+        st.fields.ui[2] ./= T(4)
+        st.fields.B[1] ./= T(4)
+        step_hall_mhd!(st, T(0.01))
+        @test all(all(isfinite, a) for a in (st.fields.ui..., st.fields.B..., st.fields.E...))
+        @test maximum(abs, st.fields.E[3]) > zero(T)
+        @test (st.time[], st.step[]) == (T(0.01) + T(0.01), 2)
+    end
+end
