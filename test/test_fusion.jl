@@ -270,6 +270,125 @@ end
         @test (@allocated drift_velocity(; drift_args...)) == 0
     end
 
+    @testset "public drifts retain raw cross components" begin
+        function exact_cross_drift(a, b, numerators, denominators)
+            exact(x) = Rational{BigInt}(x)
+            coefficient =
+                prod(exact, numerators; init = big(1) // big(1)) /
+                prod(exact, denominators; init = big(1) // big(1))
+            return ntuple(3) do i
+                j, k = mod1(i + 1, 3), mod1(i + 2, 3)
+                coefficient * (exact(a[j]) * exact(b[k]) - exact(a[k]) * exact(b[j]))
+            end
+        end
+        rotate(a, shift) = ntuple(i -> a[mod1(i + shift, 3)], 3)
+        for T in (Float16, Float32, Float64)
+            z, o, M, tiny = zero(T), one(T), floatmax(T), nextfloat(zero(T))
+            for sign in (-o, o), shift = 0:2
+                field = rotate((M, sign * tiny, z), shift)
+                axis = rotate((z, z, o), shift)
+                for (actual, expected) in (
+                    (exb_drift(field, axis), exact_cross_drift(field, axis, (), ())),
+                    (
+                        gradb_drift(o, sign, T(2), axis, field),
+                        exact_cross_drift(axis, field, (T(2),), (T(2), sign)),
+                    ),
+                    (
+                        curvature_drift(-o, sign, o, axis, field),
+                        exact_cross_drift(axis, field, (o,), (sign,)),
+                    ),
+                    (
+                        gradb_drift(M, sign * T(0.5), M, field, axis),
+                        exact_cross_drift(field, axis, (M, M, M), (T(2), sign * T(0.5), M, M, M)),
+                    ),
+                    (
+                        curvature_drift(-M, sign, o, field, axis),
+                        exact_cross_drift(field, axis, (M, M), (sign, M, M)),
+                    ),
+                )
+                    @test actual isa NTuple{3,T}
+                    @test all(nearest_hardware_result(actual[i], expected[i]) for i = 1:3)
+                end
+                # The public composition must retain each repaired component.
+                total = drift_velocity(;
+                    vpar = z,
+                    vperp = z,
+                    q = sign,
+                    m = o,
+                    E = field,
+                    B = axis,
+                    gradB = field,
+                    κ = field,
+                )
+                @test total == exb_drift(field, axis)
+            end
+
+            # Cross cancellation occurs before division by the magnetic norm.
+            # Include raw products that individually overflow, with finite drifts.
+            for (B, field) in
+                (((o, T(2), z), (nextfloat(o), T(2), z)), ((M, prevfloat(M), z), (M, M, z)))
+                Bs = maximum(abs, B)
+                Bn = hypot((B ./ Bs)...)
+                cases = (
+                    (exb_drift(field, B), exact_cross_drift(field, B, (), (Bs, Bs, Bn, Bn))),
+                    (
+                        gradb_drift(o, -o, T(2), B, field),
+                        exact_cross_drift(B, field, (T(2),), (T(2), -o, Bs, Bs, Bs, Bn, Bn, Bn)),
+                    ),
+                    (
+                        curvature_drift(-o, -o, o, B, field),
+                        exact_cross_drift(B, field, (o,), (-o, Bs, Bs, Bn, Bn)),
+                    ),
+                )
+                for (actual, expected) in cases
+                    @test all(nearest_hardware_result(actual[i], expected[i]) for i = 1:3)
+                end
+            end
+            axis = (z, z, o)
+            huge = (M, M, M)
+            @test exb_drift(huge, huge) == (z, z, z)
+            @test gradb_drift(z, o, M, (z, z, tiny), huge) == (z, z, z)
+            @test curvature_drift(z, -o, M, (z, z, tiny), huge) == (z, z, z)
+            @test_throws ArgumentError exb_drift((M, z, z), (z, z, T(0.5)))
+            @test_throws ArgumentError gradb_drift(M, o, o, axis, (o, z, z))
+            @test_throws ArgumentError curvature_drift(M, o, o, axis, (o, z, z))
+            @test gradb_drift(o, 1, 1, axis, (o, z, z)) isa NTuple{3,T}
+            @test curvature_drift(o, 1, 1, axis, (o, z, z)) isa NTuple{3,T}
+        end
+        @test exb_drift((1, 2, 0), (0, 0, 1)) isa NTuple{3,Float64}
+        @test exb_drift(Float32.((1, 2, 0)), (0.0, 0.0, 1.0)) isa NTuple{3,Float64}
+
+        # Retained BigFloat inputs can carry more bits than the working precision.
+        # Cancellation must use those stored bits and preserve caller rounding.
+        retained = setprecision(BigFloat, 256) do
+            z, o = zero(BigFloat), one(BigFloat)
+            ((o + ldexp(o, -200), o, z), (o, o, z))
+        end
+        for mode in (RoundNearest, RoundDown, RoundUp)
+            setprecision(BigFloat, 64) do
+                setrounding(BigFloat, mode) do
+                    field, B = retained
+                    Bs = maximum(abs, B)
+                    Bn = hypot((B ./ Bs)...)
+                    reference = setprecision(BigFloat, 2048) do
+                        ldexp(one(BigFloat), -200) / (BigFloat(Bs) * BigFloat(Bn))^2
+                    end
+                    expected = BigFloat(reference)
+                    @test exb_drift(field, B)[3] == expected
+                    @test curvature_drift(
+                        one(BigFloat),
+                        -one(BigFloat),
+                        one(BigFloat),
+                        B,
+                        field,
+                    )[3] == expected
+                    @test precision(BigFloat) == 64
+                    @test rounding(BigFloat) == mode
+                end
+            end
+        end
+    end
+
     @test_throws ArgumentError GuidingCentre((0.0, 0.0, 0.0), Inf, 0.0, 1.0, 1.0)
     @test_throws ArgumentError GuidingCentre((0.0, 0.0, 0.0), 0.0, -1.0, 1.0, 1.0)
     @test_throws ArgumentError GuidingCentre((0.0, 0.0, 0.0), 0.0, 0.0, 0.0, 1.0)

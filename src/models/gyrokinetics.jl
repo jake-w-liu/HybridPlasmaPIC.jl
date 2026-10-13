@@ -328,6 +328,45 @@ end
     _gyro_multiply_parts(negative_right, coefficient)
 end
 
+@inline function _gyro_exact_cross_component(a, b, i)
+    j, k = mod1(i + 1, 3), mod1(i + 2, 3)
+    return _exact_rational(a[j]) * _exact_rational(b[k]) -
+           _exact_rational(a[k]) * _exact_rational(b[j])
+end
+
+@noinline function _gyro_exact_cross_ratio(a, b, numerators, denominators, i, ::Type{T}) where {T}
+    cross = _gyro_exact_cross_component(a, b, i)
+    return _gyro_exact_ratio((cross, numerators...), denominators, T)
+end
+
+# Public drifts materialize a velocity, unlike the complete position expression.
+# Retain raw cross terms until their physical coefficient has been applied.
+@inline function _gyro_cross_ratio(a, b, numerators::Tuple, denominators::Tuple)
+    afloat = ntuple(i -> float(a[i]), 3)
+    bfloat = ntuple(i -> float(b[i]), 3)
+    T = float(
+        promote_type(
+            map(typeof, afloat)...,
+            map(typeof, bfloat)...,
+            map(typeof, numerators)...,
+            map(typeof, denominators)...,
+        ),
+    )
+    converted_a = map(x -> convert(T, x), afloat)
+    converted_b = map(x -> convert(T, x), bfloat)
+    coefficient = _gyro_ratio_parts(
+        map(x -> convert(T, x), numerators),
+        map(x -> convert(T, x), denominators),
+    )
+    factor_operations = length(numerators) + length(denominators) + 4
+    return ntuple(3) do i
+        parts = _gyro_cross_parts(converted_a, converted_b, coefficient, i)
+        result, needs_exact = _gyro_sum_scaled_parts(parts, factor_operations)
+        return needs_exact ?
+               _gyro_exact_cross_ratio(afloat, bfloat, numerators, denominators, i, T) : result
+    end
+end
+
 @noinline function _gyro_exact_position_component(
     X,
     vpar,
@@ -344,8 +383,7 @@ end
     i,
 )
     exact(x) = _exact_rational(x)
-    j, k = mod1(i + 1, 3), mod1(i + 2, 3)
-    cross(a, b) = exact(a[j]) * exact(b[k]) - exact(a[k]) * exact(b[j])
+    cross(a, b) = _gyro_exact_cross_component(a, b, i)
     magnitude = exact(Bscale) * exact(Bscaled_norm)
     perpendicular =
         (
@@ -463,10 +501,8 @@ The `E×B` drift `v_E = (E × B)/B^2`. `E` and `B` are 3-component vectors.
 """
 function exb_drift(E, B)
     _require_finite_vector3("E", E)
-    Bscale, Bscaled_norm, b = _gyro_nonzero_field(B)
-    Escale, Escaled = _gyro_scaled_vector(E)
-    direction = _cross3(Escaled, b)
-    drift = ntuple(i -> _gyro_scaled_ratio((Escale, direction[i]), (Bscale, Bscaled_norm)), 3)
+    Bscale, Bscaled_norm, _ = _gyro_nonzero_field(B)
+    drift = _gyro_cross_ratio(E, B, (), (Bscale, Bscale, Bscaled_norm, Bscaled_norm))
     _require_finite_vector3("E×B drift", drift)
     return drift
 end
@@ -482,15 +518,12 @@ function gradb_drift(vperp, q, m, B, gradB)
     q != zero(q) || throw(ArgumentError("charge q must be nonzero"))
     _require_positive_scalar("m", m)
     _require_finite_vector3("gradB", gradB)
-    Bscale, Bscaled_norm, b = _gyro_nonzero_field(B)
-    grad_scale, grad_scaled = _gyro_scaled_vector(gradB)
-    direction = _cross3(b, grad_scaled)
-    drift = ntuple(
-        i -> _gyro_scaled_ratio(
-            (m, vperp, vperp, grad_scale, direction[i]),
-            (2, q, Bscale, Bscale, Bscaled_norm, Bscaled_norm),
-        ),
-        3,
+    Bscale, Bscaled_norm, _ = _gyro_nonzero_field(B)
+    drift = _gyro_cross_ratio(
+        B,
+        gradB,
+        (m, vperp, vperp),
+        (2, q, Bscale, Bscale, Bscale, Bscaled_norm, Bscaled_norm, Bscaled_norm),
     )
     _require_finite_vector3("grad-B drift", drift)
     return drift
@@ -507,13 +540,9 @@ function curvature_drift(vpar, q, m, B, κ)
     q != zero(q) || throw(ArgumentError("charge q must be nonzero"))
     _require_positive_scalar("m", m)
     _require_finite_vector3("κ", κ)
-    Bscale, Bscaled_norm, b = _gyro_nonzero_field(B)
-    κscale, κscaled = _gyro_scaled_vector(κ)
-    direction = _cross3(b, κscaled)
-    drift = ntuple(
-        i -> _gyro_scaled_ratio((m, vpar, vpar, κscale, direction[i]), (q, Bscale, Bscaled_norm)),
-        3,
-    )
+    Bscale, Bscaled_norm, _ = _gyro_nonzero_field(B)
+    drift =
+        _gyro_cross_ratio(B, κ, (m, vpar, vpar), (q, Bscale, Bscale, Bscaled_norm, Bscaled_norm))
     _require_finite_vector3("curvature drift", drift)
     return drift
 end
