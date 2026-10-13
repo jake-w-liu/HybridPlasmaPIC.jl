@@ -132,3 +132,50 @@ allocator-lock support changes.
 No installed Julia or package dependency has been replaced.
 This tests MPFR's supported cache configuration as a possible runtime correction;
 it does not establish that the distributed Julia binaries use that configuration.
+
+## Standalone native reproducer and upstream handoff plan
+
+- Mode: retain a native diagnostic and prepare an upstream report.
+- Requirement: reproduce incorrect shared-cache constants without Julia or plasma
+  code; reject nonfinite constants too, report build flags and return failure on
+  any incorrect result. Keep process startup and thread failures observable.
+- Baseline: the retained native reproducer fails in 16/24 original-library runs;
+  instrumented lock transitions prove stale precision, while the precision-refresh
+  patch passes 24/24. The existing Julia-only diagnostic remains available.
+- Cause: the cache lock downgrade permits a new writer before rounding resumes,
+  so local precision can disagree with the newly shared mantissa.
+- Contract: four pthread workers request 64 growing-precision pi values per fresh
+  process. This detects gross corruption; a passing run cannot certify thread
+  safety or every rounding bit. No solver or installed runtime is changed.
+- Owner/surfaces: a standalone `tools/audit_mpfr_cache.c`, this evidence plan,
+  the existing experimental native patch and a reviewable upstream report.
+- Compatibility: no package dependency, API, build hook or automatic runtime
+  replacement. The C diagnostic requires an MPFR build with thread-local state.
+- Strategy: retain the demonstrated native workload, validate finite results,
+  release thread-local caches in workers and shared caches after joins, check
+  pthread operations, and record compiler/library versions. Prepare the report
+  according to MPFR's official reporting instructions; sending remains separate.
+- Verification: strict C compiler warnings; native original, patched-shared and
+  pristine-unshared controls; actual loaded library paths; bounded fresh-process
+  samples with all exit statuses retained; inspect the final report against logs.
+
+The final [C diagnostic](../tools/audit_mpfr_cache.c) builds with
+`-std=c11 -O2 -Wall -Wextra -Werror -pedantic -pthread` against all four library
+variants. Eight fresh processes per variant give one failure with Julia 1.12.7's
+library, six with Julia 1.13.1's, and none with either temporary control
+(512 constant checks per control). Separate `DYLD_PRINT_LIBRARIES=1` runs verify
+the actual MPFR/GMP paths. The linker reports harmless duplicate rpath entries
+for the two stock variants; compiler diagnostics are clean.
+Driver: `/tmp/hybrid-mpfr-native-handoff-build.py`; build log:
+`/tmp/hybrid-mpfr-native-handoff-build.log` (terminal exit 0). Per-process output,
+exit statuses, loaded paths and library manifest are retained under:
+
+`/var/folders/93/r1t98m8d3014c24llb8j119w0000gn/T/hybrid-mpfr-native-handoff-1jflmbhb`
+
+The [prepared upstream report](MPFR_UPSTREAM_REPORT.md) includes the standalone
+source, measured environment, source-level cause, experimental patch and bounded
+control results. It has not been sent. The runtime integration gate stays open.
+
+The report's shell command was extracted and executed against the unshared
+control with the final C source; it compiles and passes all 64 checks (exit 0).
+Log: `/tmp/hybrid-mpfr-report-command.log`.
