@@ -133,9 +133,13 @@ output staging where the goal is to get bytes off the hot path quickly.
 `async_save` snapshots `state` before spawning the write, so mutations made by
 the caller after `async_save(path, state)` returns do not race or leak into the
 serialized file.
+
+Publish atomically after writing and closing the snapshot. A failed write leaves
+the previous file intact and fails the returned task. File permissions, symlinks,
+hardlinks and directory-access requirements follow [`save_checkpoint`](@ref).
 """
 function async_save(path::AbstractString, state)
     p = String(path)
     payload = deepcopy(state)
-    return Threads.@spawn serialize(p, payload)
+    return Threads.@spawn _atomic_serialize(p, payload)
 end

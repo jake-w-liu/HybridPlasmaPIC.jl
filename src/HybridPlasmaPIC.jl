@@ -122,6 +122,7 @@ include("parallel/gpu.jl")
 include("parallel/mpi.jl")
 
 # --- IO ---
+include("io/publication.jl")
 include("io/checkpoint.jl")
 include("io/metadata.jl")
 include("io/hdf5_output.jl")

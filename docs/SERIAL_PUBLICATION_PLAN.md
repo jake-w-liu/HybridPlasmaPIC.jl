@@ -1,7 +1,7 @@
 # Atomic publication of serialized outputs
 
-Status: implementation in progress (IO-011), following the verified checkpoint
-configuration repair `3495c64`.
+Status: IO-011 is implemented and verified on Julia 1.12.7 and 1.13.1, following
+the checkpoint configuration repair `3495c64`.
 
 ## Pre-edit brief
 
@@ -49,4 +49,36 @@ The temporary physical-parent resolver passes 12 assertions on each version:
 `/tmp/hybrid-serial-leaf-resolution-probe112.log` and `113.log`.
 It covers relative and dangling chains, directory symlinks with `..`, cycles,
 missing parents and agreement with the actual serialization destination.
-These are prototype results; final implementation gates remain pending.
+These prototype checks are supplemented by the final implementation gates below.
+
+## Final verification
+
+Both native versions pass **23,747 I/O, reproducibility and MPI assertions**
+(17m13.6s on Julia 1.12.7; 20m41.4s on 1.13.1), with terminal exit zero:
+`/tmp/hybrid-publication-v3-final112.log` and `113.log`.
+The 293 focused publication checks also pass separately on each version.
+They cover partial writes, serializer/flush/close/rename failures, a close that
+fails before closing, error aggregation, replacement staging entries, symlink
+chains and cycles, directory-link `..` semantics, rwx modes, unchanged serialized
+bytes, failed task propagation and caller-owned input snapshots.
+
+All four concrete compiler paths report zero findings. Package report messages
+match the prior baseline exactly: 26 on 1.12, 25 on 1.13, with the unchanged
+ceiling of 30. Logs: `/tmp/hybrid-publication-v2-jet112.log` and
+`/tmp/hybrid-publication-v3-jet113.log`; v2/v3 production behavior is identical.
+Final docstring-only additions were checked separately. JuliaFormatter 1.0.62
+is idempotent on all final source/test files and `git diff --check` passes.
+
+Each version passes seven allocation/encoding checks for 128 B, 4 MiB and 16 MiB
+payloads. Additional publication allocation is 3,808–3,824 B on 1.12 and 3,712 B
+on 1.13; the samples show no payload-sized duplicate buffer. Logs:
+`/tmp/hybrid-publication-v3-resources112.log` and `113.log`.
+The final reviewed source/test hashes are retained in
+`/tmp/hybrid-publication-v3-handoff.json`.
+
+This evidence is from local macOS runs. Linux CI and the next immutable full
+package run provide separate integration evidence. Directory write access and
+exclusion of concurrent directory mutation remain requirements. Atomic rename
+preserves the previous file on pre-publication failure; it does not provide
+crash durability or update other hardlinks to the old inode. Configuration
+serialization of internal aliases/native handles remains separate IO-010 work.

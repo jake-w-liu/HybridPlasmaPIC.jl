@@ -159,6 +159,10 @@ the container's `state` holds the serialized bytes, and `checksum` is their
 SHA-256 digest. The input `state` is any serializable value (typically a
 `NamedTuple` of simulation arrays/scalars). [`load_run`](@ref) verifies the
 bytes before deserializing them. Returns `path`.
+
+Publish atomically after the complete container is written and closed, preserving
+the previous file on pre-publication failure. File permissions, symlinks, hardlinks
+and directory-access requirements follow [`save_checkpoint`](@ref).
 """
 function save_run(path::AbstractString, state, meta::RunMetadata)
     buffer = IOBuffer()
@@ -170,7 +174,7 @@ function save_run(path::AbstractString, state, meta::RunMetadata)
         state = payload,
         checksum = bytes2hex(SHA.sha256(payload)),
     )
-    serialize(path, container)
+    _atomic_serialize(path, container)
     return path
 end
 

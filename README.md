@@ -347,6 +347,12 @@ fields, retained hyperresistive stage values, and clock without particle argumen
 `save_run`/`load_run`/`archive_run`
 add schema versioning, SHA-256 checksums, and full reproducibility metadata
 (git commit, Julia version, project/manifest hashes, RNG seed, hardware).
+Serial checkpoints, archives and `async_save` publish a completed file by atomic
+rename; failures before publication retain the previous file. Existing rwx modes
+are retained and new files use 0600. Symlinks retain their link and update the
+referent; other hardlinks keep the old contents. Directory write access and no
+concurrent directory mutation are required. This provides no crash-durability
+guarantee. [Publication contract](docs/SERIAL_PUBLICATION_PLAN.md).
 Field dumps use a self-describing binary format with zero heavy dependencies;
 HDF5 output activates as a package extension when HDF5.jl is loaded, and
 distributed FFTs (PencilFFTs.jl) as another for fully periodic 3D domains.

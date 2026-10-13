@@ -143,6 +143,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Both EMPIC interfaces preserve ordinary summation order and expose genuinely
   unrepresentable final energies as infinity.
 
+- Serial checkpoints, archives and asynchronous saves publish only after a
+  same-directory staging file is serialized, flushed and closed. Earlier errors
+  preserve the previous file; cleanup failures remain visible. Existing rwx
+  modes and symlink referents are retained; new files use 0600 and other hardlinks
+  retain their old contents after replacement.
+
 - General ES/EM Poisson, Gauss and current projections distinguish nonzero
   wavevectors even when their squares lose range. Range-sensitive modes retain
   the complete longitudinal expression and original timestep before rounding;

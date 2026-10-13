@@ -961,6 +961,13 @@ and time/step counters without particle arguments. The retained stage `lapJ`
 values are saved because inactive hyperresistivity can carry them into the public
 fields. Other RK workspaces are rebuilt during stepping; saved derived fields
 are restored without reevaluating Ohm's law.
+
+Publish by same-directory rename after serialization, flush and close succeed;
+earlier failures preserve the previous file. Cleanup failures accompany the
+original error. Existing file rwx permissions are retained; new files use 0600.
+Symlinks are followed to their referent, whose inode is replaced; other hardlinks
+keep the old contents. Requires directory write access and no concurrent directory
+mutation. This does not guarantee durability after an operating-system crash.
 """
 function save_checkpoint(path::AbstractString, st::_CheckpointStepper, ps::ParticleSet)
     return _save_checkpoint(path, st, _checkpoint_state(st, ps))
@@ -989,7 +996,7 @@ end
 
 function _save_checkpoint(path::AbstractString, st::Union{_CheckpointStepper,HallMHDState}, state)
     _validate_checkpoint_state(state, st)
-    serialize(path, state)
+    _atomic_serialize(path, state)
     return path
 end
 
