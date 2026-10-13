@@ -38,10 +38,7 @@ cell_center(g::AMRGrid, i::Integer) = g.x0 + (i - oftype(g.dx, 0.5)) * g.dx
 
 @inline function _amr_compensated_add(total::T, correction::T, term::T) where {T}
     updated = total + term
-    correction +=
-        abs(total) >= abs(term) ?
-        (total - updated) + term :
-        (term - updated) + total
+    correction += abs(total) >= abs(term) ? (total - updated) + term : (term - updated) + total
     return updated, correction
 end
 
@@ -80,12 +77,7 @@ end
 
 # Evaluate `a*b - c*d` after aligning two exact product expansions. This avoids
 # both overflow in a representable difference and underflow of either product.
-@inline function _amr_scaled_product_difference(
-    a::T,
-    b::T,
-    c::T,
-    d::T,
-) where {T<:AbstractFloat}
+@inline function _amr_scaled_product_difference(a::T, b::T, c::T, d::T) where {T<:AbstractFloat}
     left_zero = iszero(a) || iszero(b)
     right_zero = iszero(c) || iszero(d)
     left_zero && right_zero && return zero(T)
@@ -113,14 +105,14 @@ end
     return W(u[i+1]) - W(2) * W(u[i]) + W(u[i-1])
 end
 
-@inline function _amr_normalisation_loses_precision(value::T, normalised::T) where {
-    T<:Union{Float16,Float32,Float64},
-}
+@inline function _amr_normalisation_loses_precision(
+    value::T,
+    normalised::T,
+) where {T<:Union{Float16,Float32,Float64}}
     return !iszero(value) && (iszero(normalised) || issubnormal(normalised))
 end
 
-@inline _amr_normalisation_loses_precision(value, normalised) =
-    !iszero(value) && iszero(normalised)
+@inline _amr_normalisation_loses_precision(value, normalised) = !iszero(value) && iszero(normalised)
 
 # Rational{BigInt} exactly represents every finite binary floating-point input.
 # This cold fallback is used only when a shared floating scale erases information.
@@ -138,10 +130,7 @@ end
     return T(exact)
 end
 
-@inline function _amr_second_difference(
-    u::AbstractVector{T},
-    i::Int,
-) where {T<:AbstractFloat}
+@inline function _amr_second_difference(u::AbstractVector{T}, i::Int) where {T<:AbstractFloat}
     a, b, c = u[i-1], u[i], u[i+1]
     scale = max(abs(a), abs(b), abs(c))
     iszero(scale) && return zero(T)
@@ -157,8 +146,7 @@ end
     return _amr_scaled_product(scale, scaled)
 end
 
-@inline _amr_second_difference(u::AbstractVector, i::Int) =
-    u[i+1] - 2u[i] + u[i-1]
+@inline _amr_second_difference(u::AbstractVector, i::Int) = u[i+1] - 2u[i] + u[i-1]
 
 # Form `(a-b)*fraction` without overflowing the subtraction. The fractions used
 # by prolongation are exact powers of two.
@@ -201,15 +189,11 @@ end
 
 function _validate_refinement_pair(fine::AMRGrid{T}, coarse::AMRGrid{T}) where {T}
     n = ncells(coarse)
-    ncells(fine) == 2n ||
-        throw(DimensionMismatch("fine must have 2*$(n) = $(2n) cells"))
-    fine.x0 == coarse.x0 ||
-        throw(ArgumentError("fine and coarse grids must have the same x0"))
+    ncells(fine) == 2n || throw(DimensionMismatch("fine must have 2*$(n) = $(2n) cells"))
+    fine.x0 == coarse.x0 || throw(ArgumentError("fine and coarse grids must have the same x0"))
     expected_dx = coarse.dx / T(2)
     fine.dx == expected_dx || throw(
-        ArgumentError(
-            "fine dx must equal coarse dx / 2 (expected $expected_dx, got $(fine.dx))",
-        ),
+        ArgumentError("fine dx must equal coarse dx / 2 (expected $expected_dx, got $(fine.dx))"),
     )
     return n
 end
@@ -258,8 +242,7 @@ Return a uniformly 2x-refined level obtained by prolonging `coarse`.
 """
 function refine(coarse::AMRGrid{T}) where {T}
     n = ncells(coarse)
-    n <= typemax(Int) ÷ 2 ||
-        throw(OverflowError("refined AMR cell count does not fit in Int"))
+    n <= typemax(Int) ÷ 2 || throw(OverflowError("refined AMR cell count does not fit in Int"))
     fine = AMRGrid(Vector{T}(undef, 2n), coarse.dx / 2; x0 = coarse.x0)
     return prolong!(fine, coarse)
 end

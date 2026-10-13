@@ -238,12 +238,7 @@ end
     for invalid_mass in (0.0, -1.0, Inf, -Inf, NaN)
         bad_mass = seeded_particle(; m = invalid_mass)
         bad_mass_state = (copy(bad_mass.x[1]), ntuple(c -> copy(bad_mass.v[c]), 3))
-        @test_throws ArgumentError push_uniform!(
-            bad_mass,
-            (0.0, 0.0, 0.0),
-            (0.0, 0.0, 1.0),
-            0.1,
-        )
+        @test_throws ArgumentError push_uniform!(bad_mass, (0.0, 0.0, 0.0), (0.0, 0.0, 1.0), 0.1)
         @test bad_mass.x[1] == bad_mass_state[1]
         @test all(bad_mass.v[c] == bad_mass_state[2][c] for c = 1:3)
     end

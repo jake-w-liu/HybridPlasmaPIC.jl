@@ -389,7 +389,7 @@ end
         es = Electrostatic1D(g, N; n0 = 1.0)
         init_espic!(es, e)
         lead_zero && step_espic!(es, e, 0.0)          # dt=0 must not consume the priming
-        for _ = 1:round(Int, Tf/dt)
+        for _ = 1:round(Int, Tf / dt)
             step_espic!(es, e, dt)
         end
         abs(mode_amplitude(es.E, g, (1,)))
