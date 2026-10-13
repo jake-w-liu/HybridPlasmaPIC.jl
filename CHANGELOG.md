@@ -94,6 +94,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Guiding-centre grad-B drift uses the stored magnetic moment directly, preserving
+  finite drifts when reconstructing the perpendicular speed squared would overflow
+  or underflow.
+
 - Timestep recommendations retain representable whistler, resistive, and gyro
   limits when intermediate powers or products exceed floating-point range.
 

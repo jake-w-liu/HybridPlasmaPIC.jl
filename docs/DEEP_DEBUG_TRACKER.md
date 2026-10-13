@@ -32,6 +32,9 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   `julia +1.13.1 --project=validation validation/run_validation.jl --quick --no-plots`.
   Evidence: `/tmp/hybrid-validation-b200c76.log` and
   `/tmp/hybrid-validation-b200c76-results/artifacts/validation_summary.csv`.
+- Julia 1.13.1 full electromagnetic suites at fixed `b62da7b`: **7,707/7,707
+  assertions passed** across 40 test sets, including the new subcycling and
+  Float32 cases. Log: `/tmp/empic-subcycling-b62da7b-julia113.log`.
 - CI run `38414172669` passed formatting and real MPI smoke at 2, 4, and 8 ranks.
   Its package suites were superseded by subsequent required pushes. Local full
   suites continue independently of push-triggered CI cancellation.
@@ -86,6 +89,7 @@ performance review. “Pending” means no current-run completion claim.
 | CFL-001 | Timestep recommendation lost representable results through intermediate overflow/underflow | Pushed (`27b4c8d`) | Valid 4-cell grid of length 1e-80 returned zero instead of the 512-bit oracle's 1.4184965709927286e-162. Logarithmic evaluation passes 3,802 helper/range/coupled-stability assertions on each of Julia 1.12.7 and 1.13.1 (`test/test_phase_helpers.jl`) |
 | RESTART-002 | Electrostatic PIC lacked checkpoint/archive support | Pushed (`b200c76`) | Julia 1.13 combined IO/repro/MPI: 1,194 assertions; Julia 1.12 final focused suite: 540 assertions. Covers Float32/64, 1D–3D, exact variable-step continuation, changed fields, invalid destinations, views, empty populations, and archives |
 | SUBCYCLE-001 | General EMPIC lacked electron subcycling | Pushed (`c5fef77`) | Julia 1.12.7 full EM suites: 7,257 assertions; added permanent Float32 coverage: 450 assertions in a separate final-file run. Includes independent constant-field oracles, 1D equivalence, 2D/3D charge/Gauss checks, changing dt/counts, mobile-ion coupled convergence. Default n_sub=1 arrays match prior code; allocations unchanged and scale linearly with subcycles |
+| GYRO-001 | Guiding-centre drift loses finite results by reconstructing perpendicular speed squared from magnetic moment | Verified; commit in this change | Direct moment-based grad-B drift; independent 2,048-bit equations cover extreme and ordinary Float32/64 inputs, charge signs, mass, zero moment, and failed-update rollback. Fusion suite: 256 assertions passed on each of Julia 1.12.7 and 1.13.1, including 76 new assertions; warmed push remains allocation-free |
 
 ## Completeness roadmap
 

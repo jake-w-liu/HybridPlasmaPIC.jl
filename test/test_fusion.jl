@@ -395,6 +395,91 @@ end
     @test gc5.vpar == expected_force
     @test all(isfinite, gc5.X)
 
+    @testset "magnetic-moment drift avoids perpendicular-speed squaring" begin
+        # The stored moment gives v_gradB = μ (b × ∇B)/(q |B|) directly.
+        # Evaluate the documented local-field equations independently at high
+        # precision, including cases where v_perp^2 is outside the state range.
+        function moment_push_oracle(gc; dt, E, B, gradB, κ, gradpar_B)
+            return setprecision(2048) do
+                eb, bb, gb, kb = map(x -> BigFloat.(x), (E, B, gradB, κ))
+                Bmag = sqrt(sum(abs2, bb))
+                b = bb ./ Bmag
+                cross(a, c) = (
+                    a[2] * c[3] - a[3] * c[2],
+                    a[3] * c[1] - a[1] * c[3],
+                    a[1] * c[2] - a[2] * c[1],
+                )
+                μ, q, m, vpar = BigFloat.((gc.μ, gc.q, gc.m, gc.vpar))
+                velocity =
+                    vpar .* b .+ cross(eb, bb) ./ Bmag^2 .+ (μ / q / Bmag) .* cross(b, gb) .+
+                    (m * vpar^2 / q / Bmag) .* cross(b, kb)
+                X = BigFloat.(gc.X) .+ BigFloat(dt) .* velocity
+                v = vpar + BigFloat(dt) * (q * sum(eb .* b) - μ * BigFloat(gradpar_B)) / m
+                return X, v
+            end
+        end
+
+        maximum_error = 0.0
+        for T in (Float32, Float64)
+            scales = T === Float32 ? (T(1e-30), T(1e30)) : (T(1e-200), T(1e200))
+            z = (zero(T), zero(T), zero(T))
+            for scale in scales, charge in (-T(2), T(2)), mass in (T(0.5), T(4.25))
+                gc_moment = GuidingCentre(T.((0.2, -0.1, 0.3)), T(-0.35), scale, charge, mass)
+                args = (;
+                    dt = T(0.125),
+                    E = z,
+                    B = scale .* T.((0.2, -0.6, 0.7)),
+                    gradB = T.((0.3, -0.4, 0.5)),
+                    κ = z,
+                    gradpar_B = zero(T),
+                )
+                expected_X, expected_v = moment_push_oracle(gc_moment; args...)
+                push_guiding_centre!(gc_moment; args...)
+                error = maximum(abs.(BigFloat.(gc_moment.X) .- expected_X))
+                maximum_error = max(maximum_error, Float64(error))
+                @test error < 16eps(T)
+                @test gc_moment.vpar == T(expected_v)
+                @test gc_moment.μ == scale
+                @test gc_moment isa GuidingCentre{T}
+            end
+
+            gc_normal = GuidingCentre(T.((0.2, -0.1, 0.3)), T(-0.35), T(0.8), -T(2), T(4.25))
+            normal_args = (;
+                dt = T(0.125),
+                E = T.((0.4, -0.2, 0.3)),
+                B = T.((0.2, -0.6, 0.7)),
+                gradB = T.((0.3, -0.4, 0.5)),
+                κ = T.((0.1, 0.2, -0.3)),
+                gradpar_B = T(0.2),
+            )
+            expected_X, expected_v = moment_push_oracle(gc_normal; normal_args...)
+            push_guiding_centre!(gc_normal; normal_args...)
+            @test maximum(abs.(BigFloat.(gc_normal.X) .- expected_X)) < 16eps(T)
+            @test abs(BigFloat(gc_normal.vpar) - expected_v) < 16eps(T)
+
+            gc_zero = GuidingCentre(z, zero(T), zero(T), one(T), one(T))
+            push_guiding_centre!(gc_zero; normal_args..., E = z, κ = z)
+            @test gc_zero.X == z
+            @test gc_zero.vpar == zero(T)
+
+            gc_overflow =
+                GuidingCentre((zero(T), floatmax(T), zero(T)), zero(T), one(T), one(T), one(T))
+            before = (gc_overflow.X, gc_overflow.vpar, gc_overflow.μ, gc_overflow.q, gc_overflow.m)
+            @test_throws ArgumentError push_guiding_centre!(
+                gc_overflow;
+                dt = floatmax(T),
+                E = z,
+                B = (zero(T), zero(T), one(T)),
+                gradB = (one(T), zero(T), zero(T)),
+                κ = z,
+                gradpar_B = zero(T),
+            )
+            @test (gc_overflow.X, gc_overflow.vpar, gc_overflow.μ, gc_overflow.q, gc_overflow.m) ==
+                  before
+        end
+        @info "guiding-centre magnetic-moment oracle" maximum_error
+    end
+
     push_args = (;
         dt = 0.01,
         E = (0.0, 1.0, 0.0),

@@ -347,20 +347,22 @@ function push_guiding_centre!(gc::GuidingCentre{T}; dt, E, B, gradB, κ, gradpar
     κT = _convert_finite_vector3("κ", κ, T)
     gradparT = _require_finite_real("gradpar_B", gradpar_B, T)
     Bscale, Bscaled_norm, b = _gyro_nonzero_field(BT)
-    vperp2 = _gyro_scaled_ratio((T(2), gc.μ, Bscale, Bscaled_norm), (gc.m,))
-    isfinite(vperp2) && vperp2 >= zero(T) ||
-        throw(ArgumentError("local perpendicular speed is not finite and representable as $T"))
-    vperp = sqrt(vperp2)
-    vd = drift_velocity(;
-        vpar = gc.vpar,
-        vperp,
-        q = gc.q,
-        m = gc.m,
-        E = ET,
-        B = BT,
-        gradB = gradBT,
-        κ = κT,
+    # Use μ directly: reconstructing v_perp^2 = 2μ|B|/m can overflow or
+    # underflow even when μ (b × gradB)/(q |B|) is representable.
+    grad_scale, grad_scaled = _gyro_scaled_vector(gradBT)
+    grad_direction = _cross3(b, grad_scaled)
+    vgradB = ntuple(
+        i -> _gyro_scaled_ratio(
+            (gc.μ, grad_scale, grad_direction[i]),
+            (gc.q, Bscale, Bscaled_norm),
+        ),
+        3,
     )
+    _require_finite_vector3("grad-B drift", vgradB)
+    vE = exb_drift(ET, BT)
+    vcurvature = curvature_drift(gc.vpar, gc.q, gc.m, BT, κT)
+    vd = ntuple(i -> _gyro_scaled_sum3(vE[i], vgradB[i], vcurvature[i]), 3)
+    _require_finite_vector3("total drift", vd)
     velocity = ntuple(i -> _gyro_scaled_sum3(vd[i], gc.vpar * b[i], zero(T)), 3)
     step = ntuple(i -> _gyro_scaled_ratio((dtT, velocity[i]), (one(T),)), 3)
     new_X = _add3(gc.X, step)
