@@ -408,3 +408,95 @@ end
         @test (st.time[], st.step[]) == (T(0.01) + T(0.01), 2)
     end
 end
+
+# A circularly polarized wave has u·k = 0 and constant |B|, so the nonlinear
+# equations reduce exactly to the two-mode Hall/Alfvén matrix used below.
+function _hall_helical_wave_state(D, T; eta = 0.0, hyper = 0.0)
+    g = FourierGrid(ntuple(_ -> 8, D), ntuple(_ -> T(2π), D))
+    st = HallMHDState(g, HallMHDModel(IsothermalElectrons(0.0); η = eta, ηH = hyper))
+    b0 = [d <= D ? inv(sqrt(Float64(D))) : 0.0 for d = 1:3]
+    ref = D == 1 ? [0.0, 1.0, 0.0] : [1.0, -1.0, 0.0] / sqrt(2.0)
+    e2 = cross(b0, ref)
+    st.fields.n .= 1
+    for I in CartesianIndices(st.fields.n)
+        phase = sum((I[d] - 1) * g.dx[d] for d = 1:D)
+        for c = 1:3
+            st.fields.B[c][I] = b0[c] + 0.01 * (ref[c] * cos(phase) + e2[c] * sin(phase))
+        end
+    end
+    return st, b0, ref, e2
+end
+function _hall_helical_wave_amplitude(st, e1, e2)
+    g = st.g
+    D = length(g.n)
+    v = zeros(ComplexF64, 2)
+    for I in CartesianIndices(st.fields.n)
+        phase = sum((I[d] - 1) * g.dx[d] for d = 1:D)
+        for (s, f) in enumerate((st.fields.ui, st.fields.B))
+            v[s] += sum((e1[c] + im * e2[c]) * f[c][I] for c = 1:3) * exp(-im * phase)
+        end
+    end
+    v ./= length(st.fields.n)
+    return v
+end
+@testset "Hall oblique helical wave exact two-mode matrix" begin
+    for T in (Float32, Float64), D = 1:3, (eta, hyper) in ((0.0, 0.0), (0.03, 0.002))
+        st, b0, e1, e2 = _hall_helical_wave_state(D, T; eta, hyper)
+        initial = _hall_helical_wave_amplitude(st, e1, e2)
+        for _ = 1:20
+            step_hall_mhd!(st, T(0.01))
+        end
+        k = sqrt(D)
+        M = ComplexF64[0 im*k; im*k im*k^2-eta*k^2-hyper*k^4]
+        expected = exp(0.2M) * initial
+        measured = _hall_helical_wave_amplitude(st, e1, e2)
+        error = norm(measured - expected) / norm(expected)
+        @test error < (T == Float32 ? 1e-4 : 2e-7)
+        @test maximum(abs, st.fields.n .- 1) < (T == Float32 ? 1e-5 : 1e-12)
+    end
+end
+@testset "Hall wave RK4 time convergence" begin
+    for D = 1:3
+        errors = Float64[]
+        for N in (8, 16, 32)
+            st, b0, e1, e2 = _hall_helical_wave_state(D, Float64)
+            initial = _hall_helical_wave_amplitude(st, e1, e2)
+            for _ = 1:N
+                step_hall_mhd!(st, 0.4 / N)
+            end
+            k = sqrt(D)
+            M = ComplexF64[0 im*k; im*k im*k^2]
+            push!(errors, norm(_hall_helical_wave_amplitude(st, e1, e2) - exp(0.4M) * initial))
+        end
+        rates = log2.(errors[1:2] ./ errors[2:3])
+        @test all(rates .> 3.8)
+    end
+end
+
+@testset "Hall nonlinear velocity advection oracle" begin
+    for T in (Float32, Float64), D = 1:3
+        g = FourierGrid(ntuple(_ -> 16, D), ntuple(_ -> T(2π), D))
+        st = HallMHDState(g, HallMHDModel(IsothermalElectrons(0)))
+        st.fields.n .= 1
+        amplitude = T.((0.12, -0.17, 0.09))
+        k = ntuple(d -> T(d), D)
+        projection = sum(k[d] * amplitude[d] for d = 1:D)
+        expected_n = zeros(T, g.n)
+        expected_u = ntuple(_ -> zeros(T, g.n), 3)
+        for I in CartesianIndices(st.fields.n)
+            phase = sum(k[d] * (I[d] - 1) * g.dx[d] for d = 1:D)
+            expected_n[I] = -projection * cos(phase)
+            for c = 1:3
+                st.fields.ui[c][I] = amplitude[c] * sin(phase)
+                expected_u[c][I] = -amplitude[c] * projection * sin(phase) * cos(phase)
+            end
+        end
+        rhs = hall_mhd_rhs!(st)
+        tolerance = T == Float32 ? 2e-6 : 2e-14
+        @test maximum(abs, rhs.dn - expected_n) < tolerance
+        for c = 1:3
+            @test maximum(abs, rhs.du[c] - expected_u[c]) < tolerance
+            @test all(iszero, rhs.dB[c])
+        end
+    end
+end

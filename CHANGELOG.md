@@ -89,6 +89,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Hall-MHD reuses one forward FFT per velocity component when computing
+  advection gradients in 2D and 3D. The reproducible benchmark reports runtime
+  and the additional 384 bytes allocated per RK4 step; 1D keeps its prior path.
+
 - Vector field gathering reuses each particle stencil across all three components,
   preserving scalar-gather results and zero steady-state allocations. The CPU
   benchmark now compares fused and scalar gathers in 1D, 2D, and 3D.

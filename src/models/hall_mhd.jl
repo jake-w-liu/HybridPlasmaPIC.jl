@@ -285,14 +285,17 @@ function _hall_mhd_rhs!(
     aniso = is_anisotropic(model.closure)
     Bx, By, Bz = B
     Jx, Jy, Jz = stage.J
+    gradu = st.gradu
     for c = 1:3
-        for d = 1:D
-            deriv!(st.gradu[d], u[c], g, d)
+        if D == 1
+            deriv!(gradu[1], u[c], g, 1)
+        else
+            gradient!(gradu, u[c], g)
         end
         @inbounds for I in eachindex(n)
             adv = zero(T)
             for d = 1:D
-                adv += u[d][I] * st.gradu[d][I]
+                adv += u[d][I] * gradu[d][I]
             end
             lorentz = if c == 1
                 Jy[I] * Bz[I] - Jz[I] * By[I]
