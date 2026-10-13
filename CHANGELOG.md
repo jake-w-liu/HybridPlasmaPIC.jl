@@ -134,6 +134,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Moment deposition validates every output, scratch buffer and particle layout
+  before writing. Momentum, current, pressure and single/multispecies hybrid
+  moments reject overlapping storage without corrupting inputs or outputs. MPI
+  moment validation completes collectively before deposition; independent views
+  and sequential scratch reuse remain supported.
+
 - Public E×B, grad-B and curvature drifts retain raw cross-product terms
   through their physical coefficients, preserving finite results across range
   loss and near-parallel cancellation. Exact fallbacks share the existing

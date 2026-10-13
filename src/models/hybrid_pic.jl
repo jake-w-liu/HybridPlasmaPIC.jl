@@ -32,7 +32,8 @@ end
     compute_moments!(f, ps, g, shape, nfloor; work=...)
 
 Deposit number density into `f.n` and ion bulk velocity into `f.ui`
-(= momentum density / max(n, nfloor)).
+(= momentum density / max(n, nfloor)). Outputs and optional one-based scratch
+must not overlap each other or particle storage; all are checked before writing.
 """
 function compute_moments!(
     f::HybridFields{D,T},
@@ -43,6 +44,7 @@ function compute_moments!(
     work::Union{Nothing,AbstractVector{T}} = nothing,
 ) where {D,T}
     nf = _require_finite_positive_real("nfloor", nfloor, T)
+    _validate_moment_storage((f.n, f.ui...), ps, g, work)
     density!(f.n, ps, g, shape)
     momentum!(f.ui, ps, g, shape; work)
     _normalize_ion_moments!(f.n, f.ui, nf)
@@ -85,7 +87,11 @@ end
 Quasineutral moments from several ion species (each a `ParticleSet` with its own
 charge `q`): `f.n` ← e·n_e = Σ_s q_s n_s, and the charge-weighted ion bulk
 velocity `f.ui` ← (Σ_s q_s n_s u_s)/(Σ_s q_s n_s). Reduces to the single-species
-result for one proton population (q=1).
+result for one proton population (q=1). Grid outputs and scratch must be
+independent and must not overlap any population. Each optional `works` entry
+is a one-based particle vector; entries may share scratch reused sequentially,
+but must not overlap particle or grid storage. Every population is checked
+before any output or scratch is changed.
 """
 function compute_moments_multi!(
     f::HybridFields{D,T},
@@ -99,34 +105,7 @@ function compute_moments_multi!(
     works = nothing,
 ) where {D,T}
     nf = _require_finite_positive_real("nfloor", nfloor, T)
-    size(ntmp) == g.n ||
-        throw(DimensionMismatch("ntmp size $(size(ntmp)) does not match grid size $(g.n)"))
-    for c = 1:3
-        size(mtmp[c]) == g.n || throw(
-            DimensionMismatch("mtmp[$c] size $(size(mtmp[c])) does not match grid size $(g.n)"),
-        )
-    end
-    if works !== nothing && length(works) != length(species)
-        throw(
-            DimensionMismatch(
-                "works length $(length(works)) must equal species count $(length(species))",
-            ),
-        )
-    end
-    # Validate every works[is] BEFORE mutating f, so a mis-sized scratch leaves f unchanged
-    # (strong exception guarantee) rather than half-accumulated — matching the up-front nfloor/
-    # ntmp/mtmp/works-count checks and the "validates before mutation" contract (test_physics2.jl).
-    if works !== nothing
-        for (is, s) in enumerate(species)
-            w = works[is]
-            eltype(w) === T || throw(ArgumentError("works[$is] eltype $(eltype(w)) must match $T"))
-            length(w) == nparticles(s) || throw(
-                DimensionMismatch(
-                    "works[$is] length $(length(w)) must equal particle count $(nparticles(s))",
-                ),
-            )
-        end
-    end
+    _validate_moment_storage((f.n, f.ui..., ntmp, mtmp...), species, g, works)
     _zero_ion_moments!(f.n, f.ui)
     for (is, s) in enumerate(species)
         work = works === nothing ? nothing : works[is]

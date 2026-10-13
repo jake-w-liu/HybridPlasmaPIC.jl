@@ -316,27 +316,93 @@ function _deposit_pressure_extended!(P, nbuf, mom, ps, g, shape, density_floor)
     return P
 end
 
-function _validate_pressure_scratch_aliasing(P, ps, work, nbuf, mom)
-    grids = (P..., nbuf, mom...)
-    for i in eachindex(grids)
-        _mightalias_particle_storage(grids[i], ps) &&
-            throw(ArgumentError("pressure_tensor!: grid buffers must not alias particle storage"))
-        for j = (i+1):length(grids)
-            Base.mightalias(grids[i], grids[j]) && throw(
-                ArgumentError("pressure_tensor!: grid output and scratch buffers must not alias"),
-            )
+# Every public moment operation validates all writable buffers before its first
+# deposit. Collection callers also check scratch against later populations.
+function _validate_moment_grids(grids, g)
+    for (i, grid) in enumerate(grids)
+        size(grid) == g.n || throw(
+            DimensionMismatch(
+                "moment buffer $i size $(size(grid)) does not match grid size $(g.n)",
+            ),
+        )
+        for j = 1:(i-1)
+            _particle_arrays_mightalias(grid, grids[j]) &&
+                throw(ArgumentError("moment grid output and scratch buffers must not alias"))
         end
     end
-    if work !== nothing
-        _mightalias_particle_storage(work, ps) &&
-            throw(ArgumentError("pressure_tensor!: work must not alias particle storage"))
-        for grid in grids
-            Base.mightalias(work, grid) && throw(
-                ArgumentError(
-                    "pressure_tensor!: work must not alias grid output or scratch buffers",
-                ),
-            )
+    return nothing
+end
+
+function _validate_moment_work(work, grids, count, ::Type{T}) where {T}
+    work === nothing && return nothing
+    work isa AbstractVector{T} || throw(ArgumentError("moment work must be an AbstractVector{$T}"))
+    length(work) == count ||
+        throw(DimensionMismatch("work length $(length(work)) must equal particle count $count"))
+    _check_particle_vector_axes(:work, work, count)
+    for grid in grids
+        _particle_arrays_mightalias(work, grid) &&
+            throw(ArgumentError("moment work must not alias grid output or scratch buffers"))
+    end
+    return nothing
+end
+
+function _validate_moment_particle_storage(grids, ps, works)
+    for grid in grids
+        _mightalias_particle_storage(grid, ps) &&
+            throw(ArgumentError("moment grid buffers must not alias particle storage"))
+    end
+    if works !== nothing
+        for work in works
+            work === nothing && continue
+            _mightalias_particle_storage(work, ps) &&
+                throw(ArgumentError("moment work must not alias particle storage"))
         end
+    end
+    return nothing
+end
+
+function _validate_moment_particles(ps)
+    count = nparticles(ps)
+    for a in (ps.x..., ps.v..., ps.weight)
+        length(a) == count ||
+            throw(DimensionMismatch("moment particle arrays must have length $count"))
+        _check_particle_vector_axes(:moment_particle, a, count)
+    end
+    _validate_particle_positions(ps)
+    return nothing
+end
+
+function _validate_moment_storage(grids, ps::ParticleSet{D,T}, g, work) where {D,T}
+    _validate_moment_grids(grids, g)
+    _validate_moment_work(work, grids, nparticles(ps), T)
+    _validate_moment_particle_storage(grids, ps, (work,))
+    _validate_moment_particles(ps)
+    return nothing
+end
+
+function _validate_moment_storage(
+    grids,
+    species::AbstractVector{<:ParticleSet{D,T}},
+    g,
+    works,
+) where {D,T}
+    _validate_moment_grids(grids, g)
+    if works !== nothing
+        works isa Union{Tuple,AbstractVector} ||
+            throw(ArgumentError("moment works must be a tuple or vector"))
+        works isa AbstractVector && Base.require_one_based_indexing(works)
+        length(works) == length(species) || throw(
+            DimensionMismatch(
+                "works length $(length(works)) must equal species count $(length(species))",
+            ),
+        )
+        for (ps, work) in zip(species, works)
+            _validate_moment_work(work, grids, nparticles(ps), T)
+        end
+    end
+    for ps in species
+        _validate_moment_particle_storage(grids, ps, works)
+        _validate_moment_particles(ps)
     end
     return nothing
 end
@@ -352,7 +418,11 @@ function density!(
     return nout
 end
 
-"Momentum density (n u)_c = (Σ_p w_p v_{c,p} S_g(x_p)) / ΔV for c = 1,2,3."
+"""
+Momentum density (n u)_c = (Σ_p w_p v_{c,p} S_g(x_p)) / ΔV for c = 1,2,3.
+Output components must have independent storage. Optional one-based particle
+scratch `work` must not overlap the outputs or any particle component.
+"""
 function momentum!(
     mom::NTuple{3,<:Array{T,D}},
     ps::ParticleSet{D,T},
@@ -360,6 +430,7 @@ function momentum!(
     shape::ShapeFunction;
     work::Union{Nothing,AbstractVector{T}} = nothing,
 ) where {D,T}
+    _validate_moment_storage(mom, ps, g, work)
     ΔV = prod(g.dx)
     if work === nothing
         for c = 1:3
@@ -367,11 +438,6 @@ function momentum!(
             mom[c] ./= ΔV
         end
     else
-        length(work) == nparticles(ps) || throw(
-            DimensionMismatch(
-                "work length $(length(work)) must equal particle count $(nparticles(ps))",
-            ),
-        )
         for c = 1:3
             @. work = ps.weight * ps.v[c]
             deposit_scalar!(mom[c], ps, work, g, shape)
@@ -406,6 +472,8 @@ const _PT_PAIRS = ((1, 1), (2, 2), (3, 3), (1, 2), (1, 3), (2, 3))
 Deposit the ion pressure tensor `P_ij = m·Σ_p w_p (v_i−U_i)(v_j−U_j) S / ΔV`
 (`U` the local bulk velocity), as 6 components in the order (xx,yy,zz,xy,xz,yz).
 Computed as the centered second moment: second-moment density − ρ U_i U_j.
+Outputs and supplied scratch must have independent storage and must not overlap
+particle components. All buffers are checked before deposition.
 """
 function pressure_tensor!(
     P::NTuple{6,<:Array{T,D}},
@@ -418,25 +486,9 @@ function pressure_tensor!(
     mom::Union{Nothing,NTuple{3,<:Array{T,D}}} = nothing,
 ) where {D,T}
     nf = _require_finite_positive_real("nfloor", nfloor, T)
-    Np = nparticles(ps)
     nbuf === nothing && (nbuf = similar(P[1]))
     mom === nothing && (mom = ntuple(_ -> similar(P[1]), 3))
-    for c = 1:6
-        size(P[c]) == g.n ||
-            throw(DimensionMismatch("P[$c] size $(size(P[c])) does not match grid size $(g.n)"))
-    end
-
-    size(nbuf) == g.n ||
-        throw(DimensionMismatch("nbuf size $(size(nbuf)) does not match grid size $(g.n)"))
-    for c = 1:3
-        size(mom[c]) == g.n ||
-            throw(DimensionMismatch("mom[$c] size $(size(mom[c])) does not match grid size $(g.n)"))
-    end
-
-    work === nothing ||
-        length(work) == Np ||
-        throw(DimensionMismatch("work length $(length(work)) must equal particle count $Np"))
-    _validate_pressure_scratch_aliasing(P, ps, work, nbuf, mom)
+    _validate_moment_storage((P..., nbuf, mom...), ps, g, work)
 
     ΔV = prod(g.dx)
     mq = ps.m

@@ -5,6 +5,7 @@
 
 Accumulate `out_g = Σ_p vals[p] · S_g(x_p)` for the given shape (periodic wrap).
 `out` is zeroed first. Partition of unity ⇒ `Σ_g out_g = Σ_p vals[p]`.
+The output must not overlap `vals` or any particle storage.
 """
 function deposit_scalar!(
     out::Array{T,D},
@@ -16,6 +17,8 @@ function deposit_scalar!(
     length(vals) == nparticles(ps) || throw(DimensionMismatch("vals length ≠ particle count"))
     size(out) == g.n ||
         throw(DimensionMismatch("out size $(size(out)) does not match grid size $(g.n)"))
+    (_mightalias_particle_storage(out, ps) || _particle_arrays_mightalias(out, vals)) &&
+        throw(ArgumentError("deposition output must not alias particle storage or values"))
     _validate_particle_positions(ps)
     fill!(out, zero(T))
     n = g.n

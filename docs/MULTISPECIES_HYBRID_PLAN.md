@@ -1,8 +1,9 @@
 # Multispecies hybrid evolution
 
 Status: serial core evolution, collection restart and conservation diagnostics
-verified on Julia 1.12.7 and 1.13.1. MPI collection evolution and an exactly
-conservative coupled integrator remain separate follow-ons.
+verified on Julia 1.12.7 and 1.13.1. MPI collection evolution is pushed as
+`ac88424`, and collective scalar restore preflight as `230fd58`. Distributed
+collection restart and an exactly conservative coupled integrator remain open.
 
 ## Verified gap
 
@@ -170,10 +171,11 @@ mutation. The analogous existing scalar/multispecies serial scratch contract
 has now failed the same independent reproduction in `momentum!`,
 `compute_moments!` and `compute_moments_multi!`: weights become 9.6 and both
 bulk-velocity APIs return (2, 6, 24). Evidence:
-`/tmp/hybrid-serial-moment-alias-probe.log`. The next moment slice must repair
-shared buffer validation before any density/output mutation, including callers
-that accept several scratch arrays, and retain independent writable views and
-existing allocation gates. That serial repair remains pending.
+`/tmp/hybrid-serial-moment-alias-probe.log`. The shared serial/MPI moment repair now validates
+buffers before density/output mutation, including callers that accept several
+scratch arrays, and retains independent writable views and existing allocation
+gates. Both Julia version gates pass; see
+[MOMENT_STORAGE_PLAN.md](MOMENT_STORAGE_PLAN.md).
 
 The raw-moment extraction initially bypassed the MPI floor conversion guard.
 With a Float32 grid, model floors `1e-100` and `1e100` previously rejected but
@@ -187,10 +189,13 @@ tests cover both APIs, scalar populations, and a malformed floor on one rank.
 Use the existing ordered checkpoint records and shared Hybrid restore path.
 Separate restore preflight from mutation so MPI can validate every rank's
 payload and destination before any rank resizes buffers or copies state. A
-two-rank reproduction on Julia 1.13.1 confirms the current scalar loader changes
-rank 0 while rank 1 rejects a non-resizable view destination
+two-rank baseline reproduction on Julia 1.13.1 showed the scalar loader changing
+rank 0 while rank 1 rejected a non-resizable view destination
 (`/tmp/hybrid-mpi-restore-collective-probe.log`). Collective restore must instead
-report the failure on both ranks and leave both destinations unchanged.
+report the failure on both ranks and leave both destinations unchanged. That
+preflight repair is pushed as `230fd58`, with both-version two-rank fault and
+continuation tests. The ordered collection extension and save protocol below
+remain pending.
 
 Save must validate ordered populations and integrator phase on every rank
 before writing. Publish the manifest only after all rank files succeed, and

@@ -1,6 +1,7 @@
 # Moment storage validation
 
-Status: planned; implementation has not started.
+Status: implemented and verified on Julia 1.12.7 and 1.13.1 in immutable
+snapshots; the repair is included with this evidence.
 
 The Julia 1.13.1 reproduction in
 `/tmp/hybrid-serial-moment-alias-probe.log` shows `momentum!`,
@@ -8,10 +9,10 @@ The Julia 1.13.1 reproduction in
 when those weights are passed as scratch. The resulting bulk velocity is
 `(2, 6, 24)` for a particle whose velocity is `(2, 3, 4)`.
 
-`momentum!` currently validates only scratch length. The single-population
-wrapper deposits density before reaching that check, and the collection wrapper
-clears outputs before depositing populations. Validation must precede the first
-write in each public operation.
+At the reproduced baseline, `momentum!` validated only scratch length. The
+single-population wrapper deposited density before reaching that check, and the
+collection wrapper cleared outputs before depositing populations. Validation
+now precedes the first write in each public operation.
 
 ## Implementation contract
 
@@ -45,3 +46,32 @@ write in each public operation.
 
 A length-only guard, a local-only MPI check, or copying aliased scratch after an
 output has already been cleared would each leave part of the defect unresolved.
+
+## Current evidence
+
+- Final focused tests: 1,956 assertions on each Julia version. Real two-rank
+  tests: 264 assertions per rank on each version, including failed-input
+  recovery and valid scalar/collection moments.
+- The earlier broad 1.12 run passed 2,145 neighboring assertions and 1,446
+  assertions in the new file, but exited with one fixture error: position views
+  used different index types, violating the ParticleSet constructor contract.
+  The corrected final file passes all 1,956 assertions above; production files
+  are byte-identical between those snapshots. The existing allocation gate in
+  `test_physics2.jl` passed without modification.
+- Package JET: 24 reports on Julia 1.12 and 22 on Julia 1.13 against the unchanged
+  ceiling of 30. All 36 concrete moment calls per version have zero reports;
+  72 analysis/runtime checks pass on each. The final 1.12 check uses a separately
+  resolved Julia 1.12 tooling environment with JET 0.11.6.
+- A matched old/new comparison passes 288 checks. All sampled grid outputs and
+  scratch results agree exactly; all 18 warmed scalar/collection/pressure cases
+  allocate 0 B. Alternating shared-machine samples give paired latency ratios
+  of 0.80–1.24; these measurements do not establish a speedup.
+
+Logs: `/tmp/hybrid-moment-storage-v2-focused112.log`,
+`/tmp/hybrid-moment-storage-v2-focused113.log`,
+`/tmp/hybrid-moment-storage-v1-mpi112.log`,
+`/tmp/hybrid-moment-storage-v2-mpi113.log`,
+`/tmp/hybrid-moment-storage-v1-regressions112.log`,
+`/tmp/hybrid-moment-storage-v1-jet113.log`,
+`/tmp/hybrid-moment-storage-v2-jet112.log`, and
+`/tmp/hybrid-moment-storage-v2-comparison113.log`.

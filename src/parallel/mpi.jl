@@ -583,7 +583,7 @@ function _mpi_collective_validate(f, ctx)
         rethrow()
     end
     MPI.Allreduce(0, max, ctx.comm) == 0 ||
-        throw(ArgumentError("hybrid collection validation failed on another MPI rank"))
+        throw(ArgumentError("hybrid validation failed on another MPI rank"))
     return result
 end
 
@@ -693,7 +693,12 @@ function _mpi_moments!(
     work::Union{Nothing,Vector{T}} = nothing,
     gpu_status::GPUAwareMPIStatus = gpu_aware_mpi_status(),
 ) where {D,T}
-    nf = _require_finite_positive_real("nfloor", nfloor, T)
+    nf = _mpi_collective_validate(ctx) do
+        floor_value = _require_finite_positive_real("nfloor", nfloor, T)
+        _validate_moment_storage((nout, uout...), ps, g, work)
+        floor_value
+    end
+    _mpi_require_equal(T[nf], ctx, "density floors")
     density!(nout, ps, g, shape)
     momentum!(uout, ps, g, shape; work)
 
@@ -714,34 +719,11 @@ function _mpi_moments!(
     nf = _mpi_collective_validate(ctx) do
         floor_value = _require_finite_positive_real("nfloor", nfloor, T)
         count = _validate_hybrid_species(species)
-        _require_grid_array(:n, nout, g)
-        _require_grid_tuple(:ui, uout, g)
-        work === nothing ||
-            length(work) == count ||
-            throw(
-                DimensionMismatch(
-                    "MPI collection work length must equal total local particle count $count",
-                ),
-            )
         grids = (nout, uout...)
-        for (i, grid) in enumerate(grids)
-            for j = 1:(i-1)
-                _particle_arrays_mightalias(grid, grids[j]) &&
-                    throw(ArgumentError("MPI moment output arrays must not alias"))
-            end
-            for ps in species
-                _mightalias_particle_storage(grid, ps) &&
-                    throw(ArgumentError("MPI moment outputs must not alias particle storage"))
-            end
-            work === nothing ||
-                !_particle_arrays_mightalias(work, grid) ||
-                throw(ArgumentError("MPI moment work must not alias output arrays"))
-        end
-        if work !== nothing
-            for ps in species
-                _mightalias_particle_storage(work, ps) &&
-                    throw(ArgumentError("MPI moment work must not alias particle storage"))
-            end
+        _validate_moment_grids(grids, g)
+        _validate_moment_work(work, grids, count, T)
+        for ps in species
+            _validate_moment_particle_storage(grids, ps, (work,))
         end
         floor_value
     end
@@ -775,7 +757,9 @@ separate gate.
 An ordered ion collection uses charge moments summed over all populations and
 ranks before applying the density floor. Every rank supplies the same ordered
 charge/mass parameters, including empty local populations. Optional `work` holds
-one entry per local particle across the collection.
+one entry per local particle across the collection. Output and work buffers
+must not overlap each other or particle storage. Buffer validation completes
+collectively before any rank deposits moments.
 """
 function mpi_compute_moments!(
     f::HybridFields{D,T},
