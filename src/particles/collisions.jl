@@ -786,6 +786,32 @@ function _particle_arrays_mightalias(a::AbstractArray, b::AbstractArray)
     return (isempty(a) || isempty(b)) && _particle_backing_mightalias(a, b)
 end
 
+function _particle_components_mightalias(ps::ParticleSet)
+    for (d, x) in enumerate(ps.x)
+        for k = 1:(d-1)
+            _particle_arrays_mightalias(x, ps.x[k]) && return true
+        end
+        for v in ps.v
+            _particle_arrays_mightalias(x, v) && return true
+        end
+        _particle_arrays_mightalias(x, ps.weight) && return true
+        _particle_arrays_mightalias(x, ps.id) && return true
+        _particle_arrays_mightalias(x, ps.tag) && return true
+    end
+    for (c, v) in enumerate(ps.v)
+        for k = 1:(c-1)
+            _particle_arrays_mightalias(v, ps.v[k]) && return true
+        end
+        _particle_arrays_mightalias(v, ps.weight) && return true
+        _particle_arrays_mightalias(v, ps.id) && return true
+        _particle_arrays_mightalias(v, ps.tag) && return true
+    end
+    _particle_arrays_mightalias(ps.weight, ps.id) && return true
+    _particle_arrays_mightalias(ps.weight, ps.tag) && return true
+    _particle_arrays_mightalias(ps.id, ps.tag) && return true
+    return false
+end
+
 function _mightalias_particle_storage(candidate, ps::ParticleSet)
     for d = 1:length(ps.x)
         _particle_arrays_mightalias(candidate, ps.x[d]) && return true

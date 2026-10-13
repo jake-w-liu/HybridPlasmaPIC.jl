@@ -117,13 +117,8 @@ end
 
 function _require_independent_hybrid_species(species)
     for (i, ps) in enumerate(species)
-        arrays = (ps.x..., ps.v..., ps.weight, ps.id, ps.tag)
-        for (j, a) in enumerate(arrays)
-            for k = 1:(j-1)
-                _particle_arrays_mightalias(a, arrays[k]) &&
-                    throw(ArgumentError("hybrid particle components must not alias"))
-            end
-        end
+        _particle_components_mightalias(ps) &&
+            throw(ArgumentError("hybrid particle components must not alias"))
         for (j, other) in enumerate(species)
             j >= i && break
             _particle_sets_mightalias(ps, other) &&

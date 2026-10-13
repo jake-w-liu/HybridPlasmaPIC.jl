@@ -588,6 +588,8 @@ function _restore_checkpoint_state!(st::HallMHDState, s)
 end
 
 function _validate_checkpoint_destination(ps::ParticleSet, N::Int)
+    _particle_components_mightalias(ps) &&
+        throw(ArgumentError("checkpoint destination particle components must not alias"))
     for a in (ps.x..., ps.v..., ps.weight, ps.id, ps.tag)
         if length(a) != N && !applicable(resize!, a, N)
             throw(
@@ -866,7 +868,8 @@ end
 Restore a checkpoint into a `stepper`/`ps` of matching dimension, precision,
 grid, and integrator (particle arrays are resized to match).
 Destination arrays that do not support resizing must already have the saved
-particle count; writable views are restored in place.
+particle count; writable views are restored in place. Particle components must
+have independent storage so restoring one cannot overwrite another.
 Hybrid destinations require matching concrete model/shape types; the checkpoint
 replaces their parameters, including custom mutable parameters, so restored
 evolution uses the saved physics.

@@ -134,6 +134,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Checkpoint destinations reject overlapping particle components before any
+  resize or write, including empty and reinterpreted storage. Independent
+  writable views remain supported. Hybrid collection validation shares the
+  same allocation-free component check.
+
 - MPI checkpoint restore completes reads and destination validation on every
   rank before changing any destination. Recoverable file and validation errors
   retain their original exception on the failing rank and notify peer ranks.
