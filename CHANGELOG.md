@@ -117,6 +117,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- AMR refinement uses power-of-two scaling and certified rounding for its
+  second difference, preserving zero curvature on affine profiles and tiny
+  representable curvature near cancellation. Uncertain results use exact
+  arithmetic; BigFloat inputs retain their stored precision and respect the
+  caller's rounding mode. Ordinary Float32/64 reductions remain allocation-free.
+
 - Guiding-centre parallel velocity evaluates the combined electric, mirror,
   timestep, mass and initial-velocity expression without avoidable intermediate
   overflow or underflow. Exact arithmetic resolves uncertain cancellation;

@@ -42,13 +42,11 @@ cell_center(g::AMRGrid, i::Integer) = g.x0 + (i - oftype(g.dx, 0.5)) * g.dx
     return updated, correction
 end
 
-@inline function _amr_compensated_sum3(a::T, b::T, c::T) where {T}
-    total = zero(T)
-    correction = zero(T)
-    total, correction = _amr_compensated_add(total, correction, a)
-    total, correction = _amr_compensated_add(total, correction, b)
-    total, correction = _amr_compensated_add(total, correction, c)
-    return total + correction
+@inline function _amr_two_sum(a::T, b::T) where {T}
+    total = a + b
+    recovered_b = total - a
+    error = (a - (total - recovered_b)) + (b - recovered_b)
+    return total, error
 end
 
 @inline function _amr_compensated_sum4(a::T, b::T, c::T, d::T) where {T}
@@ -114,12 +112,25 @@ end
 
 @inline _amr_normalisation_loses_precision(value, normalised) = !iszero(value) && iszero(normalised)
 
+@inline function _amr_normalisation_loses_precision(value::BigFloat, normalised::BigFloat)
+    return precision(value) > precision(BigFloat) || (!iszero(value) && iszero(normalised))
+end
+
+_amr_exact_rational(value) = Rational{BigInt}(value)
+function _amr_exact_rational(value::BigFloat)
+    # Julia's Rational conversion scales in the current BigFloat precision.
+    # Preserve stored input bits even when the caller has lowered that precision.
+    return setprecision(BigFloat, precision(value)) do
+        Rational{BigInt}(value)
+    end
+end
+
 # Rational{BigInt} exactly represents every finite binary floating-point input.
-# This cold fallback is used only when a shared floating scale erases information.
+# This cold fallback handles scaling loss and uncertified final rounding.
 @noinline function _amr_exact_second_difference(a::T, b::T, c::T) where {T<:AbstractFloat}
-    ar = Rational{BigInt}(a)
-    br = Rational{BigInt}(b)
-    cr = Rational{BigInt}(c)
+    ar = _amr_exact_rational(a)
+    br = _amr_exact_rational(b)
+    cr = _amr_exact_rational(c)
     exact = if signbit(a) != signbit(c)
         (ar + cr) - 2br
     elseif !iszero(b) && signbit(a) == signbit(b)
@@ -135,15 +146,37 @@ end
     scale = max(abs(a), abs(b), abs(c))
     iszero(scale) && return zero(T)
     isfinite(scale) || return c - T(2) * b + a
+    # TwoSum and the midpoint certificate below require round-to-nearest.
+    if T === BigFloat && rounding(BigFloat) != RoundNearest
+        return _amr_exact_second_difference(a, b, c)
+    end
 
-    an, bn, cn = a / scale, b / scale, c / scale
+    # A general divisor rounds each input independently and can turn an exactly
+    # affine profile into nonzero curvature. A power of two preserves the inputs
+    # unless normalization reaches the subnormal range, checked below.
+    _, power = frexp(scale)
+    an, bn, cn = ldexp(a, -power), ldexp(b, -power), ldexp(c, -power)
     if _amr_normalisation_loses_precision(a, an) ||
        _amr_normalisation_loses_precision(b, bn) ||
        _amr_normalisation_loses_precision(c, cn)
         return _amr_exact_second_difference(a, b, c)
     end
-    scaled = _amr_compensated_sum3(an, -T(2) * bn, cn)
-    return _amr_scaled_product(scale, scaled)
+    first, e1 = _amr_two_sum(an, -T(2) * bn)
+    high, e2 = _amr_two_sum(first, cn)
+    low, e3 = _amr_two_sum(e1, e2)
+    value, e4 = _amr_two_sum(high, low)
+    error_hi, error_lo = _amr_two_sum(e4, e3)
+    result = ldexp(value, power)
+    iszero(error_hi) && iszero(error_lo) && return result
+
+    # The exact normalized result is value + error_hi + error_lo. Reversible
+    # rescaling and an error strictly inside both rounding midpoints certify
+    # the result. Ties and any possible double rounding use the exact fallback.
+    if isfinite(result) && ldexp(result, -power) == value
+        radius = min(value - prevfloat(value), nextfloat(value) - value) / T(2)
+        abs(error_hi) + abs(error_lo) < radius && return result
+    end
+    return _amr_exact_second_difference(a, b, c)
 end
 
 @inline _amr_second_difference(u::AbstractVector, i::Int) = u[i+1] - 2u[i] + u[i-1]
