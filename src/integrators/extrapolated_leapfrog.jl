@@ -27,9 +27,11 @@
 """
     HybridStepper(g, model, shape, N::Integer)
 
-Workspace and configuration for time-stepping a single proton species of `N`
-particles on grid `g` under `model` with deposition/gather `shape`. Set the
-initial field in `stepper.fields.B`, then call [`init!`](@ref) before stepping.
+Workspace and configuration for time-stepping ions on grid `g` under `model`
+with deposition/gather `shape`. `N` is the initial total particle workspace
+length, resized as needed. Pass one proton `ParticleSet` or a vector of positive
+ion populations to [`init!`](@ref) and [`step!`](@ref), after setting the initial
+field in `stepper.fields.B`.
 """
 mutable struct HybridStepper{D,T,SH<:ShapeFunction,M<:HybridModel}
     g::FourierGrid{D,T}
@@ -53,6 +55,8 @@ mutable struct HybridStepper{D,T,SH<:ShapeFunction,M<:HybridModel}
     step::Base.RefValue{Int}
     last_dt::Base.RefValue{T}          # previous drift interval fixes the velocity half level
 end
+
+const _HybridPopulations{D,T} = Union{ParticleSet{D,T},AbstractVector{<:ParticleSet{D,T}}}
 
 function HybridStepper(
     g::FourierGrid{D,T},
@@ -106,6 +110,69 @@ function _resize_hybrid_particle_workspaces!(st, n::Integer)
     return st
 end
 
+function _validate_hybrid_species(ps::ParticleSet)
+    _validated_qm(ps)
+    return nparticles(ps)
+end
+
+function _require_independent_hybrid_species(species)
+    for (i, ps) in enumerate(species)
+        arrays = (ps.x..., ps.v..., ps.weight, ps.id, ps.tag)
+        for (j, a) in enumerate(arrays)
+            for k = 1:(j-1)
+                (a === arrays[k] || Base.mightalias(a, arrays[k])) &&
+                    throw(ArgumentError("hybrid particle components must not alias"))
+            end
+        end
+        for (j, other) in enumerate(species)
+            j >= i && break
+            # Empty vectors can report no memory overlap even when identical;
+            # restoring or resizing them must not couple two populations.
+            other_arrays = (other.x..., other.v..., other.weight, other.id, other.tag)
+            for a in arrays, b in other_arrays
+                (a === b || Base.mightalias(a, b)) && throw(
+                    ArgumentError("hybrid populations must have independent particle storage"),
+                )
+            end
+        end
+    end
+    return nothing
+end
+
+function _validate_hybrid_species(species::AbstractVector{<:ParticleSet{D,T}}) where {D,T}
+    _require_independent_hybrid_species(species)
+    total = 0
+    for ps in species
+        _validated_qm(ps)
+        ps.q > zero(T) || throw(ArgumentError("hybrid ion charge must be positive"))
+        n = nparticles(ps)
+        for a in (ps.x..., ps.v..., ps.weight, ps.id, ps.tag)
+            length(a) == n || throw(DimensionMismatch("hybrid particle arrays must have length $n"))
+            _check_particle_vector_axes(:hybrid_particle, a, n)
+        end
+        _validate_particle_positions(ps)
+        _require_finite_particle_velocities(ps, "hybrid stepping")
+        for w in ps.weight
+            isfinite(w) && w >= zero(T) ||
+                throw(ArgumentError("hybrid particle weights must be finite and nonnegative"))
+        end
+        n <= typemax(Int) - total || throw(ArgumentError("total particle count exceeds Int"))
+        total += n
+    end
+    return total
+end
+
+# Each population gets a contiguous part of the existing total-length buffers.
+function _hybrid_particle_workspace(st, indices)
+    return (
+        Ep = map(a -> view(a, indices), st.Ep),
+        Bp = map(a -> view(a, indices), st.Bp),
+        vpred = map(a -> view(a, indices), st.vpred),
+        xmid = map(a -> view(a, indices), st.xmid),
+        work = view(st.work, indices),
+    )
+end
+
 # moments (density into nout, bulk velocity into uout) with density floor
 function _moments!(
     nout::Array{T,D},
@@ -118,25 +185,43 @@ function _moments!(
 ) where {D,T}
     density!(nout, ps, g, shape)
     momentum!(uout, ps, g, shape; work)
-    @inbounds for I in eachindex(nout)
-        inv = one(T) / max(nout[I], nfloor)
-        uout[1][I] *= inv
-        uout[2][I] *= inv
-        uout[3][I] *= inv
+    return _normalize_ion_moments!(nout, uout, nfloor)
+end
+
+function _hybrid_integer_moments!(st, ps::ParticleSet{D,T}) where {D,T}
+    _moments!(st.fields.n, st.fields.ui, ps, st.g, st.shape, T(st.model.nfloor), st.work)
+    return st
+end
+
+function _hybrid_integer_moments!(st, species::AbstractVector{<:ParticleSet{D,T}}) where {D,T}
+    f = st.fields
+    _zero_ion_moments!(f.n, f.ui)
+    offset = 0
+    for ps in species
+        n = nparticles(ps)
+        work = view(st.work, (offset+1):(offset+n))
+        _accumulate_charge_moments!(f.n, f.ui, ps, st.g, st.shape, st.fn, st.fui, work)
+        offset += n
     end
-    return nout
+    _normalize_ion_moments!(f.n, f.ui, T(st.model.nfloor))
+    return st
 end
 
 """
     init!(stepper, ps)
+    init!(stepper, species::AbstractVector)
 
 Compute the carried electric field E⁰ from the initial particle moments and
 `stepper.fields.B`. Call once after loading particles and setting B.
+Collection calls combine positive ion populations with their own charge and mass
+using charge-weighted moments. Populations require independent storage and a
+common time level. Reinitialize when adding populations loaded at a new physical
+velocity time level. Empty populations contribute zero moments.
 """
-function init!(st::HybridStepper{D,T}, ps::ParticleSet{D,T}) where {D,T}
-    _resize_hybrid_particle_workspaces!(st, nparticles(ps))
-    nf = T(st.model.nfloor)
-    _moments!(st.fields.n, st.fields.ui, ps, st.g, st.shape, nf, st.work)
+function init!(st::HybridStepper{D,T}, ps::_HybridPopulations{D,T}) where {D,T}
+    count = ps isa ParticleSet ? nparticles(ps) : _validate_hybrid_species(ps)
+    _resize_hybrid_particle_workspaces!(st, count)
+    _hybrid_integer_moments!(st, ps)
     ohms_law!(st.fields, st.model, st.g)
     st.time[] = zero(T)                 # (re)start at t=0; step==0 triggers leapfrog priming
     st.step[] = 0
@@ -307,44 +392,44 @@ function _recenter_carried_E!(st, ps::ParticleSet{D,T}, dtT::T) where {D,T}
     return st
 end
 
-"""
-    step!(stepper, ps, dt; NB=1)
+function _recenter_carried_E!(st, species::AbstractVector{<:ParticleSet{D,T}}, dtT::T) where {D,T}
+    f = st.fields
+    _zero_ion_moments!(f.n, f.ui)
+    offset = 0
+    for ps in species
+        n = nparticles(ps)
+        ws = _hybrid_particle_workspace(st, (offset+1):(offset+n))
+        gather_vector!(ws.Ep, f.E, ps, st.g, st.shape)
+        gather_vector!(ws.Bp, f.B, ps, st.g, st.shape)
+        _predict_half_kick!(ws.vpred, ps.v, ws.Ep, ws.Bp, _validated_qm(ps), dtT / 2, n)
+        predicted = ParticleSet{D,T}(ps.x, ws.vpred, ps.weight, ps.id, ps.tag, ps.q, ps.m)
+        _accumulate_charge_moments!(f.n, f.ui, predicted, st.g, st.shape, st.fn, st.fui, ws.work)
+        offset += n
+    end
+    _normalize_ion_moments!(f.n, f.ui, T(st.model.nfloor))
+    ohms_law!(f, st.model, st.g)
+    return st
+end
 
-Advance the plasma one timestep `dt` with `NB` magnetic subcycles (periodic box).
-The particle kick spans the previous and next half-time levels when `dt` changes;
-positions and the magnetic field advance by the requested `dt`.
-"""
-function step!(st::HybridStepper{D,T}, ps::ParticleSet{D,T}, dt::Real; NB::Integer = 1) where {D,T}
-    dtT = _validated_step_dt(T, dt, NB; min_NB = 1, name = "step!")
-    iszero(dtT) && return st        # dt=0 is a true no-op: advance nothing, and (critically) do
-    #                                 NOT consume the step==0 one-time leapfrog-priming guard.
-    next_time, next_step = _validated_step_clock(st.time[], st.step[], dtT)
+# Shared gather/prime/kick/drift kernel. Fields stay fixed across populations.
+function _push_hybrid_population!(st, ws, ps::ParticleSet{D,T}, dtT::T, kick_dt::T) where {D,T}
     qm = _validated_qm(ps)
-    _resize_hybrid_particle_workspaces!(st, nparticles(ps))
-    g = st.g
     h = dtT / 2
-    kick_dt = st.step[] == 0 ? dtT : st.last_dt[] / 2 + h
-    nf = T(st.model.nfloor)
-    lo = ntuple(_ -> zero(T), D)
-    hi = g.L
-
-    # 1. push particles with carried E^n, B^n
-    gather_vector!(st.Ep, st.fields.E, ps, g, st.shape)
-    gather_vector!(st.Bp, st.fields.B, ps, g, st.shape)
-    # prime the leapfrog once: loaded v is physical v^0 → v^{-1/2} for 2nd-order (see above).
-    st.step[] == 0 && _prime_leapfrog!(ps.v, st.Ep, st.Bp, qm, h, length(ps.weight))
+    gather_vector!(ws.Ep, st.fields.E, ps, st.g, st.shape)
+    gather_vector!(ws.Bp, st.fields.B, ps, st.g, st.shape)
+    st.step[] == 0 && _prime_leapfrog!(ps.v, ws.Ep, ws.Bp, qm, h, length(ps.weight))
     vx, vy, vz = ps.v
     @inbounds for p in eachindex(ps.weight)
         nx, ny, nz = boris_kick(
             vx[p],
             vy[p],
             vz[p],
-            st.Ep[1][p],
-            st.Ep[2][p],
-            st.Ep[3][p],
-            st.Bp[1][p],
-            st.Bp[2][p],
-            st.Bp[3][p],
+            ws.Ep[1][p],
+            ws.Ep[2][p],
+            ws.Ep[3][p],
+            ws.Bp[1][p],
+            ws.Bp[2][p],
+            ws.Bp[3][p],
             qm,
             kick_dt,
         )
@@ -352,16 +437,77 @@ function step!(st::HybridStepper{D,T}, ps::ParticleSet{D,T}, dt::Real; NB::Integ
         vy[p] = ny
         vz[p] = nz
         for d = 1:D
-            st.xmid[d][p] = ps.x[d][p] + h * ps.v[d][p]
+            ws.xmid[d][p] = ps.x[d][p] + h * ps.v[d][p]
             ps.x[d][p] += dtT * ps.v[d][p]
         end
     end
-    apply_periodic!(ps, lo, hi)
+    lo = ntuple(_ -> zero(T), D)
+    apply_periodic!(ps, lo, st.g.L)
+    midpoint = ParticleSet{D,T}(ws.xmid, ps.v, ps.weight, ps.id, ps.tag, ps.q, ps.m)
+    apply_periodic!(midpoint, lo, st.g.L)
+    return midpoint
+end
 
-    # 2. frozen n+1/2 moments from midpoint positions + v^{n+1/2}
-    psmid = ParticleSet{D,T}(st.xmid, ps.v, ps.weight, ps.id, ps.tag, ps.q, ps.m)
-    apply_periodic!(psmid, lo, hi)
-    _moments!(st.fn, st.fui, psmid, g, st.shape, nf, st.work)
+function _push_hybrid_midpoint_moments!(st, ps::ParticleSet{D,T}, dtT::T, kick_dt::T) where {D,T}
+    midpoint = _push_hybrid_population!(st, st, ps, dtT, kick_dt)
+    _moments!(st.fn, st.fui, midpoint, st.g, st.shape, T(st.model.nfloor), st.work)
+    return st
+end
+
+function _push_hybrid_midpoint_moments!(
+    st,
+    species::AbstractVector{<:ParticleSet{D,T}},
+    dtT::T,
+    kick_dt::T,
+) where {D,T}
+    _zero_ion_moments!(st.fn, st.fui)
+    offset = 0
+    for ps in species
+        n = nparticles(ps)
+        ws = _hybrid_particle_workspace(st, (offset+1):(offset+n))
+        midpoint = _push_hybrid_population!(st, ws, ps, dtT, kick_dt)
+        _accumulate_charge_moments!(
+            st.fn,
+            st.fui,
+            midpoint,
+            st.g,
+            st.shape,
+            st.fields.n,
+            st.fields.ui,
+            ws.work,
+        )
+        offset += n
+    end
+    _normalize_ion_moments!(st.fn, st.fui, T(st.model.nfloor))
+    return st
+end
+
+"""
+    step!(stepper, ps, dt; NB=1)
+    step!(stepper, species::AbstractVector, dt; NB=1)
+
+Advance the plasma one timestep `dt` with `NB` magnetic subcycles (periodic box).
+The particle kick spans the previous and next half-time levels when `dt` changes;
+positions and the magnetic field advance by the requested `dt`.
+Collection calls push every ion population with its own charge-to-mass ratio;
+one field update uses their combined charge-weighted midpoint moments.
+"""
+function step!(
+    st::HybridStepper{D,T},
+    ps::_HybridPopulations{D,T},
+    dt::Real;
+    NB::Integer = 1,
+) where {D,T}
+    dtT = _validated_step_dt(T, dt, NB; min_NB = 1, name = "step!")
+    iszero(dtT) && return st        # dt=0 is a true no-op: advance nothing, and (critically) do
+    #                                 NOT consume the step==0 one-time leapfrog-priming guard.
+    next_time, next_step = _validated_step_clock(st.time[], st.step[], dtT)
+    _resize_hybrid_particle_workspaces!(st, _validate_hybrid_species(ps))
+    g = st.g
+    h = dtT / 2
+    kick_dt = st.step[] == 0 ? dtT : st.last_dt[] / 2 + h
+    # 1–2. Push populations and combine all frozen n+1/2 charge moments.
+    _push_hybrid_midpoint_moments!(st, ps, dtT, kick_dt)
     # frozen-moment Ohm terms computed ONCE; reused every subcycle. Scalar closures freeze
     # pe/∇pe/1/n; the anisotropic (CGL) closure freezes 1/n and the pressure-tensor force
     # ∇·P_e(n^{n+1/2}, B^n) instead (compile-time-resolved from the closure type).
@@ -391,7 +537,7 @@ function step!(st::HybridStepper{D,T}, ps::ParticleSet{D,T}, dt::Real; NB::Integ
 
     # 4. recompute carried E = E^{n+1} (n^{n+1}, u_i^{n+1/2}, B^{n+1}), then re-center u_i to n+1
     #    via a predictor half-kick so the carried E is 2nd-order accurate (see _recenter_carried_E!).
-    _moments!(st.fields.n, st.fields.ui, ps, g, st.shape, nf, st.work)
+    _hybrid_integer_moments!(st, ps)
     ohms_law!(st.fields, st.model, st.g)
     _recenter_carried_E!(st, ps, dtT)
 

@@ -36,9 +36,10 @@
 """
     CAMCLStepper(g, model, shape, N::Integer)
 
-Workspace and configuration for the CAM-CL hybrid integrator advancing a single
-proton species of `N` particles on grid `g` under `model` with deposition/gather
-`shape`. Set the initial field in `stepper.fields.B`, then call [`init_camcl!`](@ref)
+Workspace and configuration for the CAM-CL hybrid integrator advancing ions on
+grid `g` under `model` with deposition/gather `shape`. `N` is the initial total
+particle workspace length. Pass one proton `ParticleSet` or a vector of positive
+ion populations. Set the initial field in `stepper.fields.B`, then call [`init_camcl!`](@ref)
 before stepping with [`step_camcl!`](@ref). Advances the same hybrid model as
 [`HybridStepper`](@ref) using Matthews' Current-Advance-Method + Cyclic-LeapFrog.
 """
@@ -108,15 +109,16 @@ end
 
 """
     init_camcl!(stepper, ps)
+    init_camcl!(stepper, species::AbstractVector)
 
 Compute the carried electric field E⁰ from the initial particle moments and
 `stepper.fields.B`. Call once after loading particles and setting B, before
 [`step_camcl!`](@ref). Analogous to [`init!`](@ref) for `HybridStepper`.
 """
-function init_camcl!(st::CAMCLStepper{D,T}, ps::ParticleSet{D,T}) where {D,T}
-    _resize_hybrid_particle_workspaces!(st, nparticles(ps))
-    nf = T(st.model.nfloor)
-    _moments!(st.fields.n, st.fields.ui, ps, st.g, st.shape, nf, st.work)
+function init_camcl!(st::CAMCLStepper{D,T}, ps::_HybridPopulations{D,T}) where {D,T}
+    count = ps isa ParticleSet ? nparticles(ps) : _validate_hybrid_species(ps)
+    _resize_hybrid_particle_workspaces!(st, count)
+    _hybrid_integer_moments!(st, ps)
     ohms_law!(st.fields, st.model, st.g)
     st.time[] = zero(T)                 # (re)start at t=0; step==0 triggers leapfrog priming
     st.step[] = 0
@@ -264,6 +266,7 @@ end
 
 """
     step_camcl!(stepper, ps, dt; NB=2)
+    step_camcl!(stepper, species::AbstractVector, dt; NB=2)
 
 Advance the plasma one timestep `dt` using the CAM-CL scheme with `NB` cyclic-
 leapfrog magnetic subcycles (periodic box; `NB ≥ 2`, since the cyclic leapfrog
@@ -275,57 +278,19 @@ subcycle reinitializes its persistent copies when its substep size changes.
 """
 function step_camcl!(
     st::CAMCLStepper{D,T},
-    ps::ParticleSet{D,T},
+    ps::_HybridPopulations{D,T},
     dt::Real;
     NB::Integer = 2,
 ) where {D,T}
     dtT = _validated_step_dt(T, dt, NB; min_NB = 2, name = "step_camcl!")
     iszero(dtT) && return st        # dt=0 no-op: do not consume the one-time priming guard.
     next_time, next_step = _validated_step_clock(st.time[], st.step[], dtT)
-    qm = _validated_qm(ps)
-    _resize_hybrid_particle_workspaces!(st, nparticles(ps))
+    _resize_hybrid_particle_workspaces!(st, _validate_hybrid_species(ps))
     g = st.g
     h = dtT / 2
     kick_dt = st.step[] == 0 ? dtT : st.last_dt[] / 2 + h
-    nf = T(st.model.nfloor)
-    lo = ntuple(_ -> zero(T), D)
-    hi = g.L
-
-    # 1. Boris push with carried E^n, B^n:  v^{n−1/2}→v^{n+1/2}, x^n→x^{n+1}.
-    gather_vector!(st.Ep, st.fields.E, ps, g, st.shape)
-    gather_vector!(st.Bp, st.fields.B, ps, g, st.shape)
-    # prime the leapfrog once: loaded v is physical v^0 → v^{-1/2} for 2nd-order accuracy.
-    st.step[] == 0 && _prime_leapfrog!(ps.v, st.Ep, st.Bp, qm, h, length(ps.weight))
-    vx, vy, vz = ps.v
-    @inbounds for p in eachindex(ps.weight)
-        nx, ny, nz = boris_kick(
-            vx[p],
-            vy[p],
-            vz[p],
-            st.Ep[1][p],
-            st.Ep[2][p],
-            st.Ep[3][p],
-            st.Bp[1][p],
-            st.Bp[2][p],
-            st.Bp[3][p],
-            qm,
-            kick_dt,
-        )
-        vx[p] = nx
-        vy[p] = ny
-        vz[p] = nz
-        for d = 1:D
-            st.xmid[d][p] = ps.x[d][p] + h * ps.v[d][p]   # x^{n+1/2}
-            ps.x[d][p] += dtT * ps.v[d][p]                # x^{n+1}
-        end
-    end
-    apply_periodic!(ps, lo, hi)
-
-    # 2. CAM: advanced (half-step) ion current/moments from x^{n+1/2}, v^{n+1/2}.
-    #    Frozen across the magnetic subcycle so E is time-centred at n+1/2.
-    psmid = ParticleSet{D,T}(st.xmid, ps.v, ps.weight, ps.id, ps.tag, ps.q, ps.m)
-    apply_periodic!(psmid, lo, hi)
-    _moments!(st.fn, st.fui, psmid, g, st.shape, nf, st.work)
+    # 1–2. Push populations and combine all frozen n+1/2 charge moments.
+    _push_hybrid_midpoint_moments!(st, ps, dtT, kick_dt)
     # frozen-moment Ohm terms (pe, ∇pe, 1/n) computed ONCE; reused every subcycle.
     f = st.fields
     _ohm_prep!(f.pe, f.gradp, f.ninv, st.fn, st.model.closure, T(st.model.nfloor), f.floor_count, g)
@@ -335,7 +300,7 @@ function step_camcl!(
 
     # 4. recompute carried E = E^{n+1}, then re-center u_i to integer level n+1 via a predictor
     #    half-kick so the carried E is 2nd-order accurate (consistent with HybridStepper).
-    _moments!(st.fields.n, st.fields.ui, ps, g, st.shape, nf, st.work)
+    _hybrid_integer_moments!(st, ps)
     ohms_law!(st.fields, st.model, st.g)
     _recenter_carried_E!(st, ps, dtT)
 

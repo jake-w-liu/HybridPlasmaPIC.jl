@@ -45,13 +45,35 @@ function compute_moments!(
     nf = _require_finite_positive_real("nfloor", nfloor, T)
     density!(f.n, ps, g, shape)
     momentum!(f.ui, ps, g, shape; work)
-    @inbounds for I in eachindex(f.n)
-        inv = one(T) / max(f.n[I], nf)
-        f.ui[1][I] *= inv
-        f.ui[2][I] *= inv
-        f.ui[3][I] *= inv
-    end
+    _normalize_ion_moments!(f.n, f.ui, nf)
     return f
+end
+
+function _normalize_ion_moments!(n::Array{T}, u, nfloor::T) where {T}
+    @inbounds for I in eachindex(n)
+        inv = one(T) / max(n[I], nfloor)
+        u[1][I] *= inv
+        u[2][I] *= inv
+        u[3][I] *= inv
+    end
+    return n
+end
+
+function _zero_ion_moments!(n::Array{T}, u) where {T}
+    fill!(n, zero(T))
+    foreach(a -> fill!(a, zero(T)), u)
+    return n
+end
+
+# Accumulate raw charge moments; normalize only after every species contributes.
+function _accumulate_charge_moments!(n, u, ps, g, shape, ntmp, mtmp, work)
+    density!(ntmp, ps, g, shape)
+    momentum!(mtmp, ps, g, shape; work)
+    @. n += ps.q * ntmp
+    for c = 1:3
+        @. u[c] += ps.q * mtmp[c]
+    end
+    return n
 end
 
 # ---------------------------------------------------------------- Ohm's law
@@ -105,25 +127,12 @@ function compute_moments_multi!(
             )
         end
     end
-    fill!(f.n, zero(T))
-    for c = 1:3
-        fill!(f.ui[c], zero(T))
-    end
+    _zero_ion_moments!(f.n, f.ui)
     for (is, s) in enumerate(species)
         work = works === nothing ? nothing : works[is]
-        density!(ntmp, s, g, shape)
-        momentum!(mtmp, s, g, shape; work)           # (n u)_s
-        @. f.n += s.q * ntmp                          # Σ q_s n_s
-        for c = 1:3
-            @. f.ui[c] += s.q * mtmp[c]               # Σ q_s (n u)_s
-        end
+        _accumulate_charge_moments!(f.n, f.ui, s, g, shape, ntmp, mtmp, work)
     end
-    @inbounds for I in eachindex(f.n)
-        inv = one(T) / max(f.n[I], nf)
-        f.ui[1][I] *= inv
-        f.ui[2][I] *= inv
-        f.ui[3][I] *= inv
-    end
+    _normalize_ion_moments!(f.n, f.ui, nf)
     return f
 end
 

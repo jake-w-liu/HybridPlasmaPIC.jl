@@ -1,6 +1,7 @@
 # Multispecies hybrid evolution
 
-Status: design; implementation and acceptance checks pending.
+Status: serial core evolution verified on Julia 1.12.7 and 1.13.1; collection
+restart and conservation diagnostics are separate implementation slices.
 
 ## Verified gap
 
@@ -37,6 +38,11 @@ the collection calls have no applicable method; log:
 - Preserve CAM-CL's persistent magnetic copies and existing closure restriction.
   Do not label the existing predictor algorithm an exact implementation of
   every step of the Matthews paper.
+- Preserve the existing explicit predictor/Boris integration contract. It does
+  not solve the coupled midpoint current implicitly. Uniform multispecies
+  momentum therefore has discretization error: require agreement with the
+  discrete Lorentz force balance and second-order convergence to the conserved
+  continuum momentum, rather than claiming exact discrete conservation.
 
 ## Implementation plan
 
@@ -74,6 +80,13 @@ remain separately tracked capabilities.
   `d(v_1-v_2)/dt = (a_2*q_1/m_1+a_1*q_2/m_2)*(v_1-v_2) × B`;
   mass-weighted momentum is constant. Check the staggered velocity time,
   integrated positions, timestep refinement and unequal charge/mass/density.
+  Separately compare each Boris step with an independently derived Cayley
+  matrix and its discrete momentum balance. The initial exact-momentum test
+  failed; `/tmp/hybrid-multispecies-momentum-probe2.log` verifies the observed
+  second-step change against that matrix (21 assertions). Halving dt reduces
+  its local momentum defect by approximately eight, as a second-order scheme
+  requires. This evidence determines the conservation acceptance criterion;
+  exact conservation would require a different coupled integrator.
 - Build the linear transverse multispecies wave matrix directly from the
   Lorentz force, Ampere, Ohm and Faraday equations. Compare small-amplitude
   evolution and temporal convergence with its matrix exponential, including
@@ -95,3 +108,17 @@ Wrong implementations these checks must reject include using number-weighted
 velocity, flooring each population before summation, reusing the first species'
 charge-to-mass ratio, advancing fields separately for each population, and
 recomputing the predictor field partway through the population loop.
+
+## Conservation diagnostics follow-on
+
+A runtime capability probe confirms that `kinetic_energy`, `energy_budget` and
+`momentum_budget` do not yet accept collections, while `total_momentum` fails
+on a typed empty vector (`/tmp/hybrid-multispecies-diagnostic-gap.log`).
+
+Extend the existing budget methods to accept the same typed particle collection,
+sum ion kinetic energy and momentum using each population's mass and weights,
+and include each shared field/electron energy reservoir exactly once. Empty
+collections with a known particle precision contribute a typed zero; preserve
+the existing heterogeneous nonempty momentum reduction. Verify Float32/64,
+1D–3D, unequal particle weights/masses, views, empty collections, all electron
+closures and finite electron inertia against direct independent sums.

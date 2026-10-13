@@ -75,6 +75,21 @@ Two things every setup needs:
 - a timestep from `recommended_dt(g; NB, integrator = :rk4)` (see
   [Time integration](#time-integration)) unless you know your whistler CFL.
 
+For several positive ion populations, pass a vector of `ParticleSet`s to the
+same initialization and stepping functions: `init!(st, species)` and
+`step!(st, species, dt; NB)`, or the CAM-CL equivalents. Each population has its
+own charge, mass, weights and particle count. They share one field update with
+`n_e = sum(q_s*n_s)` and charge-weighted ion velocity; the density floor is
+applied after summation. The single-population interface retains its proton
+normalization. See [the proton/alpha example](examples/two_ion_hybrid.jl).
+
+Populations need independent storage and a common velocity time level. Empty
+populations and changing particle counts are supported; reinitialize when
+adding particles loaded at a new physical velocity time level. Collection
+stepping currently uses the serial periodic solvers. Its explicit predictor
+has second-order momentum error in the uniform two-ion convergence test;
+discrete momentum is not conserved exactly.
+
 ## The physics model
 
 The core solver integrates the standard massless-electron hybrid model in
@@ -367,6 +382,7 @@ Each runs standalone in a few seconds to ~30 s (including compilation):
 
 ```bash
 julia --project=. examples/ion_acoustic.jl   # hybrid run; measures ω against k·c_s (0.05%)
+julia --project=. examples/two_ion_hybrid.jl # proton/alpha run against a uniform-field analytic orbit
 julia --project=. examples/ray_tracing.jl    # WKB fast-wave ray through a density wave
 julia --project=. examples/raycon_cmod.jl    # RAYCON: C-Mod ICRF ray + mode conversion + power deposition
 ```

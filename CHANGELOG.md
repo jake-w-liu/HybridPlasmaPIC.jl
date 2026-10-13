@@ -8,6 +8,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Multispecies `HybridStepper` and `CAMCLStepper` initialization and evolution
+  share charge-weighted moments and fields while retaining each positive ion
+  population's charge, mass and storage. Supports different counts, writable
+  views, empty populations, changing timesteps and magnetic subcycles. Invalid
+  populations and shared storage are rejected before initialization or stepping
+  mutates state. Includes independent two-ion orbit, discrete-force and wave
+  convergence checks, an executable example and a runtime/allocation benchmark.
+
 - Hall-MHD checkpoint/restart and archives preserve model parameters, fluid and
   derived fields, simulation clock, and inactive hyperresistive stage history.
   Restoration validates the complete payload before changing existing field
