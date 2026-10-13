@@ -1,7 +1,7 @@
 # Multispecies hybrid evolution
 
-Status: serial core evolution verified on Julia 1.12.7 and 1.13.1; collection
-restart and conservation diagnostics are separate implementation slices.
+Status: serial core evolution and collection restart verified on Julia 1.12.7
+and 1.13.1; conservation diagnostics are the next implementation slice.
 
 ## Verified gap
 

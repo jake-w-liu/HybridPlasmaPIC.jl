@@ -8,6 +8,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Hybrid multispecies checkpoint/restart and archives preserve ordered ion
+  populations and their shared integrator state. Restore preflights every
+  destination before mutation, supports independent writable views and empty
+  populations, and retains the scalar checkpoint representation unchanged.
+
 - Multispecies `HybridStepper` and `CAMCLStepper` initialization and evolution
   share charge-weighted moments and fields while retaining each positive ion
   population's charge, mass and storage. Supports different counts, writable

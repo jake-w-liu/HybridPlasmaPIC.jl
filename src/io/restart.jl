@@ -30,6 +30,7 @@
                 diagnostic_desc="", rank_layout="") -> path
     archive_run(path, empic, electrons, ions; rng_seed, kwargs...) -> path
     archive_run(path, hall::HallMHDState; rng_seed, kwargs...) -> path
+    archive_run(path, stepper, species::AbstractVector; rng_seed, kwargs...) -> path
 
 Write a provenance-stamped, checksum-verified archive of the run state at `path`.
 Supports [`HybridStepper`](@ref), [`CAMCLStepper`](@ref),
@@ -45,6 +46,8 @@ CAM-CL — the same state [`save_checkpoint`](@ref) restarts from) together with
 [`RunMetadata`](@ref) record built via [`capture_metadata`](@ref). It is written
 through [`save_run`](@ref), so the file carries the schema tag and an integrity
 checksum over the state.
+Hybrid species collections preserve the ordered per-population state alongside
+the common fields, configuration and integrator phase.
 Electrostatic archives instead contain their electric field, density, immutable
 background density, and priming/timestep state alongside the particles and grid.
 Electromagnetic archives include both species for mobile runs, their physics
@@ -65,6 +68,15 @@ end
 
 function archive_run(path::AbstractString, st::HallMHDState; kwargs...)
     return _archive_run(path, st, _checkpoint_state(st); kwargs...)
+end
+
+function archive_run(
+    path::AbstractString,
+    st::_HybridCheckpointStepper,
+    species::AbstractVector{<:ParticleSet};
+    kwargs...,
+)
+    return _archive_run(path, st, _checkpoint_state(st, species); kwargs...)
 end
 
 function archive_run(

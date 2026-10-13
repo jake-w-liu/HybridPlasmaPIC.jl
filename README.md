@@ -304,6 +304,11 @@ for the same stepping inputs. Checkpoints preserve particle provenance and
 timestep history, including CAM-CL's persistent magnetic copies and subcycle phase.
 Hybrid restores replace model/shape parameters with the saved values;
 electrostatic destinations require matching background density `n0`.
+Hybrid collections use `save_checkpoint(path, st, species)` and
+`load_checkpoint!(st, species, path)`, preserving population order, charge, mass
+and storage. Every destination is checked before any population changes;
+the population count must match, and scalar/collection layouts stay distinct.
+`archive_run(path, st, species; rng_seed=...)` captures the same collection state.
 EM checkpoints preserve both species, field/current diagnostics, configuration,
 and electron/ion timestep history. For mobile ions, use
 `save_checkpoint(path, es, electrons, ions)` and

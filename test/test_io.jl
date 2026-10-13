@@ -596,3 +596,4 @@ end
 include("test_io_electrostatic.jl")
 include("test_io_electromagnetic.jl")
 include("test_io_hall_mhd.jl")
+include("test_io_collections.jl")

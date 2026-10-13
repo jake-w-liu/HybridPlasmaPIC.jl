@@ -92,14 +92,20 @@ const _EMPIC_CHECKPOINT_REQUIRED_FIELDS = (
 
 const _CHECKPOINT_PARTICLE_FIELDS = (:x, :v, :weight, :id, :tag, :q, :m)
 
+const _COLLECTION_CHECKPOINT_REQUIRED_FIELDS = (
+    filter(k -> !(k in _CHECKPOINT_PARTICLE_FIELDS), _CHECKPOINT_REQUIRED_FIELDS)...,
+    :particle_layout,
+    :species,
+)
+
 const _HALL_CHECKPOINT_REQUIRED_FIELDS =
     (:integrator, :D, :T, :ncell, :L, :model, :fields, :stage_lapJ, :floor_count, :time, :step)
 
 function _validate_checkpoint_container(s, required = _CHECKPOINT_REQUIRED_FIELDS)
     s isa NamedTuple ||
         throw(ArgumentError("checkpoint file does not contain a valid checkpoint container"))
-    missing = Symbol[k for k in required if !hasproperty(s, k)]
-    if !isempty(missing)
+    if !all(map(k -> haskey(s, k), required))
+        missing = Symbol[k for k in required if !haskey(s, k)]
         missing_list = join(string.(missing), ", ")
         throw(ArgumentError("checkpoint is missing required fields: $missing_list"))
     end
@@ -258,9 +264,7 @@ function _validate_checkpoint_integrator_state(s, st::_HybridCheckpointStepper{D
     s.integrator === expected ||
         throw(ArgumentError("checkpoint integrator $(s.integrator) ≠ $expected"))
     if st isa CAMCLStepper
-        for name in (:Blead, :Blag, :Bout, :cl_h, :cl_live)
-            hasproperty(s, name) || throw(ArgumentError("checkpoint is missing $name"))
-        end
+        _validate_checkpoint_container(s, (:Blead, :Blag, :Bout, :cl_h, :cl_live))
         for name in (:Blead, :Blag, :Bout)
             _validate_checkpoint_field_components(name, getproperty(s, name), getproperty(st, name))
         end
@@ -288,14 +292,29 @@ function _validate_checkpoint_grid(s, g::FourierGrid{D,T}) where {D,T}
 end
 
 function _validate_checkpoint_state(s, st::_HybridCheckpointStepper{D,T}) where {D,T}
-    _validate_checkpoint_container(s)
+    collection = s isa NamedTuple && haskey(s, :particle_layout)
+    _validate_checkpoint_container(
+        s,
+        collection ? _COLLECTION_CHECKPOINT_REQUIRED_FIELDS : _CHECKPOINT_REQUIRED_FIELDS,
+    )
     _validate_checkpoint_grid(s, st.g)
     typeof(s.model) === typeof(st.model) ||
         throw(ArgumentError("checkpoint model type $(typeof(s.model)) ≠ $(typeof(st.model))"))
     typeof(s.shape) === typeof(st.shape) ||
         throw(ArgumentError("checkpoint shape type $(typeof(s.shape)) ≠ $(typeof(st.shape))"))
-    _validate_checkpoint_scalar_state(s, T)
-    _validate_checkpoint_particle_state(s, Val(D))
+    if collection
+        s.particle_layout === :collection ||
+            throw(ArgumentError("unsupported checkpoint particle layout $(s.particle_layout)"))
+        _validate_checkpoint_time_state(s, T)
+        s.species isa AbstractVector ||
+            throw(ArgumentError("checkpoint species must be an ordered vector"))
+        populations =
+            ParticleSet{D,T}[_checkpoint_species(record, Val(D), T) for record in s.species]
+        _validate_hybrid_species(populations)
+    else
+        _validate_checkpoint_scalar_state(s, T)
+        _validate_checkpoint_particle_state(s, Val(D))
+    end
     _validate_checkpoint_field_state(s, st)
     _validate_checkpoint_integrator_state(s, st)
     return nothing
@@ -339,6 +358,26 @@ function _checkpoint_particle_state(ps::ParticleSet)
 end
 
 function _checkpoint_state(st::_HybridCheckpointStepper{D,T}, ps::ParticleSet{D,T}) where {D,T}
+    return _hybrid_checkpoint_state(st, _checkpoint_particle_state(ps))
+end
+
+function _checkpoint_state(
+    st::_HybridCheckpointStepper{D,T},
+    species::AbstractVector{<:ParticleSet},
+) where {D,T}
+    species isa AbstractVector{<:ParticleSet{D,T}} ||
+        throw(ArgumentError("checkpoint species must match the stepper dimension and precision"))
+    particles = (
+        particle_layout = :collection,
+        species = [_checkpoint_particle_state(ps) for ps in species],
+    )
+    return _hybrid_checkpoint_state(st, particles)
+end
+
+function _hybrid_checkpoint_state(
+    st::_HybridCheckpointStepper{D,T},
+    particles::NamedTuple,
+) where {D,T}
     common = (;
         integrator = st isa CAMCLStepper ? :camcl : :rk4,
         D = D,
@@ -347,7 +386,7 @@ function _checkpoint_state(st::_HybridCheckpointStepper{D,T}, ps::ParticleSet{D,
         L = st.g.L,
         model = st.model,
         shape = st.shape,
-        _checkpoint_particle_state(ps)...,
+        particles...,
         B = st.fields.B,
         E = st.fields.E,
         time = st.time[],
@@ -588,12 +627,47 @@ function _restore_checkpoint_state!(
     s,
 ) where {D,T}
     _validate_checkpoint_state(s, st)
+    haskey(s, :particle_layout) &&
+        throw(ArgumentError("collection checkpoint requires a species collection destination"))
     N = length(s.weight)
     _validate_checkpoint_destination(ps, N)
     _resize_hybrid_particle_workspaces!(st, N)
+    _restore_checkpoint_particles!(ps, s)
+    return _restore_hybrid_checkpoint_fields!(st, s)
+end
+
+function _restore_checkpoint_state!(
+    st::_HybridCheckpointStepper{D,T},
+    species::AbstractVector{<:ParticleSet},
+    s,
+) where {D,T}
+    _validate_checkpoint_state(s, st)
+    haskey(s, :particle_layout) ||
+        throw(ArgumentError("species collection destination requires a collection checkpoint"))
+    species isa AbstractVector{<:ParticleSet{D,T}} ||
+        throw(ArgumentError("destination species must match the stepper dimension and precision"))
+    length(species) == length(s.species) ||
+        throw(ArgumentError("checkpoint population count does not match destination"))
+    _require_independent_hybrid_species(species)
+    total = 0
+    for (ps, record) in zip(species, s.species)
+        count = length(record.weight)
+        _validate_checkpoint_destination(ps, count)
+        for a in (ps.x..., ps.v..., ps.weight, ps.id, ps.tag)
+            _check_particle_vector_axes(:checkpoint_destination, a, length(a))
+        end
+        total += count # Saved populations have already passed the total-count overflow check.
+    end
+    _resize_hybrid_particle_workspaces!(st, total)
+    for (ps, record) in zip(species, s.species)
+        _restore_checkpoint_particles!(ps, record)
+    end
+    return _restore_hybrid_checkpoint_fields!(st, s)
+end
+
+function _restore_hybrid_checkpoint_fields!(st::_HybridCheckpointStepper, s)
     st.model = s.model
     st.shape = s.shape
-    _restore_checkpoint_particles!(ps, s)
     for c = 1:3
         copyto!(st.fields.B[c], s.B[c])
         copyto!(st.fields.E[c], s.E[c])
@@ -701,6 +775,7 @@ end
 
 """
     save_checkpoint(path, stepper, ps)
+    save_checkpoint(path, stepper, species::AbstractVector)
     save_checkpoint(path, empic, electrons, ions)
     save_checkpoint(path, hall::HallMHDState)
 
@@ -708,6 +783,9 @@ Serialize the restartable state (model, shape, particles, B, carried E, time,
 step, and previous timestep for the staggered particle velocities) to `path`.
 Supports [`HybridStepper`](@ref) and [`CAMCLStepper`](@ref); CAM-CL checkpoints
 also preserve the persistent cyclic-leapfrog field copies and subcycle phase.
+Hybrid species collections are stored in order, with each population's charge,
+mass, phase space, and provenance. Populations require independent storage and
+the positive-ion validation used by collection stepping.
 For [`Electrostatic1D`](@ref) and [`ElectrostaticPIC`](@ref), save the electron
 particles, electric field, number density, background density, and priming/timestep
 state. These electrostatic solvers use CIC and an immobile ion background.
@@ -732,6 +810,14 @@ end
 
 function save_checkpoint(
     path::AbstractString,
+    st::_HybridCheckpointStepper,
+    species::AbstractVector{<:ParticleSet},
+)
+    return _save_checkpoint(path, st, _checkpoint_state(st, species))
+end
+
+function save_checkpoint(
+    path::AbstractString,
     st::_ElectromagneticCheckpointStepper,
     electrons::ParticleSet,
     ions::Union{Nothing,ParticleSet},
@@ -747,6 +833,7 @@ end
 
 """
     load_checkpoint!(stepper, ps, path)
+    load_checkpoint!(stepper, species::AbstractVector, path)
     load_checkpoint!(empic, electrons, ions, path)
     load_checkpoint!(hall::HallMHDState, path)
 
@@ -757,6 +844,11 @@ particle count; writable views are restored in place.
 Hybrid destinations require matching concrete model/shape types; the checkpoint
 replaces their parameters, including custom mutable parameters, so restored
 evolution uses the saved physics.
+Collection destinations require the same number of ordered populations and
+matching dimension/precision. Each population keeps its existing storage while
+saved charge, mass, provenance and phase space replace its values. Every
+population is validated before any is changed; scalar and collection layouts
+are distinct and cannot be interchanged on restore.
 Electrostatic destinations must have the same background density `n0`, which
 is immutable; their saved fields, density, and leapfrog phase are restored directly.
 Electromagnetic destinations require the same ion mobility and concrete shape
@@ -776,6 +868,14 @@ end
 
 function load_checkpoint!(st::HallMHDState, path::AbstractString)
     return _restore_checkpoint_state!(st, deserialize(path))
+end
+
+function load_checkpoint!(
+    st::_HybridCheckpointStepper,
+    species::AbstractVector{<:ParticleSet},
+    path::AbstractString,
+)
+    return _restore_checkpoint_state!(st, species, deserialize(path))
 end
 
 function load_checkpoint!(
