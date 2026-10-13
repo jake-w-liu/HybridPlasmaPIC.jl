@@ -167,27 +167,15 @@ function _hybrid_particle_workspace(st, indices)
     )
 end
 
-# moments (density into nout, bulk velocity into uout) with density floor
-function _moments!(
-    nout::Array{T,D},
-    uout::NTuple{3,<:Array{T,D}},
-    ps::ParticleSet{D,T},
-    g::FourierGrid{D,T},
-    shape::ShapeFunction,
-    nfloor::T,
-    work::Vector{T},
-) where {D,T}
-    density!(nout, ps, g, shape)
-    momentum!(uout, ps, g, shape; work)
-    return _normalize_ion_moments!(nout, uout, nfloor)
-end
-
-function _hybrid_integer_moments!(st, ps::ParticleSet{D,T}) where {D,T}
-    _moments!(st.fields.n, st.fields.ui, ps, st.g, st.shape, T(st.model.nfloor), st.work)
+# Serial and MPI callers share raw moments; MPI reduces across ranks before
+# either caller converts the momentum density to bulk velocity.
+function _hybrid_integer_raw_moments!(st, ps::ParticleSet{D,T}) where {D,T}
+    density!(st.fields.n, ps, st.g, st.shape)
+    momentum!(st.fields.ui, ps, st.g, st.shape; work = st.work)
     return st
 end
 
-function _hybrid_integer_moments!(st, species::AbstractVector{<:ParticleSet{D,T}}) where {D,T}
+function _hybrid_integer_raw_moments!(st, species::AbstractVector{<:ParticleSet{D,T}}) where {D,T}
     f = st.fields
     _zero_ion_moments!(f.n, f.ui)
     offset = 0
@@ -197,7 +185,12 @@ function _hybrid_integer_moments!(st, species::AbstractVector{<:ParticleSet{D,T}
         _accumulate_charge_moments!(f.n, f.ui, ps, st.g, st.shape, st.fn, st.fui, work)
         offset += n
     end
-    _normalize_ion_moments!(f.n, f.ui, T(st.model.nfloor))
+    return st
+end
+
+function _hybrid_integer_moments!(st, ps)
+    _hybrid_integer_raw_moments!(st, ps)
+    _normalize_ion_moments!(st.fields.n, st.fields.ui, eltype(st.fields.n)(st.model.nfloor))
     return st
 end
 
@@ -374,19 +367,23 @@ end
 # carried E, restoring the documented CAM/CL 2nd-order accuracy (verified: magnetized temporal
 # convergence rate 1 → 2). Unmagnetized behavior is unchanged (u_i drops out of Ohm's law when
 # B=0). Generic over the stepper (HybridStepper/CAMCLStepper share Ep/Bp/vpred/work). No alloc.
-function _recenter_carried_E!(st, ps::ParticleSet{D,T}, dtT::T) where {D,T}
+function _hybrid_predictor_raw_moments!(st, ps::ParticleSet{D,T}, dtT::T) where {D,T}
     qm = _validated_qm(ps)
     g = st.g
     gather_vector!(st.Ep, st.fields.E, ps, g, st.shape)   # E^{n+1}
     gather_vector!(st.Bp, st.fields.B, ps, g, st.shape)   # B^{n+1}
     _predict_half_kick!(st.vpred, ps.v, st.Ep, st.Bp, qm, dtT / 2, length(ps.weight))
     pspred = ParticleSet{D,T}(ps.x, st.vpred, ps.weight, ps.id, ps.tag, ps.q, ps.m)
-    _moments!(st.fields.n, st.fields.ui, pspred, g, st.shape, T(st.model.nfloor), st.work)
-    ohms_law!(st.fields, st.model, g)
+    density!(st.fields.n, pspred, g, st.shape)
+    momentum!(st.fields.ui, pspred, g, st.shape; work = st.work)
     return st
 end
 
-function _recenter_carried_E!(st, species::AbstractVector{<:ParticleSet{D,T}}, dtT::T) where {D,T}
+function _hybrid_predictor_raw_moments!(
+    st,
+    species::AbstractVector{<:ParticleSet{D,T}},
+    dtT::T,
+) where {D,T}
     f = st.fields
     _zero_ion_moments!(f.n, f.ui)
     offset = 0
@@ -400,8 +397,13 @@ function _recenter_carried_E!(st, species::AbstractVector{<:ParticleSet{D,T}}, d
         _accumulate_charge_moments!(f.n, f.ui, predicted, st.g, st.shape, st.fn, st.fui, ws.work)
         offset += n
     end
-    _normalize_ion_moments!(f.n, f.ui, T(st.model.nfloor))
-    ohms_law!(f, st.model, st.g)
+    return st
+end
+
+function _recenter_carried_E!(st, ps, dtT)
+    _hybrid_predictor_raw_moments!(st, ps, dtT)
+    _normalize_ion_moments!(st.fields.n, st.fields.ui, eltype(st.fields.n)(st.model.nfloor))
+    ohms_law!(st.fields, st.model, st.g)
     return st
 end
 
@@ -442,13 +444,19 @@ function _push_hybrid_population!(st, ws, ps::ParticleSet{D,T}, dtT::T, kick_dt:
     return midpoint
 end
 
-function _push_hybrid_midpoint_moments!(st, ps::ParticleSet{D,T}, dtT::T, kick_dt::T) where {D,T}
+function _push_hybrid_midpoint_raw_moments!(
+    st,
+    ps::ParticleSet{D,T},
+    dtT::T,
+    kick_dt::T,
+) where {D,T}
     midpoint = _push_hybrid_population!(st, st, ps, dtT, kick_dt)
-    _moments!(st.fn, st.fui, midpoint, st.g, st.shape, T(st.model.nfloor), st.work)
+    density!(st.fn, midpoint, st.g, st.shape)
+    momentum!(st.fui, midpoint, st.g, st.shape; work = st.work)
     return st
 end
 
-function _push_hybrid_midpoint_moments!(
+function _push_hybrid_midpoint_raw_moments!(
     st,
     species::AbstractVector{<:ParticleSet{D,T}},
     dtT::T,
@@ -472,7 +480,12 @@ function _push_hybrid_midpoint_moments!(
         )
         offset += n
     end
-    _normalize_ion_moments!(st.fn, st.fui, T(st.model.nfloor))
+    return st
+end
+
+function _push_hybrid_midpoint_moments!(st, ps, dtT, kick_dt)
+    _push_hybrid_midpoint_raw_moments!(st, ps, dtT, kick_dt)
+    _normalize_ion_moments!(st.fn, st.fui, eltype(st.fn)(st.model.nfloor))
     return st
 end
 

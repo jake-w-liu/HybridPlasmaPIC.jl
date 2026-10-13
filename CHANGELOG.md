@@ -8,6 +8,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- MPI hybrid initialization, stepping and moment deposition accept ordered ion
+  collections. Shared serial kernels retain each population's charge, mass and
+  identity; raw moments are reduced across ranks before normalization. Collection
+  input validation is collective, and views support stepping without migration.
+  The MPI benchmark now measures single- and two-ion evolution and allocations.
+  Distributed collection checkpoint integration remains pending.
+
 - Multispecies kinetic energy, total momentum and hybrid energy/momentum
   budgets sum each population's mass-weighted contribution and count shared
   field/electron reservoirs once. Typed empty collections return zero particle

@@ -547,6 +547,117 @@ function mpi_allreduce_diagnostics(
     return _mpi_allreduce_value(local_value, _mpi_reduction_op(op), ctx.comm, gpu_status)
 end
 
+# Validation must finish on every rank before any enters a deposition or
+# migration collective. Retain the local exception/stack on the failing rank;
+# peers receive an explicit failure instead of waiting in the next collective.
+function _mpi_collective_validate(f, ctx)
+    result = try
+        f()
+    catch err
+        (err isa ArgumentError || err isa DimensionMismatch) || rethrow()
+        MPI.Allreduce(1, max, ctx.comm)
+        rethrow()
+    end
+    MPI.Allreduce(0, max, ctx.comm) == 0 ||
+        throw(ArgumentError("hybrid collection validation failed on another MPI rank"))
+    return result
+end
+
+function _mpi_require_equal(values::Vector, ctx, label)
+    lower = MPI.Allreduce(values, min, ctx.comm)
+    upper = MPI.Allreduce(values, max, ctx.comm)
+    lower == upper ||
+        throw(ArgumentError("MPI hybrid collection requires matching $label on all ranks"))
+    return nothing
+end
+
+function _mpi_require_same_species(species::AbstractVector{<:ParticleSet{D,T}}, ctx) where {D,T}
+    _mpi_require_equal([length(species)], ctx, "population counts")
+    parameters = T[]
+    for ps in species
+        push!(parameters, ps.q, ps.m)
+    end
+    isempty(parameters) || _mpi_require_equal(parameters, ctx, "ordered species charge and mass")
+    return nothing
+end
+
+function _mpi_hybrid_init_count(st, ps::ParticleSet, ctx)
+    _require_finite_positive_real("nfloor", st.model.nfloor, eltype(st.fields.n))
+    return nparticles(ps)
+end
+
+function _mpi_hybrid_init_count(st, species::AbstractVector{<:ParticleSet}, ctx)
+    count = _mpi_collective_validate(ctx) do
+        _require_finite_positive_real("nfloor", st.model.nfloor, eltype(st.fields.n))
+        _validate_hybrid_species(species)
+    end
+    _mpi_require_same_species(species, ctx)
+    return count
+end
+
+function _mpi_hybrid_step_inputs(
+    st::HybridStepper{D,T},
+    ps::ParticleSet,
+    ctx,
+    dt,
+    NB,
+    migrate,
+) where {D,T}
+    dtT = _validated_step_dt(T, dt, NB; min_NB = 1, name = "mpi_step!")
+    iszero(dtT) && return (dtT, st.time[], st.step[], 0)
+    next_time, next_step = _validated_step_clock(st.time[], st.step[], dtT)
+    _require_finite_positive_real("nfloor", st.model.nfloor, T)
+    return dtT, next_time, next_step, _validate_hybrid_species(ps)
+end
+
+function _mpi_hybrid_step_inputs(
+    st::HybridStepper{D,T},
+    species::AbstractVector{<:ParticleSet},
+    ctx,
+    dt,
+    NB,
+    migrate,
+) where {D,T}
+    dtT, cycles = _mpi_collective_validate(ctx) do
+        (
+            _validated_step_dt(T, dt, NB; min_NB = 1, name = "mpi_step!"),
+            _require_positive_intlike("NB", NB),
+        )
+    end
+    _mpi_require_equal([cycles, Int(migrate)], ctx, "subcycle and migration settings")
+    _mpi_require_equal(T[dtT], ctx, "timesteps")
+    iszero(dtT) && return (dtT, st.time[], st.step[], 0)
+    next_time, next_step, count = _mpi_collective_validate(ctx) do
+        following_time, following_step = _validated_step_clock(st.time[], st.step[], dtT)
+        _require_finite_positive_real("nfloor", st.model.nfloor, T)
+        local_count = _validate_hybrid_species(species)
+        isfinite(st.last_dt[]) && st.last_dt[] >= zero(T) ||
+            throw(ArgumentError("previous hybrid timestep must be finite and nonnegative"))
+        if migrate
+            for ps in species, a in (ps.x..., ps.v..., ps.weight, ps.id, ps.tag)
+                a isa Vector || throw(
+                    ArgumentError(
+                        "MPI collection migration requires Vector particle storage; disable migration to use views",
+                    ),
+                )
+            end
+        end
+        (following_time, following_step, local_count)
+    end
+    _mpi_require_same_species(species, ctx)
+    _mpi_require_equal([st.step[]], ctx, "step counts")
+    _mpi_require_equal(T[st.time[], st.last_dt[]], ctx, "time and previous timestep")
+    return dtT, next_time, next_step, count
+end
+
+function _mpi_reduce_moments!(nout::Array{T}, uout, nf::T, ctx; gpu_status) where {T}
+    copyto!(nout, mpi_allreduce_diagnostics(nout, ctx; op = :sum, gpu_status))
+    for c = 1:3
+        copyto!(uout[c], mpi_allreduce_diagnostics(uout[c], ctx; op = :sum, gpu_status))
+    end
+    return _normalize_ion_moments!(nout, uout, nf)
+end
+
 function _mpi_moments!(
     nout::Array{T,D},
     uout::NTuple{3,<:Array{T,D}},
@@ -562,18 +673,67 @@ function _mpi_moments!(
     density!(nout, ps, g, shape)
     momentum!(uout, ps, g, shape; work)
 
-    copyto!(nout, mpi_allreduce_diagnostics(nout, ctx; op = :sum, gpu_status))
-    for c = 1:3
-        copyto!(uout[c], mpi_allreduce_diagnostics(uout[c], ctx; op = :sum, gpu_status))
-    end
+    return _mpi_reduce_moments!(nout, uout, nf, ctx; gpu_status)
+end
 
-    @inbounds for I in eachindex(nout)
-        inv = one(T) / max(nout[I], nf)
-        uout[1][I] *= inv
-        uout[2][I] *= inv
-        uout[3][I] *= inv
+function _mpi_moments!(
+    nout::Array{T,D},
+    uout::NTuple{3,<:Array{T,D}},
+    species::AbstractVector{<:ParticleSet{D,T}},
+    g::FourierGrid{D,T},
+    shape::ShapeFunction,
+    nfloor,
+    ctx::MPICartesianCommunicator{D};
+    work::Union{Nothing,Vector{T}} = nothing,
+    gpu_status::GPUAwareMPIStatus = gpu_aware_mpi_status(),
+) where {D,T}
+    nf = _mpi_collective_validate(ctx) do
+        floor_value = _require_finite_positive_real("nfloor", nfloor, T)
+        count = _validate_hybrid_species(species)
+        _require_grid_array(:n, nout, g)
+        _require_grid_tuple(:ui, uout, g)
+        work === nothing ||
+            length(work) == count ||
+            throw(
+                DimensionMismatch(
+                    "MPI collection work length must equal total local particle count $count",
+                ),
+            )
+        grids = (nout, uout...)
+        for (i, grid) in enumerate(grids)
+            for j = 1:(i-1)
+                _particle_arrays_mightalias(grid, grids[j]) &&
+                    throw(ArgumentError("MPI moment output arrays must not alias"))
+            end
+            for ps in species
+                _mightalias_particle_storage(grid, ps) &&
+                    throw(ArgumentError("MPI moment outputs must not alias particle storage"))
+            end
+            work === nothing ||
+                !_particle_arrays_mightalias(work, grid) ||
+                throw(ArgumentError("MPI moment work must not alias output arrays"))
+        end
+        if work !== nothing
+            for ps in species
+                _mightalias_particle_storage(work, ps) &&
+                    throw(ArgumentError("MPI moment work must not alias particle storage"))
+            end
+        end
+        floor_value
     end
-    return nout
+    _mpi_require_same_species(species, ctx)
+    _mpi_require_equal(T[nf], ctx, "density floors")
+    ntmp = similar(nout)
+    mtmp = map(similar, uout)
+    _zero_ion_moments!(nout, uout)
+    offset = 0
+    for ps in species
+        n = nparticles(ps)
+        scratch = work === nothing ? nothing : view(work, (offset+1):(offset+n))
+        _accumulate_charge_moments!(nout, uout, ps, g, shape, ntmp, mtmp, scratch)
+        offset += n
+    end
+    return _mpi_reduce_moments!(nout, uout, nf, ctx; gpu_status)
 end
 
 """
@@ -587,10 +747,15 @@ order. This is a correctness reference for MPI agreement; scalable domain-local
 moment exchange for slab ghost zones is provided by
 [`mpi_exchange_ghost_moments!`](@ref), while cluster scaling data remains a
 separate gate.
+
+An ordered ion collection uses charge moments summed over all populations and
+ranks before applying the density floor. Every rank supplies the same ordered
+charge/mass parameters, including empty local populations. Optional `work` holds
+one entry per local particle across the collection.
 """
 function mpi_compute_moments!(
     f::HybridFields{D,T},
-    ps::ParticleSet{D,T},
+    ps::_HybridPopulations{D,T},
     g::FourierGrid{D,T},
     shape::ShapeFunction,
     nfloor,
@@ -606,25 +771,19 @@ end
     mpi_init!(stepper, ps, ctx; gpu_status=...)
 
 MPI reference initialization matching [`init!`](@ref), but with moments summed
-over rank-local particle subsets by [`mpi_compute_moments!`](@ref).
+over rank-local particle subsets. Accepts one population or an ordered positive
+ion collection; collection validation completes collectively before mutation.
 """
 function mpi_init!(
     st::HybridStepper{D,T},
-    ps::ParticleSet{D,T},
+    ps::_HybridPopulations{D,T},
     ctx::MPICartesianCommunicator{D};
     gpu_status::GPUAwareMPIStatus = gpu_aware_mpi_status(),
 ) where {D,T}
-    _resize_hybrid_particle_workspaces!(st, nparticles(ps))
-    mpi_compute_moments!(
-        st.fields,
-        ps,
-        st.g,
-        st.shape,
-        st.model.nfloor,
-        ctx;
-        work = st.work,
-        gpu_status,
-    )
+    count = _mpi_hybrid_init_count(st, ps, ctx)
+    _resize_hybrid_particle_workspaces!(st, count)
+    _hybrid_integer_raw_moments!(st, ps)
+    _mpi_reduce_moments!(st.fields.n, st.fields.ui, T(st.model.nfloor), ctx; gpu_status)
     ohms_law!(st.fields, st.model, st.g)
     st.time[] = zero(T)                 # (re)start at t=0; step==0 triggers leapfrog priming
     st.step[] = 0
@@ -639,61 +798,34 @@ Advance a replicated-field MPI reference step. Particle push, Ohm's law, and
 Faraday use the same kernels as [`step!`](@ref); moment deposition is summed
 over all ranks with MPI. If `migrate_particles` is true, the rank-local particle
 set is migrated through [`mpi_migrate_particles!`](@ref) after the field update.
+For collections, migration runs separately in population order and requires
+Vector-backed particle components. Views support `migrate_particles=false`.
+All ranks must use the same ordered species, timestep/subcycle/migration settings
+and integrator phase. Collection input validation failures are reported on every
+rank before particles, fields or workspaces change; zero dt remains a no-op.
+As for the scalar interface, callers supply matching grids, models and replicated
+fields on every rank.
 """
 function mpi_step!(
     st::HybridStepper{D,T},
-    ps::ParticleSet{D,T},
+    ps::_HybridPopulations{D,T},
     ctx::MPICartesianCommunicator{D},
     dt::Real;
     NB::Integer = 1,
     gpu_status::GPUAwareMPIStatus = gpu_aware_mpi_status(),
     migrate_particles::Bool = true,
 ) where {D,T}
-    dtT = _validated_step_dt(T, dt, NB; min_NB = 1, name = "mpi_step!")
-    iszero(dtT) && return st        # dt=0 no-op: do not consume the one-time priming guard.
-    next_time, next_step = _validated_step_clock(st.time[], st.step[], dtT)
-    qm = _validated_qm(ps)
-    _resize_hybrid_particle_workspaces!(st, nparticles(ps))
+    dtT, next_time, next_step, count =
+        _mpi_hybrid_step_inputs(st, ps, ctx, dt, NB, migrate_particles)
+    iszero(dtT) && return st
+    _resize_hybrid_particle_workspaces!(st, count)
 
     g = st.g
     h = dtT / 2
     kick_dt = st.step[] == 0 ? dtT : st.last_dt[] / 2 + h
     nf = T(st.model.nfloor)
-    lo = ntuple(_ -> zero(T), D)
-    hi = g.L
-
-    gather_vector!(st.Ep, st.fields.E, ps, g, st.shape)
-    gather_vector!(st.Bp, st.fields.B, ps, g, st.shape)
-    # prime the leapfrog once: loaded v is physical v^0 → v^{-1/2} for 2nd-order accuracy.
-    st.step[] == 0 && _prime_leapfrog!(ps.v, st.Ep, st.Bp, qm, h, nparticles(ps))
-    vx, vy, vz = ps.v
-    @inbounds for p in eachindex(ps.weight)
-        nx, ny, nz = boris_kick(
-            vx[p],
-            vy[p],
-            vz[p],
-            st.Ep[1][p],
-            st.Ep[2][p],
-            st.Ep[3][p],
-            st.Bp[1][p],
-            st.Bp[2][p],
-            st.Bp[3][p],
-            qm,
-            kick_dt,
-        )
-        vx[p] = nx
-        vy[p] = ny
-        vz[p] = nz
-        for d = 1:D
-            st.xmid[d][p] = ps.x[d][p] + h * ps.v[d][p]
-            ps.x[d][p] += dtT * ps.v[d][p]
-        end
-    end
-    apply_periodic!(ps, lo, hi)
-
-    psmid = ParticleSet{D,T}(st.xmid, ps.v, ps.weight, ps.id, ps.tag, ps.q, ps.m)
-    apply_periodic!(psmid, lo, hi)
-    _mpi_moments!(st.fn, st.fui, psmid, g, st.shape, nf, ctx; work = st.work, gpu_status)
+    _push_hybrid_midpoint_raw_moments!(st, ps, dtT, kick_dt)
+    _mpi_reduce_moments!(st.fn, st.fui, nf, ctx; gpu_status)
 
     f = st.fields
     # scalar closures freeze pe/∇pe/1/n; the anisotropic (CGL) closure freezes only 1/n and
@@ -709,19 +841,22 @@ function mpi_step!(
         _rk4_B!(st, hb)
     end
 
-    mpi_compute_moments!(st.fields, ps, g, st.shape, nf, ctx; work = st.work, gpu_status)
-    ohms_law!(st.fields, st.model, st.g)
-    # re-center u_i to integer level n+1 (predictor half-kick from the fresh E^{n+1}, B^{n+1}) so
-    # the carried E is 2nd-order accurate, matching HybridStepper (see _recenter_carried_E!). The
-    # re-deposit uses the MPI moment routine; particles are still pre-migration (as for step 4).
-    gather_vector!(st.Ep, st.fields.E, ps, g, st.shape)
-    gather_vector!(st.Bp, st.fields.B, ps, g, st.shape)
-    _predict_half_kick!(st.vpred, ps.v, st.Ep, st.Bp, _validated_qm(ps), h, nparticles(ps))
-    pspred = ParticleSet{D,T}(ps.x, st.vpred, ps.weight, ps.id, ps.tag, ps.q, ps.m)
-    mpi_compute_moments!(st.fields, pspred, g, st.shape, nf, ctx; work = st.work, gpu_status)
-    ohms_law!(st.fields, st.model, st.g)
+    _hybrid_integer_raw_moments!(st, ps)
+    _mpi_reduce_moments!(st.fields.n, st.fields.ui, nf, ctx; gpu_status)
+    ohms_law!(st.fields, st.model, g)
+    _hybrid_predictor_raw_moments!(st, ps, dtT)
+    _mpi_reduce_moments!(st.fields.n, st.fields.ui, nf, ctx; gpu_status)
+    ohms_law!(st.fields, st.model, g)
 
-    migrate_particles && mpi_migrate_particles!(ps, g, ctx)
+    if migrate_particles
+        if ps isa ParticleSet
+            mpi_migrate_particles!(ps, g, ctx)
+        else
+            for population in ps
+                mpi_migrate_particles!(population, g, ctx)
+            end
+        end
+    end
 
     st.time[] = next_time
     st.step[] = next_step

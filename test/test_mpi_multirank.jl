@@ -688,3 +688,5 @@ if WORLD_SIZE in (2, 4, 8)
         free_mpi_communicator!(ctx)
     end
 end
+
+include("test_multispecies_mpi.jl")

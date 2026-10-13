@@ -128,3 +128,77 @@ Implementation now passes 1,098 diagnostic/regression assertions on each Julia
 version. The canonical budget methods share their scalar field/closure path;
 only the particle reduction changes for collections. Warmed Float32/64 particle
 energy and momentum reductions allocate zero bytes in 1D–3D.
+
+## MPI collection implementation
+
+Capability checks at `67f01b7` on Julia 1.13.1 found no applicable collection
+methods for MPI moments, initialization, stepping or checkpoint save/load
+(`/tmp/hybrid-multispecies-mpi-capability-baseline.log`). Implement evolution
+first, then distributed collection restart using the existing ordered records.
+
+The evolution slice extracts the raw integer, midpoint and predictor moment
+stages from the canonical serial integrator. Serial callers normalize those
+moments directly; MPI callers first sum them over ranks. This keeps one particle
+push and one predictor algorithm. Collection MPI calls require the same ordered
+charge/mass descriptors and timestep phase on every rank. Validate local input
+errors collectively before mutation, retaining the originating rank's exception
+and reporting failure on the other ranks. A narrow catch at this collective
+boundary handles only expected argument/dimension validation errors; failures
+remain failures and never return a success value.
+
+Empty rank-local populations are valid, including a globally empty typed
+collection. Migration invokes the existing species transport in order, retaining
+particle IDs, tags and weights. Its mutable storage contract requires ordinary
+Vector components; views remain usable with migration disabled. Grid, closure
+and replicated field consistency retain the existing MPI caller contract.
+
+Acceptance includes independent charge/velocity sums with the density floor
+applied after all populations and ranks, scalar before/after state comparisons,
+serial agreement for Float32/64 in 1D–3D with all shapes and electron closures,
+changing timesteps and subcycles, rank-local empties, species-preserving migration,
+and malformed inputs on only one rank. Real 2/4/8-rank tests must reject population
+count, order, phase and timestep mismatches without hanging or mutating state.
+Incorrect patches that normalize locally, use the first species' charge/mass,
+or predict later species with an already updated electric field must fail.
+
+An initial implementation review reproduced a work-buffer alias hazard: using
+one population's weights as deposition scratch changed weights from 0.4 to 9.6
+and returned bulk velocity (2, 6, 24) instead of (2, 3, 4)
+(`/tmp/hybrid-mpi-collection-work-alias-probe.log`). The new public collection
+moment boundary rejects output/scratch/particle overlap collectively before
+mutation. The analogous existing scalar/multispecies serial scratch contract
+has now failed the same independent reproduction in `momentum!`,
+`compute_moments!` and `compute_moments_multi!`: weights become 9.6 and both
+bulk-velocity APIs return (2, 6, 24). Evidence:
+`/tmp/hybrid-serial-moment-alias-probe.log`. The next moment slice must repair
+shared buffer validation before any density/output mutation, including callers
+that accept several scratch arrays, and retain independent writable views and
+existing allocation gates. That serial repair remains pending.
+
+The raw-moment extraction initially bypassed the MPI floor conversion guard.
+With a Float32 grid, model floors `1e-100` and `1e100` previously rejected but
+the candidate accepted them (the smaller floor produced nonfinite fields).
+Evidence: `/tmp/hybrid-mpi-floor-review-0.log` and `-1.log`. Restore the guard
+before initialization/step mutation, collectively for collections. Regression
+tests cover both APIs, scalar populations, and a malformed floor on one rank.
+
+## Distributed collection restart: next implementation slice
+
+Use the existing ordered checkpoint records and shared Hybrid restore path.
+Separate restore preflight from mutation so MPI can validate every rank's
+payload and destination before any rank resizes buffers or copies state. A
+two-rank reproduction on Julia 1.13.1 confirms the current scalar loader changes
+rank 0 while rank 1 rejects a non-resizable view destination
+(`/tmp/hybrid-mpi-restore-collective-probe.log`). Collective restore must instead
+report the failure on both ranks and leave both destinations unchanged.
+
+Save must validate ordered populations and integrator phase on every rank
+before writing. Publish the manifest only after all rank files succeed, and
+retain the previous usable checkpoint if a rank fails while replacing it.
+Expected filesystem/deserialization failures need a collective error boundary
+that preserves the originating error. Acceptance includes scalar compatibility,
+ordered collection continuation with changing dt/subcycles and migration,
+empty local populations, writable views, one-rank malformed payloads or
+destinations, and failed save/retry behavior on both supported Julia versions.
+This slice remains pending; the evolution implementation alone does not close
+distributed restart.

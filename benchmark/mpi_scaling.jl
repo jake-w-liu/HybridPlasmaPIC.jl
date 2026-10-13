@@ -118,7 +118,7 @@ function _fill_rank_particles!(
     return ps
 end
 
-function _bench_mpi_step(opts, comm::MPI.Comm)
+function _bench_mpi_step(opts, comm::MPI.Comm; collection::Bool = false)
     nr = MPI.Comm_size(comm)
     layout = LogicalRankLayout((nr,); periodic = (true,))
     ctx = create_cartesian_communicator(layout; comm, reorder = false)
@@ -126,24 +126,40 @@ function _bench_mpi_step(opts, comm::MPI.Comm)
         g = FourierGrid((opts.cells,), (2π,))
         ps = ParticleSet{1,Float64}(opts.particles_per_rank)
         _fill_rank_particles!(ps, g, layout, ctx.logical_rank)
+        populations = if collection
+            alpha = ParticleSet{1,Float64}(cld(opts.particles_per_rank, 2); q = 2.0, m = 4.0)
+            _fill_rank_particles!(alpha, g, layout, ctx.logical_rank)
+            ps.weight .*= 0.8
+            alpha.weight .*= 0.1
+            [ps, alpha]
+        else
+            ps
+        end
+        local_count = collection ? sum(nparticles, populations) : nparticles(ps)
         model = HybridModel(IsothermalElectrons(0.03); nfloor = 1e-5)
         st = HybridStepper(g, model, CIC(), nparticles(ps))
         fill!(st.fields.B[3], 1.0)
         status =
             GPUAwareMPIStatus(false, false, false, :benchmark, "host-only MPI scaling benchmark")
-        mpi_init!(st, ps, ctx; gpu_status = status)
+        mpi_init!(st, populations, ctx; gpu_status = status)
 
         for _ = 1:opts.warmup
-            mpi_step!(st, ps, ctx, opts.dt; NB = opts.nb, gpu_status = status)
+            mpi_step!(st, populations, ctx, opts.dt; NB = opts.nb, gpu_status = status)
         end
+
+        local_bytes =
+            @allocated mpi_step!(st, populations, ctx, opts.dt; NB = opts.nb, gpu_status = status)
+        maximum_local_bytes = MPI.Allreduce(local_bytes, max, comm)
 
         seconds = _timed_max(comm) do
             for _ = 1:opts.reps
-                mpi_step!(st, ps, ctx, opts.dt; NB = opts.nb, gpu_status = status)
+                mpi_step!(st, populations, ctx, opts.dt; NB = opts.nb, gpu_status = status)
             end
         end
-        work = opts.reps * opts.particles_per_rank * nr
-        return (; seconds, work, throughput = work / seconds)
+        finite = all(a -> all(isfinite, a), (st.fields.B..., st.fields.E...))
+        MPI.Allreduce(Int(finite), min, comm) == 1 || error("nonfinite MPI benchmark fields")
+        work = opts.reps * local_count * nr
+        return (; seconds, work, throughput = work / seconds, maximum_local_bytes)
     finally
         free_mpi_communicator!(ctx)
     end
@@ -234,11 +250,17 @@ function main(args = ARGS)
     end
 
     step_result = _bench_mpi_step(opts, comm)
+    collection_result = _bench_mpi_step(opts, comm; collection = true)
     field_result = _bench_field_halo(opts, comm)
     moment_result = _bench_ghost_moments(opts, comm)
 
     if rank == 0
         _print_metric("mpi_step_particle_steps", nranks, step_result)
+        _print_metric("mpi_two_ion_particle_steps", nranks, collection_result)
+        println("# mpi_step maximum_local_allocated_bytes=$(step_result.maximum_local_bytes)")
+        println(
+            "# mpi_two_ion maximum_local_allocated_bytes=$(collection_result.maximum_local_bytes)",
+        )
         _print_metric("field_halo_scalar_values", nranks, field_result)
         _print_metric("ghost_moment_scalar_values", nranks, moment_result)
     end

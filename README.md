@@ -299,6 +299,12 @@ reference stepper (`mpi_init!`/`mpi_step!`) — the building blocks are tested
 at 2/4/8 ranks in CI, while production-scale domain-decomposed stepping and
 cluster scaling data remain future work (see the honest list below).
 `benchmark/mpi_scaling.jl` is the measurement harness.
+`mpi_init!`, `mpi_step!`, and `mpi_compute_moments!` also accept ordered ion
+collections. Charge moments are summed across populations and ranks before the
+density floor is applied; migration preserves each population separately. All
+ranks must supply the same ordered charge/mass parameters and stepping settings.
+Use `migrate_particles=false` with particle views; migration requires Vector
+storage. Distributed collection checkpoint integration is still pending.
 
 **I/O.** `save_checkpoint` / `load_checkpoint!` restart `HybridStepper`,
 `CAMCLStepper`, `Electrostatic1D`, `ElectrostaticPIC`, `EMPIC1D`, `EMPIC`, and `HallMHDState` runs bitwise-identically
