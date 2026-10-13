@@ -105,6 +105,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Guiding-centre parallel velocity evaluates the combined electric, mirror,
+  timestep, mass and initial-velocity expression without avoidable intermediate
+  overflow or underflow. Exact arithmetic resolves uncertain cancellation;
+  certified exact equilibria keep an allocation-free path.
+
 - Hall-MHD rejects a nonfinite final electric field before committing the
   candidate step. This includes overflow created by the final magnetic
   projection; rejected steps preserve public fields and clock.

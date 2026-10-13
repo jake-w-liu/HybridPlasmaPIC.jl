@@ -381,7 +381,17 @@ end
     expected_force = Float64(setprecision(4096) do
         BigFloat(2t) * BigFloat(M) - BigFloat(M) * BigFloat(t)
     end)
-    @test HybridPlasmaPIC._gyro_scaled_product_difference(2t, M, M, t) == expected_force
+    gc_force = GuidingCentre((0.0, 0.0, 0.0), 0.0, M, 2t, 1.0)
+    push_guiding_centre!(
+        gc_force;
+        dt = 1.0,
+        E = (0.0, 0.0, M),
+        B = (0.0, 0.0, 1.0),
+        gradB = (0.0, 0.0, 0.0),
+        κ = (0.0, 0.0, 0.0),
+        gradpar_B = t,
+    )
+    @test gc_force.vpar == expected_force
     gc5 = GuidingCentre((0.0, 0.0, 0.0), 0.0, M, 2t, M)
     push_guiding_centre!(
         gc5;
@@ -478,6 +488,392 @@ end
                   before
         end
         @info "guiding-centre magnetic-moment oracle" maximum_error
+    end
+
+    @testset "parallel acceleration retains the scaled force difference" begin
+        # Exact rational arithmetic supplies the local constant-field Euler
+        # oracle without rounding q*E, μ*gradpar_B, or dt/m independently.
+        function check_parallel_case(T; q, Epar, μ, gradpar_B, m, dt, vpar = T(0.125))
+            z = (zero(T), zero(T), zero(T))
+            gc_parallel = GuidingCentre(z, vpar, μ, q, m)
+            exact(x) = Rational{BigInt}(x)
+            expected_delta =
+                exact(dt) * (exact(q) * exact(Epar) - exact(μ) * exact(gradpar_B)) / exact(m)
+            expected_v = T(exact(vpar) + expected_delta)
+            expected_z = T(exact(dt) * exact(vpar))
+            push_guiding_centre!(
+                gc_parallel;
+                dt,
+                E = (zero(T), zero(T), Epar),
+                B = (zero(T), zero(T), one(T)),
+                gradB = z,
+                κ = z,
+                gradpar_B,
+            )
+            @test gc_parallel.vpar == expected_v
+            @test gc_parallel.X == (zero(T), zero(T), expected_z)
+            @test gc_parallel.μ == μ
+        end
+
+        function check_parallel_allocations(T)
+            z = (zero(T), zero(T), zero(T))
+            gc_parallel = GuidingCentre(z, T(0.125), one(T), one(T), one(T))
+            for gradpar_B in (zero(T), T(0.2), T(0.5))
+                args = (;
+                    dt = T(0.125),
+                    E = (zero(T), zero(T), T(0.5)),
+                    B = (zero(T), zero(T), one(T)),
+                    gradB = z,
+                    κ = z,
+                    gradpar_B,
+                )
+                push_guiding_centre!(gc_parallel; args...)
+                @test (@allocated push_guiding_centre!(gc_parallel; args...)) == 0
+            end
+        end
+
+        for T in (Float32, Float64)
+            # Squaring these binary scales exceeds either floating-point range;
+            # the combined scaled acceleration is exactly representable.
+            exponent = T === Float32 ? 80 : 600
+            for scale in (ldexp(one(T), -exponent), ldexp(one(T), exponent))
+                for sign in (-one(T), one(T))
+                    check_parallel_case(
+                        T;
+                        q = sign * scale,
+                        Epar = scale,
+                        μ = zero(T),
+                        gradpar_B = zero(T),
+                        m = scale,
+                        dt = inv(scale),
+                    )
+                    check_parallel_case(
+                        T;
+                        q = one(T),
+                        Epar = zero(T),
+                        μ = scale,
+                        gradpar_B = sign * scale,
+                        m = scale,
+                        dt = inv(scale),
+                    )
+                end
+                check_parallel_case(
+                    T;
+                    q = scale,
+                    Epar = scale,
+                    μ = scale,
+                    gradpar_B = -scale,
+                    m = scale,
+                    dt = inv(scale),
+                )
+                check_parallel_case(
+                    T;
+                    q = scale,
+                    Epar = scale,
+                    μ = scale,
+                    gradpar_B = scale,
+                    m = scale,
+                    dt = inv(scale),
+                )
+                check_parallel_case(
+                    T;
+                    q = scale,
+                    Epar = nextfloat(scale),
+                    μ = scale,
+                    gradpar_B = scale,
+                    m = scale,
+                    dt = inv(scale),
+                    vpar = eps(T) / T(2),
+                )
+                check_parallel_case(
+                    T;
+                    q = scale,
+                    Epar = scale,
+                    μ = zero(T),
+                    gradpar_B = zero(T),
+                    m = scale,
+                    dt = -inv(scale),
+                )
+                check_parallel_case(
+                    T;
+                    q = scale,
+                    Epar = scale,
+                    μ = zero(T),
+                    gradpar_B = zero(T),
+                    m = scale,
+                    dt = zero(T),
+                )
+            end
+
+            large = ldexp(one(T), exponent)
+            small = inv(large)
+            check_parallel_case(
+                T;
+                q = small,
+                Epar = one(T),
+                μ = zero(T),
+                gradpar_B = zero(T),
+                m = small,
+                dt = large,
+            )
+            check_parallel_case(
+                T;
+                q = large,
+                Epar = one(T),
+                μ = zero(T),
+                gradpar_B = zero(T),
+                m = large,
+                dt = small,
+                vpar = small,
+            )
+            tiny = nextfloat(zero(T))
+            maximum = floatmax(T)
+            check_parallel_case(
+                T;
+                q = 2tiny,
+                Epar = maximum,
+                μ = maximum,
+                gradpar_B = tiny,
+                m = maximum,
+                dt = maximum,
+                vpar = zero(T),
+            )
+            for dt in (T(0.5), one(T), T(1.5)), sign in (-one(T), one(T))
+                check_parallel_case(
+                    T;
+                    q = sign * tiny,
+                    Epar = one(T),
+                    μ = zero(T),
+                    gradpar_B = zero(T),
+                    m = one(T),
+                    dt,
+                    vpar = zero(T),
+                )
+            end
+            check_parallel_case(
+                T;
+                q = maximum,
+                Epar = one(T),
+                μ = zero(T),
+                gradpar_B = zero(T),
+                m = one(T),
+                dt = one(T),
+                vpar = zero(T),
+            )
+            for dt in (T(3), -T(3))
+                check_parallel_case(
+                    T;
+                    q = tiny,
+                    Epar = T(1.5),
+                    μ = tiny,
+                    gradpar_B = one(T),
+                    m = one(T),
+                    dt,
+                    vpar = zero(T),
+                )
+            end
+            check_parallel_case(
+                T;
+                q = maximum,
+                Epar = one(T),
+                μ = maximum / T(2),
+                gradpar_B = one(T),
+                m = one(T),
+                dt = T(2),
+                vpar = zero(T),
+            )
+            check_parallel_allocations(T)
+
+            z = (zero(T), zero(T), zero(T))
+            for (vpar, Epar, m, dt) in
+                ((zero(T), one(T), small, maximum), (maximum / T(2), maximum, one(T), one(T)))
+                gc_overflow = GuidingCentre(z, vpar, zero(T), one(T), m)
+                before =
+                    (gc_overflow.X, gc_overflow.vpar, gc_overflow.μ, gc_overflow.q, gc_overflow.m)
+                @test_throws ArgumentError push_guiding_centre!(
+                    gc_overflow;
+                    dt,
+                    E = (zero(T), zero(T), Epar),
+                    B = (zero(T), zero(T), one(T)),
+                    gradB = z,
+                    κ = z,
+                    gradpar_B = zero(T),
+                )
+                @test (
+                    gc_overflow.X,
+                    gc_overflow.vpar,
+                    gc_overflow.μ,
+                    gc_overflow.q,
+                    gc_overflow.m,
+                ) == before
+            end
+        end
+    end
+
+    @testset "parallel velocity evaluates the full field expression" begin
+        function check_full_parallel_case(
+            T;
+            E,
+            B,
+            q,
+            m,
+            dt,
+            vpar = zero(T),
+            μ = zero(T),
+            gradpar_B = zero(T),
+        )
+            z = (zero(T), zero(T), zero(T))
+            gc_parallel = GuidingCentre(z, vpar, μ, q, m)
+            expected = setprecision(4096) do
+                eb, bb = BigFloat.(E), BigFloat.(B)
+                Epar = sum(eb .* bb) / sqrt(sum(abs2, bb))
+                BigFloat(vpar) +
+                BigFloat(dt) / BigFloat(m) *
+                (BigFloat(q) * Epar - BigFloat(μ) * BigFloat(gradpar_B))
+            end
+            push_guiding_centre!(gc_parallel; dt, E, B, gradB = z, κ = z, gradpar_B)
+            @test abs(BigFloat(gc_parallel.vpar) - expected) <= 16eps(T) * abs(expected)
+            @test all(isfinite, gc_parallel.X)
+            @test gc_parallel.μ == μ
+        end
+
+        for T in (Float32, Float64)
+            maximum, tiny = floatmax(T), nextfloat(zero(T))
+            z = (zero(T), zero(T), zero(T))
+            axial = (zero(T), zero(T), one(T))
+            small = ldexp(one(T), T === Float32 ? -80 : -600)
+            check_full_parallel_case(
+                T;
+                E = (maximum, maximum, maximum),
+                B = (one(T), one(T), one(T)),
+                q = small,
+                m = one(T),
+                dt = one(T),
+            )
+            check_full_parallel_case(
+                T;
+                E = (maximum, tiny, zero(T)),
+                B = (zero(T), one(T), zero(T)),
+                q = maximum,
+                m = tiny,
+                dt = one(T),
+            )
+            check_full_parallel_case(
+                T;
+                E = (zero(T), maximum, zero(T)),
+                B = (maximum, tiny, zero(T)),
+                q = maximum,
+                m = tiny,
+                dt = one(T),
+            )
+            check_full_parallel_case(
+                T;
+                E = (maximum, -maximum, tiny),
+                B = (one(T), one(T), one(T)),
+                q = maximum,
+                m = tiny,
+                dt = one(T),
+            )
+            check_full_parallel_case(
+                T;
+                E = (zero(T), zero(T), T(4)),
+                B = axial,
+                q = maximum,
+                m = one(T),
+                dt = T(0.5),
+                vpar = -maximum,
+            )
+            check_full_parallel_case(
+                T;
+                E = (zero(T), zero(T), T(4)),
+                B = axial,
+                q = maximum,
+                m = one(T),
+                dt = T(0.5),
+                vpar = -maximum,
+                μ = maximum,
+                gradpar_B = one(T),
+            )
+            check_full_parallel_case(
+                T;
+                E = (zero(T), zero(T), nextfloat(one(T))),
+                B = axial,
+                q = one(T),
+                m = one(T),
+                dt = T(0.5),
+                vpar = -one(T),
+                μ = one(T),
+                gradpar_B = -one(T),
+            )
+            check_full_parallel_case(
+                T;
+                E = (maximum, maximum, maximum),
+                B = (one(T), one(T), one(T)),
+                q = maximum,
+                m = tiny,
+                dt = zero(T),
+                vpar = T(0.125),
+            )
+
+            gc_overflow = GuidingCentre(z, zero(T), zero(T), maximum, one(T))
+            before = (gc_overflow.X, gc_overflow.vpar, gc_overflow.μ, gc_overflow.q, gc_overflow.m)
+            @test_throws ArgumentError push_guiding_centre!(
+                gc_overflow;
+                dt = one(T),
+                E = (zero(T), zero(T), T(4)),
+                B = axial,
+                gradB = z,
+                κ = z,
+                gradpar_B = zero(T),
+            )
+            @test (gc_overflow.X, gc_overflow.vpar, gc_overflow.μ, gc_overflow.q, gc_overflow.m) ==
+                  before
+        end
+    end
+
+    @testset "certified stationary force balance stays allocation-free" begin
+        function check_stationary_balance(T, q, μ, Epar, gradpar_B, mass, dt, Bz)
+            q, μ, Epar, gradpar_B, mass, dt, Bz = T.((q, μ, Epar, gradpar_B, mass, dt, Bz))
+            exact(x) = Rational{BigInt}(x)
+            @test exact(q) * exact(Epar) * sign(Bz) == exact(μ) * exact(gradpar_B)
+            z = (zero(T), zero(T), zero(T))
+            gc_balance = GuidingCentre(z, zero(T), μ, q, mass)
+            args = (;
+                dt,
+                E = (zero(T), zero(T), Epar),
+                B = (zero(T), zero(T), Bz),
+                gradB = z,
+                κ = z,
+                gradpar_B,
+            )
+            push_guiding_centre!(gc_balance; args...)
+            @test gc_balance.vpar == zero(T)
+            @test gc_balance.X == z
+            @test (@allocated push_guiding_centre!(gc_balance; args...)) == 0
+        end
+        for T in (Float16, Float32, Float64)
+            check_stationary_balance(T, 1, 1, 1, 1, 1, 0.1, 1)
+            check_stationary_balance(T, -2, 4, -0.5, 0.25, 0.5, -0.1, 2)
+            check_stationary_balance(T, 0.5, 0.25, -0.5, 1, 2, 0.2, -0.5)
+
+            # A tiny aligned term must not disappear behind an exact large pair.
+            tiny = nextfloat(zero(T))
+            terms = (
+                (T(0.5), zero(T), 1, true),
+                (T(0.5), zero(T), exponent(tiny), true),
+                (-T(0.5), zero(T), 1, true),
+            )
+            _, needs_exact = HybridPlasmaPIC._gyro_sum_scaled_parts(terms)
+            @test needs_exact
+        end
+
+        # Float16 can round a nonzero FMA residual to zero. Such a residual
+        # cannot certify a product even when the rounded product is nonzero.
+        a, b = Float16(0.006355), Float16(0.006924)
+        residual = fma(a, b, -(a * b))
+        @test iszero(residual)
+        @test Rational{BigInt}(a) * Rational{BigInt}(b) != Rational{BigInt}(a * b)
+        @test !HybridPlasmaPIC._gyro_product_is_exact(a, b, residual)
     end
 
     push_args = (;

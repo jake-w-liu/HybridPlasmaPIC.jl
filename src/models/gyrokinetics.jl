@@ -122,17 +122,6 @@ end
     return total + correction
 end
 
-@inline function _gyro_compensated_sum4(a, b, c, d)
-    values = promote(a, b, c, d)
-    total = zero(values[1])
-    correction = zero(values[1])
-    total, correction = _gyro_compensated_add(total, correction, values[1])
-    total, correction = _gyro_compensated_add(total, correction, values[2])
-    total, correction = _gyro_compensated_add(total, correction, values[3])
-    total, correction = _gyro_compensated_add(total, correction, values[4])
-    return total + correction
-end
-
 # Combine three finite drift terms without an order-dependent overflow. Large
 # opposite-signed terms are combined first; otherwise a common scale is used.
 @inline function _gyro_scaled_sum3(a, b, c)
@@ -161,42 +150,152 @@ end
     return _gyro_scaled_ratio((scale, scaled_sum), (one(scale),))
 end
 
-@inline function _gyro_product_parts(a, b)
-    ma, ea = frexp(a)
-    mb, eb = frexp(b)
-    product = ma * mb
-    error = fma(ma, mb, -product)
-    return product, error, ea + eb
+@inline function _gyro_two_sum(a, b)
+    total = a + b
+    recovered_b = total - a
+    error = (a - (total - recovered_b)) + (b - recovered_b)
+    return total, error
 end
 
-@inline function _gyro_scaled_product(a, b)
-    (iszero(a) || iszero(b)) && return zero(a * b)
-    product, error, exponent = _gyro_product_parts(a, b)
-    return ldexp(product + error, exponent)
+# A zero FMA residual proves an exact product only when a nonzero residual
+# could not underflow. Each p-bit operand is an integer multiple of
+# 2^(exponent(x) - p + 1), which bounds the product's smallest possible bit.
+@inline function _gyro_product_is_exact(
+    a::T,
+    b::T,
+    residual::T,
+) where {T<:Union{Float16,Float32,Float64}}
+    iszero(residual) || return false
+    (iszero(a) || iszero(b)) && return true
+    return exponent(abs(a)) + exponent(abs(b)) - 2(precision(T) - 1) >= exponent(nextfloat(zero(T)))
 end
 
-# Evaluate `a*b - c*d` from aligned exact product expansions, avoiding `Inf-Inf`
-# and crossed-scale underflow when the mathematical result is representable.
-@inline function _gyro_scaled_product_difference(a, b, c, d)
-    aT, bT, cT, dT = promote(float(a), float(b), float(c), float(d))
-    left_zero = iszero(aT) || iszero(bT)
-    right_zero = iszero(cT) || iszero(dT)
-    left_zero && right_zero && return zero(aT)
-    left_zero && return -_gyro_scaled_product(cT, dT)
-    right_zero && return _gyro_scaled_product(aT, bT)
+@inline _gyro_product_is_exact(a, b, residual) = false
 
-    left, left_error, left_exponent = _gyro_product_parts(aT, bT)
-    right, right_error, right_exponent = _gyro_product_parts(cT, dT)
-    common_exponent = max(left_exponent, right_exponent)
-    left_shift = left_exponent - common_exponent
-    right_shift = right_exponent - common_exponent
-    difference = _gyro_compensated_sum4(
-        ldexp(left, left_shift),
-        -ldexp(right, right_shift),
-        ldexp(left_error, left_shift),
-        -ldexp(right_error, right_shift),
-    )
-    return ldexp(difference, common_exponent)
+# Keep a product ratio as a compensated mantissa and a separate binary
+# exponent. The certificate is deliberately stronger than compensated accuracy:
+# true means the high component alone is exact and the low component is zero.
+@inline function _gyro_ratio_parts(numerators::NTuple{N,T}, denominators::NTuple{D,T}) where {N,D,T}
+    any(iszero, numerators) && return (zero(T), zero(T), 0, true)
+    hi, lo, exponent = one(T), zero(T), 0
+    exact = true
+    for x in numerators
+        mantissa, power = frexp(x)
+        product = hi * mantissa
+        residual = fma(hi, mantissa, -product)
+        exact = exact && _gyro_product_is_exact(hi, mantissa, residual)
+        error = residual + lo * mantissa
+        hi, lo = _gyro_two_sum(product, error)
+        exponent += power
+    end
+    for x in denominators
+        mantissa, power = frexp(x)
+        quotient = hi / mantissa
+        residual = fma(-quotient, mantissa, hi)
+        exact = exact && _gyro_product_is_exact(quotient, mantissa, residual)
+        error = (residual + lo) / mantissa
+        hi, lo = _gyro_two_sum(quotient, error)
+        exponent -= power
+    end
+    return hi, lo, exponent, exact
+end
+
+@inline function _gyro_sum_scaled_parts(terms)
+    T = typeof(terms[1][1])
+    common_exponent = typemin(Int)
+    all_exact = true
+    for (hi, lo, exponent, exact) in terms
+        all_exact &= exact
+        if !iszero(hi) || !iszero(lo)
+            common_exponent = max(common_exponent, exponent)
+        end
+    end
+    common_exponent == typemin(Int) && return zero(T), !all_exact
+    hi, lo, magnitude = zero(T), zero(T), zero(T)
+    lost_component = false
+    for (term_hi, term_lo, exponent, _) in terms
+        iszero(term_hi) && iszero(term_lo) && continue
+        shift = exponent - common_exponent
+        scaled_hi = ldexp(term_hi, shift)
+        scaled_lo = ldexp(term_lo, shift)
+        lost_component |=
+            (!iszero(term_hi) && iszero(scaled_hi)) || (!iszero(term_lo) && iszero(scaled_lo))
+        sum_hi, error_hi = _gyro_two_sum(hi, scaled_hi)
+        # Reversing the power-of-two shift detects rounded subnormal alignment.
+        # With certified terms, zero TwoSum error also proves each addition exact.
+        all_exact = all_exact && ldexp(scaled_hi, -shift) == term_hi && iszero(error_hi)
+        sum_lo, error_lo = _gyro_two_sum(lo, scaled_lo)
+        hi, lo = _gyro_two_sum(sum_hi, error_hi + sum_lo)
+        hi, lo = _gyro_two_sum(hi, lo + error_lo)
+        magnitude += abs(scaled_hi) + abs(scaled_lo)
+    end
+    combined = hi + lo
+    result = ldexp(combined, common_exponent)
+    # Each term has at most seven factor operations. Allow a conservative
+    # two rounding contributions per operation plus summation, and use exact
+    # arithmetic when cancellation could expose that second-order roundoff.
+    cancellation_limit = T(16length(terms)) * eps(T) * magnitude
+    needs_exact =
+        lost_component || _gyro_ratio_needs_exact(result) || abs(combined) <= cancellation_limit
+    needs_exact &= !(all_exact && iszero(combined))
+    return result, needs_exact
+end
+
+@inline function _gyro_multiply_parts(left, right)
+    left_hi, left_lo, left_exponent, left_exact = left
+    right_hi, right_lo, right_exponent, right_exact = right
+    if (left_exact && iszero(left_hi)) || (right_exact && iszero(right_hi))
+        return zero(left_hi), zero(left_hi), 0, true
+    end
+    product = left_hi * right_hi
+    residual = fma(left_hi, right_hi, -product)
+    exact = left_exact && right_exact && _gyro_product_is_exact(left_hi, right_hi, residual)
+    error = residual + left_hi * right_lo + left_lo * right_hi + left_lo * right_lo
+    hi, lo = _gyro_two_sum(product, error)
+    return hi, lo, left_exponent + right_exponent, exact
+end
+
+@noinline function _gyro_exact_parallel_velocity(
+    vpar::T,
+    dt,
+    q,
+    E,
+    B,
+    Bscale,
+    Bscaled_norm,
+    μ,
+    gradpar_B,
+    m,
+) where {T}
+    exact(x) = Rational{BigInt}(x)
+    field_dot = sum(exact(E[i]) * exact(B[i]) for i = 1:3)
+    Epar = field_dot / (exact(Bscale) * exact(Bscaled_norm))
+    return T(exact(vpar) + exact(dt) / exact(m) * (exact(q) * Epar - exact(μ) * exact(gradpar_B)))
+end
+
+@inline function _gyro_parallel_velocity(vpar, dt, q, E, B, Bscale, Bscaled_norm, μ, gradpar_B, m)
+    iszero(dt) && return vpar
+    electric_scale = _gyro_ratio_parts((dt, q), (m, Bscale, Bscaled_norm))
+    electric =
+        ntuple(i -> _gyro_multiply_parts(_gyro_ratio_parts((E[i], B[i]), ()), electric_scale), 3)
+    mirror = _gyro_ratio_parts((-dt, μ, gradpar_B), (m,))
+    initial = _gyro_ratio_parts((vpar,), ())
+    result, needs_exact = _gyro_sum_scaled_parts((electric..., mirror, initial))
+    if needs_exact
+        return _gyro_exact_parallel_velocity(
+            vpar,
+            dt,
+            q,
+            E,
+            B,
+            Bscale,
+            Bscaled_norm,
+            μ,
+            gradpar_B,
+            m,
+        )
+    end
+    return result
 end
 
 @inline function _gyro_nonzero_field(B)
@@ -366,11 +465,18 @@ function push_guiding_centre!(gc::GuidingCentre{T}; dt, E, B, gradB, κ, gradpar
     velocity = ntuple(i -> _gyro_scaled_sum3(vd[i], gc.vpar * b[i], zero(T)), 3)
     step = ntuple(i -> _gyro_scaled_ratio((dtT, velocity[i]), (one(T),)), 3)
     new_X = _add3(gc.X, step)
-    Escale, Escaled = _gyro_scaled_vector(ET)
-    Epar = _gyro_scaled_ratio((Escale, _dot3(Escaled, b)), (one(T),))
-    force = _gyro_scaled_product_difference(gc.q, Epar, gc.μ, gradparT)
-    delta_vpar = _gyro_scaled_ratio((dtT, force), (gc.m,))
-    new_vpar = gc.vpar + delta_vpar
+    new_vpar = _gyro_parallel_velocity(
+        gc.vpar,
+        dtT,
+        gc.q,
+        ET,
+        BT,
+        Bscale,
+        Bscaled_norm,
+        gc.μ,
+        gradparT,
+        gc.m,
+    )
     _require_finite_vector3("updated X", new_X)
     _require_finite_scalar("updated vpar", new_vpar)
 
