@@ -1,7 +1,8 @@
 # Electromagnetic field-update range repairs
 
-Status: finite-curl electric-field repair verified on Julia 1.12.7 and 1.13.1.
-Scaled spectral updates remain open.
+Status: finite-curl repair pushed as `0f53361`. Scaled spectral updates are
+verified on Julia 1.12.7 and 1.13.1 and included in this commit. A separate
+squared-wavenumber projection defect is confirmed below.
 
 ## Verified gaps
 
@@ -59,7 +60,7 @@ the exact report comparison passes 17 assertions. Logs:
 after the snapshot manifest disappeared; restoring its identical baseline copy
 allowed the retry to pass. The cause of that file removal is unverified.
 
-## Next repair
+## Scaled spectral repair
 
 Trace derivative consumption in magnetic centering, Faraday advancement,
 electric advancement and initial magnetic priming. Define a shared scaled
@@ -72,3 +73,64 @@ The independent 2,048-bit discrete Fourier probe now reproduces both electric
 advancement and initial magnetic-field failures in 48 assertions across
 Float32/64 and both solver families in 1D–3D. Log:
 `/tmp/empic_scaled_curl_ownership_probe112_retry.log`.
+
+The canonical spectral call runs first, retaining input rejection and ordinary
+FFT arithmetic. Range-sensitive inputs are differentiated in disjoint, exactly
+scaled binary bands. Signed scales survive through the complete field update.
+Selection includes longitudinal and diagonal components because the dependency
+uses a common curl normalization. Magnetic priming, centering and advancement
+share one owner that retains the original timesteps before halving them.
+The state layout, public API and checkpoint schema remain unchanged.
+
+These remain FFTW-precision derivatives. The repair does not recover modes lost
+through ordinary FFT cancellation or bypass the spectral operator's dynamic
+range limits. Exceptional scratch derivatives can be unrepresentable; physical
+updates consume the scaled parts. Each derivative retains at most
+`cld(hi-lo+1, width+1)` arrays, bounded by the hardware exponent range; empty
+bands allocate no output array. No persistent cache is added.
+
+Both Julia versions pass **19,765 assertions** across the complete EM families.
+Independent real-space DFT checks cover finite complete updates, tiny half
+intervals, signed curl cancellation, scale bands, phase transitions, changing
+steps/subcycles and preserved rejection. Logs:
+`/tmp/empic_scaled_final_v3_regression112.log`,
+`/tmp/empic_scaled_final_v3_regression113.log`.
+Source SHA256: `3e83ee7ddde7e448436a539ca427e17fc433d21b790b46e0a43ad7635d8861b7`.
+
+All 64 ordinary configurations retain bitwise state/particle results and
+1,280–7,680 B per step (129 comparison checks). Julia 1.12 JET reports zero
+findings for all 54 concrete signatures; 62 assertions pass. Whole-package
+analysis retains the matched `aba03a9` baseline's 26 reports against the
+unchanged ceiling of 30. Optional-Nothing entrypoint reports also match exactly
+(17 checks). Logs: `/tmp/empic_scaled_compare_v3_112.log`,
+`/tmp/empic_scaled_jet_v3_112.log`,
+`/tmp/empic_scaled_compare_compiler_v3_112.log`.
+
+Exceptional public stepping passes 128 resource assertions across 32 cases on
+four-cell-per-axis meshes. Measured allocations are 36,040–1,359,512 B per step;
+case median times are 34–1,597 μs. These are fixture costs, not upper bounds.
+Eight alternating paired ordinary batches give CPU time ratios of 0.887–1.182
+and wall-time ratios of 0.896–1.142, with broad variation on the shared machine.
+Specialized 1D vacuum CPU medians increase 18.2% for Float32 and 11.6% for
+Float64. No uniform speedup or portable timing claim follows. Logs:
+`/tmp/empic_scaled_final_cold_resources112.log`,
+`/tmp/empic_scaled_final_benchmark_pairs112.log`.
+
+Final formatter idempotence and diff checks pass. Superseded candidates,
+corrected negative-control fixtures, complete resource protocol and raw timing
+ranges are retained in `/tmp/empic_scaled_v3_evidence.md`. Integrated full
+package runs remain a separate gate after the outstanding slices are ready.
+
+## Squared-wavenumber projection follow-up
+
+VERIFIED: general electrostatic and electromagnetic initialization produce zero
+electric fields for a four-point nonuniform charge when a finite nonzero
+wavenumber's square overflows or underflows. The specialized 1D solvers match
+the finite inverse-DFT field. The public Float32/64 probe passes 28 witness
+checks on Julia 1.12.7: `/tmp/pic_spectral_k2_probe112.log`.
+
+Trace `_spectral_k2` and all projection/current-correction/diagnostic callers
+before editing. Preserve true zero and derivative-null Nyquist classification,
+retain complete projection ratios, and verify charge, Gauss law, independent
+DFT fields and ordinary equivalence on both Julia versions. This separate
+repair is under design; the scaled-curl tests do not establish its correctness.

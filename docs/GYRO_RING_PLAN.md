@@ -1,8 +1,8 @@
 # Gyro averaging correctness and cost
 
 Status: geometry and streaming-mean repair pushed as `de6151d`. The ordinary
-ring optimization below is verified on Julia 1.12.7 and 1.13.1 and included
-in this commit. Further measured cost reduction remains open.
+ring optimization below is verified on Julia 1.12.7 and 1.13.1 and pushed
+as `bc7e209`. Further measured cost reduction remains open.
 
 ## Verified defects and contract
 

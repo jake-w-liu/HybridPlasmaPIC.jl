@@ -579,12 +579,198 @@ function _em_exact_update_coefficients(c, dt)
     return exact_dt, exact_dt * exact_c * exact_c
 end
 
-function _em_exact_electric_update(E::T, curlB::T, J::T, coefficients) where {T}
+function _em_exact_electric_update(
+    E::T,
+    curlB::Union{T,Rational{BigInt}},
+    J::T,
+    coefficients,
+) where {T}
     exact_dt, exact_dtc2 = coefficients
     return _from_exact(
         T,
         _exact_rational(E) + exact_dtc2 * _exact_rational(curlB) - exact_dt * _exact_rational(J),
     )
+end
+
+# The public spectral operators retain their input validation and ordinary FFT
+# arithmetic. Only a range-sensitive result is recomputed as separately scaled
+# scalar derivatives. These are still FFTW-precision derivatives, not exact DFTs.
+function _em_field_exponents(field::AbstractArray{T}) where {T}
+    smallest, largest = T(Inf), zero(T)
+    @inbounds @simd for i in eachindex(field)
+        magnitude = abs(field[i])
+        largest = max(largest, magnitude)
+        smallest = min(smallest, ifelse(iszero(magnitude), T(Inf), magnitude))
+    end
+    isfinite(largest) || throw(ArgumentError("spectral operator input values must be finite"))
+    iszero(largest) && return typemax(Int), typemin(Int)
+    return frexp(smallest)[2], frexp(largest)[2]
+end
+
+@inline function _em_scale_bounds(::Type{T}, lo, hi, klo, khi, n) where {T}
+    (lo == typemax(Int) || klo == typemax(Int)) && return 0, 0, false
+    emin = frexp(floatmin(T))[2]
+    emax = frexp(floatmax(T))[2]
+    ceil_log_n = 8sizeof(Int) - leading_zeros(n - 1)
+    # Match the canonical operator's 8N multiplier headroom with two additional
+    # binary places, and keep both the input and its smallest k product normal.
+    lower = hi + max(0, khi) - (emax - ceil_log_n - 5)
+    upper = lo + min(0, klo) - (emin + 2)
+    return lower, upper, !(lower <= 0 <= upper)
+end
+
+function _em_power_of_two(shift::Int)
+    return shift >= 0 ? (BigInt(1) << shift) // BigInt(1) : BigInt(1) // (BigInt(1) << -shift)
+end
+
+function _em_normalized_derivative_parts(
+    field::Array{T,D},
+    g,
+    axis,
+    exponents,
+    kexponents,
+) where {T,D}
+    parts = Tuple{Array{T,D},Rational{BigInt}}[]
+    lo, hi = exponents
+    klo, khi = kexponents
+    (lo == typemax(Int) || klo == typemax(Int)) && return parts
+    lower, upper, needed = _em_scale_bounds(T, lo, hi, klo, khi, length(field))
+    if !needed
+        part = similar(field)
+        deriv!(part, field, g, axis)
+        push!(parts, (part, BigInt(1) // BigInt(1)))
+        return parts
+    end
+
+    base_lower, base_upper, _ = _em_scale_bounds(T, 0, 0, klo, khi, length(field))
+    width = base_upper - base_lower
+    width >= 0 || throw(ArgumentError("spectral multiplier range leaves no normal input band"))
+    work = similar(field)
+    band_hi = hi
+    # Each nonzero datum belongs to exactly one disjoint band. At most
+    # cld(hi - lo + 1, width + 1) arrays survive this loop; hi - lo is bounded
+    # by the hardware exponent range. Empty bands allocate no output array.
+    while band_hi >= lo
+        band_lo = max(lo, band_hi - width)
+        lower, upper, _ = _em_scale_bounds(T, band_lo, band_hi, klo, khi, length(field))
+        shift = clamp(band_hi + fld(khi, 2), lower, upper)
+        nonzero = false
+        @inbounds for i in eachindex(field)
+            value = field[i]
+            exponent = iszero(value) ? typemin(Int) : frexp(abs(value))[2]
+            selected = band_lo <= exponent <= band_hi
+            work[i] = selected ? ldexp(value, -shift) : zero(T)
+            nonzero |= selected
+        end
+        if nonzero
+            part = similar(field)
+            deriv!(part, work, g, axis)
+            push!(parts, (part, _em_power_of_two(shift)))
+        end
+        band_hi = band_lo - 1
+    end
+    return parts
+end
+
+function _em_derivative_parts!(out, field, g, axis)
+    deriv!(out, field, g, axis)
+    exponents = _em_field_exponents(field)
+    kexponents = _em_field_exponents(g.kvec[axis])
+    _em_scale_bounds(eltype(field), exponents..., kexponents..., length(field))[3] || return nothing
+    return _em_normalized_derivative_parts(field, g, axis, exponents, kexponents)
+end
+
+function _em_curl_parts!(out, fields, g::FourierGrid{D,T}) where {D,T}
+    curl!(out, fields, g)
+    # Every component contributes to the canonical curl's common FFT scale,
+    # including longitudinal components and diagonal field/axis pairs.
+    exponents = map(_em_field_exponents, fields)
+    kexponents = map(_em_field_exponents, g.kvec)
+    needed = false
+    for c = 1:3, axis = 1:D
+        needed |= _em_scale_bounds(T, exponents[c]..., kexponents[axis]..., length(fields[c]))[3]
+    end
+    needed || return nothing
+    return ntuple(3) do c
+        plus, minus = mod1(c + 1, 3), mod1(c + 2, 3)
+        parts = Tuple{Array{T,D},Rational{BigInt}}[]
+        if plus <= D
+            append!(
+                parts,
+                _em_normalized_derivative_parts(
+                    fields[minus],
+                    g,
+                    plus,
+                    exponents[minus],
+                    kexponents[plus],
+                ),
+            )
+        end
+        if minus <= D
+            negative = _em_normalized_derivative_parts(
+                fields[plus],
+                g,
+                minus,
+                exponents[plus],
+                kexponents[minus],
+            )
+            for (part, scale) in negative
+                push!(parts, (part, -scale))
+            end
+        end
+        parts
+    end
+end
+
+function _em_exact_derivative(parts, i)
+    result = BigInt(0) // BigInt(1)
+    for (part, scale) in parts
+        result += scale * _exact_rational(part[i])
+    end
+    return result
+end
+
+function _em_magnetic_update!(
+    out,
+    old,
+    derivative,
+    parts,
+    preceding::T,
+    following::T,
+    backward::Bool = false,
+) where {T}
+    before, after = preceding / 2, following / 2
+    interval = before + after
+    half_lost_range =
+        (!iszero(preceding) && abs(before) < floatmin(T)) ||
+        (!iszero(following) && abs(after) < floatmin(T))
+    exact_interval = nothing
+    @inbounds for i in eachindex(out)
+        value, slope = old[i], derivative[i]
+        increment = interval * slope
+        candidate = backward ? value + increment : value - increment
+        if (
+               parts !== nothing ||
+               half_lost_range ||
+               _em_increment_lost_range(slope, increment, candidate)
+           ) &&
+           isfinite(value) &&
+           (parts !== nothing || isfinite(slope))
+            if exact_interval === nothing
+                exact_interval = (_exact_rational(preceding) + _exact_rational(following)) / 2
+            end
+            exact_slope =
+                parts === nothing ? _exact_rational(slope) : _em_exact_derivative(parts, i)
+            exact_increment = exact_interval * exact_slope
+            candidate = _from_exact(
+                T,
+                backward ? _exact_rational(value) + exact_increment :
+                _exact_rational(value) - exact_increment,
+            )
+        end
+        out[i] = candidate
+    end
+    return out
 end
 
 # One field+electron substep of size dt. Pushes the electrons `e` always; pushes
@@ -612,10 +798,8 @@ function _substep_em!(
 
     # (1) center B using the preceding substep's half interval, which is where
     # the stored field lies relative to the current integer time.
-    deriv!(es.dEy, es.Ey, g, 1)
-    @inbounds for i = 1:n
-        es.Bzc[i] = es.Bz[i] - (dt_previous / 2) * es.dEy[i]
-    end
+    electric_parts = _em_derivative_parts!(es.dEy, es.Ey, g, 1)
+    _em_magnetic_update!(es.Bzc, es.Bz, es.dEy, electric_parts, dt_previous, z)
 
     # (2) gather fields at time n and push electrons
     gather_scalar!(es.Exp, es.Ex, e, g, es.shape)
@@ -650,13 +834,11 @@ function _substep_em!(
     _esirkepov_Jx!(es, e, ions, dt)
 
     # (4) Advance B between its preceding and next half levels.
-    @inbounds for i = 1:n
-        es.Bz[i] -= kick_dt * es.dEy[i]
-    end
+    _em_magnetic_update!(es.Bz, es.Bz, es.dEy, electric_parts, dt_previous, dt)
 
     # (5) E advance:
     #   Ey^{n+1} = Ey^n − dt(c²∂xBz^{n+1/2} + Jy)
-    deriv!(es.dBz, es.Bz, g, 1)
+    magnetic_parts = _em_derivative_parts!(es.dBz, es.Bz, g, 1)
     exact_coefficients = nothing
     @inbounds for i = 1:n
         old_E, derivative, current = es.Ey[i], es.dBz[i], es.Jy[i]
@@ -664,14 +846,21 @@ function _substep_em!(
         forcing = magnetic + current
         increment = dt * forcing
         candidate = old_E - increment
-        if _em_update_lost_range(c2, derivative, magnetic, forcing, increment, candidate) &&
+        if (
+               magnetic_parts !== nothing ||
+               _em_update_lost_range(c2, derivative, magnetic, forcing, increment, candidate)
+           ) &&
            isfinite(old_E) &&
-           isfinite(derivative) &&
+           (magnetic_parts !== nothing || isfinite(derivative)) &&
            isfinite(current)
             if exact_coefficients === nothing
                 exact_coefficients = _em_exact_update_coefficients(es.c, dt)
             end
-            candidate = _em_exact_electric_update(old_E, -derivative, current, exact_coefficients)
+            exact_derivative =
+                magnetic_parts === nothing ? _exact_rational(derivative) :
+                _em_exact_derivative(magnetic_parts, i)
+            candidate =
+                _em_exact_electric_update(old_E, -exact_derivative, current, exact_coefficients)
         end
         es.Ey[i] = candidate
     end
@@ -854,10 +1043,8 @@ function step_empic!(
         # field priming: the seeded Bz is the physical Bz^0, but the Yee leapfrog carries Bz at
         # the half level Bz^{-1/2}. Back it up a half step: Bz^{-1/2} = Bz^0 + (dt_e/2) ∂xEy^0
         # (∂tBz = −∂xEy). Without this the integer-level fields (Ex, Ey) are only 1st-order in dt.
-        deriv!(es.dEy, es.Ey, g0, 1)
-        @inbounds for i = 1:g0.n[1]
-            es.Bz[i] += (dt_e / 2) * es.dEy[i]
-        end
+        electric_parts = _em_derivative_parts!(es.dEy, es.Ey, g0, 1)
+        _em_magnetic_update!(es.Bz, es.Bz, es.dEy, electric_parts, dt_e, zero(T), true)
     end
     # The heavy ion is kicked ONCE (on the first substep) so that every substep drifts it with the
     # SAME post-kick velocity v^{n+1/2}; combined with the per-substep ion drift in _substep_em!,
@@ -1395,9 +1582,10 @@ function _substep_empic!(
     kick_dt = dt_previous / 2 + dt / 2
     _charge_density!(es.rho_n, es.ne, es, e, ions)
 
-    curl!(es.curlE, es.E, g)
-    @inbounds for c = 1:3, I in eachindex(es.B[c])
-        es.Bc[c][I] = es.B[c][I] - (dt_previous / 2) * es.curlE[c][I]
+    electric_parts = _em_curl_parts!(es.curlE, es.E, g)
+    for c = 1:3
+        parts = electric_parts === nothing ? nothing : electric_parts[c]
+        _em_magnetic_update!(es.Bc[c], es.B[c], es.curlE[c], parts, dt_previous, zero(T))
     end
 
     gather_vector!(es.Ep, es.E, e, g, es.shape)
@@ -1422,10 +1610,11 @@ function _substep_empic!(
     _charge_density!(es.rho_np1, es.ne, es, e, ions)
     _correct_current_continuity!(es, dt)
 
-    @inbounds for c = 1:3, I in eachindex(es.B[c])
-        es.B[c][I] -= kick_dt * es.curlE[c][I]
+    for c = 1:3
+        parts = electric_parts === nothing ? nothing : electric_parts[c]
+        _em_magnetic_update!(es.B[c], es.B[c], es.curlE[c], parts, dt_previous, dt)
     end
-    curl!(es.curlB, es.B, g)
+    magnetic_parts = _em_curl_parts!(es.curlB, es.B, g)
     exact_coefficients = nothing
     @inbounds for c = 1:3, I in eachindex(es.E[c])
         old_E, derivative, current = es.E[c][I], es.curlB[c][I], es.J[c][I]
@@ -1433,14 +1622,21 @@ function _substep_empic!(
         forcing = magnetic - current
         increment = dt * forcing
         candidate = old_E + increment
-        if _em_update_lost_range(c2, derivative, magnetic, forcing, increment, candidate) &&
+        if (
+               magnetic_parts !== nothing ||
+               _em_update_lost_range(c2, derivative, magnetic, forcing, increment, candidate)
+           ) &&
            isfinite(old_E) &&
-           isfinite(derivative) &&
+           (magnetic_parts !== nothing || isfinite(derivative)) &&
            isfinite(current)
             if exact_coefficients === nothing
                 exact_coefficients = _em_exact_update_coefficients(es.c, dt)
             end
-            candidate = _em_exact_electric_update(old_E, derivative, current, exact_coefficients)
+            exact_derivative =
+                magnetic_parts === nothing ? _exact_rational(derivative) :
+                _em_exact_derivative(magnetic_parts[c], I)
+            candidate =
+                _em_exact_electric_update(old_E, exact_derivative, current, exact_coefficients)
         end
         es.E[c][I] = candidate
     end
@@ -1506,9 +1702,10 @@ function step_empic!(
                 es.c,
             )
         end
-        curl!(es.curlE, es.E, g0)
-        @inbounds for c = 1:3, I in eachindex(es.B[c])
-            es.B[c][I] += h * es.curlE[c][I]
+        electric_parts = _em_curl_parts!(es.curlE, es.E, g0)
+        for c = 1:3
+            parts = electric_parts === nothing ? nothing : electric_parts[c]
+            _em_magnetic_update!(es.B[c], es.B[c], es.curlE[c], parts, dt_e, zero(T), true)
         end
     end
     dt_previous = es.step[] == 0 ? dt_e : es.last_sub_dt[]

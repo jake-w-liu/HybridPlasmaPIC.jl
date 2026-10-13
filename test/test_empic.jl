@@ -1233,3 +1233,313 @@ end
         @test any(a -> any(!isfinite, a), fields)
     end
 end
+
+# Independent real-space discrete Fourier matrix: no FFT or production derivative
+# helper is used by this oracle. Its k values include the grid's Nyquist omission.
+function _empic_dft_matrices(g)
+    return ntuple(length(g.n)) do axis
+        n = g.n[axis]
+        matrix = Matrix{BigFloat}(undef, n, n)
+        for i = 1:n, j = 1:n
+            matrix[i, j] =
+                -sum(
+                    BigFloat(g.kvec[axis][m]) * sinpi(BigFloat(2g.midx[axis][m] * (i - j)) / n) for
+                    m = 1:n
+                ) / n
+        end
+        matrix
+    end
+end
+
+function _empic_dft_derivative(field, g, axis, matrices = _empic_dft_matrices(g))
+    n = g.n[axis]
+    matrix = matrices[axis]
+    result = zeros(BigFloat, size(field))
+    for I in CartesianIndices(field), j = 1:n
+        J = CartesianIndex(ntuple(d -> d == axis ? j : I[d], ndims(field)))
+        result[I] += matrix[I[axis], j] * BigFloat(field[J])
+    end
+    return result
+end
+
+function _empic_dft_curl(fields, g, matrices = _empic_dft_matrices(g))
+    result = ntuple(_ -> zeros(BigFloat, g.n), 3)
+    D = length(g.n)
+    for c = 1:3
+        plus, minus = mod1(c + 1, 3), mod1(c + 2, 3)
+        plus <= D && (result[c] .+= _empic_dft_derivative(fields[minus], g, plus, matrices))
+        minus <= D && (result[c] .-= _empic_dft_derivative(fields[plus], g, minus, matrices))
+    end
+    return result
+end
+
+function _empic_dft_step!(E, B, g, dt, ns, previous, first, matrices = _empic_dft_matrices(g))
+    T = typeof(dt)
+    fast = dt / ns
+    if first
+        derivative = _empic_dft_curl(E, g, matrices)
+        for c = 1:3
+            B[c] .= T.(BigFloat.(B[c]) .+ BigFloat(fast) / 2 .* derivative[c])
+        end
+        previous = fast
+    end
+    centered = map(copy, B)
+    for _ = 1:ns
+        derivative = _empic_dft_curl(E, g, matrices)
+        for c = 1:3
+            centered[c] .= T.(BigFloat.(B[c]) .- BigFloat(previous) / 2 .* derivative[c])
+            B[c] .=
+                T.(BigFloat.(B[c]) .- (BigFloat(previous) + BigFloat(fast)) / 2 .* derivative[c])
+        end
+        derivative = _empic_dft_curl(B, g, matrices)
+        for c = 1:3
+            E[c] .= T.(BigFloat.(E[c]) .+ BigFloat(fast) .* derivative[c])
+        end
+        previous = fast
+    end
+    return centered, fast
+end
+
+@testset "EM scaled spectral updates follow independent DFT evolution" begin
+    setprecision(BigFloat, 4096) do
+        for T in (Float32, Float64),
+            (State, D) in ((EMPIC1D, 1), (EMPIC, 1), (EMPIC, 2), (EMPIC, 3)),
+            axis = 1:D,
+            large in (false, true),
+            seed in (:electric, :magnetic),
+            sign in (-1, 1)
+
+            scale, amplitude = if T === Float32
+                large ? (T(1e-10), T(1e30)) : (T(1e20), T(1e-30))
+            else
+                large ? (T(1e-100), T(1e300)) : (T(1e100), T(1e-300))
+            end
+            g = FourierGrid(
+                ntuple(_ -> 4, D),
+                ntuple(d -> T(2pi) * (d == axis ? scale : T(d + 1)), D),
+            )
+            e = ParticleSet{D,T}(0; q = -one(T), m = one(T))
+            es = State(g, 0; n0 = zero(T), c = one(T))
+            E = es isa EMPIC1D ? (es.Ex, es.Ey, zeros(T, g.n)) : es.E
+            B = es isa EMPIC1D ? (zeros(T, g.n), zeros(T, g.n), es.Bz) : es.B
+            component = seed === :electric ? mod1(axis + 1, 3) : mod1(axis + 2, 3)
+            field = seed === :electric ? E[component] : B[component]
+            for I in CartesianIndices(field)
+                field[I] = T(sign) * amplitude * (zero(T), one(T), zero(T), -one(T))[I[axis]]
+            end
+            init_empic!(es, e)
+            expected_E, expected_B = map(copy, E), map(copy, B)
+            matrices = _empic_dft_matrices(g)
+            previous = zero(T)
+            for (iteration, (dt, ns)) in enumerate(((scale, 1), (scale / 2, 3), (scale, 2)))
+                es.n_sub = ns
+                centered, previous = _empic_dft_step!(
+                    expected_E,
+                    expected_B,
+                    g,
+                    dt,
+                    ns,
+                    previous,
+                    iteration == 1,
+                    matrices,
+                )
+                step_empic!(es, e, dt)
+                actual_centered = es isa EMPIC1D ? (zeros(T, g.n), zeros(T, g.n), es.Bzc) : es.Bc
+                for (actual, expected) in zip(
+                    (E..., B..., actual_centered...),
+                    (expected_E..., expected_B..., centered...),
+                )
+                    @test all(isfinite, actual)
+                    @test actual ≈ expected rtol = 128eps(T) atol = 128eps(T) * amplitude
+                end
+                @test es.last_sub_dt[] == dt / ns
+            end
+            before = deepcopy((E, B, es.last_dt[], es.last_sub_dt[], es.time[], es.step[]))
+            step_empic!(es, e, zero(T))
+            @test (E, B, es.last_dt[], es.last_sub_dt[], es.time[], es.step[]) == before
+            init_empic!(es, e)
+            @test es.step[] == 0 && iszero(es.last_sub_dt[])
+        end
+    end
+end
+
+@testset "EM common curl scaling retains longitudinal and diagonal components" begin
+    setprecision(BigFloat, 4096) do
+        for T in (Float32, Float64),
+            D = 1:3,
+            axis = 1:D,
+            seed in (:electric, :magnetic),
+            sign in (-1, 1)
+            # The large diagonal component changes no physical curl, but does
+            # control the canonical curl's common FFT scale. Its transverse
+            # companion must retain the bits later restored by the timestep.
+            large_exp, k_exp, small_exp = T === Float32 ? (64, 100, -100) : (700, 700, -670)
+            scale = ldexp(one(T), -k_exp)
+            large, small = ldexp(one(T), large_exp), ldexp(T(1.3), small_exp)
+            g = FourierGrid(
+                ntuple(_ -> 4, D),
+                ntuple(d -> T(2pi) * (d == axis ? scale : one(T)), D),
+            )
+            e = ParticleSet{D,T}(0; q = -one(T), m = one(T))
+            es = EMPIC(g, 0; n0 = zero(T), c = one(T))
+            init_empic!(es, e)
+            fields = seed === :electric ? es.E : es.B
+            fields[axis] .= large
+            component = seed === :electric ? mod1(axis + 1, 3) : mod1(axis + 2, 3)
+            for I in CartesianIndices(fields[component])
+                fields[component][I] =
+                    T(sign) * small * (zero(T), one(T), zero(T), -one(T))[I[axis]]
+            end
+            expected_E, expected_B = map(copy, es.E), map(copy, es.B)
+            matrices = _empic_dft_matrices(g)
+            dt = scale / 2
+            centered, _ =
+                _empic_dft_step!(expected_E, expected_B, g, dt, 1, zero(T), true, matrices)
+            step_empic!(es, e, dt)
+            for (actual, expected) in
+                zip((es.E..., es.B..., es.Bc...), (expected_E..., expected_B..., centered...))
+                @test all(isfinite, actual)
+                @test actual ≈ expected rtol = 128eps(T) atol = 128eps(T) * small
+            end
+        end
+    end
+end
+
+@testset "EM magnetic half intervals retain original timestep operands" begin
+    setprecision(BigFloat, 4096) do
+        for T in (Float32, Float64), State in (EMPIC1D, EMPIC)
+            scale = ldexp(one(T), T === Float32 ? -100 : -700)
+            dt = nextfloat(zero(T))
+            g = FourierGrid((4,), (T(2pi) * scale,))
+            e = ParticleSet{1,T}(0; q = -one(T), m = one(T))
+            es = State(g, 0; n0 = zero(T), c = one(T))
+            E = es isa EMPIC1D ? (es.Ex, es.Ey, zeros(T, g.n)) : es.E
+            B = es isa EMPIC1D ? (zeros(T, g.n), zeros(T, g.n), es.Bz) : es.B
+            E[2] .= T[0, 1, 0, -1]
+            init_empic!(es, e)
+            expected_E, expected_B = map(copy, E), map(copy, B)
+            matrices = _empic_dft_matrices(g)
+            previous = zero(T)
+            for (i, next_dt) in enumerate((dt, 3dt, 2dt))
+                _, previous = _empic_dft_step!(
+                    expected_E,
+                    expected_B,
+                    g,
+                    next_dt,
+                    1,
+                    previous,
+                    i == 1,
+                    matrices,
+                )
+                step_empic!(es, e, next_dt)
+                @test B[3] ≈ expected_B[3] rtol = 16eps(T) atol = zero(T)
+                @test !iszero(B[3][1])
+            end
+        end
+        H = HybridPlasmaPIC
+        for T in (Float32, Float64), backward in (false, true)
+            largest, tiny = floatmax(T), nextfloat(zero(T))
+            cases = (
+                (-largest, largest, T(2), T(2)),
+                (tiny, tiny, one(T), zero(T)),
+                (largest, largest, T(2), T(2)),
+            )
+            for (old, derivative, before, after) in cases
+                result = T[0]
+                H._em_magnetic_update!(
+                    result,
+                    T[old],
+                    T[derivative],
+                    nothing,
+                    before,
+                    after,
+                    backward,
+                )
+                sign = backward ? 1 : -1
+                expected = T(
+                    BigFloat(old) +
+                    sign * (BigFloat(before) + BigFloat(after)) / 2 * BigFloat(derivative),
+                    RoundNearest,
+                )
+                @test result[1] === expected
+            end
+        end
+    end
+end
+
+@testset "EM scaled derivative bands preserve all signs and spectral errors" begin
+    H = HybridPlasmaPIC
+    setprecision(BigFloat, 4096) do
+        # Odd/even transforms with mixed magnitudes and signs also exercise
+        # ordinary FFT rounding, beyond the exactly represented four-point mode.
+        for T in (Float32, Float64), D = 1:2, n in (5, 6), axis = 1:D
+            g = FourierGrid(ntuple(_ -> n, D), ntuple(d -> T(2pi) * T(d), D))
+            high, low = floatmax(T) / 128, 8floatmin(T)
+            values = (high, low, -one(T), -high, 2low, one(T))
+            field = reshape(T[values[mod1(i, 6)] for i = 1:prod(g.n)], g.n)
+            out = similar(field)
+            parts = H._em_derivative_parts!(out, field, g, axis)
+            @test parts !== nothing
+            lo, hi = H._em_field_exponents(field)
+            klo, khi = H._em_field_exponents(g.kvec[axis])
+            lower, upper, _ = H._em_scale_bounds(T, 0, 0, klo, khi, length(field))
+            @test length(parts) <= cld(hi - lo + 1, upper - lower + 1)
+            reference = T.(_empic_dft_derivative(field, g, axis))
+            actual = [H._from_exact(T, H._em_exact_derivative(parts, i)) for i in eachindex(field)]
+            @test reshape(actual, g.n) ≈ reference rtol = 64eps(T) atol = 64eps(T) * high
+        end
+        for T in (Float32, Float64), D = 1:3, axis = 1:D, sign in (-1, 1), cancel in (false, true)
+            g = FourierGrid(ntuple(_ -> 4, D), ntuple(d -> T(2pi) * T(d), D))
+            high, low = floatmax(T), floatmin(T)
+            values = T[high, low, cancel ? high : -high, -low]
+            field = [T(sign) * values[I[axis]] for I in CartesianIndices(g.n)]
+            out = similar(field)
+            parts = H._em_derivative_parts!(out, field, g, axis)
+            @test parts !== nothing
+            @test length(parts) <= (T === Float32 ? 5 : 3)
+            expected = _empic_dft_derivative(field, g, axis)
+            for i in eachindex(field)
+                actual = H._from_exact(T, H._em_exact_derivative(parts, i))
+                reference = T(expected[i], RoundNearest)
+                @test actual ≈ reference rtol = 64eps(T) atol = zero(T)
+            end
+        end
+        for T in (Float32, Float64), residual in (false, true), sign in (-1, 1)
+            a, b, p = T === Float32 ? (80, 60, 80) : (700, 600, 600)
+            g = FourierGrid((4, 4), (T(2pi) * ldexp(one(T), -a), T(2pi) * ldexp(one(T), -b)))
+            ax, ay = ldexp(one(T), p), ldexp(one(T), p + b - a)
+            residual && (ay = nextfloat(ay))
+            pattern = [
+                (zero(T), one(T), zero(T), -one(T))[mod1(I[1] + I[2] - 1, 4)] for
+                I in CartesianIndices(g.n)
+            ]
+            fields = (T(sign) * ax .* pattern, T(sign) * ay .* pattern, zeros(T, g.n))
+            out = map(similar, fields)
+            parts = H._em_curl_parts!(out, fields, g)
+            @test parts !== nothing
+            dt = ldexp(one(T), -a)
+            expected = _empic_dft_curl(fields, g)
+            for c = 1:3, i in eachindex(pattern)
+                actual =
+                    H._from_exact(T, H._exact_rational(dt) * H._em_exact_derivative(parts[c], i))
+                reference = T(BigFloat(dt) * expected[c][i], RoundNearest)
+                @test isfinite(actual)
+                @test actual ≈ reference rtol = 64eps(T) atol = zero(T)
+            end
+        end
+    end
+    for T in (Float32, Float64), n in (4, 6)
+        g = FourierGrid((n,), (T(2pi),))
+        field = [isodd(i) ? nextfloat(zero(T)) : floatmax(T) for i = 1:n]
+        out = similar(field)
+        @test_throws ArgumentError deriv!(out, field, g, 1)
+        @test_throws ArgumentError H._em_derivative_parts!(out, field, g, 1)
+        fields = (zeros(T, n), field, zeros(T, n))
+        outputs = map(similar, fields)
+        @test_throws ArgumentError curl!(outputs, fields, g)
+        @test_throws ArgumentError H._em_curl_parts!(outputs, fields, g)
+        field[1] = T(NaN)
+        @test_throws ArgumentError H._em_derivative_parts!(out, field, g, 1)
+        @test_throws ArgumentError H._em_curl_parts!(outputs, fields, g)
+    end
+end
