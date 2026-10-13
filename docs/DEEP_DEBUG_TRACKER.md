@@ -72,7 +72,8 @@ performance review. “Pending” means no current-run completion claim.
 | CI-001 | Only Julia 1.12 was exercised; the test pipeline could mask failures | Pushed (`68b854d`) | YAML/matrix/artifact wiring checks pass; explicit CI Bash returns 1 for failed pipelines and 0 for successful ones; full version suites running separately |
 | FORMAT-001 | Three files failed CI's JuliaFormatter 1 formatting rules | Pushed (`cf53bc4`) | Read-only scan with JuliaFormatter 1.0.62 identified exactly three Julia files; formatting-only repairs are idempotent and their diff was inspected. Contributor instructions now specify the CI formatter major |
 | CFL-001 | Timestep recommendation lost representable results through intermediate overflow/underflow | Pushed (`27b4c8d`) | Valid 4-cell grid of length 1e-80 returned zero instead of the 512-bit oracle's 1.4184965709927286e-162. Logarithmic evaluation passes 3,802 helper/range/coupled-stability assertions on each of Julia 1.12.7 and 1.13.1 (`test/test_phase_helpers.jl`) |
-| RESTART-002 | Electrostatic PIC lacked checkpoint/archive support | Verified; committing | Julia 1.13 combined IO/repro/MPI: 1,194 assertions; Julia 1.12 final focused suite: 540 assertions. Covers Float32/64, 1D–3D, exact variable-step continuation, changed fields, invalid destinations, views, empty populations, and archives |
+| RESTART-002 | Electrostatic PIC lacked checkpoint/archive support | Pushed (`b200c76`) | Julia 1.13 combined IO/repro/MPI: 1,194 assertions; Julia 1.12 final focused suite: 540 assertions. Covers Float32/64, 1D–3D, exact variable-step continuation, changed fields, invalid destinations, views, empty populations, and archives |
+| SUBCYCLE-001 | General EMPIC lacked electron subcycling | Verified; committing | Full EM suites: 7,257 assertions; added permanent Float32 coverage: 450 assertions in a separate final-file run. Includes independent constant-field oracles, 1D equivalence, 2D/3D charge/Gauss checks, changing dt/counts, mobile-ion coupled convergence. Default n_sub=1 arrays match prior code; allocations unchanged and scale linearly with subcycles |
 
 ## Completeness roadmap
 
@@ -83,11 +84,11 @@ benchmark before implementation. The roadmap remains open to new findings.
 | Priority | Capability / gap | Plan and completion evidence | State |
 | --- | --- | --- | --- |
 | 1 | Reliable variable-step evolution | Correct phase state in ES/EM, hybrid/CAM-CL and MPI; preserve it in checkpoints; verify analytic trajectories and convergence | Active |
-| 1 | Restart across production solvers | Hybrid, CAM-CL, and electrostatic PIC share capture/validation/restore infrastructure. Next: EM-PIC's two species and field/particle phases, then other models | CAM-CL and electrostatic verified; EM planned |
+| 1 | Restart across production solvers | Hybrid, CAM-CL, and electrostatic PIC share capture/validation/restore infrastructure. EM-PIC needs both species, configuration, field/current diagnostics, and fast/full phase history | CAM-CL and electrostatic verified; EM implementation active |
 | 1 | Reproducible archives and bounded field I/O | Fix checksum representation and malformed-file allocation; cross-process and corruption tests | Active |
 | 2 | Multispecies hybrid evolution | `compute_moments_multi!` exists; built-in hybrid steppers document one proton species. Design shared-field multispecies advancement and conservation/dispersion benchmarks | Planned |
 | 2 | Evolving electron pressure integrated into steppers | Standalone `advance_electron_pressure!` exists; built-in periodic steppers use algebraic closures. Define transport/heating coupling and energy-budget acceptance | Planned |
-| 2 | Multidimensional EM electron subcycling | Extend the common EM path with charge-continuity, Gauss-law, species phase, and coupled convergence checks | Implementation active |
+| 2 | Multidimensional EM electron subcycling | Common EM path extended; charge-continuity, Gauss-law, species phase, coupled convergence and Float32/64 checks pass | Verified |
 | 2 | Nonperiodic EM-PIC boundaries | README declares periodic EM-PIC only; design compatible field/particle boundaries with reflection/transmission and charge tests | Planned |
 | 3 | Production distributed stepping | MPI reference stepping replicates fields; design domain-owned fields/moments with migration and distributed operators; verify serial equivalence and scaling | Planned |
 | 3 | Production GPU kernels | README claims array plumbing only; implement coupled gather/push/deposit/field paths with backend equivalence, memory and throughput measurements | Planned |

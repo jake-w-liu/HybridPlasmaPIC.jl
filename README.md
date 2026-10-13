@@ -160,7 +160,7 @@ stability of the chosen integrator. In 1D, in the fine-grid limit
 |---|---|---|
 | **Hall-MHD** | periodic single-fluid Hall-MHD with the same electron closures; ion pressure `p_i = Ti·n`; the electron pressure force acts in both Ohm's law and the bulk momentum equation; explicit RK4 with divergence-free projection | `HallMHDModel`, `HallMHDState`, `step_hall_mhd!` |
 | **Electrostatic PIC** | full-kinetic electrons over a neutralizing background; spectral Poisson solve; leapfrog with one-time velocity priming; 1D/2D/3D | `ElectrostaticPIC` (or `Electrostatic1D`), `init_espic!`, `step_espic!` |
-| **Electromagnetic PIC** | full EM PIC with kinetic electrons, optional mobile ions (`mobile = true`), optional relativistic Boris push (`relativistic = true`), spectral charge-conserving current (continuity holds to roundoff on every represented mode), Gauss-law initialization; `EMPIC1D` additionally offers electron subcycling `n_sub` | `EMPIC`, `EMPIC1D`, `init_empic!`, `step_empic!`, `charge_conservation_residual` |
+| **Electromagnetic PIC** | full EM PIC with kinetic electrons, optional mobile ions (`mobile = true`), optional relativistic Boris push (`relativistic = true`), spectral charge-conserving current (continuity holds to roundoff on every represented mode), Gauss-law initialization, electron/Maxwell subcycling (`n_sub`) in 1D–3D | `EMPIC`, `EMPIC1D`, `init_empic!`, `step_empic!`, `charge_conservation_residual` |
 | **Fusion geometry / gyrokinetics / AMR** | integrated tokamak-oriented building blocks: toroidal curvilinear metric operators, guiding-centre gyrokinetics, and finite-volume AMR primitives alongside the existing mesh/model subsystems | `ToroidalGrid`, `metric_gradient`, `GuidingCentre`, `push_guiding_centre!`, `AMRGrid`, `refine` |
 | **KdV reference** | integrating-factor pseudo-spectral KdV solver + analytic soliton, used as a nonlinear-wave verification target | `kdv_solve`, `kdv_soliton` |
 
@@ -339,7 +339,7 @@ julia --project=validation validation/run_validation.jl --quick   # or --all
   summary with checksums is bundled; the full HDF5 requires downloading the
   upstream data).
 - Multidimensional electron subcycling and non-periodic EM-PIC boundaries
-  (`EMPIC` is periodic; `n_sub` belongs to `EMPIC1D`).
+  (`EMPIC` is periodic; electron subcycling is available in both `EMPIC` and `EMPIC1D`).
 
 ## Running the tests
 

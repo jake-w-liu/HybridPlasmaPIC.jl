@@ -8,6 +8,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- General `EMPIC` supports electron/Maxwell subcycling (`n_sub`) in 1D–3D.
+  Mobile ions receive one kick per full step while both species drift and deposit
+  current at every fast substep. Changing the timestep or subcycle count preserves
+  the separate electron, ion, and magnetic-field phases.
+
 - Electrostatic PIC checkpoint/restart and archives for the legacy 1D and general
   1D–3D solvers preserve electric fields, density, particles, and leapfrog phase.
   Restores reject incompatible background density, grid, precision, and integrator

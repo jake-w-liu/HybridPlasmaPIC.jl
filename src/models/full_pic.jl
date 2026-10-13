@@ -884,16 +884,19 @@ end
 
 """
     EMPIC(g, Nparticles; n0=1.0, c=5.0, shape=CIC(), relativistic=false,
-          mobile=false, mi=1836.0)
+          mobile=false, mi=1836.0, n_sub=1)
 
 Dimension-parametric periodic electromagnetic PIC on `FourierGrid{D}` for
 `D = 1, 2, 3`. Electrons are kinetic (`q=-1`, `m=1`) with either a uniform
 immobile positive background of density `n0` or, when `mobile=true`, a second
 kinetic ion species (`q=+1`) supplied to [`init_empic!`](@ref) and
 [`step_empic!`](@ref). Fields are collocated spectral arrays with `E` and `B`
-stored as 3-component tuples.
+stored as 3-component tuples. `n_sub` (≥1) splits each full step into electron
+and Maxwell substeps of `dt/n_sub`. Mobile ions receive one velocity kick per
+full step and drift during every electron substep, contributing charge and
+current at each substep's actual positions and midpoints.
 
-The mover uses a leapfrog Maxwell update:
+The mover uses a leapfrog Maxwell update (here `dt` is the electron substep):
 `B^{n} = B^{n-1/2} - (dt/2) curl(E^n)` for the particle push,
 `B^{n+1/2} = B^{n-1/2} - dt curl(E^n)`, and
 `E^{n+1} = E^n + dt(c^2 curl(B^{n+1/2}) - J^{n+1/2})`.
@@ -910,6 +913,7 @@ mutable struct EMPIC{D,T,G,SH<:ShapeFunction}
     relativistic::Bool
     mobile::Bool
     mi::T
+    n_sub::Int
     E::NTuple{3,Array{T,D}}
     B::NTuple{3,Array{T,D}}
     Bc::NTuple{3,Array{T,D}}
@@ -930,7 +934,8 @@ mutable struct EMPIC{D,T,G,SH<:ShapeFunction}
     worki::Vector{T}
     time::Base.RefValue{T}
     step::Base.RefValue{Int}
-    last_dt::Base.RefValue{T}       # preceding drift interval sets the v and B half levels
+    last_dt::Base.RefValue{T}       # preceding full ion drift interval
+    last_sub_dt::Base.RefValue{T}   # preceding electron/field drift interval
 end
 
 function EMPIC(
@@ -942,8 +947,10 @@ function EMPIC(
     relativistic::Bool = false,
     mobile::Bool = false,
     mi = 1836.0,
+    n_sub::Integer = 1,
 ) where {D,T}
     1 <= D <= 3 || throw(ArgumentError("EMPIC supports D = 1, 2, or 3"))
+    n_sub >= 1 || throw(ArgumentError("n_sub must be ≥ 1"))
     Np = _particle_length(Nparticles)
     n0T = _require_finite_nonnegative_real("n0", n0, T)
     cT = _require_finite_positive_real("c", c, T)
@@ -959,6 +966,7 @@ function EMPIC(
         relativistic,
         mobile,
         miT,
+        Int(n_sub),
         grid_tuple(),
         grid_tuple(),
         grid_tuple(),
@@ -979,6 +987,7 @@ function EMPIC(
         T[],
         Ref(zero(T)),
         Ref(0),
+        Ref(zero(T)),
         Ref(zero(T)),
     )
 end
@@ -1301,6 +1310,7 @@ function init_empic!(
     es.time[] = zero(T)                 # (re)start at t=0; step==0 triggers leapfrog priming
     es.step[] = 0
     es.last_dt[] = zero(T)
+    es.last_sub_dt[] = zero(T)
     return es
 end
 
@@ -1310,6 +1320,8 @@ function _substep_empic!(
     ions::Union{Nothing,ParticleSet{D,T}},
     dt::T,
     dt_previous::T,
+    push_ions::Bool,
+    dt_ion_push::T,
 ) where {D,T}
     g = es.g
     c2 = es.c * es.c
@@ -1328,9 +1340,13 @@ function _substep_empic!(
     apply_periodic!(e, ntuple(_ -> zero(T), D), g.L)
 
     if es.mobile && ions !== nothing
-        gather_vector!(es.Epi, es.E, ions, g, es.shape)
-        gather_vector!(es.Bpi, es.Bc, ions, g, es.shape)
-        _push_velocities!(es, ions, es.Epi, es.Bpi, kick_dt)
+        if push_ions
+            gather_vector!(es.Epi, es.E, ions, g, es.shape)
+            gather_vector!(es.Bpi, es.Bc, ions, g, es.shape)
+            _push_velocities!(es, ions, es.Epi, es.Bpi, dt_ion_push)
+        end
+        # Both species must drift and deposit at every fast substep, even when
+        # the ion velocity stays at its full-step half level.
         _drift_record_mid!(ions, es.midi, dt, g.L)
         apply_periodic!(ions, ntuple(_ -> zero(T), D), g.L)
     end
@@ -1352,11 +1368,12 @@ end
 """
     step_empic!(es::EMPIC, electrons[, ions], dt)
 
-Advance the dimension-parametric EM PIC state by one step. The optional ion
-species is required when `mobile=true` and ignored otherwise. When `dt` changes,
-velocity and magnetic-field kicks span `(last_dt + dt)/2` between half levels;
-the position and electric-field updates use `dt`. Zero timesteps leave this
-staggering unchanged.
+Advance the dimension-parametric EM PIC state by one full step, split into
+`es.n_sub` electron and Maxwell substeps of `dt/es.n_sub`. The optional ion
+species is required when `mobile=true` and ignored otherwise. Ions receive one
+velocity kick per full step and drift during every substep. Changes in `dt` or
+`n_sub` retain the electron, ion, and magnetic-field half levels from the
+preceding step; zero timesteps leave this staggering unchanged.
 """
 function step_empic!(
     es::EMPIC{D,T},
@@ -1371,7 +1388,11 @@ function step_empic!(
         _require_empic_ions(ions, es.mi)
     end
     dtT = _validated_nonnegative_dt(T, dt; name = "step_empic!")
+    ns = es.n_sub
+    ns >= 1 || throw(ArgumentError("n_sub must be ≥ 1"))
     iszero(dtT) && return es            # dt=0 no-op: do not consume the one-time priming
+    dt_e = dtT / ns
+    dt_e > zero(T) || throw(ArgumentError("dt/n_sub must be representable and positive"))
     if es.relativistic
         _require_subluminal_velocities(e, es.c, "step_empic!")
         es.mobile && _require_subluminal_velocities(ions, es.c, "step_empic! ion species")
@@ -1380,12 +1401,11 @@ function step_empic!(
     if es.mobile
         _ensure_empic_ion_buffers!(es, nparticles(ions))
     end
-    # prime the leapfrog once (2nd order): the seeded v and B are physical (v^0, B^0) but the
-    # leapfrog carries them at the half level. Velocity: v^{-1/2}=v^0−(dt/2)a^0 for both species;
-    # field: B^{-1/2}=B^0+(dt/2)∇×E^0 (∂tB=−∇×E). See the EMPIC1D header note.
+    # Prime physical initial v and B onto their half levels: dt_e/2 for the
+    # electrons and B, and dtT/2 for ions. See the EMPIC1D header note.
     if es.step[] == 0
         g0 = es.g
-        h = dtT / 2
+        h = dt_e / 2
         gather_vector!(es.Ep, es.E, e, g0, es.shape)
         gather_vector!(es.Bp, es.B, e, g0, es.shape)
         _prime_leapfrog!(e.v, es.Ep, es.Bp, -one(T), h, nparticles(e), es.relativistic, es.c)
@@ -1397,7 +1417,7 @@ function step_empic!(
                 es.Epi,
                 es.Bpi,
                 ions.q / ions.m,
-                h,
+                dtT / 2,
                 nparticles(ions),
                 es.relativistic,
                 es.c,
@@ -1408,11 +1428,16 @@ function step_empic!(
             es.B[c][I] += h * es.curlE[c][I]
         end
     end
-    dt_previous = es.step[] == 0 ? dtT : es.last_dt[]
-    _substep_empic!(es, e, ions, dtT, dt_previous)
-    es.time[] += dtT
+    dt_previous = es.step[] == 0 ? dt_e : es.last_sub_dt[]
+    dt_ion_push = es.step[] == 0 ? dtT : es.last_dt[] / 2 + dtT / 2
+    for substep = 1:ns
+        _substep_empic!(es, e, ions, dt_e, dt_previous, substep == 1, dt_ion_push)
+        dt_previous = dt_e
+        es.time[] += dt_e
+    end
     es.step[] += 1
     es.last_dt[] = dtT
+    es.last_sub_dt[] = dt_e
     return es
 end
 
@@ -1428,6 +1453,13 @@ function em_field_energy(es::EMPIC{D,T}) where {D,T}
     return T(0.5) * s * prod(es.g.dx)
 end
 
+"""
+    charge_conservation_residual(es::EMPIC, dt)
+
+Continuity residual on the represented Fourier modes from the most recent
+electron substep. Pass its duration `dt_full/es.n_sub`, including when ions
+are mobile and receive one kick over the full step.
+"""
 function charge_conservation_residual(es::EMPIC{D,T}, dt::Real) where {D,T}
     g = es.g
     dtT = T(dt)

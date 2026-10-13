@@ -559,3 +559,348 @@ end
         end
     end
 end
+
+function _empic_subcycling_fixture(
+    D;
+    n_sub = 1,
+    shape = CIC(),
+    mobile = false,
+    relativistic = false,
+    mi = 16.0,
+)
+    g = FourierGrid(ntuple(_ -> 8, D), ntuple(_ -> 2π, D))
+    e = ParticleSet{D,Float64}(8^D; q = -1.0, m = 1.0)
+    ions = ParticleSet{D,Float64}(8^D; q = 1.0, m = mi)
+    for s in (e, ions)
+        load_lattice!(s, ntuple(_ -> 0.0, D), g.L, g.n)
+        set_density_weight!(s, 1.0, g)
+    end
+    @. e.x[1] -= 0.02 * sin(e.x[1])
+    @. e.v[1] = 0.1 + 0.02 * cos(e.x[1])
+    @. e.v[2] = 0.01 * sin(e.x[1])
+    ions.v[1] .= 0.03
+    es = EMPIC(g, nparticles(e); n_sub, shape, mobile, relativistic, mi, c = 3.0)
+    for I in CartesianIndices(es.E[1])
+        x = (I[1] - 1) * g.dx[1]
+        es.E[2][I] = 0.01 * sin(x)
+        es.E[3][I] = 0.02 * cos(x)
+        es.B[2][I] = 0.01 * cos(x)
+        es.B[3][I] = 0.02 * sin(x)
+    end
+    init_empic!(es, e, mobile ? ions : nothing)
+    return es, e, ions
+end
+
+@testset "EMPIC subcycling validates and resets timing state" begin
+    for D = 1:3
+        es, e, ions = _empic_subcycling_fixture(D; n_sub = 3, mobile = true)
+        @test es.n_sub == 3
+        @test_throws ArgumentError EMPIC(es.g, 1; n_sub = 0)
+        @test_throws ArgumentError EMPIC(es.g, 1; n_sub = -1)
+        step_empic!(es, e, ions, 0.03)
+        before = (
+            deepcopy(e.x),
+            deepcopy(e.v),
+            deepcopy(ions.x),
+            deepcopy(ions.v),
+            deepcopy(es.E),
+            deepcopy(es.B),
+            es.time[],
+            es.step[],
+            es.last_dt[],
+            es.last_sub_dt[],
+        )
+        step_empic!(es, e, ions, 0.0)
+        @test (
+            e.x,
+            e.v,
+            ions.x,
+            ions.v,
+            es.E,
+            es.B,
+            es.time[],
+            es.step[],
+            es.last_dt[],
+            es.last_sub_dt[],
+        ) == before
+        for n_sub in (0, -1)
+            es.n_sub = n_sub
+            @test_throws ArgumentError step_empic!(es, e, ions, 0.03)
+            @test (
+                e.x,
+                e.v,
+                ions.x,
+                ions.v,
+                es.E,
+                es.B,
+                es.time[],
+                es.step[],
+                es.last_dt[],
+                es.last_sub_dt[],
+            ) == before
+        end
+        es.n_sub = 3
+        @test_throws ArgumentError step_empic!(es, e, ions, nextfloat(0.0))
+        @test (
+            e.x,
+            e.v,
+            ions.x,
+            ions.v,
+            es.E,
+            es.B,
+            es.time[],
+            es.step[],
+            es.last_dt[],
+            es.last_sub_dt[],
+        ) == before
+        init_empic!(es, e, ions)
+        @test (es.time[], es.step[], es.last_dt[], es.last_sub_dt[]) == (0.0, 0, 0.0, 0.0)
+    end
+end
+
+@testset "EMPIC immobile subcycling equals explicit electron steps" begin
+    for D = 1:3, shape in (CIC(), TSC()), relativistic in (false, true), ns in (1, 2, 4)
+        es, e, _ = _empic_subcycling_fixture(D; n_sub = ns, shape, relativistic)
+        fine, efine, _ = _empic_subcycling_fixture(D; shape, relativistic)
+        for (dt, n_sub) in ((0.01, ns), (0.02, 3), (0.015, ns))
+            es.n_sub = n_sub
+            step_empic!(es, e, dt)
+            for _ = 1:n_sub
+                step_empic!(fine, efine, dt / n_sub)
+            end
+            @test e.x == efine.x
+            @test e.v == efine.v
+            @test es.E == fine.E
+            @test es.B == fine.B
+            @test es.J == fine.J
+            @test es.time[] == fine.time[]
+            @test es.last_sub_dt[] == fine.last_sub_dt[]
+        end
+        @test es.step[] == 3
+    end
+end
+
+@testset "EMPIC subcycling agrees with polarized EMPIC1D" begin
+    for shape in (CIC(), TSC()), relativistic in (false, true), mobile in (false, true), ns = 1:4
+        g = FourierGrid((16,), (2π,))
+        e = ParticleSet{1,Float64}(256; q = -1.0, m = 1.0)
+        ions = ParticleSet{1,Float64}(256; q = 1.0, m = 16.0)
+        for s in (e, ions)
+            load_lattice_1d!(s, 0.0, g.L[1])
+            set_density_weight!(s, 1.0, g)
+        end
+        @. e.x[1] -= 0.02 * sin(e.x[1])
+        @. e.v[2] = 0.02 * cos(e.x[1])
+        e.v[1] .= relativistic ? 1.0 : 0.1
+        es = EMPIC(g, nparticles(e); n_sub = ns, shape, relativistic, mobile, mi = 16.0, c = 3.0)
+        ref = EMPIC1D(
+            FourierGrid(g.n, g.L),
+            nparticles(e);
+            n_sub = ns,
+            shape,
+            relativistic,
+            mobile,
+            mi = 16.0,
+            c = 3.0,
+        )
+        eref, iref = deepcopy(e), deepcopy(ions)
+        for j = 1:g.n[1]
+            x = (j - 1) * g.dx[1]
+            es.E[2][j] = ref.Ey[j] = 0.01 * sin(x)
+            es.B[3][j] = ref.Bz[j] = 0.02 * cos(x)
+        end
+        init_empic!(es, e, mobile ? ions : nothing)
+        init_empic!(ref, eref, mobile ? iref : nothing)
+        for (dt, n_sub) in ((0.01, ns), (0.02, 3), (0.015, 2))
+            es.n_sub = ref.n_sub = n_sub
+            step_empic!(es, e, mobile ? ions : nothing, dt)
+            step_empic!(ref, eref, mobile ? iref : nothing, dt)
+            @test all(isapprox.(e.x, eref.x; atol = 2e-13))
+            @test all(isapprox.(e.v, eref.v; atol = 2e-13))
+            @test all(isapprox.(ions.x, iref.x; atol = 2e-13))
+            @test all(isapprox.(ions.v, iref.v; atol = 2e-13))
+            @test es.E[1] ≈ ref.Ex atol = 2e-13
+            @test es.E[2] ≈ ref.Ey atol = 2e-13
+            @test es.B[3] ≈ ref.Bz atol = 2e-13
+            @test es.time[] == ref.time[]
+        end
+    end
+end
+
+@testset "EMPIC multidimensional mobile subcycling conserves charge after population growth" begin
+    for D in (2, 3), shape in (CIC(), TSC())
+        es, e, ions = _empic_subcycling_fixture(D; n_sub = 3, shape, mobile = true)
+        for (dt, ns) in ((0.01, 3), (0.02, 2), (0.005, 4))
+            es.n_sub = ns
+            step_empic!(es, e, ions, dt)
+            @test _empic_gauss_residual(es, es.rho_np1) < 1e-12
+            delta_scale = maximum(abs, es.rho_np1 .- es.rho_n)
+            @test charge_conservation_residual(es, dt / ns) * delta_scale < 128eps(Float64)
+            @test isfinite(em_field_energy(es) + kinetic_energy(e) + kinetic_energy(ions))
+            # An equal-position, equal-weight pair leaves the total charge
+            # unchanged at insertion and exercises both lazy workspace resizes.
+            for s in (e, ions)
+                extra = ParticleSet{D,Float64}(2; q = s.q, m = s.m)
+                for d = 1:D
+                    extra.x[d] .= (0.1d, 0.2d)
+                end
+                extra.weight .= 0.001
+                HybridPlasmaPIC.append_particles!(s, extra)
+            end
+        end
+        step_empic!(es, e, ions, 0.005)
+        @test all(length(v) == nparticles(e) for v in (es.Ep..., es.Bp..., es.mide..., es.worke))
+        @test all(
+            length(v) == nparticles(ions) for v in (es.Epi..., es.Bpi..., es.midi..., es.worki)
+        )
+        @test _empic_gauss_residual(es, es.rho_np1) < 1e-12
+    end
+end
+
+@testset "EMPIC multidimensional mobile subcycling has second-order temporal convergence" begin
+    function subcycling_amplitude(D, mi, transverse, refinement)
+        g = FourierGrid(ntuple(_ -> 8, D), ntuple(_ -> 2π, D))
+        e = ParticleSet{D,Float64}(16^D; q = -1.0, m = 1.0)
+        ions = ParticleSet{D,Float64}(16^D; q = 1.0, m = mi)
+        for s in (e, ions)
+            load_lattice!(s, ntuple(_ -> 0.0, D), g.L, ntuple(_ -> 16, D))
+            set_density_weight!(s, 1.0, g)
+        end
+        es = EMPIC(g, nparticles(e); mobile = true, mi, c = 2.0, n_sub = 3)
+        if transverse
+            # The polarization (1,-1,0) is orthogonal to k=(1,...,1).
+            for I in CartesianIndices(es.E[1])
+                phase = sum((I[d] - 1) * g.dx[d] for d = 1:D)
+                es.E[1][I] = 0.001 * sin(phase)
+                es.E[2][I] = -es.E[1][I]
+            end
+        else
+            for p = 1:nparticles(e)
+                phase = sum(e.x[d][p] for d = 1:D)
+                e.x[1][p] -= 0.01 * sin(phase)
+            end
+        end
+        init_empic!(es, e, ions)
+        for (count, dt, ns) in
+            ((10refinement, 0.04 / refinement, 2), (20refinement, 0.02 / refinement, 3))
+            es.n_sub = ns
+            for _ = 1:count
+                step_empic!(es, e, ions, dt)
+            end
+        end
+        return abs(mode_amplitude(es.E[1], g, ntuple(_ -> 1, D)))
+    end
+    for D in (2, 3), mi in (16.0, 100.0), transverse in (false, true)
+        values = [subcycling_amplitude(D, mi, transverse, r) for r in (1, 2, 4)]
+        @test log2(abs(values[1] - values[2]) / abs(values[2] - values[3])) > 1.7
+    end
+end
+
+@testset "EMPIC multidimensional subcycling matches constant-field particle oracles" begin
+    for D in (2, 3), relativistic in (false, true)
+        g = FourierGrid(ntuple(_ -> 4, D), ntuple(_ -> 10.0, D))
+        e = ParticleSet{D,Float64}(1; q = -1.0, m = 1.0)
+        ions = ParticleSet{D,Float64}(1; q = 1.0, m = 16.0)
+        for (s, x0) in ((e, 1.0), (ions, 2.0))
+            s.weight .= 0.0
+            for d = 1:D
+                s.x[d] .= x0
+            end
+        end
+        es = EMPIC(g, 1; n0 = 0.0, mobile = true, mi = 16.0, c = 2.0, n_sub = 2, relativistic)
+        init_empic!(es, e, ions)
+        force = (0.7, -0.2, 0.1)
+        for c = 1:3
+            es.E[c] .= -force[c]
+        end
+        elapsed = 0.0
+        for (dt, ns) in ((0.1, 2), (0.2, 3), (0.05, 4))
+            es.n_sub = ns
+            step_empic!(es, e, ions, dt)
+            elapsed += dt
+            for (s, x0, half_dt) in ((e, 1.0, dt / (2ns)), (ions, 2.0, dt / 2))
+                acceleration = ntuple(c -> -s.q / s.m * force[c], 3)
+                u = ntuple(c -> acceleration[c] * (elapsed - half_dt), 3)
+                gamma = relativistic ? sqrt(1 + sum(abs2, u) / es.c^2) : 1.0
+                @test [s.v[c][1] for c = 1:3] ≈ collect(u) ./ gamma atol = 5e-14
+                if !relativistic
+                    for d = 1:D
+                        @test s.x[d][1] ≈ x0 + acceleration[d] * elapsed^2 / 2 atol = 5e-14
+                    end
+                end
+            end
+            @test es.last_sub_dt[] == dt / ns
+            @test es.last_dt[] == dt
+        end
+    end
+end
+
+@testset "Float32 EM subcycling charge and phase constraints" begin
+    for D = 1:3, mobile in (false, true), rel in (false, true), shape in (CIC(), TSC())
+        g = FourierGrid(ntuple(_ -> 8, D), ntuple(_ -> Float32(2π), D))
+        e = ParticleSet{D,Float32}(8^D; q = -1.0f0, m = 1.0f0)
+        ions = ParticleSet{D,Float32}(8^D; q = 1.0f0, m = 16.0f0)
+        for s in (e, ions)
+            load_lattice!(s, ntuple(_ -> 0.0f0, D), g.L, g.n)
+            set_density_weight!(s, 1.0f0, g)
+        end
+        @. e.x[1] -= 0.02f0 * sin(e.x[1])
+        e.v[1] .= 0.1f0
+        @. e.v[2] = 0.02f0 * cos(e.x[1])
+        es = EMPIC(
+            g,
+            nparticles(e);
+            mobile,
+            mi = 16.0f0,
+            c = 2.0f0,
+            relativistic = rel,
+            shape,
+            n_sub = 2,
+        )
+        init_empic!(es, e, mobile ? ions : nothing)
+        for (dt, ns) in ((0.01, 2), (0.02, 3), (0.015, 1))
+            es.n_sub = ns
+            step_empic!(es, e, mobile ? ions : nothing, dt)
+            @test es.last_dt[] === Float32(dt)
+            @test es.last_sub_dt[] === Float32(dt) / ns
+            @test _empic_gauss_residual(es, es.rho_np1) < 128eps(Float32)
+            ds = maximum(abs, es.rho_np1 .- es.rho_n)
+            @test charge_conservation_residual(es, Float32(dt) / ns) * ds < 128eps(Float32)
+            @test all(all(isfinite, v) for v in (e.x..., e.v..., es.E..., es.B...))
+            if rel
+                @test maximum(sum(e.v[c] .^ 2 for c = 1:3)) < es.c^2
+            end
+        end
+    end
+end
+@testset "Float32 EM subcycling constant-field momentum" begin
+    for D = 1:3, mobile in (false, true), rel in (false, true)
+        g = FourierGrid(ntuple(_ -> 4, D), ntuple(_ -> 10.0f0, D))
+        e = ParticleSet{D,Float32}(1; q = -1.0f0, m = 1.0f0)
+        ions = ParticleSet{D,Float32}(1; q = 1.0f0, m = 16.0f0)
+        for s in (e, ions)
+            s.weight .= 0.0f0
+            for d = 1:D
+                s.x[d] .= 1.0f0
+            end
+        end
+        es = EMPIC(g, 1; n0 = 0.0f0, mobile, mi = 16.0f0, c = 2.0f0, relativistic = rel, n_sub = 2)
+        init_empic!(es, e, mobile ? ions : nothing)
+        force = (0.7f0, -0.2f0, 0.1f0)
+        for c = 1:3
+            es.E[c] .= -force[c]
+        end
+        elapsed = 0.0f0
+        for (dt, ns) in ((0.1f0, 2), (0.2f0, 3), (0.05f0, 4))
+            es.n_sub = ns
+            step_empic!(es, e, mobile ? ions : nothing, dt)
+            elapsed += dt
+            for (s, h) in ((e, dt / (2ns)), (ions, dt / 2))
+                s === ions && !mobile && continue
+                u = ntuple(c -> -s.q / s.m * force[c] * (elapsed - h), 3)
+                gamma = rel ? sqrt(1 + sum(abs2, u) / es.c^2) : 1.0f0
+                @test [s.v[c][1] for c = 1:3] ≈ collect(u) ./ gamma atol = 32eps(Float32)
+            end
+        end
+    end
+end
