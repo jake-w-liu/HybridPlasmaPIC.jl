@@ -134,6 +134,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Guiding-centre position updates retain the complete streaming and drift
+  displacement through the final coordinate addition. Finite updates survive
+  intermediate range loss and cancellation; exact fallbacks preserve stored
+  BigFloat inputs and round hardware outputs independently of BigFloat settings.
+  Rejected updates leave the guiding-centre state unchanged.
+
 - AMR exact fallbacks round hardware floats directly from the complete rational
   result, avoiding a second rounding through ambient BigFloat precision. Shared
   exact conversion also retains stored BigFloat inputs and the caller's BigFloat

@@ -157,6 +157,25 @@ Base.getindex(a::ZeroBasedCube, i::Int, j::Int, k::Int) = a.parent[i+1, j+1, k+1
 end
 
 @testset "fusion: guiding-centre gyrokinetics" begin
+    # Verify exact rounding from neighboring representable values, independently
+    # of both the production converter and Julia's ambient BigFloat conversion.
+    function nearest_hardware_result(candidate::T, value::Rational{BigInt}) where {T}
+        isnan(candidate) && return false
+        iszero(value) && return iszero(candidate) && !signbit(candidate)
+        signbit(candidate) == (value < 0) || return false
+        exact(x) = Rational{BigInt}(x)
+        x, magnitude = abs(candidate), abs(value)
+        maximum = floatmax(T)
+        overflow = exact(maximum) + (exact(maximum) - exact(prevfloat(maximum))) / 2
+        isinf(x) && return magnitude >= overflow
+        lower = iszero(x) ? zero(value) : (exact(prevfloat(x)) + exact(x)) / 2
+        upper = x == maximum ? overflow : (exact(x) + exact(nextfloat(x))) / 2
+        U = T === Float16 ? UInt16 : T === Float32 ? UInt32 : UInt64
+        even = iseven(reinterpret(U, x))
+        return (magnitude > lower || (magnitude == lower && even)) &&
+               (magnitude < upper || (magnitude == upper && even))
+    end
+
     @test _tuple_maxabs(exb_drift((0.0, 1.0, 0.0), (0.0, 0.0, 2.0)), (0.5, 0.0, 0.0)) < 1e-14
     @test_throws ArgumentError exb_drift((1.0, 0.0, 0.0), (0.0, 0.0, 0.0))
     @test_throws ArgumentError exb_drift((1.0, 0.0, 0.0), (0.0, 0.0, Inf))
@@ -208,13 +227,12 @@ end
 
         ratio_numerators = (-7.392147589140323e-207, -5.024715391148077e126)
         ratio_denominators = (5.97155727804291e-38, -1.4093084331804231e281)
-        ratio_oracle = Float64(
+        ratio_exact =
             (Rational{BigInt}(ratio_numerators[1]) * Rational{BigInt}(ratio_numerators[2])) /
-            (Rational{BigInt}(ratio_denominators[1]) * Rational{BigInt}(ratio_denominators[2])),
-        )
-        @test ratio_oracle == -nextfloat(0.0)
-        @test HybridPlasmaPIC._gyro_scaled_ratio(ratio_numerators, ratio_denominators) ==
-              ratio_oracle
+            (Rational{BigInt}(ratio_denominators[1]) * Rational{BigInt}(ratio_denominators[2]))
+        ratio = HybridPlasmaPIC._gyro_scaled_ratio(ratio_numerators, ratio_denominators)
+        @test ratio == -nextfloat(0.0)
+        @test nearest_hardware_result(ratio, ratio_exact)
 
         Ealloc = (0.5, 0.2, -0.1)
         Balloc = (0.3, -1.2, 2.0)
@@ -499,8 +517,8 @@ end
             exact(x) = Rational{BigInt}(x)
             expected_delta =
                 exact(dt) * (exact(q) * exact(Epar) - exact(μ) * exact(gradpar_B)) / exact(m)
-            expected_v = T(exact(vpar) + expected_delta)
-            expected_z = T(exact(dt) * exact(vpar))
+            expected_v = exact(vpar) + expected_delta
+            expected_z = exact(dt) * exact(vpar)
             push_guiding_centre!(
                 gc_parallel;
                 dt,
@@ -510,8 +528,9 @@ end
                 κ = z,
                 gradpar_B,
             )
-            @test gc_parallel.vpar == expected_v
-            @test gc_parallel.X == (zero(T), zero(T), expected_z)
+            @test nearest_hardware_result(gc_parallel.vpar, expected_v)
+            @test gc_parallel.X[1:2] == (zero(T), zero(T))
+            @test nearest_hardware_result(gc_parallel.X[3], expected_z)
             @test gc_parallel.μ == μ
         end
 
@@ -865,6 +884,31 @@ end
             )
             _, needs_exact = HybridPlasmaPIC._gyro_sum_scaled_parts(terms)
             @test needs_exact
+
+            # A retained low product can prove cancellation; an underflowed
+            # low*low contribution cannot be silently declared exact.
+            parts = HybridPlasmaPIC._gyro_ratio_parts((T(0.7), T(0.2)), ())
+            represented =
+                (Rational{BigInt}(parts[1]) + Rational{BigInt}(parts[2])) *
+                (BigInt(2) // BigInt(1))^parts[3]
+            @test parts[4]
+            @test represented == Rational{BigInt}(T(0.7)) * Rational{BigInt}(T(0.2))
+            opposite = (-parts[1], -parts[2], parts[3], parts[4])
+            cancelled, uncertain = HybridPlasmaPIC._gyro_sum_parts((parts, opposite))
+            @test cancelled[4] && iszero(cancelled[1]) && iszero(cancelled[2])
+            @test !uncertain
+            low_product = HybridPlasmaPIC._gyro_multiply_parts(
+                (T(0.5), tiny, 0, true),
+                (T(0.5), tiny, 0, true),
+            )
+            @test !low_product[4]
+            _, uncertain = HybridPlasmaPIC._gyro_sum_parts((
+                (T(0.5), tiny, -1, true),
+                (-T(0.5), zero(T), -1, true),
+                (T(0.5), zero(T), 1, true),
+                (-T(0.5), zero(T), 1, true),
+            ))
+            @test uncertain
         end
 
         # Float16 can round a nonzero FMA residual to zero. Such a residual
@@ -874,6 +918,286 @@ end
         @test iszero(residual)
         @test Rational{BigInt}(a) * Rational{BigInt}(b) != Rational{BigInt}(a * b)
         @test !HybridPlasmaPIC._gyro_product_is_exact(a, b, residual)
+    end
+
+    @testset "position retains the complete displacement expression" begin
+        function position_oracle(gc; dt, E, B, gradB, κ, gradpar_B)
+            return setprecision(8192) do
+                eb, bb, gb, kb = map(x -> BigFloat.(x), (E, B, gradB, κ))
+                magnitude = sqrt(sum(abs2, bb))
+                cross(a, b) = (
+                    a[2] * b[3] - a[3] * b[2],
+                    a[3] * b[1] - a[1] * b[3],
+                    a[1] * b[2] - a[2] * b[1],
+                )
+                v, μ, q, m = BigFloat.((gc.vpar, gc.μ, gc.q, gc.m))
+                velocity =
+                    v .* bb ./ magnitude .+
+                    (cross(eb, bb) .+ μ / q .* cross(bb, gb) .+ m * v^2 / q .* cross(bb, kb)) ./
+                    magnitude^2
+                BigFloat.(gc.X) .+ BigFloat(dt) .* velocity
+            end
+        end
+
+        function check_position_case(
+            T;
+            X = (zero(T), zero(T), zero(T)),
+            vpar = zero(T),
+            μ = zero(T),
+            q = one(T),
+            m = one(T),
+            dt = one(T),
+            E = (zero(T), zero(T), zero(T)),
+            B = (zero(T), zero(T), one(T)),
+            gradB = (zero(T), zero(T), zero(T)),
+            κ = (zero(T), zero(T), zero(T)),
+        )
+            gc_position = GuidingCentre(X, vpar, μ, q, m)
+            args = (; dt, E, B, gradB, κ, gradpar_B = zero(T))
+            expected = map(x -> T(x, RoundNearest), position_oracle(gc_position; args...))
+            @test all(isfinite, expected)
+            push_guiding_centre!(gc_position; args...)
+            @test gc_position.X == expected
+            @test gc_position.vpar == vpar
+            @test gc_position.μ == μ
+        end
+
+        function check_parallel_field_allocations(T)
+            z = (zero(T), zero(T), zero(T))
+            field = T.((0.3, -1.2, 2))
+            for vpar in (zero(T), T(0.25))
+                gc_position = GuidingCentre(z, vpar, one(T), one(T), one(T))
+                args = (;
+                    dt = T(0.01),
+                    E = field,
+                    B = field,
+                    gradB = field,
+                    κ = field,
+                    gradpar_B = zero(T),
+                )
+                expected = position_oracle(gc_position; args...)
+                push_guiding_centre!(gc_position; args...)
+                @test maximum(abs.(BigFloat.(gc_position.X) .- expected)) <= 8eps(T)
+                gc_position.X, gc_position.vpar = z, vpar
+                @test (@allocated push_guiding_centre!(gc_position; args...)) == 0
+            end
+            # Electric and μ-gradient drifts balance before multiplication by
+            # a generally inexact timestep, for either charge sign.
+            field = T.((0.5, 0.2, 0))
+            for charge in (T(0.7), -T(0.7))
+                gc_position = GuidingCentre(z, zero(T), abs(charge), charge, T(3))
+                args = (;
+                    dt = T(0.1),
+                    E = field,
+                    B = (zero(T), zero(T), T(2)),
+                    gradB = sign(charge) .* field,
+                    κ = z,
+                    gradpar_B = zero(T),
+                )
+                @test all(iszero, position_oracle(gc_position; args...))
+                push_guiding_centre!(gc_position; args...)
+                @test gc_position.X == z
+                @test (@allocated push_guiding_centre!(gc_position; args...)) == 0
+            end
+            for charge in (T(3), -T(3))
+                gc_position = GuidingCentre(z, zero(T), T(2), charge, T(3))
+                args = (;
+                    dt = T(0.1),
+                    E = T.((0.5, 2, 0)),
+                    B = (zero(T), zero(T), one(T)),
+                    gradB = sign(charge) .* T.((0.75, 3, 0)),
+                    κ = z,
+                    gradpar_B = zero(T),
+                )
+                @test all(iszero, position_oracle(gc_position; args...))
+                push_guiding_centre!(gc_position; args...)
+                @test gc_position.X == z
+                @test (@allocated push_guiding_centre!(gc_position; args...)) == 0
+            end
+        end
+
+        for T in (Float16, Float32, Float64)
+            M, tiny, z, o = floatmax(T), nextfloat(zero(T)), zero(T), one(T)
+            check_position_case(T; vpar = M, B = (M, tiny, z))
+            check_position_case(T; X = (z, z, -M), vpar = M, dt = T(2))
+            check_position_case(T; E = (M, tiny, z), X = (z, M, z))
+            check_position_case(T; E = (M, z, z), B = (z, z, tiny), dt = tiny)
+            check_position_case(T; E = (z, M, z), μ = M, q = T(0.5), gradB = (z, o, z))
+            check_position_case(T; E = (z, tiny, z), B = (z, z, T(2)), dt = T(2))
+            check_position_case(T; E = (z, M, z), μ = M, gradB = (z, -o, z), dt = T(0.5))
+            check_position_case(T; μ = o, q = M, gradB = (M, tiny, z), dt = M)
+            check_position_case(T; X = (z, z, -M), vpar = o, q = M, κ = (M, tiny, z), dt = M)
+
+            # Zero time does not require the unadvanced drift to fit in T.
+            check_position_case(
+                T;
+                X = (o, -o, z),
+                vpar = M,
+                μ = M,
+                E = (M, z, z),
+                B = (z, z, tiny),
+                gradB = (M, z, z),
+                κ = (M, z, z),
+                dt = z,
+            )
+
+            gc_overflow = GuidingCentre((z, z, z), M, z, o, o)
+            before = (gc_overflow.X, gc_overflow.vpar, gc_overflow.μ, gc_overflow.q, gc_overflow.m)
+            @test_throws ArgumentError push_guiding_centre!(
+                gc_overflow;
+                dt = T(2),
+                E = (z, z, z),
+                B = (z, z, o),
+                gradB = (z, z, z),
+                κ = (z, z, z),
+                gradpar_B = z,
+            )
+            @test (gc_overflow.X, gc_overflow.vpar, gc_overflow.μ, gc_overflow.q, gc_overflow.m) ==
+                  before
+            check_parallel_field_allocations(T)
+        end
+
+        @testset "exact fallbacks preserve retained BigFloat state" begin
+            ambient_precision = precision(BigFloat)
+            ambient_rounding = rounding(BigFloat)
+            δ_exact = big(1) // big(2)^200
+            for working_precision in (64, 128),
+                mode in (RoundNearest, RoundDown, RoundUp, RoundToZero)
+
+                retained = setprecision(256) do
+                    z, o = BigFloat(0), BigFloat(1)
+                    δ = BigFloat(δ_exact)
+                    high = o + δ
+                    Z, axis = (z, z, z), (z, z, o)
+                    position_cases = (
+                        (GuidingCentre((z, z, -o), high, z, o, o), Z, Z, Z),
+                        (GuidingCentre((z, z, -o + δ), o, z, o, o), Z, Z, Z),
+                        (GuidingCentre(Z, z, high, o, o), (z, o, z), (z, o, z), Z),
+                        (GuidingCentre(Z, z, o, high, o), (z, o, z), (z, o, z), Z),
+                        (GuidingCentre(Z, o, z, o, high), (z, o, z), Z, (z, o, z)),
+                    )
+                    force_cases = (
+                        (GuidingCentre(Z, z, o, high, o), o, δ_exact),
+                        (GuidingCentre(Z, z, high, o, o), o, -δ_exact),
+                        (GuidingCentre(Z, -o + δ, z, o, o), z, δ_exact),
+                        (GuidingCentre(Z, -o, z, o, high), z, -δ_exact / (1 + δ_exact)),
+                    )
+                    (; z, o, Z, axis, high, position_cases, force_cases)
+                end
+                setprecision(working_precision) do
+                    setrounding(BigFloat, mode) do
+                        @test HybridPlasmaPIC._exact_rational(retained.high) == 1 + δ_exact
+                        for (gc_retained, E, gradB, κ) in retained.position_cases
+                            @test all(
+                                x -> precision(x) == 256,
+                                (
+                                    gc_retained.X...,
+                                    gc_retained.vpar,
+                                    gc_retained.μ,
+                                    gc_retained.q,
+                                    gc_retained.m,
+                                ),
+                            )
+                            args = (;
+                                dt = retained.o,
+                                E,
+                                B = retained.axis,
+                                gradB,
+                                κ,
+                                gradpar_B = retained.z,
+                            )
+                            expected = BigFloat.(position_oracle(gc_retained; args...))
+                            μ_before = gc_retained.μ
+                            push_guiding_centre!(gc_retained; args...)
+                            @test gc_retained.X == expected
+                            @test all(x -> precision(x) == working_precision, gc_retained.X)
+                            @test gc_retained.μ == μ_before
+                            @test precision(BigFloat) == working_precision
+                            @test rounding(BigFloat) == mode
+                        end
+                        for (gc_retained, gradpar_B, exact_velocity) in retained.force_cases
+                            expected = BigFloat(setprecision(8192) do
+                                BigFloat(exact_velocity)
+                            end)
+                            push_guiding_centre!(
+                                gc_retained;
+                                dt = retained.o,
+                                E = retained.axis,
+                                B = retained.axis,
+                                gradB = retained.Z,
+                                κ = retained.Z,
+                                gradpar_B,
+                            )
+                            @test gc_retained.vpar == expected
+                            @test precision(gc_retained.vpar) == working_precision
+                            @test precision(BigFloat) == working_precision
+                            @test rounding(BigFloat) == mode
+                        end
+                    end
+                end
+                @test precision(BigFloat) == ambient_precision
+                @test rounding(BigFloat) == ambient_rounding
+            end
+        end
+    end
+
+    @testset "hardware fallback rounding ignores BigFloat settings" begin
+        ambient_precision, ambient_rounding = precision(BigFloat), rounding(BigFloat)
+        for T in (Float16, Float32, Float64),
+            working_precision in (2, precision(T), 256),
+            mode in (RoundNearest, RoundDown, RoundUp, RoundToZero)
+
+            z, o = zero(T), one(T)
+            tiny, half_ulp = nextfloat(z), eps(o) / 2
+            axis, zeros3 = (z, z, o), (z, z, z)
+            setprecision(BigFloat, working_precision) do
+                setrounding(BigFloat, mode) do
+                    for sign in (-1, 1), side in (-1, 0, 1)
+                        exact_result =
+                            sign * (
+                                Rational{BigInt}(o) +
+                                Rational{BigInt}(half_ulp) +
+                                side * Rational{BigInt}(tiny)
+                            )
+                        expected = sign * (side > 0 ? nextfloat(o) : o)
+                        @test nearest_hardware_result(expected, exact_result)
+                        gc_position = GuidingCentre((sign * o, z, z), z, o, o, o)
+                        push_guiding_centre!(
+                            gc_position;
+                            dt = o,
+                            E = (z, sign * half_ulp, z),
+                            B = axis,
+                            gradB = (z, -sign * side * tiny, z),
+                            κ = zeros3,
+                            gradpar_B = z,
+                        )
+                        @test gc_position.X == (expected, z, z)
+                        @test gc_position.vpar == z
+                        gc_force = GuidingCentre(zeros3, sign * o, o, o, o)
+                        push_guiding_centre!(
+                            gc_force;
+                            dt = o,
+                            E = (z, z, sign * half_ulp),
+                            B = axis,
+                            gradB = zeros3,
+                            κ = zeros3,
+                            gradpar_B = -sign * side * tiny,
+                        )
+                        @test gc_force.X == (z, z, sign * o)
+                        @test gc_force.vpar == expected
+                    end
+                    # Exercise the older exact product-ratio fallback through
+                    # its public drift caller as well as the complete push.
+                    drift = exb_drift((z, T(5) * tiny, z), (z, z, T(9)))
+                    @test drift == (tiny, z, z)
+                    @test nearest_hardware_result(drift[1], 5Rational{BigInt}(tiny) / 9)
+                    @test precision(BigFloat) == working_precision
+                    @test rounding(BigFloat) == mode
+                end
+            end
+        end
+        @test precision(BigFloat) == ambient_precision
+        @test rounding(BigFloat) == ambient_rounding
     end
 
     push_args = (;
