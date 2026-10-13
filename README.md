@@ -186,6 +186,11 @@ the hybrid stepper, so moving a setup between them is mostly a constructor
 swap; Hall-MHD shares the grid and field machinery, and the KdV solver is a
 standalone verification tool.
 
+Relativistic stepping and restart require subluminal stored velocities. Boundary
+validation compares the original components exactly when rounding could hide
+`|v| ≥ c`; inputs whose rounded speed ratio is already at least one remain
+unsupported. [Validation scope and evidence](docs/RELATIVISTIC_VALIDATION_PLAN.md).
+
 ## Collisions and extra particle physics
 
 - `collide_coulomb!(ps, gcoeff, dt)` — Takizuka–Abe (1977) binary Coulomb

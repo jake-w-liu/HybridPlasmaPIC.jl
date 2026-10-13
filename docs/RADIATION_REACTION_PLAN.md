@@ -1,7 +1,7 @@
 # Radiation reaction validation and arithmetic
 
-Status: input validation repair verified on Julia 1.12.7 and 1.13.1 and included
-in this commit. Extreme-range arithmetic remains a separate confirmed repair;
+Status: input validation repair verified on Julia 1.12.7 and 1.13.1 and pushed
+as `fdca823`. Extreme-range arithmetic remains a separate confirmed repair;
 the full radiation audit is open.
 
 ## Verified gaps

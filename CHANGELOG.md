@@ -138,6 +138,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Relativistic velocity preflight rejects stored superluminal components that
+  previously rounded below the light-speed boundary. Radiation, both EM PIC
+  APIs, and electromagnetic checkpoint validation share the repair and reject
+  before mutation. Ordinary validation remains allocation-free; near-boundary
+  inputs use an exact comparison of the original components.
+
 - Radiation reaction validates fields, coefficient and timestep after conversion
   to particle precision, including no-op calls, before changing particles.
   Shared uniform-field validation constructs error labels only on failure,

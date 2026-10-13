@@ -5,6 +5,7 @@ using Test
     include("test_operators.jl")
     include("test_spectral_extra.jl")
     include("test_particles.jl")
+    include("test_relativistic_validation.jl")
     include("test_boundary_edges.jl")
     include("test_provenance.jl")
     include("test_migration.jl")

@@ -72,9 +72,20 @@ function _require_subluminal_velocities(
         βy = uy / c
         βz = uz / c
         β2 = βx * βx + βy * βy + βz * βz
-        (isfinite(β2) && β2 < one(T)) || throw(
+        valid = isfinite(β2) && β2 < one(T)
+        if valid && one(T) - β2 <= T(8) * eps(T)
+            # Division, squaring and the two positive additions can round a
+            # superluminal norm below one. Eight eps bounds their accumulated
+            # error, including tiny underflowed components; outside this band
+            # the ordinary comparison suffices. Resolve the boundary using the
+            # stored components, without rounding v/c a second time.
+            valid =
+                _exact_rational(ux)^2 + _exact_rational(uy)^2 + _exact_rational(uz)^2 <
+                _exact_rational(c)^2
+        end
+        valid || throw(
             ArgumentError(
-                "$context: particle $p has |v| ≥ c (|v|²/c² = $β2): not a valid relativistic state",
+                "$context: particle $p is outside the supported subluminal range (rounded |v|²/c² = $β2)",
             ),
         )
     end
