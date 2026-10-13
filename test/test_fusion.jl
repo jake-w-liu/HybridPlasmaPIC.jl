@@ -456,6 +456,149 @@ end
     gyroaverage(constant_one, (0.0, 0.0, 0.0), 1.0, (0.0, 0.0, 1.0); n = 16)
     @test (@allocated gyroaverage(constant_one, (0.0, 0.0, 0.0), 1.0, (0.0, 0.0, 1.0); n = 16)) == 0
 
+    @testset "ring geometry and streaming sample mean" begin
+        for n in (8192, 12000, 70000)
+            calls, finite_points = Ref(0), Ref(true)
+            callback = pt -> begin
+                calls[] += 1
+                finite_points[] &= all(isfinite, pt)
+                one(Float16)
+            end
+            @test gyroaverage(callback, Float16.((0, 0, 0)), Float16(0), Float16.((0, 0, 1)); n) ===
+                  Float16(1)
+            @test calls[] == n
+            @test finite_points[]
+        end
+
+        permutations = ((1, 2, 3), (1, 3, 2), (2, 1, 3), (2, 3, 1), (3, 1, 2), (3, 2, 1))
+        for T in (Float16, Float32, Float64)
+            z, o, M, tiny = zero(T), one(T), floatmax(T), nextfloat(zero(T))
+            center, axis = (z, z, z), (z, z, o)
+            for constant in (M, tiny, -M, -tiny), n in (3, 16, 8192)
+                @test gyroaverage(_ -> constant, center, z, axis; n) === constant
+            end
+            for sign in (-o, o)
+                points = NTuple{3,T}[]
+                @test gyroaverage(p -> (push!(points, p); o), center, T(2), (z, z, sign); n = 4) ===
+                      o
+                @test points ==
+                      [(T(2), z, z), (z, sign * T(2), z), (-T(2), z, z), (z, -sign * T(2), z)]
+            end
+            # A tiny direction component remains representable after multiplying
+            # by the radius. The first point is independently known in this plane.
+            points = NTuple{3,T}[]
+            gyroaverage(p -> (push!(points, p); z), center, M, (M, tiny, z); n = 4)
+            @test first(points) == (-tiny, M, z)
+            @test all(p -> all(isfinite, p), points)
+
+            for values in (
+                    (M, 3tiny, -M),
+                    (T(3), T(3) * eps(T) / T(2), 3tiny),
+                    (-T(3), -T(3) * eps(T) / T(2), -3tiny),
+                ),
+                order in permutations
+
+                index = Ref(0)
+                expected = sum(Rational{BigInt}, values) / 3
+                actual = gyroaverage(_ -> values[order[(index[]+=1)]], center, z, axis; n = 3)
+                @test nearest_hardware_result(actual, expected)
+                @test index[] == 3
+                @test actual isa T
+            end
+
+            # A nonrepresentable point is rejected before its callback; inputs
+            # remain intact, and callback errors retain their original identity.
+            calls = Ref(0)
+            X = (M, z, z)
+            @test_throws ArgumentError gyroaverage(_ -> (calls[] += 1; o), X, M, axis; n = 4)
+            @test calls[] == 0
+            @test X == (M, z, z)
+            sentinel = ErrorException("ring callback failed")
+            failure = try
+                gyroaverage(_ -> begin
+                    calls[] += 1
+                    calls[] == 2 && throw(sentinel)
+                    o
+                end, center, z, axis; n = 4)
+                nothing
+            catch error
+                error
+            end
+            @test failure === sentinel
+            @test calls[] == 2
+        end
+
+        for bad in (Inf, NaN, 1 + im)
+            calls = Ref(0)
+            @test_throws ArgumentError gyroaverage(
+                _ -> (calls[] += 1; calls[] == 2 ? bad : 1.0),
+                (0.0, 0.0, 0.0),
+                0.0,
+                (0.0, 0.0, 1.0);
+                n = 4,
+            )
+            @test calls[] == 2
+        end
+        @test_throws ArgumentError gyroaverage(
+            _ -> 1.0,
+            (0.0, 0.0, 0.0),
+            0.0,
+            (0.0, 0.0, 1.0);
+            n = big(typemax(Int)) + 1,
+        )
+        values = (Float16(1), Float32(2), 3.0)
+        index = Ref(0)
+        mixed = gyroaverage(_ -> values[(index[]+=1)], Float16.((0, 0, 0)), 0, (0, 0, 1); n = 3)
+        @test mixed === 2.0
+
+        function stored_rational(x::BigFloat)
+            setprecision(BigFloat, precision(x)) do
+                Rational{BigInt}(x)
+            end
+        end
+        function bigfloat_rounding_cell(value, exact, mode)
+            iszero(exact) && return iszero(value)
+            (isfinite(value) && !iszero(value)) || return false
+            lower, current, upper = stored_rational.((prevfloat(value), value, nextfloat(value)))
+            mode === RoundDown && return current <= exact < upper
+            mode === RoundUp && return lower < exact <= current
+            even = iseven(
+                numerator(stored_rational(significand(abs(value))) * big(2)^(precision(value) - 1)),
+            )
+            left, right = (lower + current) / 2, (current + upper) / 2
+            return (left < exact || (left == exact && even)) &&
+                   (exact < right || (exact == right && even))
+        end
+        retained = setprecision(BigFloat, 256) do
+            z, o = zero(BigFloat), one(BigFloat)
+            δ = ldexp(o, -200)
+            (; values = (o + δ, -o, z), X = (-o + δ, z, z), ρ = o + δ, δ)
+        end
+        for mode in (RoundNearest, RoundDown, RoundUp)
+            setprecision(BigFloat, 64) do
+                setrounding(BigFloat, mode) do
+                    z, o = zero(BigFloat), one(BigFloat)
+                    index = Ref(0)
+                    average = gyroaverage(
+                        _ -> retained.values[(index[]+=1)],
+                        (z, z, z),
+                        z,
+                        (z, z, o);
+                        n = 3,
+                    )
+                    @test bigfloat_rounding_cell(average, stored_rational(retained.δ) / 3, mode)
+                    for (X, radius) in ((retained.X, o), ((-o, z, z), retained.ρ))
+                        points = NTuple{3,BigFloat}[]
+                        gyroaverage(p -> (push!(points, p); z), X, radius, (z, z, o); n = 4)
+                        @test first(points)[1] == retained.δ
+                    end
+                    @test precision(BigFloat) == 64
+                    @test rounding(BigFloat) == mode
+                end
+            end
+        end
+    end
+
     B = (0.3, -1.2, 2.0)
     vtot = drift_velocity(;
         vpar = 0.7,

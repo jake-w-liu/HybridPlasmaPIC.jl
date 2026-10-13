@@ -134,6 +134,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Gyro averaging retains finite ring coordinates and sample means across large
+  sample counts, extreme field geometry and cancellation. Callbacks run once per
+  point in phase order; invalid coordinates are rejected before their callback.
+  The correctness repair increases measured ordinary runtime; cost reduction
+  remains tracked separately.
+
 - Both electromagnetic PIC solvers preserve finite electric-field updates when
   squared light speed, magnetic force or timestep multiplication loses range.
   An exact fallback evaluates the complete field expression, including the

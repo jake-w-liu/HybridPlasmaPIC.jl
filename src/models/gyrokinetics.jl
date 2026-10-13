@@ -1,12 +1,5 @@
 # gyrokinetics.jl -- guiding-centre and gyro-averaged particle dynamics.
 
-@inline _dot3(a, b) = a[1] * b[1] + a[2] * b[2] + a[3] * b[3]
-@inline _cross3(a, b) =
-    (a[2] * b[3] - a[3] * b[2], a[3] * b[1] - a[1] * b[3], a[1] * b[2] - a[2] * b[1])
-@inline _scale3(s, a) = (s * a[1], s * a[2], s * a[3])
-@inline _add3(a, b) = (a[1] + b[1], a[2] + b[2], a[3] + b[3])
-@inline _sub3(a, b) = (a[1] - b[1], a[2] - b[2], a[3] - b[3])
-
 function _require_finite_vector3(name::AbstractString, a)
     length(a) == 3 || throw(DimensionMismatch("$name must have exactly three components"))
     @inbounds for i = 1:3
@@ -490,10 +483,6 @@ end
     return scale, scaled_norm, direction
 end
 
-function _normalize3(a)
-    return _gyro_nonzero_field(a)[3]
-end
-
 """
     exb_drift(E, B) -> NTuple{3}
 
@@ -656,11 +645,96 @@ function push_guiding_centre!(gc::GuidingCentre{T}; dt, E, B, gradB, κ, gradpar
     return gc
 end
 
-function _perp_basis(b::NTuple{3,T}) where {T}
-    ref = abs(b[1]) < T(0.9) ? (one(T), zero(T), zero(T)) : (zero(T), one(T), zero(T))
-    e1 = _normalize3(_sub3(ref, _scale3(_dot3(ref, b), b)))
-    e2 = _cross3(b, e1)
-    return e1, e2
+# Cache radius-weighted basis expansions without rounding unit-vector components
+# before a large radius can rescale them. This is the same projected reference
+# axis as the former normalized-vector construction.
+@inline function _gyro_ring_geometry(X, ρ, B)
+    Bscale, Bnorm, direction = _gyro_nonzero_field(B)
+    T = typeof(ρ)
+    reference = abs(direction[1]) < T(0.9) ? 1 : 2
+    j, k = mod1(reference + 1, 3), mod1(reference + 2, 3)
+    Pscale = max(abs(B[j]), abs(B[k]))
+    Pnorm = hypot(B[j] / Pscale, B[k] / Pscale)
+    cosine = ntuple(3) do i
+        i == reference ? _gyro_ratio_parts((ρ, Pscale, Pnorm), (Bscale, Bnorm)) :
+        _gyro_ratio_parts((-ρ, B[reference], B[i]), (Bscale, Bnorm, Pscale, Pnorm))
+    end
+    sine = ntuple(3) do i
+        i == reference ? (zero(T), zero(T), 0, true) :
+        i == j ? _gyro_ratio_parts((ρ, B[k]), (Pscale, Pnorm)) :
+        _gyro_ratio_parts((-ρ, B[j]), (Pscale, Pnorm))
+    end
+    center = map(x -> _gyro_ratio_parts((x,), ()), X)
+    return (; reference, Bscale, Bnorm, Pscale, Pnorm, cosine, sine, center)
+end
+
+@noinline function _gyro_exact_ring_point(X, ρ, B, geometry, cosine, sine, i)
+    exact(x) = _exact_rational(x)
+    reference = geometry.reference
+    j, k = mod1(reference + 1, 3), mod1(reference + 2, 3)
+    H = exact(geometry.Bscale) * exact(geometry.Bnorm)
+    P = exact(geometry.Pscale) * exact(geometry.Pnorm)
+    radial_cosine =
+        i == reference ? exact(ρ) * P / H : -exact(ρ) * exact(B[reference]) * exact(B[i]) / (H * P)
+    radial_sine =
+        i == reference ? zero(radial_cosine) :
+        i == j ? exact(ρ) * exact(B[k]) / P : -exact(ρ) * exact(B[j]) / P
+    return _from_exact(
+        typeof(ρ),
+        exact(X[i]) + exact(cosine) * radial_cosine + exact(sine) * radial_sine,
+    )
+end
+
+@inline function _gyro_ring_point(X, ρ, B, geometry, cosine, sine)
+    iszero(ρ) && return map(typeof(ρ), X)
+    c = _gyro_ratio_parts((cosine,), ())
+    s = _gyro_ratio_parts((sine,), ())
+    return ntuple(3) do i
+        terms = (
+            geometry.center[i],
+            _gyro_multiply_parts(geometry.cosine[i], c),
+            _gyro_multiply_parts(geometry.sine[i], s),
+        )
+        result, needs_exact = _gyro_sum_scaled_parts(terms, 9)
+        needs_exact ? _gyro_exact_ring_point(X, ρ, B, geometry, cosine, sine, i) : result
+    end
+end
+
+@noinline function _gyro_exact_parts(parts)
+    hi, lo, power, _ = parts
+    value = _exact_rational(hi) + _exact_rational(lo)
+    iszero(value) && return value
+    return value * (big(2) // big(1))^power
+end
+
+# The sum remains an exact expansion until its certificate fails. Renormalizing
+# after every addition prevents a narrow accumulator and its correction from
+# both stalling on large sample counts.
+@inline function _gyro_ring_add(parts, sample::T) where {T<:Union{Float16,Float32,Float64}}
+    previous = (T(parts[1]), T(parts[2]), parts[3], parts[4])
+    result, _ = _gyro_sum_parts((previous, _gyro_ratio_parts((sample,), ())))
+    hi, lo, power, exact = result
+    if exact && !iszero(hi)
+        mantissa, shift = frexp(hi)
+        tail = ldexp(lo, -shift)
+        exact &= ldexp(tail, shift) == lo
+        return mantissa, tail, power + shift, exact
+    end
+    return result
+end
+
+@inline function _gyro_ring_mean(parts, exact_total, count, ::Type{T}) where {T}
+    exact_total !== nothing && return _from_exact(T, exact_total / count)
+    denominator = T(count)
+    if !isfinite(denominator) || denominator != count
+        return _from_exact(T, _gyro_exact_parts(parts) / count)
+    end
+    coefficient = _gyro_ratio_parts((one(T),), (denominator,))
+    quotient = _gyro_multiply_parts(parts, coefficient)
+    result, needs_exact = _gyro_sum_scaled_parts((quotient,))
+    # An exact expansion followed by a normal-range rounding is sufficient;
+    # an uncertified division must use the shared exact materializer.
+    return needs_exact || !quotient[4] ? _from_exact(T, _gyro_exact_parts(parts) / count) : result
 end
 
 """
@@ -668,57 +742,53 @@ end
 
 Gyro-average of scalar callable `f(x)` over a ring of radius `ρ` centred at `X`
 in the plane perpendicular to `B`, sampled at `n` points.
+
+Evaluate `f` once per point in increasing gyrophase order, including when `ρ == 0`.
+Each point is checked for finite coordinates before its callback. Invalid points,
+invalid samples, and callback exceptions stop sampling; earlier callback effects
+are retained. Samples are accumulated without replaying callbacks.
 """
 function gyroaverage(f, X::NTuple{3,T}, ρ, B; n::Integer = 16) where {T<:AbstractFloat}
     nring = _require_positive_intlike("n", n)
     nring >= 3 || throw(ArgumentError("need n >= 3 ring points"))
-    XT = _convert_finite_vector3("X", X, T)
-    BT = _convert_finite_vector3("B", B, T)
-    ρT = _require_finite_nonnegative_real("ρ", ρ, T)
-    b = _normalize3(BT)
-    e1, e2 = _perp_basis(b)
-    scale = zero(T)
-    total = zero(T)
-    correction = zero(T)
-    @inbounds for k = 1:nring
-        φ = 2 * T(π) * (k - 1) / nring
-        pt = _add3(XT, _add3(_scale3(ρT * cos(φ), e1), _scale3(ρT * sin(φ), e2)))
+    _require_finite_vector3("X", X)
+    _require_finite_vector3("B", B)
+    BT = ntuple(i -> convert(T, B[i]), 3)
+    _require_finite_vector3("B", BT)
+    _require_nonnegative_scalar("ρ", ρ)
+    ρT = convert(T, ρ)
+    _require_finite_scalar("ρ", ρT)
+    geometry = _gyro_ring_geometry(X, ρT, BT)
+    phase_type = promote_type(T, Float64)
+    phase_count = phase_type(nring)
+    parts = (zero(T), zero(T), 0, true)
+    exact_total = nothing
+    result_type = T
+    for k = 0:(nring-1)
+        sine, cosine = sincospi(2 * (phase_type(k) / phase_count))
+        pt = _gyro_ring_point(X, ρT, BT, geometry, T(cosine), T(sine))
+        _require_finite_vector3("ring point", pt)
         raw_sample = f(pt)
         raw_sample isa Real || throw(ArgumentError("f must return real scalar values"))
         isfinite(raw_sample) || throw(ArgumentError("f must return finite values"))
-        sample = float(raw_sample) + zero(T)
+        sample = float(raw_sample)
         isfinite(sample) ||
             throw(ArgumentError("f return values must be representable as a finite float"))
-        magnitude = abs(sample)
-        if magnitude > scale
-            if iszero(scale)
-                total = zero(sample)
-                correction = zero(sample)
+        result_type = promote_type(result_type, typeof(sample))
+        if exact_total === nothing
+            if result_type <: Union{Float16,Float32,Float64}
+                updated = _gyro_ring_add(parts, convert(result_type, sample))
+                if updated[4]
+                    parts = updated
+                else
+                    exact_total = _gyro_exact_parts(parts) + _exact_rational(sample)
+                end
             else
-                factor = scale / magnitude
-                scaled_total = total * factor
-                scaled_correction = correction * factor
-                (
-                    !iszero(total) && iszero(scaled_total) ||
-                    !iszero(correction) && iszero(scaled_correction)
-                ) && throw(
-                    ArgumentError("sample dynamic range is too wide for lossless normalisation"),
-                )
-                total = scaled_total
-                correction = scaled_correction
+                exact_total = _gyro_exact_parts(parts) + _exact_rational(sample)
             end
-            scale = magnitude
-        end
-        if !iszero(scale)
-            normalised = sample / scale
-            !iszero(sample) &&
-                iszero(normalised) &&
-                throw(ArgumentError("sample dynamic range is too wide for lossless normalisation"))
-            total, correction = _gyro_compensated_add(total, correction, normalised)
         else
-            total += sample
+            exact_total += _exact_rational(sample)
         end
     end
-    iszero(scale) && return total
-    return _gyro_scaled_ratio((scale, total + correction), (nring,))
+    return _gyro_ring_mean(parts, exact_total, nring, result_type)
 end
