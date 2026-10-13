@@ -90,14 +90,18 @@ check invocation ran 198 programs and reported 194 lock-abort failures, one
 pass and three skips. Its test allocator declared `mpfr_lock_memory` without
 initializing it. The first temporary test correction initializes that lock in
 `tests_memory_start` and destroys it in `tests_memory_end`; the numeric and
-memory assertions remain intact. The original failed logs are retained in
-`upstream-transcendental-tests.log` and `mpfr-4.2.2/tests/test-suite.log`.
+memory assertions remain intact. The original failed run is retained in
+`upstream-transcendental-tests.log`; the generated `tests/test-suite.log` is
+replaced by subsequent runs.
 A subsequent full run passes 194 programs, skips three unsupported format tests,
 and fails `tasin` with a lock abort (`upstream-full-v3.log`). The temporary support
 incorrectly destroyed its lock at `tests_memory_end`; `tests/tasin.c:272–279`
 continues using the installed allocator after that check. The support now
-initializes the lock once and destroys it at process exit. A complete rerun is
-in progress (`upstream-full-v4.log`); no full-suite pass is claimed yet.
+initializes the lock once and destroys it at process exit. The complete rerun
+then passes 195 programs, with three unsupported-format skips and no failures
+(`upstream-full-v4.log`, terminal exit 0). Numeric and memory assertions remain
+unchanged; the allocator-support corrections are distinct from the native
+cache-precision patch.
 
 Retain the native patch and reproducer
 for review. A distributable runtime correction or an explicit supported
@@ -106,3 +110,25 @@ the failure with warm-up, retries, a package-only lock, or weakened assertions.
 The unrelated [Julia MPFR/GC deadlock report](https://github.com/JuliaLang/julia/issues/62753)
 describes a different locking failure; its proposed repair has not been used
 as evidence that this wrong-result race is fixed.
+
+## Runtime configuration comparison
+
+A second temporary build uses the unmodified official MPFR 4.2.2 source with
+`--disable-shared-cache --enable-thread-safe`. It is linked against the GMP
+already loaded by each Julia runtime and selected only for isolated subprocesses.
+The probe confirms `tls=1`, `shared=0` and the actual loaded library paths.
+All 128 constant checks pass on each version. The unchanged radiation candidate
+also passes six fresh concurrent processes per version, each with 386 assertions
+(2,316 per version). Build and logs:
+
+`/var/folders/93/r1t98m8d3014c24llb8j119w0000gn/T/hybrid-mpfr-unshared-cot3scwu`
+
+Files are `julia-load112.log`, `julia-constants112.log`,
+`julia-radiation112-1.log` through `-6.log`, and their `113` counterparts.
+The pristine build's complete upstream suite passes **195 programs**, with three
+unsupported-format skips and no failures or errors (`upstream-tests.log`,
+terminal success). Unlike the shared-cache build, this run requires no test
+allocator-lock support changes.
+No installed Julia or package dependency has been replaced.
+This tests MPFR's supported cache configuration as a possible runtime correction;
+it does not establish that the distributed Julia binaries use that configuration.

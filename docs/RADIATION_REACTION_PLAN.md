@@ -138,3 +138,14 @@ Installed runtimes remain unchanged.
 [Evidence and remaining integration](MPFR_CONCURRENCY_PLAN.md) distinguish the
 temporary repair from ordinary Julia execution; no package-local workaround
 has been adopted.
+
+A branchless product-predicate experiment preserves 7,803 represented-operand
+checks and ordinary measured 0 B allocation, but its nine alternating local
+pairs have mixed new/candidate median ratios of 0.93–1.10. It has not been
+promoted: these shared-machine measurements establish no consistent benefit.
+Log: `/tmp/hybrid-radiation-guard-benchmark-v2-112.log`. A preceding benchmark
+harness failed its allocation assertion and is excluded from timing evidence.
+A separate forced-inlining prototype also has mixed local ratios (0.87–1.05),
+including a slower large Float32 batch; it remains unpromoted. Log:
+`/tmp/hybrid-radiation-inline-benchmark112.log`. Neither experiment changes the
+frozen candidate or closes its recorded performance and runtime gates.

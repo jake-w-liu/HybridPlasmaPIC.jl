@@ -108,3 +108,6 @@ Final full-package integration is a separate gate after the outstanding slices.
   checkpoint on pre-publication failure. Verify successful replacement,
   serializer/write/close/rename failures, retry, path ownership and bounded
   resources. MPI's existing generation publication is a separate owner.
+
+The serial publication follow-up now has a [dedicated implementation plan](SERIAL_PUBLICATION_PLAN.md),
+including path, permission, asynchronous snapshot and failure-cleanup contracts.
