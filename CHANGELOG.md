@@ -127,6 +127,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- AMR restriction preserves cancellation when BigFloat child values retain
+  more precision than the caller's current setting. The complete average is
+  rounded once at the working precision; hardware-float paths are unchanged.
+
 - AMR prolongation rounds each complete reconstructed child value, preserving
   small results when a large slope cancels the cell mean. Exact fallback also
   handles the smallest-normal boundary and retained BigFloat input precision;

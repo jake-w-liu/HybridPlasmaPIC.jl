@@ -281,6 +281,12 @@ end
 # separately underflows for two minimum subnormals.
 @inline function _amr_average(a::T, b::T) where {T<:AbstractFloat}
     if isfinite(a) && isfinite(b)
+        if T === BigFloat &&
+           (precision(a) > precision(BigFloat) || precision(b) > precision(BigFloat))
+            # Normalization would round stored input bits before cancellation.
+            # Form the complete dyadic average before rounding to working precision.
+            return T((_amr_exact_rational(a) + _amr_exact_rational(b)) / 2)
+        end
         half = inv(T(2))
         return _amr_scaled_product_difference(a, half, -b, half)
     end

@@ -2,6 +2,64 @@ using HybridPlasmaPIC
 using Random
 using Test
 
+@testset "AMR restriction preserves stored-precision cancellation" begin
+    rng = MersenneTwister(318)
+    for stored_bits in (128, 256, 512)
+        inputs, exact = setprecision(stored_bits) do
+            delta = BigFloat(2)^(-(stored_bits - 8))
+            pairs = [
+                (BigFloat(1) + delta, BigFloat(-1)),
+                (BigFloat(-1), BigFloat(1) + delta),
+                (-BigFloat(1) - delta, BigFloat(1)),
+                (BigFloat(1), -BigFloat(1) - delta),
+                (BigFloat(0), BigFloat(1) + delta),
+            ]
+            append!(
+                pairs,
+                [ntuple(_ -> ldexp(BigFloat(randn(rng)), rand(rng, -100:100)), 2) for _ = 1:100],
+            )
+            values = BigFloat[value for pair in pairs for value in pair]
+            averages = [(Rational{BigInt}(a) + Rational{BigInt}(b)) / 2 for (a, b) in pairs]
+            values, averages
+        end
+        for bits in (24, 64, 128), mode in (RoundNearest, RoundDown, RoundUp, RoundToZero)
+            setprecision(bits) do
+                setrounding(BigFloat, mode) do
+                    fine = AMRGrid(inputs, BigFloat(0.5))
+                    coarse = AMRGrid(zeros(BigFloat, length(exact)), BigFloat(1))
+                    output = coarse.u
+                    @test restrict!(coarse, fine) === coarse
+                    @test coarse.u === output
+                    @test coarse.u == BigFloat.(exact)
+                    @test all(x -> precision(x) == bits, coarse.u)
+                    @test precision(BigFloat) == bits
+                    @test rounding(BigFloat) == mode
+                    @test !iszero(coarse.u[1])
+                end
+            end
+        end
+    end
+
+    for T in (Float16, Float32, Float64)
+        M, tiny = floatmax(T), nextfloat(zero(T))
+        pairs = [(M, M), (M, -M), (tiny, tiny), (tiny, zero(T)), (-tiny, zero(T))]
+        append!(pairs, [Tuple(rand(rng, T, 2)) for _ = 1:100])
+        values = T[value for pair in pairs for value in pair]
+        expected = T[(Rational{BigInt}(a) + Rational{BigInt}(b)) / 2 for (a, b) in pairs]
+        fine = AMRGrid(values, T(0.5))
+        coarse = AMRGrid(zeros(T, length(pairs)), one(T))
+        @test restrict!(coarse, fine) === coarse
+        @test coarse.u == expected
+        @test (@allocated restrict!(coarse, fine)) == 0
+        for (a, b) in ((T(Inf), T(Inf)), (T(Inf), T(-Inf)), (T(NaN), one(T)))
+            fine = AMRGrid(T[a, b], T(0.5))
+            coarse = AMRGrid(zeros(T, 1), one(T))
+            restrict!(coarse, fine)
+            @test isequal(coarse.u[1], (a + b) / T(2))
+        end
+    end
+end
+
 @testset "AMR refinement curvature" begin
     exact_curvature(a, b, c) =
         typeof(a)(Rational{BigInt}(a) - 2Rational{BigInt}(b) + Rational{BigInt}(c))
