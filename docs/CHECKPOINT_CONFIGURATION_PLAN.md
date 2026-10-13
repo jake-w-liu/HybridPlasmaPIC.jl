@@ -27,13 +27,14 @@ inspected, never executed. Logs:
 `/tmp/hybrid-config-ownership-grid-plan112.log` and
 `/tmp/hybrid-config-ownership-grid-plan113.log` (16 checks per version).
 
-The v7 snapshot includes forward, scaled inverse and inner inverse plan objects,
+The candidate includes forward, scaled inverse and inner inverse plan objects,
 while retaining accepted read-only `kfull`, `kvec`, `midx` and `ik` references.
 These checks target detachment before save/archive publication or restore
-mutation. A later review confirmed an omitted Set-to-dictionary identity edge;
-that correction is pending. Equal immutable metadata is also being checked for
-false rejection. No final pass is claimed. No checkpoint schema or global
-Serialization method is changed.
+mutation. The final candidate retains Set-to-dictionary identity and registers
+packed-array chunks plus Dict/IdDict backing allocations as owned, without
+traversing unused capacity. Equal immutable metadata and disjoint logical views
+remain accepted. Final integration gates are ongoing; no final pass is claimed.
+No checkpoint schema or global Serialization method is changed.
 
 Final acceptance includes Hybrid/CAM-CL scalar and collection layouts, both
 EM APIs with fixed/mobile ions, Hall-MHD, Float32/64, 1D–3D, independent mutable
@@ -46,7 +47,10 @@ MPI's collective preflight must pass before this slice is pushed.
 
 - Internal parameter views: Julia's serialization can detach an Array-backed
   SubArray from its separately stored parent. Independent configuration remains
-  vulnerable even after solver-owned links are rejected. Plan a canonical
+  vulnerable even after solver-owned links are rejected. Dict/backing-buffer
+  relationships can detach too: both native-version public probes pass four
+  witness checks (`/tmp/hybrid-config-internal-dict-backing112.log` and
+  `/tmp/hybrid-config-internal-dict-backing113.log`). Plan a canonical
   configuration representation or reject unsupported internal relationships
   explicitly; verify mutation-dependent continuation across checkpoint,
   archive and MPI entry points. Do not override global serialization behavior.

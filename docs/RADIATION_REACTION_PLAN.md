@@ -1,8 +1,9 @@
 # Radiation reaction validation and arithmetic
 
 Status: input validation repair verified on Julia 1.12.7 and 1.13.1 and pushed
-as `fdca823`. Extreme-range arithmetic remains a separate confirmed repair;
-the full radiation audit is open.
+as `fdca823`. The arithmetic candidate passes serial numerical gates on both
+versions, but a reproduced concurrent BigFloat failure remains unresolved.
+The candidate is uncommitted and the radiation audit remains open.
 
 ## Verified gaps
 
@@ -73,3 +74,64 @@ documents that distinction and the remaining numeric-range limitation; temporal
 convergence remains an acceptance test for the arithmetic repair. The wider classical/quantum
 model distinction is described in the primary
 [Smilei radiation documentation](https://smileipic.github.io/Smilei/Understand/radiation_loss.html).
+
+## Arithmetic candidate under verification
+
+The candidate evaluates a velocity factor in [0,1], avoiding the momentum
+round trip that can heat weakly damped particles. Range-sensitive force
+invariants use exact stored inputs; the complete damping factor is evaluated
+with higher precision and logarithms. Finite-range, weak-drag, retained-precision
+and first-order synchrotron convergence tests pass **16,299 assertions on each
+Julia version**. Combined forcing, particles and relativistic-boundary checks
+pass **30,906 per version**. Source SHA256:
+`7f50d7b08bd7ea71bfbeabce2c3791e18fdfa965fb2759023966dcb4bd2dd7d6`.
+Logs: `/tmp/hybrid-radiation-arithmetic-v2-focused112.log`,
+`/tmp/hybrid-radiation-arithmetic-v2-focused113.log`,
+`/tmp/hybrid-radiation-arithmetic-v2-neighbors112.log`,
+`/tmp/hybrid-radiation-arithmetic-v2-neighbors113.log`.
+
+Both versions pass 36 concrete JET calls with zero reports (108 assertions);
+package counts remain 26/25. Measured ordinary calls retain 0 B across 27
+configurations. Exceptional single-particle cases allocate 17,984–37,048 B.
+Seven alternating local timing pairs give new/old ratios of 1.38–3.06, including
+the identical velocity reset in both sides. Further cost reduction is needed;
+the machine was shared. Logs: `/tmp/hybrid-radiation-arithmetic-v2-jet112.log`,
+`/tmp/hybrid-radiation-arithmetic-v2-jet113.log`,
+`/tmp/hybrid-radiation-arithmetic-v2-resources112.log`.
+
+VERIFIED: the previous public arithmetic increases the exact stored velocity
+norm under weak positive drag for Float16/32/64 on both versions (six witness
+assertions each). Logs: `/tmp/hybrid-radiation-weak-baseline112.log` and
+`/tmp/hybrid-radiation-weak-baseline113.log`. A first candidate also lost a tiny
+nonzero force when its cancellation bound underflowed; the corrected selector
+requires that bound to retain normal range. Six original-candidate witnesses
+and 54 final regression checks retain that distinction.
+
+**Open verification failure:** concurrent calls on Julia 1.12 intermittently
+return almost unchanged BigFloat velocities for a tiny-field case. A captured
+53-bit input returns about `(0.5, 0.25, 0)` instead of the independent
+`(0.1769635, 0.0884818, 0)` result; serial replay of the identical saved inputs
+matches the reference. Eighty repeated warm task batches pass, but fresh
+processes reproduce the failure. Passing repeats do not close it. Logs:
+`/tmp/hybrid-radiation-context-fresh112-4.log`,
+`/tmp/hybrid-radiation-context-capture112-16.log`,
+`/tmp/hybrid-radiation-context-replay112.log`. Intermediate arithmetic tracing
+is active; its cause has not yet been established.
+
+A finer captured trace verifies that the wrong intermediate is `log(rwide)`:
+for stored `rwide=0.6875`, Julia 1.12.7 concurrently returned approximately
+-45.87345. Exact invariants and optical depth were correct in that trace.
+Log: `/tmp/hybrid-radiation-context-trace-v3-112-23.log`; captured operands:
+`/tmp/hybrid-radiation-context-trace-v3-53-RoundingMode{:Up}().bin`.
+Standalone reduction is ongoing. This identifies the failing operation, not
+yet its underlying cause; changing expressions or passing repeats alone does
+not establish a repair.
+
+The reduction now reproduces the wrong logarithm using only Julia Base,
+without importing this package (`/tmp/hybrid-radiation-base-concurrency112-24.log`).
+Direct concurrent MPFR constant calls also return incorrect pi values on both
+Julia 1.12.7 and 1.13.1, each using unpatched MPFR 4.2.2 with shared caches:
+`/tmp/hybrid-mpfr-cache-concurrency112-1.log` and
+`/tmp/hybrid-mpfr-cache-concurrency113-1.log`. The cache-lock transition in the
+MPFR source is a causal hypothesis being checked; no package-local lock or
+expression replacement has been adopted as a purported general fix.

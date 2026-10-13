@@ -1,7 +1,7 @@
 # Electromagnetic field-update range repairs
 
 Status: finite-curl repair pushed as `0f53361`. Scaled spectral updates are
-verified on Julia 1.12.7 and 1.13.1 and included in this commit. A separate
+verified on Julia 1.12.7 and 1.13.1 and pushed as `8e7d5be`. A separate
 squared-wavenumber projection defect is confirmed below.
 
 ## Verified gaps
@@ -132,5 +132,34 @@ checks on Julia 1.12.7: `/tmp/pic_spectral_k2_probe112.log`.
 Trace `_spectral_k2` and all projection/current-correction/diagnostic callers
 before editing. Preserve true zero and derivative-null Nyquist classification,
 retain complete projection ratios, and verify charge, Gauss law, independent
-DFT fields and ordinary equivalence on both Julia versions. This separate
-repair is under design; the scaled-curl tests do not establish its correctness.
+DFT fields and ordinary equivalence on both Julia versions. The scalar-mode
+repair is under verification; the scaled-curl tests do not establish its correctness.
+
+## Continuity pipeline follow-up
+
+VERIFIED: an independent four-point Fourier probe reproduces seven additional
+boundaries on Julia 1.12.7 (256 witness assertions, terminal success): physical
+density subtraction, forward FFT, inverse current FFT, diagnostic density
+inverse FFT, timestep/divergence cancellation, and standalone divergence
+underflow and overflow. Float32/64 and 1D/2D cases separate these stages;
+expected complete currents or normalized residuals remain representable.
+Log: `/tmp/empic_boundary_audit_v2_112.log`. The frozen source SHA256 is
+`3e83ee7ddde7e448436a539ca427e17fc433d21b790b46e0a43ad7635d8861b7`.
+
+For example, with M=floatmax(T), four-cell density delta=.1M*cos(x), dt=.25,
+and k=1, corrected Fourier current coefficients approximately .8M remain
+finite. The inverse transform nevertheless stores infinite current instead of
+the representable -.4M*sin(x). Separately, a diagnostic can lose a tiny
+divergence before multiplication by a large timestep, reporting one instead
+of a residual near roundoff. These are failures of the complete pipeline;
+standalone unrepresentable derivatives are not themselves dependency defects.
+
+Plan a shared scaled density-difference/FFT path that preserves signed scales
+through projection and final current materialization. Compose the diagnostic's
+timestep-weighted divergence and density parts before forming its numerator
+and normalization. Preserve ordinary arithmetic, DC/Nyquist behavior and input
+rejection. Verify independent Fourier sums, all dimensions, precisions,
+public step chronology, resources and both Julia versions. The scalar-mode
+repair alone cannot close these boundaries. Full derivations, rejected
+hypotheses and exact test limits are retained in
+`/tmp/empic_boundary_audit_handoff.md`.
