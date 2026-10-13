@@ -71,7 +71,8 @@ performance review. “Pending” means no current-run completion claim.
 | RESTART-001 | CAM-CL lacked checkpoint/archive methods and requires persistent magnetic state | Pushed (`1138317`) | 710 checkpoint/archive/MPI assertions pass, including 1D–3D, Float32/64, phase resets, edited fields, timestep/subcycle changes, malformed-state rejection, and exact continuation |
 | CI-001 | Only Julia 1.12 was exercised; the test pipeline could mask failures | Pushed (`68b854d`) | YAML/matrix/artifact wiring checks pass; explicit CI Bash returns 1 for failed pipelines and 0 for successful ones; full version suites running separately |
 | FORMAT-001 | Three files failed CI's JuliaFormatter 1 formatting rules | Pushed (`cf53bc4`) | Read-only scan with JuliaFormatter 1.0.62 identified exactly three Julia files; formatting-only repairs are idempotent and their diff was inspected. Contributor instructions now specify the CI formatter major |
-| CFL-001 | Timestep recommendation lost representable results through intermediate overflow/underflow | Verified; committing | Valid 4-cell grid of length 1e-80 returned zero instead of the 512-bit oracle's 1.4184965709927286e-162. Logarithmic evaluation passes 3,802 helper/range/coupled-stability assertions on each of Julia 1.12.7 and 1.13.1 (`test/test_phase_helpers.jl`) |
+| CFL-001 | Timestep recommendation lost representable results through intermediate overflow/underflow | Pushed (`27b4c8d`) | Valid 4-cell grid of length 1e-80 returned zero instead of the 512-bit oracle's 1.4184965709927286e-162. Logarithmic evaluation passes 3,802 helper/range/coupled-stability assertions on each of Julia 1.12.7 and 1.13.1 (`test/test_phase_helpers.jl`) |
+| RESTART-002 | Electrostatic PIC lacked checkpoint/archive support | Verified; committing | Julia 1.13 combined IO/repro/MPI: 1,194 assertions; Julia 1.12 final focused suite: 540 assertions. Covers Float32/64, 1D–3D, exact variable-step continuation, changed fields, invalid destinations, views, empty populations, and archives |
 
 ## Completeness roadmap
 
@@ -82,7 +83,7 @@ benchmark before implementation. The roadmap remains open to new findings.
 | Priority | Capability / gap | Plan and completion evidence | State |
 | --- | --- | --- | --- |
 | 1 | Reliable variable-step evolution | Correct phase state in ES/EM, hybrid/CAM-CL and MPI; preserve it in checkpoints; verify analytic trajectories and convergence | Active |
-| 1 | Restart across production solvers | CAM-CL implemented through the shared checkpoint path, preserving Blead/Blag/Bout/cl_h/cl_live. Electrostatic restart is next; assess other models afterward | CAM-CL verified; electrostatic design active |
+| 1 | Restart across production solvers | Hybrid, CAM-CL, and electrostatic PIC share capture/validation/restore infrastructure. Next: EM-PIC's two species and field/particle phases, then other models | CAM-CL and electrostatic verified; EM planned |
 | 1 | Reproducible archives and bounded field I/O | Fix checksum representation and malformed-file allocation; cross-process and corruption tests | Active |
 | 2 | Multispecies hybrid evolution | `compute_moments_multi!` exists; built-in hybrid steppers document one proton species. Design shared-field multispecies advancement and conservation/dispersion benchmarks | Planned |
 | 2 | Evolving electron pressure integrated into steppers | Standalone `advance_electron_pressure!` exists; built-in periodic steppers use algebraic closures. Define transport/heating coupling and energy-budget acceptance | Planned |

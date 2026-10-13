@@ -592,3 +592,5 @@ end
     @test st.step[] == 3
     rm(path; force = true)
 end
+
+include("test_io_electrostatic.jl")

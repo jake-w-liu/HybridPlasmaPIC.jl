@@ -148,6 +148,37 @@ end
     end
 end
 
+@testset "electrostatic archives preserve canonical restart state" begin
+    for T in (Float32, Float64),
+        (State, D) in
+        ((Electrostatic1D, 1), (ElectrostaticPIC, 1), (ElectrostaticPIC, 2), (ElectrostaticPIC, 3))
+
+        g = FourierGrid(ntuple(_ -> 4, D), ntuple(_ -> T(2π), D))
+        counts = ntuple(_ -> 8, D)
+        ps = ParticleSet{D,T}(prod(counts); q = -one(T))
+        load_lattice!(ps, ntuple(_ -> zero(T), D), g.L, counts)
+        set_density_weight!(ps, one(T), g)
+        ps.v[1] .= T(0.01) .* sin.(ps.x[1])
+        st = State(g, nparticles(ps))
+        init_espic!(st, ps)
+        step_espic!(st, ps, T(0.02))
+        mktempdir() do dir
+            checkpoint_path = joinpath(dir, "checkpoint.bin")
+            archive_path = joinpath(dir, "archive.bin")
+            save_checkpoint(checkpoint_path, st, ps)
+            archive_run(archive_path, st, ps; rng_seed = 11)
+            archived = load_archive(archive_path)
+            @test archived.state == deserialize(checkpoint_path)
+            @test archived.meta.rng_seed == 11
+            @test archived.state.primed
+            @test archived.state.last_dt == T(0.02)
+            ps.m = T(2)
+            @test_throws ArgumentError archive_run(archive_path, st, ps; rng_seed = 11)
+            @test load_archive(archive_path).state == archived.state
+        end
+    end
+end
+
 @testset "archive_run validates rng_seed range" begin
     _, _, st, ps = _build_run(; N = 16)
     mktemp() do path, io

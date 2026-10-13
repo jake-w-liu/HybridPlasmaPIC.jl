@@ -5,12 +5,16 @@
 # carried E, time/step counters, and the previous particle timestep. The frozen
 # n+1/2 moments are scratch recomputed every step, so they are not stored.
 # CAM-CL also retains its two magnetic copies, prior output, and subcycle phase.
+# Electrostatic PIC retains E, density, background density, and priming/timestep
+# state; the per-particle field gather buffers are scratch.
 # ponytail: stdlib Serialization (no extra dep). Swap for HDF5 when cross-version
 # or cross-language portability is needed.
 
 using Serialization
 
 const _HybridCheckpointStepper{D,T} = Union{HybridStepper{D,T},CAMCLStepper{D,T}}
+const _ElectrostaticCheckpointStepper = Union{Electrostatic1D,ElectrostaticPIC}
+const _CheckpointStepper = Union{_HybridCheckpointStepper,_ElectrostaticCheckpointStepper}
 
 const _CHECKPOINT_REQUIRED_FIELDS = (
     :integrator,
@@ -34,10 +38,30 @@ const _CHECKPOINT_REQUIRED_FIELDS = (
     :last_dt,
 )
 
-function _validate_checkpoint_container(s)
+const _ESPIC_CHECKPOINT_REQUIRED_FIELDS = (
+    :integrator,
+    :D,
+    :T,
+    :ncell,
+    :L,
+    :n0,
+    :x,
+    :v,
+    :weight,
+    :id,
+    :tag,
+    :q,
+    :m,
+    :E,
+    :ne,
+    :primed,
+    :last_dt,
+)
+
+function _validate_checkpoint_container(s, required = _CHECKPOINT_REQUIRED_FIELDS)
     s isa NamedTuple ||
         throw(ArgumentError("checkpoint file does not contain a valid checkpoint container"))
-    missing = Symbol[k for k in _CHECKPOINT_REQUIRED_FIELDS if !hasproperty(s, k)]
+    missing = Symbol[k for k in required if !hasproperty(s, k)]
     if !isempty(missing)
         missing_list = join(string.(missing), ", ")
         throw(ArgumentError("checkpoint is missing required fields: $missing_list"))
@@ -72,13 +96,18 @@ function _validate_checkpoint_array(name::Symbol, a, reference::AbstractArray{T}
     return nothing
 end
 
-function _validate_checkpoint_scalar_state(s, ::Type{T}) where {T}
+function _validate_checkpoint_particle_scalars(s, ::Type{T}) where {T}
     s.q isa T || throw(
         ArgumentError("checkpoint q type $(typeof(s.q)) ≠ $T (would silently convert on restore)"),
     )
     s.m isa T || throw(
         ArgumentError("checkpoint m type $(typeof(s.m)) ≠ $T (would silently convert on restore)"),
     )
+    return nothing
+end
+
+function _validate_checkpoint_scalar_state(s, ::Type{T}) where {T}
+    _validate_checkpoint_particle_scalars(s, T)
     s.time isa T || throw(
         ArgumentError(
             "checkpoint time type $(typeof(s.time)) ≠ $T (would silently convert on restore)",
@@ -161,16 +190,21 @@ function _validate_checkpoint_integrator_state(s, st::_HybridCheckpointStepper{D
     return nothing
 end
 
-function _validate_checkpoint_state(s, st::_HybridCheckpointStepper{D,T}) where {D,T}
-    _validate_checkpoint_container(s)
+function _validate_checkpoint_grid(s, g::FourierGrid{D,T}) where {D,T}
     s.D == D || throw(ArgumentError("checkpoint dimension $(s.D) ≠ $D"))
     s.T == T || throw(
         ArgumentError(
             "checkpoint eltype $(s.T) ≠ $T (would silently convert and break bitwise restart)",
         ),
     )
-    s.ncell == st.g.n || throw(ArgumentError("checkpoint grid $(s.ncell) ≠ $(st.g.n)"))
-    s.L == st.g.L || throw(ArgumentError("checkpoint box lengths $(s.L) ≠ $(st.g.L)"))
+    s.ncell == g.n || throw(ArgumentError("checkpoint grid $(s.ncell) ≠ $(g.n)"))
+    s.L == g.L || throw(ArgumentError("checkpoint box lengths $(s.L) ≠ $(g.L)"))
+    return nothing
+end
+
+function _validate_checkpoint_state(s, st::_HybridCheckpointStepper{D,T}) where {D,T}
+    _validate_checkpoint_container(s)
+    _validate_checkpoint_grid(s, st.g)
     typeof(s.model) === typeof(st.model) ||
         throw(ArgumentError("checkpoint model type $(typeof(s.model)) ≠ $(typeof(st.model))"))
     typeof(s.shape) === typeof(st.shape) ||
@@ -182,8 +216,45 @@ function _validate_checkpoint_state(s, st::_HybridCheckpointStepper{D,T}) where 
     return nothing
 end
 
+_espic_checkpoint_integrator(::Electrostatic1D) = :espic1d
+_espic_checkpoint_integrator(::ElectrostaticPIC) = :espic
+
+function _validate_checkpoint_state(s, st::_ElectrostaticCheckpointStepper)
+    _validate_checkpoint_container(s, _ESPIC_CHECKPOINT_REQUIRED_FIELDS)
+    _validate_checkpoint_grid(s, st.g)
+    expected = _espic_checkpoint_integrator(st)
+    s.integrator === expected ||
+        throw(ArgumentError("checkpoint integrator $(s.integrator) ≠ $expected"))
+    T = eltype(st.ne)
+    _validate_checkpoint_particle_scalars(s, T)
+    s.q == -one(T) && s.m == one(T) ||
+        throw(ArgumentError("electrostatic checkpoint requires electrons with q = -1 and m = 1"))
+    s.n0 isa T || throw(ArgumentError("checkpoint n0 type $(typeof(s.n0)) ≠ $T"))
+    isfinite(s.n0) && s.n0 >= zero(T) ||
+        throw(ArgumentError("checkpoint n0 must be finite and nonnegative"))
+    isequal(s.n0, st.n0) || throw(ArgumentError("checkpoint background density $(s.n0) ≠ $(st.n0)"))
+    s.primed isa Bool || throw(ArgumentError("checkpoint primed must be a Bool"))
+    s.last_dt isa T || throw(ArgumentError("checkpoint last_dt type $(typeof(s.last_dt)) ≠ $T"))
+    isfinite(s.last_dt) && s.last_dt >= zero(T) ||
+        throw(ArgumentError("checkpoint last_dt must be finite and nonnegative"))
+    (s.primed ? s.last_dt > zero(T) : iszero(s.last_dt)) ||
+        throw(ArgumentError("checkpoint last_dt must be positive exactly when primed"))
+    _validate_checkpoint_particle_state(s, Val(length(st.g.n)))
+    _validate_checkpoint_array(:ne, s.ne, st.ne)
+    if st isa Electrostatic1D
+        _validate_checkpoint_array(:E, s.E, st.E)
+    else
+        _validate_checkpoint_field_components(:E, s.E, st.E)
+    end
+    return nothing
+end
+
+function _checkpoint_particle_state(ps::ParticleSet)
+    return (x = ps.x, v = ps.v, weight = ps.weight, id = ps.id, tag = ps.tag, q = ps.q, m = ps.m)
+end
+
 function _checkpoint_state(st::_HybridCheckpointStepper{D,T}, ps::ParticleSet{D,T}) where {D,T}
-    common = (
+    common = (;
         integrator = st isa CAMCLStepper ? :camcl : :rk4,
         D = D,
         T = T,
@@ -191,13 +262,7 @@ function _checkpoint_state(st::_HybridCheckpointStepper{D,T}, ps::ParticleSet{D,
         L = st.g.L,
         model = st.model,
         shape = st.shape,
-        x = ps.x,
-        v = ps.v,
-        weight = ps.weight,
-        id = ps.id,
-        tag = ps.tag,
-        q = ps.q,
-        m = ps.m,
+        _checkpoint_particle_state(ps)...,
         B = st.fields.B,
         E = st.fields.E,
         time = st.time[],
@@ -219,6 +284,22 @@ function _checkpoint_state(st::_HybridCheckpointStepper{D,T}, ps::ParticleSet{D,
     return common
 end
 
+function _checkpoint_state(st::_ElectrostaticCheckpointStepper, ps::ParticleSet{D,T}) where {D,T}
+    return (;
+        integrator = _espic_checkpoint_integrator(st),
+        D = D,
+        T = T,
+        ncell = st.g.n,
+        L = st.g.L,
+        n0 = st.n0,
+        _checkpoint_particle_state(ps)...,
+        E = st.E,
+        ne = st.ne,
+        primed = st.primed[],
+        last_dt = st.last_dt[],
+    )
+end
+
 function _validate_checkpoint_destination(ps::ParticleSet, N::Int)
     for a in (ps.x..., ps.v..., ps.weight, ps.id, ps.tag)
         if length(a) != N && !applicable(resize!, a, N)
@@ -232,17 +313,8 @@ function _validate_checkpoint_destination(ps::ParticleSet, N::Int)
     return nothing
 end
 
-function _restore_checkpoint_state!(
-    st::_HybridCheckpointStepper{D,T},
-    ps::ParticleSet{D,T},
-    s,
-) where {D,T}
-    _validate_checkpoint_state(s, st)
+function _restore_checkpoint_particles!(ps::ParticleSet{D}, s) where {D}
     N = length(s.weight)
-    _validate_checkpoint_destination(ps, N)
-    _resize_hybrid_particle_workspaces!(st, N)
-    st.model = s.model
-    st.shape = s.shape
     for d = 1:D
         length(ps.x[d]) == N || resize!(ps.x[d], N)
         copyto!(ps.x[d], s.x[d])
@@ -259,6 +331,21 @@ function _restore_checkpoint_state!(
     copyto!(ps.tag, s.tag)
     ps.q = s.q
     ps.m = s.m
+    return ps
+end
+
+function _restore_checkpoint_state!(
+    st::_HybridCheckpointStepper{D,T},
+    ps::ParticleSet{D,T},
+    s,
+) where {D,T}
+    _validate_checkpoint_state(s, st)
+    N = length(s.weight)
+    _validate_checkpoint_destination(ps, N)
+    _resize_hybrid_particle_workspaces!(st, N)
+    st.model = s.model
+    st.shape = s.shape
+    _restore_checkpoint_particles!(ps, s)
     for c = 1:3
         copyto!(st.fields.B[c], s.B[c])
         copyto!(st.fields.E[c], s.E[c])
@@ -276,6 +363,32 @@ function _restore_checkpoint_state!(
     return st
 end
 
+function _restore_checkpoint_state!(
+    st::_ElectrostaticCheckpointStepper,
+    ps::ParticleSet{D,T},
+    s,
+) where {D,T}
+    _validate_checkpoint_state(s, st)
+    s.D == D && s.T === T || throw(
+        ArgumentError("checkpoint particles do not match destination dimension and precision"),
+    )
+    N = length(s.weight)
+    _validate_checkpoint_destination(ps, N)
+    _resize_espic_particle_workspaces!(st, N)
+    _restore_checkpoint_particles!(ps, s)
+    copyto!(st.ne, s.ne)
+    if st isa Electrostatic1D
+        copyto!(st.E, s.E)
+    else
+        for c = 1:3
+            copyto!(st.E[c], s.E[c])
+        end
+    end
+    st.primed[] = s.primed
+    st.last_dt[] = s.last_dt
+    return st
+end
+
 """
     save_checkpoint(path, stepper, ps)
 
@@ -283,12 +396,11 @@ Serialize the restartable state (model, shape, particles, B, carried E, time,
 step, and previous timestep for the staggered particle velocities) to `path`.
 Supports [`HybridStepper`](@ref) and [`CAMCLStepper`](@ref); CAM-CL checkpoints
 also preserve the persistent cyclic-leapfrog field copies and subcycle phase.
+For [`Electrostatic1D`](@ref) and [`ElectrostaticPIC`](@ref), save the electron
+particles, electric field, number density, background density, and priming/timestep
+state. These electrostatic solvers use CIC and an immobile ion background.
 """
-function save_checkpoint(
-    path::AbstractString,
-    st::_HybridCheckpointStepper{D,T},
-    ps::ParticleSet{D,T},
-) where {D,T}
+function save_checkpoint(path::AbstractString, st::_CheckpointStepper, ps::ParticleSet)
     state = _checkpoint_state(st, ps)
     _validate_checkpoint_state(state, st)
     serialize(path, state)
@@ -299,19 +411,18 @@ end
     load_checkpoint!(stepper, ps, path)
 
 Restore a checkpoint into a `stepper`/`ps` of matching dimension, precision,
-grid, integrator, and concrete model/shape types (particle arrays are resized to match).
+grid, and integrator (particle arrays are resized to match).
 Destination arrays that do not support resizing must already have the saved
 particle count; writable views are restored in place.
-The checkpoint replaces the destination's model and shape parameters, including
-custom mutable parameters, so restored evolution uses the saved physics.
+Hybrid destinations require matching concrete model/shape types; the checkpoint
+replaces their parameters, including custom mutable parameters, so restored
+evolution uses the saved physics.
+Electrostatic destinations must have the same background density `n0`, which
+is immutable; their saved fields, density, and leapfrog phase are restored directly.
 Checkpoints without integrator, configuration, or timestep-history fields are rejected.
-After loading, `step!` or `step_camcl!` continues bitwise-identically to the
+After loading, `step!`, `step_camcl!`, or `step_espic!` continues bitwise-identically to the
 original run with the same stepping inputs.
 """
-function load_checkpoint!(
-    st::_HybridCheckpointStepper{D,T},
-    ps::ParticleSet{D,T},
-    path::AbstractString,
-) where {D,T}
+function load_checkpoint!(st::_CheckpointStepper, ps::ParticleSet, path::AbstractString)
     return _restore_checkpoint_state!(st, ps, deserialize(path))
 end

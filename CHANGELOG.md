@@ -8,6 +8,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Electrostatic PIC checkpoint/restart and archives for the legacy 1D and general
+  1D–3D solvers preserve electric fields, density, particles, and leapfrog phase.
+  Restores reject incompatible background density, grid, precision, and integrator
+  before modifying state, and support writable particle views and empty populations.
+
 - CAM-CL checkpoint/restart and run archives preserve persistent magnetic copies,
   subcycle phase, and particle timestep history. Restores validate the integrator
   and all saved field components before modifying the destination.

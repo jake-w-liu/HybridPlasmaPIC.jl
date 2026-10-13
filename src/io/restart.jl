@@ -4,7 +4,7 @@
 # Three additive utilities, all built on existing infrastructure (no new deps):
 #
 #   * archive_run / load_archive — a provenance-stamped, checksum-verified snapshot
-#     of a HybridStepper/CAMCLStepper + ParticleSet run state. This layers the run-metadata
+#     of a supported stepper + ParticleSet run state. This layers the run-metadata
 #     wrapper (save_run/load_run + capture_metadata/RunMetadata from metadata.jl)
 #     over the same deterministic state that checkpoint.jl restarts from, so an
 #     archive is self-describing (who/when/which commit/which seed) AND integrity
@@ -30,7 +30,8 @@
                 diagnostic_desc="", rank_layout="") -> path
 
 Write a provenance-stamped, checksum-verified archive of the run state at `path`.
-Supports [`HybridStepper`](@ref) and [`CAMCLStepper`](@ref).
+Supports [`HybridStepper`](@ref), [`CAMCLStepper`](@ref),
+[`Electrostatic1D`](@ref), and [`ElectrostaticPIC`](@ref).
 
 The archive captures the deterministic simulation state (model and shape
 configuration, particle phase space + provenance, the canonical magnetic field
@@ -41,6 +42,8 @@ CAM-CL — the same state [`save_checkpoint`](@ref) restarts from) together with
 [`RunMetadata`](@ref) record built via [`capture_metadata`](@ref). It is written
 through [`save_run`](@ref), so the file carries the schema tag and an integrity
 checksum over the state.
+Electrostatic archives instead contain their electric field, density, immutable
+background density, and priming/timestep state alongside the particles and grid.
 
 `rng_seed` is the seed that makes the run reproducible (stored in the metadata).
 The remaining keyword arguments describe the units convention and the
@@ -50,15 +53,15 @@ leave it empty for the serial default.
 """
 function archive_run(
     path::AbstractString,
-    st::_HybridCheckpointStepper{D,T},
-    ps::ParticleSet{D,T};
+    st::_CheckpointStepper,
+    ps::ParticleSet;
     rng_seed::Integer,
     normalization::AbstractString = "Omega_ci",
     filter_desc::AbstractString = "",
     boundary_desc::AbstractString = "periodic",
     diagnostic_desc::AbstractString = "",
     rank_layout::AbstractString = "",
-) where {D,T}
+)
     meta = capture_metadata(;
         rng_seed = rng_seed,
         normalization = normalization,

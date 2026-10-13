@@ -283,10 +283,13 @@ at 2/4/8 ranks in CI, while production-scale domain-decomposed stepping and
 cluster scaling data remain future work (see the honest list below).
 `benchmark/mpi_scaling.jl` is the measurement harness.
 
-**I/O.** `save_checkpoint` / `load_checkpoint!` restart `HybridStepper` and
-`CAMCLStepper` runs bitwise-identically for the same stepping inputs. Checkpoints
-preserve model/shape parameters and timestep history, including CAM-CL's persistent
-magnetic copies and subcycle phase; `save_run`/`load_run`/`archive_run`
+**I/O.** `save_checkpoint` / `load_checkpoint!` restart `HybridStepper`,
+`CAMCLStepper`, `Electrostatic1D`, and `ElectrostaticPIC` runs bitwise-identically
+for the same stepping inputs. Checkpoints preserve particle provenance and
+timestep history, including CAM-CL's persistent magnetic copies and subcycle phase.
+Hybrid restores replace model/shape parameters with the saved values;
+electrostatic destinations require matching background density `n0`.
+`save_run`/`load_run`/`archive_run`
 add schema versioning, SHA-256 checksums, and full reproducibility metadata
 (git commit, Julia version, project/manifest hashes, RNG seed, hardware).
 Field dumps use a self-describing binary format with zero heavy dependencies;
