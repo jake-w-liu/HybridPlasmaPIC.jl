@@ -338,8 +338,7 @@ julia --project=validation validation/run_validation.jl --quick   # or --all
 - **Full-profile replay** of the Preisser 2020 dataset (the compact scalar
   summary with checksums is bundled; the full HDF5 requires downloading the
   upstream data).
-- Multidimensional electron subcycling and non-periodic EM-PIC boundaries
-  (`EMPIC` is periodic; electron subcycling is available in both `EMPIC` and `EMPIC1D`).
+- Non-periodic EM-PIC boundaries (`EMPIC` and `EMPIC1D` use periodic geometry).
 
 ## Running the tests
 
