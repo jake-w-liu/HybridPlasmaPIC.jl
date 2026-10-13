@@ -68,6 +68,12 @@ file is truncated relative to the declared shape.
 """
 function read_field(path::AbstractString)
     open(path, "r") do io
+        file_bytes = filesize(io)
+        # Check the fixed header before typed reads, and bound allocations by
+        # actual file bytes rather than trusting a possibly corrupt shape.
+        if file_bytes < length(_FIELD_MAGIC) + sizeof(UInt8) + sizeof(Int64)
+            error("read_field: truncated header in $(path)")
+        end
         magic = read(io, length(_FIELD_MAGIC))
         if magic != _FIELD_MAGIC
             error("read_field: bad magic in $(path) (not a write_field dump)")
@@ -80,6 +86,9 @@ function read_field(path::AbstractString)
         if N < 0
             error("read_field: corrupt ndims=$(N) in $(path)")
         end
+        if N > (file_bytes - position(io)) ÷ sizeof(Int64)
+            error("read_field: truncated dimensions in $(path)")
+        end
         szs = Vector{Int}(undef, N)
         for i = 1:N
             szs[i] = Int(read(io, Int64))
@@ -87,13 +96,23 @@ function read_field(path::AbstractString)
                 error("read_field: corrupt size $(szs[i]) (dim $(i)) in $(path)")
             end
         end
-        n = prod(szs; init = 1)               # total element count (1 when N==0)
-        A = Array{Float64}(undef, szs...)
-        nread = read!(io, A)                  # fills column-major, matching write
-        # read! returns the array; verify we actually got `n` elements by length.
-        if length(nread) != n
+        available = (file_bytes - position(io)) ÷ sizeof(Float64)
+        # Empty fields need no payload. For nonempty shapes, dividing before
+        # multiplying rejects truncated or overflowing extents without overflow.
+        n = any(iszero, szs) ? 0 : 1
+        if !iszero(n)
+            for size in szs
+                if n > available ÷ size
+                    error("read_field: truncated data in $(path)")
+                end
+                n *= size
+            end
+        end
+        if n > available
             error("read_field: truncated data in $(path)")
         end
+        A = Array{Float64}(undef, szs...)
+        read!(io, A)                          # fills column-major, matching write
         return A
     end
 end

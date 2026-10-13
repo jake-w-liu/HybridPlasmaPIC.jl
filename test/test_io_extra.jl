@@ -19,7 +19,7 @@ using Serialization
     end
 
     # Edge cases: empty array and 0-dim-ish small arrays.
-    for A in (Float64[], zeros(0, 3), reshape([42.0], 1, 1, 1))
+    for A in (Float64[], zeros(0, 3), reshape([42.0]), reshape([42.0], 1, 1, 1))
         mktemp() do path, io
             close(io)
             write_field(path, A)
@@ -66,6 +66,50 @@ using Serialization
         write_field(path, [NaN, 1.0])
         B = read_field(path)
         @test isnan(B[1]) && B[2] == 1.0
+    end
+end
+
+@testset "read_field rejects declared sizes before allocation" begin
+    function read_error(path)
+        try
+            read_field(path)
+        catch e
+            return e
+        end
+        return nothing
+    end
+    mktemp() do path, io
+        write(io, b"HPSTDFLD")
+        write(io, UInt8(1))
+        write(io, Int64(1))
+        write(io, Int64(1_000_000))
+        close(io)
+        @test read_error(path) isa ErrorException
+        # A short corrupt file must not allocate the declared 8 MB field.
+        @test (@allocated read_error(path)) < 100_000
+    end
+    for (dimensions, sizes) in (
+        (typemax(Int64), Int64[]),
+        (Int64(2), [typemax(Int64), Int64(2)]),
+        (Int64(2), [Int64(2)]),
+        (Int64(1), [Int64(-1)]),
+    )
+        mktemp() do path, io
+            write(io, b"HPSTDFLD")
+            write(io, UInt8(1))
+            write(io, dimensions)
+            write(io, sizes)
+            close(io)
+            @test_throws ErrorException read_field(path)
+        end
+    end
+    # Every incomplete fixed header is rejected consistently.
+    for nbytes = 8:16
+        mktemp() do path, io
+            write(io, vcat(b"HPSTDFLD", UInt8(1), zeros(UInt8, 8))[1:nbytes])
+            close(io)
+            @test_throws ErrorException read_field(path)
+        end
     end
 end
 

@@ -51,10 +51,10 @@ performance review. “Pending” means no current-run completion claim.
 | ID | Finding / acceptance criterion | State | Evidence / next action |
 | --- | --- | --- | --- |
 | PERF-001 | Vector gather repeats the same stencil three times | Pushed (`58fa769`) | 304 focused assertions plus hybrid/CAM-CL suites pass; reproducible speed/allocation comparison in `benchmark/benchmarks.jl` |
-| IO-001 | `save_run` rejects its own valid dictionary output | Verified; committing | Exact serialized bytes hashed under schema 4; 159 metadata/archive/field/async assertions pass, including cross-process and corruption cases |
+| IO-001 | `save_run` rejects its own valid dictionary output | Pushed (`d1db13d`) | Exact serialized bytes hashed under schema 4; 159 metadata/archive/field/async assertions pass, including cross-process and corruption cases |
 | TIME-001 | ES/EM PIC accepts changed `dt` but uses the wrong half-step interval | ES repair underway | Constant acceleration, steps 0.1 and 0.2: measured x=1.055; analytic x=1.045; add previous-step phase state |
 | IO-002 | Same-grid checkpoint silently accepts different model parameters | Confirmed; repair planned | Restore Te=0.1 state into Te=2.0 stepper: next-step Ex differs by 1.133; record/validate model and shape |
-| IO-003 | Truncated field file allocates declared payload before checking available bytes | Confirmed; repair planned | 25-byte file declaring 1,000,000 entries allocates 8,012,528 bytes then errors; validate dimensions/payload before allocation |
+| IO-003 | Truncated field file allocates declared payload before checking available bytes | Verified; committing | 76 field/async/metadata assertions pass, including malformed extents, bounded allocation, empty and 0D arrays |
 
 ## Completeness roadmap
 

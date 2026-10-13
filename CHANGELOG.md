@@ -80,6 +80,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Field-file reads validate header extents and available payload before allocating
+  arrays, rejecting truncated and overflowing dimensions with bounded memory.
+
 - Run archives hash the exact serialized state bytes, so dictionary/set storage
   reconstruction no longer causes false checksum failures. Schema 4 verifies
   integrity before decoding state; older schemas are rejected explicitly.
