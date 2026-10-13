@@ -1329,11 +1329,11 @@ function charge_conservation_residual(es::EMPIC1D{T}, dt::Real) where {T}
         cb[i] = Complex{T}(delta)
         lost |= _em_density_transform_lost_range(delta, bounds)
     end
-    fft!(cb)
+    g.plan * cb
     if iseven(n)
         cb[n÷2+1] = zero(Complex{T})        # drop the unrepresentable Nyquist mode
     end
-    ifft!(cb)
+    g.iplan * cb
     dJx = similar(es.Jx)
     deriv!(dJx, es.Jx, g, 1)                     # already Nyquist-free
     return _em_continuity_finish(g, es.rho_n, es.rho_np1, (es.Jx,), dtT, cb, dJx, lost)

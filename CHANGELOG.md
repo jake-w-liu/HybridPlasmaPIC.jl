@@ -118,6 +118,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- The legacy EM continuity diagnostic reuses the grid's FFT plans. Checked
+  results remain identical and the measured allocation falls by 544 bytes per
+  call. Existing grids keep the FFT settings selected at construction.
+
 - Hall-MHD reuses one forward FFT per velocity component when computing
   advection gradients in 2D and 3D. The reproducible benchmark reports runtime
   and the additional 384 bytes allocated per RK4 step; 1D keeps its prior path.

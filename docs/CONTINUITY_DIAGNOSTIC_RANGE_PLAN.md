@@ -115,3 +115,55 @@ are retained in `/tmp/pic005_conditioning_accuracy_assessment.md`. Source-scale
 heuristics or agreement between two FFT band widths must not be labeled a
 certified error bound. Keep the existing severe-case target and validation
 thresholds unchanged while investigating that follow-up.
+
+
+## Legacy diagnostic plan reuse — pre-edit brief
+
+- **Mode:** measured performance repair in the existing EMPIC1D diagnostic.
+- **Acceptance:** reuse owned FFT plans; preserve transform order, normalization,
+  DC/Nyquist rules, valid grid-shaped state, errors and physical state. Require
+  exact differential results and lower measured allocation; no accuracy claim.
+- **Baseline:** AbstractFFTs `definitions.jl:61–68` constructs a new plan for each
+  raw `fft!`/`ifft!`. The frozen two-line prototype passes 12,246 checks across
+  Float32/64, 26 lengths, one/two FFTW threads, repeated buffers, public range and
+  error cases, and changes to global thread settings after grid construction.
+  Log: `/tmp/pic005_plan_reuse_probe112.log`.
+- **Verified cause:** the legacy method plans per call despite grid-owned
+  ESTIMATE plans in SpectralOperators `periodic_fourier.jl:103–104`. General EM
+  and canonical spectral operators already use those plans.
+- **Contract:** the same separate temporary density buffer survives canonical
+  derivative scratch reuse. Existing grid thread-safety constraints apply;
+  no cache, state, schema, dependency or public API is added.
+- **Owner:** only the forward and inverse calls in
+  `charge_conservation_residual(::EMPIC1D, dt)`; use `es.g.plan`/`es.g.iplan`.
+- **Compatibility:** existing grids retain the plans selected at construction,
+  matching the other spectral paths. A later global FFTW setting change does
+  not re-plan this one diagnostic. No dynamic re-planning contract was documented.
+- **Strategy:** replace the two raw calls with the existing plans. The measured
+  source is frozen at `/tmp/pic005-plan-reuse-t516vhs3`, SHA256
+  `699decbfa1eef1ff70cbb081ce6ddc656cc68199f067fbfbc8e422652863f9af`.
+- **Verification:** latest-version differential probe; every complete testset
+  directly calling the diagnostic in both EM test files; both-version concrete
+  and package compiler gates, formatter and final diff. Existing full range
+  assertions remain intact. Wrong normalization, overwritten scratch and wrong
+  axes/null masking must fail independent DFT and nonzero-current controls.
+
+One completed eight-pair benchmark over 24 configurations measures exactly
+544 fewer allocated bytes/call. Candidate/baseline CPU median ratios are
+0.025–0.033 at N=4/5, 0.087–0.123 at N=128, 0.154–0.186 at N=129,
+0.439–0.582 at N=1024 and 0.734–0.884 at N=4096. All consumed checksums match;
+both benchmark servers exit successfully. Large-grid individual ratios reach
+2.159 under shared load, so this is a local measurement, not a portable speed
+claim. Raw evidence: `/tmp/pic005_plan_reuse_benchmark112.log` and
+`/tmp/pic005_plan_reuse_benchmark_pairs.json`.
+
+Final gates pass on Julia 1.12.7 and 1.13.1: 19,980 runtime assertions per
+version (12,246 differential/applicability, 4,456 complete EM caller testsets,
+3,270 restart assertions and eight validation-16 checks). All six validation
+metrics exactly match the committed baseline. All 33 concrete compiler calls
+are clean; package findings retain the exact baseline leaf-message multisets
+(26/25). JuliaFormatter 1.0.62 is idempotent and the final diff contains only
+the two planned FFT-call replacements. Logs and executable commands are in
+`/tmp/pic005_plan_reuse_handoff.md`; the runtime logs use the prefixes
+`/tmp/pic005_plan_reuse_{probe,regression,integration}{112,113}.log`.
+Validation 20 and severe cancellation accuracy remain separate open findings.
