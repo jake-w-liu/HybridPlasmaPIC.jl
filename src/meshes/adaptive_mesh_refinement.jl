@@ -34,7 +34,28 @@ end
 
 ncells(g::AMRGrid) = length(g.u)
 effective_resolution(g::AMRGrid) = g.dx
-cell_center(g::AMRGrid, i::Integer) = g.x0 + (i - oftype(g.dx, 0.5)) * g.dx
+
+function cell_center(g::AMRGrid{T}, i::Integer) where {T}
+    W = promote_type(T, typeof(i))
+    if W <: Union{Float16,Float32,Float64}
+        F = W === Float16 ? Float64 : W
+        bound = Int64(1) << (precision(F) - 1)
+        if 1 - bound <= i <= bound
+            # Within these bounds the half-integer coefficient is exact.
+            factor = F(i) - F(0.5)
+            # Float16 fma can double-round through Float32. Its exact half-cell
+            # coordinate lies on the 2^-25 lattice, so Float64 represents every
+            # result near Float16's finite range exactly, including its midpoints.
+            return W(fma(factor, F(g.dx), F(g.x0)))
+        end
+    end
+    return _amr_exact_cell_center(g, i, W)
+end
+
+@noinline function _amr_exact_cell_center(g::AMRGrid, i::Integer, ::Type{W}) where {W}
+    exact = _amr_exact_rational(g.x0) + (2BigInt(i) - 1) * _amr_exact_rational(g.dx) / 2
+    return W(exact)
+end
 
 @inline function _amr_compensated_add(total::T, correction::T, term::T) where {T}
     updated = total + term

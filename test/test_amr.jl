@@ -131,3 +131,76 @@ using Test
         @test refine_flags([1 // 3, 2 // 3, 1 // 1], 0) == falses(3)
     end
 end
+
+@testset "AMR cell centers retain the complete coordinate" begin
+    exact_center(g, i) = promote_type(eltype(g.u), typeof(i))(
+        Rational{BigInt}(g.x0) + (2BigInt(i) - 1) * Rational{BigInt}(g.dx) / 2,
+    )
+
+    rng = MersenneTwister(725)
+    for (T, U) in ((Float16, UInt16), (Float32, UInt32), (Float64, UInt64))
+        M = floatmax(T)
+        extreme = AMRGrid(T[0, 0], M; x0 = -M)
+        @test cell_center(extreme, 2) == M / 2
+        for i in (0, 1, 2, 1024, 1025, 2049, 10000)
+            grid = AMRGrid(T[0], one(T))
+            @test cell_center(grid, i) == exact_center(grid, i)
+            cell_center(grid, i)
+            @test (@allocated cell_center(grid, i)) == 0
+        end
+
+        for _ = 1:500
+            x0, dx = ntuple(2) do _
+                while true
+                    value = reinterpret(T, rand(rng, U))
+                    isfinite(value) && !iszero(value) && return value
+                end
+            end
+            grid = AMRGrid(T[0], abs(dx); x0 = x0)
+            i = rand(rng, -50000:50000)
+            @test cell_center(grid, i) == exact_center(grid, i)
+        end
+
+        boundary = Int64(1) << (precision(T) - 1)
+        for i in (1 - boundary, -boundary, boundary, boundary + 1, typemin(Int), typemax(Int))
+            grid = AMRGrid(T[0], T(0.25); x0 = -one(T))
+            @test cell_center(grid, i) == exact_center(grid, i)
+        end
+        for I in (Int8, UInt8, Int128, UInt128, BigInt)
+            grid = AMRGrid(T[0, 0], one(T))
+            @test cell_center(grid, I(2)) == exact_center(grid, I(2))
+            @test typeof(cell_center(grid, I(2))) === promote_type(T, I)
+        end
+    end
+
+    @test cell_center(AMRGrid(zeros(Float16, 2050), Float16(1); x0 = Float16(-2048)), 2049) ==
+          Float16(0.5)
+    half_grid = AMRGrid(Float16[0, 0], nextfloat(Float16(1)); x0 = -nextfloat(Float16(0)))
+    @test cell_center(half_grid, 2) == exact_center(half_grid, 2)
+    for i in (-1, 2), x0 in (-nextfloat(Float16(0)), Float16(0), nextfloat(Float16(0)))
+        grid = AMRGrid(Float16[0, 0], Float16(43680); x0 = x0)
+        # 1.5 * 43680 is the Float16 overflow midpoint, 65520.
+        @test cell_center(grid, i) == exact_center(grid, i)
+    end
+
+    # Exercise large indices, including those near the largest half-integer
+    # factor that the widened Float64 computation can represent exactly.
+    wide_boundary = Int64(1) << (precision(Float64) - 1)
+    for _ = 1:500
+        grid = AMRGrid(Float16[0], Float16(0.001); x0 = rand(rng, Float16))
+        i = rand(rng, (1-wide_boundary):wide_boundary)
+        @test cell_center(grid, i) == exact_center(grid, i)
+    end
+
+    values = setprecision(256) do
+        dx = BigFloat(1) + BigFloat(2)^(-100)
+        x0 = -BigFloat(1.5)
+        grid = AMRGrid(BigFloat[0, 0], dx; x0 = x0)
+        grid, Rational{BigInt}(x0) + (3 // 2) * Rational{BigInt}(dx)
+    end
+    setprecision(24) do
+        grid, exact = values
+        @test cell_center(grid, 2) == BigFloat(exact)
+        @test precision(BigFloat) == 24
+    end
+end

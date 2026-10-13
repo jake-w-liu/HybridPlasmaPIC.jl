@@ -127,6 +127,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- AMR cell centers retain representable coordinates across intermediate overflow
+  and large half-cell indices, including Float16 rounding boundaries and stored
+  BigFloat precision.
 - AMR refinement uses power-of-two scaling and certified rounding for its
   second difference, preserving zero curvature on affine profiles and tiny
   representable curvature near cancellation. Uncertain results use exact
