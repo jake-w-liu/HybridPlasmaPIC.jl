@@ -24,8 +24,8 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   Final full-suite checks use immutable checkouts. The initial 1.13.1 SHA
   compatibility finding is fixed; HDF5 and PencilFFT extensions have now
   precompiled successfully in both fresh version runs.
-- Full package suites are now running from isolated, fixed `1138317` checkouts
-  on Julia 1.12.7 and 1.13.1; no final result yet. Logs:
+- Full package suite at fixed `1138317` on Julia 1.13.1: **106,662/106,662 tests
+  passed**. The Julia 1.12.7 run remains active. Logs:
   `/tmp/hybrid-full-1138317-julia112.log` and `/tmp/hybrid-full-1138317-julia113.log`.
 - Julia 1.13.1 quick validation at fixed revision `b200c76`: **150/150 metrics
   passed across 20 cases**, no skipped results. Command:
@@ -36,8 +36,8 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   Its package suites were superseded by subsequent required pushes. Local full
   suites continue independently of push-triggered CI cancellation.
 - Latest committed EM subcycling is additionally undergoing the full EM suites
-  on Julia 1.13.1 from fixed revision `b62da7b`; Aqua and a full formatter scan
-  are checking that revision too.
+  on Julia 1.13.1 from fixed revision `b62da7b`. Aqua passed all 9 quality checks
+  on Julia 1.13.1 at that revision; the full JuliaFormatter 1.0.62 scan passed too.
 - Baseline kernel harness: derivative 2.67 µs / 0 B; CIC deposit 305.29 µs for
   12,800 particles; hybrid step 1.54 ms for 3,200 particles. These are local
   measurements, not portable performance targets.
