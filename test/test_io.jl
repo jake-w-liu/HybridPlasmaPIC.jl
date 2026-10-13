@@ -594,3 +594,4 @@ end
 end
 
 include("test_io_electrostatic.jl")
+include("test_io_electromagnetic.jl")

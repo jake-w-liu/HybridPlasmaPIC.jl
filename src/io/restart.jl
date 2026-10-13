@@ -28,10 +28,11 @@
     archive_run(path, st, ps::ParticleSet; rng_seed,
                 normalization="Omega_ci", filter_desc="", boundary_desc="periodic",
                 diagnostic_desc="", rank_layout="") -> path
+    archive_run(path, empic, electrons, ions; rng_seed, kwargs...) -> path
 
 Write a provenance-stamped, checksum-verified archive of the run state at `path`.
 Supports [`HybridStepper`](@ref), [`CAMCLStepper`](@ref),
-[`Electrostatic1D`](@ref), and [`ElectrostaticPIC`](@ref).
+[`Electrostatic1D`](@ref), [`ElectrostaticPIC`](@ref), [`EMPIC1D`](@ref), and [`EMPIC`](@ref).
 
 The archive captures the deterministic simulation state (model and shape
 configuration, particle phase space + provenance, the canonical magnetic field
@@ -44,6 +45,9 @@ through [`save_run`](@ref), so the file carries the schema tag and an integrity
 checksum over the state.
 Electrostatic archives instead contain their electric field, density, immutable
 background density, and priming/timestep state alongside the particles and grid.
+Electromagnetic archives include both species for mobile runs, their physics
+configuration, electric/magnetic fields, continuity diagnostic snapshots, and
+full/fast timestep history. Supply ions exactly when `mobile=true`.
 
 `rng_seed` is the seed that makes the run reproducible (stored in the metadata).
 The remaining keyword arguments describe the units convention and the
@@ -51,10 +55,24 @@ filter/boundary/diagnostic configuration for the audit trail. Returns `path`.
 `rank_layout` records the serial/MPI rank topology in the same metadata record;
 leave it empty for the serial default.
 """
+function archive_run(path::AbstractString, st::_CheckpointStepper, ps::ParticleSet; kwargs...)
+    return _archive_run(path, st, _checkpoint_state(st, ps); kwargs...)
+end
+
 function archive_run(
     path::AbstractString,
+    st::_ElectromagneticCheckpointStepper,
+    electrons::ParticleSet,
+    ions::Union{Nothing,ParticleSet};
+    kwargs...,
+)
+    return _archive_run(path, st, _checkpoint_state(st, electrons, ions); kwargs...)
+end
+
+function _archive_run(
+    path::AbstractString,
     st::_CheckpointStepper,
-    ps::ParticleSet;
+    state;
     rng_seed::Integer,
     normalization::AbstractString = "Omega_ci",
     filter_desc::AbstractString = "",
@@ -70,7 +88,6 @@ function archive_run(
         diagnostic_desc = diagnostic_desc,
         rank_layout = rank_layout,
     )
-    state = _checkpoint_state(st, ps)
     _validate_checkpoint_state(state, st)
     return save_run(path, state, meta)
 end

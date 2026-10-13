@@ -8,6 +8,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Electromagnetic PIC checkpoint/restart and archives for `EMPIC1D` and general
+  `EMPIC` preserve both species, physics settings, fields/current diagnostics,
+  and fast/full timestep history. Both particle destinations are checked before
+  restoration; independent writable views and empty populations are supported.
+
 - General `EMPIC` supports electron/Maxwell subcycling (`n_sub`) in 1D–3D.
   Mobile ions receive one kick per full step while both species drift and deposit
   current at every fast substep. Changing the timestep or subcycle count preserves
