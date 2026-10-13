@@ -5,7 +5,7 @@ kinetic ions (Boris-pushed macroparticles), massless fluid electrons
 (generalized Ohm's law), and spectral fields on periodic grids — plus a family
 of companion solvers (Hall-MHD, electrostatic PIC, full electromagnetic PIC),
 collision operators, shock drivers, geometric-optics ray tracing, and an
-extensive analytic-oracle verification suite (108,600 passing tests).
+extensive analytic-oracle verification suite.
 
 Everything is dimension-parametric: the same code runs 1D3V, 2D3V, and 3D3V
 (positions carry exactly `D` coordinates, velocities always carry 3), with no
@@ -307,11 +307,10 @@ GPU array-backend plumbing (CUDA/Metal extensions) exists behind
 
 The suite is oracle-driven: analytic dispersion relations, an independent
 two-fluid eigenvalue solver, conservation laws, convergence orders, and pinned
-external references — not just smoke tests. `Pkg.test()` runs 62 test files,
-**108,600 tests**, all passing on Julia 1.12. A full physics/math audit
-(2026-07) re-derived every subsystem from first principles, adversarially
-verified 37 findings, and fixed all of them with new discriminating regression
-oracles (see `CHANGELOG.md` for the complete list).
+external references. CI runs `Pkg.test()` on Julia 1.12 and the latest stable
+Julia release. The [audit tracker](docs/DEEP_DEBUG_TRACKER.md) records tested
+revisions, version-specific results, and outstanding coverage. Fixes and their
+regression oracles are described in `CHANGELOG.md`.
 
 | area | oracles (selection) |
 |---|---|

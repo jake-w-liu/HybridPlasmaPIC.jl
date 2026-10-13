@@ -68,7 +68,7 @@ performance review. “Pending” means no current-run completion claim.
 | Diagnostics and ray/Raycon solvers | Inventory complete; detailed pass pending | Independent references, units, transport/conversion invariants |
 | Checkpoints/archives/field I/O | Independent audit active; defects confirmed | Configuration identity, exact bytes/checksums, atomic failure, restart |
 | Threads/MPI/distributed FFT/GPU | Interfaces inspected; full pass pending | Real multirank tests, backend equivalence, ownership, hardware benchmarks |
-| Packaging/quality/examples/validation | Immutable full-suite check pending; focused suites pass | CI-version tests, Aqua/JET findings, formatting, examples, validation cases |
+| Packaging/quality/examples/validation | Julia 1.13 full suite passed at `1138317`; Julia 1.12 full run and JET triage active | CI-version tests, Aqua/JET findings, formatting, examples, validation cases |
 
 ## Verified findings and fixes
 
@@ -90,7 +90,7 @@ performance review. “Pending” means no current-run completion claim.
 | RESTART-002 | Electrostatic PIC lacked checkpoint/archive support | Pushed (`b200c76`) | Julia 1.13 combined IO/repro/MPI: 1,194 assertions; Julia 1.12 final focused suite: 540 assertions. Covers Float32/64, 1D–3D, exact variable-step continuation, changed fields, invalid destinations, views, empty populations, and archives |
 | SUBCYCLE-001 | General EMPIC lacked electron subcycling | Pushed (`c5fef77`) | Julia 1.12.7 full EM suites: 7,257 assertions; added permanent Float32 coverage: 450 assertions in a separate final-file run. Includes independent constant-field oracles, 1D equivalence, 2D/3D charge/Gauss checks, changing dt/counts, mobile-ion coupled convergence. Default n_sub=1 arrays match prior code; allocations unchanged and scale linearly with subcycles |
 | GYRO-001 | Guiding-centre drift loses finite results by reconstructing perpendicular speed squared from magnetic moment | Pushed (`2eeecd6`) | Direct moment-based grad-B drift; independent 2,048-bit equations cover extreme and ordinary Float32/64 inputs, charge signs, mass, zero moment, and failed-update rollback. Fusion suite: 256 assertions passed on each of Julia 1.12.7 and 1.13.1, including 76 new assertions; warmed push remains allocation-free |
-| RESTART-003 | EM PIC lacked restart/archive support for two species and their staggered phases | Verified; commit in this change | Julia 1.12.7 combined I/O/reproducibility: 4,692 assertions, including 3,620 EM assertions. Covers legacy/general 1D–3D, Float32/64, all shapes, mobile/immobile and relativistic/nonrelativistic runs, exact continuation, diagnostics, changing dt/subcycles, invalid-state rollback, views and empty populations. Log: `/tmp/hybrid-io-empic-final112.log` |
+| RESTART-003 | EM PIC lacked restart/archive support for two species and their staggered phases | Pushed (`9856971`) | Julia 1.12.7 combined I/O/reproducibility: 4,692 assertions, including 3,620 EM assertions. Covers legacy/general 1D–3D, Float32/64, all shapes, mobile/immobile and relativistic/nonrelativistic runs, exact continuation, diagnostics, changing dt/subcycles, invalid-state rollback, views and empty populations. Log: `/tmp/hybrid-io-empic-final112.log` |
 
 ## Completeness roadmap
 
