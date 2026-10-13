@@ -1,7 +1,7 @@
 # Checkpoint configuration ownership and publication
 
-Status: configuration ownership repair under verification; independent
-serialization and publication gaps remain open.
+Status: configuration ownership repair verified on Julia 1.12.7 and 1.13.1;
+independent serialization and publication gaps remain open.
 
 ## Configuration links to solver state
 
@@ -33,15 +33,53 @@ These checks target detachment before save/archive publication or restore
 mutation. The final candidate retains Set-to-dictionary identity and registers
 packed-array chunks plus Dict/IdDict backing allocations as owned, without
 traversing unused capacity. Equal immutable metadata and disjoint logical views
-remain accepted. Final integration gates are ongoing; no final pass is claimed.
-No checkpoint schema or global Serialization method is changed.
+remain accepted. Focused, neighboring, compiler and real MPI gates pass on
+both Julia versions. No checkpoint schema or global Serialization method is changed.
 
 Final acceptance includes Hybrid/CAM-CL scalar and collection layouts, both
 EM APIs with fixed/mobile ions, Hall-MHD, Float32/64, 1D–3D, independent mutable
 parameters, cyclic structures, disjoint views, malformed later species,
 retained payload links, custom array/dict/set/string wrappers and SimpleVector.
-Both-version focused/neighbor suites, JET, allocations and integration with
-MPI's collective preflight must pass before this slice is pushed.
+The checks below cover these contracts, including MPI's collective preflight.
+
+## Ownership repair verification
+
+The final v11 ownership matrix passes **8,354 assertions on each of Julia
+1.12.7 and 1.13.1**, across all 12 testsets. Source SHA256:
+`006e213da683b3bc68b83318bb454eb5f74adf56969bb1c6c35f92df317b41df`.
+Logs: `/tmp/hybrid-config-ownership-v11-focused112.log` and
+`/tmp/hybrid-config-ownership-v11-focused113.log`.
+
+Sixteen concrete validator JET calls per version have zero reports. Whole-package
+analysis in the isolated `d2c3da7` plus IO candidate snapshot retains 24/22
+reports against the unchanged ceiling of 30; later non-IO fixes are excluded
+from those counts. Logs: `/tmp/hybrid-config-ownership-v11-jet112.log` and
+`/tmp/hybrid-config-ownership-v11-jet113.log`.
+
+Real two-rank MPI integration of this IO source over `8e7d5be` passes 173
+assertions on rank zero and 165 on its peer on each Julia version. Coverage
+includes scalar/two-species layouts, Float32/64, rejected rank-local links,
+previous-generation preservation, collective incoming rejection before
+mutation, independent cycles and exact restart continuation. Logs:
+`/tmp/hybrid-ownership-mpi-v11-v14fixture112.log` and
+`/tmp/hybrid-ownership-mpi-v11-v14fixture113.log`.
+Earlier temporary harness failures used the wrong peer exception type, the
+wrong Hybrid payload field path, and one directory for incompatible precisions;
+they are retained as test-fixture failures, not production findings.
+
+Measured ownership guards allocate 0 B for 18 standard configurations;
+mutable-cycle cases allocate 32,544–55,792 B. A primitive parameter vector of
+length 1 or 1,000,000 costs the same 42,144 B. Packed backing lengths 6 and
+1,000,000 cost 44,944 and 49,104 B. No timing or speedup claim follows.
+Log: `/tmp/hybrid-config-ownership-v11-resources112.log`.
+
+The preceding v10 snapshot passes 15,100 adjacent I/O/reproducibility/MPI
+assertions on each Julia version (terminal exit 0):
+`/tmp/hybrid-config-ownership-v10-final112.log` and
+`/tmp/hybrid-config-ownership-v10-final113.log`.
+The v11 addition changes only dictionary backing registration and is covered
+by 560 new assertions per version plus the complete final ownership matrices.
+Final full-package integration is a separate gate after the outstanding slices.
 
 ## Separate confirmed follow-ups
 

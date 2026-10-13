@@ -266,9 +266,7 @@ function _validate_checkpoint_integrator_state(s, st::_HybridCheckpointStepper{D
         throw(ArgumentError("checkpoint integrator $(s.integrator) ≠ $expected"))
     if st isa CAMCLStepper
         _validate_checkpoint_container(s, (:Blead, :Blag, :Bout, :cl_h, :cl_live))
-        for name in (:Blead, :Blag, :Bout)
-            _validate_checkpoint_field_components(name, getproperty(s, name), getproperty(st, name))
-        end
+        _validate_checkpoint_fields(s, (Blead = st.Blead, Blag = st.Blag, Bout = st.Bout))
         s.cl_h isa T || throw(ArgumentError("checkpoint cl_h type $(typeof(s.cl_h)) ≠ $T"))
         s.cl_live isa Bool || throw(ArgumentError("checkpoint cl_live must be a Bool"))
         isfinite(s.cl_h) && s.cl_h >= zero(T) ||
@@ -289,6 +287,135 @@ function _validate_checkpoint_grid(s, g::FourierGrid{D,T}) where {D,T}
     )
     s.ncell == g.n || throw(ArgumentError("checkpoint grid $(s.ncell) ≠ $(g.n)"))
     s.L == g.L || throw(ArgumentError("checkpoint box lengths $(s.L) ≠ $(g.L)"))
+    return nothing
+end
+
+# Walk stored values without invoking constructors or following type/module globals.
+# Arrays expose logical storage plus wrapper metadata. Their declared parents are
+# inspected only for metadata, so a disjoint view does not expose its full backing
+# storage. Array/Memory buffers and Dict/IdDict table capacity are opaque.
+# Built-in packed buffers and dictionary tables are reported separately to the
+# storage owner; their capacity contents are not arbitrary wrapper metadata.
+# A later logical edge upgrades a metadata-only visit; cycles visit each object at
+# most once in each mode. Custom arrays must declare their parent/dataids correctly.
+function _visit_checkpoint_objects(f, roots; backing = nothing)
+    pending = Tuple{Any,Bool}[(roots, true)]
+    seen = IdDict{Any,Bool}()
+    while !isempty(pending)
+        value, logical = pop!(pending)
+        T = typeof(value)
+        (isbitstype(T) || value isa Union{String,Symbol,Module,Type}) && continue
+        haskey(seen, value) && (seen[value] || !logical) && continue
+        seen[value] = logical
+        logical && f(value)
+        if value isa BitArray
+            backing === nothing || backing(value.chunks)
+            continue
+        end
+        if value isa AbstractArray && !(value isa AbstractRange)
+            if logical && !isbitstype(eltype(value))
+                for i in eachindex(value)
+                    isassigned(value, i) && push!(pending, (value[i], true))
+                end
+            end
+            value isa Union{Array,Memory} && continue
+            array_parent = parent(value)
+            array_parent === value || push!(pending, (array_parent, false))
+            for i = 1:fieldcount(T)
+                isdefined(value, i) || continue
+                item = getfield(value, i)
+                array_parent !== value && item === array_parent && continue
+                push!(pending, (item, true))
+            end
+            continue
+        elseif value isa AbstractDict
+            for (key, item) in value
+                push!(pending, (key, true), (item, true))
+            end
+            if value isa Dict
+                if backing !== nothing
+                    backing(value.slots)
+                    backing(value.keys)
+                    backing(value.vals)
+                end
+                continue
+            elseif value isa IdDict
+                backing === nothing || backing(value.ht)
+                continue
+            end
+        elseif value isa AbstractSet
+            if value isa Set
+                # Set serializes this dictionary as an object; retain its identity
+                # while the Dict branch keeps unused table capacity opaque.
+                push!(pending, (value.dict, true))
+                continue
+            end
+            for item in value
+                push!(pending, (item, true))
+            end
+        elseif value isa Core.SimpleVector
+            # SimpleVector's elements are not ordinary reflected fields.
+            for item in value
+                push!(pending, (item, true))
+            end
+            continue
+        end
+        for i = 1:fieldcount(T)
+            isdefined(value, i) && push!(pending, (getfield(value, i), true))
+        end
+    end
+    return nothing
+end
+
+function _validate_checkpoint_configuration(s, st, configuration)
+    isbitstype(typeof(configuration)) && return nothing
+    owned = IdDict{Any,Nothing}()
+    arrays = AbstractArray[]
+    function remember(value)
+        # Equal immutable metadata can be shared by value without owning state.
+        # Its mutable children are still visited and registered independently.
+        (ismutable(value) || value isa AbstractArray) || return nothing
+        haskey(owned, value) && return nothing
+        owned[value] = nothing
+        value isa AbstractArray && push!(arrays, value)
+        return nothing
+    end
+    # Configuration is replaced on restore, whereas these arrays are copied into
+    # destination storage. Include the payload to reject retained incoming links.
+    for name in keys(s)
+        name in (:model, :shape) && continue
+        _visit_checkpoint_objects(remember, getproperty(s, name); backing = remember)
+    end
+    # Capture must also reject links to scratch and Refs omitted from the payload.
+    # Read-only grid geometry is independent configuration; FFT plans and scratch
+    # belong to the solver and cannot be restored as detached configuration.
+    owned[st] = nothing
+    for name in fieldnames(typeof(st))
+        name in (:g, :model, :shape) && continue
+        _visit_checkpoint_objects(remember, getfield(st, name); backing = remember)
+    end
+    g = st.g
+    _visit_checkpoint_objects(
+        remember,
+        (g.plan, g.iplan, g.cbuf, g.tbuf, g.abuf, g.sbuf);
+        backing = remember,
+    )
+    _visit_checkpoint_objects(configuration) do value
+        haskey(owned, value) && throw(
+            ArgumentError(
+                "checkpoint configuration must not reference evolving simulation storage",
+            ),
+        )
+        if value isa AbstractArray
+            for array in arrays
+                _particle_arrays_mightalias(value, array) && throw(
+                    ArgumentError(
+                        "checkpoint configuration must not alias evolving simulation storage",
+                    ),
+                )
+            end
+        end
+    end
     return nothing
 end
 
@@ -318,6 +445,7 @@ function _validate_checkpoint_state(s, st::_HybridCheckpointStepper{D,T}) where 
     end
     _validate_checkpoint_field_state(s, st)
     _validate_checkpoint_integrator_state(s, st)
+    _validate_checkpoint_configuration(s, st, (s.model, s.shape))
     return nothing
 end
 
@@ -513,6 +641,7 @@ function _validate_checkpoint_state(s, st::_ElectromagneticCheckpointStepper)
             throw(ArgumentError("immobile checkpoint cannot contain ion particles"))
     end
     _validate_checkpoint_fields(s.fields, _empic_checkpoint_fields(st))
+    _validate_checkpoint_configuration(s, st, s.shape)
     return nothing
 end
 
@@ -571,6 +700,7 @@ function _validate_checkpoint_state(s, st::HallMHDState{D,T}) where {D,T}
         throw(ArgumentError("checkpoint floor_count must be an Int within the grid cell count"))
     _validate_checkpoint_fields(s.fields, _hall_checkpoint_fields(st))
     _validate_checkpoint_field_components(:stage_lapJ, s.stage_lapJ, st.stage.lapJ)
+    _validate_checkpoint_configuration(s, st, s.model)
     return nothing
 end
 
@@ -820,6 +950,12 @@ electric/magnetic fields, current and charge snapshots, and full/fast timestep
 history. Supply the ion `ParticleSet` exactly when `mobile=true`; electron and
 ion storage must be independent. Particle workspaces are resized on restore;
 scratch values are recomputed during stepping.
+Mutable model/shape parameters must be independent of particle and evolving
+solver storage, including FFT plans, scratch arrays, and clock/phase references. Links to
+evolving storage are rejected before serialization can detach them. Array checks
+use Base's alias and parent interfaces; custom arrays must implement those
+interfaces consistently with their logical storage. Access outside a declared
+view is not inspected.
 [`HallMHDState`](@ref) stores its model, fluid fields, public derived fields,
 and time/step counters without particle arguments. The retained stage `lapJ`
 values are saved because inactive hyperresistivity can carry them into the public

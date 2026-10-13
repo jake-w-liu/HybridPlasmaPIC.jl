@@ -138,6 +138,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Checkpoint and archive validation rejects model/shape links to evolving
+  particle/solver storage before serialization or restore mutation, including
+  owned FFT plans, clocks, packed buffers and dictionary backing allocations.
+  Independent mutable parameters, tested cycles and disjoint logical views
+  remain supported. Internal configuration views/native resources have separate
+  serialization limitations recorded in the configuration plan.
+
 - Relativistic velocity preflight rejects stored superluminal components that
   previously rounded below the light-speed boundary. Radiation, both EM PIC
   APIs, and electromagnetic checkpoint validation share the repair and reject
