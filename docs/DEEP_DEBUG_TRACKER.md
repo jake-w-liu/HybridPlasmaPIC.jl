@@ -21,11 +21,23 @@ completeness. Comparative leadership requires reproducible external benchmarks.
 - Initial full suites were started in the live worktree on Julia 1.13.1 and
   1.12.7. Concurrent test/code edits mean these runs cannot prove the final
   revision; both were stopped through their own launch sessions after this was confirmed.
-  Final full-suite checks will use an immutable checkout. The 1.13.1
-  log also reports SHA compatibility and extension-precompilation issues to assess.
+  Final full-suite checks use immutable checkouts. The initial 1.13.1 SHA
+  compatibility finding is fixed; HDF5 and PencilFFT extensions have now
+  precompiled successfully in both fresh version runs.
 - Full package suites are now running from isolated, fixed `1138317` checkouts
   on Julia 1.12.7 and 1.13.1; no final result yet. Logs:
   `/tmp/hybrid-full-1138317-julia112.log` and `/tmp/hybrid-full-1138317-julia113.log`.
+- Julia 1.13.1 quick validation at fixed revision `b200c76`: **150/150 metrics
+  passed across 20 cases**, no skipped results. Command:
+  `julia +1.13.1 --project=validation validation/run_validation.jl --quick --no-plots`.
+  Evidence: `/tmp/hybrid-validation-b200c76.log` and
+  `/tmp/hybrid-validation-b200c76-results/artifacts/validation_summary.csv`.
+- CI run `38414172669` passed formatting and real MPI smoke at 2, 4, and 8 ranks.
+  Its package suites were superseded by subsequent required pushes. Local full
+  suites continue independently of push-triggered CI cancellation.
+- Latest committed EM subcycling is additionally undergoing the full EM suites
+  on Julia 1.13.1 from fixed revision `b62da7b`; Aqua and a full formatter scan
+  are checking that revision too.
 - Baseline kernel harness: derivative 2.67 µs / 0 B; CIC deposit 305.29 µs for
   12,800 particles; hybrid step 1.54 ms for 3,200 particles. These are local
   measurements, not portable performance targets.
@@ -46,8 +58,8 @@ performance review. “Pending” means no current-run completion claim.
 | Deposition/gather/moments | Vector gather optimization verified; moment audit remains open | Adjointness, all shapes/dimensions/types, scalar equivalence, allocations |
 | Electron closures and Ohm law | Integration traced; detailed pass pending | Tensor/force oracles, conservation budgets, dissipative terms |
 | Hybrid/CAM-CL integration | Variable-step repair verified, including coupled-field convergence | Analytic timing, temporal order, subcycles, restart, MPI equivalence |
-| Electrostatic/electromagnetic PIC | Independent audit active; variable-step defect confirmed | Constant-force trajectory, Maxwell waves, charge continuity, mobile species |
-| Hall-MHD, gyrokinetics, AMR | Inventory complete; detailed pass pending | Model-specific invariants, convergence, integration contracts |
+| Electrostatic/electromagnetic PIC | Timing, subcycling and electrostatic restart verified; EM restart active | Constant-force trajectory, Maxwell waves, charge continuity, mobile species |
+| Hall-MHD, gyrokinetics, AMR | Fresh Hall-MHD and gyrokinetic audits active; AMR detailed pass pending | Model-specific invariants, convergence, integration contracts |
 | Collisions and radiation | Prior fixes exist; fresh pass pending | Conservation/rates, sampling, unequal weights, numerical robustness |
 | Shocks/injection/campaigns | Inventory complete; detailed pass pending | RH laws, inflow flux, multidimensional/restart and published comparisons |
 | Diagnostics and ray/Raycon solvers | Inventory complete; detailed pass pending | Independent references, units, transport/conversion invariants |
@@ -73,7 +85,7 @@ performance review. “Pending” means no current-run completion claim.
 | FORMAT-001 | Three files failed CI's JuliaFormatter 1 formatting rules | Pushed (`cf53bc4`) | Read-only scan with JuliaFormatter 1.0.62 identified exactly three Julia files; formatting-only repairs are idempotent and their diff was inspected. Contributor instructions now specify the CI formatter major |
 | CFL-001 | Timestep recommendation lost representable results through intermediate overflow/underflow | Pushed (`27b4c8d`) | Valid 4-cell grid of length 1e-80 returned zero instead of the 512-bit oracle's 1.4184965709927286e-162. Logarithmic evaluation passes 3,802 helper/range/coupled-stability assertions on each of Julia 1.12.7 and 1.13.1 (`test/test_phase_helpers.jl`) |
 | RESTART-002 | Electrostatic PIC lacked checkpoint/archive support | Pushed (`b200c76`) | Julia 1.13 combined IO/repro/MPI: 1,194 assertions; Julia 1.12 final focused suite: 540 assertions. Covers Float32/64, 1D–3D, exact variable-step continuation, changed fields, invalid destinations, views, empty populations, and archives |
-| SUBCYCLE-001 | General EMPIC lacked electron subcycling | Pushed (`c5fef77`) | Full EM suites: 7,257 assertions; added permanent Float32 coverage: 450 assertions in a separate final-file run. Includes independent constant-field oracles, 1D equivalence, 2D/3D charge/Gauss checks, changing dt/counts, mobile-ion coupled convergence. Default n_sub=1 arrays match prior code; allocations unchanged and scale linearly with subcycles |
+| SUBCYCLE-001 | General EMPIC lacked electron subcycling | Pushed (`c5fef77`) | Julia 1.12.7 full EM suites: 7,257 assertions; added permanent Float32 coverage: 450 assertions in a separate final-file run. Includes independent constant-field oracles, 1D equivalence, 2D/3D charge/Gauss checks, changing dt/counts, mobile-ion coupled convergence. Default n_sub=1 arrays match prior code; allocations unchanged and scale linearly with subcycles |
 
 ## Completeness roadmap
 
