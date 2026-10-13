@@ -138,6 +138,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Electromagnetic field energy retains finite complete integrals when squared
+  fields, light speed or cell-volume intermediates exceed floating-point range.
+  Both EMPIC interfaces preserve ordinary summation order and expose genuinely
+  unrepresentable final energies as infinity.
+
 - General ES/EM Poisson, Gauss and current projections distinguish nonzero
   wavevectors even when their squares lose range. Range-sensitive modes retain
   the complete longitudinal expression and original timestep before rounding;

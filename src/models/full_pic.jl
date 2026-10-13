@@ -1071,21 +1071,88 @@ step_empic!(es::EMPIC1D{T}, e::ParticleSet{1,T}, dt::Real) where {T} =
 
 # ---------------------------------------------------------------- diagnostics
 
+function _em_field_energy_exact(E, B, c::T, dx) where {T}
+    electric = zero(Rational{BigInt})
+    magnetic = zero(Rational{BigInt})
+    for component in E, value in component
+        electric += _exact_rational(value)^2
+    end
+    for component in B, value in component
+        magnetic += _exact_rational(value)^2
+    end
+    volume = prod(_exact_rational, dx)
+    return _from_exact(T, (electric + _exact_rational(c)^2 * magnetic) * volume / 2)
+end
+
+function _em_field_energy_finish(E, B, c::T, dx, sum_squares, minimum_e2, minimum_b2) where {T}
+    c2 = c * c
+    lost = _spectral_product_lost_range(c, c, c2)
+    # Contributions are nonnegative: the smallest square of a nonzero field
+    # detects square underflow, and c² times the smallest magnetic square detects
+    # magnetic-product underflow. Overflow remains visible in the total below.
+    # Zero fields use an Inf sentinel and do not require exact arithmetic.
+    lost |= minimum_e2 < floatmin(T) || minimum_b2 < floatmin(T)
+    if isfinite(minimum_b2)
+        lost |= _spectral_product_lost_range(c2, minimum_b2, c2 * minimum_b2)
+    end
+    volume = prod(dx)
+    half = T(0.5) * sum_squares
+    result = half * volume
+    lost |=
+        _spectral_product_lost_range(T(0.5), sum_squares, half) ||
+        _spectral_product_lost_range(half, volume, result)
+    # A spacing product can lose range and later return to normal range. Check
+    # every contiguous subproduct: these cover either association in D <= 3.
+    for first = 1:length(dx)
+        partial = one(T)
+        for last = first:length(dx)
+            next = partial * dx[last]
+            lost |= _spectral_product_lost_range(partial, dx[last], next)
+            partial = next
+        end
+    end
+    if lost &&
+       isfinite(c) &&
+       all(isfinite, dx) &&
+       all(a -> all(isfinite, a), E) &&
+       all(a -> all(isfinite, a), B)
+
+        return _em_field_energy_exact(E, B, c, dx)
+    end
+    return result
+end
+
 """
     em_field_energy(es)
 
 Total electromagnetic field energy ∫ ½(ε0|E|² + |B|²/μ0) dx in normalized units
 (ε0 = 1, μ0 = 1/c²): ½ Σ_i (Ex² + Ey² + c²Bz²) dx. The c² on Bz is the 1/μ0
 factor (μ0 = 1/c² so that the wave speed is c).
+Range-sensitive finite inputs retain the complete integral before rounding;
+ordinary inputs keep their existing summation order.
 """
 function em_field_energy(es::EMPIC1D{T}) where {T}
-    dx = es.g.dx[1]
     c2 = es.c * es.c
+    minimum_e2 = minimum_b2 = T(Inf)
     s = zero(T)
     @inbounds for i in eachindex(es.Ex)
-        s += es.Ex[i]^2 + es.Ey[i]^2 + c2 * es.Bz[i]^2
+        ex, ey, bz = es.Ex[i], es.Ey[i], es.Bz[i]
+        ex2, ey2, bz2 = ex^2, ey^2, bz^2
+        magnetic = c2 * bz2
+        minimum_e2 =
+            min(minimum_e2, ifelse(iszero(ex), T(Inf), ex2), ifelse(iszero(ey), T(Inf), ey2))
+        minimum_b2 = min(minimum_b2, ifelse(iszero(bz), T(Inf), bz2))
+        s += ex2 + ey2 + magnetic
     end
-    return T(0.5) * s * dx
+    return _em_field_energy_finish(
+        (es.Ex, es.Ey),
+        (es.Bz,),
+        es.c,
+        es.g.dx,
+        s,
+        minimum_e2,
+        minimum_b2,
+    )
 end
 
 """
@@ -1712,11 +1779,17 @@ step_empic!(es::EMPIC{D,T}, e::ParticleSet{D,T}, dt::Real) where {D,T} =
 
 function em_field_energy(es::EMPIC{D,T}) where {D,T}
     c2 = es.c * es.c
+    minimum_e2 = minimum_b2 = T(Inf)
     s = zero(T)
     @inbounds for c = 1:3, I in eachindex(es.E[c])
-        s += es.E[c][I]^2 + c2 * es.B[c][I]^2
+        electric, magnetic = es.E[c][I], es.B[c][I]
+        e2, b2 = electric^2, magnetic^2
+        weighted = c2 * b2
+        minimum_e2 = min(minimum_e2, ifelse(iszero(electric), T(Inf), e2))
+        minimum_b2 = min(minimum_b2, ifelse(iszero(magnetic), T(Inf), b2))
+        s += e2 + weighted
     end
-    return T(0.5) * s * prod(es.g.dx)
+    return _em_field_energy_finish(es.E, es.B, es.c, es.g.dx, s, minimum_e2, minimum_b2)
 end
 
 """

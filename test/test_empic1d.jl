@@ -640,3 +640,5 @@ end
     @test_throws ArgumentError step_empic!(es, e, nextfloat(0.0))
     @test (e.x, e.v, es.Ex, es.time[], es.step[], es.last_dt[], es.last_sub_dt[]) == before
 end
+
+include("test_em_energy.jl")
