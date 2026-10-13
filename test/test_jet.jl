@@ -28,7 +28,7 @@ end
         # silences the progress chatter so the captured CI log stays compact.
         rep = JET.report_package(HybridPlasmaPIC; toplevel_logger = nothing)
         reports = JET.get_reports(rep)
-        @info "JET report-only summary" n_reports = length(reports)
+        @info "JET package analysis summary" n_reports = length(reports)
         # Preserve the full findings so the bounded count does not hide their cause.
         if !isempty(reports)
             show(stdout, MIME"text/plain"(), rep)

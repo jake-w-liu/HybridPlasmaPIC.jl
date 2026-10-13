@@ -34,10 +34,11 @@ Note that test files relying on a test-only dependency must be run through
 
 - `test/test_quality.jl` runs `Aqua.test_all` — no method ambiguities, no
   piracy, no stale or under-constrained dependencies, no undefined exports.
-- `test/test_jet.jl` runs `JET.report_package` as a **report-only** smoke test:
-  it prints the findings and asserts the analysis completed, but does not gate
-  CI on JET reports that originate in upstream packages (FFTW, Base). When you
-  add code, skim the JET output for new instabilities in *our* methods.
+- `test/test_jet.jl` runs `JET.report_package`, prints every finding and gates
+  the total against `JET_REPORT_CEILING` in that file. Reports may originate in
+  this package or dependencies. Inspect new findings and use concrete-call
+  analysis and execution to distinguish runtime defects from inference limits;
+  a count below the ceiling does not establish that every finding is harmless.
 
 ## Formatting
 
