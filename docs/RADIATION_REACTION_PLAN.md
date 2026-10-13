@@ -132,6 +132,8 @@ without importing this package (`/tmp/hybrid-radiation-base-concurrency112-24.lo
 Direct concurrent MPFR constant calls also return incorrect pi values on both
 Julia 1.12.7 and 1.13.1, each using unpatched MPFR 4.2.2 with shared caches:
 `/tmp/hybrid-mpfr-cache-concurrency112-1.log` and
-`/tmp/hybrid-mpfr-cache-concurrency113-1.log`. The cache-lock transition in the
-MPFR source is a causal hypothesis being checked; no package-local lock or
-expression replacement has been adopted as a purported general fix.
+`/tmp/hybrid-mpfr-cache-concurrency113-1.log`. The native cache-lock transition
+is now verified by an instrumented C reproducer and a matched one-line repair. Installed runtimes remain unchanged.
+[Evidence and remaining integration](MPFR_CONCURRENCY_PLAN.md) distinguish the
+temporary repair from ordinary Julia execution; no package-local workaround
+has been adopted.
