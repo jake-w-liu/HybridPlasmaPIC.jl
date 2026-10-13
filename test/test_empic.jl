@@ -4,6 +4,71 @@
 
 using HybridPlasmaPIC, FFTW, Test, Random
 
+@testset "EMPIC continuity diagnostic retains total charge errors" begin
+    for T in (Float32, Float64), D = 1:3, n in (5, 6)
+        g = FourierGrid(ntuple(_ -> n, D), ntuple(_ -> T(2π), D))
+        es = EMPIC(g, 0; n0 = zero(T))
+        dt = T(0.125)
+        tolerance = 64eps(T)
+
+        # Integral(div J) is zero on a periodic box. A spatially uniform
+        # charge change therefore has normalized continuity residual one.
+        for change in (-one(T), one(T))
+            fill!(es.rho_np1, change)
+            @test charge_conservation_residual(es, dt) ≈ one(T) atol = tolerance
+        end
+
+        # Independent sinusoidal derivative, with and without a global defect.
+        # The constant defect cannot be canceled by the periodic current.
+        wave_number = T(2π) / g.L[1]
+        for I in CartesianIndices(es.rho_n)
+            phase = T(2) * T(I[1] - 1) / T(n)
+            es.J[1][I] = sinpi(phase)
+            es.rho_np1[I] = -dt * wave_number * cospi(phase)
+        end
+        @test charge_conservation_residual(es, dt) < tolerance
+        es.rho_np1 .+= T(0.5)
+        expected = T(0.5) / maximum(abs, es.rho_np1)
+        rho_before = (copy(es.rho_n), copy(es.rho_np1))
+        current_before = map(copy, es.J)
+        @test charge_conservation_residual(es, dt) ≈ expected atol = tolerance
+        @test es.rho_n == rho_before[1]
+        @test es.rho_np1 == rho_before[2]
+        @test es.J == current_before
+        if D == 1
+            legacy = EMPIC1D(g, 0; n0 = zero(T))
+            legacy.rho_np1 .= es.rho_np1
+            legacy.Jx .= es.J[1]
+            @test charge_conservation_residual(es, dt) ≈ charge_conservation_residual(legacy, dt) atol =
+                tolerance
+        end
+
+        foreach(current -> fill!(current, zero(T)), es.J)
+        if iseven(n)
+            # All nonempty combinations of pure axis-Nyquist modes remain
+            # outside the spectral derivative range, unlike the true DC mode.
+            for axes = 1:((1<<D)-1)
+                for I in CartesianIndices(es.rho_n)
+                    parity = sum(I[d] - 1 for d = 1:D if (axes & (1 << (d - 1))) != 0)
+                    es.rho_np1[I] = isodd(parity) ? -one(T) : one(T)
+                end
+                @test charge_conservation_residual(es, dt) == zero(T)
+                es.rho_np1 .+= one(T)
+                @test charge_conservation_residual(es, dt) ≈ one(T) atol = tolerance
+            end
+            if D > 1
+                # Nyquist in one axis with a nonzero mode in another is a
+                # represented mixed mode and must still contribute.
+                for I in CartesianIndices(es.rho_n)
+                    nyquist = isodd(I[1] - 1) ? -one(T) : one(T)
+                    es.rho_np1[I] = nyquist * cospi(T(2) * T(I[2] - 1) / T(n))
+                end
+                @test charge_conservation_residual(es, dt) ≈ one(T) atol = tolerance
+            end
+        end
+    end
+end
+
 function _empic_peakfreq(series, dt)
     Nt = length(series)
     S = fft(series)
@@ -41,6 +106,25 @@ function _empic_gauss_residual(es, rho)
     divergence!(divE, es.E, g)
     scale = max(maximum(abs, rhorepr), 1.0)
     return maximum(abs, divE .- rhorepr) / scale
+end
+
+function _empic_continuity_mode_oracle(es, dt)
+    increment_hat = fft(es.rho_np1 .- es.rho_n)
+    dc_increment = real(first(increment_hat)) / length(increment_hat)
+    # Use Fourier indices independently of the production k² filter. These
+    # are exactly the DC/pure-Nyquist combinations, not mixed nonzero modes.
+    for I in CartesianIndices(increment_hat)
+        if all(d -> I[d] == 1 || (iseven(es.g.n[d]) && I[d] == es.g.n[d] ÷ 2 + 1), 1:length(es.g.n))
+            increment_hat[I] = 0
+        end
+    end
+    non_dc_increment = real.(ifft(increment_hat))
+    current_divergence = similar(es.rho_n)
+    divergence!(current_divergence, es.J, es.g)
+    non_dc_scale = maximum(abs, non_dc_increment)
+    non_dc_residual = maximum(abs, non_dc_increment .+ dt .* current_divergence)
+    full_scale = maximum(abs, non_dc_increment .+ dc_increment)
+    return (; non_dc_scale, non_dc_residual, full_scale)
 end
 
 @testset "EMPIC constructor validation" begin
@@ -186,8 +270,36 @@ end
     ω = _empic_peakfreq(series, dt)
     ωth = sqrt(n0 + cc^2 * k^2)
     @test abs(ω - ωth) / ωth < 0.03
-    @test charge_conservation_residual(es, dt) < 1e-8
+    modes = _empic_continuity_mode_oracle(es, dt)
+    # Preserve the original relative bound on the non-DC modes. A nearly
+    # transverse wave has tiny Δρ, so density-scale rounding in total charge
+    # must instead be checked against the arithmetic that deposits that charge.
+    @test modes.non_dc_residual / modes.non_dc_scale < 1e-8
+    # Positive CIC accumulation has at most N terms per cell. The remaining
+    # budget covers local shape/normalization arithmetic and a conservative
+    # eight operations per grid point for the Fourier projection. γ_k bounds
+    # accumulated relative rounding; two independently rounded snapshots enter Δρ.
+    operation_budget = N + 8length(es.rho_n) + 16
+    ku = operation_budget * (eps(T) / 2)
+    γ = ku / (1 - ku)
+    density_scale = max(n0, maximum(abs, es.ne), maximum(abs, n0 .- es.rho_n))
+    allowance = 2γ * density_scale + 1e-8 * modes.non_dc_scale
+    @test charge_conservation_residual(es, dt) * modes.full_scale < allowance
     @test _empic_gauss_residual(es, es.rho_np1) < 1e-8
+
+    # A resolved total-charge defect leaves the old non-DC guarantee intact
+    # but must fail the added full-residual check.
+    dc_defect = sqrt(eps(T)) * density_scale
+    @test dc_defect > allowance
+    saved_charge = copy(es.rho_np1)
+    try
+        es.rho_np1 .+= dc_defect
+        defective_modes = _empic_continuity_mode_oracle(es, dt)
+        @test defective_modes.non_dc_residual / defective_modes.non_dc_scale < 1e-8
+        @test charge_conservation_residual(es, dt) * defective_modes.full_scale > allowance
+    finally
+        es.rho_np1 .= saved_charge
+    end
 end
 
 @testset "EMPIC 2D/3D spectral current correction conserves charge" begin

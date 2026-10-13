@@ -1460,7 +1460,9 @@ end
 
 Continuity residual on the represented Fourier modes from the most recent
 electron substep. Pass its duration `dt_full/es.n_sub`, including when ions
-are mobile and receive one kick over the full step.
+are mobile and receive one kick over the full step. The true zero-frequency
+mode is retained so a change in total charge contributes to the residual;
+only non-DC modes annihilated by every spectral derivative are excluded.
 """
 function charge_conservation_residual(es::EMPIC{D,T}, dt::Real) where {D,T}
     g = es.g
@@ -1470,8 +1472,9 @@ function charge_conservation_residual(es::EMPIC{D,T}, dt::Real) where {D,T}
         dρhat[I] = Complex{T}(es.rho_np1[I] - es.rho_n[I])
     end
     g.plan * dρhat
+    dc = first(CartesianIndices(dρhat))
     @inbounds for I in CartesianIndices(dρhat)
-        _spectral_k2(g, I) == 0 && (dρhat[I] = zero(Complex{T}))
+        I != dc && _spectral_k2(g, I) == 0 && (dρhat[I] = zero(Complex{T}))
     end
     g.iplan * dρhat
     dρrepr = similar(es.rho_n)

@@ -134,6 +134,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- General EMPIC charge-continuity diagnostics retain the true zero-frequency
+  mode, so changes in total charge contribute to the residual. Pure Nyquist
+  combinations outside the spectral derivative range remain excluded.
+
 - Checkpoint destinations reject overlapping particle components before any
   resize or write, including empty and reinterpreted storage. Independent
   writable views remain supported. Hybrid collection validation shares the
