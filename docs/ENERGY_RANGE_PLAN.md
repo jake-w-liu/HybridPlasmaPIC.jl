@@ -1,8 +1,8 @@
 # Energy diagnostic range repairs
 
-Status: field-energy repair verified on Julia 1.12.7 and 1.13.1. Relativistic
-particle energy remains separate planned work; ordinary diagnostic performance
-remains an optimization target.
+Status: field-energy repair `bef9802` is pushed and verified on Julia 1.12.7
+and 1.13.1. Relativistic particle energy remains separate planned work; ordinary
+diagnostic performance remains an optimization target.
 
 ## Verified behavior
 

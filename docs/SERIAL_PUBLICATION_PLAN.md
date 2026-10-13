@@ -1,7 +1,7 @@
 # Atomic publication of serialized outputs
 
-Status: IO-011 is implemented and verified on Julia 1.12.7 and 1.13.1, following
-the checkpoint configuration repair `3495c64`.
+Status: IO-011 is pushed as `fe519e9`, verified on Julia 1.12.7 and 1.13.1,
+following the checkpoint configuration repair `3495c64`.
 
 ## Pre-edit brief
 

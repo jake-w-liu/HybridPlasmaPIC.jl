@@ -11,6 +11,14 @@ completeness. Comparative leadership requires reproducible external benchmarks.
 
 ## Current evidence
 
+- Full package suites are running at immutable `fe519e9` on Julia 1.12.7 and
+  1.13.1, each with a separately resolved native environment. These include the
+  electromagnetic field-energy and serial-publication fixes. Logs:
+  `/tmp/hybrid-full-fe519e9-julia112.log` and
+  `/tmp/hybrid-full-fe519e9-julia113.log`; snapshot hashes are in
+  `/tmp/hybrid-full-fe519e9-manifest.json`. Both reached `Testing Running tests...`;
+  no final result is claimed yet. Uncommitted continuity and radiation work is
+  excluded from these runs.
 - The immutable `d2c3da7` full package suite passed **294,035 assertions** on
   each of Julia 1.13.1 (62m33.3s) and Julia 1.12.7 (82m43.6s); both processes
   exited successfully. The real two-rank MPI run also passed and exited successfully.
@@ -160,7 +168,7 @@ performance review. “Pending” means no current-run completion claim.
 | NUM-001 | Concurrent MPFR shared-cache updates corrupt BigFloat transcendental results | Native cause verified; runtime integration open | Both installed Julia versions reproduce wrong pi without loading this package. A native precision-refresh repair and an unmodified build with shared caches disabled each pass 195 native programs (three unsupported-format skips). Both temporary configurations pass fresh concurrent radiation checks on both Julia versions. Installed runtimes remain unchanged; distributed-runtime acceptance is open. [Evidence and plan](MPFR_CONCURRENCY_PLAN.md). |
 | IO-009 | Configuration links to solver storage detach during restart | Pushed | VERIFIED: capture/restore reject retained model/shape links to evolving fields, particles, clocks, FFT plans, packed buffers and dictionary backing allocations. Both Julia versions pass 8,354 final ownership checks, 15,100 neighboring checks and real two-rank MPI integration (173/165 checks); all 16 concrete JET calls per version have zero reports. [Evidence and separate serialization gaps](CHECKPOINT_CONFIGURATION_PLAN.md). |
 | IO-010 | Internal configuration views and native handles can detach during serialization | Confirmed; design pending | Internal Array/SubArray and dictionary/backing-buffer relationships and native resources need an explicit serialization contract beyond solver ownership checks. [Plan](CHECKPOINT_CONFIGURATION_PLAN.md). |
-| IO-011 | Failed serial checkpoint serialization truncates the previous checkpoint | Implemented; verified | Atomic publication preserves prior files across serializer/write/flush/close/rename errors and reports cleanup failures. Both Julia versions pass 23,747 neighboring assertions and 293 focused checks; four concrete compiler paths are clean and package findings match baseline. [Publication contract and resource evidence](SERIAL_PUBLICATION_PLAN.md). |
+| IO-011 | Failed serial checkpoint serialization truncates the previous checkpoint | Pushed (`fe519e9`) | Atomic publication preserves prior files across serializer/write/flush/close/rename errors and reports cleanup failures. Both Julia versions pass 23,747 neighboring assertions and 293 focused checks; four concrete compiler paths are clean and package findings match baseline. [Publication contract and resource evidence](SERIAL_PUBLICATION_PLAN.md). |
 | ENERGY-001 | EM field energy loses finite complete integrals through squared fields, c and cell volume | Pushed (`bef9802`) | Complete-integral cold evaluation passes 27,896 ES/EM assertions on each Julia version. All 24 concrete compiler calls per version are clean; package reports match baseline. Ordinary results stay exact and allocate 0 B; measured latency remains an optimization target. [Scope, resource investigation and evidence](ENERGY_RANGE_PLAN.md). |
 | ENERGY-002 | Relativistic particle energy rejects valid extreme speeds or loses finite weighted results | Confirmed; repair planned | Both Julia versions pass 18 high-precision defect-witness assertions, including valid empty populations and the Newtonian limit. [Plan](ENERGY_RANGE_PLAN.md). |
 
