@@ -42,6 +42,30 @@ let
     @printf("CIC deposit  N=%d  : %8.2f µs   %.1f Mparticles/s\n", N, 1e6t, N / t / 1e6)
 end
 
+# Vector gather versus three scalar gathers, with identical particles/fields.
+for D = 1:3, shape in (NGP(), CIC(), TSC())
+    g = FourierGrid(ntuple(_ -> 16, D), ntuple(_ -> 2π, D))
+    N = 20000
+    ps = ParticleSet{D,Float64}(N)
+    load_uniform!(ps, MersenneTwister(3), ntuple(_ -> 0.0, D), g.L)
+    field = ntuple(c -> randn(MersenneTwister(c), g.n), 3)
+    out = ntuple(_ -> zeros(N), 3)
+    scalar = () -> foreach(c -> gather_scalar!(out[c], field[c], ps, g, shape), 1:3)
+    vector = () -> gather_vector!(out, field, ps, g, shape)
+    ts = best(scalar, 10)
+    tv = best(vector, 10)
+    a = @allocated vector()
+    @printf(
+        "gather %dD %-5s N=%d : %8.2f µs   %.2fx scalar   alloc=%d B\n",
+        D,
+        string(typeof(shape)),
+        N,
+        1e6tv,
+        ts / tv,
+        a,
+    )
+end
+
 # full hybrid step throughput (particles advanced per second)
 let
     n = 32

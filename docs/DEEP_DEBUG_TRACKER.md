@@ -21,9 +21,9 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   12,800 particles; hybrid step 1.54 ms for 3,200 particles. These are local
   measurements, not portable performance targets.
 - Fused vector-gather candidate: all 304 deposition/gather assertions passed on
-  Julia 1.12.7, including exact scalar equivalence and zero allocation. Same-run
-  microbenchmarks measured 2.4–4.6× speedups against three scalar gathers;
-  integrator regression checks and final review are pending.
+  Julia 1.12.7, including exact scalar equivalence and zero allocation. The repository benchmark
+  measured speedups against three scalar gathers with zero bytes allocated in
+  every 1D–3D/NGP/CIC/TSC case. Hybrid and CAM-CL regression suites also passed.
 
 ## Audit coverage matrix
 
@@ -50,7 +50,7 @@ performance review. “Pending” means no current-run completion claim.
 
 | ID | Finding / acceptance criterion | State | Evidence / next action |
 | --- | --- | --- | --- |
-| PERF-001 | Vector gather repeats the same stencil three times | Implemented; verification underway | `src/coupling/gather.jl`; 304 focused assertions pass; extended benchmark in `benchmark/benchmarks.jl` |
+| PERF-001 | Vector gather repeats the same stencil three times | Verified; committing | 304 focused assertions plus hybrid/CAM-CL suites pass; reproducible speed/allocation comparison in `benchmark/benchmarks.jl` |
 | IO-001 | `save_run` rejects its own valid dictionary output | Implemented; verification underway | A 300-entry dictionary reproduces checksum mismatch; hash exact serialized bytes and round-trip nested/cyclic state |
 | TIME-001 | ES/EM PIC accepts changed `dt` but uses the wrong half-step interval | ES repair underway | Constant acceleration, steps 0.1 and 0.2: measured x=1.055; analytic x=1.045; add previous-step phase state |
 | IO-002 | Same-grid checkpoint silently accepts different model parameters | Confirmed; repair planned | Restore Te=0.1 state into Te=2.0 stepper: next-step Ex differs by 1.133; record/validate model and shape |

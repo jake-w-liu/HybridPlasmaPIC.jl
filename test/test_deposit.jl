@@ -247,3 +247,52 @@ end
     @test (@allocated deposit_scalar!(dep, ps, vals, g, CIC())) == 0
     @test (@allocated gather_scalar!(out, field, ps, g, CIC())) == 0
 end
+
+@testset "vector gather shares scalar semantics across shapes and dimensions" begin
+    for T in (Float32, Float64), D = 1:3, shape in (NGP(), CIC(), TSC())
+        g = FourierGrid(ntuple(_ -> 8, D), ntuple(_ -> T(2), D))
+        ps = ParticleSet{D,T}(19)
+        load_uniform!(ps, MersenneTwister(83), ntuple(_ -> zero(T), D), g.L)
+        for d = 1:D
+            # Include seams, half-cell ties, out-of-box positions and large wraps.
+            ps.x[d][1:6] .= T[0, g.L[d], -g.dx[d]/2, g.dx[d]/2, -3, 1e20]
+        end
+        fields = ntuple(c -> randn(MersenneTwister(c), T, g.n), 3)
+        expected = ntuple(_ -> zeros(T, nparticles(ps)), 3)
+        for c = 1:3
+            gather_scalar!(expected[c], fields[c], ps, g, shape)
+        end
+        actual = ntuple(_ -> zeros(T, nparticles(ps)), 3)
+        @test gather_vector!(actual, fields, ps, g, shape) === actual
+        @test actual == expected
+        # Each output may have a different offset; indices are not particle IDs.
+        offsets = ntuple(c -> OffsetTestVector(zeros(T, nparticles(ps)), 2c - 5), 3)
+        gather_vector!(offsets, fields, ps, g, shape)
+        @test ntuple(c -> offsets[c].data, 3) == expected
+        gather_vector!(actual, fields, ps, g, shape)
+        @test (@allocated gather_vector!(actual, fields, ps, g, shape)) == 0
+
+        empty_ps = ParticleSet{D,T}(0)
+        empty_out = ntuple(_ -> T[], 3)
+        @test gather_vector!(empty_out, fields, empty_ps, g, shape) === empty_out
+    end
+end
+
+@testset "vector gather validates all components before output mutation" begin
+    g = FourierGrid((8,), (1.0,))
+    ps = ParticleSet{1,Float64}(2)
+    ps.x[1] .= [0.2, 0.5]
+    fields = ntuple(c -> fill(Float64(c), g.n), 3)
+    out = ntuple(_ -> fill(9.0, 2), 3)
+    for c = 1:3
+        bad_fields = ntuple(i -> i == c ? zeros(7) : fields[i], 3)
+        @test_throws DimensionMismatch gather_vector!(out, bad_fields, ps, g, CIC())
+        @test all(a -> a == fill(9.0, 2), out)
+        bad_out = ntuple(i -> i == c ? fill(9.0, 3) : out[i], 3)
+        @test_throws DimensionMismatch gather_vector!(bad_out, fields, ps, g, CIC())
+        @test all(a -> all(==(9.0), a), bad_out)
+    end
+    ps.x[1][2] = NaN
+    @test_throws ArgumentError gather_vector!(out, fields, ps, g, CIC())
+    @test all(a -> a == fill(9.0, 2), out)
+end

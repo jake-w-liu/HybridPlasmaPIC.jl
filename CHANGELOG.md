@@ -64,6 +64,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Vector field gathering reuses each particle stencil across all three components,
+  preserving scalar-gather results and zero steady-state allocations. The CPU
+  benchmark now compares fused and scalar gathers in 1D, 2D, and 3D.
+
 - `SpectralOperators.jl` is now resolved from the General registry instead of a
   pinned GitHub URL; the `[sources]` override was removed from `Project.toml`
   and `validation/Project.toml`. Installing HybridPlasmaPIC no longer requires
