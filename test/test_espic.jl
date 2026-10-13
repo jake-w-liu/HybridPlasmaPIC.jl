@@ -254,7 +254,7 @@ function _peakfreq(series, dt)
     mag = abs.(S)
     best = 2
     bm = -1.0
-    for j = 2:Nt÷2
+    for j = 2:(Nt÷2)
         mag[j+1] > bm && (bm = mag[j+1]; best = j)
     end
     a = mag[best]
@@ -389,7 +389,7 @@ end
         es = Electrostatic1D(g, N; n0 = 1.0)
         init_espic!(es, e)
         lead_zero && step_espic!(es, e, 0.0)          # dt=0 must not consume the priming
-        for _ = 1:round(Int, Tf / dt)
+        for _ = 1:round(Int, Tf/dt)
             step_espic!(es, e, dt)
         end
         abs(mode_amplitude(es.E, g, (1,)))
@@ -402,5 +402,87 @@ end
         r2 = log2(abs(v[2] - v[3]) / abs(v[3] - v[4]))
         @test r1 > 1.6        # ≈2.0 with priming; ≈1.0 (would fail) without it
         @test r2 > 1.6        # lead_zero=true also ≈2.0 (dt=0 short-circuit preserves priming)
+    end
+end
+
+@testset "Electrostatic PIC preserves velocity staggering across timestep changes" begin
+    # A zero-weight tracer sees a prescribed constant field, giving an exact
+    # acceleration oracle independent of deposition and the Poisson solver.
+    for (constructor, D) in
+        ((Electrostatic1D, 1), (ElectrostaticPIC, 1), (ElectrostaticPIC, 2), (ElectrostaticPIC, 3))
+        for dts in ((0.1, 0.2, 0.05), (0.1, 0.1, 0.1))
+            g = FourierGrid(ntuple(_ -> 4, D), ntuple(_ -> 10.0, D))
+            e = ParticleSet{D,Float64}(1; q = -1.0, m = 1.0)
+            e.weight .= 0.0
+            for d = 1:D
+                e.x[d] .= 1.0
+            end
+            es = constructor(g, 1; n0 = 0.0)
+            init_espic!(es, e)
+            acceleration = (0.7, -0.3, 0.2)
+            function set_field!()
+                if es isa Electrostatic1D
+                    es.E .= -acceleration[1]
+                else
+                    for d = 1:D
+                        es.E[d] .= -acceleration[d]
+                    end
+                end
+            end
+            elapsed = 0.0
+            for dt in dts
+                previous_dt = es.last_dt[]
+                step_espic!(es, e, 0.0)
+                @test es.last_dt[] == previous_dt
+                set_field!()
+                step_espic!(es, e, dt)
+                elapsed += dt
+                for d = 1:D
+                    @test e.x[d][1] ≈ 1 + acceleration[d] * elapsed^2 / 2 atol = 2e-15
+                    @test e.v[d][1] ≈ acceleration[d] * (elapsed - dt / 2) atol = 2e-15
+                end
+            end
+            before = (deepcopy(e.x), deepcopy(e.v), es.last_dt[])
+            for dt in (NaN, Inf, -0.1)
+                @test_throws ArgumentError step_espic!(es, e, dt)
+                @test (e.x, e.v, es.last_dt[]) == before
+            end
+            # Reload physical velocities and reinitialize: old timestep history
+            # must not influence the next run's first half-step prime.
+            for c = 1:3
+                e.v[c] .= 0.0
+            end
+            init_espic!(es, e)
+            @test es.last_dt[] == 0.0
+            set_field!()
+            step_espic!(es, e, 0.08)
+            for d = 1:D
+                @test e.x[d][1] ≈ before[1][d][1] + acceleration[d] * 0.08^2 / 2 atol = 2e-15
+            end
+        end
+    end
+end
+
+@testset "Electrostatic PIC changing-timestep Langmuir convergence" begin
+    function variable_dt_amplitude(constructor, refinement)
+        g = FourierGrid((32,), (2π,))
+        e = ParticleSet{1,Float64}(2048; q = -1.0, m = 1.0)
+        load_lattice_1d!(e, 0.0, g.L[1])
+        set_density_weight!(e, 1.0, g)
+        @. e.x[1] -= 0.02 * sin(e.x[1])
+        es = constructor(g, nparticles(e))
+        init_espic!(es, e)
+        # Change step at the same physical time under each refinement.
+        for (count, dt) in ((10refinement, 0.04 / refinement), (20refinement, 0.02 / refinement))
+            for _ = 1:count
+                step_espic!(es, e, dt)
+            end
+        end
+        field = es isa Electrostatic1D ? es.E : es.E[1]
+        return abs(mode_amplitude(field, g, (1,)))
+    end
+    for constructor in (Electrostatic1D, ElectrostaticPIC)
+        values = [variable_dt_amplitude(constructor, r) for r in (1, 2, 4)]
+        @test log2(abs(values[1] - values[2]) / abs(values[2] - values[3])) > 1.7
     end
 end

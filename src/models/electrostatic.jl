@@ -25,13 +25,22 @@ struct Electrostatic1D{T,G}
     ne::Vector{T}
     Ep::Vector{T}
     primed::Base.RefValue{Bool}        # false until the one-time leapfrog velocity priming
+    last_dt::Base.RefValue{T}          # preceding drift interval sets the velocity half level
 end
 
 function Electrostatic1D(g::FourierGrid{1,T}, Nparticles::Integer; n0 = 1.0) where {T}
     n = g.n[1]
     Np = _particle_length(Nparticles)
     n0T = _require_finite_nonnegative_real("n0", n0, T)
-    Electrostatic1D{T,typeof(g)}(g, n0T, zeros(T, n), zeros(T, n), zeros(T, Np), Ref(false))
+    Electrostatic1D{T,typeof(g)}(
+        g,
+        n0T,
+        zeros(T, n),
+        zeros(T, n),
+        zeros(T, Np),
+        Ref(false),
+        Ref(zero(T)),
+    )
 end
 
 """
@@ -49,6 +58,7 @@ struct ElectrostaticPIC{D,T,G}
     ne::Array{T,D}
     Ep::NTuple{3,Vector{T}}
     primed::Base.RefValue{Bool}        # false until the one-time leapfrog velocity priming
+    last_dt::Base.RefValue{T}          # preceding drift interval sets the velocity half level
 end
 
 function ElectrostaticPIC(g::FourierGrid{D,T}, Nparticles::Integer; n0 = 1.0) where {D,T}
@@ -62,6 +72,7 @@ function ElectrostaticPIC(g::FourierGrid{D,T}, Nparticles::Integer; n0 = 1.0) wh
         zeros(T, g.n),
         ntuple(_ -> zeros(T, Np), 3),
         Ref(false),
+        Ref(zero(T)),
     )
 end
 
@@ -155,6 +166,7 @@ function init_espic!(es::Electrostatic1D{T}, e::ParticleSet{1,T}) where {T}
     density!(es.ne, e, es.g, CIC())
     poisson_E!(es)
     es.primed[] = false                 # re-arm the one-time priming for the next step
+    es.last_dt[] = zero(T)
     return es
 end
 
@@ -164,6 +176,7 @@ function init_espic!(es::ElectrostaticPIC{D,T}, e::ParticleSet{D,T}) where {D,T}
     density!(es.ne, e, es.g, CIC())
     poisson_E!(es)
     es.primed[] = false                 # re-arm the one-time priming for the next step
+    es.last_dt[] = zero(T)
     return es
 end
 
@@ -171,7 +184,9 @@ end
     step_espic!(es, electrons, dt)
 
 Advance one leapfrog step: gather E → Boris kick (B=0) → drift → periodic wrap →
-deposit density → solve Poisson.
+deposit density → solve Poisson. When `dt` changes, the velocity kick spans
+`(last_dt + dt)/2` between the preceding and next half levels; positions advance
+by `dt`. A zero timestep leaves both the state and its time staggering unchanged.
 """
 function step_espic!(es::Electrostatic1D{T}, e::ParticleSet{1,T}, dt::Real) where {T}
     _require_espic_electrons(e)
@@ -184,6 +199,7 @@ function step_espic!(es::Electrostatic1D{T}, e::ParticleSet{1,T}, dt::Real) wher
     gather_scalar!(es.Ep, es.E, e, g, CIC())
     vx = e.v[1]
     xx = e.x[1]
+    kick_dt = es.primed[] ? es.last_dt[] / 2 + dtT / 2 : dtT
     if !es.primed[]                     # prime once: loaded v is physical v^0 → v^{-1/2} (2nd order)
         @inbounds for p in eachindex(e.weight)
             vx[p] -= (dtT / 2) * qm * es.Ep[p]      # a^0 = qm E (B=0)
@@ -202,7 +218,7 @@ function step_espic!(es::Electrostatic1D{T}, e::ParticleSet{1,T}, dt::Real) wher
             zero(T),
             zero(T),
             qm,
-            dtT,
+            kick_dt,
         )
         vx[p] = nx
         xx[p] += dtT * nx
@@ -210,6 +226,7 @@ function step_espic!(es::Electrostatic1D{T}, e::ParticleSet{1,T}, dt::Real) wher
     apply_periodic!(e, (zero(T),), (L,))
     density!(es.ne, e, g, CIC())
     poisson_E!(es)
+    es.last_dt[] = dtT
     return es
 end
 
@@ -222,6 +239,7 @@ function step_espic!(es::ElectrostaticPIC{D,T}, e::ParticleSet{D,T}, dt::Real) w
     gather_vector!(es.Ep, es.E, e, g, CIC())
     qm = e.q / e.m
     vx, vy, vz = e.v
+    kick_dt = es.primed[] ? es.last_dt[] / 2 + dtT / 2 : dtT
     if !es.primed[]                     # prime once: loaded v is physical v^0 → v^{-1/2} (2nd order)
         h = dtT / 2
         @inbounds for p in eachindex(e.weight)
@@ -243,7 +261,7 @@ function step_espic!(es::ElectrostaticPIC{D,T}, e::ParticleSet{D,T}, dt::Real) w
             zero(T),
             zero(T),
             qm,
-            dtT,
+            kick_dt,
         )
         vx[p] = nx
         vy[p] = ny
@@ -255,6 +273,7 @@ function step_espic!(es::ElectrostaticPIC{D,T}, e::ParticleSet{D,T}, dt::Real) w
     apply_periodic!(e, ntuple(_ -> zero(T), D), g.L)
     density!(es.ne, e, g, CIC())
     poisson_E!(es)
+    es.last_dt[] = dtT
     return es
 end
 

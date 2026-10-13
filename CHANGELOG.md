@@ -80,6 +80,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Electrostatic PIC retains the previous timestep so variable-step particle kicks
+  span the correct half-time levels; fixed-step results remain unchanged.
+
 - Field-file reads validate header extents and available payload before allocating
   arrays, rejecting truncated and overflowing dimensions with bounded memory.
 
