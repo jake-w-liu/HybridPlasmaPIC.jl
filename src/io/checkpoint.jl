@@ -621,7 +621,7 @@ function _restore_checkpoint_particles!(ps::ParticleSet{D}, s) where {D}
     return ps
 end
 
-function _restore_checkpoint_state!(
+function _validate_hybrid_checkpoint_restore(
     st::_HybridCheckpointStepper{D,T},
     ps::ParticleSet{D,T},
     s,
@@ -631,12 +631,10 @@ function _restore_checkpoint_state!(
         throw(ArgumentError("collection checkpoint requires a species collection destination"))
     N = length(s.weight)
     _validate_checkpoint_destination(ps, N)
-    _resize_hybrid_particle_workspaces!(st, N)
-    _restore_checkpoint_particles!(ps, s)
-    return _restore_hybrid_checkpoint_fields!(st, s)
+    return N
 end
 
-function _restore_checkpoint_state!(
+function _validate_hybrid_checkpoint_restore(
     st::_HybridCheckpointStepper{D,T},
     species::AbstractVector{<:ParticleSet},
     s,
@@ -658,11 +656,39 @@ function _restore_checkpoint_state!(
         end
         total += count # Saved populations have already passed the total-count overflow check.
     end
-    _resize_hybrid_particle_workspaces!(st, total)
+    return total
+end
+
+function _restore_validated_hybrid_checkpoint!(st, ps::ParticleSet, s, count::Int)
+    _resize_hybrid_particle_workspaces!(st, count)
+    _restore_checkpoint_particles!(ps, s)
+    return _restore_hybrid_checkpoint_fields!(st, s)
+end
+
+function _restore_validated_hybrid_checkpoint!(st, species::AbstractVector, s, count::Int)
+    _resize_hybrid_particle_workspaces!(st, count)
     for (ps, record) in zip(species, s.species)
         _restore_checkpoint_particles!(ps, record)
     end
     return _restore_hybrid_checkpoint_fields!(st, s)
+end
+
+function _restore_checkpoint_state!(
+    st::_HybridCheckpointStepper{D,T},
+    ps::ParticleSet{D,T},
+    s,
+) where {D,T}
+    count = _validate_hybrid_checkpoint_restore(st, ps, s)
+    return _restore_validated_hybrid_checkpoint!(st, ps, s, count)
+end
+
+function _restore_checkpoint_state!(
+    st::_HybridCheckpointStepper,
+    species::AbstractVector{<:ParticleSet},
+    s,
+)
+    count = _validate_hybrid_checkpoint_restore(st, species, s)
+    return _restore_validated_hybrid_checkpoint!(st, species, s, count)
 end
 
 function _restore_hybrid_checkpoint_fields!(st::_HybridCheckpointStepper, s)

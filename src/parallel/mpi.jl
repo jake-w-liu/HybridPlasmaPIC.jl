@@ -378,7 +378,9 @@ end
 Collectively restore the rank-local state written by [`save_mpi_checkpoint`](@ref).
 The manifest and rank-local file are validated against `ctx`, `stepper`, grid
 identity, time, step, and logical-rank identity before the destination state is
-mutated. After loading, [`mpi_step!`](@ref) can continue the run.
+mutated. Reads and validation finish on all ranks before any destination changes.
+A failure is rethrown on its originating rank and reported on the other ranks.
+After loading, [`mpi_step!`](@ref) can continue the run.
 """
 function load_mpi_checkpoint!(
     st::HybridStepper{D,T},
@@ -387,12 +389,34 @@ function load_mpi_checkpoint!(
     ctx::MPICartesianCommunicator{D},
 ) where {D,T}
     ensure_mpi_initialized!()
-    manifest = Serialization.deserialize(_mpi_checkpoint_manifest_path(dir))
-    _validate_mpi_checkpoint_manifest(manifest, st, ctx)
-    rank_file = _validate_mpi_checkpoint_filename(manifest.rank_files[ctx.logical_rank])
-    state = Serialization.deserialize(joinpath(dir, rank_file))
-    _validate_mpi_rank_checkpoint_state(state, manifest, st, ctx)
-    return _restore_checkpoint_state!(st, ps, state)
+    state, count = _mpi_checkpoint_stage(ctx, "restore preflight") do
+        manifest = Serialization.deserialize(_mpi_checkpoint_manifest_path(dir))
+        _validate_mpi_checkpoint_manifest(manifest, st, ctx)
+        rank_file = _validate_mpi_checkpoint_filename(manifest.rank_files[ctx.logical_rank])
+        saved = Serialization.deserialize(joinpath(dir, rank_file))
+        _validate_mpi_rank_checkpoint_state(saved, manifest, st, ctx)
+        local_count = _validate_hybrid_checkpoint_restore(st, ps, saved)
+        (saved, local_count)
+    end
+    return _restore_validated_hybrid_checkpoint!(st, ps, state, count)
+end
+
+# Checkpoint I/O can fail during deserialization or destination validation, with
+# exception types supplied by the filesystem, serializer, or saved types. At
+# this collective boundary every recoverable failure remains an error; retain
+# the original exception and stack locally and notify all peers before mutation.
+# Interrupts and fatal resource failures remain outside this protocol.
+function _mpi_checkpoint_stage(f, ctx, phase::AbstractString)
+    result = try
+        f()
+    catch err
+        (err isa InterruptException || err isa OutOfMemoryError || err isa StackOverflowError) && rethrow()
+        MPI.Allreduce(1, max, ctx.comm)
+        rethrow()
+    end
+    MPI.Allreduce(0, max, ctx.comm) == 0 ||
+        throw(ErrorException("MPI checkpoint $phase failed on another rank"))
+    return result
 end
 
 function _mpi_reduction_op(op::Symbol)

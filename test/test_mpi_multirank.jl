@@ -689,4 +689,5 @@ if WORLD_SIZE in (2, 4, 8)
     end
 end
 
+include("test_mpi_checkpoint.jl")
 include("test_multispecies_mpi.jl")

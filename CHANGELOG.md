@@ -134,6 +134,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- MPI checkpoint restore completes reads and destination validation on every
+  rank before changing any destination. Recoverable file and validation errors
+  retain their original exception on the failing rank and notify peer ranks.
+
 - Collision rollback tests initialize their position fixture, avoiding
   nondeterministic NaN comparisons in the full test suite.
 
