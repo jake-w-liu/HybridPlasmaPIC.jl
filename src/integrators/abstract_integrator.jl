@@ -1,6 +1,24 @@
 # abstract_integrator.jl — base type for time integrators (§5.3 integrators/).
 abstract type AbstractIntegrator end
 
+# Preflight the clock before any particle, field, or workspace mutation. EM
+# clocks historically add each fast substep separately; retain that arithmetic
+# so ordinary restart histories are unchanged, including their rounding.
+function _validated_step_clock(time::T, step::Int, dt::T, substeps::Int = 1) where {T}
+    isfinite(time) && time >= zero(T) ||
+        throw(ArgumentError("simulation time must be finite and nonnegative"))
+    0 <= step < typemax(Int) ||
+        throw(ArgumentError("simulation step count cannot advance within Int range"))
+    next_time = time
+    for _ = 1:substeps
+        next_time += dt
+    end
+    isfinite(next_time) || throw(
+        ArgumentError("simulation time after stepping must be finite and representable as $T"),
+    )
+    return next_time, step + 1
+end
+
 # Imaginary-axis stability limit |ω·Δt| of each magnetic mover (the largest ω·Δt
 # that keeps the oscillatory whistler update non-growing): RK4 ≈ 2.83, leapfrog/CL
 # ≈ 2, Crank–Nicolson unconditionally stable (∞). The :camcl bound is that of the

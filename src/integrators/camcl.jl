@@ -281,6 +281,7 @@ function step_camcl!(
 ) where {D,T}
     dtT = _validated_step_dt(T, dt, NB; min_NB = 2, name = "step_camcl!")
     iszero(dtT) && return st        # dt=0 no-op: do not consume the one-time priming guard.
+    next_time, next_step = _validated_step_clock(st.time[], st.step[], dtT)
     qm = _validated_qm(ps)
     _resize_hybrid_particle_workspaces!(st, nparticles(ps))
     g = st.g
@@ -338,8 +339,8 @@ function step_camcl!(
     ohms_law!(st.fields, st.model, st.g)
     _recenter_carried_E!(st, ps, dtT)
 
-    st.time[] += dtT
-    st.step[] += 1
+    st.time[] = next_time
+    st.step[] = next_step
     st.last_dt[] = dtT
     return st
 end

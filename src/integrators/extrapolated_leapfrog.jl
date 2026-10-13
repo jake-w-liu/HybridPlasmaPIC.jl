@@ -318,6 +318,7 @@ function step!(st::HybridStepper{D,T}, ps::ParticleSet{D,T}, dt::Real; NB::Integ
     dtT = _validated_step_dt(T, dt, NB; min_NB = 1, name = "step!")
     iszero(dtT) && return st        # dt=0 is a true no-op: advance nothing, and (critically) do
     #                                 NOT consume the step==0 one-time leapfrog-priming guard.
+    next_time, next_step = _validated_step_clock(st.time[], st.step[], dtT)
     qm = _validated_qm(ps)
     _resize_hybrid_particle_workspaces!(st, nparticles(ps))
     g = st.g
@@ -394,8 +395,8 @@ function step!(st::HybridStepper{D,T}, ps::ParticleSet{D,T}, dt::Real; NB::Integ
     ohms_law!(st.fields, st.model, st.g)
     _recenter_carried_E!(st, ps, dtT)
 
-    st.time[] += dtT
-    st.step[] += 1
+    st.time[] = next_time
+    st.step[] = next_step
     st.last_dt[] = dtT
     return st
 end

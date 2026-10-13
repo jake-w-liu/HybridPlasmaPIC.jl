@@ -651,6 +651,7 @@ function mpi_step!(
 ) where {D,T}
     dtT = _validated_step_dt(T, dt, NB; min_NB = 1, name = "mpi_step!")
     iszero(dtT) && return st        # dt=0 no-op: do not consume the one-time priming guard.
+    next_time, next_step = _validated_step_clock(st.time[], st.step[], dtT)
     qm = _validated_qm(ps)
     _resize_hybrid_particle_workspaces!(st, nparticles(ps))
 
@@ -722,8 +723,8 @@ function mpi_step!(
 
     migrate_particles && mpi_migrate_particles!(ps, g, ctx)
 
-    st.time[] += dtT
-    st.step[] += 1
+    st.time[] = next_time
+    st.step[] = next_step
     st.last_dt[] = dtT
     return st
 end

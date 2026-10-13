@@ -23,6 +23,7 @@ using Test
     include("test_provenance_log.jl")
     include("test_camcl.jl")
     include("test_variable_steps.jl")
+    include("test_step_clocks.jl")
     include("test_shock.jl")
     include("test_dimensions.jl")
     include("test_io.jl")

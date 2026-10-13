@@ -25,7 +25,9 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   compatibility finding is fixed; HDF5 and PencilFFT extensions have now
   precompiled successfully in both fresh version runs.
 - Full package suite at fixed `1138317` on Julia 1.13.1: **106,662/106,662 tests
-  passed**. The Julia 1.12.7 run remains active. Logs:
+  passed**. Julia 1.12.7: **106,661 passed, 1 failed**; the sole failure was
+  the JET report-count gate (31 findings against a ceiling of 30). The checkpoint
+  inference repair is being checked without increasing the ceiling. Logs:
   `/tmp/hybrid-full-1138317-julia112.log` and `/tmp/hybrid-full-1138317-julia113.log`.
 - Julia 1.13.1 quick validation at fixed revision `b200c76`: **150/150 metrics
   passed across 20 cases**, no skipped results. Command:
@@ -35,6 +37,9 @@ completeness. Comparative leadership requires reproducible external benchmarks.
 - Julia 1.13.1 full electromagnetic suites at fixed `b62da7b`: **7,707/7,707
   assertions passed** across 40 test sets, including the new subcycling and
   Float32 cases. Log: `/tmp/empic-subcycling-b62da7b-julia113.log`.
+- Julia 1.13.1 combined I/O, reproducibility and MPI checks at fixed `9856971`:
+  **4,820/4,820 assertions passed** across 44 test sets. This includes the new
+  two-species EM restart implementation. Log: `/tmp/hybrid-io-9856971-julia113.log`.
 - CI run `38414172669` passed formatting and real MPI smoke at 2, 4, and 8 ranks.
   Its package suites were superseded by subsequent required pushes. Local full
   suites continue independently of push-triggered CI cancellation.
@@ -68,7 +73,7 @@ performance review. “Pending” means no current-run completion claim.
 | Diagnostics and ray/Raycon solvers | Inventory complete; detailed pass pending | Independent references, units, transport/conversion invariants |
 | Checkpoints/archives/field I/O | Independent audit active; defects confirmed | Configuration identity, exact bytes/checksums, atomic failure, restart |
 | Threads/MPI/distributed FFT/GPU | Interfaces inspected; full pass pending | Real multirank tests, backend equivalence, ownership, hardware benchmarks |
-| Packaging/quality/examples/validation | Julia 1.13 full suite passed at `1138317`; Julia 1.12 full run and JET triage active | CI-version tests, Aqua/JET findings, formatting, examples, validation cases |
+| Packaging/quality/examples/validation | Julia 1.13 full suite passed at `1138317`; Julia 1.12 had one JET-count failure; inference repair active | CI-version tests, Aqua/JET findings, formatting, examples, validation cases |
 
 ## Verified findings and fixes
 
@@ -91,7 +96,8 @@ performance review. “Pending” means no current-run completion claim.
 | SUBCYCLE-001 | General EMPIC lacked electron subcycling | Pushed (`c5fef77`) | Julia 1.12.7 full EM suites: 7,257 assertions; added permanent Float32 coverage: 450 assertions in a separate final-file run. Includes independent constant-field oracles, 1D equivalence, 2D/3D charge/Gauss checks, changing dt/counts, mobile-ion coupled convergence. Default n_sub=1 arrays match prior code; allocations unchanged and scale linearly with subcycles |
 | GYRO-001 | Guiding-centre drift loses finite results by reconstructing perpendicular speed squared from magnetic moment | Pushed (`2eeecd6`) | Direct moment-based grad-B drift; independent 2,048-bit equations cover extreme and ordinary Float32/64 inputs, charge signs, mass, zero moment, and failed-update rollback. Fusion suite: 256 assertions passed on each of Julia 1.12.7 and 1.13.1, including 76 new assertions; warmed push remains allocation-free |
 | RESTART-003 | EM PIC lacked restart/archive support for two species and their staggered phases | Pushed (`9856971`) | Julia 1.12.7 combined I/O/reproducibility: 4,692 assertions, including 3,620 EM assertions. Covers legacy/general 1D–3D, Float32/64, all shapes, mobile/immobile and relativistic/nonrelativistic runs, exact continuation, diagnostics, changing dt/subcycles, invalid-state rollback, views and empty populations. Log: `/tmp/hybrid-io-empic-final112.log` |
-| HALL-001 | Final Hall-MHD projection/Ohm evaluation can throw after changing public fields | Verified; commit in this change | Candidate fields are fully evaluated before copying to the public state. 114 Hall assertions pass on each of Julia 1.12.7 and 1.13.1; 108 independent before/after comparisons on 1.12 cover 1D–3D, Float32/64, three closures and projection on/off, with bitwise-equal successful steps and unchanged allocations. Failure tests compare every public field and preserve array identities. Logs: `/tmp/hall_transaction_final_tests.log`, `/tmp/hall_transaction_final_comparison.log`, `/tmp/hall-transaction-julia113.log` |
+| HALL-001 | Final Hall-MHD projection/Ohm evaluation can throw after changing public fields | Pushed (`f1f946e`) | Candidate fields are fully evaluated before copying to the public state. 114 Hall assertions pass on each of Julia 1.12.7 and 1.13.1; 108 independent before/after comparisons on 1.12 cover 1D–3D, Float32/64, three closures and projection on/off, with bitwise-equal successful steps and unchanged allocations. Failure tests compare every public field and preserve array identities. Logs: `/tmp/hall_transaction_final_tests.log`, `/tmp/hall_transaction_final_comparison.log`, `/tmp/hall-transaction-julia113.log` |
+| TIME-003 | Finite solver steps overflow simulation time or wrap the integer step counter | Verified; commit in this change | Shared preflight covers hybrid, CAM-CL, Hall-MHD, both EM families and MPI. Clock and variable-step regressions pass 953 assertions on each of Julia 1.12.7 and 1.13.1; covers 1D–3D, Float32/64, moving particles, evolving fields, whole-state rollback, zero steps, Int boundary and EM substep rounding. Logs: `/tmp/hybrid-clock-final112.log`, `/tmp/hybrid-clock-final113.log` |
 
 ## Completeness roadmap
 

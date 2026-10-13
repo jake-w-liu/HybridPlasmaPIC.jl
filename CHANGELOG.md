@@ -99,6 +99,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Hybrid, CAM-CL, Hall-MHD, electromagnetic PIC, and MPI reference steps reject
+  time and step-counter overflow before changing state. EM clock validation
+  preserves the existing sequence of rounded fast-substep additions.
+
 - Hall-MHD completes final magnetic projection and Ohm-law evaluation on its
   candidate state before committing. A failed final evaluation preserves public
   fields, time, and step count; successful steps retain public array identities.

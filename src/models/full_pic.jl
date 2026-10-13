@@ -740,6 +740,7 @@ function step_empic!(
     iszero(dtT) && return es            # dt=0 no-op: do not consume the one-time priming
     dt_e = dtT / ns
     dt_e > zero(T) || throw(ArgumentError("dt/n_sub must be representable and positive"))
+    next_time, next_step = _validated_step_clock(es.time[], es.step[], dt_e, ns)
     if es.relativistic
         _require_subluminal_velocities(e, es.c, "step_empic!")
         es.mobile && _require_subluminal_velocities(ions, es.c, "step_empic! ion species")
@@ -802,9 +803,9 @@ function step_empic!(
     @inbounds for s = 1:ns
         _substep_em!(es, e, ions, dt_e, s == push_sub, dt_previous, dt_ion_push)
         dt_previous = dt_e
-        es.time[] += dt_e
     end
-    es.step[] += 1
+    es.time[] = next_time
+    es.step[] = next_step
     es.last_dt[] = dtT
     es.last_sub_dt[] = dt_e
     return es
@@ -1393,6 +1394,7 @@ function step_empic!(
     iszero(dtT) && return es            # dt=0 no-op: do not consume the one-time priming
     dt_e = dtT / ns
     dt_e > zero(T) || throw(ArgumentError("dt/n_sub must be representable and positive"))
+    next_time, next_step = _validated_step_clock(es.time[], es.step[], dt_e, ns)
     if es.relativistic
         _require_subluminal_velocities(e, es.c, "step_empic!")
         es.mobile && _require_subluminal_velocities(ions, es.c, "step_empic! ion species")
@@ -1433,9 +1435,9 @@ function step_empic!(
     for substep = 1:ns
         _substep_empic!(es, e, ions, dt_e, dt_previous, substep == 1, dt_ion_push)
         dt_previous = dt_e
-        es.time[] += dt_e
     end
-    es.step[] += 1
+    es.time[] = next_time
+    es.step[] = next_step
     es.last_dt[] = dtT
     es.last_sub_dt[] = dt_e
     return es

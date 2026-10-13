@@ -338,6 +338,7 @@ subspace. A failed step leaves the current fields, time, and step count unchange
 function step_hall_mhd!(st::HallMHDState{D,T}, dt::Real; project_b::Bool = true) where {D,T}
     dtT = _validated_nonnegative_dt(T, dt; name = "step_hall_mhd!")
     iszero(dtT) && return st
+    next_time, next_step = _validated_step_clock(st.time[], st.step[], dtT)
 
     _copy_hall_state!(st.n0, st.u0, st.B0, st.fields.n, st.fields.ui, st.fields.B)
 
@@ -377,7 +378,7 @@ function step_hall_mhd!(st::HallMHDState{D,T}, dt::Real; project_b::Bool = true)
     project_b && project_b!(candidate, st.g)
     _hall_ohms_law_fields!(candidate, st.model, st.g)
     _commit_hall_fields!(st.fields, candidate)
-    st.time[] += dtT
-    st.step[] += 1
+    st.time[] = next_time
+    st.step[] = next_step
     return st
 end
