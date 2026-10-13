@@ -316,3 +316,44 @@ end
     @test _hall_fields_snapshot(st.fields) == before
     @test (st.time[], st.step[]) == (0.0, 0)
 end
+
+@testset "Hall-MHD density floor is an inclusive committed-state bound" begin
+    for T in (Float32, Float64),
+        D = 1:3,
+        closure in (
+            IsothermalElectrons(0.2),
+            PolytropicElectrons(0.2, 1.0, 5 / 3),
+            CGLElectrons(0.2, 0.15, 1.0, 1.0),
+        )
+        # Uniform n,u,B is an exact stationary solution for all three closures.
+        # Shared Ohm's law floors only n < nfloor, so equality must also be a
+        # valid RK4 result; use adjacent representable densities to test the bound.
+        nfloor = T(1e-4)
+        g = FourierGrid(ntuple(_ -> 4, D), ntuple(_ -> one(T), D))
+        st = HallMHDState(g, HallMHDModel(closure; Ti = 0.3, nfloor))
+        st.fields.B[1] .= one(T)
+        for density in (nfloor, nextfloat(nfloor))
+            st.fields.n .= density
+            hall_mhd_ohms_law!(st)
+            @test st.fields.floor_count[] == 0
+            @test all(==(inv(density)), st.fields.ninv)
+            rhs = hall_mhd_rhs!(st)
+            @test all(all(iszero, a) for a in (rhs.dn, rhs.du..., rhs.dB...))
+            before = _hall_fields_snapshot(st.fields)
+            step_hall_mhd!(st, T(0.1))
+            @test _hall_fields_snapshot(st.fields) == before
+        end
+        @test st.time[] == T(0.1) + T(0.1)
+        @test st.step[] == 2
+
+        st.fields.n .= prevfloat(nfloor)
+        hall_mhd_ohms_law!(st)
+        @test st.fields.floor_count[] == length(st.fields.n)
+        @test all(==(inv(nfloor)), st.fields.ninv)
+        before = _hall_fields_snapshot(st.fields)
+        @test_throws ArgumentError step_hall_mhd!(st, T(0.1))
+        @test _hall_fields_snapshot(st.fields) == before
+        @test st.time[] == T(0.1) + T(0.1)
+        @test st.step[] == 2
+    end
+end

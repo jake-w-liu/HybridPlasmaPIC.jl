@@ -16,7 +16,8 @@
 
 Parameters for periodic Hall-MHD. `closure` gives the electron pressure,
 `Ti` is the isothermal ion temperature (`p_i = Ti*n`), `η` and `ηH` are
-resistivity and hyperresistivity in Ohm's law, and `nfloor` protects `1/n`.
+resistivity and hyperresistivity in Ohm's law. `nfloor` protects `1/n` and is
+the minimum accepted density in a committed state.
 """
 struct HallMHDModel{C<:ElectronClosure}
     closure::C
@@ -154,7 +155,7 @@ function _validate_hall_candidate!(st::HallMHDState{D,T}, n, u, B) where {D,T}
     nfloor = T(st.model.nfloor)
     @inbounds for x in n
         isfinite(x) || throw(ArgumentError("Hall-MHD density went non-finite"))
-        x > nfloor || throw(ArgumentError("Hall-MHD density fell below nfloor"))
+        x >= nfloor || throw(ArgumentError("Hall-MHD density fell below nfloor"))
     end
     for c = 1:3
         _require_all_finite("Hall-MHD velocity component $c", u[c], "step_hall_mhd!")

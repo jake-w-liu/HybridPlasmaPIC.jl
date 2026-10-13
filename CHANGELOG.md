@@ -100,6 +100,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Hall-MHD accepts density exactly equal to `nfloor`, consistently with the
+  shared Ohm-law floor. Densities below the floor still reject the step before
+  changing public fields or the simulation clock.
+
 - Checkpoint capture and restoration retain concrete field types for static
   analysis, including CAM-CL magnetic copies and EM species presence. The JET
   regression gate passes on Julia 1.12 and 1.13 without raising its limit;
