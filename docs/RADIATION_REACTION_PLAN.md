@@ -115,17 +115,17 @@ matches the reference. Eighty repeated warm task batches pass, but fresh
 processes reproduce the failure. Passing repeats do not close it. Logs:
 `/tmp/hybrid-radiation-context-fresh112-4.log`,
 `/tmp/hybrid-radiation-context-capture112-16.log`,
-`/tmp/hybrid-radiation-context-replay112.log`. Intermediate arithmetic tracing
-is active; its cause has not yet been established.
+`/tmp/hybrid-radiation-context-replay112.log`. Native reduction below establishes
+the cause; the ordinary installed-runtime failure remains open.
 
 A finer captured trace verifies that the wrong intermediate is `log(rwide)`:
 for stored `rwide=0.6875`, Julia 1.12.7 concurrently returned approximately
 -45.87345. Exact invariants and optical depth were correct in that trace.
 Log: `/tmp/hybrid-radiation-context-trace-v3-112-23.log`; captured operands:
 `/tmp/hybrid-radiation-context-trace-v3-53-RoundingMode{:Up}().bin`.
-Standalone reduction is ongoing. This identifies the failing operation, not
-yet its underlying cause; changing expressions or passing repeats alone does
-not establish a repair.
+This trace identifies the failing operation. The native reduction below
+separately establishes its cause; passing repeated warm calls alone does not
+establish a repair.
 
 The reduction now reproduces the wrong logarithm using only Julia Base,
 without importing this package (`/tmp/hybrid-radiation-base-concurrency112-24.log`).
@@ -133,7 +133,8 @@ Direct concurrent MPFR constant calls also return incorrect pi values on both
 Julia 1.12.7 and 1.13.1, each using unpatched MPFR 4.2.2 with shared caches:
 `/tmp/hybrid-mpfr-cache-concurrency112-1.log` and
 `/tmp/hybrid-mpfr-cache-concurrency113-1.log`. The native cache-lock transition
-is now verified by an instrumented C reproducer and a matched one-line repair. Installed runtimes remain unchanged.
+is now verified by an instrumented C reproducer and a matched one-line repair.
+Installed runtimes remain unchanged.
 [Evidence and remaining integration](MPFR_CONCURRENCY_PLAN.md) distinguish the
 temporary repair from ordinary Julia execution; no package-local workaround
 has been adopted.

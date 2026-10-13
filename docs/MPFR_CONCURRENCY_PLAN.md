@@ -48,6 +48,29 @@ by this package and has not been submitted upstream.
 The repair changes only the precision refresh in the native library. No
 package-local mutex or alternative logarithm has been added.
 
+## Standalone diagnostic
+
+Run the retained [Julia probe](../tools/audit_mpfr_cache.jl) in a fresh process:
+
+```sh
+julia --startup-file=no --threads=4 tools/audit_mpfr_cache.jl
+```
+
+It loads no plasma package, reports the actual MPFR library and build flags,
+and checks 64 growing-precision values of each of pi and log(2). Incorrect
+constants produce a nonzero exit with their precision, observed value and
+hardware-precision reference. The tolerance detects gross cache corruption;
+it is not a test of every rounding bit. A passing process does not establish
+thread safety because the race is intermittent. Do not retry until green.
+
+The final tool reproduces incorrect constants on both installed Julia versions
+in `/tmp/hybrid-mpfr-repo-probe112-2.log` and `113-2.log` (exit 1).
+The preceding fresh process passed on each version. With the temporary repaired
+library, all 128 checks pass on each version (exit 0):
+`/tmp/hybrid-mpfr-repo-probe-fixed112.log` and `fixed113.log`.
+A one-thread invocation rejects the invalid probe setup before spawning tasks
+on both versions: `/tmp/hybrid-mpfr-repo-probe-single112.log` and `single113.log`.
+
 ## Integration and remaining work
 
 A temporary shared library is linked against Julia's existing GMP and selected
@@ -65,12 +88,16 @@ The selected upstream `tversion`, `tconst_pi`, `tconst_log2`, `tlog`, `tlog1p`,
 library. Their logs are `upstream-focused-v2-<name>.log`. The first upstream
 check invocation ran 198 programs and reported 194 lock-abort failures, one
 pass and three skips. Its test allocator declared `mpfr_lock_memory` without
-initializing it. The temporary test support now initializes that lock in
+initializing it. The first temporary test correction initializes that lock in
 `tests_memory_start` and destroys it in `tests_memory_end`; the numeric and
 memory assertions remain intact. The original failed logs are retained in
 `upstream-transcendental-tests.log` and `mpfr-4.2.2/tests/test-suite.log`.
-Only the seven selected programs were rerun successfully; a complete upstream
-suite pass is not claimed.
+A subsequent full run passes 194 programs, skips three unsupported format tests,
+and fails `tasin` with a lock abort (`upstream-full-v3.log`). The temporary support
+incorrectly destroyed its lock at `tests_memory_end`; `tests/tasin.c:272–279`
+continues using the installed allocator after that check. The support now
+initializes the lock once and destroys it at process exit. A complete rerun is
+in progress (`upstream-full-v4.log`); no full-suite pass is claimed yet.
 
 Retain the native patch and reproducer
 for review. A distributable runtime correction or an explicit supported
