@@ -77,7 +77,7 @@ end
 
 @testset "one-rank MPI checkpoint restart" begin
     ensure_mpi_initialized!()
-    @test MPI_CHECKPOINT_SCHEMA_VERSION == 1
+    @test MPI_CHECKPOINT_SCHEMA_VERSION == 2
     g = FourierGrid((8,), (2π,))
     layout = LogicalRankLayout((1,); periodic = (true,))
     ctx = create_cartesian_communicator(layout; comm = MPI.COMM_SELF)

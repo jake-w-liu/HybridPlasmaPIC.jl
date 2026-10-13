@@ -3,7 +3,9 @@
 Status: serial core evolution, collection restart and conservation diagnostics
 verified on Julia 1.12.7 and 1.13.1. MPI collection evolution is pushed as
 `ac88424`, and collective scalar restore preflight as `230fd58`. Distributed
-collection restart and an exactly conservative coupled integrator remain open.
+collection restart and failure-preserving publication are now verified; see the
+[checkpoint plan](MPI_CHECKPOINT_PLAN.md). An exactly conservative coupled
+integrator remains open.
 
 ## Verified gap
 
@@ -134,8 +136,8 @@ energy and momentum reductions allocate zero bytes in 1D–3D.
 
 Capability checks at `67f01b7` on Julia 1.13.1 found no applicable collection
 methods for MPI moments, initialization, stepping or checkpoint save/load
-(`/tmp/hybrid-multispecies-mpi-capability-baseline.log`). Implement evolution
-first, then distributed collection restart using the existing ordered records.
+(`/tmp/hybrid-multispecies-mpi-capability-baseline.log`). Evolution and distributed
+collection restart now use the existing ordered records and canonical kernels.
 
 The evolution slice extracts the raw integer, midpoint and predictor moment
 stages from the canonical serial integrator. Serial callers normalize those
@@ -184,7 +186,7 @@ Evidence: `/tmp/hybrid-mpi-floor-review-0.log` and `-1.log`. Restore the guard
 before initialization/step mutation, collectively for collections. Regression
 tests cover both APIs, scalar populations, and a malformed floor on one rank.
 
-## Distributed collection restart: next implementation slice
+## Distributed collection restart
 
 Use the existing ordered checkpoint records and shared Hybrid restore path.
 Separate restore preflight from mutation so MPI can validate every rank's
@@ -194,8 +196,9 @@ rank 0 while rank 1 rejected a non-resizable view destination
 (`/tmp/hybrid-mpi-restore-collective-probe.log`). Collective restore must instead
 report the failure on both ranks and leave both destinations unchanged. That
 preflight repair is pushed as `230fd58`, with both-version two-rank fault and
-continuation tests. The ordered collection extension and save protocol below
-remain pending.
+continuation tests. The ordered collection extension and generation-based save
+protocol are now verified on both Julia versions; see
+[MPI_CHECKPOINT_PLAN.md](MPI_CHECKPOINT_PLAN.md) for evidence and limitations.
 
 Save must validate ordered populations and integrator phase on every rank
 before writing. Publish the manifest only after all rank files succeed, and
@@ -205,5 +208,5 @@ that preserves the originating error. Acceptance includes scalar compatibility,
 ordered collection continuation with changing dt/subcycles and migration,
 empty local populations, writable views, one-rank malformed payloads or
 destinations, and failed save/retry behavior on both supported Julia versions.
-This slice remains pending; the evolution implementation alone does not close
-distributed restart.
+The final real two-rank tests exercise those cases on Julia 1.12.7 and 1.13.1,
+including failed replacement, cleanup errors and schema 1 compatibility.

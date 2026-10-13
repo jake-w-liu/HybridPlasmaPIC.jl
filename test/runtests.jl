@@ -67,6 +67,7 @@ using Test
     include("test_inject.jl")
     include("test_mpi.jl")
     include("test_mpi_checkpoint.jl")
+    include("test_mpi_checkpoint_collections.jl")
     include("test_moment_storage_mpi.jl")
     include("test_multispecies_mpi.jl")
     include("test_espic.jl")

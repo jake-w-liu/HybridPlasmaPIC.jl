@@ -304,7 +304,11 @@ collections. Charge moments are summed across populations and ranks before the
 density floor is applied; migration preserves each population separately. All
 ranks must supply the same ordered charge/mass parameters and stepping settings.
 Use `migrate_particles=false` with particle views; migration requires Vector
-storage. Distributed collection checkpoint integration is still pending.
+storage. `save_mpi_checkpoint` and `load_mpi_checkpoint!` accept scalar populations
+and ordered collections in a shared directory. Recoverable save failures before
+publication preserve the previous checkpoint. Keep the same grid/layout and
+exclusive directory access during checkpoint I/O; schema 1 checkpoints remain
+readable. A cleanup error after publication leaves the new checkpoint usable.
 
 **I/O.** `save_checkpoint` / `load_checkpoint!` restart `HybridStepper`,
 `CAMCLStepper`, `Electrostatic1D`, `ElectrostaticPIC`, `EMPIC1D`, `EMPIC`, and `HallMHDState` runs bitwise-identically

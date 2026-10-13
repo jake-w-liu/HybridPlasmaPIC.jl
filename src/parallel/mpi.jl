@@ -195,7 +195,7 @@ function mpi_rank_layout_description(ctx::MPICartesianCommunicator)
     )
 end
 
-const MPI_CHECKPOINT_SCHEMA_VERSION = 1
+const MPI_CHECKPOINT_SCHEMA_VERSION = 2
 const _MPI_CHECKPOINT_MANIFEST = "mpi_checkpoint_manifest.ser"
 
 _mpi_checkpoint_manifest_path(dir::AbstractString) = joinpath(dir, _MPI_CHECKPOINT_MANIFEST)
@@ -211,6 +211,7 @@ _mpi_checkpoint_rank_path(dir::AbstractString, logical_rank::Integer) =
 function _mpi_checkpoint_manifest(
     st::HybridStepper{D,T},
     ctx::MPICartesianCommunicator{D},
+    generation::AbstractString,
 ) where {D,T}
     rank_files = Tuple(_mpi_checkpoint_rank_filename(r) for r = 1:nranks(ctx.layout))
     return (
@@ -225,6 +226,7 @@ function _mpi_checkpoint_manifest(
         time = st.time[],
         step = st.step[],
         rank_files = rank_files,
+        generation = String(generation),
     )
 end
 
@@ -253,7 +255,7 @@ function _validate_mpi_checkpoint_manifest(
             ),
         )
     end
-    manifest.schema == MPI_CHECKPOINT_SCHEMA_VERSION || throw(
+    manifest.schema in (1, MPI_CHECKPOINT_SCHEMA_VERSION) || throw(
         ArgumentError(
             "MPI checkpoint schema $(manifest.schema) ≠ $(MPI_CHECKPOINT_SCHEMA_VERSION)",
         ),
@@ -277,12 +279,67 @@ function _validate_mpi_checkpoint_manifest(
         ),
     )
     foreach(_validate_mpi_checkpoint_filename, manifest.rank_files)
+    if manifest.schema == MPI_CHECKPOINT_SCHEMA_VERSION
+        haskey(manifest, :generation) ||
+            throw(ArgumentError("MPI checkpoint manifest is missing its generation"))
+        generation = _validate_mpi_checkpoint_filename(manifest.generation)
+        startswith(generation, "_hybrid_mpi_") && length(generation) > length("_hybrid_mpi_") ||
+            throw(ArgumentError("invalid MPI checkpoint generation: $generation"))
+    end
+    return nothing
+end
+
+_mpi_checkpoint_generation_path(dir, manifest) =
+    manifest.schema == 1 ? dir : joinpath(dir, manifest.generation)
+
+# Only the canonical writer's rank files are removed. Never recursively remove
+# a directory, so unrelated contents remain visible as a cleanup error.
+function _validate_mpi_checkpoint_owned_files(dir, manifest)
+    expected = Tuple(_mpi_checkpoint_rank_filename(r) for r = 1:manifest.nranks)
+    Tuple(manifest.rank_files) == expected ||
+        throw(ArgumentError("cannot replace an MPI checkpoint with noncanonical rank files"))
+    if manifest.schema != 1 && islink(_mpi_checkpoint_generation_path(dir, manifest))
+        throw(ArgumentError("MPI checkpoint generation must not be a symbolic link"))
+    end
+    return nothing
+end
+
+function _remove_mpi_checkpoint_generation(dir, manifest; staged = false)
+    _validate_mpi_checkpoint_owned_files(dir, manifest)
+    location = _mpi_checkpoint_generation_path(dir, manifest)
+    for file in manifest.rank_files
+        rm(joinpath(location, file); force = true)
+    end
+    if manifest.schema != 1
+        staged && rm(joinpath(location, "manifest.tmp"); force = true)
+        rm(location)
+    end
+    return nothing
+end
+
+function _mpi_checkpoint_agreement(state, st::HybridStepper{D,T}, ctx) where {D,T}
+    collection = haskey(state, :particle_layout)
+    _mpi_require_equal([Int(collection)], ctx, "checkpoint particle layouts")
+    parameters = T[]
+    if collection
+        for record in state.species
+            push!(parameters, record.q, record.m)
+        end
+    else
+        push!(parameters, state.q, state.m)
+    end
+    _mpi_require_equal([length(parameters)], ctx, "checkpoint population counts")
+    isempty(parameters) || _mpi_require_equal(parameters, ctx, "checkpoint ordered charge and mass")
+    _mpi_require_equal(collect(st.g.n), ctx, "checkpoint grid sizes")
+    _mpi_require_equal(collect(st.g.L), ctx, "checkpoint box lengths")
+    _mpi_require_equal([state.step], ctx, "checkpoint step counts")
+    _mpi_require_equal(T[state.time, state.last_dt], ctx, "checkpoint time and previous timestep")
     return nothing
 end
 
 function _mpi_checkpoint_state(
     st::HybridStepper{D,T},
-    ps::ParticleSet{D,T},
+    ps::Union{ParticleSet{D,T},AbstractVector{<:ParticleSet{D,T}}},
     ctx::MPICartesianCommunicator{D},
 ) where {D,T}
     base = _checkpoint_state(st, ps)
@@ -314,9 +371,9 @@ function _validate_mpi_rank_checkpoint_state(
             ArgumentError("MPI rank checkpoint is missing fields: $(join(string.(missing), ", "))"),
         )
     end
-    state.mpi_schema == MPI_CHECKPOINT_SCHEMA_VERSION || throw(
+    state.mpi_schema == manifest.schema || throw(
         ArgumentError(
-            "MPI rank checkpoint schema $(state.mpi_schema) ≠ $(MPI_CHECKPOINT_SCHEMA_VERSION)",
+            "MPI rank checkpoint schema $(state.mpi_schema) ≠ manifest $(manifest.schema)",
         ),
     )
     state.logical_rank == ctx.logical_rank || throw(
@@ -344,31 +401,105 @@ end
 """
     save_mpi_checkpoint(dir, stepper, ps, ctx) -> manifest_path
 
-Collectively write a restartable MPI checkpoint directory. Each rank writes its
-rank-local particles plus replicated fields to a logical-rank file, and MPI rank
-0 writes a manifest describing the grid, layout, time, step, and rank-file map.
-All ranks return the shared manifest path after the files are complete.
+Collectively write scalar or ordered-collection hybrid state into a shared
+checkpoint directory. Every rank validates its state and matching species/phase
+before writing a new generation. The manifest is published only after all rank
+files close successfully. Failures before publication preserve the old checkpoint.
+MPI schema 2 uses generation directories; loading schema 1 remains supported.
+
+The directory must have exclusive access during save/load and retain the same
+grid/layout. Successful replacement removes the superseded generation. A cleanup
+error after publication is reported with the new checkpoint already usable.
+Process interruption may leave an unpublished generation; power-loss durability
+and concurrent access are outside this interface.
 """
 function save_mpi_checkpoint(
     dir::AbstractString,
     st::HybridStepper{D,T},
-    ps::ParticleSet{D,T},
+    ps::Union{ParticleSet{D,T},AbstractVector{<:ParticleSet{D,T}}},
     ctx::MPICartesianCommunicator{D},
 ) where {D,T}
     ensure_mpi_initialized!()
-    ctx.mpi_rank == 0 && mkpath(dir)
-    MPI.Barrier(ctx.comm)
-
-    rank_path = _mpi_checkpoint_rank_path(dir, ctx.logical_rank)
-    Serialization.serialize(rank_path, _mpi_checkpoint_state(st, ps, ctx))
-    MPI.Barrier(ctx.comm)
-
-    manifest_path = _mpi_checkpoint_manifest_path(dir)
-    if ctx.mpi_rank == 0
-        manifest = _mpi_checkpoint_manifest(st, ctx)
-        Serialization.serialize(manifest_path, manifest)
+    state = _mpi_checkpoint_stage(ctx, "save preflight") do
+        _mpi_checkpoint_state(st, ps, ctx)
     end
-    MPI.Barrier(ctx.comm)
+    _mpi_checkpoint_agreement(state, st, ctx)
+    manifest_path = _mpi_checkpoint_manifest_path(dir)
+    previous, generation = _mpi_checkpoint_stage(ctx, "generation setup") do
+        if ctx.mpi_rank == 0
+            mkpath(dir)
+            old = ispath(manifest_path) ? Serialization.deserialize(manifest_path) : nothing
+            if old !== nothing
+                _validate_mpi_checkpoint_manifest(old, st, ctx)
+                _validate_mpi_checkpoint_owned_files(dir, old)
+            end
+            name = basename(mktempdir(dir; prefix = "_hybrid_mpi_", cleanup = false))
+            (old, name)
+        else
+            (nothing, "")
+        end
+    end
+    generation = MPI.bcast(generation, 0, ctx.comm)
+    manifest = _mpi_checkpoint_manifest(st, ctx, generation)
+    location = _mpi_checkpoint_generation_path(dir, manifest)
+    try
+        _mpi_checkpoint_stage(ctx, "rank write") do
+            Serialization.serialize(_mpi_checkpoint_rank_path(location, ctx.logical_rank), state)
+        end
+        _mpi_checkpoint_stage(ctx, "manifest publication") do
+            if ctx.mpi_rank == 0
+                temporary = joinpath(location, "manifest.tmp")
+                Serialization.serialize(temporary, manifest)
+                # Both files reside on the same filesystem. Unlike mv(force=true),
+                # rename has no delete/copy fallback that could destroy the old manifest.
+                Base.Filesystem.rename(temporary, manifest_path)
+            end
+        end
+    catch original
+        (
+            original isa InterruptException ||
+            original isa OutOfMemoryError ||
+            original isa StackOverflowError
+        ) && rethrow()
+        original_trace = catch_backtrace()
+        try
+            _mpi_checkpoint_stage(ctx, "failed generation cleanup") do
+                ctx.mpi_rank == 0 && _remove_mpi_checkpoint_generation(dir, manifest; staged = true)
+            end
+        catch cleanup_error
+            (
+                cleanup_error isa InterruptException ||
+                cleanup_error isa OutOfMemoryError ||
+                cleanup_error isa StackOverflowError
+            ) && rethrow()
+            throw(
+                CompositeException([
+                    CapturedException(original, original_trace),
+                    CapturedException(cleanup_error, catch_backtrace()),
+                ]),
+            )
+        end
+        rethrow()
+    end
+    try
+        _mpi_checkpoint_stage(ctx, "published checkpoint cleanup") do
+            ctx.mpi_rank == 0 &&
+                previous !== nothing &&
+                _remove_mpi_checkpoint_generation(dir, previous)
+        end
+    catch cleanup_error
+        (
+            cleanup_error isa InterruptException ||
+            cleanup_error isa OutOfMemoryError ||
+            cleanup_error isa StackOverflowError
+        ) && rethrow()
+        throw(
+            CompositeException([
+                ErrorException("MPI checkpoint was published, but superseded-file cleanup failed"),
+                CapturedException(cleanup_error, catch_backtrace()),
+            ]),
+        )
+    end
     return manifest_path
 end
 
@@ -380,24 +511,33 @@ The manifest and rank-local file are validated against `ctx`, `stepper`, grid
 identity, time, step, and logical-rank identity before the destination state is
 mutated. Reads and validation finish on all ranks before any destination changes.
 A failure is rethrown on its originating rank and reported on the other ranks.
-After loading, [`mpi_step!`](@ref) can continue the run.
+Scalar populations and ordered collections retain their saved representation.
+Schema 1 flat files and schema 2 generation directories are accepted. After
+loading, [`mpi_step!`](@ref) can continue the run.
 """
 function load_mpi_checkpoint!(
     st::HybridStepper{D,T},
-    ps::ParticleSet{D,T},
+    ps::Union{ParticleSet{D,T},AbstractVector{<:ParticleSet{D,T}}},
     dir::AbstractString,
     ctx::MPICartesianCommunicator{D},
 ) where {D,T}
     ensure_mpi_initialized!()
-    state, count = _mpi_checkpoint_stage(ctx, "restore preflight") do
+    state, count, manifest = _mpi_checkpoint_stage(ctx, "restore preflight") do
         manifest = Serialization.deserialize(_mpi_checkpoint_manifest_path(dir))
         _validate_mpi_checkpoint_manifest(manifest, st, ctx)
         rank_file = _validate_mpi_checkpoint_filename(manifest.rank_files[ctx.logical_rank])
-        saved = Serialization.deserialize(joinpath(dir, rank_file))
+        location = _mpi_checkpoint_generation_path(dir, manifest)
+        saved = Serialization.deserialize(joinpath(location, rank_file))
         _validate_mpi_rank_checkpoint_state(saved, manifest, st, ctx)
         local_count = _validate_hybrid_checkpoint_restore(st, ps, saved)
-        (saved, local_count)
+        (saved, local_count, manifest)
     end
+    reference = MPI.bcast(manifest, 0, ctx.comm)
+    _mpi_checkpoint_stage(ctx, "manifest agreement") do
+        isequal(manifest, reference) ||
+            throw(ArgumentError("MPI checkpoint manifests differ between ranks"))
+    end
+    _mpi_checkpoint_agreement(state, st, ctx)
     return _restore_validated_hybrid_checkpoint!(st, ps, state, count)
 end
 

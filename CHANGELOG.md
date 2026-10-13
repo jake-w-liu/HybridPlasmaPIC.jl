@@ -8,12 +8,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- MPI checkpoint/restart supports ordered ion collections, unequal local counts,
+  empty populations, writable views and continued particle migration. Reads,
+  destination validation and species/phase agreement finish on all ranks before
+  restoration. Schema 2 uses generation directories and still reads schema 1.
+
 - MPI hybrid initialization, stepping and moment deposition accept ordered ion
   collections. Shared serial kernels retain each population's charge, mass and
   identity; raw moments are reduced across ranks before normalization. Collection
   input validation is collective, and views support stepping without migration.
   The MPI benchmark now measures single- and two-ion evolution and allocations.
-  Distributed collection checkpoint integration remains pending.
 
 - Multispecies kinetic energy, total momentum and hybrid energy/momentum
   budgets sum each population's mass-weighted contribution and count shared
@@ -133,6 +137,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   or Fourier wavenumbers are not finite and representable in the element type.
 
 ### Fixed
+
+- MPI checkpoint saves validate all ranks and publish a new manifest only after
+  all new rank files close. Recoverable failures before publication preserve the
+  previous checkpoint. Cleanup removes only owned files, rejects generation
+  symlinks and reports failures without hiding the original error.
 
 - Gyro averaging retains finite ring coordinates and sample means across large
   sample counts, extreme field geometry and cancellation. Callbacks run once per

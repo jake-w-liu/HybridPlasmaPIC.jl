@@ -109,7 +109,8 @@ end
             manifest_path = save_mpi_checkpoint(directory, source, particles, ctx)
             manifest = Serialization.deserialize(manifest_path)
             filename = manifest.rank_files[ctx.logical_rank]
-            saved = Serialization.deserialize(joinpath(directory, filename))
+            generation = joinpath(directory, manifest.generation)
+            saved = Serialization.deserialize(joinpath(generation, filename))
 
             # Separate local copies let exactly one rank observe each failure,
             # including a manifest-read failure; the healthy ranks must not restore.
@@ -124,9 +125,11 @@ end
             )
                 mktempdir() do local_directory
                     local_manifest = joinpath(local_directory, basename(manifest_path))
-                    local_rank = joinpath(local_directory, filename)
+                    local_generation = joinpath(local_directory, manifest.generation)
+                    mkdir(local_generation)
+                    local_rank = joinpath(local_generation, filename)
                     cp(manifest_path, local_manifest)
-                    cp(joinpath(directory, filename), local_rank)
+                    cp(joinpath(generation, filename), local_rank)
                     target = HybridStepper(g, model, CIC(), 1)
                     destination = ParticleSet{D,T}(1; q = T(2), m = T(3))
                     fill!(target.fields.B[2], T(7))
