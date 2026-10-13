@@ -80,6 +80,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Run archives hash the exact serialized state bytes, so dictionary/set storage
+  reconstruction no longer causes false checksum failures. Schema 4 verifies
+  integrity before decoding state; older schemas are rejected explicitly.
+
 - **Full physics/math audit of the simulator core** (37 adversarially verified
   findings; every fix carries a new discriminating regression oracle):
   - Hall-MHD momentum equation now includes the electron-pressure force

@@ -10,23 +10,6 @@
 using Dates
 using SHA
 
-struct _SHA256WriteSink <: IO
-    ctx::SHA.SHA256_CTX
-end
-
-Base.iswritable(::_SHA256WriteSink) = true
-
-function Base.write(s::_SHA256WriteSink, x::UInt8)
-    SHA.update!(s.ctx, UInt8[x])
-    return 1
-end
-
-function Base.unsafe_write(s::_SHA256WriteSink, p::Ptr{UInt8}, n::UInt)
-    bytes = unsafe_wrap(Vector{UInt8}, p, Int(n))
-    SHA.update!(s.ctx, bytes)
-    return n
-end
-
 """
     RunMetadata
 
@@ -66,12 +49,6 @@ end
 function _file_content_hash(path::AbstractString)
     isfile(path) || return "absent"
     return bytes2hex(SHA.sha256(read(path)))
-end
-
-function _state_checksum(state)
-    ctx = SHA.SHA256_CTX()
-    serialize(_SHA256WriteSink(ctx), state)
-    return bytes2hex(SHA.digest!(ctx))
 end
 
 # Locate the package root = nearest ancestor directory containing Project.toml.
@@ -171,23 +148,27 @@ function capture_metadata(;
 end
 
 "Schema version of the checkpoint container written by [`save_run`](@ref)."
-const CHECKPOINT_SCHEMA_VERSION = 3
+const CHECKPOINT_SCHEMA_VERSION = 4
 
 """
     save_run(path, state, meta::RunMetadata)
 
 Serialize a tagged container to `path`: a `NamedTuple`
-`(schema, meta, state, checksum)` where `schema == CHECKPOINT_SCHEMA_VERSION`
-and `checksum` is a SHA-256 digest of the serialized `state`. `state` is any
-serializable value (typically a `NamedTuple` of simulation arrays/scalars).
-Returns `path`.
+`(schema, meta, state, checksum)` where `schema == CHECKPOINT_SCHEMA_VERSION`,
+the container's `state` holds the serialized bytes, and `checksum` is their
+SHA-256 digest. The input `state` is any serializable value (typically a
+`NamedTuple` of simulation arrays/scalars). [`load_run`](@ref) verifies the
+bytes before deserializing them. Returns `path`.
 """
 function save_run(path::AbstractString, state, meta::RunMetadata)
+    buffer = IOBuffer()
+    serialize(buffer, state)
+    payload = take!(buffer)
     container = (
         schema = CHECKPOINT_SCHEMA_VERSION,
         meta = meta,
-        state = state,
-        checksum = _state_checksum(state),
+        state = payload,
+        checksum = bytes2hex(SHA.sha256(payload)),
     )
     serialize(path, container)
     return path
@@ -197,9 +178,11 @@ end
     load_run(path) -> (; schema, meta, state)
 
 Deserialize a container written by [`save_run`](@ref). Verifies that
-`schema == CHECKPOINT_SCHEMA_VERSION` and that the recomputed SHA-256 state
-digest matches the stored `checksum`; throws an `ErrorException` on either
-mismatch (version skew or corruption).
+`schema == CHECKPOINT_SCHEMA_VERSION` and that the SHA-256 digest of the stored
+state bytes matches `checksum`, then deserializes those bytes. Throws an
+`ErrorException` on either mismatch (version skew or corruption). Older schemas
+are rejected because reserializing decoded objects does not preserve the byte
+order of every valid state, including dictionaries and sets.
 """
 function load_run(path::AbstractString)
     container = deserialize(path)
@@ -220,12 +203,16 @@ function load_run(path::AbstractString)
     if !(container.checksum isa AbstractString)
         error("load_run: checksum in $(path) is not a SHA-256 digest string")
     end
-    checksum = _state_checksum(container.state)
+    if !(container.state isa Vector{UInt8})
+        error("load_run: state in $(path) is not a serialized byte vector")
+    end
+    checksum = bytes2hex(SHA.sha256(container.state))
     if checksum != container.checksum
         error(
             "load_run: checksum mismatch — state is corrupted " *
             "(stored $(container.checksum), recomputed $(checksum))",
         )
     end
-    return (schema = container.schema, meta = container.meta, state = container.state)
+    state = deserialize(IOBuffer(container.state))
+    return (schema = container.schema, meta = container.meta, state = state)
 end

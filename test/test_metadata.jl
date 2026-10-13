@@ -60,7 +60,7 @@ end
 end
 
 @testset "schema constant" begin
-    @test CHECKPOINT_SCHEMA_VERSION == 3
+    @test CHECKPOINT_SCHEMA_VERSION == 4
 end
 
 @testset "save_run / load_run round-trip" begin
@@ -96,16 +96,34 @@ end
     end
 end
 
+@testset "save_run checks serialized bytes, independent of object storage order" begin
+    meta = capture_metadata(; rng_seed = 21)
+    shared = collect(1.0:12.0)
+    state = (
+        table = Dict(i => i^2 for i = 1:300),
+        shared = shared,
+        alias = shared,
+        members = Set(string(i) for i = 1:300),
+    )
+    mktemp() do path, io
+        close(io)
+        save_run(path, state, meta)
+        loaded = load_run(path).state
+        @test loaded == state
+        @test loaded.shared === loaded.alias
+    end
+end
+
 @testset "save_run / load_run checksum survives process boundary" begin
     project_dir = pkgdir(HybridPlasmaPIC)
-    external_state = (a = [1.0, 2.0, 3.0], label = "external", step = 11)
+    external_state = (a = Dict(i => string(i) for i = 1:300), label = "external", step = 11)
 
     mktemp() do path, io
         close(io)
         writer = """
         using HybridPlasmaPIC
         meta = capture_metadata(; rng_seed = 17, timestamp = "2026-06-28T00:00:00Z")
-        state = (a = [1.0, 2.0, 3.0], label = "external", step = 11)
+        state = (a = Dict(i => string(i) for i = 1:300), label = "external", step = 11)
         save_run(ARGS[1], state, meta)
         """
         run(`$(Base.julia_cmd()) --project=$project_dir -e $writer $path`)
@@ -114,12 +132,12 @@ end
         @test loaded.state == external_state
         @test loaded.meta.rng_seed == 17
 
-        current_state = (a = [4.0, 5.0], label = "current", step = 12)
+        current_state = (a = Set(string(i) for i = 1:300), label = "current", step = 12)
         save_run(path, current_state, capture_metadata(; rng_seed = 18))
         reader = """
         using HybridPlasmaPIC
         loaded = load_run(ARGS[1])
-        loaded.state == (a = [4.0, 5.0], label = "current", step = 12) ||
+        loaded.state == (a = Set(string(i) for i = 1:300), label = "current", step = 12) ||
             error("external load_run saw the wrong state")
         loaded.meta.rng_seed == 18 || error("external load_run saw the wrong metadata")
         """
@@ -142,7 +160,7 @@ end
         bad = (
             schema = CHECKPOINT_SCHEMA_VERSION,
             meta = meta,
-            state = state,
+            state = container.state,
             checksum = container.checksum == repeat("0", 64) ? repeat("1", 64) : repeat("0", 64),
         )   # wrong on purpose
         serialize(path, bad)
@@ -162,6 +180,29 @@ end
             checksum = repeat("0", 64),
         )   # checksum correct, schema wrong
         serialize(path, wrong)
+        @test_throws ErrorException load_run(path)
+    end
+end
+
+@testset "state bytes are verified before deserialization" begin
+    meta = capture_metadata(; rng_seed = 5)
+    mktemp() do path, io
+        close(io)
+        save_run(path, (a = [1.0, 2.0],), meta)
+        container = deserialize(path)
+        container.state[1] ⊻= 0xff
+        serialize(path, container)
+        err = try
+            load_run(path)
+        catch e
+            e
+        end
+        @test err isa ErrorException
+        @test occursin("checksum mismatch", sprint(showerror, err))
+
+        serialize(path, merge(container, (state = (a = [1.0, 2.0],),)))
+        @test_throws ErrorException load_run(path)
+        serialize(path, merge(container, (schema = 3,)))
         @test_throws ErrorException load_run(path)
     end
 end
