@@ -80,6 +80,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- SHA compatibility accepts both the 0.7 and 1.x standard-library versions,
+  including SHA 1.0 shipped with Julia 1.13.
+
 - Electromagnetic PIC tracks particle and magnetic-field half-time levels when
   timesteps change, including separate electron/ion intervals in subcycled
   `EMPIC1D`. Invalid subcycle counts and unrepresentable substeps fail before mutation.
