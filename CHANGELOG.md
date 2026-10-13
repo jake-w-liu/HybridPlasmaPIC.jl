@@ -99,6 +99,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Hall-MHD completes final magnetic projection and Ohm-law evaluation on its
+  candidate state before committing. A failed final evaluation preserves public
+  fields, time, and step count; successful steps retain public array identities.
+
 - Guiding-centre grad-B drift uses the stored magnetic moment directly, preserving
   finite drifts when reconstructing the perpendicular speed squared would overflow
   or underflow.

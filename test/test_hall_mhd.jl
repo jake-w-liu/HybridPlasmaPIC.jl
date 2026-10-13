@@ -262,3 +262,57 @@ end
     @test all(isfinite, st2.fields.n)
     @test minimum(st2.fields.n) > 0
 end
+
+function _hall_fields_snapshot(f)
+    return map(fieldnames(typeof(f))) do name
+        value = getfield(f, name)
+        value isa Base.RefValue ? value[] : deepcopy(value)
+    end
+end
+
+@testset "Hall-MHD final projection failure leaves all public fields unchanged" begin
+    for T in (Float32, Float64), D = 1:3
+        # Projection removes a purely longitudinal magnetic mode. CGL p_parallel
+        # is finite before projection but exceeds T's range after |B| collapses;
+        # the failed final Ohm solve must not commit the already-valid RK state.
+        pressure = T === Float32 ? T(1e30) : T(1e285)
+        dt = T === Float32 ? T(1e-35) : T(1e-300)
+        g = FourierGrid(ntuple(_ -> 3, D), ntuple(_ -> T(2π), D))
+        st = HallMHDState(g, HallMHDModel(CGLElectrons(zero(T), pressure, one(T), one(T))))
+        st.fields.n .= one(T)
+        for I in CartesianIndices(st.fields.n)
+            st.fields.B[1][I] = cos((I[1] - 1) * g.dx[1])
+        end
+        hall_mhd_ohms_law!(st)
+        before = _hall_fields_snapshot(st.fields)
+        references = map(name -> getfield(st.fields, name), fieldnames(typeof(st.fields)))
+        @test_throws ArgumentError step_hall_mhd!(st, dt)
+        @test _hall_fields_snapshot(st.fields) == before
+        @test st.time[] == zero(T)
+        @test st.step[] == 0
+        # A retry without projection is representable. Public array references
+        # remain valid across the successful transaction.
+        step_hall_mhd!(st, dt; project_b = false)
+        @test st.time[] == dt
+        @test st.step[] == 1
+        @test all(
+            getfield(st.fields, name) === reference for
+            (name, reference) in zip(fieldnames(typeof(st.fields)), references)
+        )
+        @test all(all(isfinite, v) for v in (st.fields.ui..., st.fields.B..., st.fields.E...))
+    end
+end
+
+@testset "Hall-MHD rejected density candidate preserves derived fields" begin
+    g = FourierGrid((16,), (2π,))
+    st = HallMHDState(g, HallMHDModel(IsothermalElectrons(0.0)))
+    for i = 1:g.n[1]
+        st.fields.n[i] = 1 + 0.2cos((i - 1) * g.dx[1])
+    end
+    st.fields.ui[1] .= 1.0
+    hall_mhd_ohms_law!(st)
+    before = _hall_fields_snapshot(st.fields)
+    @test_throws ArgumentError step_hall_mhd!(st, 10.0)
+    @test _hall_fields_snapshot(st.fields) == before
+    @test (st.time[], st.step[]) == (0.0, 0)
+end

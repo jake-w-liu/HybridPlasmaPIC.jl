@@ -163,6 +163,36 @@ function _validate_hall_candidate!(st::HallMHDState{D,T}, n, u, B) where {D,T}
     return nothing
 end
 
+function _commit_hall_fields!(destination::HybridFields, candidate::HybridFields)
+    # Preserve the arrays exposed to callers while committing the physical and
+    # derived fields together. All fallible calculations happen on the candidate.
+    for (dst, src) in (
+        (destination.n, candidate.n),
+        (destination.pe, candidate.pe),
+        (destination.ninv, candidate.ninv),
+        (destination.cgl_dp, candidate.cgl_dp),
+    )
+        copyto!(dst, src)
+    end
+    for (dst, src) in (
+        (destination.ui, candidate.ui),
+        (destination.B, candidate.B),
+        (destination.E, candidate.E),
+        (destination.J, candidate.J),
+        (destination.lapJ, candidate.lapJ),
+        (destination.pforce, candidate.pforce),
+    )
+        for c in eachindex(dst)
+            copyto!(dst[c], src[c])
+        end
+    end
+    for d in eachindex(destination.gradp)
+        copyto!(destination.gradp[d], candidate.gradp[d])
+    end
+    destination.floor_count[] = candidate.floor_count[]
+    return nothing
+end
+
 function _hall_ohms_law_fields!(
     f::HybridFields{D,T},
     model::HallMHDModel,
@@ -300,9 +330,10 @@ end
     step_hall_mhd!(state, dt; project_b=true)
 
 Advance one explicit RK4 step for periodic Hall-MHD. The candidate final state is
-checked for finite values and positive density before it replaces the current
-state. `project_b=true` projects the final magnetic field onto its divergence-free
-subspace.
+checked for finite values and positive density, projected when requested, and
+used to compute the final Ohm's law before it replaces the current state.
+`project_b=true` projects the final magnetic field onto its divergence-free
+subspace. A failed step leaves the current fields, time, and step count unchanged.
 """
 function step_hall_mhd!(st::HallMHDState{D,T}, dt::Real; project_b::Bool = true) where {D,T}
     dtT = _validated_nonnegative_dt(T, dt; name = "step_hall_mhd!")
@@ -340,11 +371,12 @@ function step_hall_mhd!(st::HallMHDState{D,T}, dt::Real; project_b::Bool = true)
     _hall_stage!(st.ntmp, st.utmp, st.Btmp, st.n0, st.u0, st.B0, st.kn[3], st.ku[3], st.kB[3], dtT)
     _hall_mhd_rhs!(st.kn[4], st.ku[4], st.kB[4], st, st.ntmp, st.utmp, st.Btmp)
 
-    _hall_final_stage!(st.ntmp, st.utmp, st.Btmp, st, dtT)
-    _validate_hall_candidate!(st, st.ntmp, st.utmp, st.Btmp)
-    _copy_hall_state!(st.fields.n, st.fields.ui, st.fields.B, st.ntmp, st.utmp, st.Btmp)
-    project_b && project_b!(st.fields, st.g)
-    hall_mhd_ohms_law!(st)
+    candidate = st.stage
+    _hall_final_stage!(candidate.n, candidate.ui, candidate.B, st, dtT)
+    _validate_hall_candidate!(st, candidate.n, candidate.ui, candidate.B)
+    project_b && project_b!(candidate, st.g)
+    _hall_ohms_law_fields!(candidate, st.model, st.g)
+    _commit_hall_fields!(st.fields, candidate)
     st.time[] += dtT
     st.step[] += 1
     return st
