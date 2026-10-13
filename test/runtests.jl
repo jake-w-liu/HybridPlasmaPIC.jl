@@ -24,6 +24,7 @@ using Test
     include("test_camcl.jl")
     include("test_variable_steps.jl")
     include("test_multispecies_hybrid.jl")
+    include("test_multispecies_diagnostics.jl")
     include("test_step_clocks.jl")
     include("test_shock.jl")
     include("test_dimensions.jl")

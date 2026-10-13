@@ -9,6 +9,7 @@
 
 """
     energy_budget(ps, B, n, closure, g; de2 = 0.0)
+    energy_budget(species::AbstractVector, B, n, closure, g; de2 = 0.0)
         -> (kinetic, magnetic, electron_internal, electron_inertia, total)
 
 Total conserved energies of a hybrid state: ion kinetic `Σ_p ½ m w |v|²`
@@ -36,10 +37,12 @@ reservoir — see the [`resistive_dissipation`](@ref) docstring.
 
 `B` is the 3-tuple of magnetic-field arrays (e.g. `stepper.fields.B`), `n` the
 electron/ion density array, `closure` the `ElectronClosure`, and `g` the
-`FourierGrid`.
+`FourierGrid`. For a collection, particle energies are summed using each
+population's mass and weights; shared magnetic, electron and inertia reservoirs
+are counted once. A typed empty collection contributes zero particle energy.
 """
 function energy_budget(
-    ps::ParticleSet{D,T},
+    ps::_HybridPopulations{D,T},
     B::NTuple{3,<:Array{T,D}},
     n::Array{T,D},
     closure::ElectronClosure,
@@ -75,9 +78,11 @@ end
 
 """
     momentum_budget(ps, B, g) -> (particle::NTuple{3}, total::NTuple{3})
+    momentum_budget(species::AbstractVector, B, g)
 
 Momentum budget of a hybrid state. `particle` is the total ion momentum
-`Σ_p m w v` ([`total_momentum`](@ref)). `total` adds the electromagnetic field
+`Σ_p m w v` ([`total_momentum`](@ref)), summed across populations for a collection.
+A typed empty collection contributes zero momentum. `total` adds the electromagnetic field
 momentum `∫ (E×B) dV`.
 
 In the hybrid (Darwin / quasi-neutral) approximation there is no displacement
@@ -95,7 +100,7 @@ un-budgeted model physics, not a pusher bug; only `η = 0` runs conserve
 `particle` to particle noise.
 """
 function momentum_budget(
-    ps::ParticleSet{D,T},
+    ps::_HybridPopulations{D,T},
     B::NTuple{3,<:Array{T,D}},
     g::FourierGrid{D,T},
 ) where {D,T}
@@ -174,11 +179,17 @@ function total_momentum(ps::ParticleSet{D,T}) where {D,T}
     return (m * px, m * py, m * pz)
 end
 
-"Total momentum summed over several species."
-function total_momentum(species::AbstractVector{<:ParticleSet})
+_empty_particle_momentum(::Type{<:ParticleSet{D,T}}) where {D,T} = (zero(T), zero(T), zero(T))
+_empty_particle_momentum(::Type{<:ParticleSet}) = throw(
+    ArgumentError("empty momentum collection must specify its particle dimension and precision"),
+)
+
+"Total momentum over populations; typed empty collections return a zero tuple."
+function total_momentum(species::AbstractVector{P}) where {P<:ParticleSet}
+    isempty(species) && return _empty_particle_momentum(P)
     p = total_momentum(first(species))
-    for i = 2:length(species)
-        q = total_momentum(species[i])
+    for ps in Iterators.drop(species, 1)
+        q = total_momentum(ps)
         p = (p[1] + q[1], p[2] + q[2], p[3] + q[3])
     end
     return p

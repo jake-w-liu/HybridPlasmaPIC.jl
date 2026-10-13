@@ -1,7 +1,8 @@
 # Multispecies hybrid evolution
 
-Status: serial core evolution and collection restart verified on Julia 1.12.7
-and 1.13.1; conservation diagnostics are the next implementation slice.
+Status: serial core evolution, collection restart and conservation diagnostics
+verified on Julia 1.12.7 and 1.13.1. MPI collection evolution and an exactly
+conservative coupled integrator remain separate follow-ons.
 
 ## Verified gap
 
@@ -109,10 +110,10 @@ velocity, flooring each population before summation, reusing the first species'
 charge-to-mass ratio, advancing fields separately for each population, and
 recomputing the predictor field partway through the population loop.
 
-## Conservation diagnostics follow-on
+## Conservation diagnostics acceptance
 
-A runtime capability probe confirms that `kinetic_energy`, `energy_budget` and
-`momentum_budget` do not yet accept collections, while `total_momentum` fails
+The baseline runtime capability probe found that `kinetic_energy`, `energy_budget`
+and `momentum_budget` did not accept collections, while `total_momentum` failed
 on a typed empty vector (`/tmp/hybrid-multispecies-diagnostic-gap.log`).
 
 Extend the existing budget methods to accept the same typed particle collection,
@@ -122,3 +123,8 @@ collections with a known particle precision contribute a typed zero; preserve
 the existing heterogeneous nonempty momentum reduction. Verify Float32/64,
 1D–3D, unequal particle weights/masses, views, empty collections, all electron
 closures and finite electron inertia against direct independent sums.
+
+Implementation now passes 1,098 diagnostic/regression assertions on each Julia
+version. The canonical budget methods share their scalar field/closure path;
+only the particle reduction changes for collections. Warmed Float32/64 particle
+energy and momentum reductions allocate zero bytes in 1D–3D.

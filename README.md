@@ -88,7 +88,9 @@ populations and changing particle counts are supported; reinitialize when
 adding particles loaded at a new physical velocity time level. Collection
 stepping currently uses the serial periodic solvers. Its explicit predictor
 has second-order momentum error in the uniform two-ion convergence test;
-discrete momentum is not conserved exactly.
+discrete momentum is not conserved exactly. Use `kinetic_energy(species)`,
+`total_momentum(species)`, and the collection forms of `energy_budget` and
+`momentum_budget` for totals; shared field energy is counted once.
 
 ## The physics model
 

@@ -8,6 +8,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Multispecies kinetic energy, total momentum and hybrid energy/momentum
+  budgets sum each population's mass-weighted contribution and count shared
+  field/electron reservoirs once. Typed empty collections return zero particle
+  contributions; heterogeneous nonempty momentum collections remain supported.
+
 - Hybrid multispecies checkpoint/restart and archives preserve ordered ion
   populations and their shared integrator state. Restore preflights every
   destination before mutation, supports independent writable views and empty

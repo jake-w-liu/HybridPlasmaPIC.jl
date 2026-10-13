@@ -59,6 +59,8 @@ function two_ion_hybrid()
         velocity_error,
         momentum_error
     )
+    budget = energy_budget(species, st.fields.B, st.fields.n, st.model.closure, g)
+    println("Energy budget at stored time levels: ", budget)
     return st, species
 end
 

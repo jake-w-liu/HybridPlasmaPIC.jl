@@ -559,6 +559,15 @@ function kinetic_energy(ps::ParticleSet{D,T}) where {D,T}
     return T(0.5) * ps.m * s
 end
 
+"Total kinetic energy of all populations; a typed empty collection contributes zero."
+function kinetic_energy(species::AbstractVector{<:ParticleSet{D,T}}) where {D,T}
+    energy = zero(T)
+    for ps in species
+        energy += kinetic_energy(ps)
+    end
+    return energy
+end
+
 """
     kinetic_energy_relativistic(ps, c) -> Real
 
