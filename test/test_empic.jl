@@ -1016,3 +1016,220 @@ end
         end
     end
 end
+
+
+# Four finite hardware-float factors and their sum fit exactly at this precision.
+# This oracle never materializes a Rational through Base's hardware conversion.
+function _empic_exact_maxwell_value(::Type{T}, E, curlB, J, dt, c) where {T}
+    widest_exponent = max(exponent(floatmax(T)), -exponent(nextfloat(zero(T))))
+    return setprecision(BigFloat, 8widest_exponent + 4precision(T) + 32) do
+        setrounding(BigFloat, RoundNearest) do
+            value = BigFloat(E) + BigFloat(dt) * (BigFloat(c)^2 * BigFloat(curlB) - BigFloat(J))
+            T(value, RoundNearest)
+        end
+    end
+end
+
+@testset "EM Maxwell complete-expression range boundaries" begin
+    for T in (Float32, Float64)
+        H = HybridPlasmaPIC
+        tiny = nextfloat(zero(T))
+        maxval = floatmax(T)
+        large_power = T === Float32 ? 80 : 600
+        residual_power = T === Float32 ? -120 : -1000
+        c_large = ldexp(one(T), large_power)
+        dt_small = inv(c_large)
+        cases = (
+            # E cancels the magnetic update before the small current survives.
+            (-one(T), inv(c_large), ldexp(one(T), residual_power + large_power), dt_small, c_large),
+            (ldexp(one(T), residual_power), c_large, inv(c_large), c_large, inv(c_large)),
+            # The force or its timestep product can overflow before cancellation.
+            (zero(T), maxval, -maxval, T(0.25), one(T)),
+            (-maxval, maxval / 2, -maxval / 2, T(2), one(T)),
+            # Rounding the increment before adding E loses a subnormal tie.
+            (tiny, floatmin(T), prevfloat(floatmin(T)), T(0.5), one(T)),
+            # A truly unrepresentable final field stays nonfinite.
+            (maxval, maxval, zero(T), one(T), one(T)),
+        )
+        for (E, curlB, J, dt, c) in cases
+            c2 = c * c
+            magnetic = c2 * curlB
+            forcing = magnetic - J
+            increment = dt * forcing
+            ordinary = E + increment
+            @test H._em_update_lost_range(c2, curlB, magnetic, forcing, increment, ordinary)
+            coeff = H._em_exact_update_coefficients(c, dt)
+            @test H._em_exact_electric_update(E, curlB, J, coeff) ===
+                  _empic_exact_maxwell_value(T, E, curlB, J, dt, c)
+        end
+        # Neither unchanged zeros nor normal products need exact arithmetic.
+        @test !H._em_update_lost_range(one(T), zero(T), zero(T), zero(T), zero(T), zero(T))
+        @test !H._em_update_lost_range(T(4), T(0.5), T(2), one(T), T(0.25), T(0.75))
+        @test _empic_exact_maxwell_value(T, tiny, zero(T), -tiny, T(0.5), one(T)) == 2tiny
+    end
+end
+
+@testset "EM Maxwell waves across floating-point ranges" begin
+    for T in (Float32, Float64)
+        cases =
+            T === Float32 ?
+            (
+                (T(1e30), T(1e-30), T(1e-30)),  # c² overflows
+                (T(1e-30), T(1e30), T(1e30)),   # c² underflows
+                (T(1e-20), T(1e20), T(1e20)),   # subnormal c² loses precision
+                (T(1e10), T(1e-10), T(1e20)),   # c² curlB overflows
+                (T(1e-10), T(1e10), T(1e-27)),  # c² curlB underflows
+                (T(1e-10), T(1e-30), T(1e30)),  # forming dt*c² first would underflow
+                (T(3), T(0.05), T(0.4)),
+            ) :
+            (
+                (T(1e200), T(1e-200), T(1e-200)),
+                (T(1e-200), T(1e200), T(1e200)),
+                (T(1e-155), T(1e155), T(1e155)),
+                (T(1e100), T(1e-100), T(1e200)),
+                (T(1e-100), T(1e100), T(1e-200)),
+                (T(1e-100), T(1e-200), T(1e200)),
+                (T(3), T(0.05), T(0.4)),
+            )
+        for (State, D) in ((EMPIC1D, 1), (EMPIC, 1), (EMPIC, 2), (EMPIC, 3)),
+            axis = 1:D,
+            (c, dt, amplitude) in cases,
+            sign in (-one(T), one(T))
+
+            g = FourierGrid(ntuple(_ -> 4, D), ntuple(_ -> T(2pi), D))
+            e = ParticleSet{D,T}(0; q = -one(T), m = one(T))
+            es = State(g, 0; n0 = zero(T), c)
+            electric_axis, magnetic_axis = mod1(axis + 1, 3), mod1(axis + 2, 3)
+            B = es isa EMPIC1D ? es.Bz : es.B[magnetic_axis]
+            E = es isa EMPIC1D ? es.Ey : es.E[electric_axis]
+            sine, cosine = (zero(T), one(T), zero(T), -one(T)), (one(T), zero(T), -one(T), zero(T))
+            for I in CartesianIndices(B)
+                B[I] = sign * amplitude * sine[I[axis]]
+            end
+            B0 = copy(B)
+            init_empic!(es, e)
+            step_empic!(es, e, dt)
+            peak = _empic_exact_maxwell_value(
+                T,
+                zero(T),
+                -sign * amplitude * g.kvec[axis][2],
+                zero(T),
+                dt,
+                c,
+            )
+            @test isfinite(peak) && !iszero(peak)
+            @test E ≈ [peak * cosine[I[axis]] for I in CartesianIndices(E)] rtol = 16eps(T) atol = zero(T)
+            @test B == B0
+            fields = es isa EMPIC1D ? (es.Ex, es.Ey, es.Bz) : (es.E..., es.B...)
+            @test all(a -> all(isfinite, a), fields)
+            @test es.rho_n == es.rho_np1 == zero(es.rho_n)
+            @test es.time[] == dt
+        end
+        # The zero-field vacuum is also a solution when c² itself is not representable.
+        for (State, D) in ((EMPIC1D, 1), (EMPIC, 1), (EMPIC, 2), (EMPIC, 3)),
+            c in (cases[1][1], cases[2][1], cases[3][1])
+
+            g = FourierGrid(ntuple(_ -> 4, D), ntuple(_ -> T(2pi), D))
+            e = ParticleSet{D,T}(0; q = -one(T), m = one(T))
+            es = State(g, 0; n0 = zero(T), c)
+            init_empic!(es, e)
+            step_empic!(es, e, inv(c))
+            fields = es isa EMPIC1D ? (es.Ex, es.Ey, es.Bz) : (es.E..., es.B...)
+            @test all(a -> all(iszero, a), fields)
+        end
+    end
+end
+
+@testset "EM subnormal longitudinal field update" begin
+    for T in (Float32, Float64), State in (EMPIC1D, EMPIC)
+        tiny = nextfloat(zero(T))
+        g = FourierGrid((1,), (one(T),))
+        e = ParticleSet{1,T}(1; q = -one(T), m = one(T))
+        e.weight[1], e.v[1][1] = 2tiny, T(0.5)
+        es = State(g, 1; n0 = 2tiny, c = one(T))
+        init_empic!(es, e)
+        E = es isa EMPIC1D ? es.Ex : es.E[1]
+        E[1] = tiny
+        step_empic!(es, e, T(0.5))
+        J = es isa EMPIC1D ? es.Jx : es.J[1]
+        @test J[1] == -tiny
+        @test es.rho_n == es.rho_np1 == T[0]
+        @test E[1] == 2tiny
+    end
+end
+
+@testset "EM extreme-c Maxwell phase and subcycling" begin
+    for T in (Float32, Float64),
+        (State, D) in ((EMPIC1D, 1), (EMPIC, 1), (EMPIC, 2), (EMPIC, 3)),
+        large in (false, true)
+
+        power = T === Float32 ? 80 : 600
+        c = ldexp(one(T), large ? power : -power)
+        g = FourierGrid(ntuple(_ -> 4, D), ntuple(_ -> T(2pi), D))
+        e = ParticleSet{D,T}(0; q = -one(T), m = one(T))
+        es = State(g, 0; n0 = zero(T), c)
+        B = es isa EMPIC1D ? es.Bz : es.B[3]
+        E = es isa EMPIC1D ? es.Ey : es.E[2]
+        sine, cosine = (zero(T), one(T), zero(T), -one(T)), (one(T), zero(T), -one(T), zero(T))
+        for I in CartesianIndices(B)
+            B[I] = sine[I[1]] / c
+        end
+        init_empic!(es, e)
+        e_amplitude, b_amplitude, previous_dt = BigFloat(0), BigFloat(1), BigFloat(0)
+        for (alpha, ns) in ((T(0.125), 1), (T(0.25), 2), (T(0.0625), 1), (T(0.375), 3))
+            es.n_sub = ns
+            dt = alpha / c
+            sub_dt = dt / ns
+            for substep = 1:ns
+                iszero(previous_dt) && (previous_dt = BigFloat(sub_dt))
+                kick = previous_dt / 2 + BigFloat(sub_dt) / 2
+                b_amplitude += BigFloat(c) * kick * BigFloat(g.kvec[1][2]) * e_amplitude
+                e_amplitude -= BigFloat(sub_dt) * BigFloat(c) * BigFloat(g.kvec[1][2]) * b_amplitude
+                previous_dt = BigFloat(sub_dt)
+            end
+            step_empic!(es, e, dt)
+            @test E ≈ [T(e_amplitude) * cosine[I[1]] for I in CartesianIndices(E)] rtol = 128eps(T) atol = zero(T)
+            @test c .* B ≈ [T(b_amplitude) * sine[I[1]] for I in CartesianIndices(B)] rtol = 128eps(T) atol = zero(T)
+            @test all(isfinite, E) && all(isfinite, B)
+            @test es.last_sub_dt[] == sub_dt
+        end
+    end
+end
+
+@testset "EM Maxwell squared-speed transition neighbors" begin
+    for T in (Float32, Float64), State in (EMPIC1D, EMPIC), n in (4, 5)
+        roots = (sqrt(nextfloat(zero(T))), sqrt(floatmin(T)), sqrt(floatmax(T)))
+        for root in roots, c in (prevfloat(root), root, nextfloat(root))
+            g = FourierGrid((n,), (T(2pi),))
+            e = ParticleSet{1,T}(0; q = -one(T), m = one(T))
+            es = State(g, 0; n0 = zero(T), c)
+            B = es isa EMPIC1D ? es.Bz : es.B[3]
+            E = es isa EMPIC1D ? es.Ey : es.E[2]
+            dt, amplitude = inv(c), inv(c)
+            phases = [T(2pi) * T(i - 1) / T(n) for i = 1:n]
+            B .= amplitude .* sin.(phases)
+            init_empic!(es, e)
+            step_empic!(es, e, dt)
+            peak = _empic_exact_maxwell_value(T, zero(T), -amplitude * g.kvec[1][2], zero(T), dt, c)
+            @test E ≈ peak .* cos.(phases) rtol = 128eps(T) atol = zero(T)
+            @test all(isfinite, E) && all(isfinite, B)
+        end
+    end
+end
+
+@testset "EM range repair preserves nonfinite field visibility" begin
+    for T in (Float32, Float64), State in (EMPIC1D, EMPIC)
+        c = T === Float32 ? T(1e30) : T(1e200)
+        g = FourierGrid((4,), (T(2pi),))
+        e = ParticleSet{1,T}(0; q = -one(T), m = one(T))
+        es = State(g, 0; n0 = zero(T), c)
+        E = es isa EMPIC1D ? es.Ey : es.E[2]
+        E[1] = T(NaN)
+        init_empic!(es, e)
+        # The spectral input boundary owns this rejection, before field advancement.
+        @test_throws ArgumentError step_empic!(es, e, inv(c))
+        @test es.step[] == 0 && iszero(es.time[])
+        fields = es isa EMPIC1D ? (es.Ex, es.Ey, es.Bz) : (es.E..., es.B...)
+        @test any(a -> any(!isfinite, a), fields)
+    end
+end

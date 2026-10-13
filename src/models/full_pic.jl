@@ -547,6 +547,46 @@ end
 
 # ---------------------------------------------------------------- substep
 
+# Keep the ordinary Maxwell operation order, but detect intermediate range loss
+# before accepting its result. A subnormal product can lose bits which a later
+# large factor restores to a normal, representable electric-field update.
+@inline function _em_increment_lost_range(forcing::T, increment::T, candidate::T) where {T}
+    return !isfinite(forcing) ||
+           !isfinite(increment) ||
+           (!iszero(forcing) && abs(increment) < floatmin(T)) ||
+           !isfinite(candidate)
+end
+
+@inline function _em_update_lost_range(
+    c2::T,
+    derivative::T,
+    magnetic::T,
+    forcing::T,
+    increment::T,
+    candidate::T,
+) where {T}
+    smallest_normal = floatmin(T)
+    return !isfinite(c2) ||
+           c2 < smallest_normal ||
+           !isfinite(magnetic) ||
+           (!iszero(derivative) && abs(magnetic) < smallest_normal) ||
+           _em_increment_lost_range(forcing, increment, candidate)
+end
+
+function _em_exact_update_coefficients(c, dt)
+    exact_dt = _exact_rational(dt)
+    exact_c = _exact_rational(c)
+    return exact_dt, exact_dt * exact_c * exact_c
+end
+
+function _em_exact_electric_update(E::T, curlB::T, J::T, coefficients) where {T}
+    exact_dt, exact_dtc2 = coefficients
+    return _from_exact(
+        T,
+        _exact_rational(E) + exact_dtc2 * _exact_rational(curlB) - exact_dt * _exact_rational(J),
+    )
+end
+
 # One field+electron substep of size dt. Pushes the electrons `e` always; pushes
 # the ions `ions` only when `push_ions` is true (heavy ions are pushed once per
 # full ion step, on its first substep). When mobile, the ions
@@ -617,12 +657,38 @@ function _substep_em!(
     # (5) E advance:
     #   Ey^{n+1} = Ey^n − dt(c²∂xBz^{n+1/2} + Jy)
     deriv!(es.dBz, es.Bz, g, 1)
+    exact_coefficients = nothing
     @inbounds for i = 1:n
-        es.Ey[i] -= dt * (c2 * es.dBz[i] + es.Jy[i])
+        old_E, derivative, current = es.Ey[i], es.dBz[i], es.Jy[i]
+        magnetic = c2 * derivative
+        forcing = magnetic + current
+        increment = dt * forcing
+        candidate = old_E - increment
+        if _em_update_lost_range(c2, derivative, magnetic, forcing, increment, candidate) &&
+           isfinite(old_E) &&
+           isfinite(derivative) &&
+           isfinite(current)
+            if exact_coefficients === nothing
+                exact_coefficients = _em_exact_update_coefficients(es.c, dt)
+            end
+            candidate = _em_exact_electric_update(old_E, -derivative, current, exact_coefficients)
+        end
+        es.Ey[i] = candidate
     end
     #   Ex^{n+1} = Ex^n − dt·Jx
     @inbounds for i = 1:n
-        es.Ex[i] -= dt * es.Jx[i]
+        old_E, current = es.Ex[i], es.Jx[i]
+        increment = dt * current
+        candidate = old_E - increment
+        if _em_increment_lost_range(current, increment, candidate) &&
+           isfinite(old_E) &&
+           isfinite(current)
+            if exact_coefficients === nothing
+                exact_coefficients = _em_exact_update_coefficients(es.c, dt)
+            end
+            candidate = _em_exact_electric_update(old_E, zero(T), current, exact_coefficients)
+        end
+        es.Ex[i] = candidate
     end
 
     return es
@@ -1360,8 +1426,23 @@ function _substep_empic!(
         es.B[c][I] -= kick_dt * es.curlE[c][I]
     end
     curl!(es.curlB, es.B, g)
+    exact_coefficients = nothing
     @inbounds for c = 1:3, I in eachindex(es.E[c])
-        es.E[c][I] += dt * (c2 * es.curlB[c][I] - es.J[c][I])
+        old_E, derivative, current = es.E[c][I], es.curlB[c][I], es.J[c][I]
+        magnetic = c2 * derivative
+        forcing = magnetic - current
+        increment = dt * forcing
+        candidate = old_E + increment
+        if _em_update_lost_range(c2, derivative, magnetic, forcing, increment, candidate) &&
+           isfinite(old_E) &&
+           isfinite(derivative) &&
+           isfinite(current)
+            if exact_coefficients === nothing
+                exact_coefficients = _em_exact_update_coefficients(es.c, dt)
+            end
+            candidate = _em_exact_electric_update(old_E, derivative, current, exact_coefficients)
+        end
+        es.E[c][I] = candidate
     end
     return es
 end

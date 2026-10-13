@@ -134,6 +134,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Both electromagnetic PIC solvers preserve finite electric-field updates when
+  squared light speed, magnetic force or timestep multiplication loses range.
+  An exact fallback evaluates the complete field expression, including the
+  specialized longitudinal update. Ordinary arithmetic and allocations remain
+  unchanged; already nonfinite spectral derivatives require a separate repair.
+
 - Moment deposition validates every output, scratch buffer and particle layout
   before writing. Momentum, current, pressure and single/multispecies hybrid
   moments reject overlapping storage without corrupting inputs or outputs. MPI
