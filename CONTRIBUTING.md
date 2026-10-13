@@ -42,10 +42,11 @@ Note that test files relying on a test-only dependency must be run through
 ## Formatting
 
 The repository ships a `.JuliaFormatter.toml` (default style, 100-column
-margin). Before opening a pull request, format your changes:
+margin). Use JuliaFormatter 1, matching CI. Before opening a pull request,
+format your changes:
 
 ```bash
-julia -e 'using Pkg; Pkg.add("JuliaFormatter")'   # once
+julia -e 'using Pkg; Pkg.add(PackageSpec(name="JuliaFormatter", version="1"))'   # once
 julia -e 'using JuliaFormatter; format(".")'
 ```
 
