@@ -51,6 +51,7 @@ mutable struct HybridStepper{D,T,SH<:ShapeFunction,M<:HybridModel}
     work::Vector{T}
     time::Base.RefValue{T}
     step::Base.RefValue{Int}
+    last_dt::Base.RefValue{T}          # previous drift interval fixes the velocity half level
 end
 
 function HybridStepper(
@@ -81,6 +82,7 @@ function HybridStepper(
         zeros(T, Np),
         Ref(zero(T)),
         Ref(0),
+        Ref(zero(T)),                        # last_dt
     )
 end
 
@@ -138,6 +140,7 @@ function init!(st::HybridStepper{D,T}, ps::ParticleSet{D,T}) where {D,T}
     ohms_law!(st.fields, st.model, st.g)
     st.time[] = zero(T)                 # (re)start at t=0; step==0 triggers leapfrog priming
     st.step[] = 0
+    st.last_dt[] = zero(T)
     return st
 end
 
@@ -222,11 +225,6 @@ function _validated_step_dt(
     return _validated_nonnegative_dt(T, dt; name)
 end
 
-"""
-    step!(stepper, ps, dt; NB=1)
-
-Advance the plasma one timestep `dt` with `NB` magnetic subcycles (periodic box).
-"""
 # One-time leapfrog priming. The loaded velocity is the physical v^0, but the leapfrog Boris push
 # expects v^{-1/2}; push v back a half step v^{-1/2} = v^0 − (dt/2)·a^0 (forward-Euler, with
 # a^0 = qm(E^0 + v^0×B^0) from the just-gathered fields) so the first Boris kick is centred at
@@ -309,6 +307,13 @@ function _recenter_carried_E!(st, ps::ParticleSet{D,T}, dtT::T) where {D,T}
     return st
 end
 
+"""
+    step!(stepper, ps, dt; NB=1)
+
+Advance the plasma one timestep `dt` with `NB` magnetic subcycles (periodic box).
+The particle kick spans the previous and next half-time levels when `dt` changes;
+positions and the magnetic field advance by the requested `dt`.
+"""
 function step!(st::HybridStepper{D,T}, ps::ParticleSet{D,T}, dt::Real; NB::Integer = 1) where {D,T}
     dtT = _validated_step_dt(T, dt, NB; min_NB = 1, name = "step!")
     iszero(dtT) && return st        # dt=0 is a true no-op: advance nothing, and (critically) do
@@ -317,6 +322,7 @@ function step!(st::HybridStepper{D,T}, ps::ParticleSet{D,T}, dt::Real; NB::Integ
     _resize_hybrid_particle_workspaces!(st, nparticles(ps))
     g = st.g
     h = dtT / 2
+    kick_dt = st.step[] == 0 ? dtT : st.last_dt[] / 2 + h
     nf = T(st.model.nfloor)
     lo = ntuple(_ -> zero(T), D)
     hi = g.L
@@ -339,7 +345,7 @@ function step!(st::HybridStepper{D,T}, ps::ParticleSet{D,T}, dt::Real; NB::Integ
             st.Bp[2][p],
             st.Bp[3][p],
             qm,
-            dtT,
+            kick_dt,
         )
         vx[p] = nx
         vy[p] = ny
@@ -390,6 +396,7 @@ function step!(st::HybridStepper{D,T}, ps::ParticleSet{D,T}, dt::Real; NB::Integ
 
     st.time[] += dtT
     st.step[] += 1
+    st.last_dt[] = dtT
     return st
 end
 

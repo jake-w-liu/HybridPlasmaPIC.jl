@@ -628,6 +628,7 @@ function mpi_init!(
     ohms_law!(st.fields, st.model, st.g)
     st.time[] = zero(T)                 # (re)start at t=0; step==0 triggers leapfrog priming
     st.step[] = 0
+    st.last_dt[] = zero(T)
     return st
 end
 
@@ -655,6 +656,7 @@ function mpi_step!(
 
     g = st.g
     h = dtT / 2
+    kick_dt = st.step[] == 0 ? dtT : st.last_dt[] / 2 + h
     nf = T(st.model.nfloor)
     lo = ntuple(_ -> zero(T), D)
     hi = g.L
@@ -676,7 +678,7 @@ function mpi_step!(
             st.Bp[2][p],
             st.Bp[3][p],
             qm,
-            dtT,
+            kick_dt,
         )
         vx[p] = nx
         vy[p] = ny
@@ -722,6 +724,7 @@ function mpi_step!(
 
     st.time[] += dtT
     st.step[] += 1
+    st.last_dt[] = dtT
     return st
 end
 

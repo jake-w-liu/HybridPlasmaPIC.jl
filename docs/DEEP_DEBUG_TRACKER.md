@@ -38,7 +38,7 @@ performance review. “Pending” means no current-run completion claim.
 | Particle storage/loading/pushers/boundaries | Coupling and step timing traced; remaining pass pending | Conservation, order, boundary maps, particle identity, invalid state |
 | Deposition/gather/moments | Vector gather optimization in validation | Adjointness, all shapes/dimensions/types, scalar equivalence, allocations |
 | Electron closures and Ohm law | Integration traced; detailed pass pending | Tensor/force oracles, conservation budgets, dissipative terms |
-| Hybrid/CAM-CL integration | Variable-step timing gap under investigation | Analytic timing, temporal order, subcycles, restart, MPI equivalence |
+| Hybrid/CAM-CL integration | Variable-step repair verified, including coupled-field convergence | Analytic timing, temporal order, subcycles, restart, MPI equivalence |
 | Electrostatic/electromagnetic PIC | Independent audit active; variable-step defect confirmed | Constant-force trajectory, Maxwell waves, charge continuity, mobile species |
 | Hall-MHD, gyrokinetics, AMR | Inventory complete; detailed pass pending | Model-specific invariants, convergence, integration contracts |
 | Collisions and radiation | Prior fixes exist; fresh pass pending | Conservation/rates, sampling, unequal weights, numerical robustness |
@@ -55,10 +55,11 @@ performance review. “Pending” means no current-run completion claim.
 | PERF-001 | Vector gather repeats the same stencil three times | Pushed (`58fa769`) | 304 focused assertions plus hybrid/CAM-CL suites pass; reproducible speed/allocation comparison in `benchmark/benchmarks.jl` |
 | IO-001 | `save_run` rejects its own valid dictionary output | Pushed (`d1db13d`) | Exact serialized bytes hashed under schema 4; 159 metadata/archive/field/async assertions pass, including cross-process and corruption cases |
 | TIME-001 | ES/EM PIC accepts changed `dt` but uses the wrong half-step interval | ES pushed (`def6548`); EM underway | ES suite passes, including 180 new phase/convergence assertions; independent original-code comparison gives bitwise equal fixed-step positions, velocities and fields |
-| IO-002 | Same-grid checkpoint silently accepts different model parameters | Confirmed; repair planned | Restore Te=0.1 state into Te=2.0 stepper: next-step Ex differs by 1.133; record/validate model and shape |
+| IO-002 | Same-grid checkpoint silently accepts different model parameters | Verified; committing with hybrid phase repair | Restore saved model/shape parameters, reject incompatible concrete types; custom mutable configuration and alias tests pass |
 | IO-003 | Truncated field file allocates declared payload before checking available bytes | Pushed (`c7b1c6f`) | 76 field/async/metadata assertions pass, including malformed extents, bounded allocation, empty and 0D arrays |
-
-| IO-004 | HDF5 silently writes incorrect values from column-gapped views; range-backed arrays throw | Verified; committing | 61 extension assertions pass, covering exact data/type/shape, contiguous-buffer identity and error recovery |
+| IO-004 | HDF5 silently writes incorrect values from column-gapped views; range-backed arrays throw | Pushed (`b228b3f`) | 61 extension assertions pass, covering exact data/type/shape, contiguous-buffer identity and error recovery |
+| TIME-002 | Hybrid/CAM-CL/MPI use incorrect kick interval after changing dt | Verified; committing | 277 phase/convergence/MPI assertions; hybrid/CAM-CL/MPI regressions and real 2-rank suite pass; fixed-step comparison with original code is bitwise equal |
+| IO-005 | Checkpoint restore fails on matching-length particle views and can partially mutate destination | Verified; committing with restart repair | 271 checkpoint/archive assertions pass, including 60 view/unsupported-resize assertions |
 
 ## Completeness roadmap
 
@@ -69,7 +70,7 @@ benchmark before implementation. The roadmap remains open to new findings.
 | Priority | Capability / gap | Plan and completion evidence | State |
 | --- | --- | --- | --- |
 | 1 | Reliable variable-step evolution | Correct phase state in ES/EM, hybrid/CAM-CL and MPI; preserve it in checkpoints; verify analytic trajectories and convergence | Active |
-| 1 | Restart across production solvers | Inventory hybrid/CAM-CL, ES/EM, Hall-MHD and shock state; provide complete deterministic restore, including configuration and staggering | Assessment |
+| 1 | Restart across production solvers | CAM-CL lacks save/load methods and needs persistent Blead/Blag/Bout/cl_h/cl_live beyond Hybrid state. Implement shared checkpoint path with integrator-specific persistent fields, then extend other models | CAM-CL design verified; implementation next |
 | 1 | Reproducible archives and bounded field I/O | Fix checksum representation and malformed-file allocation; cross-process and corruption tests | Active |
 | 2 | Multispecies hybrid evolution | `compute_moments_multi!` exists; built-in hybrid steppers document one proton species. Design shared-field multispecies advancement and conservation/dispersion benchmarks | Planned |
 | 2 | Evolving electron pressure integrated into steppers | Standalone `advance_electron_pressure!` exists; built-in periodic steppers use algebraic closures. Define transport/heating coupling and energy-budget acceptance | Planned |

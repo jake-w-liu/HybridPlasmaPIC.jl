@@ -4,6 +4,20 @@
 
 using HybridPlasmaPIC, Test, Random, Serialization
 
+struct CheckpointArrayElectrons <: HybridPlasmaPIC.ElectronClosure
+    temperature::Vector{Float64}
+    alias::Vector{Float64}
+end
+
+function HybridPlasmaPIC.electron_pressure!(pe, n, c::CheckpointArrayElectrons)
+    @. pe = c.temperature[1] * n
+    return pe
+end
+
+mutable struct CheckpointParameterizedShape <: ShapeFunction
+    parameters::Vector{Float64}
+end
+
 function build_run(seed)
     T = Float64
     n = 16
@@ -83,6 +97,179 @@ end
     rm(path; force = true)
 end
 
+@testset "checkpoint restores saved physics configuration" begin
+    for (source_closure, target_closure) in (
+        (IsothermalElectrons(0.1), IsothermalElectrons(2.0)),
+        (PolytropicElectrons(0.1, 1.0, 5 / 3), PolytropicElectrons(2.0, 2.0, 1.4)),
+        (CGLElectrons(0.1, 0.1, 1.0, 1.0), CGLElectrons(2.0, 3.0, 1.0, 1.0)),
+        (CheckpointArrayElectrons([0.1], [0.1]), CheckpointArrayElectrons([2.0], [2.0])),
+    )
+        g = FourierGrid((8,), (1.0,))
+        model = HybridModel(source_closure; η = 0.02, ηH = 0.001, nfloor = 1e-5, de2 = 0.1)
+        a = HybridStepper(g, model, CIC(), 64)
+        p = ParticleSet{1,Float64}(64)
+        load_lattice_1d!(p, 0.0, 1.0)
+        set_density_weight!(p, 1.0, g)
+        p.weight .*= 1 .+ 0.1cos.(2π .* p.x[1])
+        fill!(a.fields.B[1], 1.0)
+        init!(a, p)
+        step!(a, p, 0.005)
+        mktemp() do path, io
+            close(io)
+            save_checkpoint(path, a, p)
+            # Different resistivity/inertia/floor must not survive restoration.
+            b = HybridStepper(g, HybridModel(target_closure), CIC(), 1)
+            q = ParticleSet{1,Float64}(1)
+            load_checkpoint!(b, q, path)
+            @test b.model.η == a.model.η
+            @test b.model.ηH == a.model.ηH
+            @test b.model.nfloor == a.model.nfloor
+            @test b.model.de2 == a.model.de2
+            step!(a, p, 0.005)
+            step!(b, q, 0.005)
+            @test p.x == q.x
+            @test p.v == q.v
+            @test a.fields.B == b.fields.B
+            @test a.fields.E == b.fields.E
+        end
+    end
+end
+
+@testset "checkpoint owns custom mutable configuration snapshots" begin
+    temperature = [0.1]
+    closure = CheckpointArrayElectrons(temperature, temperature)
+    shape = CheckpointParameterizedShape([1.0, 2.0])
+    g = FourierGrid((8,), (1.0,))
+    st = HybridStepper(g, HybridModel(closure), shape, 2)
+    ps = ParticleSet{1,Float64}(2)
+    mktemp() do path, io
+        close(io)
+        save_checkpoint(path, st, ps)
+        temperature[1] = 9.0
+        shape.parameters[1] = 8.0
+        load_checkpoint!(st, ps, path)
+        @test st.model.closure.temperature == [0.1]
+        @test st.model.closure.temperature === st.model.closure.alias
+        @test st.model.closure.temperature !== temperature
+        @test st.shape.parameters == [1.0, 2.0]
+        @test st.shape !== shape
+    end
+end
+
+@testset "checkpoint preserves variable-step velocity time level" begin
+    reference_particles, reference = build_run(7)
+    particles, stepper = build_run(7)
+    steps = (0.01, 0.015, 0.005, 0.012)
+    for dt in steps
+        step!(reference, reference_particles, dt; NB = 2)
+    end
+    for dt in steps[1:2]
+        step!(stepper, particles, dt; NB = 2)
+    end
+    mktemp() do path, io
+        close(io)
+        save_checkpoint(path, stepper, particles)
+        restored_particles, restored = build_run(8)
+        load_checkpoint!(restored, restored_particles, path)
+        @test restored.last_dt[] == steps[2]
+        for dt in steps[3:4]
+            step!(restored, restored_particles, dt; NB = 2)
+        end
+        @test restored_particles.x == reference_particles.x
+        @test restored_particles.v == reference_particles.v
+        @test restored.fields.B == reference.fields.B
+        @test restored.fields.E == reference.fields.E
+        @test restored.last_dt[] == steps[end]
+    end
+end
+
+@testset "checkpoint restores writable views without resizing" begin
+    source_particles, source = build_run(7)
+    step!(source, source_particles, 0.01)
+    destination_particles, destination = build_run(8)
+    viewed = ParticleSet{1,Float64}(
+        map(a -> view(a, :), destination_particles.x),
+        map(a -> view(a, :), destination_particles.v),
+        view(destination_particles.weight, :),
+        view(destination_particles.id, :),
+        view(destination_particles.tag, :),
+        destination_particles.q,
+        destination_particles.m,
+    )
+    mktemp() do path, io
+        close(io)
+        save_checkpoint(path, source, source_particles)
+        @test load_checkpoint!(destination, viewed, path) === destination
+        @test destination_particles.x == source_particles.x
+        @test destination_particles.v == source_particles.v
+        @test destination_particles.weight == source_particles.weight
+        @test destination_particles.id == source_particles.id
+        @test destination_particles.tag == source_particles.tag
+        step!(source, source_particles, 0.015)
+        step!(destination, viewed, 0.015)
+        @test destination_particles.x == source_particles.x
+        @test destination_particles.v == source_particles.v
+        @test destination.fields.B == source.fields.B
+        @test destination.fields.E == source.fields.E
+    end
+end
+
+@testset "checkpoint preflights every destination resize before mutation" begin
+    source_particles, source = build_run(2)
+    mktemp() do path, io
+        close(io)
+        save_checkpoint(path, source, source_particles)
+        for view_field in (:x, :v, :weight, :id, :tag)
+            model = HybridModel(IsothermalElectrons(2.0))
+            destination = HybridStepper(source.g, model, CIC(), 1)
+            p = ParticleSet{1,Float64}(1)
+            p.x[1][1] = 0.75
+            particles = ParticleSet{1,Float64}(
+                view_field == :x ? map(a -> view(a, :), p.x) : p.x,
+                view_field == :v ? map(a -> view(a, :), p.v) : p.v,
+                view_field == :weight ? view(p.weight, :) : p.weight,
+                view_field == :id ? view(p.id, :) : p.id,
+                view_field == :tag ? view(p.tag, :) : p.tag,
+                p.q,
+                p.m,
+            )
+            @test_throws ArgumentError load_checkpoint!(destination, particles, path)
+            @test particles.x[1] == [0.75]
+            @test particles.v == ([0.0], [0.0], [0.0])
+            @test particles.weight == [1.0]
+            @test particles.id == UInt64[1]
+            @test particles.tag == UInt32[0]
+            @test destination.model === model
+            @test length(destination.work) == 1
+            @test destination.step[] == 0
+            @test destination.last_dt[] == 0.0
+        end
+    end
+end
+
+@testset "checkpoint rejects incompatible configuration types before mutation" begin
+    ps, st = build_run(2)
+    mktemp() do path, io
+        close(io)
+        save_checkpoint(path, st, ps)
+        for (model, shape) in (
+            (HybridModel(IsothermalElectrons(0.5)), TSC()),
+            (HybridModel(PolytropicElectrons(0.5, 1.0, 5 / 3)), CIC()),
+        )
+            target = HybridStepper(st.g, model, shape, 1)
+            particles = ParticleSet{1,Float64}(1)
+            particles.x[1][1] = 0.75
+            target.fields.B[1] .= 7.0
+            @test_throws ArgumentError load_checkpoint!(target, particles, path)
+            @test particles.x[1] == [0.75]
+            @test all(==(7.0), target.fields.B[1])
+            @test target.model === model
+            @test target.shape === shape
+            @test length(target.work) == 1
+        end
+    end
+end
+
 @testset "load_checkpoint! rejects eltype mismatch" begin
     # Regression: only D and grid were validated; a Float64 checkpoint loaded into
     # a Float32 stepper was silently converted, breaking the bitwise guarantee.
@@ -121,6 +308,8 @@ end
         D = 1,
         T = Float64,
         ncell = st.g.n,
+        model = st.model,
+        shape = st.shape,
         x = ps.x,
         v = ps.v,
         weight = ps.weight,
@@ -132,6 +321,7 @@ end
         E = st.fields.E,
         time = st.time[],
         step = st.step[],
+        last_dt = st.last_dt[],
     )
     path = tempname()
     Serialization.serialize(path, legacy)
@@ -150,6 +340,8 @@ end
         T = Float64,
         ncell = st.g.n,
         L = st.g.L,
+        model = st.model,
+        shape = st.shape,
         x = ([0.1],),
         v = ([0.0, 0.0], [0.0, 0.0], [0.0, 0.0]),
         weight = [1.0, 1.0],
@@ -161,6 +353,7 @@ end
         E = (copy(st.fields.E[1]), copy(st.fields.E[2]), copy(st.fields.E[3])),
         time = st.time[],
         step = st.step[],
+        last_dt = st.last_dt[],
     )
     path = tempname()
     Serialization.serialize(path, legacy)
@@ -182,6 +375,8 @@ end
         T = Float64,
         ncell = st.g.n,
         L = st.g.L,
+        model = st.model,
+        shape = st.shape,
         x = ([0.1, 0.2],),
         v = ([0.0, 0.0], [0.0, 0.0], [0.0, 0.0]),
         weight = [1.0, 1.0],
@@ -193,6 +388,7 @@ end
         E = ([4.5], copy(st.fields.E[2]), copy(st.fields.E[3])),
         time = st.time[],
         step = st.step[],
+        last_dt = st.last_dt[],
     )
     path = tempname()
     Serialization.serialize(path, legacy)
@@ -215,6 +411,8 @@ end
         T = Float64,
         ncell = st.g.n,
         L = st.g.L,
+        model = st.model,
+        shape = st.shape,
         x = ([0.1, 0.2],),
         v = ([1.0, 1.0], [2.0, 2.0], [3.0, 3.0]),
         weight = [4.0, 4.0],
@@ -226,6 +424,7 @@ end
         E = (copy(st.fields.E[1]), copy(st.fields.E[2]), copy(st.fields.E[3])),
         time = 1.25,
         step = 4,
+        last_dt = 0.25,
     )
 
     function assert_rejects_without_mutation(bad)
@@ -252,6 +451,13 @@ end
 
     assert_rejects_without_mutation(merge(base, (step = "bad",)))
     assert_rejects_without_mutation(merge(base, (q = 2,)))
+    assert_rejects_without_mutation(merge(base, (last_dt = 0.0,)))
+    assert_rejects_without_mutation(merge(base, (last_dt = NaN,)))
+    assert_rejects_without_mutation(merge(base, (last_dt = Inf,)))
+    assert_rejects_without_mutation(merge(base, (last_dt = -0.25,)))
+    assert_rejects_without_mutation(merge(base, (last_dt = 0.25f0,)))
+    assert_rejects_without_mutation(merge(base, (step = 0,)))
+    assert_rejects_without_mutation(merge(base, (step = -1,)))
     assert_rejects_without_mutation(merge(base, (x = (Float32[0.1, 0.2],),)))
     assert_rejects_without_mutation(merge(base, (B = (Float32.(base.B[1]), base.B[2], base.B[3]),)))
 end

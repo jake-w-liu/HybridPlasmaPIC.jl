@@ -24,31 +24,6 @@
 
 # ---------------------------------------------------------------- archive
 
-# Build the deterministic run-state NamedTuple from a stepper + particle set.
-# This mirrors save_checkpoint's state (particles + canonical B + carried E +
-# time/step counters + grid identity), which is exactly what step! needs for a
-# bitwise-identical restart. The frozen n+1/2 moments are scratch recomputed each
-# step, so — as in checkpoint.jl — they are intentionally NOT stored.
-function _capture_state(st::HybridStepper{D,T}, ps::ParticleSet{D,T}) where {D,T}
-    return (
-        D = D,
-        T = T,
-        ncell = st.g.n,
-        L = st.g.L,
-        x = ps.x,
-        v = ps.v,
-        weight = ps.weight,
-        id = ps.id,
-        tag = ps.tag,
-        q = ps.q,
-        m = ps.m,
-        B = st.fields.B,
-        E = st.fields.E,
-        time = st.time[],
-        step = st.step[],
-    )
-end
-
 """
     archive_run(path, st::HybridStepper, ps::ParticleSet; rng_seed,
                 normalization="Omega_ci", filter_desc="", boundary_desc="periodic",
@@ -56,10 +31,11 @@ end
 
 Write a provenance-stamped, checksum-verified archive of the run state at `path`.
 
-The archive captures the deterministic simulation state (the particle phase space
-+ provenance, the canonical magnetic field `st.fields.B`, the carried electric
-field `st.fields.E`, the grid identity `st.g.n`/`st.g.L`, and the `time`/`step`
-counters — the same state [`save_checkpoint`](@ref) restarts from) together with a
+The archive captures the deterministic simulation state (model and shape
+configuration, particle phase space + provenance, the canonical magnetic field
+`st.fields.B`, the carried electric field `st.fields.E`, the grid identity
+`st.g.n`/`st.g.L`, the `time`/`step` counters, and `last_dt` for the particle
+velocity time level — the same state [`save_checkpoint`](@ref) restarts from) together with a
 [`RunMetadata`](@ref) record built via [`capture_metadata`](@ref). It is written
 through [`save_run`](@ref), so the file carries the schema tag and an integrity
 checksum over the state.
@@ -89,7 +65,8 @@ function archive_run(
         diagnostic_desc = diagnostic_desc,
         rank_layout = rank_layout,
     )
-    state = _capture_state(st, ps)
+    state = _checkpoint_state(st, ps)
+    _validate_checkpoint_state(state, st)
     return save_run(path, state, meta)
 end
 

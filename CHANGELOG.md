@@ -80,6 +80,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Hybrid, CAM-CL, and replicated MPI stepping retain particle half-time levels
+  across timestep changes. Hybrid checkpoints and archives now preserve timestep
+  history and model/shape parameters, restoring the saved physics. Writable
+  particle views restore in place; unsupported resizing is rejected before mutation.
+
 - HDF5 field writes preserve logical values for ranges, transposes, and strided
   views. Contiguous arrays and views retain the direct write path.
 

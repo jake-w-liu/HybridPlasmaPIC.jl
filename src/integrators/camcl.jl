@@ -61,6 +61,7 @@ mutable struct CAMCLStepper{D,T,SH<:ShapeFunction,M<:HybridModel}
     work::Vector{T}
     time::Base.RefValue{T}
     step::Base.RefValue{Int}
+    last_dt::Base.RefValue{T}          # previous drift interval fixes the velocity half level
     cl_h::Base.RefValue{T}             # substep size h the persistent CL pair was advanced with
     cl_live::Base.RefValue{Bool}       # persistent CL pair valid to continue from?
 end
@@ -99,6 +100,7 @@ function CAMCLStepper(
         zeros(T, Np),
         Ref(zero(T)),
         Ref(0),
+        Ref(zero(T)),                        # last_dt
         Ref(zero(T)),                        # cl_h
         Ref(false),                          # cl_live
     )
@@ -118,6 +120,7 @@ function init_camcl!(st::CAMCLStepper{D,T}, ps::ParticleSet{D,T}) where {D,T}
     ohms_law!(st.fields, st.model, st.g)
     st.time[] = zero(T)                 # (re)start at t=0; step==0 triggers leapfrog priming
     st.step[] = 0
+    st.last_dt[] = zero(T)
     st.cl_live[] = false                # re-bootstrap the persistent CL pair from fields.B
     return st
 end
@@ -267,6 +270,8 @@ leapfrog magnetic subcycles (periodic box; `NB ≥ 2`, since the cyclic leapfrog
 needs the bootstrap plus at least one leapfrog kick). Mirrors [`step!`](@ref)
 for `HybridStepper`: Boris kick centred at n, CAM half-step ion current, CL
 magnetic subcycle, then recompute the carried E at n+1.
+Changed timesteps retain the correct particle half-time levels; the magnetic
+subcycle reinitializes its persistent copies when its substep size changes.
 """
 function step_camcl!(
     st::CAMCLStepper{D,T},
@@ -280,6 +285,7 @@ function step_camcl!(
     _resize_hybrid_particle_workspaces!(st, nparticles(ps))
     g = st.g
     h = dtT / 2
+    kick_dt = st.step[] == 0 ? dtT : st.last_dt[] / 2 + h
     nf = T(st.model.nfloor)
     lo = ntuple(_ -> zero(T), D)
     hi = g.L
@@ -302,7 +308,7 @@ function step_camcl!(
             st.Bp[2][p],
             st.Bp[3][p],
             qm,
-            dtT,
+            kick_dt,
         )
         vx[p] = nx
         vy[p] = ny
@@ -334,5 +340,6 @@ function step_camcl!(
 
     st.time[] += dtT
     st.step[] += 1
+    st.last_dt[] = dtT
     return st
 end

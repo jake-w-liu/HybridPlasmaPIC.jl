@@ -1,16 +1,34 @@
 # checkpoint.jl — checkpoint/restart of the deterministic simulation state.
 #
 # Stepping (step!) uses no RNG, so the state needed for a bitwise-identical
-# restart is: the particle phase space + provenance, the canonical magnetic
-# field and carried electric field, and the time/step counters. The frozen
+# restart is: model and shape, particle phase space + provenance, canonical B,
+# carried E, time/step counters, and the previous particle timestep. The frozen
 # n+1/2 moments are scratch recomputed every step, so they are not stored.
 # ponytail: stdlib Serialization (no extra dep). Swap for HDF5 when cross-version
 # or cross-language portability is needed.
 
 using Serialization
 
-const _CHECKPOINT_REQUIRED_FIELDS =
-    (:D, :T, :ncell, :L, :x, :v, :weight, :id, :tag, :q, :m, :B, :E, :time, :step)
+const _CHECKPOINT_REQUIRED_FIELDS = (
+    :D,
+    :T,
+    :ncell,
+    :L,
+    :model,
+    :shape,
+    :x,
+    :v,
+    :weight,
+    :id,
+    :tag,
+    :q,
+    :m,
+    :B,
+    :E,
+    :time,
+    :step,
+    :last_dt,
+)
 
 function _validate_checkpoint_container(s)
     s isa NamedTuple ||
@@ -67,6 +85,13 @@ function _validate_checkpoint_scalar_state(s, ::Type{T}) where {T}
             "checkpoint step type $(typeof(s.step)) ≠ Int (would fail or convert on restore)",
         ),
     )
+    s.step >= 0 || throw(ArgumentError("checkpoint step must be nonnegative"))
+    s.last_dt isa T || throw(ArgumentError("checkpoint last_dt type $(typeof(s.last_dt)) ≠ $T"))
+    isfinite(s.last_dt) && s.last_dt >= zero(T) ||
+        throw(ArgumentError("checkpoint last_dt must be finite and nonnegative"))
+    (s.step == 0 ? iszero(s.last_dt) : s.last_dt > zero(T)) || throw(
+        ArgumentError("checkpoint last_dt must be zero before stepping and positive afterward"),
+    )
     return nothing
 end
 
@@ -115,6 +140,10 @@ function _validate_checkpoint_state(s, st::HybridStepper{D,T}) where {D,T}
     )
     s.ncell == st.g.n || throw(ArgumentError("checkpoint grid $(s.ncell) ≠ $(st.g.n)"))
     s.L == st.g.L || throw(ArgumentError("checkpoint box lengths $(s.L) ≠ $(st.g.L)"))
+    typeof(s.model) === typeof(st.model) ||
+        throw(ArgumentError("checkpoint model type $(typeof(s.model)) ≠ $(typeof(st.model))"))
+    typeof(s.shape) === typeof(st.shape) ||
+        throw(ArgumentError("checkpoint shape type $(typeof(s.shape)) ≠ $(typeof(st.shape))"))
     _validate_checkpoint_scalar_state(s, T)
     _validate_checkpoint_particle_state(s, Val(D))
     _validate_checkpoint_field_state(s, st)
@@ -127,6 +156,8 @@ function _checkpoint_state(st::HybridStepper{D,T}, ps::ParticleSet{D,T}) where {
         T = T,
         ncell = st.g.n,
         L = st.g.L,
+        model = st.model,
+        shape = st.shape,
         x = ps.x,
         v = ps.v,
         weight = ps.weight,
@@ -138,26 +169,43 @@ function _checkpoint_state(st::HybridStepper{D,T}, ps::ParticleSet{D,T}) where {
         E = st.fields.E,
         time = st.time[],
         step = st.step[],
+        last_dt = st.last_dt[],
     )
+end
+
+function _validate_checkpoint_destination(ps::ParticleSet, N::Int)
+    for a in (ps.x..., ps.v..., ps.weight, ps.id, ps.tag)
+        if length(a) != N && !applicable(resize!, a, N)
+            throw(
+                ArgumentError(
+                    "checkpoint requires $N particles, but destination $(typeof(a)) cannot resize from $(length(a))",
+                ),
+            )
+        end
+    end
+    return nothing
 end
 
 function _restore_checkpoint_state!(st::HybridStepper{D,T}, ps::ParticleSet{D,T}, s) where {D,T}
     _validate_checkpoint_state(s, st)
     N = length(s.weight)
+    _validate_checkpoint_destination(ps, N)
     _resize_hybrid_particle_workspaces!(st, N)
+    st.model = s.model
+    st.shape = s.shape
     for d = 1:D
-        resize!(ps.x[d], length(s.x[d]))
+        length(ps.x[d]) == N || resize!(ps.x[d], N)
         copyto!(ps.x[d], s.x[d])
     end
     for c = 1:3
-        resize!(ps.v[c], length(s.v[c]))
+        length(ps.v[c]) == N || resize!(ps.v[c], N)
         copyto!(ps.v[c], s.v[c])
     end
-    resize!(ps.weight, N)
+    length(ps.weight) == N || resize!(ps.weight, N)
     copyto!(ps.weight, s.weight)
-    resize!(ps.id, length(s.id))
+    length(ps.id) == N || resize!(ps.id, N)
     copyto!(ps.id, s.id)
-    resize!(ps.tag, length(s.tag))
+    length(ps.tag) == N || resize!(ps.tag, N)
     copyto!(ps.tag, s.tag)
     ps.q = s.q
     ps.m = s.m
@@ -167,13 +215,15 @@ function _restore_checkpoint_state!(st::HybridStepper{D,T}, ps::ParticleSet{D,T}
     end
     st.time[] = s.time
     st.step[] = s.step
+    st.last_dt[] = s.last_dt
     return st
 end
 
 """
     save_checkpoint(path, stepper, ps)
 
-Serialize the restartable state (particles, B, carried E, time, step) to `path`.
+Serialize the restartable state (model, shape, particles, B, carried E, time,
+step, and previous timestep for the staggered particle velocities) to `path`.
 """
 function save_checkpoint(
     path::AbstractString,
@@ -189,9 +239,14 @@ end
 """
     load_checkpoint!(stepper, ps, path)
 
-Restore a checkpoint into a `stepper`/`ps` of matching dimension and grid size
-(particle arrays are resized to match). After loading, `step!` continues
-bitwise-identically to the original run.
+Restore a checkpoint into a `stepper`/`ps` of matching dimension, precision,
+grid, and concrete model/shape types (particle arrays are resized to match).
+Destination arrays that do not support resizing must already have the saved
+particle count; writable views are restored in place.
+The checkpoint replaces the destination's model and shape parameters, including
+custom mutable parameters, so restored evolution uses the saved physics.
+Checkpoints without configuration or timestep-history fields are rejected. After loading, `step!`
+continues bitwise-identically to the original run with the same stepping inputs.
 """
 function load_checkpoint!(
     st::HybridStepper{D,T},

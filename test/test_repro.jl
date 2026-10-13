@@ -97,8 +97,11 @@ end
         @test a.state.D == 1
         @test a.state.ncell == g.n
         @test a.state.L == g.L
+        @test a.state.model === st.model
+        @test a.state.shape === st.shape
         @test a.state.step == st.step[]
         @test a.state.time == st.time[]
+        @test a.state.last_dt == st.last_dt[]
         @test a.state.q == ps.q && a.state.m == ps.m
         @test a.state.x == ps.x
         @test a.state.v == ps.v
@@ -107,6 +110,21 @@ end
         @test a.state.tag == ps.tag
         @test a.state.B == st.fields.B
         @test a.state.E == st.fields.E
+    end
+end
+
+@testset "archive uses the validated checkpoint state" begin
+    _, _, st, ps = _build_run(; N = 16)
+    mktempdir() do dir
+        checkpoint_path = joinpath(dir, "checkpoint.bin")
+        archive_path = joinpath(dir, "archive.bin")
+        save_checkpoint(checkpoint_path, st, ps)
+        archive_run(archive_path, st, ps; rng_seed = 7)
+        @test deserialize(checkpoint_path) == load_archive(archive_path).state
+        resize!(ps.v[3], 15)
+        @test_throws ArgumentError archive_run(archive_path, st, ps; rng_seed = 7)
+        # Validation happens before writing, preserving the prior valid archive.
+        @test length(load_archive(archive_path).state.v[3]) == 16
     end
 end
 
