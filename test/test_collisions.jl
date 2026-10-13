@@ -624,6 +624,7 @@ end
     @test hypot(g1...) ≈ gmag0 rtol = 8eps()
 
     transactional = ParticleSet{1,Float64}(4)
+    transactional.x[1] .= (0.0, -0.0, 0.4, 0.8)
     transactional.v[1] .= (-1.0, -0.3, 0.4, 1.2)
     snap = map(copy, transactional.v)
     work = map(similar, transactional.v)

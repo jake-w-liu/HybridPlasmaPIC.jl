@@ -134,6 +134,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Collision rollback tests initialize their position fixture, avoiding
+  nondeterministic NaN comparisons in the full test suite.
+
 - Guiding-centre position updates retain the complete streaming and drift
   displacement through the final coordinate addition. Finite updates survive
   intermediate range loss and cancellation; exact fallbacks preserve stored
