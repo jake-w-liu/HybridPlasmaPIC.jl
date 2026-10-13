@@ -138,6 +138,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- General ES/EM Poisson, Gauss and current projections distinguish nonzero
+  wavevectors even when their squares lose range. Range-sensitive modes retain
+  the complete longitudinal expression and original timestep before rounding;
+  true DC and Nyquist behavior is preserved. Density/FFT range boundaries remain
+  tracked separately in `docs/EMPIC_RANGE_PLAN.md`.
+
 - Checkpoint and archive validation rejects model/shape links to evolving
   particle/solver storage before serialization or restore mutation, including
   owned FFT plans, clocks, packed buffers and dictionary backing allocations.

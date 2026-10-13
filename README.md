@@ -186,6 +186,10 @@ the hybrid stepper, so moving a setup between them is mostly a constructor
 swap; Hall-MHD shares the grid and field machinery, and the KdV solver is a
 standalone verification tool.
 
+General ES/EM longitudinal projections preserve finite results when intermediate
+wavenumber squares or products lose range. Extreme density differences and FFT
+materialization still have [known range limits](docs/EMPIC_RANGE_PLAN.md).
+
 Relativistic stepping and restart require subluminal stored velocities. Boundary
 validation compares the original components exactly when rounding could hide
 `|v| ≥ c`; inputs whose rounded speed ratio is already at least one remain

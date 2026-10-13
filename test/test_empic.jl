@@ -4,6 +4,120 @@
 
 using HybridPlasmaPIC, FFTW, Test, Random
 
+@testset "EMPIC longitudinal projection preserves extreme represented modes" begin
+    H = HybridPlasmaPIC
+    for T in (Float32, Float64), D = 1:3, axis = 1:D, large_domain in (false, true)
+        scale =
+            T === Float32 ? (large_domain ? T(1e25) : T(1e-25)) :
+            (large_domain ? T(1e200) : T(1e-200))
+        g = FourierGrid(ntuple(_ -> 4, D), ntuple(d -> d == axis ? T(2pi) * scale : T(4), D))
+        electrons = ParticleSet{D,T}(4^(D - 1); q = -one(T), m = one(T))
+        for (p, I) in enumerate(CartesianIndices(ntuple(d -> d == axis ? 1 : 4, D)))
+            for d = 1:D
+                electrons.x[d][p] = T(I[d] - 1) * g.dx[d]
+            end
+            electrons.weight[p] = prod(g.dx)
+        end
+        es = EMPIC(g, length(electrons.weight); n0 = T(0.25))
+        init_empic!(es, electrons)
+        amplitude = setprecision(BigFloat, 256) do
+            T(-inv(BigFloat(g.kvec[axis][2])))
+        end
+        for I in CartesianIndices(es.E[axis])
+            @test es.E[axis][I] ≈ amplitude / 2 * (zero(T), one(T), zero(T), -one(T))[I[axis]] rtol =
+                16eps(T) atol = zero(T)
+        end
+        @test all(d -> d == axis || all(iszero, es.E[d]), 1:3)
+
+        # A represented cosine charge change with zero current has residual
+        # one regardless of whether its squared wave number is representable.
+        fill!(es.rho_n, zero(T))
+        for I in CartesianIndices(es.rho_np1)
+            es.rho_np1[I] = (one(T), zero(T), -one(T), zero(T))[I[axis]]
+        end
+        @test charge_conservation_residual(es, one(T)) ≈ one(T) rtol = 16eps(T)
+        H._correct_current_continuity!(es, one(T))
+        for I in CartesianIndices(es.J[axis])
+            @test es.J[axis][I] ≈ amplitude * (zero(T), one(T), zero(T), -one(T))[I[axis]] rtol =
+                16eps(T) atol = zero(T)
+        end
+        @test charge_conservation_residual(es, one(T)) < 64eps(T)
+
+        # Preserve source and dt separately: target=-delta/dt itself can lose
+        # range while the complete longitudinal current remains normal.
+        dt, change = if large_domain
+            T === Float32 ? (T(1e30), T(1e-20)) : (T(1e300), T(1e-100))
+        else
+            T === Float32 ? (T(1e-40), one(T)) : (T(1e-320), one(T))
+        end
+        es.rho_np1 .*= change
+        H._correct_current_continuity!(es, dt)
+        expected = setprecision(BigFloat, 256) do
+            T(-BigFloat(change) / (BigFloat(dt) * BigFloat(g.kvec[axis][2])))
+        end
+        @test isfinite(expected) && !iszero(expected)
+        for I in CartesianIndices(es.J[axis])
+            @test es.J[axis][I] ≈ expected * (zero(T), one(T), zero(T), -one(T))[I[axis]] rtol =
+                16eps(T) atol = zero(T)
+        end
+    end
+    for T in (Float32, Float64), overflow in (false, true)
+        kscale = T === Float32 ? (overflow ? T(1e15) : T(1e-15)) : (overflow ? T(1e150) : T(1e-150))
+        amplitude =
+            T === Float32 ? (overflow ? T(1e30) : T(1e-35)) : (overflow ? T(1e200) : T(1e-200))
+        g = FourierGrid((4,), (T(2pi) / kscale,))
+        e = ParticleSet{1,T}(0; q = -one(T), m = one(T))
+        es = EMPIC(g, 0; n0 = zero(T))
+        es.E[1] .= amplitude .* T[1, 0, -1, 0]
+        init_empic!(es, e)
+        # The complete projection removes this purely longitudinal seed,
+        # including when its intermediate divergence is outside T's range.
+        @test all(iszero, es.E[1])
+    end
+end
+
+@testset "EMPIC null modes depend on wave-vector components" begin
+    for T in (Float32, Float64), D = 1:3
+        scale = T === Float32 ? T(1e25) : T(1e200)
+        g = FourierGrid(ntuple(_ -> 4, D), ntuple(_ -> T(2pi) * scale, D))
+        es = EMPIC(g, 0; n0 = zero(T))
+        for c = 1:3, I in CartesianIndices(es.Jraw[c])
+            es.Jraw[c][I] = T(c) + (isodd(I[1] - 1) ? -one(T) : one(T))
+        end
+        HybridPlasmaPIC._correct_current_continuity!(es, one(T))
+        @test all(c -> all(==(T(c)), es.J[c]), 1:3)
+        for axes = 1:((1<<D)-1)
+            foreach(current -> fill!(current, zero(T)), es.J)
+            for I in CartesianIndices(es.rho_np1)
+                parity = sum(I[d] - 1 for d = 1:D if axes & (1 << (d - 1)) != 0)
+                es.rho_np1[I] = isodd(parity) ? -one(T) : one(T)
+            end
+            @test charge_conservation_residual(es, one(T)) == zero(T)
+            es.rho_np1 .+= one(T)
+            @test charge_conservation_residual(es, one(T)) ≈ one(T) rtol = 16eps(T)
+        end
+        if D > 1
+            # Nyquist in x with nonzero ky remains represented; its Jx is
+            # transverse and must not be removed as a false null mode.
+            fill!(es.rho_np1, zero(T))
+            foreach(current -> fill!(current, zero(T)), es.Jraw)
+            pattern = similar(es.rho_n)
+            for I in CartesianIndices(pattern)
+                pattern[I] =
+                    (isodd(I[1] - 1) ? -one(T) : one(T)) * (one(T), zero(T), -one(T), zero(T))[I[2]]
+            end
+            es.Jraw[1] .= pattern
+            HybridPlasmaPIC._correct_current_continuity!(es, one(T))
+            @test es.J[1] == pattern
+            @test all(c -> all(iszero, es.J[c]), 2:3)
+            foreach(current -> fill!(current, zero(T)), es.J)
+            es.rho_np1 .= pattern
+            @test charge_conservation_residual(es, one(T)) ≈ one(T) rtol = 16eps(T)
+        end
+    end
+end
+
+
 @testset "EMPIC continuity diagnostic retains total charge errors" begin
     for T in (Float32, Float64), D = 1:3, n in (5, 6)
         g = FourierGrid(ntuple(_ -> n, D), ntuple(_ -> T(2π), D))
@@ -94,11 +208,10 @@ function _empic_gauss_residual(es, rho)
     rhohat = complex.(rho)
     fft!(rhohat)
     for I in CartesianIndices(rhohat)
-        k2 = zero(eltype(rho))
-        for d = 1:length(g.n)
-            k2 += g.kvec[d][I[d]]^2
-        end
-        k2 == 0 && (rhohat[I] = zero(eltype(rhohat)))
+        # Classify the derivative null space by Fourier indices, independently
+        # of the production arithmetic and the representability of k squared.
+        nullmode = all(d -> I[d] == 1 || iseven(g.n[d]) && I[d] == g.n[d] ÷ 2 + 1, 1:length(g.n))
+        nullmode && (rhohat[I] = zero(eltype(rhohat)))
     end
     ifft!(rhohat)
     rhorepr = real.(rhohat)

@@ -109,13 +109,119 @@ function poisson_E!(es::Electrostatic1D{T}) where {T}
     return es.E
 end
 
-function _spectral_k2(g::FourierGrid{D,T}, I::CartesianIndex{D}) where {D,T}
-    s = zero(T)
-    idx = Tuple(I)
-    @inbounds for d = 1:D
-        s += g.kvec[d][idx[d]]^2
+# Longitudinal Fourier modes share exact-zero classification and one cold
+# complete-expression projection. FFT input/output range remains owned by the
+# caller: this path starts with the represented finite Fourier coefficients.
+@inline function _spectral_wavevector(g::FourierGrid{D,T}, I::CartesianIndex{D}) where {D,T}
+    return ntuple(d -> @inbounds(g.kvec[d][I[d]]), Val(D))
+end
+
+# A subnormal intermediate can lose bits that a later large factor restores.
+# Keep the original operation order when every intermediate retains its range.
+@inline _spectral_product_lost_range(a::T, b::T, p::T) where {T} =
+    !isfinite(p) || (!iszero(a) && !iszero(b) && abs(p) < floatmin(T))
+@inline _spectral_quotient_lost_range(a::T, b::T, p::T) where {T} =
+    !isfinite(p) || (!iszero(a) && abs(p) < floatmin(T))
+@inline _spectral_mode_is_null(k) = all(iszero, k)
+function _spectral_norm2(k::NTuple{D,T}) where {D,T}
+    total = zero(T)
+    lost = false
+    for kd in k
+        square = kd^2
+        lost |= _spectral_product_lost_range(kd, kd, square)
+        total += square
     end
-    return s
+    return total, lost || !isfinite(total)
+end
+_spectral_exact_complex(z::Complex) = complex(_exact_rational(real(z)), _exact_rational(imag(z)))
+function _spectral_exact_projection(
+    a::NTuple{D,Complex{T}},
+    k::NTuple{D,T},
+    source::Complex{T},
+    divisor::T,
+) where {D,T}
+    # The homogeneous zero mode needs no exact allocations, even at extreme k.
+    iszero(source) && all(iszero, a) && return a
+    kr = map(_exact_rational, k)
+    ar = map(_spectral_exact_complex, a)
+    k2 = sum(x -> x * x, kr)
+    # Source/divisor and the original components remain unrounded until the
+    # complete longitudinal correction is formed. In particular, dt is not
+    # consumed by an overflowing/underflowing target before reaching here.
+    defect =
+        _spectral_exact_complex(source) / _exact_rational(divisor) -
+        im * sum(kr[d] * ar[d] for d = 1:D)
+    return map(ar, kr) do ad, kd
+        result = ad - im * kd * defect / k2
+        complex(_from_exact(T, real(result)), _from_exact(T, imag(result)))
+    end
+end
+# Preserve callers' existing nonfinite-input behavior; the exact path accepts
+# only finite represented operands and a nonzero divisor.
+@inline _spectral_projection_eligible(a, k, source, divisor) =
+    all(isfinite, a) &&
+    all(isfinite, k) &&
+    isfinite(source) &&
+    isfinite(divisor) &&
+    !iszero(divisor)
+function _spectral_project_mode(
+    a::NTuple{D,Complex{T}},
+    k::NTuple{D,T},
+    source::Complex{T},
+    divisor::T,
+) where {D,T}
+    _spectral_mode_is_null(k) && return a
+    k2, lost = _spectral_norm2(k)
+    divergence = zero(Complex{T})
+    for d = 1:D
+        term = Complex{T}(0, k[d]) * a[d]
+        lost |=
+            _spectral_product_lost_range(k[d], imag(a[d]), real(term)) ||
+            _spectral_product_lost_range(k[d], real(a[d]), imag(term))
+        divergence += term
+        lost |= !isfinite(divergence)
+    end
+    target = source / divisor
+    lost |=
+        _spectral_quotient_lost_range(real(source), divisor, real(target)) ||
+        _spectral_quotient_lost_range(imag(source), divisor, imag(target))
+    defect = target - divergence
+    lost |= !isfinite(defect)
+    coefficients = map(kd -> (-im * kd / k2), k)
+    for d = 1:D
+        lost |= _spectral_quotient_lost_range(k[d], k2, imag(coefficients[d]))
+    end
+    corrections = map(coefficient -> coefficient * defect, coefficients)
+    for d = 1:D
+        lost |=
+            _spectral_product_lost_range(
+                imag(coefficients[d]),
+                imag(defect),
+                real(corrections[d]),
+            ) ||
+            _spectral_product_lost_range(imag(coefficients[d]), real(defect), imag(corrections[d]))
+    end
+    result = map(+, a, corrections)
+    lost |= !all(isfinite, result)
+    cold = lost && _spectral_projection_eligible(a, k, source, divisor)
+    return cold ? _spectral_exact_projection(a, k, source, divisor) : result
+end
+function _spectral_poisson_mode(k::NTuple{D,T}, source::Complex{T}) where {D,T}
+    zeros_mode = map(_ -> zero(Complex{T}), k)
+    _spectral_mode_is_null(k) && return zeros_mode
+    k2, lost = _spectral_norm2(k)
+    numerator = map(kd -> (-im * kd * source), k)
+    result = map(value -> value / k2, numerator)
+    for d = 1:D
+        lost |=
+            _spectral_product_lost_range(k[d], imag(source), real(numerator[d])) ||
+            _spectral_product_lost_range(k[d], real(source), imag(numerator[d]))
+        lost |=
+            _spectral_quotient_lost_range(real(numerator[d]), k2, real(result[d])) ||
+            _spectral_quotient_lost_range(imag(numerator[d]), k2, imag(result[d]))
+    end
+    cold = lost && _spectral_projection_eligible(zeros_mode, k, source, one(T))
+    return cold ? _spectral_exact_projection(zeros_mode, k, source, one(T)) : result
 end
 
 """
@@ -133,17 +239,17 @@ function poisson_E!(es::ElectrostaticPIC{D,T}) where {D,T}
     for c = 1:3
         fill!(es.E[c], zero(T))
     end
-    @inbounds for d = 1:D
-        tb = g.tbuf
-        for I in CartesianIndices(cb)
-            idx = Tuple(I)
-            k2 = _spectral_k2(g, I)
-            kd = g.kvec[d][idx[d]]
-            tb[I] = k2 == 0 ? zero(Complex{T}) : (-im * kd * cb[I]) / k2
+    buffers = (g.tbuf, g.abuf, g.sbuf)
+    @inbounds for I in CartesianIndices(cb)
+        values = _spectral_poisson_mode(_spectral_wavevector(g, I), cb[I])
+        for d = 1:D
+            buffers[d][I] = values[d]
         end
-        g.iplan * tb
+    end
+    for d = 1:D
+        g.iplan * buffers[d]
         for I in CartesianIndices(cb)
-            es.E[d][I] = real(tb[I])
+            es.E[d][I] = real(buffers[d][I])
         end
     end
     return es.E

@@ -1,8 +1,9 @@
 # Electromagnetic field-update range repairs
 
 Status: finite-curl repair pushed as `0f53361`. Scaled spectral updates are
-verified on Julia 1.12.7 and 1.13.1 and pushed as `8e7d5be`. A separate
-squared-wavenumber projection defect is confirmed below.
+verified on Julia 1.12.7 and 1.13.1 and pushed as `8e7d5be`. The finite-Fourier
+longitudinal projection repair is verified on both versions. Complete continuity
+pipeline range repairs remain open below.
 
 ## Verified gaps
 
@@ -121,19 +122,50 @@ corrected negative-control fixtures, complete resource protocol and raw timing
 ranges are retained in `/tmp/empic_scaled_v3_evidence.md`. Integrated full
 package runs remain a separate gate after the outstanding slices are ready.
 
-## Squared-wavenumber projection follow-up
+## Finite-Fourier longitudinal projection repair
 
 VERIFIED: general electrostatic and electromagnetic initialization produce zero
 electric fields for a four-point nonuniform charge when a finite nonzero
 wavenumber's square overflows or underflows. The specialized 1D solvers match
 the finite inverse-DFT field. The public Float32/64 probe passes 28 witness
-checks on Julia 1.12.7: `/tmp/pic_spectral_k2_probe112.log`.
+checks on each Julia version: `/tmp/pic_spectral_k2_probe112.log` and
+`/tmp/pic_spectral_k2_probe113.log`. Further probes reproduce lost products even
+with finite normal squared norms: `/tmp/pic_projection_complete_expression_probe112.log`.
 
-Trace `_spectral_k2` and all projection/current-correction/diagnostic callers
-before editing. Preserve true zero and derivative-null Nyquist classification,
-retain complete projection ratios, and verify charge, Gauss law, independent
-DFT fields and ordinary equivalence on both Julia versions. The scalar-mode
-repair is under verification; the scaled-curl tests do not establish its correctness.
+Shared scalar kernels now classify null modes from the actual wavevector
+components. Ordinary operations retain their order; range-sensitive modes
+evaluate the complete longitudinal expression exactly from the original field,
+source and divisor, rounding only the final components. Poisson, Gauss correction
+and current correction share that owner. Current passes the original timestep
+separately, preserving results whose intermediate charge-change/timestep ratio
+is unrepresentable. True DC, pure Nyquist and mixed modes keep their distinct
+contracts. The change begins with finite represented Fourier coefficients;
+the seven pipeline boundaries below remain separate work.
+
+The final immutable candidate passes **27,434 assertions on each Julia version**
+across the complete ES, EM and specialized 1D suites. Independent exact real/imaginary
+oracles check final rounding cells, signed underflow, overflow thresholds, ties,
+all dimensions and axes, mixed scales, and null-mode behavior. Logs:
+`/tmp/pic_projection_final_v2_full112.log` and `...full113.log`.
+All 108 concrete compiler signatures per version have zero reports. Package
+report contents match the baseline exactly: 26 on 1.12 and 25 on 1.13, with the
+ceiling unchanged. Evidence: `/tmp/pic_projection_final_v2_package_comparison.log`.
+An earlier tuple-cardinality inference regression was repaired before these gates.
+
+Eight ordinary ES and 64 EM configurations preserve captured physical state and
+particles bitwise, with unchanged step allocations (146 comparisons). Ordinary
+helpers allocate zero bytes. Extreme public-operator samples allocate
+18,464–3,941,136 B per call; these are fixture costs, not upper bounds. Logs:
+`/tmp/pic_projection_final_v2_state_compare112.log` and `...cold_resources112.log`.
+
+Eight balanced alternating timing pairs on the shared machine give particle-bearing
+CPU median ratios of 0.901–1.032 and vacuum ratios of 0.930–1.223. Float32 2D/3D
+vacuum medians rise 22.3%/18.9%; Float64 2D/3D rise 10.3%/6.5%. Paired ranges are
+broad, including variation in the unchanged specialized 1D control. These measured
+costs remain optimization targets; no speedup or isolated causal timing claim is
+made. Raw evidence: `/tmp/pic_projection_final_v2_benchmark112.log`.
+Formatter idempotence and final diff checks pass. Full-package integration remains
+a separate gate after the outstanding I/O slice is ready.
 
 ## Continuity pipeline follow-up
 

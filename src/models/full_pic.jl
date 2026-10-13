@@ -1277,19 +1277,6 @@ end
 
 @inline _empic_component_buffer(g, c::Int) = c == 1 ? g.cbuf : c == 2 ? g.tbuf : g.abuf
 
-@inline function _empic_divergence_hat(
-    buffers,
-    g::FourierGrid{D,T},
-    I::CartesianIndex{D},
-) where {D,T}
-    s = zero(Complex{T})
-    idx = Tuple(I)
-    @inbounds for d = 1:D
-        s += Complex{T}(0, g.kvec[d][idx[d]]) * buffers[d][I]
-    end
-    return s
-end
-
 function _enforce_gauss!(es::EMPIC{D,T}) where {D,T}
     g = es.g
     rhohat = g.sbuf
@@ -1301,12 +1288,12 @@ function _enforce_gauss!(es::EMPIC{D,T}) where {D,T}
         g.plan * buffers[c]
     end
     @inbounds for I in CartesianIndices(rhohat)
-        k2 = _spectral_k2(g, I)
-        if k2 != 0
-            delta = rhohat[I] - _empic_divergence_hat(buffers, g, I)
-            idx = Tuple(I)
+        k = _spectral_wavevector(g, I)
+        if !_spectral_mode_is_null(k)
+            original = ntuple(d -> buffers[d][I], Val(D))
+            corrected = _spectral_project_mode(original, k, rhohat[I], one(T))
             for d = 1:D
-                buffers[d][I] += (-im * g.kvec[d][idx[d]] / k2) * delta
+                buffers[d][I] = corrected[d]
             end
         end
     end
@@ -1427,16 +1414,15 @@ function _correct_current_continuity!(es::EMPIC{D,T}, dt::T) where {D,T}
     g.plan * delta
     dc = first(CartesianIndices(delta))          # the true k=0 mode (all indices 1)
     @inbounds for I in CartesianIndices(delta)
-        k2 = _spectral_k2(g, I)
-        if k2 != 0
-            target = -delta[I] / dt
-            defect = target - _empic_divergence_hat(buffers, g, I)
-            idx = Tuple(I)
+        k = _spectral_wavevector(g, I)
+        if !_spectral_mode_is_null(k)
+            original = ntuple(d -> buffers[d][I], Val(D))
+            corrected = _spectral_project_mode(original, k, -delta[I], dt)
             for d = 1:D
-                buffers[d][I] += (-im * g.kvec[d][idx[d]] / k2) * defect
+                buffers[d][I] = corrected[d]
             end
         elseif I != dc
-            # k2 == 0 covers the true DC mode AND every pure DC/Nyquist index
+            # All-zero k covers the true DC mode AND every pure DC/Nyquist index
             # combination (kvec zeros the per-axis Nyquist entry). Only DC is
             # physical (net current, kept from the raw deposit). The Nyquist
             # combinations are structurally outside the spectral operators'
@@ -1445,7 +1431,7 @@ function _correct_current_continuity!(es::EMPIC{D,T}, dt::T) where {D,T}
             # grid-Nyquist sawtooth felt by particles through the gather).
             # Zero ALL current components there, exactly as _esirkepov_Jx!
             # (longitudinal) and _deposit_Jy_at_midpoints! (transverse) do in
-            # EMPIC1D. Mixed modes (e.g. Nyquist in x with k_y ≠ 0, so k2 ≠ 0)
+            # EMPIC1D. Mixed modes (e.g. Nyquist in x with k_y ≠ 0)
             # are deliberately left alone: the axis-Nyquist J component there
             # is transverse to the effective wavevector — raw, like every
             # transverse current — and the curl coupling on the remaining axes
@@ -1752,7 +1738,9 @@ function charge_conservation_residual(es::EMPIC{D,T}, dt::Real) where {D,T}
     g.plan * dρhat
     dc = first(CartesianIndices(dρhat))
     @inbounds for I in CartesianIndices(dρhat)
-        I != dc && _spectral_k2(g, I) == 0 && (dρhat[I] = zero(Complex{T}))
+        I != dc &&
+            _spectral_mode_is_null(_spectral_wavevector(g, I)) &&
+            (dρhat[I] = zero(Complex{T}))
     end
     g.iplan * dρhat
     dρrepr = similar(es.rho_n)

@@ -4,6 +4,174 @@
 
 using HybridPlasmaPIC, FFTW, Test, Random
 
+# This oracle expands real and imaginary components independently of the
+# production complex projection and checks exact rounding cells without a
+# Rational-to-float conversion in the expected-value path.
+module SpectralProjectionOracle
+using Test
+exact(x::AbstractFloat) = Rational{BigInt}(x)
+exact(z::Complex) = complex(exact(real(z)), exact(imag(z)))
+function projection(a, k, source, divisor)
+    kr, ar = map(exact, k), map(exact, a)
+    norm = sum(x * x for x in kr)
+    iszero(norm) && return ar
+    return ntuple(length(k)) do d
+        x =
+            real(ar[d]) +
+            kr[d] * (
+                imag(exact(source)) / exact(divisor) -
+                sum(kr[j] * real(ar[j]) for j in eachindex(kr))
+            ) / norm
+        y =
+            imag(ar[d]) -
+            kr[d] * (
+                real(exact(source)) / exact(divisor) +
+                sum(kr[j] * imag(ar[j]) for j in eachindex(kr))
+            ) / norm
+        complex(x, y)
+    end
+end
+function in_rounding_cell(actual::T, expected) where {T}
+    if isinf(actual)
+        largest = exact(floatmax(T))
+        threshold = largest + (largest - exact(prevfloat(floatmax(T)))) / 2
+        return actual > 0 ? expected >= threshold : expected <= -threshold
+    end
+    isfinite(actual) || return false
+    here = exact(actual)
+    previous, following = prevfloat(actual), nextfloat(actual)
+    low = isfinite(previous) ? (exact(previous) + here) / 2 : here - (exact(following) - here) / 2
+    high = isfinite(following) ? (exact(following) + here) / 2 : here + (here - exact(previous)) / 2
+    even = T === Float32 ? iseven(reinterpret(UInt32, actual)) : iseven(reinterpret(UInt64, actual))
+    return low < expected < high || even && (expected == low || expected == high)
+end
+function check(actual, expected)
+    for (value, reference) in zip(actual, expected)
+        for (v, r) in ((real(value), real(reference)), (imag(value), imag(reference)))
+            @test in_rounding_cell(v, r)
+            if iszero(v) && !iszero(r)
+                @test signbit(v) == (r < 0)
+            end
+        end
+    end
+end
+end
+
+function _spectral_projection_test_allocations(a, k, source, divisor)
+    HybridPlasmaPIC._spectral_project_mode(a, k, source, divisor)
+    HybridPlasmaPIC._spectral_poisson_mode(k, source)
+    return (
+        @allocated(HybridPlasmaPIC._spectral_project_mode(a, k, source, divisor)),
+        @allocated(HybridPlasmaPIC._spectral_poisson_mode(k, source))
+    )
+end
+
+@testset "Longitudinal projection complete-expression rounding" begin
+    H = HybridPlasmaPIC
+    oracle = SpectralProjectionOracle
+    rng = MersenneTwister(531789)
+    for T in (Float32, Float64), D = 1:3
+        emin, emax = T === Float32 ? (-149, 125) : (-1074, 1021)
+        for iteration = 1:60
+            sample() = ldexp(
+                T(rand(rng, (-1.25, -1.0, -0.75, 0.0, 0.75, 1.0, 1.25))),
+                rand(rng, emin:emax),
+            )
+            # One square must lose range, independently of the production
+            # selector. Other axes retain their own unrelated exponent scales.
+            extreme_exponent =
+                T === Float32 ? (isodd(iteration) ? -120 : 100) : (isodd(iteration) ? -1000 : 800)
+            k = ntuple(
+                d ->
+                    d == 1 ? ldexp(T(isodd(iteration) ? -1.25 : 1.25), extreme_exponent) : sample(),
+                D,
+            )
+            source = complex(sample(), sample())
+            a = ntuple(_ -> complex(sample(), sample()), D)
+            divisor = sample()
+            iszero(divisor) && (divisor = one(T))
+            actual = H._spectral_project_mode(a, k, source, divisor)
+            oracle.check(actual, oracle.projection(a, k, source, divisor))
+            zeros_mode = ntuple(_ -> zero(Complex{T}), D)
+            oracle.check(
+                H._spectral_poisson_mode(k, source),
+                oracle.projection(zeros_mode, k, source, one(T)),
+            )
+        end
+        # Ordinary helpers remain allocation-free; step allocations are
+        # checked separately because the surrounding PIC path owns workspaces.
+        k = ntuple(d -> T(d), D)
+        a = ntuple(d -> complex(T(d) / 3, T(d) / 7), D)
+        @test _spectral_projection_test_allocations(a, k, complex(T(0.1), T(0.2)), T(0.3)) == (0, 0)
+        null = ntuple(_ -> zero(T), D)
+        @test H._spectral_project_mode(a, null, complex(T(3)), one(T)) === a
+        @test H._spectral_poisson_mode(null, complex(T(3))) == ntuple(_ -> zero(Complex{T}), D)
+    end
+    for T in (Float32, Float64)
+        tiny = nextfloat(zero(T))
+        for sign in (-one(T), one(T)),
+            source in (complex(sign * tiny, zero(T)), complex(zero(T), sign * tiny))
+
+            k = (T(2),)
+            SpectralProjectionOracle.check(
+                H._spectral_poisson_mode(k, source),
+                SpectralProjectionOracle.projection((zero(Complex{T}),), k, source, one(T)),
+            )
+        end
+        # Binade midpoint ties arise after cancellation even though each
+        # supplied field component is exactly representable.
+        for a in ((complex(T(2)), complex(-eps(T))), (complex(prevfloat(T(4))), complex(eps(T))))
+            k = (tiny, tiny)
+            SpectralProjectionOracle.check(
+                H._spectral_project_mode(a, k, zero(Complex{T}), one(T)),
+                SpectralProjectionOracle.projection(a, k, zero(Complex{T}), one(T)),
+            )
+        end
+    end
+end
+
+@testset "Electrostatic Poisson preserves nonzero extreme wave numbers" begin
+    for T in (Float32, Float64), D = 1:3, axis = 1:D, large_domain in (false, true)
+        scale =
+            T === Float32 ? (large_domain ? T(1e25) : T(1e-25)) :
+            (large_domain ? T(1e200) : T(1e-200))
+        g = FourierGrid(ntuple(_ -> 4, D), ntuple(d -> d == axis ? T(2pi) * scale : T(4), D))
+        electrons = ParticleSet{D,T}(4^(D - 1); q = -one(T), m = one(T))
+        for (p, I) in enumerate(CartesianIndices(ntuple(d -> d == axis ? 1 : 4, D)))
+            for d = 1:D
+                electrons.x[d][p] = T(I[d] - 1) * g.dx[d]
+            end
+            electrons.weight[p] = prod(g.dx)
+        end
+        es = ElectrostaticPIC(g, length(electrons.weight); n0 = T(0.25))
+        init_espic!(es, electrons)
+        # Plane rho=(-3/4,1/4,1/4,1/4) has only the represented +/-1
+        # coefficients -1 and the discarded Nyquist coefficient -1.
+        amplitude = setprecision(BigFloat, 256) do
+            T(-inv(2BigFloat(g.kvec[axis][2])))
+        end
+        for I in CartesianIndices(es.E[axis])
+            @test es.E[axis][I] ≈ amplitude * (zero(T), one(T), zero(T), -one(T))[I[axis]] rtol =
+                16eps(T) atol = zero(T)
+        end
+        @test all(d -> d == axis || all(iszero, es.E[d]), 1:3)
+    end
+    for T in (Float32, Float64), overflow in (false, true)
+        kscale = T === Float32 ? (overflow ? T(1e15) : T(1e-15)) : (overflow ? T(1e150) : T(1e-150))
+        amplitude =
+            T === Float32 ? (overflow ? T(1e30) : T(1e-35)) : (overflow ? T(1e200) : T(1e-200))
+        g = FourierGrid((4,), (T(2pi) / kscale,))
+        es = ElectrostaticPIC(g, 0; n0 = zero(T))
+        es.ne .= amplitude .* T[1, 0, 0, 0]
+        poisson_E!(es)
+        expected = setprecision(BigFloat, 256) do
+            T(-BigFloat(amplitude) / (2BigFloat(g.kvec[1][2])))
+        end
+        @test es.E[1][2] ≈ expected rtol = 16eps(T)
+    end
+end
+
+
 @testset "Electrostatic1D parameter validation" begin
     T = Float64
     g = FourierGrid((8,), (2π,))
