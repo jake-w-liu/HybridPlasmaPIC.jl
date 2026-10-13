@@ -599,6 +599,104 @@ end
         end
     end
 
+    @testset "ordinary ring arithmetic retains complete coordinates" begin
+        part_value(p) = (Rational{BigInt}(p[1]) + Rational{BigInt}(p[2])) * (big(2) // big(1))^p[3]
+        function ordinary_ring_resources(::Type{T}) where {T}
+            # Do not capture the enclosing testset's mutable field bindings.
+            local callback, X, radius, B
+            callback(p) = p[1]^2 + p[2]^2 + p[3]^2 + one(T)
+            X, radius, B = T.((0.1, 0.2, 0.3)), T(0.7), T.((0.3, -1.2, 2))
+            gyroaverage(callback, X, radius, B; n = 16)
+            return @allocated gyroaverage(callback, X, radius, B; n = 16)
+        end
+        for T in (Float32, Float64)
+            z, o = zero(T), one(T)
+            @test ordinary_ring_resources(T) == 0
+            for scale in (ldexp(o, -10), o, ldexp(o, 10)),
+                B in (T.((0.3, -1.2, 2)), T.((2, 0.2, -0.1)))
+
+                X, radius = scale .* T.((0.1, 0.2, 0.3)), scale * T(0.7)
+                geometry = HybridPlasmaPIC._gyro_ring_geometry(X, radius, B)
+                @test geometry.aligned.usable
+                for i = 1:3, j = 1:3
+                    original = (geometry.center[i], geometry.cosine[i], geometry.sine[i])[j]
+                    cache = geometry.aligned.coordinates[i]
+                    @test part_value(cache.terms[j]) * (big(2) // big(1))^cache.power ==
+                          part_value(original)
+                end
+                points = NTuple{3,T}[]
+                average = gyroaverage(X, radius, B; n = 16) do point
+                    push!(points, point)
+                    point[1]^2 + point[2]^2 + point[3]^2 + o
+                end
+                @test length(points) == 16
+                samples = map(p -> p[1]^2 + p[2]^2 + p[3]^2 + o, points)
+                @test nearest_hardware_result(average, sum(Rational{BigInt}, samples) / 16)
+                reference = geometry.reference
+                j, k = mod1(reference + 1, 3), mod1(reference + 2, 3)
+                H = Rational{BigInt}(geometry.Bscale) * Rational{BigInt}(geometry.Bnorm)
+                P = Rational{BigInt}(geometry.Pscale) * Rational{BigInt}(geometry.Pnorm)
+                for phase = 0:15
+                    s, c = T.(sincospi(2 * (phase / 16)))
+                    for i = 1:3
+                        u =
+                            i == reference ? P / H :
+                            -Rational{BigInt}(B[reference]) * Rational{BigInt}(B[i]) / (H * P)
+                        v =
+                            i == reference ? big(0) // big(1) :
+                            i == j ? Rational{BigInt}(B[k]) / P : -Rational{BigInt}(B[j]) / P
+                        exact =
+                            Rational{BigInt}(X[i]) +
+                            Rational{BigInt}(radius) *
+                            (Rational{BigInt}(c) * u + Rational{BigInt}(s) * v)
+                        @test abs(Rational{BigInt}(points[phase+1][i]) - exact) <=
+                              Rational{BigInt}(eps(T)) * abs(exact)
+                    end
+                end
+            end
+            # Binary alignment must retain every low bit. A crossed-scale basis
+            # cannot use the cached arithmetic even if its head would round away.
+            radius = nextfloat(z)
+            geometry = HybridPlasmaPIC._gyro_ring_geometry((o, z, z), radius, (z, z, o))
+            @test !geometry.aligned.usable
+            @test HybridPlasmaPIC._gyro_ring_point((o, z, z), radius, (z, z, o), geometry, z, o) ==
+                  (o, radius, z)
+            geometry = HybridPlasmaPIC._gyro_ring_geometry((z, z, z), T(0.5), (z, z, o))
+            floor = geometry.aligned.floor
+            for phase in (prevfloat(floor), floor, nextfloat(floor)), sign in (-o, o)
+                c = sign * phase
+                radius = T(0.5)
+                for center in (-radius * c, prevfloat(-radius * c), nextfloat(-radius * c))
+                    X, B = (center, z, z), (z, z, o)
+                    geometry = HybridPlasmaPIC._gyro_ring_geometry(X, radius, B)
+                    point = HybridPlasmaPIC._gyro_ring_point(X, radius, B, geometry, c, o)
+                    exact =
+                        Rational{BigInt}(center) + Rational{BigInt}(radius) * Rational{BigInt}(c)
+                    @test nearest_hardware_result(point[1], exact)
+                    @test point[2:3] == (radius, z)
+                end
+            end
+            # Straddle the cancellation guard and final-output range boundaries.
+            for radius in (floatmin(T), T(2) * floatmin(T), o, floatmax(T) / T(2)),
+                center in (-radius, prevfloat(-radius), nextfloat(-radius))
+
+                X, B = (center, z, z), (z, z, o)
+                geometry = HybridPlasmaPIC._gyro_ring_geometry(X, radius, B)
+                point = HybridPlasmaPIC._gyro_ring_point(X, radius, B, geometry, o, z)
+                @test nearest_hardware_result(
+                    point[1],
+                    Rational{BigInt}(center) + Rational{BigInt}(radius),
+                )
+            end
+            for multiplier in (T(118), T(120), T(122))
+                X, B = (-o + multiplier * eps(T), z, z), (z, z, o)
+                geometry = HybridPlasmaPIC._gyro_ring_geometry(X, o, B)
+                point = HybridPlasmaPIC._gyro_ring_point(X, o, B, geometry, o, z)
+                @test nearest_hardware_result(point[1], Rational{BigInt}(X[1]) + 1)
+            end
+        end
+    end
+
     B = (0.3, -1.2, 2.0)
     vtot = drift_velocity(;
         vpar = 0.7,

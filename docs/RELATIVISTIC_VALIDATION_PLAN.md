@@ -1,7 +1,7 @@
 # Relativistic velocity validation
 
-Status: shared boundary repair verified on Julia 1.12.7 and 1.13.1; included
-in this commit.
+Status: shared boundary repair verified on Julia 1.12.7 and 1.13.1 and pushed
+as `43881de`.
 
 ## Confirmed defect and ownership
 

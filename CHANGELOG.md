@@ -158,8 +158,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Gyro averaging retains finite ring coordinates and sample means across large
   sample counts, extreme field geometry and cancellation. Callbacks run once per
   point in phase order; invalid coordinates are rejected before their callback.
-  The correctness repair increases measured ordinary runtime; cost reduction
-  remains tracked separately.
+  Cached lossless alignment reduces measured default 16-point costs by 18–37%
+  relative to the correctness repair, retaining zero ordinary allocations.
+  Small-ring and fallback timings remain mixed; compilation costs increase.
 
 - Both electromagnetic PIC solvers preserve finite electric-field updates when
   squared light speed, magnetic force or timestep multiplication loses range.

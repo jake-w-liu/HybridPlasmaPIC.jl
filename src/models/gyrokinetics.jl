@@ -645,6 +645,44 @@ function push_guiding_centre!(gc::GuidingCentre{T}; dt, E, B, gradB, κ, gradpar
     return gc
 end
 
+# Ordinary hardware rings can share one binary scale across the center and
+# basis terms. Retain the complete expansions when alignment loses a bit.
+@inline _gyro_ring_alignment(center, cosine, sine) = nothing
+@inline function _gyro_ring_alignment(
+    center::NTuple{3,Tuple{T,T,Int,Bool}},
+    cosine,
+    sine,
+) where {T<:Union{Float32,Float64}}
+    # tiny <= eps(T)^2 * floor^2: a rounded product residual or low product
+    # may underflow only below the compensated arithmetic's second-order error.
+    # Both nonzero high factors must meet this bound.
+    floor = ldexp(one(T), cld(exponent(floatmin(T)) + precision(T) - 1, 2))
+    coordinates = ntuple(3) do i
+        terms = (center[i], cosine[i], sine[i])
+        power = typemin(Int)
+        for (hi, lo, exponent, _) in terms
+            if !iszero(hi) || !iszero(lo)
+                power = max(power, exponent)
+            end
+        end
+        power == typemin(Int) && (power = 0)
+        aligned = let power = power
+            ntuple(3) do j
+                hi, lo, exponent, exact = terms[j]
+                shift = exponent - power
+                a, b = ldexp(hi, shift), ldexp(lo, shift)
+                usable = ldexp(a, -shift) == hi && ldexp(b, -shift) == lo
+                # Four denominator mantissas bound ordinary ratio heads by 16.
+                usable &= isfinite(a) && isfinite(b) && abs(a) <= T(16)
+                usable &= j == 1 || iszero(a) || abs(a) >= floor
+                (; parts = (a, b, 0, exact), usable)
+            end
+        end
+        (; terms = map(x -> x.parts, aligned), power, usable = all(x -> x.usable, aligned))
+    end
+    return (; coordinates, usable = all(x -> x.usable, coordinates), floor)
+end
+
 # Cache radius-weighted basis expansions without rounding unit-vector components
 # before a large radius can rescale them. This is the same projected reference
 # axis as the former normalized-vector construction.
@@ -665,7 +703,8 @@ end
         _gyro_ratio_parts((-ρ, B[j]), (Pscale, Pnorm))
     end
     center = map(x -> _gyro_ratio_parts((x,), ()), X)
-    return (; reference, Bscale, Bnorm, Pscale, Pnorm, cosine, sine, center)
+    aligned = _gyro_ring_alignment(center, cosine, sine)
+    return (; reference, Bscale, Bnorm, Pscale, Pnorm, cosine, sine, center, aligned)
 end
 
 @noinline function _gyro_exact_ring_point(X, ρ, B, geometry, cosine, sine, i)
@@ -685,11 +724,54 @@ end
     )
 end
 
+@inline function _gyro_ring_ordinary_component(initial, cosine_basis, sine_basis, cosine, sine)
+    hi_c = cosine_basis[1] * cosine
+    hi_s = sine_basis[1] * sine
+    lo_c = fma(cosine_basis[1], cosine, -hi_c) + cosine_basis[2] * cosine
+    lo_s = fma(sine_basis[1], sine, -hi_s) + sine_basis[2] * sine
+    hi, carry_c = _gyro_two_sum(initial[1], hi_c)
+    hi, carry_s = _gyro_two_sum(hi, hi_s)
+    low = ((initial[2] + lo_c) + (lo_s + carry_c)) + carry_s
+    scaled = hi + low
+    magnitude = abs(initial[1]) + abs(hi_c) + abs(hi_s)
+    exact_zero =
+        initial[4] &&
+        iszero(initial[1]) &&
+        iszero(initial[2]) &&
+        (
+            iszero(cosine) ||
+            (cosine_basis[4] && iszero(cosine_basis[1]) && iszero(cosine_basis[2]))
+        ) &&
+        (iszero(sine) || (sine_basis[4] && iszero(sine_basis[1]) && iszero(sine_basis[2])))
+    # Reuse the complete-expression guard: three terms, at most nine factor
+    # operations per term, and two rounding contributions per operation plus
+    # summation. This includes inherited basis error, FMA/low-product rounding,
+    # and low-component addition; exact alignment contributes no new error.
+    # The high TwoSums retain their residuals. Cancellation that can expose the
+    # second-order errors still uses the full expansion and exact arithmetic.
+    cancellation_limit = typeof(scaled)((2 * 9 + 2) * 3) * eps(typeof(scaled)) * magnitude
+    safe = exact_zero || abs(scaled) > cancellation_limit
+    return scaled, safe, exact_zero
+end
 @inline function _gyro_ring_point(X, ρ, B, geometry, cosine, sine)
     iszero(ρ) && return map(typeof(ρ), X)
+    aligned = geometry.aligned
+    reuse =
+        aligned !== nothing &&
+        aligned.usable &&
+        (iszero(cosine) || abs(cosine) >= aligned.floor) &&
+        (iszero(sine) || abs(sine) >= aligned.floor)
     c = _gyro_ratio_parts((cosine,), ())
     s = _gyro_ratio_parts((sine,), ())
     return ntuple(3) do i
+        if aligned !== nothing && reuse
+            cached = aligned.coordinates[i]
+            scaled, safe, exact_zero = _gyro_ring_ordinary_component(cached.terms..., cosine, sine)
+            result = ldexp(scaled, cached.power)
+            if safe && (!_gyro_ratio_needs_exact(result) || exact_zero)
+                return result
+            end
+        end
         terms = (
             geometry.center[i],
             _gyro_multiply_parts(geometry.cosine[i], c),
