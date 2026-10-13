@@ -349,8 +349,17 @@ end
 
 _empic_checkpoint_integrator(::EMPIC1D) = :empic1d
 _empic_checkpoint_integrator(::EMPIC) = :empic
-_empic_checkpoint_fields(::EMPIC1D) = (:Ex, :Ey, :Bz, :Jx, :Jy, :rho_n, :rho_np1)
-_empic_checkpoint_fields(::EMPIC) = (:E, :B, :J, :rho_n, :rho_np1)
+_empic_checkpoint_fields(st::EMPIC1D) = (
+    Ex = st.Ex,
+    Ey = st.Ey,
+    Bz = st.Bz,
+    Jx = st.Jx,
+    Jy = st.Jy,
+    rho_n = st.rho_n,
+    rho_np1 = st.rho_np1,
+)
+_empic_checkpoint_fields(st::EMPIC) =
+    (E = st.E, B = st.B, J = st.J, rho_n = st.rho_n, rho_np1 = st.rho_np1)
 
 function _checkpoint_state(
     st::_ElectromagneticCheckpointStepper,
@@ -372,7 +381,7 @@ function _checkpoint_state(
         n_sub = st.n_sub,
         electrons = _checkpoint_particle_state(electrons),
         ions = ions === nothing ? nothing : _checkpoint_particle_state(ions),
-        fields = (; (name => getproperty(st, name) for name in _empic_checkpoint_fields(st))...),
+        fields = _empic_checkpoint_fields(st),
         time = st.time[],
         step = st.step[],
         last_dt = st.last_dt[],
@@ -427,9 +436,9 @@ function _validate_checkpoint_state(s, st::_ElectromagneticCheckpointStepper)
         s.ions === nothing ||
             throw(ArgumentError("immobile checkpoint cannot contain ion particles"))
     end
-    _validate_checkpoint_container(s.fields, _empic_checkpoint_fields(st))
-    for name in _empic_checkpoint_fields(st)
-        reference = getproperty(st, name)
+    fields = _empic_checkpoint_fields(st)
+    _validate_checkpoint_container(s.fields, keys(fields))
+    for (name, reference) in pairs(fields)
         if reference isa Tuple
             _validate_checkpoint_field_components(name, getproperty(s.fields, name), reference)
         else
@@ -493,8 +502,10 @@ function _restore_checkpoint_state!(
     st.step[] = s.step
     st.last_dt[] = s.last_dt
     if st isa CAMCLStepper
-        for name in (:Blead, :Blag, :Bout), c = 1:3
-            copyto!(getproperty(st, name)[c], getproperty(s, name)[c])
+        for (destination, saved) in ((st.Blead, s.Blead), (st.Blag, s.Blag), (st.Bout, s.Bout)),
+            c = 1:3
+
+            copyto!(destination[c], saved[c])
         end
         st.cl_h[] = s.cl_h
         st.cl_live[] = s.cl_live
@@ -528,7 +539,14 @@ function _restore_checkpoint_state!(
     electrons isa ParticleSet{D,T} || throw(
         ArgumentError("checkpoint electrons do not match destination dimension and precision"),
     )
-    if s.mobile
+    if ions === nothing
+        s.mobile && throw(
+            ArgumentError(
+                "mobile checkpoint requires destination ions of matching dimension and precision",
+            ),
+        )
+    else
+        s.mobile || throw(ArgumentError("immobile checkpoint does not restore ion particles"))
         ions isa ParticleSet{D,T} || throw(
             ArgumentError(
                 "mobile checkpoint requires destination ions of matching dimension and precision",
@@ -536,34 +554,30 @@ function _restore_checkpoint_state!(
         )
         _particle_sets_mightalias(electrons, ions) &&
             throw(ArgumentError("destination electron and ion storage must be independent"))
-    else
-        ions === nothing ||
-            throw(ArgumentError("immobile checkpoint does not restore ion particles"))
     end
     ne = length(s.electrons.weight)
-    ni = s.mobile ? length(s.ions.weight) : 0
+    ni = ions === nothing ? 0 : length(s.ions.weight)
     _validate_checkpoint_destination(electrons, ne)
-    s.mobile && _validate_checkpoint_destination(ions, ni)
+    ions === nothing || _validate_checkpoint_destination(ions, ni)
     _resize_empic_checkpoint_workspaces!(st, ne, ni)
     for name in (:n0, :c, :shape, :relativistic, :mi, :n_sub)
         setproperty!(st, name, getproperty(s, name))
     end
     _restore_checkpoint_particles!(electrons, s.electrons)
-    s.mobile && _restore_checkpoint_particles!(ions, s.ions)
-    for name in _empic_checkpoint_fields(st)
-        destination = getproperty(st, name)
-        saved = getproperty(s.fields, name)
+    ions === nothing || _restore_checkpoint_particles!(ions, s.ions)
+    fields = _empic_checkpoint_fields(st)
+    saved_fields = NamedTuple{keys(fields)}(s.fields)
+    map(values(fields), values(saved_fields)) do destination, saved
         if destination isa Tuple
-            for c = 1:3
-                copyto!(destination[c], saved[c])
-            end
+            map(copyto!, destination, saved)
         else
             copyto!(destination, saved)
         end
     end
-    for name in (:time, :step, :last_dt, :last_sub_dt)
-        getproperty(st, name)[] = getproperty(s, name)
-    end
+    st.time[] = s.time
+    st.step[] = s.step
+    st.last_dt[] = s.last_dt
+    st.last_sub_dt[] = s.last_sub_dt
     return st
 end
 

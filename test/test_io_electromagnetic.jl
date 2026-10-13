@@ -173,6 +173,14 @@ end
         mktemp() do path, io
             close(io)
             save_checkpoint(path, st, electrons, ions)
+            saved = deserialize(path)
+            reordered = (;
+                extra = :unused,
+                (
+                    name => getproperty(saved.fields, name) for name in reverse(keys(saved.fields))
+                )...,
+            )
+            serialize(path, merge(saved, (fields = reordered,)))
             restored, e2, i2 = io_em_run(State, Float64, Val(1); mobile = true)
             load_checkpoint!(restored, e2, i2, path)
             @test io_em_bytes(restored, e2, i2) == io_em_bytes(st, electrons, ions)
@@ -237,7 +245,7 @@ end
             i2 = ParticleSet{1,Float64}(1; m = 25.0)
             e2.x[1][1] = 0.3
             i2.x[1][1] = 0.7
-            field_name = first(HybridPlasmaPIC._empic_checkpoint_fields(st))
+            field_name = first(keys(HybridPlasmaPIC._empic_checkpoint_fields(st)))
             bad_fields = merge(saved.fields, NamedTuple{(field_name,)}((zeros(Float32, 3),)))
             fast_ion = merge(
                 saved.ions,

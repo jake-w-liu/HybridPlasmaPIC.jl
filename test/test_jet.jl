@@ -2,12 +2,10 @@
 # interpretation over HybridPlasmaPIC to surface obvious type instabilities and
 # undefined-variable / dispatch errors at load time.
 #
-# This is REPORT-ONLY: JET routinely flags benign issues that originate in
-# upstream dependencies (FFTW, Base, the standard library) and that are not
-# under our control. Failing CI on those would make the test a flaky gate
-# rather than a useful signal, so we run the analysis, print its summary, and
-# assert only that the analysis itself completed. The printed report is the
-# artifact a developer inspects when tightening type stability.
+# Package-wide abstract reports can originate in our code or dependencies.
+# Print every report for triage and bound the count to catch regressions.
+# Concrete-call analysis is needed before classifying a report as a runtime
+# defect, an inference limitation, or an upstream issue.
 #
 # If JET cannot be loaded (e.g. a Julia version where the pinned JET is
 # unavailable), the test is skipped rather than erroring.
@@ -31,17 +29,13 @@ end
         rep = JET.report_package(HybridPlasmaPIC; toplevel_logger = nothing)
         reports = JET.get_reports(rep)
         @info "JET report-only summary" n_reports = length(reports)
-        # Surface the findings in the log without gating CI on upstream noise.
+        # Preserve the full findings so the bounded count does not hide their cause.
         if !isempty(reports)
             show(stdout, MIME"text/plain"(), rep)
             println()
         end
-        # Regression gate (not a tautology): the observed baseline is a handful of
-        # reports, all originating in upstream deps (FFTW/Base/stdlib). The ceiling
-        # is set well above that baseline so it never flakes on upstream/version
-        # noise, but a real type-stability regression in our own code would add
-        # dozens of reports and trip it. Tightening below the upstream floor would
-        # make JET a flaky gate, which §21.2 explicitly avoids.
+        # The ceiling bounds package-wide findings, including dependency reports;
+        # it is not a claim that every report below the ceiling is harmless.
         JET_REPORT_CEILING = 30
         @test length(reports) <= JET_REPORT_CEILING
     else

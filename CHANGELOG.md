@@ -60,7 +60,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   plus regression against reference data dumped from the original MATLAB code
   (`tools/raycon_reference.m`).
 - **Package quality and CI hardening.** JET static-analysis smoke test
-  (report-only), a `.JuliaFormatter.toml` (default style, 100-column margin), a
+  with logged findings and a bounded regression gate, a `.JuliaFormatter.toml`
+  (default style, 100-column margin), a
   formatting-check CI job, a scheduled (cron) CI run, a Windows runner in the
   test matrix for the non-MPI core, and upload of test logs as CI artifacts.
 - Project metadata: `CITATION.cff`, `CONTRIBUTING.md`, and this changelog.
@@ -98,6 +99,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   or Fourier wavenumbers are not finite and representable in the element type.
 
 ### Fixed
+
+- Checkpoint capture and restoration retain concrete field types for static
+  analysis, including CAM-CL magnetic copies and EM species presence. The JET
+  regression gate passes on Julia 1.12 and 1.13 without raising its limit;
+  serialized checkpoint bytes and restoration behavior are unchanged.
 
 - Hybrid, CAM-CL, Hall-MHD, electromagnetic PIC, and MPI reference steps reject
   time and step-counter overflow before changing state. EM clock validation
