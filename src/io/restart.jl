@@ -4,7 +4,7 @@
 # Three additive utilities, all built on existing infrastructure (no new deps):
 #
 #   * archive_run / load_archive — a provenance-stamped, checksum-verified snapshot
-#     of a supported stepper + ParticleSet run state. This layers the run-metadata
+#     of a supported simulation state. This layers the run-metadata
 #     wrapper (save_run/load_run + capture_metadata/RunMetadata from metadata.jl)
 #     over the same deterministic state that checkpoint.jl restarts from, so an
 #     archive is self-describing (who/when/which commit/which seed) AND integrity
@@ -29,10 +29,12 @@
                 normalization="Omega_ci", filter_desc="", boundary_desc="periodic",
                 diagnostic_desc="", rank_layout="") -> path
     archive_run(path, empic, electrons, ions; rng_seed, kwargs...) -> path
+    archive_run(path, hall::HallMHDState; rng_seed, kwargs...) -> path
 
 Write a provenance-stamped, checksum-verified archive of the run state at `path`.
 Supports [`HybridStepper`](@ref), [`CAMCLStepper`](@ref),
-[`Electrostatic1D`](@ref), [`ElectrostaticPIC`](@ref), [`EMPIC1D`](@ref), and [`EMPIC`](@ref).
+[`Electrostatic1D`](@ref), [`ElectrostaticPIC`](@ref), [`EMPIC1D`](@ref), [`EMPIC`](@ref),
+and [`HallMHDState`](@ref).
 
 The archive captures the deterministic simulation state (model and shape
 configuration, particle phase space + provenance, the canonical magnetic field
@@ -48,6 +50,8 @@ background density, and priming/timestep state alongside the particles and grid.
 Electromagnetic archives include both species for mobile runs, their physics
 configuration, electric/magnetic fields, continuity diagnostic snapshots, and
 full/fast timestep history. Supply ions exactly when `mobile=true`.
+Hall-MHD archives contain the model, fluid and public derived fields, retained
+stage `lapJ`, and clock; no particle argument or timestep history is needed.
 
 `rng_seed` is the seed that makes the run reproducible (stored in the metadata).
 The remaining keyword arguments describe the units convention and the
@@ -57,6 +61,10 @@ leave it empty for the serial default.
 """
 function archive_run(path::AbstractString, st::_CheckpointStepper, ps::ParticleSet; kwargs...)
     return _archive_run(path, st, _checkpoint_state(st, ps); kwargs...)
+end
+
+function archive_run(path::AbstractString, st::HallMHDState; kwargs...)
+    return _archive_run(path, st, _checkpoint_state(st); kwargs...)
 end
 
 function archive_run(
@@ -71,7 +79,7 @@ end
 
 function _archive_run(
     path::AbstractString,
-    st::_CheckpointStepper,
+    st::Union{_CheckpointStepper,HallMHDState},
     state;
     rng_seed::Integer,
     normalization::AbstractString = "Omega_ci",

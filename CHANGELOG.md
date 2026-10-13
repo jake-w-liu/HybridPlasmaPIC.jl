@@ -8,6 +8,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Hall-MHD checkpoint/restart and archives preserve model parameters, fluid and
+  derived fields, simulation clock, and inactive hyperresistive stage history.
+  Restoration validates the complete payload before changing existing field
+  storage and continues exactly with the same stepping inputs.
+
 - Electromagnetic PIC checkpoint/restart and archives for `EMPIC1D` and general
   `EMPIC` preserve both species, physics settings, fields/current diagnostics,
   and fast/full timestep history. Both particle destinations are checked before

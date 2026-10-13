@@ -9,6 +9,9 @@
 # state; the per-particle field gather buffers are scratch.
 # Electromagnetic PIC also retains each species separately, its fast/full-step
 # phase, and the charge snapshots/current used by continuity diagnostics.
+# Hall-MHD retains the fluid fields, their public derived values, model, and
+# clock. Inactive stage lapJ can be carried into the public fields; the other RK
+# stage values are scratch. Hall-MHD carries no staggered timestep history.
 # ponytail: stdlib Serialization (no extra dep). Swap for HDF5 when cross-version
 # or cross-language portability is needed.
 
@@ -89,6 +92,9 @@ const _EMPIC_CHECKPOINT_REQUIRED_FIELDS = (
 
 const _CHECKPOINT_PARTICLE_FIELDS = (:x, :v, :weight, :id, :tag, :q, :m)
 
+const _HALL_CHECKPOINT_REQUIRED_FIELDS =
+    (:integrator, :D, :T, :ncell, :L, :model, :fields, :stage_lapJ, :floor_count, :time, :step)
+
 function _validate_checkpoint_container(s, required = _CHECKPOINT_REQUIRED_FIELDS)
     s isa NamedTuple ||
         throw(ArgumentError("checkpoint file does not contain a valid checkpoint container"))
@@ -143,7 +149,7 @@ function _validate_checkpoint_scalar_state(s, ::Type{T}) where {T}
     return nothing
 end
 
-function _validate_checkpoint_time_state(s, ::Type{T}) where {T}
+function _validate_checkpoint_clock_state(s, ::Type{T}) where {T}
     s.time isa T || throw(
         ArgumentError(
             "checkpoint time type $(typeof(s.time)) ≠ $T (would silently convert on restore)",
@@ -155,6 +161,11 @@ function _validate_checkpoint_time_state(s, ::Type{T}) where {T}
         ),
     )
     s.step >= 0 || throw(ArgumentError("checkpoint step must be nonnegative"))
+    return nothing
+end
+
+function _validate_checkpoint_time_state(s, ::Type{T}) where {T}
+    _validate_checkpoint_clock_state(s, T)
     s.last_dt isa T || throw(ArgumentError("checkpoint last_dt type $(typeof(s.last_dt)) ≠ $T"))
     isfinite(s.last_dt) && s.last_dt >= zero(T) ||
         throw(ArgumentError("checkpoint last_dt must be finite and nonnegative"))
@@ -201,10 +212,37 @@ end
 function _validate_checkpoint_field_components(name::Symbol, components, reference)
     components isa Tuple ||
         throw(ArgumentError("checkpoint $name fields must be stored as a tuple"))
-    length(components) == 3 ||
-        throw(ArgumentError("checkpoint has $(length(components)) $name arrays, expected 3"))
-    for c = 1:3
+    length(components) == length(reference) || throw(
+        ArgumentError(
+            "checkpoint has $(length(components)) $name arrays, expected $(length(reference))",
+        ),
+    )
+    for c in eachindex(reference)
         _validate_checkpoint_array(Symbol(name, c), components[c], reference[c])
+    end
+    return nothing
+end
+
+function _validate_checkpoint_fields(saved, fields::NamedTuple)
+    _validate_checkpoint_container(saved, keys(fields))
+    for (name, reference) in pairs(fields)
+        if reference isa Tuple
+            _validate_checkpoint_field_components(name, getproperty(saved, name), reference)
+        else
+            _validate_checkpoint_array(name, getproperty(saved, name), reference)
+        end
+    end
+    return nothing
+end
+
+function _restore_checkpoint_fields!(fields::NamedTuple, saved)
+    saved_fields = NamedTuple{keys(fields)}(saved)
+    map(values(fields), values(saved_fields)) do destination, source
+        if destination isa Tuple
+            map(copyto!, destination, source)
+        else
+            copyto!(destination, source)
+        end
     end
     return nothing
 end
@@ -436,16 +474,78 @@ function _validate_checkpoint_state(s, st::_ElectromagneticCheckpointStepper)
         s.ions === nothing ||
             throw(ArgumentError("immobile checkpoint cannot contain ion particles"))
     end
-    fields = _empic_checkpoint_fields(st)
-    _validate_checkpoint_container(s.fields, keys(fields))
-    for (name, reference) in pairs(fields)
-        if reference isa Tuple
-            _validate_checkpoint_field_components(name, getproperty(s.fields, name), reference)
-        else
-            _validate_checkpoint_array(name, getproperty(s.fields, name), reference)
-        end
-    end
+    _validate_checkpoint_fields(s.fields, _empic_checkpoint_fields(st))
     return nothing
+end
+
+function _hall_checkpoint_fields(st::HallMHDState)
+    f = st.fields
+    return (
+        n = f.n,
+        ui = f.ui,
+        B = f.B,
+        E = f.E,
+        J = f.J,
+        pe = f.pe,
+        gradp = f.gradp,
+        ninv = f.ninv,
+        lapJ = f.lapJ,
+        pforce = f.pforce,
+        cgl_dp = f.cgl_dp,
+    )
+end
+
+function _checkpoint_state(st::HallMHDState{D,T}) where {D,T}
+    return (
+        integrator = :hall_mhd,
+        D = D,
+        T = T,
+        ncell = st.g.n,
+        L = st.g.L,
+        model = st.model,
+        fields = _hall_checkpoint_fields(st),
+        # Ohm's law leaves inactive lapJ components intact when ηH is zero;
+        # a later Hall step copies them from stage into the public fields.
+        stage_lapJ = st.stage.lapJ,
+        floor_count = st.fields.floor_count[],
+        time = st.time[],
+        step = st.step[],
+    )
+end
+
+function _validate_checkpoint_state(s, st::HallMHDState{D,T}) where {D,T}
+    _validate_checkpoint_container(s, _HALL_CHECKPOINT_REQUIRED_FIELDS)
+    _validate_checkpoint_grid(s, st.g)
+    s.integrator === :hall_mhd ||
+        throw(ArgumentError("checkpoint integrator $(s.integrator) ≠ hall_mhd"))
+    typeof(s.model) === typeof(st.model) ||
+        throw(ArgumentError("checkpoint model type $(typeof(s.model)) ≠ $(typeof(st.model))"))
+    # Reuse the model's numeric contract without replacing its closure object.
+    HallMHDModel(
+        s.model.closure;
+        Ti = s.model.Ti,
+        η = s.model.η,
+        ηH = s.model.ηH,
+        nfloor = s.model.nfloor,
+    )
+    _validate_checkpoint_clock_state(s, T)
+    _require_finite_nonnegative_real("checkpoint time", s.time, T)
+    s.floor_count isa Int && 0 <= s.floor_count <= length(st.fields.n) ||
+        throw(ArgumentError("checkpoint floor_count must be an Int within the grid cell count"))
+    _validate_checkpoint_fields(s.fields, _hall_checkpoint_fields(st))
+    _validate_checkpoint_field_components(:stage_lapJ, s.stage_lapJ, st.stage.lapJ)
+    return nothing
+end
+
+function _restore_checkpoint_state!(st::HallMHDState, s)
+    _validate_checkpoint_state(s, st)
+    st.model = s.model
+    _restore_checkpoint_fields!(_hall_checkpoint_fields(st), s.fields)
+    foreach(copyto!, st.stage.lapJ, s.stage_lapJ)
+    st.fields.floor_count[] = s.floor_count
+    st.time[] = s.time
+    st.step[] = s.step
+    return st
 end
 
 function _validate_checkpoint_destination(ps::ParticleSet, N::Int)
@@ -565,15 +665,7 @@ function _restore_checkpoint_state!(
     end
     _restore_checkpoint_particles!(electrons, s.electrons)
     ions === nothing || _restore_checkpoint_particles!(ions, s.ions)
-    fields = _empic_checkpoint_fields(st)
-    saved_fields = NamedTuple{keys(fields)}(s.fields)
-    map(values(fields), values(saved_fields)) do destination, saved
-        if destination isa Tuple
-            map(copyto!, destination, saved)
-        else
-            copyto!(destination, saved)
-        end
-    end
+    _restore_checkpoint_fields!(_empic_checkpoint_fields(st), s.fields)
     st.time[] = s.time
     st.step[] = s.step
     st.last_dt[] = s.last_dt
@@ -610,6 +702,7 @@ end
 """
     save_checkpoint(path, stepper, ps)
     save_checkpoint(path, empic, electrons, ions)
+    save_checkpoint(path, hall::HallMHDState)
 
 Serialize the restartable state (model, shape, particles, B, carried E, time,
 step, and previous timestep for the staggered particle velocities) to `path`.
@@ -623,9 +716,18 @@ electric/magnetic fields, current and charge snapshots, and full/fast timestep
 history. Supply the ion `ParticleSet` exactly when `mobile=true`; electron and
 ion storage must be independent. Particle workspaces are resized on restore;
 scratch values are recomputed during stepping.
+[`HallMHDState`](@ref) stores its model, fluid fields, public derived fields,
+and time/step counters without particle arguments. The retained stage `lapJ`
+values are saved because inactive hyperresistivity can carry them into the public
+fields. Other RK workspaces are rebuilt during stepping; saved derived fields
+are restored without reevaluating Ohm's law.
 """
 function save_checkpoint(path::AbstractString, st::_CheckpointStepper, ps::ParticleSet)
     return _save_checkpoint(path, st, _checkpoint_state(st, ps))
+end
+
+function save_checkpoint(path::AbstractString, st::HallMHDState)
+    return _save_checkpoint(path, st, _checkpoint_state(st))
 end
 
 function save_checkpoint(
@@ -637,7 +739,7 @@ function save_checkpoint(
     return _save_checkpoint(path, st, _checkpoint_state(st, electrons, ions))
 end
 
-function _save_checkpoint(path::AbstractString, st::_CheckpointStepper, state)
+function _save_checkpoint(path::AbstractString, st::Union{_CheckpointStepper,HallMHDState}, state)
     _validate_checkpoint_state(state, st)
     serialize(path, state)
     return path
@@ -646,6 +748,7 @@ end
 """
     load_checkpoint!(stepper, ps, path)
     load_checkpoint!(empic, electrons, ions, path)
+    load_checkpoint!(hall::HallMHDState, path)
 
 Restore a checkpoint into a `stepper`/`ps` of matching dimension, precision,
 grid, and integrator (particle arrays are resized to match).
@@ -660,12 +763,19 @@ Electromagnetic destinations require the same ion mobility and concrete shape
 type; saved physics parameters replace the destination values. Supply independent
 electron and ion destinations for mobile runs. Both species are validated before
 either is changed.
-Checkpoints without integrator, configuration, or timestep-history fields are rejected.
+Hall-MHD destinations require the same concrete model/closure type; saved model
+parameters replace destination values while existing field arrays remain in place.
+Checkpoints missing fields required by their model family are rejected.
 After loading, `step!`, `step_camcl!`, `step_espic!`, or `step_empic!` continues bitwise-identically to the
-original run with the same stepping inputs.
+original run with the same stepping inputs. Hall-MHD continues with
+`step_hall_mhd!`, including the same `project_b` inputs.
 """
 function load_checkpoint!(st::_CheckpointStepper, ps::ParticleSet, path::AbstractString)
     return _restore_checkpoint_state!(st, ps, deserialize(path))
+end
+
+function load_checkpoint!(st::HallMHDState, path::AbstractString)
+    return _restore_checkpoint_state!(st, deserialize(path))
 end
 
 function load_checkpoint!(

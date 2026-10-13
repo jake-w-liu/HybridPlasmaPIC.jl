@@ -284,7 +284,7 @@ cluster scaling data remain future work (see the honest list below).
 `benchmark/mpi_scaling.jl` is the measurement harness.
 
 **I/O.** `save_checkpoint` / `load_checkpoint!` restart `HybridStepper`,
-`CAMCLStepper`, `Electrostatic1D`, `ElectrostaticPIC`, `EMPIC1D`, and `EMPIC` runs bitwise-identically
+`CAMCLStepper`, `Electrostatic1D`, `ElectrostaticPIC`, `EMPIC1D`, `EMPIC`, and `HallMHDState` runs bitwise-identically
 for the same stepping inputs. Checkpoints preserve particle provenance and
 timestep history, including CAM-CL's persistent magnetic copies and subcycle phase.
 Hybrid restores replace model/shape parameters with the saved values;
@@ -294,6 +294,9 @@ and electron/ion timestep history. For mobile ions, use
 `save_checkpoint(path, es, electrons, ions)` and
 `load_checkpoint!(es, electrons, ions, path)`; the destination must have matching
 ion mobility and independent species storage. `archive_run` accepts the same species.
+Hall-MHD uses `save_checkpoint(path, hall)`, `load_checkpoint!(hall, path)`, and
+`archive_run(path, hall; rng_seed=...)`. It preserves the model, fluid and derived
+fields, retained hyperresistive stage values, and clock without particle arguments.
 `save_run`/`load_run`/`archive_run`
 add schema versioning, SHA-256 checksums, and full reproducibility metadata
 (git commit, Julia version, project/manifest hashes, RNG seed, hardware).
