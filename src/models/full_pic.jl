@@ -623,6 +623,144 @@ function _em_power_of_two(shift::Int)
     return shift >= 0 ? (BigInt(1) << shift) // BigInt(1) : BigInt(1) // (BigInt(1) << -shift)
 end
 
+function _em_dyadic_bit_range(value::Rational{BigInt})
+    iszero(value) && return nothing
+    n, d = abs(numerator(value)), denominator(value)
+    ispow2(d) || throw(ArgumentError("normalized EM transform requires dyadic inputs"))
+    shift = ndigits(d; base = 2) - 1
+    return trailing_zeros(n) - shift, ndigits(n; base = 2) - 1 - shift
+end
+
+# Exact signed digits preserve low bits such as those in floatmax(T)-tiny.
+# FFTW still rounds each transform; this is range protection, not an exact DFT.
+# Stream the occupied bands instead of retaining one array for every exponent.
+function _em_dyadic_transform(
+    values::Array{Complex{Rational{BigInt}},D},
+    g::FourierGrid{D,T},
+    inverse::Bool = false,
+) where {D,T}
+    ceil_log_n = 8sizeof(Int) - leading_zeros(length(values) - 1)
+    # Reserve integer-sum headroom as well as overflow headroom. When the grid
+    # exceeds the mantissa's integer capacity even a one-bit band can round.
+    width = max(1, precision(T) - ceil_log_n - 2)
+    lowest, highest = typemax(Int), typemin(Int)
+    for value in values, component in (real(value), imag(value))
+        bits = _em_dyadic_bit_range(component)
+        bits === nothing && continue
+        lowest = min(lowest, bits[1])
+        highest = max(highest, bits[2])
+    end
+    result = fill(zero(Complex{Rational{BigInt}}), size(values))
+    lowest == typemax(Int) && return result
+    work = similar(g.cbuf)
+    radix = BigInt(1) << width
+    # The finite input/product bit ranges bound this loop and the integer
+    # widths. Empty bands consume no FFT and no additional retained array.
+    for band = fld(lowest, width):fld(highest, width)
+        quantum = _em_power_of_two(band * width)
+        scale = _em_power_of_two(band * width + width)
+        occupied = false
+        @inbounds for I in eachindex(values)
+            digits = map((real(values[I]), imag(values[I]))) do component
+                scaled = abs(component) / quantum
+                digit = mod(div(numerator(scaled), denominator(scaled)), radix)
+                normalized = ldexp(T(digit), -width)
+                signbit(component) ? -normalized : normalized
+            end
+            work[I] = complex(digits...)
+            occupied |= !iszero(work[I])
+        end
+        occupied || continue
+        inverse ? (g.iplan * work) : (g.plan * work)
+        @inbounds for I in eachindex(work)
+            coefficient = _spectral_exact_complex(work[I])::Complex{Rational{BigInt}}
+            result[I] += scale * coefficient
+        end
+    end
+    return result
+end
+
+@inline function _em_density_transform_bounds(::Type{T}, n::Int) where {T}
+    ceil_log_n = 8sizeof(Int) - leading_zeros(n - 1)
+    # Leave headroom for forward coefficients and the unnormalized inverse
+    # butterfly sums, before the inverse plan applies its factor 1/N.
+    headroom = 2ceil_log_n + 5
+    return ldexp(floatmin(T), headroom), ldexp(floatmax(T), -headroom)
+end
+
+@inline function _em_density_transform_lost_range(value, bounds)
+    magnitude = abs(value)
+    return !isfinite(value) || (!iszero(value) && !(bounds[1] <= magnitude <= bounds[2]))
+end
+
+function _em_continuity_scaled(g::FourierGrid{D,T}, rho_n, rho_np1, J, dt::T) where {D,T}
+    delta = map(rho_np1, rho_n) do following, preceding
+        complex(_exact_rational(following) - _exact_rational(preceding), zero(Rational{BigInt}))
+    end
+    density_hat = _em_dyadic_transform(delta, g)
+    current_hat = [
+        _em_dyadic_transform(map(value -> complex(_exact_rational(value)), field), g) for
+        field in Iterators.take(J, D)
+    ]
+    residual_hat = similar(density_hat)
+    exact_dt = _exact_rational(dt)
+    dc = first(CartesianIndices(density_hat))
+    @inbounds for I in CartesianIndices(density_hat)
+        k = _spectral_wavevector(g, I)
+        I != dc && _spectral_mode_is_null(k) && (density_hat[I] = zero(eltype(density_hat)))
+        divergence = zero(eltype(density_hat))
+        for d = 1:D
+            divergence += im * _exact_rational(k[d]) * current_hat[d][I]
+        end
+        residual_hat[I] = density_hat[I] + exact_dt * divergence
+    end
+    density = _em_dyadic_transform(density_hat, g, true)
+    residual = _em_dyadic_transform(residual_hat, g, true)
+    rmax, scale = zero(Rational{BigInt}), zero(Rational{BigInt})
+    @inbounds for I in eachindex(density)
+        rmax = max(rmax, abs(real(residual[I])))
+        scale = max(scale, abs(real(density[I])))
+    end
+    return _from_exact(T, rmax / (iszero(scale) ? one(scale) : scale))
+end
+
+@inline function _em_continuity_finish(
+    g::FourierGrid{D,T},
+    rho_n,
+    rho_np1,
+    J,
+    dt::T,
+    density,
+    divergence,
+    lost::Bool,
+) where {D,T}
+    rmax, scale = zero(T), zero(T)
+    @inbounds for I in eachindex(density)
+        delta = real(density[I])
+        increment = dt * divergence[I]
+        residual = delta + increment
+        lost |= _spectral_product_lost_range(dt, divergence[I], increment) || !isfinite(residual)
+        rmax = max(rmax, abs(residual))
+        scale = max(scale, abs(delta))
+    end
+    if !lost
+        # Canonical divergence uses a common FFT scale across components.
+        # Include every field/axis pair when checking that shared scaling.
+        wave_exponents = map(_em_field_exponents, g.kvec)
+        for field in Iterators.take(J, D)
+            field_exponents = _em_field_exponents(field)
+            for wave_exponent in wave_exponents
+                lost |=
+                    _em_scale_bounds(T, field_exponents..., wave_exponent..., length(density))[3]
+            end
+        end
+    end
+    if lost && isfinite(dt) && all(isfinite, rho_n) && all(isfinite, rho_np1)
+        return _em_continuity_scaled(g, rho_n, rho_np1, J, dt)
+    end
+    return rmax / (scale > 0 ? scale : one(T))
+end
+
 function _em_normalized_derivative_parts(
     field::Array{T,D},
     g,
@@ -1173,6 +1311,10 @@ representable (non-Nyquist) spectrum — the exact space on which the discrete
 conservation law is defined — by forming `Δρ + dt ∂xJx` after dropping the
 Nyquist mode of `Δρ` (`∂xJx` already has none). `scale = max(|Δρ_repr|)` or 1.
 Call after `step_empic!`.
+
+Range-sensitive inputs retain the complete density and timestep-weighted
+current expression. Spectral input validation and FFT accuracy limits still
+apply, including loss of relative accuracy for ill-conditioned cancellations.
 """
 function charge_conservation_residual(es::EMPIC1D{T}, dt::Real) where {T}
     g = es.g
@@ -1180,8 +1322,12 @@ function charge_conservation_residual(es::EMPIC1D{T}, dt::Real) where {T}
     dtT = T(dt)
     # Δρ projected onto the representable spectrum: fft, zero Nyquist, ifft.
     cb = similar(es.Jx, Complex{T})
+    bounds = _em_density_transform_bounds(T, n)
+    lost = false
     @inbounds for i = 1:n
-        cb[i] = Complex{T}(es.rho_np1[i] - es.rho_n[i])
+        delta = es.rho_np1[i] - es.rho_n[i]
+        cb[i] = Complex{T}(delta)
+        lost |= _em_density_transform_lost_range(delta, bounds)
     end
     fft!(cb)
     if iseven(n)
@@ -1190,15 +1336,7 @@ function charge_conservation_residual(es::EMPIC1D{T}, dt::Real) where {T}
     ifft!(cb)
     dJx = similar(es.Jx)
     deriv!(dJx, es.Jx, g, 1)                     # already Nyquist-free
-    rmax = zero(T)
-    scale = zero(T)
-    @inbounds for i = 1:n
-        dρ = real(cb[i])
-        r = dρ + dtT * dJx[i]
-        rmax = max(rmax, abs(r))
-        scale = max(scale, abs(dρ))
-    end
-    return rmax / (scale > 0 ? scale : one(T))
+    return _em_continuity_finish(g, es.rho_n, es.rho_np1, (es.Jx,), dtT, cb, dJx, lost)
 end
 
 # ---------------------------------------------------------------- dimension-parametric EM PIC
@@ -1800,13 +1938,19 @@ electron substep. Pass its duration `dt_full/es.n_sub`, including when ions
 are mobile and receive one kick over the full step. The true zero-frequency
 mode is retained so a change in total charge contributes to the residual;
 only non-DC modes annihilated by every spectral derivative are excluded.
+Range-sensitive inputs retain the complete density and timestep-weighted
+current expression; spectral input validation and FFT accuracy limits still apply.
 """
 function charge_conservation_residual(es::EMPIC{D,T}, dt::Real) where {D,T}
     g = es.g
     dtT = T(dt)
     dρhat = g.cbuf
+    bounds = _em_density_transform_bounds(T, length(dρhat))
+    lost = false
     @inbounds for I in CartesianIndices(dρhat)
-        dρhat[I] = Complex{T}(es.rho_np1[I] - es.rho_n[I])
+        delta = es.rho_np1[I] - es.rho_n[I]
+        dρhat[I] = Complex{T}(delta)
+        lost |= _em_density_transform_lost_range(delta, bounds)
     end
     g.plan * dρhat
     dc = first(CartesianIndices(dρhat))
@@ -1823,13 +1967,5 @@ function charge_conservation_residual(es::EMPIC{D,T}, dt::Real) where {D,T}
 
     dJ = similar(es.rho_n)
     divergence!(dJ, es.J, g)
-    rmax = zero(T)
-    scale = zero(T)
-    @inbounds for I in eachindex(dJ)
-        dρ = dρrepr[I]
-        r = dρ + dtT * dJ[I]
-        rmax = max(rmax, abs(r))
-        scale = max(scale, abs(dρ))
-    end
-    return rmax / (scale > 0 ? scale : one(T))
+    return _em_continuity_finish(g, es.rho_n, es.rho_np1, es.J, dtT, dρrepr, dJ, lost)
 end

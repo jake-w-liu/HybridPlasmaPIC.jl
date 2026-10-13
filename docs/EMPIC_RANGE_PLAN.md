@@ -195,3 +195,10 @@ public step chronology, resources and both Julia versions. The scalar-mode
 repair alone cannot close these boundaries. Full derivations, rejected
 hypotheses and exact test limits are retained in
 `/tmp/empic_boundary_audit_handoff.md`.
+
+
+The first PIC005 slice now repairs the continuity diagnostic's complete range
+expression on inputs admitted by the canonical spectral operators. Both native
+Julia versions pass 29,113 affected-caller assertions. This does not close current
+correction/materialization, ES/Gauss transform range or severe arbitrary-grid
+cancellation accuracy. [Final diagnostic contract and evidence](CONTINUITY_DIAGNOSTIC_RANGE_PLAN.md).

@@ -4,6 +4,319 @@
 
 using HybridPlasmaPIC, FFTW, Test, Random
 
+module ContinuityRangeOracle
+using HybridPlasmaPIC
+const Q = Rational{BigInt}
+const CQ = Complex{Q}
+exact(x) = Q(x)
+complex_exact(x) = complex(exact(real(x)), exact(imag(x)))
+
+# Gaussian-integer roots give an exact, independent DFT on these small grids.
+function dft4(values; inverse = false)
+    roots = CQ[1, im, -1, -im]
+    direction = inverse ? 1 : -1
+    return map(CartesianIndices(values)) do I
+        total = zero(CQ)
+        for K in CartesianIndices(values)
+            phase =
+                direction *
+                sum((K[d] - 1) * (I[d] - 1) * (4 ÷ size(values, d)) for d = 1:ndims(values))
+            total += values[K] * roots[mod(phase, 4)+1]
+        end
+        inverse ? total / length(values) : total
+    end
+end
+
+# Index-based classification deliberately does not call the production mode helper.
+null_index(I, shape) =
+    all(d -> I[d] == 1 || (iseven(shape[d]) && I[d] == shape[d] ÷ 2 + 1), 1:length(shape))
+function residual(g, rho_n, rho_np1, J, dt; transform = dft4, convert_value = complex_exact)
+    delta = map((a, b) -> convert_value(a) - convert_value(b), rho_np1, rho_n)
+    density_hat = transform(delta)
+    current_hat = map(field -> transform(convert_value.(field)), J[1:length(g.n)])
+    residual_hat = similar(density_hat)
+    dc = first(CartesianIndices(density_hat))
+    for I in CartesianIndices(density_hat)
+        I != dc && null_index(I, size(density_hat)) && (density_hat[I] = zero(eltype(density_hat)))
+        divergence =
+            sum(im * convert_value(g.kvec[d][I[d]]) * current_hat[d][I] for d = 1:length(g.n))
+        residual_hat[I] = density_hat[I] + convert_value(dt) * divergence
+    end
+    density = transform(density_hat; inverse = true)
+    residual_values = transform(residual_hat; inverse = true)
+    scale = maximum(z -> abs(real(z)), density)
+    numerator = maximum(z -> abs(real(z)), residual_values)
+    return numerator / (iszero(scale) ? one(scale) : scale), scale
+end
+
+function nearest_nonnegative(value::T, target::Q) where {T}
+    target >= 0 || return false
+    isinf(value) && return target >= exact(floatmax(T)) + exact(eps(floatmax(T))) / 2
+    isfinite(value) && value >= 0 || return false
+    iszero(value) && return target <= exact(nextfloat(zero(T))) / 2
+    current = exact(value)
+    below = (exact(prevfloat(value)) + current) / 2
+    above =
+        value == floatmax(T) ? current + exact(eps(value)) / 2 :
+        (current + exact(nextfloat(value))) / 2
+    even = iseven(reinterpret(T === Float32 ? UInt32 : UInt64, value))
+    return (target > below || (even && target == below)) &&
+           (target < above || (even && target == above))
+end
+
+function big_dft(values; inverse = false)
+    direction = inverse ? 1 : -1
+    return map(CartesianIndices(values)) do I
+        total = zero(Complex{BigFloat})
+        for K in CartesianIndices(values)
+            phase = sum(BigFloat((K[d] - 1) * (I[d] - 1)) / size(values, d) for d = 1:ndims(values))
+            total += values[K] * complex(cospi(2phase), direction * sinpi(2phase))
+        end
+        inverse ? total / length(values) : total
+    end
+end
+
+physical(es::EMPIC) = (
+    copy(es.rho_n),
+    copy(es.rho_np1),
+    map(copy, es.J),
+    map(copy, es.Jraw),
+    map(copy, es.E),
+    map(copy, es.B),
+)
+physical(es::EMPIC1D) =
+    (copy(es.rho_n), copy(es.rho_np1), copy(es.Jx), copy(es.Ex), copy(es.Ey), copy(es.Bz))
+end
+
+@testset "EM continuity diagnostic retains complete range-sensitive expression" begin
+    H, O = HybridPlasmaPIC, ContinuityRangeOracle
+    for T in (Float32, Float64), D = 1:3, axis = 1:D, sign in (-1, 1)
+        shape = ntuple(d -> d == axis ? 4 : 2, D)
+        M = floatmax(T)
+        for kind in (
+            :difference,
+            :forward,
+            :inverse,
+            :product,
+            :derivative_small,
+            :derivative_large,
+            :dc,
+            :zero_dt,
+            :negative_dt,
+        )
+            desired_k =
+                kind == :derivative_small ? (T === Float32 ? T(1e-20) : T(1e-100)) :
+                kind in (:derivative_large, :zero_dt) ? T(8) : one(T)
+            g = FourierGrid(shape, ntuple(d -> d == axis ? T(2pi) / desired_k : T(2pi), D))
+            es = EMPIC(g, 0; n0 = zero(T))
+            a, b, j, dt = zero(T), zero(T), zero(T), one(T)
+            if kind == :difference || kind == :dc
+                a = T(0.75) * M
+                b = -a
+                dt = M
+            elseif kind == :forward
+                a = T(0.75) * M
+            elseif kind == :inverse
+                a = T(0.4) * M / T(2^(D - 1))
+            elseif kind == :product || kind == :negative_dt
+                a = -T(0.24) * M / T(2^(D - 1))
+                j = T(2.75)
+                dt = (kind == :negative_dt ? -one(T) : one(T)) * T(0.4) * M
+            elseif kind == :derivative_small
+                j = T === Float32 ? T(1e-30) : T(1e-300)
+                dt = T === Float32 ? T(1e20) : T(1e100)
+                a = -(j * dt) * g.kvec[axis][2]
+            else
+                j = T(0.2) * M
+                dt = kind == :zero_dt ? zero(T) : T(1) / 16
+                a = -T(0.1) * M
+            end
+            for I in CartesianIndices(es.rho_n)
+                cosine = kind == :dc ? 1 : (1, 0, -1, 0)[I[axis]]
+                es.rho_np1[I] = sign * a * cosine
+                es.rho_n[I] = sign * b * cosine
+                es.J[axis][I] = sign * j * (0, 1, 0, -1)[I[axis]]
+            end
+            reference, _ = O.residual(g, es.rho_n, es.rho_np1, es.J, dt)
+            before = O.physical(es)
+            got = charge_conservation_residual(es, dt)
+            @test isfinite(got)
+            @test O.nearest_nonnegative(got, reference)
+            @test O.physical(es) == before
+            if D == 1
+                legacy = EMPIC1D(g, 0; n0 = zero(T))
+                legacy.rho_n .= es.rho_n
+                legacy.rho_np1 .= es.rho_np1
+                legacy.Jx .= es.J[1]
+                old = O.physical(legacy)
+                @test charge_conservation_residual(legacy, dt) === got
+                @test O.physical(legacy) == old
+            end
+        end
+    end
+
+    # Each coefficient contains widely separated signed bits, not just a
+    # collection of differently scaled whole coefficients.
+    for T in (Float32, Float64), D = 1:3
+        shape = ntuple(d -> d == 1 ? 4 : 2, D)
+        g = FourierGrid(shape, ntuple(_ -> T(2pi), D))
+        M, tiny = O.exact(floatmax(T)), O.exact(nextfloat(zero(T)))
+        values = fill(zero(O.CQ), shape)
+        values[1] = complex(M, tiny)
+        values[2] = complex(-M + tiny, -tiny)
+        values[3] = complex(tiny, M - tiny)
+        original = copy(values)
+        forward = H._em_dyadic_transform(values, g)
+        @test forward == O.dft4(values)
+        @test H._em_dyadic_transform(forward, g, true) == values
+        @test values == original
+        @test all(iszero, H._em_dyadic_transform(fill(zero(O.CQ), shape), g))
+    end
+
+    for T in (Float32, Float64), D in (2, 3), kind in (:mixed_nyquist, :solenoidal, :pure_null)
+        shape = ntuple(_ -> 4, D)
+        g = FourierGrid(shape, ntuple(d -> d == 2 ? T(pi) : T(2pi), D))
+        es = EMPIC(g, 0; n0 = zero(T))
+        amplitude = T(0.0625) * floatmax(T)
+        for I in CartesianIndices(es.rho_n)
+            phase = mod(I[1] + I[2] - 2, 4) + 1
+            if kind == :mixed_nyquist
+                nyquist = isodd(I[1]) ? 1 : -1
+                es.rho_np1[I] = -T(2) * amplitude * nyquist * (1, 0, -1, 0)[I[2]]
+                es.J[2][I] = amplitude * nyquist * (0, 1, 0, -1)[I[2]]
+            elseif kind == :solenoidal
+                es.J[1][I] = amplitude * (0, 1, 0, -1)[phase]
+                es.J[2][I] = -amplitude / 2 * (0, 1, 0, -1)[phase]
+            else
+                es.rho_np1[I] = amplitude * (iseven(I[1] + I[2]) ? 1 : -1)
+            end
+        end
+        before = O.physical(es)
+        @test charge_conservation_residual(es, one(T)) == zero(T)
+        @test O.physical(es) == before
+    end
+
+    # Divergence uses only spatial components, even when unused components
+    # are nonfinite. Both ordinary and range-sensitive paths keep that rule.
+    for T in (Float32, Float64), D in (1, 2), amplitude in (one(T), T(0.75) * floatmax(T))
+        g = FourierGrid(ntuple(_ -> 4, D), ntuple(_ -> T(2pi), D))
+        es = EMPIC(g, 0; n0 = zero(T))
+        fill!(es.rho_np1, amplitude)
+        fill!(es.J[D+1], T(NaN))
+        before = O.physical(es)
+        @test charge_conservation_residual(es, one(T)) == one(T)
+        @test isequal(O.physical(es), before)
+    end
+
+    for T in (Float32, Float64)
+        # A genuinely unrepresentable final ratio remains infinity.
+        g = FourierGrid((4,), (T(2pi),))
+        es = EMPIC(g, 0; n0 = zero(T))
+        tiny = nextfloat(zero(T))
+        es.rho_np1 .= tiny .* T[1, 0, -1, 0]
+        es.J[1] .= T[0, 2, 0, -2]
+        @test charge_conservation_residual(es, one(T)) == T(Inf)
+        # Null modes remain excluded, whereas a true DC density defect remains.
+        fill!(es.J[1], zero(T))
+        M = floatmax(T)
+        es.rho_np1 .= T(0.75) * M .* T[1, -1, 1, -1]
+        @test charge_conservation_residual(es, one(T)) == zero(T)
+        fill!(es.rho_np1, T(0.75) * M)
+        fill!(es.rho_n, -T(0.75) * M)
+        @test charge_conservation_residual(es, one(T)) == one(T)
+        # Nonfinite inputs do not enter the exact conversion owner.
+        fill!(es.rho_n, zero(T))
+        fill!(es.rho_np1, T(NaN))
+        @test isnan(charge_conservation_residual(es, one(T)))
+        fill!(es.rho_np1, one(T))
+        @test isnan(charge_conservation_residual(es, T(Inf)))
+        es.J[1][1] = T(Inf)
+        @test_throws ArgumentError charge_conservation_residual(es, one(T))
+
+        # Preserve the canonical operator's existing rejection boundaries,
+        # even when the complete exact diagnostic would be finite.
+        g2 = FourierGrid((4, 4), (T(2pi), T(2pi)))
+        es2 = EMPIC(g2, 0; n0 = zero(T))
+        fill!(es2.J[1], M)
+        for I in CartesianIndices(es2.rho_n)
+            es2.J[2][I] = tiny * (0, 1, 0, -1)[I[2]]
+            es2.rho_np1[I] = -(M * tiny) * (1, 0, -1, 0)[I[2]]
+        end
+        before = O.physical(es2)
+        @test_throws ArgumentError charge_conservation_residual(es2, M)
+        @test O.physical(es2) == before
+        k = T(0.4) * M
+        g3 = FourierGrid((4, 4, 4), ntuple(_ -> T(2pi) / k, 3))
+        es3 = EMPIC(g3, 0; n0 = zero(T))
+        fill!(es3.rho_np1, one(T))
+        @test all(all(isfinite, values) for values in g3.kvec)
+        @test_throws ArgumentError charge_conservation_residual(es3, one(T))
+    end
+end
+
+@testset "EM continuity normalized transforms on non-power-of-two grids" begin
+    O = ContinuityRangeOracle
+    for T in (Float32, Float64), D = 1:3, kind in (:difference, :weighted, :zero_dt)
+        shape = ntuple(d -> d == 1 ? 5 : d == 2 ? 3 : 2, D)
+        g = FourierGrid(shape, ntuple(_ -> T(2pi), D))
+        es = EMPIC(g, 0; n0 = zero(T))
+        M = floatmax(T)
+        dt = kind == :weighted ? -T(0.4) * M : kind == :zero_dt ? zero(T) : one(T)
+        for I in CartesianIndices(es.rho_n)
+            cosine, sine = cospi(T(2) * T(I[1] - 1) / T(5)), sinpi(T(2) * T(I[1] - 1) / T(5))
+            amplitude = (kind == :difference ? T(0.75) : T(0.2)) * M
+            es.rho_np1[I] = amplitude * cosine
+            es.rho_n[I] = kind == :difference ? -es.rho_np1[I] : zero(T)
+            es.J[1][I] = (kind == :zero_dt ? T(0.2) * M : T(2.75)) * sine
+        end
+        before = O.physical(es)
+        got = charge_conservation_residual(es, dt)
+        @test isfinite(got)
+        @test O.physical(es) == before
+        setprecision(BigFloat, 2048) do
+            reference, scale = O.residual(
+                g,
+                es.rho_n,
+                es.rho_np1,
+                es.J,
+                dt;
+                transform = O.big_dft,
+                convert_value = x -> Complex{BigFloat}(x),
+            )
+            # The budget scales with operation count and the un-cancelled
+            # density/current magnitudes; it is not fitted to observed errors.
+            current_bound = sum(
+                maximum(abs, BigFloat.(es.J[d])) * maximum(abs, BigFloat.(g.kvec[d])) for d = 1:D
+            )
+            allowance =
+                64 * eps(T) * length(es.rho_n) * (1 + abs(BigFloat(dt)) * current_bound / scale)
+            @test allowance < BigFloat(0.01)
+            lower_precision = setprecision(BigFloat, 512) do
+                first(
+                    O.residual(
+                        g,
+                        es.rho_n,
+                        es.rho_np1,
+                        es.J,
+                        dt;
+                        transform = O.big_dft,
+                        convert_value = x -> Complex{BigFloat}(x),
+                    ),
+                )
+            end
+            @test abs(reference - lower_precision) < BigFloat(eps(T)) / 1024
+            @test abs(BigFloat(got) - reference) <= allowance
+        end
+        if D == 1
+            old = EMPIC1D(g, 0; n0 = zero(T))
+            old.rho_n .= es.rho_n
+            old.rho_np1 .= es.rho_np1
+            old.Jx .= es.J[1]
+            @test charge_conservation_residual(old, dt) === got
+        end
+    end
+end
+
 @testset "EMPIC longitudinal projection preserves extreme represented modes" begin
     H = HybridPlasmaPIC
     for T in (Float32, Float64), D = 1:3, axis = 1:D, large_domain in (false, true)

@@ -138,6 +138,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Both EM continuity diagnostics retain finite complete residual ratios when
+  density differences, transforms or timestep-weighted currents exceed the
+  element type's intermediate range. Ordinary values and allocations are
+  preserved. Spectral input restrictions and FFT cancellation accuracy remain
+  part of the supported numerical contract.
+
 - Electromagnetic field energy retains finite complete integrals when squared
   fields, light speed or cell-volume intermediates exceed floating-point range.
   Both EMPIC interfaces preserve ordinary summation order and expose genuinely

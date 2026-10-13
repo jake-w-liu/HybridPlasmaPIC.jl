@@ -1,6 +1,6 @@
 # PIC005 first slice — normalized continuity diagnostic
 
-Status: brief reviewed; diagnostic implementation in progress. This bounded slice deliberately leaves current correction, Poisson and Gauss transform-range repairs queued.
+Status: diagnostic range repair verified on Julia 1.12.7 and 1.13.1. Current correction, Poisson/Gauss transform range and severe FFT cancellation accuracy remain open.
 
 - **Mode:** Repair. Complete the existing public `charge_conservation_residual` expression on selected range-sensitive finite inputs, retaining its ordinary implementation and FFTW accuracy model.
 - **Requirement and acceptance criteria:** Both EMPIC1D and general EMPIC D1–3 must evaluate the represented-mode `max(abs(Δrho + dt*div(J)))/max(abs(Δrho))` (or denominator1 when represented Δrho is zero) without first requiring the density difference, intermediate Fourier coefficients, inverse butterflies, standalone divergence, timestep product, or numerator/denominator maxima to fit in T. All original finite rho/J/dt operands survive until composition. True DC charge drift stays visible; only non-DC all-null effective wavevectors are excluded. Exact integer-root DFT witnesses cover both signs, finite and zero residuals, M±tiny bands, cancellation, all axes, coupled components, and finite ratios of unrepresentable maxima. Existing ordinary return values and allocations must remain measured-equivalent; exceptional costs and limits must be recorded. No claim of an exact arbitrary-grid DFT or complete PIC005 closure.
@@ -16,8 +16,102 @@ Status: brief reviewed; diagnostic implementation in progress. This bounded slic
 
 The initial temporary width=p candidate passed the96 residual cases but failed12 strict arbitrary complex forward/inverse DFT checks: `/tmp/pic005_dyadic_fft_prototype112.log` (1,119pass/12fail). A p-bit digit leaves no spare mantissa capacity for butterfly sums. The independent child checked the actual v2 proof: Gaussian-root components sum N signed integer digits, and `w+ceil_log2(N)<=p−2` keeps those integer sums representable for the tested power-of-two shapes. v2 narrows the digit width, retains every original bit, and passes the same assertions without weakening their equality. This is finite-fixture and bit-capacity evidence, not a universal FFT accuracy proof.
 
-## Still required before handoff
+## Earlier prototype observations
 
-Exact production selector cost and exceptional allocations are not measured yet. The prototype's maximum observed occupied band count is45 over340 transform samples, maximum represented bit span2,099; these are observations, not final upper bounds or production measurements. General-grid floating DFT tolerances, inherited validation/error behavior, full affected callers and package inference remain pending. Current correction and non-dyadic inverse policy remain an explicit subsequent slice.
+The prototype's maximum observed occupied band count is45 over340 transform samples, maximum represented bit span2,099; these are observations, not final upper bounds or production measurements. Final production measurements and gates are recorded below. Current correction and non-dyadic inverse policy remain an explicit subsequent slice.
 
 The child independently rejected a fixed low-bit cutoff for later non-dyadic current coefficients: `/tmp/pic005_fixed_tail_counterexample.jl`, `/tmp/pic005_fixed_tail_counterexample112.log`,16/16 on Julia1.12.7. An omitted tail below qmin−p−2 changes both a nearest-neighbor midpoint and finite-versus-infinite overflow rounding in an exact DC inverse witness. This is a representation counterexample, not a newly reproduced production input or a proof that these denominators arise from admissible PIC state. It rules out a generic cutoff claim absent a reachable-value/separation argument. That is why this brief does not claim the non-dyadic current boundary solved.
+
+## Final verification
+
+The immutable `/tmp/pic005-diagnostic-prototype-rpzn57rx` snapshot is based on
+`b725c71` and includes the pushed field-energy repair. Both native versions pass
+**29,113 assertions** across complete EM, EM1D and electromagnetic I/O suites
+(12m23.0s on 1.12.7; 11m52.0s on 1.13.1). The 900 new assertions cover independent
+exact small-grid DFTs, range boundaries, error/state contracts and odd-grid
+accuracy. Logs: `/tmp/pic005_final_v4_regression112.log` and `113.log`.
+
+Final SHA256 values:
+
+- `src/models/full_pic.jl`:
+  `ba62bd1a5c060b847205a5329e8563089db5c2ea275ae82776bb5b1a55bc6a50`.
+- `test/test_empic.jl`:
+  `4fc4e2a5bfc12d346ad912e08820a19b394c543c911c10feb1ee784ae7617fdb`.
+
+Both versions pass 33 concrete compiler assertions; package findings match the
+baseline leaf messages exactly (26/25). Logs: `...v4_compiler112.log`, `113.log`
+and `...v4_package_compare112.log`, `113.log`. The final iteration uses bounded
+spatial-current iteration and an explicit exact-complex conversion type;
+earlier unsuccessful type-constraint experiments were not promoted. An inline
+shared finisher preserves ordinary allocation behavior.
+
+Ordinary capture (96 checks) and comparison (65 checks) pass on each version:
+32 configurations retain bitwise results and unchanged physical state and warmed
+allocation counts. This means zero added allocation, not zero total allocation.
+Logs: `...v4_ordinary{112,113}.log` and `...v4_ordinary_comparison{112,113}.log`.
+Final singleton-grid boundaries pass 48 checks on 1.12. JuliaFormatter 1.0.62 is
+idempotent at margin 100 (`...v4_formatter112.log`). Root reviewed the complete
+production/test diff and checked the live bytes against the frozen hashes.
+All abbreviated filenames above begin `/tmp/pic005_final`.
+
+## Resource and timing measurements
+
+The final cold-path sample passes 96 assertions per version across 32 fixtures,
+with three equal allocation samples per fixture. Allocations are
+91,800–621,008 B/call on 1.12 and 91,016–611,728 B/call on 1.13:
+`/tmp/pic005_final_v4_cold{112,113}.log`.
+The wider `floatmax(T) - smallest_subnormal(T)` density difference passes another
+24 assertions over eight configurations, allocating 517,992–6,375,016 B/call.
+Observed CPU times are 0.553–7.455 ms and wall times 0.546–19.557 ms on this
+shared machine (`/tmp/pic005_final_v4_wide112.log`). These are allocated bytes,
+not retained heap or peak RSS.
+
+No plans, caches or new state are retained. A conservative Float64, 3D, 64-cell
+bound is at most 468 transforms and 10,476-bit final ratio integers; this is a
+work/representation bound, not expected latency. Derivation and executable check:
+`/tmp/pic005_diagnostic_bound_review.md` and
+`/tmp/pic005_diagnostic_band_bounds.py`.
+
+One eight-pair timing window covers 16 configurations on Julia 1.12.7 with one
+Julia and one FFTW thread. Every consumed checksum matches. Candidate/baseline
+CPU median ratios span 0.978–1.110, with individual ratios 0.643–1.376; wall median
+ratios span 0.905–1.380, with individual ratios 0.346–1.902. Other regression jobs
+were active. This variation does not support an isolated or portable latency
+claim. Raw pairs and load are retained in `/tmp/pic005_final_benchmark_pairs.json`,
+`/tmp/pic005_final_benchmark_summary112.log` and `/tmp/pic005_benchmark_load112.log`.
+
+## Preserved failures and remaining work
+
+Validation cases 16 and 20 return the same eight metric values on the baseline
+and candidate, on both Julia versions. Case 16 passes all six metrics in native
+environments with HDF5 available. An earlier harness lacked a direct HDF5
+installation and failed that metric; its failure remains in
+`/tmp/pic005_final_regression112.log` and the dependency check in
+`/tmp/pic005_original_environment_hdf5112.log`.
+
+Case 20's charge residual is **9.889422779356765e-7**, exceeding its unchanged
+**1e-8** tolerance on both baseline and candidate. Its frequency error remains
+0.013636642520216225 against tolerance 0.03. This validation is not green and
+requires a separate investigation; this range repair does not explain its cause.
+Logs: `/tmp/pic005_final_v4_validation{112,113}.log` and the corresponding
+`validation_comparison` logs.
+
+Severe arbitrary-grid cancellation accuracy is also unresolved. Stored nearly
+opposite current components on a 5×5 grid produce residuals about 0.915 and
+1.286 on the forced normalized path, against converged independent references
+about 4.55e-8 and 6.44e-17 for Float32/64. The original 8-pass/2-fail probe remains
+`/tmp/pic005_subnormal_divergence_probe112.log`.
+**VERIFIED:** the independent decomposition in
+`/tmp/pic005_conditioning_error_budget_probe112.log` (16 checks) measures
+normalized current-forward error budgets 3.2875/2.7866, while inverse errors are
+3.84e-8/2.15e-16. Significant error precedes exact modal composition. Merely
+selecting this same path more often or refining only its inverse cannot recover
+those lost coefficients. This finding is confined to the measured algorithm and
+inputs; it does not establish a universal accuracy limit.
+
+A stronger accuracy contract needs a separately verified transform or error
+policy. The detailed assessment, formulas, source references and test requirements
+are retained in `/tmp/pic005_conditioning_accuracy_assessment.md`. Source-scale
+heuristics or agreement between two FFT band widths must not be labeled a
+certified error bound. Keep the existing severe-case target and validation
+thresholds unchanged while investigating that follow-up.
