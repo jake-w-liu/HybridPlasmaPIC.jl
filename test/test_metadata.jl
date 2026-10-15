@@ -229,3 +229,26 @@ end
         @test_throws ErrorException load_run(path)
     end
 end
+
+@testset "archive string variants preserve payload identity" begin
+    meta = capture_metadata(; rng_seed = 31)
+    shared = Any[]
+    push!(shared, shared)
+    state = (values = (Int8(-7), -0.0, NaN), shared = shared, alias = shared)
+    mktempdir() do dir
+        path = joinpath(dir, "archive.bin")
+        save_run(path, state, meta)
+        container = deserialize(path)
+        for archive_path in (path, SubString("!" * path, 2)),
+            checksum in (container.checksum, SubString("!" * container.checksum, 2))
+
+            serialize(path, merge(container, (; checksum)))
+            loaded = load_run(archive_path)
+            @test isequal(loaded.state.values, state.values)
+            @test loaded.state.shared === loaded.state.alias
+            @test only(loaded.state.shared) === loaded.state.shared
+            @test all(f -> getfield(loaded.meta, f) == getfield(meta, f), fieldnames(RunMetadata))
+            @test deserialize(path).state == container.state
+        end
+    end
+end

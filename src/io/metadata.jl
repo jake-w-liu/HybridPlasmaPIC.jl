@@ -207,16 +207,17 @@ function load_run(path::AbstractString)
     if !(container.checksum isa AbstractString)
         error("load_run: checksum in $(path) is not a SHA-256 digest string")
     end
-    if !(container.state isa Vector{UInt8})
+    state_bytes = container.state
+    if !(state_bytes isa Vector{UInt8})
         error("load_run: state in $(path) is not a serialized byte vector")
     end
-    checksum = bytes2hex(SHA.sha256(container.state))
+    checksum = bytes2hex(SHA.sha256(state_bytes))
     if checksum != container.checksum
         error(
             "load_run: checksum mismatch — state is corrupted " *
             "(stored $(container.checksum), recomputed $(checksum))",
         )
     end
-    state = deserialize(IOBuffer(container.state))
+    state = deserialize(IOBuffer(state_bytes))
     return (schema = container.schema, meta = container.meta, state = state)
 end

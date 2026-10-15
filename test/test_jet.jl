@@ -38,6 +38,16 @@ end
         # it is not a claim that every report below the ceiling is harmless.
         JET_REPORT_CEILING = 30
         @test length(reports) <= JET_REPORT_CEILING
+        # Retain the validated byte-vector payload type through nested decoding,
+        # including when optional packages add unrelated read methods.
+        for path_type in (String, SubString{String})
+            loader = JET.report_call(load_run, Tuple{path_type})
+            if !isempty(JET.get_reports(loader))
+                show(stdout, MIME"text/plain"(), loader)
+                println()
+            end
+            @test isempty(JET.get_reports(loader))
+        end
     else
         @test_skip "JET not available in this environment"
     end

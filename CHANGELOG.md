@@ -142,6 +142,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Run archives retain the validated byte-vector payload type through checksum
+  verification and decoding, eliminating unrelated loader inference reports
+  when HDF5 and Pencil extensions are loaded. Archive format and error handling
+  are unchanged; concrete loader compiler checks cover String and SubString paths.
+
 - Checkpoint and archive preflight rejects configuration aliases that Julia
   reconstructs independently, including copied views/indices, reconstructed
   container buffers and repeated BigInt/Regex objects. Independent parameters,
