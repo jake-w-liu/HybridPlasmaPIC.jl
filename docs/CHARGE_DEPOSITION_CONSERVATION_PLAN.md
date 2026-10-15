@@ -200,3 +200,51 @@ manifests under `/tmp/hybrid-charge-wave-v1`, per-mode/runtime logs
 `artifacts-*` directories. Comparison driver/log:
 `/tmp/hybrid-charge-wave-compare.jl`, `/tmp/hybrid-charge-wave-v1-compare.log`.
 No live deposition or EM evolution code was changed by this experiment.
+
+## Exact-sum resource experiment
+
+An isolated second prototype groups adjacent equal finite values before exact
+summation. Each run contributes its actual value times its integer count;
+varied and signed weights keep their actual charge. Skipping multiplication
+for singleton runs removes the extra allocation observed in the first version.
+This is an exact arithmetic identity, not a neutrality or equal-weight assumption.
+The nine-field experiment brief is `/tmp/hybrid-charge-repeated-sum-brief.md`.
+
+Both versions pass **665 oracle/state checks** for each of the two prototypes:
+empty/constant/alternating/random Float32/64 sequences, signed cancellation,
+subnormals, finite extremes, reversed order, unchanged inputs and all 17 captured
+state fields. The second full-wave prototype also passes its five checks/version,
+with the same 2.877175015333387e-12 continuity residual and numerically identical
+captured state to the original exact-rational reconciliation run.
+
+Three warmed allocation samples per fixture agree on both Julia versions:
+
+| 10,000-value sum | Direct rational sum | Second run-grouping prototype |
+| --- | ---: | ---: |
+| Constant Float32 | 6,080,104 B | 960 B |
+| Constant Float64 | 6,119,152 B | 960 B |
+| Alternating Float64 | 6,125,976 B | 6,125,976 B |
+| Seeded random Float64 | 6,091,880 B | 6,091,880 B |
+
+Alternating/random Float32 samples also retain the direct sum's 6,080,104 B.
+The complete second wave run allocates 714,790,128 B on 1.12 and 181,964,928 B
+on 1.13, including compilation/output. Observed times are 16.01/7.99 s under
+shared load. These are separate measurements from the warmed sum microchecks;
+there is no portable timing or peak-memory claim. Varied-weight cost remains
+large, and the latest-version wave still allocates substantially more than the
+12,239,056 B baseline.
+
+Evidence: `/tmp/hybrid-charge-wave-runs-v2-{112,113}.log` and
+`/tmp/hybrid-charge-repeated-sum-oracle-v2-{112,113}.log`, driven by
+`/tmp/hybrid-charge-wave-runs-v2-gates.py` and
+`/tmp/hybrid-charge-repeated-sum-oracle-v2.jl`. All exit 0. First-prototype logs
+remain at `/tmp/hybrid-charge-wave-runs{112,113}.log` and
+`/tmp/hybrid-charge-repeated-sum-oracle{112,113}.log`.
+Second-prototype full-PIC SHA256: `29424eb42c712ef8da3edde2e97bcf138472ef4204f401dce70a2dbab029d606`.
+
+**Next, untested:** compare a bounded integer accumulator for finite dyadic
+inputs with this exact rational oracle, retaining exact fallback when the
+exponent span exceeds its proven bound. Test rounding boundaries, cancellation,
+Float32/64 and arbitrary weight variation before selecting it. Production
+adoption still requires the precision/shape/mobile-species/range and spatial
+acceptance matrix above; this experiment changes no live solver code.

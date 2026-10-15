@@ -1,7 +1,7 @@
 # Archive payload inference repair
 
 Status: JET-002 implemented and focused gates passed on both native versions;
-new full-package integration runs remain required.
+pushed as `6341c4b`. Full-package integration runs are in progress.
 
 ## Pre-edit brief
 
@@ -80,5 +80,7 @@ Frozen source/test hashes: `/tmp/hybrid-jet002-final-hashes.json`.
   only binds and reuses the already validated payload; serialization, error
   messages/order, schemas, exports, dependencies and report ceiling are unchanged.
 
-These checks repair and reproduce the focused failure. They do not replace a
-new full-package run including the later checkpoint and continuity changes.
+Full-package runs now use immutable `6341c4b` on both native versions, including
+the later checkpoint and continuity changes. Logs:
+`/tmp/hybrid-full-6341c4b-julia{112,113}.log`; initial source/environment hashes:
+`/tmp/hybrid-full-6341c4b-manifest.json`. Completion remains pending.
