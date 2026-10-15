@@ -1,6 +1,6 @@
 # Plasma simulation audit and implementation tracker
 
-Updated: 2026-10-15. Goal remains **active**.
+Updated: 2026-10-16. Goal remains **active**.
 
 User objective: audit the full codebase until an independent pass finds no new
 confirmed defects; optimize measured bottlenecks; plan and implement missing
@@ -12,20 +12,32 @@ completeness. Comparative leadership requires reproducible external benchmarks.
 
 ## Current evidence
 
-- Charge repair `4cd642c` is pushed; [run 38750764319](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/38750764319)
-  is active. Formatting and all three MPI jobs pass on this and both preceding
-  revision runs; both package jobs remain running for each. Native gates pass;
-  GitHub acceptance is still pending for each revision.
+- VALID-001 charge conservation passes local acceptance on **1.12.7 and 1.13.2**:
+  29,113 complete solver/restart assertions, 13,268 numerical/compiler/quality
+  assertions, 2,273 concurrent checks and 504 resource/oracle checks per version.
+  The unchanged 1,000-step wave passes at 2.88e-12 against 1e-8. The exact tested
+  source is integrated; its GitHub acceptance remains pending. [Contract and costs](CHARGE_DEPOSITION_CONSERVATION_PLAN.md).
 
-- [GitHub run 38741178196](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/38741178196)
-  tests pushed `240f77c`. Formatting and all 2-/4-/8-rank MPI jobs pass; both
-  Julia package jobs are still running. Full acceptance remains
-  pending; no billing block is evidenced. The locally verified charge repair
-  and isolated current follow-up below are not included in this revision.
+- Latest-version gate advanced to **Julia 1.13.2**, listed as the current stable
+  release (October 14) on the [official downloads page](https://julialang.org/downloads/manual-downloads/),
+  checked October 15. Existing 1.13.1 results retain their exact tested version;
+  GitHub acceptance on 1.13.2 is now verified at `240f77c` below; later revisions
+  are still being checked. The minimum-version gate remains 1.12.7.
 
-- CI scheduling repair `4c03c87` is pushed; [run 38750474902](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/38750474902)
-  is active alongside the preceding run. Each commit now has its own group so
-  subsequent pushes preserve earlier acceptance runs. Both await completion.
+- Pushed `240f77c` now has fully green [GitHub run 38741178196](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/38741178196):
+  actual Julia **1.12.7 passes 357,258 assertions** and **1.13.2 passes 357,259**;
+  formatting and 2-/4-/8-rank MPI jobs also pass. Package-analysis counts are
+  22/21, respectively. This establishes latest-stable acceptance for this SHA;
+  later revisions retain their own pending gates.
+
+- Three newer revisions have active acceptance runs with formatting and all MPI
+  jobs green. The latest-Julia job at `4cd642c` passes 358,979 assertions on
+  actual 1.13.2 (22 JET reports); its minimum-version job and both package jobs
+  at the other two revisions remain running:
+  `4c03c87` ([38750474902](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/38750474902)),
+  `4cd642c` ([38750764319](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/38750764319)),
+  and `6ad7276` ([38754771205](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/38754771205)).
+  No billing block is evidenced. [Per-revision evidence](CI_RELIABILITY_PLAN.md).
 
 - Completed [GitHub run 38722319490](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/38722319490)
   at `55d996b` passes formatting, the 2-/4-rank MPI jobs and both package jobs:
@@ -78,10 +90,9 @@ completeness. Comparative leadership requires reproducible external benchmarks.
 - Starting revision: `905ea1b`; clean worktree; remote `main` matched that revision.
 - Inspected package exports, manifests, CI, contribution rules, README, tests,
   validation catalog, hybrid integrators, coupling kernels, and checkpoint paths.
-- Installed Julia versions are 1.12.7 and 1.13.1. The official Julia downloads page
-  [lists 1.13.1 (2026-09-25)](https://julialang.org/downloads/manual-downloads/)
-  as the current stable release. CI now includes both the
-  minimum supported minor (1.12) and the moving latest stable version (`1`).
+- At the initial audit, native gates used Julia 1.12.7 and 1.13.1. The latest
+  gate has since advanced to 1.13.2 as recorded above. CI includes the minimum
+  supported minor (1.12) and the moving latest stable version (`1`).
 - Initial full suites were started in the live worktree on Julia 1.13.1 and
   1.12.7. Concurrent test/code edits mean these runs cannot prove the final
   revision; both were stopped through their own launch sessions after this was confirmed.
@@ -218,19 +229,19 @@ performance review. “Pending” means no current-run completion claim.
 | IO-010 | Internal configuration views and native handles can detach during serialization | Pushed (`876baf7`) | Final source passes 12,950 focused assertions, 16 clean concrete compiler analyses and real two-rank MPI (296/340 checks) on each Julia version. Package reports match the earlier baseline. Preceding v4 passes 118,065 neighboring assertions/version; final shared-index extension is covered separately. All 18 standard configuration guards retain 0 B allocation. [Contract, exact snapshots, resources and limits](CHECKPOINT_CONFIGURATION_PLAN.md#io-010-final-verification). |
 | IO-011 | Failed serial checkpoint serialization truncates the previous checkpoint | Pushed (`fe519e9`) | Atomic publication preserves prior files across serializer/write/flush/close/rename errors and reports cleanup failures. Both Julia versions pass 23,747 neighboring assertions and 293 focused checks; four concrete compiler paths are clean and package findings match baseline. [Publication contract and resource evidence](SERIAL_PUBLICATION_PLAN.md). |
 | ENERGY-001 | EM field energy loses finite complete integrals through squared fields, c and cell volume | Pushed (`bef9802`) | Complete-integral cold evaluation passes 27,896 ES/EM assertions on each Julia version. All 24 concrete compiler calls per version are clean; package reports match baseline. Ordinary results stay exact and allocate 0 B; measured latency remains an optimization target. [Scope, resource investigation and evidence](ENERGY_RANGE_PLAN.md). |
-| ENERGY-002 | Relativistic particle energy rejects valid extreme speeds or loses finite weighted results | Verified locally; GitHub acceptance pending | Each native version passes 2,138 permanent assertions, existing budgets, concrete/package compiler checks, Aqua and 398 four-thread checks. Ordinary calls retain exact baseline outputs and 0 B allocation; measured larger-case overhead remains 1.247–1.986× on 1.12 and 1.426–1.846× on 1.13. The three integrated source/test files match the verified snapshot. [Plan and remaining gates](ENERGY_RANGE_PLAN.md). |
-| VALID-001 | Validation case 20 exceeds its charge-residual tolerance | Cause verified; full-wave prototypes compared | Both native versions reproduce the baseline residual 9.89e-7. Kahan deposition still fails the unchanged 1e-8 threshold at 6.88e-8; reconciliation to actual particle charge passes at 2.88e-12 with unchanged final fields/particles for this wave. Exact run-grouping reduces the latest-version prototype from over 12 GB to 182 MB/run; 665 additional oracle/state checks pass on each version. The later bounded-dyadic prototype passes 70,100 exact-oracle, 30 ambient-precision and 58,817 spatial/charge assertions per version, with 312–352 B measured varied-weight sums. Extreme geometry and public evolution/restart semantics remain open before production adoption. [Exact source trace, experiments and remaining acceptance](CHARGE_DEPOSITION_CONSERVATION_PLAN.md). |
+| ENERGY-002 | Relativistic particle energy rejects valid extreme speeds or loses finite weighted results | Included in green `240f77c` | Each native version passes 2,138 permanent assertions, existing budgets, concrete/package compiler checks, Aqua and 398 four-thread checks. Ordinary calls retain exact baseline outputs and 0 B allocation; measured larger-case overhead remains 1.247–1.986× on 1.12 and 1.426–1.846× on 1.13. The three integrated source/test files match the verified snapshot. [Plan and remaining gates](ENERGY_RANGE_PLAN.md). |
+| VALID-001 | Validation case 20 exceeds its charge-residual tolerance | Verified locally and integrated; GitHub acceptance pending | Final source passes the unchanged wave at 2.88e-12, 504 resource/oracle, 2,273 four-thread, 29,113 complete solver/restart and 13,268 numerical/compiler/quality assertions on each of 1.12.7/1.13.2. Package diagnostics match each native baseline. Final capture intentionally changes ordinary bits; raw contracts remain tested. [Evidence, costs and production brief](CHARGE_DEPOSITION_CONSERVATION_PLAN.md). |
 | PERF-004 | Legacy EM continuity diagnostic constructs FFT plans on every call | Pushed (`0f5b205`) | Reuses existing grid plans with 19,980 runtime assertions and 33 clean concrete compiler calls on each Julia version. Package findings exactly match baseline. All 24 measured configurations allocate 544 fewer bytes/call; timing variation is retained without a portable speed claim. [Evidence and compatibility](CONTINUITY_DIAGNOSTIC_RANGE_PLAN.md#legacy-diagnostic-plan-reuse--pre-edit-brief). |
 | JET-002 | Julia 1.12 full-suite compiler-report gate exceeds its ceiling | Pushed (`6341c4b`); both native full suites pass | Reuse the validated archive byte-vector binding through hashing and decoding. Final focused compiler gates pass at 22/21 package reports on native 1.12/1.13, with zero concrete String/SubString loader reports. Exactly the nine loader findings disappear from the 1.12 baseline; all other leaves remain. Each version passes 234 neighboring assertions and 20 additional metadata checks; frozen full suites now pass 352,287 assertions per version. [Cause, compatibility and evidence](ARCHIVE_INFERENCE_PLAN.md). |
 | CI-002 | Fresh latest-Julia resolution fails and MPI publication fixture races its readers | Pushed; both package jobs and 8-rank publication checks pass | Current-registry resolution requires JET 0.12 on Julia 1.13. The delayed 8-rank replay reproduces the missing-file failure; a pre-rename barrier passes 48 publication assertions on every rank on both native Julia versions. JET 0.12.3 passes all 3 analysis assertions (22/21 reports), 9 Aqua checks and 80 archive assertions per version; the ceiling remains 30. [Plan and GitHub status](CI_RELIABILITY_PLAN.md). |
 | KDV-002 | Quadratic filtering allows excluded-input and cutoff aliases | Pushed (`c5d7e94`); both GitHub package jobs pass | VERIFIED: explicit cosine inputs change by 0.00150–0.00175 despite zero projected nonlinear RHS; Nyquist cross products also leak. Strict integer-mode operand/product projection passes 61 KdV checks, two concrete compiler analyses and eight downstream metrics on both versions. New mode tests fail 14 checks against the baseline; physical accuracy thresholds remain unchanged. [Evidence and plan](CI_RELIABILITY_PLAN.md#kdv-filtering-repair--pre-edit-brief). |
 | RAY-001 | Magnetic finite-difference derivatives amplify unit-roundtrip perturbations | Pushed (`6a6b316`); both GitHub package jobs pass | VERIFIED: one-ulp launch changes perturb focusing by up to 4.87e-7 with the stencil versus 3.76e-13 with analytic derivatives. Both versions pass 961 complete-suite assertions and the final 10-assertion rounding block (two overlap). Existing normalized/SI and MATLAB tolerances remain unchanged; both Linux package jobs at `55d996b` now pass. [CI status](CI_RELIABILITY_PLAN.md). |
-| THR-007 | Threaded deposition overwrites aliased values instead of rejecting them | Verified locally; GitHub acceptance pending | VERIFIED: one- and four-thread probes clear aliased inputs while serial deposition rejects them unchanged. Shared preflight passes 3,012 one-thread integration and 754 four-thread assertions per native version; 24 concrete analyses are clean, JET/Aqua pass. New tests fail 324 checks on the baseline. All 18 measured ordinary cases retain exact outputs and allocations. [Plan](THREADED_DEPOSITION_PLAN.md). |
-| CI-003 | Eight-rank MPI job is interrupted by its 20-minute step limit | All MPI jobs pass; package acceptance pending | VERIFIED: the previous explicit deadline is replaced by a bounded 40-minute eight-rank window, retaining every test and the 20-minute 2/4-rank limits. Run `38741178196` passes all three MPI jobs; its eight-rank smoke step completes in 19m53s. Both package jobs remain running. [Plan](CI_RELIABILITY_PLAN.md#eight-rank-execution-budget--ci-003). |
-| MOMENT-001 | Per-species deposition, normalization and charge scaling lose finite first moments | Verified locally; GitHub acceptance pending | Final arithmetic passes 1,953 permanent assertions on both native versions; the final worker-state guard has separate preflight/threaded controls on 1.12 and the full permanent run on 1.13. Concrete and fixture-loaded package JET, Aqua and ordinary baseline/resource comparisons pass. Combined species/background expressions remain separate. [Contract, gates and limits](MOMENT_NORMALIZATION_PLAN.md). |
+| THR-007 | Threaded deposition overwrites aliased values instead of rejecting them | Included in green `240f77c` | VERIFIED: one- and four-thread probes clear aliased inputs while serial deposition rejects them unchanged. Shared preflight passes 3,012 one-thread integration and 754 four-thread assertions per native version; 24 concrete analyses are clean, JET/Aqua pass. New tests fail 324 checks on the baseline. All 18 measured ordinary cases retain exact outputs and allocations. [Plan](THREADED_DEPOSITION_PLAN.md). |
+| CI-003 | Eight-rank MPI job is interrupted by its 20-minute step limit | Pushed; complete GitHub run passes at `240f77c` | VERIFIED: the previous explicit deadline is replaced by a bounded 40-minute eight-rank window, retaining every test and the 20-minute 2/4-rank limits. Run `38741178196` passes all three MPI jobs; its eight-rank smoke step completes in 19m53s. Both package jobs also pass, with 357,258/357,259 assertions on actual 1.12.7/1.13.2. [Plan](CI_RELIABILITY_PLAN.md#eight-rank-execution-budget--ci-003). |
+| MOMENT-001 | Per-species deposition, normalization and charge scaling lose finite first moments | Included in green `240f77c` | Final arithmetic passes 1,953 permanent assertions on both native versions; the final worker-state guard has separate preflight/threaded controls on 1.12 and the full permanent run on 1.13. Concrete and fixture-loaded package JET, Aqua and ordinary baseline/resource comparisons pass. Combined species/background expressions remain separate. [Contract, gates and limits](MOMENT_NORMALIZATION_PLAN.md). |
 | MOMENT-002 | EMPIC species/background combination loses finite total charge | Pushed (`4cd642c`); GitHub acceptance pending | Each native version passes 1,720 final charge assertions (including public steps/subcycling), 24,329 solver integration assertions, 433 concurrent checks, 4,663 neighboring checks, 64 clean concrete analyses and JET/Aqua. Diagnostics match baseline. All 16 ordinary resource cases retain bitwise results and 0 B. [Plan and acceptance gates](EMPIC_CHARGE_COMBINATION_PLAN.md). |
-| MOMENT-003 | EMPIC current combination loses complete values; deposition errors retain temporary positions | Verified locally and promoted; push/CI pending | Both native versions pass 4,805 checks on the final combined charge/current source, including 892 current assertions, public steps, 70 concrete analyses and unchanged package JET/Aqua. Each also passes 1,862 existing integration assertions. Ten ordinary cases preserve exact outputs/scratch and 0 B allocation. [Contract and gates](EMPIC_CURRENT_COMBINATION_PLAN.md). |
-| CI-004 | Required Aqua import errors become skipped-success quality gates | Verified locally; GitHub acceptance pending | VERIFIED: an actual missing-Aqua baseline exits 0 with one broken test. The repaired gate passes all nine checks on both native versions; missing-package and injected import-failure probes now exit 1. Existing checks/options are unchanged. [Contract and gates](CI_RELIABILITY_PLAN.md#required-aqua-gate--ci-004). |
+| MOMENT-003 | EMPIC current combination loses complete values; deposition errors retain temporary positions | Pushed (`6ad7276`); GitHub acceptance pending | Both native versions pass 4,805 checks on the final combined charge/current source, including 892 current assertions, public steps, 70 concrete analyses and unchanged package JET/Aqua. Each also passes 1,862 existing integration assertions. Ten ordinary cases preserve exact outputs/scratch and 0 B allocation. [Contract and gates](EMPIC_CURRENT_COMBINATION_PLAN.md). |
+| CI-004 | Required Aqua import errors become skipped-success quality gates | Included in green `240f77c` | VERIFIED: an actual missing-Aqua baseline exits 0 with one broken test. The repaired gate passes all nine checks on both native versions; missing-package and injected import-failure probes now exit 1. Existing checks/options are unchanged. [Contract and gates](CI_RELIABILITY_PLAN.md#required-aqua-gate--ci-004). |
 | CI-005 | New pushes cancel unfinished checks for earlier commits | Pushed (`4c03c87`); GitHub acceptance pending | The group now includes commit SHA; actionlint and parsed workflow/key checks pass. New run `38750474902` is active while old run `38741178196` retains both package jobs. All jobs, thresholds and matrices are unchanged. [Plan](CI_RELIABILITY_PLAN.md#preserve-acceptance-for-every-revision--ci-005). |
 
 ## Completeness roadmap
@@ -246,6 +257,7 @@ benchmark before implementation. The roadmap remains open to new findings.
 | 1 | Reproducible archives and bounded field I/O | Fix checksum representation and malformed-file allocation; cross-process and corruption tests | Active |
 | 2 | Multispecies hybrid evolution | Collection initialization/stepping absence reproduced; [implementation plan](MULTISPECIES_HYBRID_PLAN.md) defines shared charge moments, independent species push, restart and conservation/dispersion acceptance | Serial core, collection restart and conservation diagnostics verified; MPI collection evolution and distributed collection restart verified |
 | 2 | Multispecies conservation diagnostics | Canonical reductions and budgets support typed collections and empty populations; independent particle/field/closure sums and scalar regressions pass on both Julia versions | Verified |
+| 2 | Local moment accuracy under strong weighted cancellation | A 48-check Float32/64 witness retains raw non-DC error despite a correct reconciled total. Compare compensated/binned accumulation with exact spatial oracles; define ordinary rounding compatibility and require threaded, coupled and measured cost gates. [Scope](CHARGE_DEPOSITION_CONSERVATION_PLAN.md#remaining-local-accuracy-boundary) | Assessment |
 | 2 | Exactly conservative coupled hybrid integration | Existing explicit predictor has second-order momentum error verified against a discrete Boris oracle. Assess a coupled midpoint field/current solve with convergence, conservation and nonlinear solve-residual acceptance | Assessment |
 | 2 | Evolving electron pressure integrated into steppers | Standalone `advance_electron_pressure!` exists; built-in periodic steppers use algebraic closures. Define transport/heating coupling and energy-budget acceptance | Planned |
 | 2 | Multidimensional EM electron subcycling | Common EM path extended; charge-continuity, Gauss-law, species phase, coupled convergence and Float32/64 checks pass | Verified |
@@ -263,7 +275,7 @@ benchmark before implementation. The roadmap remains open to new findings.
 
 - Full package/quality suite in immutable checkouts, on both Julia 1.12 and latest
   stable: `julia +1.12 --project=. -e 'using Pkg; Pkg.test()'` and
-  `julia +1.13.1 --project=. -e 'using Pkg; Pkg.test()'`.
+  `julia +1.13.2 --project=. -e 'using Pkg; Pkg.test()'`.
 - Coupling: `julia +1.12 --project=. test/test_deposit.jl`.
 - Kernel timing/allocation: `julia +1.12 --project=. benchmark/benchmarks.jl`.
 - Validation: `julia +1.12 --project=validation validation/run_validation.jl --quick`

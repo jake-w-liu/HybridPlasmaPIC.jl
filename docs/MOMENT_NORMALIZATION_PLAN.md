@@ -1,8 +1,8 @@
 # Complete per-species first moments
 
-Status: MOMENT-001 passes native numerical and quality gates and is integrated.
-The compiler checks also pass with test-defined shape methods loaded. Push and
-GitHub acceptance remain open.
+Status: MOMENT-001 is pushed as `240f77c` and its complete GitHub run is green
+on actual Julia 1.12.7 and 1.13.2. Native compiler checks also pass with
+test-defined shape methods loaded. Remaining arithmetic boundaries follow below.
 
 ## Scope and pre-edit brief
 
@@ -98,12 +98,12 @@ analysis. Earlier failed diagnostics remain available in the handoff.
 
 ## Remaining boundaries
 
-- Both EMPIC families still combine separately rounded species/background
-  charges. [MOMENT-002](EMPIC_CHARGE_COMBINATION_PLAN.md) contains verified
-  overflow, underflow and midpoint witnesses and the next implementation plan.
-- Combined currents, hybrid bulk-velocity ratios, charge-weighted species
-  combinations and MPI cross-rank reductions need their own complete-expression
-  treatment. Their consumers are not certified by this per-species repair.
+- Complete EMPIC charge and current combinations are separate repairs, now
+  pushed and awaiting their own GitHub acceptance: [MOMENT-002](EMPIC_CHARGE_COMBINATION_PLAN.md)
+  and [MOMENT-003](EMPIC_CURRENT_COMBINATION_PLAN.md).
+- Hybrid bulk-velocity ratios, other charge-weighted species combinations and
+  MPI cross-rank reductions retain their separate complete-expression boundaries.
+  Those consumers are not certified by this per-species repair.
 - Pressure's second moments/covariance and generic raw deposition retain their
   separate range boundaries. Ordinary finite cancellation stays rounded.
 - The public FourierGrid constructor supports Float32/64. BigFloat coverage here
@@ -115,4 +115,8 @@ analysis. Earlier failed diagnostics remain available in the handoff.
 - [x] Package analysis after the new test-defined shape methods are loaded.
 - [x] Promote the exact verified patch and review the final diff; source/test
   hashes match the candidate, and both new test includes remain registered.
-- [ ] Commit/push and observe GitHub acceptance.
+- [x] Commit/push `240f77c` and observe complete GitHub acceptance.
+
+[GitHub run 38741178196](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/38741178196) passes all six jobs. Package suites pass
+357,258 assertions on 1.12.7 and 357,259 on 1.13.2; package JET counts remain
+22/21. Formatting and all three MPI ranks also pass. [Job-log evidence](CI_RELIABILITY_PLAN.md#acceptance-run-at-240f77c).

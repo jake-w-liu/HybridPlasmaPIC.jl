@@ -179,3 +179,15 @@ control results. It has not been sent. The runtime integration gate stays open.
 The report's shell command was extracted and executed against the unshared
 control with the final C source; it compiles and passes all 64 checks (exit 0).
 Log: `/tmp/hybrid-mpfr-report-command.log`.
+
+## Julia 1.13.2 refresh
+
+**VERIFIED:** the freshly installed official Julia 1.13.2 still reproduces the
+constant-cache failure. One fresh four-thread invocation of
+`julia +1.13.2 --startup-file=no --threads=4 tools/audit_mpfr_cache.jl` exits 1,
+with two incorrect pi and two incorrect log(2) values among 128 checks. The
+reported library is the installed 1.13.2 `libmpfr.6.dylib`, MPFR 4.2.2, TLS=1,
+shared=1, with an empty patch string. For example, a pi request at 6,912 bits
+returns about 2.72846. Full values, precision, library path and exit evidence:
+`/tmp/hybrid-mpfr-repo-probe1132-1.log`. No retry, runtime-library replacement or
+package-local masking was performed. The held radiation candidate remains open.

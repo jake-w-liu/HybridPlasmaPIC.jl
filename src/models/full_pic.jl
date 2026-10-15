@@ -246,7 +246,7 @@ end
 
 # Range status must survive per-species normalization: even a correctly rounded
 # density can lose a contribution that the total charge can represent.
-function _empic_charge_density!(
+function _empic_raw_charge_density!(
     rho::Array{T,D},
     ne::Array{T,D},
     es,
@@ -299,6 +299,136 @@ function _empic_charge_density!(
         for I in eachindex(rho)
             rho[I] = _from_exact(T, exact[I])
         end
+    end
+    return (; eligible, lost)
+end
+
+# Exact totals use bounded integer accumulation when the represented exponents
+# permit it; the wider path retains every finite stored operand.
+function _empic_exact_sum(values::AbstractArray{T}) where {T<:Union{Float16,Float32,Float64}}
+    Q = Rational{BigInt}
+    isempty(values) && return Q(0)
+    reference = first(values)
+    isfinite(reference) || throw(ArgumentError("exact dyadic sum requires finite values"))
+    minimum_exponent = iszero(reference) ? typemax(Int) : last(frexp(reference))
+    maximum_exponent = iszero(reference) ? typemin(Int) : minimum_exponent
+    all_equal = true
+    for value in values
+        if value != reference
+            all_equal = false
+            isfinite(value) || throw(ArgumentError("exact dyadic sum requires finite values"))
+            if !iszero(value)
+                _, e = frexp(value)
+                minimum_exponent = min(minimum_exponent, e)
+                maximum_exponent = max(maximum_exponent, e)
+            end
+        end
+    end
+    if all_equal
+        return length(values) == 1 ? Q(reference) : Q(reference) * length(values)
+    end
+    minimum_exponent == typemax(Int) && return Q(0)
+    p = precision(T)
+    # n < 2^ndigits(n), so this bounds every absolute partial sum strictly
+    # below 2^127 in the selected quantum, including arbitrary sign order.
+    if p + maximum_exponent - minimum_exponent + ndigits(length(values); base = 2) > 127
+        return _empic_exact_repeated_sum(values)
+    end
+    total = zero(Int128)
+    for value in values
+        if !iszero(value)
+            fraction, e = frexp(value)
+            significand = Int128(ldexp(fraction, p))
+            total += significand << (e - minimum_exponent)
+        end
+    end
+    quantum = minimum_exponent - p
+    integer = BigInt(total)
+    return quantum >= 0 ? Q(integer << quantum) : integer // (BigInt(1) << -quantum)
+end
+
+function _empic_exact_repeated_sum(values)
+    Q = Rational{BigInt}
+    total = Q(0)
+    previous = zero(eltype(values))
+    count = 0
+    for value in values
+        if count > 0 && value != previous
+            total += count == 1 ? Q(previous) : Q(previous) * count
+            count = 0
+        end
+        previous = value
+        count += 1
+    end
+    count > 0 && (total += count == 1 ? Q(previous) : Q(previous) * count)
+    return total
+end
+
+function _empic_charge_shift_bounds(
+    ::Type{T},
+    shift::Rational{BigInt},
+) where {T<:Union{Float32,Float64}}
+    denominator(shift) > 0 || throw(ArgumentError("uniform shift must be finite"))
+    rounded = _from_exact(T, shift)
+    if isinf(rounded)
+        return rounded > 0 ? (floatmax(T), rounded) : (rounded, -floatmax(T))
+    end
+    represented = _exact_rational(rounded)
+    represented == shift && return (rounded, rounded)
+    return represented < shift ? (rounded, nextfloat(rounded)) : (prevfloat(rounded), rounded)
+end
+
+# Monotonicity certifies a cell when both bracketing shifts round to the same
+# result. Otherwise round the complete difference, including overflowing shifts.
+function _empic_complete_charge_shift!(
+    cells::AbstractArray{T},
+    shift::Rational{BigInt},
+) where {T<:Union{Float32,Float64}}
+    lower, upper = _empic_charge_shift_bounds(T, shift)
+    all(isfinite, cells) || throw(ArgumentError("uniform shift requires finite input cells"))
+    for I in eachindex(cells)
+        value = cells[I]
+        lower_result, upper_result = value - upper, value - lower
+        if isequal(lower_result, upper_result)
+            cells[I] = lower_result
+        else
+            cells[I] = _from_exact(T, _exact_rational(value) - shift)
+        end
+    end
+    return cells
+end
+
+# The target uses actual stored particle weights and the complete width product.
+# After the uniform correction, the total error is exactly the sum of the final
+# cell-rounding errors; a non-dyadic target need not be attained exactly.
+function _empic_reconcile_charge!(rho, es, e, ions)
+    volume = prod(_exact_rational.(es.g.dx))
+    if es.mobile && ions !== nothing
+        particles =
+            _exact_rational(e.q) * _empic_exact_sum(e.weight) +
+            _exact_rational(ions.q) * _empic_exact_sum(ions.weight)
+        target = particles / volume
+    else
+        target = length(rho) * _exact_rational(es.n0) - _empic_exact_sum(e.weight) / volume
+    end
+    shift = (_empic_exact_sum(rho) - target) / length(rho)
+    _empic_complete_charge_shift!(rho, shift)
+    return rho
+end
+
+# Capture reconciles built-in partition shapes after the raw arithmetic succeeds.
+# Custom stencils retain their represented coefficients and nonfinite data retain
+# the raw propagation. Neither the density scratch nor particle storage is changed.
+function _empic_charge_density!(
+    rho::Array{T,D},
+    ne::Array{T,D},
+    es,
+    e::ParticleSet{D,T},
+    ions::Union{Nothing,ParticleSet{D,T}},
+) where {D,T}
+    state = _empic_raw_charge_density!(rho, ne, es, e, ions)
+    if state.eligible && es.shape isa Union{NGP,CIC,TSC} && all(isfinite, rho)
+        _empic_reconcile_charge!(rho, es, e, ions)
     end
     return rho
 end

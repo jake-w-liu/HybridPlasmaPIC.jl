@@ -143,6 +143,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Both electromagnetic PIC families reconcile finite built-in-shape charge
+  snapshots to actual particle and background charge using complete stored cell
+  geometry. Each corrected cell is rounded once, preserving nonzero net charge
+  and bounding the total discrepancy by final cell rounding. Charge snapshots
+  intentionally change, so bitwise trajectories across versions are not promised.
+  Raw density deposition, custom-shape coefficients and saved checkpoint arrays
+  retain their existing behavior; validation tolerances are unchanged.
+
 - Both electromagnetic PIC families combine complete species currents when
   intermediate arithmetic overflows or underflows, including the legacy
   longitudinal mean. Midpoint deposition restores borrowed particle positions

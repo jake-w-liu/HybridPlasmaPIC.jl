@@ -1,7 +1,8 @@
 # Charge-deposition conservation
 
-Status: VALID-001 cause verified on Julia 1.12.7 and 1.13.1; repair design under
-investigation. No deposition change or validation-tolerance change is implemented.
+Status: VALID-001 passes local acceptance on Julia 1.12.7 and 1.13.2 and is
+integrated. Unchanged wave thresholds, resource, concurrency, coupled evolution,
+restart, compiler and quality gates pass. GitHub acceptance remains pending.
 
 ## Verified failure and cause
 
@@ -367,3 +368,296 @@ alone cannot serve as the complete normalization repair. The subsequent
 [per-species moment repair](MOMENT_NORMALIZATION_PLAN.md) records implementation
 and acceptance; [complete EMPIC charge combination](EMPIC_CHARGE_COMBINATION_PLAN.md)
 remains a separate follow-up.
+
+## Post-combination baseline and complete correction
+
+The frozen source matching pushed `4cd642c` reproduces validation 20's unchanged
+failure on both native versions: residual **9.889422779356765e-7** against
+**1e-8**, with frequency error **0.013636642520216225** passing **0.03**. The
+exact summed-density drift remains **115/2^53**. Each diagnostic driver passes
+four defect-witness assertions and exits 0; the validation metric itself fails.
+Logs: `/tmp/hybrid-charge-wave-post-combination{112,113}.log`. Source SHA256:
+`6aeb60babf6ce7e6f33ddbccbddd31c595ce9975d699669e4783bffb6808ce8e`.
+
+A nine-check probe per version compares represented `prod(dx)` with the exact
+product of stored widths. For the retained wave, the former gives target zero;
+the latter gives a small nonzero target. Both fixed-state replays have residual
+2.877175015333387e-12. Exact target, output-rounding and drift identities are in
+`/tmp/hybrid-charge-volume-convention{112,113}.log`. Passing that one residual
+cannot select the volume contract.
+
+An isolated complete-subtraction kernel brackets the exact rational uniform
+shift by adjacent hardware values. When the two endpoint subtractions agree,
+monotonic nearest rounding certifies the complete result; otherwise that cell
+uses the existing exact conversion owner. It handles a shift that overflows
+while its final subtraction is finite. **24,458 independent rounding-cell,
+boundary, random, view, invalid-input and ambient-precision checks pass per
+version**, exit 0. Brief, source and logs:
+`/tmp/hybrid-charge-uniform-shift-{brief.md,prototype.jl}` and
+`/tmp/hybrid-charge-uniform-shift{112,113}.log`.
+
+Resource probes pass 24 checks per version. For the captured 128-cell wave,
+represented-volume shifts require no exact cell conversion and allocate
+616–664 B; exact-width shifts require three exact cell conversions and allocate
+3,936–4,000 B. Evaluating every cell exactly allocates 119,568–139,360 B.
+Two deliberately uncertain 256-cell controls require all 256 exact conversions
+and allocate 211,632–454,856 B, so this is not a universal fast path. These are
+complete kernel allocation totals, not peak RSS. Timing samples remain specific
+to the shared host. Logs: `/tmp/hybrid-charge-uniform-shift-resources{112,113}.log`.
+
+### Coupled v5 experiment — pre-edit brief
+
+- Mode: isolated conservation design experiment, with no live production edits.
+- Acceptance: both volume conventions must run the unchanged full validation
+  and retain its frequency/continuity thresholds. Record actual physical state,
+  total-charge rounding and resources before selecting a production contract.
+- Baseline: post-MOMENT-002 witnesses and complete-subtraction controls above.
+  Start both copies from pushed `4cd642c`, preserving its tested charge owner.
+- Design gap: the earlier prototype assumes a finite represented volume and
+  rounds the correction before subtraction. Range repair now evaluates complete
+  width products; the ordinary density path still uses the represented product.
+  Selecting one global target is an explicit compatibility decision.
+- Invariants: use actual signed species weights and the immobile background;
+  never assume neutrality or suppress the diagnostic DC response. Compare one
+  fixed geometry convention per run, independent of particle position/range
+  flags. Preserve visible nonfinite results and all particle/scratch storage.
+- Owners: the isolated canonical EMPIC charge owner after complete combination;
+  reuse the previously verified bounded exact-sum prototype and complete-shift
+  kernel. Generic deposition/gather and solver/current/diagnostic code stay fixed.
+- Compatibility: only built-in NGP/CIC/TSC shapes enter this experiment's global
+  normalization. Existing custom-shape fixtures can deliberately have nonunit
+  stencil sums; their accepted coefficient semantics must remain unchanged.
+  No public shape trait/API is introduced. This boundary needs explicit tests
+  before production adoption. Nonfinite density/operand cases retain their
+  existing arithmetic; finite complete normalization is evaluated separately.
+- Strategy: two immutable copies. One targets the represented volume when it is
+  finite and positive, otherwise the exact width product; the other always
+  targets the exact width product. Eligible finite built-in results receive one
+  complete uniform correction. Keep the two policies and source hashes distinct.
+- Verification: both native full waves and independent state/target accounting;
+  then exact spatial/rounding tests, extreme geometry, custom/nonfinite controls,
+  public coupled evolution/restart, compiler/quality and cost gates before any
+  production adoption. This experiment alone does not close VALID-001.
+
+### V5 coupled results and rejected volume rule
+
+Both policies complete the unchanged 1,000-step wave on native Julia 1.12.7 and
+1.13.1: each run passes five assertions, with frequency error
+0.013636642520216225 and continuity residual 2.877175015333387e-12 against the
+original 0.03/1e-8 thresholds. Represented-volume totals and drift are exactly
+zero. Complete-width totals differ by 1/5070602400912917605986812821504 between
+the final two snapshots. Logs:
+`/tmp/hybrid-charge-reconcile-v5-{represented,complete}{112,113}.log`.
+These measurements include compilation/capture; they are not warmed benchmarks.
+
+A strict bitwise physical-state hypothesis passes for the represented policy
+but fails for the complete policy on both versions: 27 passes/five failures per
+comparison driver. All positions, weights and geometry remain identical. The
+complete policy's maximum final differences are 1.893e-23 in E, 2.426e-24 in B,
+1.935e-24 in J, 1.117e-23 in Jraw, and 3.389e-21 in velocity. The logs retain the
+full component measurements and failed assertions; no equality requirement was
+silently relaxed. This disproves bitwise compatibility for that policy; its
+physical acceptance still requires convergence and rounding-error evidence.
+Sources: `/tmp/hybrid-charge-reconcile-v5-state.jl` and `...state{112,113}.log`.
+
+**VERIFIED: finite positive `prod(dx)` is insufficient for choosing the
+represented-volume target.** On stored Float64 widths
+(1e-160, 1e-160, 1e200), the native product is about 0.999988867182683 times the
+exact product. Per-species range recovery already accounts for the lost
+intermediate. The represented reconciliation then injects about 1.392e114 into
+each empty cell, equivalent to 9.708e9 ULPs of the occupied cell. The Float32
+counterpart injects about 29,002 occupied-cell ULPs; a positive subnormal volume
+also differs by a factor 4/3. This rejects v5's finite-positive decision rule.
+The exact-width policy and any alternative geometry-only rule must pass these
+controls before adoption. Probe and first completed evidence:
+`/tmp/hybrid-valid001-contract-audit.jl` and
+`/tmp/hybrid-valid001-contract-audit-represented113.log` (144 witness assertions,
+exit 0; this is evidence of the defective policy, not its acceptance).
+
+The independent expanded matrix compares against the actual archived charge
+implementation, loaded in a separate module. It checks complete shifted-cell
+rounding, exact global error accounting, non-DC Fourier rounding bounds, signed
+and changed weights, empty/unequal populations, custom/nonfinite compatibility,
+unrepresentable native volumes, and finite cells with totals beyond hardware
+range. Driver: `/tmp/hybrid-charge-reconcile-v5-matrix.jl`. Initial execution
+could not load transitive SpectralOperators from the test environment; dedicated
+matrix environments expose the existing SpectralOperators/MPI dependencies.
+The original failed log remains retained; production source is unchanged.
+Matrix completion, contract choice and broader public/restart/compiler/resource
+gates remain pending. VALID-001 is still open.
+
+The complete-width matrix now passes **60,874 assertions on each native
+version**, both exit 0: 44,125 ordinary spatial/charge, 15,177 extreme-volume,
+1,040 custom/nonfinite, and 532 finite-cell/unrepresentable-total checks.
+Logs: `/tmp/hybrid-charge-reconcile-v5-matrix-complete112.log` and
+`...matrix-complete113-v2.log`. Only test-environment dependency exposure changed
+after the initial failed launch. Both source hashes still match the recorded v5
+complete candidate and archived MOMENT-002 baseline.
+
+### Production candidate — pre-edit brief
+
+- Mode: isolated repair candidate for periodic EMPIC charge conservation,
+  retaining the raw charge arithmetic as an independently testable stage.
+- Acceptance: both EMPIC families capture charge whose exact represented sum
+  differs from actual particle/background charge only by the final cell-rounding
+  errors. Pass the unchanged validation-20 tolerances, independent spatial/charge
+  bounds, public variable-step/subcycled/restart tests, existing integrations,
+  compiler/quality, concurrency and measured resource gates on both Julia versions.
+- Baseline: pushed `6ad7276` includes the verified current/charge range repairs.
+  The wave failure at `4cd642c`, rejected represented-volume witnesses and the
+  completed v5 exact-width gates above establish the required correction. Current
+  changes do not touch the charge owner; final integration must still be tested.
+- Cause: VERIFIED in the exact wave accounting above: rounding during stencil
+  evaluation, accumulation and charge subtraction changes the represented DC
+  total between snapshots. The periodic spectral divergence cannot correct DC;
+  the unchanged diagnostic observes the resulting residual. A final-cell finite
+  check also cannot certify the accuracy of an earlier volume product.
+- Contract: first compute the existing complete raw charge from represented
+  coefficients and inputs. For eligible finite results from built-in NGP/CIC/TSC,
+  set V to the exact product of stored widths and Qgrid to the actual signed
+  species weight/charge total divided by V, plus Ncell*n0 for an immobile
+  background. Set delta=(exact sum(raw)-Qgrid)/Ncell, then round each complete
+  raw[I]-delta once. The exact final sum error is the sum of those rounding errors;
+  do not promise exact equality to a non-dyadic target. Custom shapes retain raw
+  coefficient semantics; nonfinite/ineligible data retain visible propagation.
+- Canonical owner: split the existing common charge implementation into one raw
+  deposition stage and its existing `_empic_charge_density!` capture owner.
+  Keep both `_charge_density!` delegates, public initialization/step callers,
+  moment/density APIs, particle/scratch storage, diagnostics and field solvers.
+  No model field, archive schema, public option, or dependency is added.
+- Compatibility: finite built-in charge snapshots intentionally receive the
+  uniform correction, so their ordinary bitwise and per-cell nearest-stencil
+  contract changes. Preserve and test the previous raw stage's exact range and
+  ordinary-order contracts separately; retain the original assertions and add
+  independent final-capture assertions. Custom coefficients, raw density/gather
+  adjoint semantics, scratch contents and error propagation remain unchanged.
+  Existing archives retain saved snapshots; exact continuation between runs of
+  the new implementation is required, while cross-version bitwise trajectories
+  are not promised. Inspect restore behavior before accepting this boundary.
+- Strategy: port the verified bounded dyadic sum and monotonic complete-shift
+  certificate into the isolated common owner. Reuse canonical exact conversion;
+  no ambient BigFloat mutation, tolerance-dependent policy, special wave branch,
+  suppressed diagnostic, or catch. Keep complete grid/cell arithmetic independent
+  of particle positions and range flags. Avoid new cached model state.
+- Verification: preserve both baseline and rejected prototype evidence; reject
+  neutralization by checking nonzero/changed/signed/empty/unequal totals; reject
+  rounded-volume normalization using recovered/subnormal controls; reject
+  two-round correction using ties and overflowing shifts; reject custom-shape
+  normalization with nonunit coefficients. Add coupled convergence, checkpoint
+  continuation and failure/scratch controls. Compare full terminal JET diagnostics
+  and measure complete ordinary/cold calls against actual `6ad7276` source before
+  promotion. The matrix and wave results alone do not close these remaining gates.
+
+### V5 complete-call resource characterization
+
+The actual `6ad7276` charge owner and unchanged complete-width v5 prototype
+pass **504 resource/oracle assertions** on Julia 1.13.1: 48 ordinary, six cold
+and three fixed-grid population-size cases. Every case checks scratch/particle
+preservation and independent final rounding/total bounds before timing.
+Ordinary 5,000-particle cases allocate 3,528–6,088 B per corrected call versus
+0 B in the baseline. Shared-host median ratios range 0.505–1.966; mixed-load
+variation prevents a portable speed claim. Complete cold calls allocate
+179,272–5,136,504 B versus 164,920–4,649,400 B, with ratios 0.710–2.262.
+These are aggregate allocations, not peak resident memory.
+
+For the same eight-cell grid and equal weights, 16/256/4,096 particles require
+3,728–3,784 B per call. The 16-particle case takes 7.208 microseconds versus
+0.875 microseconds in the baseline (shared-host medians). This scalar correction
+cost remains an optimization target; no zero-allocation or maximum-performance
+claim applies to corrected capture. The final production source still needs its
+own gates on 1.12.7 and the newly released 1.13.2.
+Driver: `/tmp/hybrid-charge-conservation-v6-resources.jl`; results:
+`/tmp/hybrid-charge-reconcile-v5-root-resources113.{log,toml}`, exit 0.
+
+### Final v6 wave and resource gates
+
+The final candidate starts from pushed `6ad7276`; its full-PIC SHA256 is
+`7390c5803abe7148e056d577aa1295ab64c757754d651c2d57cbe0b9fc50e6aa`.
+Native Julia **1.12.7 and 1.13.2** each pass the unchanged 1,000-step wave's
+five assertions. The frequency error is 0.013636642520216225 and continuity
+residual is 2.877175015333387e-12, below the original 0.03/1e-8 thresholds.
+The final-step exact summed-density drift is
+1/5070602400912917605986812821504. Both current-revision baselines reproduce
+the original failed residual of 9.889422779356765e-7 and drift 115/2^53.
+Evidence: `/tmp/hybrid-charge-conservation-v6-{base-wave,wave}{112,1132}.log`.
+The candidate wave commands succeeded before their sequential integration
+commands began. Those complete integrations now pass **29,113 assertions per
+version**, terminal exit 0, across the full `test_empic.jl`, `test_empic1d.jl`
+and `test_io_electromagnetic.jl` files. The last includes exact checkpoint
+continuation, changed timestep/subcycling and edited particle storage controls.
+Logs: `/tmp/hybrid-charge-conservation-v6-integration{112,1132}.log`.
+
+Each version also passes **504 complete-call resource/oracle assertions**,
+with terminal exit 0. All 48 ordinary cases allocate 3,528–6,088 B versus 0 B
+in actual `6ad7276`; six cold cases allocate 179,272–5,136,504 B versus
+164,920–4,649,400 B. On the eight-cell equal-weight control, allocations remain
+3,728–3,784 B at 16/256/4,096 particles. For 16 particles, the median call takes
+6.709 microseconds versus 0.875 on 1.12.7, and 7.542 versus 1.000 on 1.13.2.
+Ordinary-case median ratios span 0.597–2.000 and 0.185–3.650 respectively under
+shared load; these observations support no portable timing claim. The small-call
+cost remains an optimization item. Logs and structured measurements:
+`/tmp/hybrid-charge-conservation-v6-resources{112,1132}.{log,toml}`.
+
+Checkpoint inspection confirms `_empic_checkpoint_fields` includes both saved
+charge arrays and `_restore_checkpoint_state!` restores the field bundle directly
+through `_restore_checkpoint_fields!`; it does not recalculate charge on load.
+Owners: `src/io/checkpoint.jl:722` and `:1025`. Exact new-version continuation
+passes in the complete electromagnetic I/O suite above.
+
+
+Final independent four-thread controls pass **2,273 assertions per version**,
+with terminal exit 0 on Julia 1.12.7 and 1.13.2. Across 162 fixtures they cover
+single-cell and odd grids through 3D, both EM families, Float32/64, all built-in
+shapes, mobile/background charge, unequal populations, contiguous particle
+views and extreme cancellation. Each fixture checks independent nearest-even
+cell bounds, exact charge-error identity, non-DC cell differences, scratch and
+particle preservation; 20 concurrent captures per fixture match the serial
+result before and after a changed particle weight. Ambient precision is unchanged.
+Logs: `/tmp/hybrid-charge-conservation-v6-concurrency{112,1132}.log`; driver:
+`/tmp/hybrid-charge-conservation-v6-concurrency.jl`. The first minimum-version
+launch used an unavailable `1.12.7` Juliaup channel and exited before Julia ran;
+its log remains `...concurrency112-channel-failure.log`. The installed `1.12`
+channel was checked to report 1.12.7 and used for the completed run. All 180
+frozen Julia source/test hashes still match the candidate manifest.
+
+
+The candidate's Julia 1.12.7 numerical/compiler/quality gate completes with
+**13,268 assertions**, terminal exit 0: 1,953 normalization, 2,936 strengthened
+raw/final charge, 892 current, 7,369 conservation, 106 concrete compiler,
+three package-analysis and nine Aqua checks. All 22 package terminal diagnostics
+match the byte-identical `6ad7276` baseline; the report ceiling is unchanged.
+Logs: `/tmp/hybrid-charge-conservation-v6-quality112.log` and
+`...diagnostics112.log`. The 1.13.2 candidate also passes **13,268 assertions**,
+terminal exit 0. Every one of its 21 package terminal diagnostics matches the
+same-runtime actual `6ad7276` baseline, which separately passes 4,577 assertions.
+Logs: `/tmp/hybrid-charge-conservation-v6-quality1132.log`,
+`...baseline-quality1132.log` and `...diagnostics1132.log`.
+
+The four-file production/test patch was replayed on a fresh `6ad7276` copy;
+all 180 resulting Julia source/test files match the frozen candidate byte for
+byte. JuliaFormatter 1.0.62 is idempotent for all four changed Julia files.
+Permanent tests retain the previous raw-stage assertions and add independent
+capture rounding, exact target, geometry and state-preservation controls.
+The README and changelog describe the changed capture contract and remaining
+accuracy boundary. No diagnostic, tolerance, schema or dependency changes.
+
+
+### Remaining local-accuracy boundary
+
+**VERIFIED:** the DC contract does not certify local deposition accuracy under
+strong ordinary cancellation. An independent 48-check witness on each of 1.12.7
+and 1.13.2 uses three colocated NGP
+electrons with weights `[2^precision(T), 1, -2^precision(T)]` for Float32/64 and
+both EM families/background modes. The native raw charge is `[0, 0]` with no
+range-loss flag; final capture restores the correct total -1 as `[-0.5, -0.5]`,
+while exact local deposition is `[-1, 0]`. The uniform correction preserves the
+raw non-DC error. This is an explicit accuracy limitation, not evidence that the
+DC target or complete-shift rounding failed. Source and completed evidence:
+`/tmp/hybrid-charge-conservation-v6-local-cancellation-boundary.jl` and
+`...local-cancellation{112,1132}.log` (48 assertions each, exit 0).
+
+Follow-up: evaluate compensated or binned local accumulation against independent
+spatial moment oracles for signed and unequal weights. Define its changed rounding
+contract separately from generic raw deposition, then require coupled accuracy,
+compiler, threaded/reduction and measured complete-call cost gates. A global
+correction alone cannot supply the missing non-DC information in this witness.

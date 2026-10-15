@@ -1,8 +1,8 @@
 # Energy diagnostic range repairs
 
 Status: field-energy repair `bef9802` is pushed and verified on Julia 1.12.7
-and 1.13.1. The public relativistic-energy repair passes its local gates on both
-versions and is integrated; push and GitHub acceptance remain pending.
+and 1.13.1. The public relativistic-energy repair is pushed as `8c1785c` and
+is included in the fully green `240f77c` run on actual Julia 1.12.7 and 1.13.2.
 Ordinary diagnostic performance remains an optimization target.
 
 ## Verified behavior
@@ -347,8 +347,10 @@ BigFloat and inputs outside these bounds retain the checked kernel.
 - [x] Promote only the three intended source/test files, byte-identical to the
   hash-verified and formatter-idempotent snapshot.
 - [x] Review the complete final diff, including the new permanent test file.
-- [ ] Push and observe GitHub acceptance.
+- [x] Push `8c1785c`; observe full GitHub acceptance with the repair included in `240f77c`.
 
-GitHub acceptance remains required after the push. The exceptional square-class
-work can still be quadratic for ambiguous signed sums; the experiment does not
-establish a general performance bound.
+The repaired energy source and permanent test file are byte-identical between
+`8c1785c` and green `240f77c`. [GitHub run 38741178196](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/38741178196)
+passes both package suites, formatting and all MPI ranks. [Job-log evidence](CI_RELIABILITY_PLAN.md#acceptance-run-at-240f77c).
+The exceptional square-class work can still be quadratic for ambiguous signed
+sums; these tests do not establish a general performance bound.

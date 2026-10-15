@@ -53,8 +53,8 @@ these cases and retain all existing numerical and error tests.
 - [x] Observe baseline failures of the new tests.
 - [x] Check compiler analysis, allocations, formatting and exact diff.
 - [x] Commit the verified repair.
-- [ ] Push after the current CI run completes.
-- [ ] Verify GitHub CI on the pushed revision.
+- [x] Push the repair (`a2154cf`).
+- [x] Observe the repair included in fully green `240f77c` acceptance.
 
 This repair does not address the separate moment-normalization range defects;
 those remain tracked in [the charge and moment plan](CHARGE_DEPOSITION_CONSERVATION_PLAN.md).
@@ -92,6 +92,8 @@ remain **22 / 21**, under the unchanged ceiling of 30. Evidence:
 cover both deposit APIs with vectors/views and both density APIs, Float32/64 and
 1D/3D. No numerical loop, thread partition or reduction was changed.
 
-The repair is ready to push after GitHub run 38722319490 finishes; that run tests
-`55d996b` and does not include this later repair. Keeping it running preserves
-its acceptance evidence instead of triggering workflow cancellation.
+The `_validate_deposition_inputs` function and threaded regression file are
+byte-identical between repair `a2154cf` and green `240f77c`; the surrounding
+deposition kernel changed separately for MOMENT-001. [GitHub run 38741178196](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/38741178196)
+passes both package suites on actual Julia 1.12.7/1.13.2, formatting and all MPI
+ranks. [Job-log evidence](CI_RELIABILITY_PLAN.md#acceptance-run-at-240f77c).

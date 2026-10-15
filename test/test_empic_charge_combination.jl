@@ -65,6 +65,32 @@ function particle_view(ps::ParticleSet{D,T}) where {D,T}
     )
 end
 
+# A capture has its own complete uniform-correction contract. The previous
+# nearest-stencil and ordered-arithmetic assertions below continue to test raw.
+function check_capture!(rho, ne, es, e, ions)
+    raw = copy(rho)
+    scratch = copy(ne)
+    @test H._charge_density!(rho, ne, es, e, ions) === rho
+    @test isequal(ne, scratch)
+    if es.shape isa Union{NGP,CIC,TSC} && all(isfinite, raw)
+        volume = prod(Q(dx) for dx in es.g.dx)
+        target = if es.mobile && ions !== nothing
+            (Q(e.q) * sum(Q, e.weight; init = Q(0)) + Q(ions.q) * sum(Q, ions.weight; init = Q(0))) / volume
+        else
+            length(raw) * Q(es.n0) - sum(Q, e.weight; init = Q(0)) / volume
+        end
+        shift = (sum(Q, raw) - target) / length(raw)
+        @test all(in_rounding_cell(rho[I], Q(raw[I]) - shift) for I in eachindex(raw))
+        if all(isfinite, rho)
+            errors = Q.(rho) .- (Q.(raw) .- shift)
+            @test sum(Q, rho) - target == sum(errors)
+        end
+    else
+        @test isequal(rho, raw)
+    end
+    return rho
+end
+
 function check_complete(es, e, ions)
     T = eltype(e.weight)
     particles = ions === nothing ? (e,) : (e, ions)
@@ -77,13 +103,16 @@ function check_complete(es, e, ions)
         exact .= Q(es.n0) .- exact
     end
     rho, ne = zeros(T, es.g.n), zeros(T, es.g.n)
-    @test H._charge_density!(rho, ne, es, e, ions) === rho
+    H._empic_raw_charge_density!(rho, ne, es, e, ions)
     @test all(in_rounding_cell(rho[I], exact[I]) for I in eachindex(rho))
     scratch = similar(ne)
     @test density!(scratch, e, es.g, es.shape) === scratch
     @test isequal(ne, scratch)
     @test all(isequal(a, b) for (a, b) in zip(storage, before))
-    return rho
+    raw = copy(rho)
+    check_capture!(rho, ne, es, e, ions)
+    @test all(isequal(a, b) for (a, b) in zip(storage, before))
+    return raw
 end
 
 @testset "Complete charge across species, background and cell range" begin
@@ -186,9 +215,10 @@ end
         expected, expected_ne = similar(rho), similar(ne)
         selected = mobile ? ions : nothing
         previous_charge!(expected, expected_ne, es, e, selected)
-        H._charge_density!(rho, ne, es, e, selected)
+        H._empic_raw_charge_density!(rho, ne, es, e, selected)
         @test isequal(rho, expected)
         @test isequal(ne, expected_ne)
+        check_capture!(rho, ne, es, e, selected)
     end
 end
 
@@ -235,8 +265,9 @@ end
         state = H._density_with_range!(ne, e, g, TSC())
         @test !state.lost
         expected = es.n0 .- ne
-        H._charge_density!(rho, ne, es, e, nothing)
+        H._empic_raw_charge_density!(rho, ne, es, e, nothing)
         @test isequal(rho, expected)
+        check_capture!(rho, ne, es, e, nothing)
     end
 end
 

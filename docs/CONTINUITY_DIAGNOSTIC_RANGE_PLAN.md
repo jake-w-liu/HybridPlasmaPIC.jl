@@ -169,3 +169,95 @@ the two planned FFT-call replacements. Logs and executable commands are in
 `/tmp/pic005_plan_reuse_handoff.md`; the runtime logs use the prefixes
 `/tmp/pic005_plan_reuse_{probe,regression,integration}{112,113}.log`.
 Validation 20 and severe cancellation accuracy remain separate open findings.
+
+
+## Current-transform follow-up on Julia 1.13.2
+
+The actual pushed `6ad7276` source still reproduces the separate current
+materialization defects on Julia 1.13.2. The unchanged exact integer-root probe
+passes **798 defect-witness assertions** plus eight dyadic representation
+controls, terminal exit 0. Its finite expected currents become nonfinite after
+raw forward FFT or inverse materialization; raw-current and charge arrays remain
+unchanged. This verifies the remaining defect, not a repair. Source SHA256:
+`07ffcf03d21f7572e9bf5068321dd7ab1c5df414654667d121a6a3e245130e49`.
+Driver: `/tmp/pic005_raw_current_coupled_probe.jl`; refreshed log:
+`/tmp/hybrid-current-materialization-6ad7276-baseline1132.log`.
+
+An isolated rational-inverse experiment factors a common odd denominator from
+all exact spectral coefficients, leaving dyadic scaled inputs for the existing
+band transform. It restores that denominator after the transform and before
+final hardware conversion. Unlike a fixed binary tail cutoff, this retains the
+entire represented rational input. The least common multiple can grow with grid
+size and denominator diversity; resource measurements remain required.
+
+The first Julia 1.13.2 probe passes **508 assertions**, terminal exit 0, against
+independent exact forward/inverse DFTs on 1D–3D grids with axes of length 1, 2 or
+4. It covers signed complex inputs, widely separated exponents, different odd
+denominators, dyadic equality, invalid rational inputs, and the retained
+midpoint/overflow-tail counterexamples. This proves these controls only; FFTW
+twiddle rounding on arbitrary grids and severe cancellation are still open.
+No production code is edited. Brief and source:
+`/tmp/hybrid-current-rational-transform-{brief.md,prototype.jl}`; log:
+`/tmp/hybrid-current-rational-transform-prototype1132.log`.
+
+
+Both refreshed Julia 1.12.7 runs also finish successfully: 806 baseline
+witness/representation checks and 508 isolated rational-transform checks.
+Logs use the same prefixes with suffix `112.log`. The actual-grid denominator
+probe passes 36 divisibility/parity checks on 1.13.2. For anisotropic Float64
+16³ geometry, 448 distinct odd denominator factors produce a 44,918-bit common
+denominator although each individual factor has at most 112 bits. That width
+alone spans 1,152 bands of the existing 39-bit band width. This is a measured
+representation-growth warning, not an observed count of executed FFTs or full
+call memory/time. Complete current performance must be measured before accepting
+this representation. Evidence: `/tmp/hybrid-current-rational-denominators.jl`
+and `...denominators1132.log`.
+
+
+The subsequent complete-current prototype passes **884 assertions per version**
+on 1.12.7 and 1.13.2 (876 raw-current/coupled-axis checks plus eight representation
+controls), both terminal exit 0. It retains exact density/current coefficients
+through projection and the rational inverse; all analytically finite expected
+currents in the refreshed baseline witnesses become finite and match their
+independent integer-root wave values. Raw current and charge snapshots remain
+unchanged. This is an isolated general-EMPIC experiment, with no ordinary fast-path,
+legacy-family, public-step or complete-call resource acceptance yet.
+Source and logs: `/tmp/hybrid-current-rational-pipeline-prototype-v2.jl` and
+`...prototype-v2-{112,1132}.log`. The original driver omitted FFTW from its imports
+and failed with three passes/one error before evaluating the prototype current;
+that original source/log is retained. The corrected driver adds only the missing
+import, without altering numerical assertions or production code.
+
+
+An independent density-source extension passes **9,912 assertions per version**
+with terminal exit 0. It uses analytic cosine/sine modes and independent
+nearest-even rounding cells to cover subtraction/forward/inverse range loss,
+subnormal source and timestep factors, anisotropic derivative scales, and the
+complete `floatmax - tiny` difference on every axis in 1D–3D. Source, raw-current
+and physical field arrays remain unchanged. Driver:
+`/tmp/hybrid-current-rational-density-prototype.jl`; logs:
+`...density-prototype{112,1132}.log`. These are still isolated pipeline checks;
+ordinary dispatch, arbitrary-grid conditioning, public steps, legacy current
+and production resource acceptance remain open.
+
+The first complete-call resource probe passes **736 exact spatial/repeat
+assertions** on Julia 1.13.2, terminal exit 0. It uses origin impulses on eight
+Float32/64 anisotropic grids with 4, 16, 32 or 64 cells and an independent
+integer-root inverse DFT. All expected finite cells satisfy their nearest-even
+rounding intervals; the baseline produces 1, 7 and 18 nonfinite component cells
+on each type's 16-, 32- and 64-cell cases. The prototype allocates 177,016 to
+8,694,008 bytes per complete call. Shared-host median times range 0.244 to
+14.157 milliseconds; these are measured small-grid observations, not bounds or
+ordinary-path speed comparisons. Driver: `/tmp/hybrid-current-rational-resource-prototype.jl`; log:
+`...resource-prototype1132.log`. No production current path has been changed.
+
+The larger-grid extension passes 40 finite-output, repeat and state-preservation
+checks on 1.13.2, terminal exit 0. Complete 8³ calls allocate **810,838,152 B**
+for Float32 and **811,238,592 B** for Float64; three warmed samples take
+3.35–5.17 s and 2.28–2.61 s, respectively, under shared host load. These are
+aggregate allocated bytes, not peak memory. The 8² controls allocate about
+11.8 MB per call. This measures a substantial exceptional-path cost; it does
+not establish exact spatial accuracy for those non-integer twiddles or a
+portable speed bound. Evidence: `/tmp/hybrid-current-rational-resource-larger.jl`
+and `...resource-larger1132.log`. A smaller representation or measured justified
+cost policy is still required before production acceptance.

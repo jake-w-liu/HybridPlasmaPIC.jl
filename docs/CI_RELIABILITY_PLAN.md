@@ -335,8 +335,26 @@ finishes its smoke step in **19m53s**, within the configured 40-minute limit,
 and reaches the final ion-collection summaries. Retained log:
 `/tmp/hybrid-ci-38741178196-mpi8-job.log`, lines 648–663. This run measures
 successful completion; it does not establish a runtime ceiling or the cause of
-variation between runs. Both Julia package jobs are still running, so the
-complete push remains under verification. No billing block is evidenced.
+variation between runs. The minimum-version package job now passes on actual
+Julia **1.12.7**: **357,258 assertions** in **114m37.1s**, with 22 JET reports.
+Its job log records the runtime at line 125 and summary at lines 1168–1172:
+`/tmp/hybrid-ci-38741178196-julia112-job.log`.
+
+The latest-version job also completes successfully on actual **Julia 1.13.2**:
+**357,259 assertions** in **140m52.1s**, with 21 JET reports. Its runtime and
+terminal summary are recorded at lines 125 and 1125–1126 of
+`/tmp/hybrid-ci-38741178196-julia-latest-job.log`. The GitHub API reports the
+whole run `completed/success`, with all six jobs successful. This exact SHA is
+fully green, including the latest stable Julia; no billing exception was used.
+The later three revision runs remain under verification.
+
+At `4cd642c`, the latest-version package job in
+[run 38750764319](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/38750764319)
+passes **358,979 assertions** in **97m39.2s** on actual **Julia 1.13.2**, with
+22 JET reports. Its minimum-version package job remains running; formatting
+and all MPI jobs pass. This is partial acceptance of the exact revision.
+Source log: `/tmp/hybrid-ci-38750764319-julia-latest-job.log`, lines 125,
+1012–1014 and 1205–1207.
 
 ## Preserve acceptance for every revision — CI-005
 
@@ -392,3 +410,25 @@ Scheduling repair `4c03c87` is pushed to main. Its
 is in progress while the earlier `240f77c` run remains in progress with both
 package jobs active. This verifies independent dispatch and retention of the
 older run; both still require terminal green results.
+
+## Latest stable refresh — October 15
+
+The [official manual downloads page](https://julialang.org/downloads/manual-downloads/)
+now lists Julia **1.13.2**, released October 14, 2026. Existing 1.13.1 measurements
+remain valid for that tested version; they do not establish 1.13.2 acceptance.
+The explicit 1.13.2 local channel installs successfully; `julia +1.13.2 --version`
+reports 1.13.2 and `juliaup status` retains the original default. A full native
+`Pkg.test()` run is active against immutable pushed `6ad7276`; its 179 Julia
+source/test hashes are recorded in `/tmp/hybrid-full-6ad7276-julia1132-source.json`.
+Log: `/tmp/hybrid-full-6ad7276-julia1132.log`.
+Final new-candidate checks must include 1.13.2 and minimum supported 1.12.7.
+CI already requests version `1`; record the actual selected version from each
+completed job log rather than inferring it from the matrix label.
+
+
+The first complete latest-stable GitHub acceptance is now recorded above at
+`240f77c` (actual 1.13.2, 357,259 assertions). The local watcher for that run
+exited on a GitHub API read timeout; its retained watch log is not a CI failure.
+Subsequent direct API inspection reports `completed/success` for the whole run
+and all six jobs, and the completed job logs provide the version and test evidence.
+Native `6ad7276` and the later pushed revisions still need their own final gates.

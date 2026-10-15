@@ -194,6 +194,14 @@ still apply, particularly when large terms nearly cancel. See the
 [diagnostic scope](docs/CONTINUITY_DIAGNOSTIC_RANGE_PLAN.md) and remaining
 [current-correction and ES/Gauss range limits](docs/EMPIC_RANGE_PLAN.md).
 
+For finite inputs and charge snapshots, EM PIC with built-in NGP/CIC/TSC shapes
+applies a uniform correction based on actual signed particle weights, background
+charge and the complete product of stored cell widths. The final total differs
+from that target only by final cell-rounding errors; nonzero net charge is
+retained. Local stencil and accumulation errors retain their separate arithmetic
+limits. Custom shapes retain their represented coefficients. See the
+[charge-capture contract and measured costs](docs/CHARGE_DEPOSITION_CONSERVATION_PLAN.md).
+
 Relativistic stepping and restart require subluminal stored velocities. Boundary
 validation compares the original components exactly when rounding could hide
 `|v| ≥ c`; inputs whose rounded speed ratio is already at least one remain
