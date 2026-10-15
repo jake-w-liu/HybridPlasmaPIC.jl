@@ -358,6 +358,9 @@ end
         external = MPI.bcast(ctx.mpi_rank == 0 ? mktempdir() : "", 0, ctx.comm)
         generation_path = joinpath(dir, manifest.generation)
         external_generation = joinpath(external, "saved")
+        # The broadcast above is not a barrier: every rank must finish the
+        # prior-generation reads before rank zero temporarily removes its path.
+        MPI.Barrier(ctx.comm)
         if ctx.mpi_rank == 0
             Base.Filesystem.rename(generation_path, external_generation)
             symlink(external_generation, generation_path; dir_target = true)
