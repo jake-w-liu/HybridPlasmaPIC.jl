@@ -273,3 +273,47 @@ against committed `a2154cf` passes: after restoring the timeout scalar in memory
 the parsed documents are identical, and the rank matrix remains `[2, 4, 8]`.
 Whitespace checks pass. GitHub acceptance is still pending; the current run is
 allowed to finish before another push cancels its package jobs.
+
+The Julia 1.13.1 job in run `38722319490` completes successfully with **352,519
+assertions** in 66m46.4s and 21 JET reports. This accepts the latest-Julia
+dependency repair and the included RayCon/KdV changes on the Linux runner.
+The Julia 1.12 job remains running; the eight-rank timeout still prevents a green
+overall run. Source log: `/tmp/hybrid-ci-38722319490-julia-latest.log`, lines
+125 (version), 974–975 (JET) and 1151–1153 (terminal package result).
+
+## Required Aqua gate — CI-004
+
+- Mode: repair required test-dependency error handling.
+- Acceptance: missing or broken Aqua imports fail; installed Aqua executes all
+  existing checks with unchanged options.
+- Baseline: VERIFIED, `JULIA_LOAD_PATH='@:@stdlib' julia +1.13.1
+  --project=/tmp/hybrid-threaded-alias113` reports `aqua = nothing`, one broken
+  test and `QUALITY_GATE_RETURNED_SUCCESS`, exit 0. Log:
+  `/tmp/hybrid-aqua-missing-baseline113.log`.
+- Cause: `test/test_quality.jl` catches every import error and uses `@test_skip`.
+  `Project.toml` lists Aqua in the required test target; contribution guidance
+  also says this file requires Aqua.
+- Invariants: retain `Aqua.test_all` and its existing exclusions; no production,
+  dependency, numerical or quality threshold changes.
+- Owner: `test/test_quality.jl`, included by the package test runner.
+- Compatibility: standalone quality testing needs the declared test environment.
+  Missing-dependency runs intentionally change from success to failure.
+- Strategy: unconditional import, matching the mandatory JET gate; remove the
+  catch, availability flag and skipped-success branch.
+- Verification: native installed-Aqua runs on 1.12/1.13, an actual missing-package
+  failure, an injected import-time failure, formatting and final diff review.
+  Local results pass; final GitHub acceptance remains pending.
+
+Keeping the broad catch, replacing it with a warning-only branch, or omitting
+`Aqua.test_all` would preserve false success; the negative probes and installed
+check counts must reject those alternatives.
+
+The repaired file passes all **9 Aqua checks per native version** with Aqua
+0.8.18 (both exit 0). Both negative probes exit 1 and preserve their original
+errors: missing package, and `AQUA_IMPORT_FAILURE_PROBE` from an isolated test
+package that throws during import. No quality check is skipped. Logs:
+`/tmp/hybrid-aqua-repair-installed{112,113}.log`,
+`/tmp/hybrid-aqua-repair-missing113.log`, and
+`/tmp/hybrid-aqua-repair-broken113.log`.
+The tested copy is byte-identical to `test/test_quality.jl`; formatter
+idempotence and whitespace checks pass. The diff retains all Aqua options.

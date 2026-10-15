@@ -28,7 +28,8 @@ julia --project=. test/test_hybrid.jl
 Note that test files relying on a test-only dependency must be run through
 `Pkg.test()` so those packages are on the load path. In particular,
 `test_quality.jl` requires Aqua, `test_extensions.jl` requires HDF5, and
-`test_jet.jl` requires JET. Missing JET or a failed analysis fails the test gate.
+`test_jet.jl` requires JET. Missing Aqua or JET, an import failure, or a failed
+analysis fails the corresponding test gate.
 
 ### Static analysis (JET) and quality (Aqua)
 

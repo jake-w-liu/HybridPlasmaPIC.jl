@@ -14,9 +14,10 @@ completeness. Comparative leadership requires reproducible external benchmarks.
 
 - Verified repairs are pushed through `55d996b`; remote `main` matches that SHA.
   [GitHub run 38722319490](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/38722319490)
-  has passed formatting and the 2-/4-rank MPI jobs. The 8-rank job reaches
+  has passed formatting, the 2-/4-rank MPI jobs and the Julia 1.13.1 package job
+  (**352,519 assertions**, 66m46.4s; JET reports 21). The 8-rank job reaches
   GitHub's explicit 20-minute timeout after passing checkpoint publication
-  and moment-buffer validation; both package jobs remain running.
+  and moment-buffer validation; the Julia 1.12 package job remains running.
   Acceptance remains pending; no billing block is evidenced. The combined native source passes JET
   (22/21 reports), Aqua and three concrete repair analyses on both versions.
 
@@ -212,6 +213,7 @@ performance review. “Pending” means no current-run completion claim.
 | THR-007 | Threaded deposition overwrites aliased values instead of rejecting them | Verified locally; push awaits current CI | VERIFIED: one- and four-thread probes clear aliased inputs while serial deposition rejects them unchanged. Shared preflight passes 3,012 one-thread integration and 754 four-thread assertions per native version; 24 concrete analyses are clean, JET/Aqua pass. New tests fail 324 checks on the baseline. All 18 measured ordinary cases retain exact outputs and allocations. [Plan](THREADED_DEPOSITION_PLAN.md). |
 | CI-003 | Eight-rank MPI job is interrupted by its 20-minute step limit | Bounded budget implemented; acceptance pending | VERIFIED: GitHub's explicit timeout diagnostic follows passing checkpoint and collective-buffer testsets. A 40-minute eight-rank window retains the complete test matrix and 20-minute 2/4-rank limits. Full runtime and acceptance remain unverified. [Plan](CI_RELIABILITY_PLAN.md#eight-rank-execution-budget--ci-003). |
 | MOMENT-001 | Deposition, normalization and species scaling lose finite moments | Confirmed; repair planned | Both native versions pass 12 cell-volume and 24 numerator/stencil/current witness checks, confirming zero/Inf outputs despite finite exact complete results. Canonical deposition/normalization must be repaired before charge reconciliation adoption. [Evidence and scope](CHARGE_DEPOSITION_CONSERVATION_PLAN.md#confirmed-prerequisite-cell-volume-range). |
+| CI-004 | Required Aqua import errors become skipped-success quality gates | Verified locally; push awaits current CI | VERIFIED: an actual missing-Aqua baseline exits 0 with one broken test. The repaired gate passes all nine checks on both native versions; missing-package and injected import-failure probes now exit 1. Existing checks/options are unchanged. [Contract and gates](CI_RELIABILITY_PLAN.md#required-aqua-gate--ci-004). |
 
 ## Completeness roadmap
 
