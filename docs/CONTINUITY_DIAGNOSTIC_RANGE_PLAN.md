@@ -314,3 +314,68 @@ Commands, raw logs, preserved harness failures and exact terminal statuses:
 `...-final-verification.json`, `...-quality-statuses.json`, `...-resource-statuses.json`.
 The current prototype still allocates roughly 578–594 MB at 8³. Its rational
 inverse policy and arbitrary-grid accuracy remain separate open work.
+
+## Arbitrary-grid current conditioning — October 16
+
+The unchanged isolated rational-current prototype fails the fixed engineering
+accuracy target `64eps(T)*norm(J_reference, Inf) + qmin/2` on six of 26 fixtures
+on **both Julia 1.12.7 and 1.13.2**. Each matrix process exits 1 with 1,880
+other checks passing and six accuracy failures; 16 independent oracle controls
+pass separately. All outputs are finite and repeatable, physical inputs remain
+unchanged, and references at 1,024/2,048/4,096 bits meet the declared convergence
+checks. Numerical convergence is not a rigorous enclosure. The target is an
+engineering acceptance threshold, not a claimed FFT forward-error theorem.
+
+The failing 5×5 cases are nearly longitudinal currents at large scale, near
+underflow and with permuted anisotropic wavevectors. Relative errors are
+0.99607/0.66667/0.85694 for Float32 and 1.39573/0.82143/0.58780 for Float64.
+**VERIFIED:** the recorded forward/modal, inverse and final-rounding decomposition
+places at least 84.6% of each failure's measured error before inverse rounding,
+using the reverse triangle inequality. This statement concerns the measured
+prototype and fixtures; refining only its inverse does not meet these targets.
+Driver, raw results and logs: `/tmp/hybrid-current-conditioning-v1/audit.jl`,
+`results{112,1132}.toml`, `audit{112,1132}.log`. Stored-input and output-bit
+comparisons across runtimes pass (`comparison.log`).
+
+A bounded follow-up applies the exact projector to spatial operands before
+each mode's unchanged rational/FFTW transform, then uses the unchanged rational
+inverse. Both versions still fail all six targets (1,170 other checks pass,
+terminal exit 1). Relative errors become 0.83265/0.79167/0.52439 and
+1.57655/1.14286/0.58684, respectively. Thus this specific reordering has mixed
+effects and is not a repair. Evidence: `coupling.jl`, `coupling{112,1132}.log`
+and `coupling{112,1132}.toml` in the same artifact directory.
+
+The prototype remains unmerged. Next work needs an independently checked
+forward-transform accuracy/error policy before claiming arbitrary-grid current
+acceptance. Keep the six failing cases and their target unchanged. Any eventual
+production projection must factor and reuse the unrounded algebra of
+`_spectral_exact_projection` in `src/models/electrostatic.jl`, whose current
+wrapper rounds modal components to T; directly calling that wrapper would
+materialize coefficients before the complete inverse expression.
+
+### Integer enclosure experiment
+
+An isolated direct-transform prototype passes the unchanged target on all 26
+fixtures on Julia 1.12.7 and 1.13.2, including the six retained failures above.
+Each process exits 0 with 851 root-enclosure controls, 138 transform/sign and
+normalization controls, and 2,786 physical-current/state checks. The algorithm
+uses integer outward-rounded Taylor intervals for roots of unity and exact
+rational centers/radii through the full projection and inverse. It does not
+use MPFR; the independent 4,096-bit serial reference does.
+
+Its reported certificate bounds output error using an explicit enclosure and
+a lower bound on the reference norm. This is experimental evidence, not a
+production guarantee or an independent proof review. All inputs remain
+unchanged and repeated outputs/enclosures agree. Accepted precisions are
+128, 256 and 2,048 bits. Measured warmed calls allocate 347,608–42,146,688 B
+on 1.12.7 and 347,576–42,146,688 B on 1.13.2 across these small fixtures.
+The direct transform has quadratic work and the experiment is explicitly
+capped at 125 cells; neither is a production fallback policy.
+
+Artifacts: `/tmp/hybrid-current-certified-v1/{algorithm,check}.jl`,
+`check-v1-{112,1132}.log`, `results{112,1132}.toml` and `initial-hashes.json`.
+Algorithm SHA256:
+`cf6690abbf964da45d86e11bc6e7ae40f70aa2280423027a10f340167289ee61`.
+Remaining work: independent enclosure review, scalable transforms and bounded
+storage, overflow-boundary decisions, precision-exhaustion/error semantics,
+concurrency and full solver integration. No production current code is changed.

@@ -3,8 +3,9 @@
 Status: final native acceptance passes on Julia 1.12.7 and 1.13.2: 1,090
 focused/resource/concurrency, 14,100 quality/numerical and 29,473 complete
 EM/EM1D/checkpoint assertions per runtime. All concrete/package compiler reports
-match baseline. The tested repair is implemented; exact-revision GitHub
-acceptance remains pending.
+match baseline. The tested repair is pushed as `b73abfe`; its exact-revision
+[GitHub run](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/38777494822)
+is active. Acceptance remains pending.
 
 ## Pre-edit brief
 

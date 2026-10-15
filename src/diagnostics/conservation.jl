@@ -18,22 +18,27 @@ and the electron closure energy ([`electron_internal_energy`](@ref)) — the
 internal energy `∫ p_e/(γ−1) dV` for a polytropic closure (γ≠1), the electron
 free energy `T_e ∫ n ln n dV` (its exact γ→1 limit) for an isothermal closure,
 and the gyrotropic internal energy `∫ (p_⊥ + p_∥/2) dV` for a CGL closure.
-`total` is their sum, and at `η = 0` it is conserved by the continuum model —
-exactly for the scalar closures, and modulo the anisotropic battery term
-`∝ (p_⊥ − p_∥)` for CGL.
+`total` is their sum. For periodic ideal massless scalar-closure evolution
+(`η = ηH = de2 = 0`) with inactive density floors, the continuum model conserves
+this total. This is not an exact discrete-conservation guarantee for the explicit
+particle/field integrator. CGL additionally has the anisotropic battery term
+`∝ (p_⊥ − p_∥)`.
 
 With finite electron mass (`HybridModel(...; de2 > 0)`), pass the same `de2`
-here: the electron-inertia reservoir `∫ d_e² |J|²/2 dV` (`J = ∇×B` via the
-spectral curl; physically the electron flow kinetic energy `½ n m_e |u_e|²` on
-the `n ≈ 1` background the inertia filter assumes) is added as
-`electron_inertia`. Without it, `total` in a multi-D `de2 > 0` run appears
-non-conserved by up to the fluctuation magnetic energy as energy exchanges
-between `B` and the electron flow. The default `de2 = 0.0` contributes
-exactly `0` (no behavior change).
+here: the quadratic reservoir `∫ d_e² |J|²/2 dV` (`J = ∇×B` via the spectral
+curl) is added as `electron_inertia`. It closes the ideal field-only balance
+with fixed ions and uniform density. The implemented reduced field filter is
+not the full electron momentum equation: for moving ions its balance retains
+`d_e² ∫ J_i·∂tJ dV`, where `J_i = n u_i`. Adding this reservoir therefore does
+not establish general total-energy conservation. The default `de2 = 0.0`
+contributes exactly `0`.
 
-With resistivity `η > 0`, `total` decays at the Ohmic rate
-([`resistive_dissipation`](@ref)); that loss is not deposited in any tracked
-reservoir — see the [`resistive_dissipation`](@ref) docstring.
+For scalar closures with `de2 = 0` and inactive floors, dissipative Ohm terms
+`R = ηJ − ηH∇²J` contribute `∫ (J_i − J)·R dV` to the continuum total rate.
+The ion pusher receives the full electric field, including R, while the
+algebraic electron pressure has no independently evolving heat reservoir.
+Consequently [`resistive_dissipation`](@ref) alone is not the net tracked-energy
+loss. See `docs/HYBRID_ENERGY_MODEL_PLAN.md` for the balance and witnesses.
 
 `B` is the 3-tuple of magnetic-field arrays (e.g. `stepper.fields.B`), `n` the
 electron/ion density array, `closure` the `ElectronClosure`, and `g` the
@@ -140,14 +145,20 @@ end
 """
     resistive_dissipation(J, η, g) -> Real
 
-Volume-integrated Ohmic dissipation rate `∫ η |J|² dV = η Σ_g |J_g|² · prod(g.dx)`,
-the rate at which resistivity **removes** energy from the tracked budget
-([`energy_budget`](@ref)`.total` decays at approximately this rate). Physically
-this is electron heating, but the algebraic closures (isothermal / polytropic /
-CGL) slave `p_e` to `(n, B)` and cannot receive it, so the energy leaves the
-model. Do **not** also add it to the electron-internal ledger — that would
-double-book the loss. `J` is the 3-tuple of current-density arrays, `η` the
-(scalar) resistivity, `g` the `FourierGrid`.
+Volume-integrated Ohmic quadratic form
+`∫ η |J|² dV = η Σ_g |J_g|² · prod(g.dx)`.
+
+This is not generally the net loss of [`energy_budget`](@ref)`.total`. With
+scalar algebraic pressure, `ηH = de2 = 0` and inactive density floors, the
+continuum Ohmic contribution to that total is
+`η ∫ J_i·J dV − ∫ η|J|² dV`, because the ion pusher also receives `ηJ`.
+The algebraic closures have no separate heat reservoir. Adding this quadratic
+form as electron heating alone would leave the ion-work term; a conservative
+heating extension also needs a consistent ion recoil model.
+
+`J` is the 3-tuple of current-density arrays, `η` the scalar resistivity, and
+`g` the `FourierGrid`. The returned numerical quantity is unchanged by these
+energy-accounting qualifications.
 """
 function resistive_dissipation(
     J::NTuple{3,<:AbstractArray{T}},

@@ -148,6 +148,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Clarify hybrid energy accounting: the Ohmic quadratic diagnostic is not
+  generally the net tracked-energy loss, and the reduced inertia reservoir
+  does not establish moving-ion total-energy conservation. Numerical outputs
+  and forces are unchanged.
+
 - Legacy electromagnetic PIC removes the transverse Nyquist mode without
   overflowing its alternating sum or prematurely rounding a subnormal mean.
   Selected finite inputs use the complete cell expression, preserving finite

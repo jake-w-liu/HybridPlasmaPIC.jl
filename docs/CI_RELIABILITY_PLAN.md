@@ -397,10 +397,19 @@ No billing exception is evidenced.
 
 The dyadic-allocation optimization is pushed as `afc324f` with all 180
 source/test blobs matching native acceptance. [Run 38774781309](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/38774781309)
-is active; formatting and 2-/4-rank MPI pass, while both package jobs and
-8-rank MPI are running.
+is active; formatting and all three MPI ranks pass. Both package jobs remain
+running.
 No billing block is evidenced. Native commands and complete diagnostic comparison
 are recorded in [PERF-005](CONTINUITY_DIAGNOSTIC_RANGE_PLAN.md#dyadic-digit-extraction-allocation--perf-005).
+
+## Acceptance run at b73abfe
+
+The transverse Nyquist repair is pushed as `b73abfe`; all 181 source/test index
+hashes match the final frozen native acceptance snapshot. [Run 38777494822](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/38777494822)
+is active, with formatting and all three MPI ranks green. Native focused/resource/concurrency (1,090), quality/numerical
+(14,100) and complete solver/checkpoint (29,473) assertions pass on each of
+1.12.7/1.13.2. Full compiler reports match baseline; exact GitHub acceptance
+remains pending. [Contract and evidence](EMPIC_NYQUIST_RANGE_PLAN.md).
 
 ## Preserve acceptance for every revision — CI-005
 
