@@ -314,13 +314,13 @@ only the final division cannot recover a numerator already lost to range.
 Specify the finite-volume rounding contract, preserve ordinary-path behavior
 where required, then test exact occupied/empty-cell results, variable weights,
 shape and dimension variants, charge coupling, compiler reports and resources.
-The broader numerator cases are not yet measured by this four-case probe.
+The broader numerator cases were subsequently measured by the probe below.
 The inspected callers include `momentum!` and `current!` in
 `src/coupling/moments.jl`, and both general/legacy `_charge_density!` paths in
 `src/models/full_pic.jl`. EMPIC validates electron/ion charges as −1/+1, so its additional range checks
 must cover cancellation between species or against the background. The public
 `current!` also multiplies by the species charge after materializing momentum.
-Those specific extreme-input outcomes have not yet been measured here.
+The public-current witness below confirms charge-scaling failure; EMPIC species/background cancellation remains unmeasured here.
 
 ### Additional normalization witnesses
 
@@ -348,3 +348,20 @@ cell normalization and applicable species coefficient through range-sensitive
 intermediates. Keep generic deposit/gather adjoint semantics and validate both
 scratch/no-scratch moment calls, signed/zero weights and charges, ordinary
 results/resources, and coupled density/current consumers before adoption.
+
+### Control against premature weight normalization
+
+**VERIFIED:** predividing particle weights by the cell volume would regress a
+currently correct case. A 2×2 unit-domain CIC grid with one particle at (0.25,
+0.25) and weight `floatmax(T)/2` deposits one quarter of that weight into each
+cell. The cell volume is one quarter, so each final density equals the original
+finite weight. The current implementation matches the exact rational result
+in all cells for Float32 and Float64. Predividing that weight by the volume
+instead yields Inf before applying the stencil.
+
+The independent control passes **eight assertions on each native version**.
+Evidence: `/tmp/hybrid-moment-prescale-control.jl` and
+`/tmp/hybrid-moment-prescale-control{112,113}.log`, both exit 0. Preserve this
+case alongside the overflow/underflow witnesses: changing multiplication order
+alone cannot serve as the complete normalization repair. No production moment
+implementation has changed.
