@@ -478,10 +478,10 @@ function _finish_moment!(
             out[I] = accumulate ? out[I] + value : value
         end
     end
-    return out
+    return (; eligible, lost)
 end
 
-function density!(
+function _density_with_range!(
     nout::Array{T,D},
     ps::ParticleSet{D,T},
     g::FourierGrid{D,T},
@@ -491,6 +491,16 @@ function density!(
     factors = (ps.weight,)
     state = _deposit_scalar_kernel!(nout, ps, factors, g, shape, Val(true))
     return _finish_moment!(nout, nout, ps, factors, g, shape, one(T), state)
+end
+
+function density!(
+    nout::Array{T,D},
+    ps::ParticleSet{D,T},
+    g::FourierGrid{D,T},
+    shape::ShapeFunction,
+) where {D,T}
+    _density_with_range!(nout, ps, g, shape)
+    return nout
 end
 
 function _deposit_vector_moment!(out, ps, g, shape, coefficient, work)

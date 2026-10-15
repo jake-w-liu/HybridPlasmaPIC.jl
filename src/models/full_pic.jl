@@ -244,25 +244,67 @@ end
 
 # ---------------------------------------------------------------- charge density
 
-# Number-density-weighted charge density of ONE species accumulated into `rho`
-# (rho += q · n_species). Electrons (q=−1) subtract, ions (q=+1) add.
-@inline function _add_species_charge!(
-    rho::Vector{T},
-    ne::Vector{T},
-    es::EMPIC1D{T},
-    s::ParticleSet{1,T},
-) where {T}
-    density!(ne, s, es.g, es.shape)
-    q = s.q
-    @inbounds for i in eachindex(rho)
-        rho[i] += q * ne[i]
+# Range status must survive per-species normalization: even a correctly rounded
+# density can lose a contribution that the total charge can represent.
+function _empic_charge_density!(
+    rho::Array{T,D},
+    ne::Array{T,D},
+    es,
+    e::ParticleSet{D,T},
+    ions::Union{Nothing,ParticleSet{D,T}},
+) where {D,T}
+    mobile = es.mobile && ions !== nothing
+    eligible = true
+    lost = false
+    if mobile
+        fill!(rho, zero(T))
+        for species in (ions, e)
+            state = _density_with_range!(ne, species, es.g, es.shape)
+            eligible &= state.eligible && isfinite(species.q)
+            lost |= state.lost
+            @inbounds for I in eachindex(rho)
+                contribution = species.q * ne[I]
+                value = rho[I] + contribution
+                lost |=
+                    _deposition_product_lost(species.q, ne[I], contribution) ||
+                    _deposition_range_lost(value)
+                rho[I] = value
+            end
+        end
+    else
+        state = _density_with_range!(ne, e, es.g, es.shape)
+        eligible = state.eligible && isfinite(es.n0)
+        lost = state.lost
+        @inbounds for I in eachindex(rho)
+            value = es.n0 - ne[I]
+            lost |= _deposition_range_lost(value)
+            rho[I] = value
+        end
+    end
+    if eligible && lost
+        # Preserve the ordinary electron-density scratch. The complete charge
+        # replay reads original particle operands and combines before conversion.
+        exact = _exact_moment(e, (e.weight,), es.g, es.shape, mobile ? e.q : one(T))
+        if mobile
+            ion_exact = _exact_moment(ions, (ions.weight,), es.g, es.shape, ions.q)
+            for I in eachindex(exact)
+                exact[I] += ion_exact[I]
+            end
+        else
+            background = _exact_rational(es.n0)
+            for I in eachindex(exact)
+                exact[I] = background - exact[I]
+            end
+        end
+        for I in eachindex(rho)
+            rho[I] = _from_exact(T, exact[I])
+        end
     end
     return rho
 end
 
-# Total charge density ρ at the CURRENT particle positions.
-#   immobile-ion mode : ρ = n0 + q_e·n_e = n0 − n_e   (uniform +n0 background)
-#   mobile-ion mode   : ρ = q_i·n_i + q_e·n_e = n_i − n_e
+# Total charge density at current positions: ions plus electrons when mobile,
+# or the uniform positive background minus electron number density otherwise.
 function _charge_density!(
     rho::Vector{T},
     ne::Vector{T},
@@ -270,17 +312,7 @@ function _charge_density!(
     e::ParticleSet{1,T},
     ions::Union{Nothing,ParticleSet{1,T}},
 ) where {T}
-    if es.mobile && ions !== nothing
-        fill!(rho, zero(T))
-        _add_species_charge!(rho, ne, es, ions)   # + q_i n_i
-        _add_species_charge!(rho, ne, es, e)       # + q_e n_e
-    else
-        density!(ne, e, es.g, es.shape)            # electron number density n_e
-        @inbounds for i in eachindex(rho)
-            rho[i] = es.n0 - ne[i]                 # n0 − n_e (immobile ion bg)
-        end
-    end
-    return rho
+    return _empic_charge_density!(rho, ne, es, e, ions)
 end
 
 # ---------------------------------------------------------------- Esirkepov-exact
@@ -1531,20 +1563,6 @@ function _enforce_gauss!(es::EMPIC{D,T}) where {D,T}
     return es.E
 end
 
-@inline function _add_species_charge!(
-    rho::Array{T,D},
-    ne::Array{T,D},
-    es::EMPIC{D,T},
-    s::ParticleSet{D,T},
-) where {D,T}
-    density!(ne, s, es.g, es.shape)
-    q = s.q
-    @inbounds for I in eachindex(rho)
-        rho[I] += q * ne[I]
-    end
-    return rho
-end
-
 function _charge_density!(
     rho::Array{T,D},
     ne::Array{T,D},
@@ -1552,17 +1570,7 @@ function _charge_density!(
     e::ParticleSet{D,T},
     ions::Union{Nothing,ParticleSet{D,T}},
 ) where {D,T}
-    if es.mobile && ions !== nothing
-        fill!(rho, zero(T))
-        _add_species_charge!(rho, ne, es, ions)
-        _add_species_charge!(rho, ne, es, e)
-    else
-        density!(ne, e, es.g, es.shape)
-        @inbounds for I in eachindex(rho)
-            rho[I] = es.n0 - ne[I]
-        end
-    end
-    return rho
+    return _empic_charge_density!(rho, ne, es, e, ions)
 end
 
 function _add_species_current!(

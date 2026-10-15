@@ -376,8 +376,8 @@ leaves the observed problem. Dropping tests would not satisfy acceptance. The
 selected change keeps every job and separates distinct revisions explicitly.
 
 - [x] Pass workflow lint and structural/key checks.
-- [ ] Commit and push only this scheduling repair.
-- [ ] Verify earlier and later revisions remain running independently.
+- [x] Commit and push only this scheduling repair (`4c03c87`).
+- [x] Verify earlier and later revisions remain running independently.
 - [ ] Observe every pushed revision finish green (or record actual billing evidence).
 
 Local CI-005 checks pass: actionlint 1.7.12 exits 0
@@ -386,3 +386,9 @@ confirms the only semantic workflow change is `concurrency.group`. Explicit key
 controls separate distinct SHA/workflow/ref values and the active old group,
 while retaining equal keys for duplicate SHA runs. Evidence:
 `/tmp/hybrid-ci-per-commit-structure.log`. GitHub execution remains pending.
+
+Scheduling repair `4c03c87` is pushed to main. Its
+[run 38750474902](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/38750474902)
+is in progress while the earlier `240f77c` run remains in progress with both
+package jobs active. This verifies independent dispatch and retention of the
+older run; both still require terminal green results.

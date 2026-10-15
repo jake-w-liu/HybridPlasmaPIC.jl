@@ -99,5 +99,6 @@ function density_threaded!(
     _validate_deposition_inputs(nout, ps, ps.weight, g)
     factors = (ps.weight,)
     state = _deposit_scalar_threaded_kernel!(nout, ps, factors, g, shape, Val(true))
-    return _finish_moment!(nout, nout, ps, factors, g, shape, one(T), state)
+    _finish_moment!(nout, nout, ps, factors, g, shape, one(T), state)
+    return nout
 end
