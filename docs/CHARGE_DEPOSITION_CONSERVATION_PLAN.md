@@ -321,3 +321,30 @@ The inspected callers include `momentum!` and `current!` in
 must cover cancellation between species or against the background. The public
 `current!` also multiplies by the species charge after materializing momentum.
 Those specific extreme-input outcomes have not yet been measured here.
+
+### Additional normalization witnesses
+
+A second probe confirms that a cell-volume-only fix is insufficient. Both native
+versions pass **24 witness assertions** for six baseline defects:
+
+- With 16 colocated NGP particles of weight `floatmax(T)/4` and cell width 1e8,
+  the raw sum overflows before division. The complete Float32/64 densities are
+  about 1.36e31 / 7.19e300; the implementation returns Inf.
+- A single CIC particle in 2D has a cross-node contribution that underflows
+  before normalization. The complete densities are about 1e-20 / 1e-250 for
+  Float32/64; the implementation returns zero. Both cell volumes are finite
+  and positive. The exact oracle uses the actual stored stencil coefficients.
+- `current!` forms overflowing momentum before applying a small finite species
+  charge. The complete Float32/64 currents are about 1.36e19 / 7.19e108;
+  the implementation returns Inf in all three components. These are public
+  moment calls, separate from EMPIC's unit-charge restriction.
+
+All positions, particle weights, velocities and charges used here are finite.
+Evidence: `/tmp/hybrid-moment-range-expanded.jl` and
+`/tmp/hybrid-moment-range-expanded{112,113}.log` (both exit 0). These passing
+witness checks demonstrate baseline defects; they do not validate a repair.
+The required implementation must preserve the complete weighted stencil sum,
+cell normalization and applicable species coefficient through range-sensitive
+intermediates. Keep generic deposit/gather adjoint semantics and validate both
+scratch/no-scratch moment calls, signed/zero weights and charges, ordinary
+results/resources, and coupled density/current consumers before adoption.
