@@ -63,6 +63,7 @@ using Test
     include("test_shock_converge.jl")
     include("test_threaded.jl")
     include("test_budgets.jl")
+    include("test_relativistic_energy_range.jl")
     include("test_repro.jl")
     include("test_collisions.jl")
     include("test_inject.jl")

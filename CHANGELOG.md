@@ -143,6 +143,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Relativistic kinetic energy retains finite complete weighted results when
+  intermediate squares, products or sums exceed floating-point range, and
+  resolves uncertain speed limits from the exact stored velocity components.
+  Ordinary results retain their arithmetic order; signed weights, nonfinite
+  factors, BigFloat precision contexts and writable views remain supported.
+
 - Threaded scalar and density deposition share serial input validation and
   reject output aliases of values or particle storage before clearing arrays.
 - KdV dealiasing projects both operands and the quadratic product onto the

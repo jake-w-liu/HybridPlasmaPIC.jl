@@ -570,6 +570,180 @@ function kinetic_energy(species::AbstractVector{<:ParticleSet{D,T}}) where {D,T}
     return energy
 end
 
+# Cold energy arithmetic retains all finite particle factors through final rounding.
+
+function _relativistic_rational_sqrt(value::Rational{BigInt})
+    n, d = numerator(value), denominator(value)
+    sn, sd = isqrt(n), isqrt(d)
+    return sn * sn == n && sd * sd == d ? sn // sd : nothing
+end
+
+function _combine_relativistic_radical!(
+    radicands::Vector{Rational{BigInt}},
+    coefficients::Vector{Rational{BigInt}},
+    r::Rational{BigInt},
+    a::Rational{BigInt},
+)
+    iszero(a) && return zero(Rational{BigInt})
+    root = _relativistic_rational_sqrt(r)
+    root === nothing || return a * root
+    for i in eachindex(radicands)
+        ratio_root = _relativistic_rational_sqrt(r / radicands[i])
+        if ratio_root !== nothing
+            coefficients[i] += a * ratio_root
+            return zero(Rational{BigInt})
+        end
+    end
+    push!(radicands, r)
+    push!(coefficients, a)
+    return zero(Rational{BigInt})
+end
+
+function _finish_relativistic_energy(
+    ::Type{T},
+    rational::Rational{BigInt},
+    radicands,
+    coefficients,
+) where {T}
+    active = findall(!iszero, coefficients)
+    isempty(active) && return _from_exact(T, rational)
+    bits = precision(T) + 16
+    canonical = length(active) < 2
+    while true
+        scale = BigInt(1) << bits
+        lower, upper = rational, rational
+        for i in active
+            r, a = radicands[i], coefficients[i]
+            # floor(sqrt(r)*2^bits), obtained without a floating-point operation.
+            root_floor = isqrt(div(numerator(r) << (2bits), denominator(r)))
+            lo, hi = root_floor // scale, (root_floor + 1) // scale
+            if a > 0
+                lower += a * lo
+                upper += a * hi
+            else
+                lower += a * hi
+                upper += a * lo
+            end
+        end
+        rounded_lower = _from_exact(T, lower)
+        rounded_upper = _from_exact(T, upper)
+        if isequal(rounded_lower, rounded_upper)
+            return rounded_lower
+        end
+        if !canonical && (
+            lower <= 0 <= upper ||
+            rounded_lower == rounded_upper ||
+            (isfinite(rounded_lower) && nextfloat(rounded_lower) == rounded_upper)
+        )
+            # Only exact zero or an exact rational midpoint can prevent eventual
+            # agreement. Resolve square-class relations when the bounds have
+            # narrowed to one rounding boundary or enclose zero, not for every
+            # ordinary sum. BigFloat zero needs this explicit symbolic path.
+            combined_r, combined_a = Rational{BigInt}[], Rational{BigInt}[]
+            for i in active
+                rational += _combine_relativistic_radical!(
+                    combined_r,
+                    combined_a,
+                    radicands[i],
+                    coefficients[i],
+                )
+            end
+            radicands, coefficients = combined_r, combined_a
+            active = findall(!iszero, coefficients)
+            isempty(active) && return _from_exact(T, rational)
+            canonical = true
+        end
+        bits *= 2
+    end
+end
+
+function _kinetic_energy_relativistic_exact(ps::ParticleSet{D,T}, c::Real) where {D,T}
+    cT = _require_finite_positive_real("c", c, T)
+    c2 = _exact_rational(cT)^2
+    mc2 = _exact_rational(ps.m) * c2
+    rational = zero(Rational{BigInt})
+    radicands, coefficients = Rational{BigInt}[], Rational{BigInt}[]
+    indices = Dict{Rational{BigInt},Int}()
+    for p in eachindex(ps.weight)
+        all(isfinite(ps.v[d][p]) for d = 1:3) ||
+            throw(ArgumentError("particle $p velocity must be finite"))
+        v2 = sum(_exact_rational(ps.v[d][p])^2 for d = 1:3)
+        v2 < c2 || throw(ArgumentError("particle $p has |v| ≥ c"))
+        iszero(v2) && continue
+        a = mc2 * _exact_rational(ps.weight[p])
+        iszero(a) && continue
+        rational -= a
+        r = c2 / (c2 - v2)
+        index = get(indices, r, 0)
+        if index != 0
+            coefficients[index] += a
+        else
+            root = _relativistic_rational_sqrt(r)
+            if root === nothing
+                push!(radicands, r)
+                push!(coefficients, a)
+                indices[r] = length(radicands)
+            else
+                rational += a * root
+            end
+        end
+    end
+    return _finish_relativistic_energy(T, rational, radicands, coefficients)
+end
+
+@inline _relativistic_range_lost(value::T) where {T<:AbstractFloat} =
+    !isfinite(value) | (!iszero(value) & (abs(value) < floatmin(T)))
+@inline _relativistic_range_lost(value::Union{Float16,Float32,Float64}) =
+    !isfinite(value) | issubnormal(value)
+@inline _relativistic_product_lost(a, b, value) =
+    _relativistic_range_lost(value) | (iszero(value) & !iszero(a) & !iszero(b))
+
+# Nonfinite weights keep their original multiplication-before-division order.
+# Only the uncertain norm and root are resolved from the exact stored components.
+function _relativistic_beta_root(vx, vy, vz, c, particle)
+    (isfinite(vx) && isfinite(vy) && isfinite(vz)) ||
+        throw(ArgumentError("particle $particle velocity must be finite"))
+    c2 = _exact_rational(c)^2
+    v2 = _exact_rational(vx)^2 + _exact_rational(vy)^2 + _exact_rational(vz)^2
+    v2 < c2 || throw(ArgumentError("particle $particle has |v| ≥ c"))
+    ratio = (c2 - v2) / c2
+    exact_root = _relativistic_rational_sqrt(ratio)
+    T = typeof(c)
+    root =
+        exact_root === nothing ?
+        _finish_relativistic_energy(T, zero(Rational{BigInt}), [ratio], [one(Rational{BigInt})]) :
+        _from_exact(T, exact_root)
+    return _from_exact(T, v2 / c2), root
+end
+
+@inline _relativistic_magnitude_certified(value, lower, upper) =
+    iszero(value) | ((lower <= abs(value)) & (abs(value) <= upper))
+
+function _relativistic_range_certificate(ps::ParticleSet{D,T}, c::T) where {D,T}
+    T <: Union{Float32,Float64} || return false
+    p = precision(T)
+    nbits = ndigits(max(1, length(ps.weight)); base = 2)
+    # Eight bits of slack bound the contribution lattice, partial sums and
+    # final mass/c factor away from both normal-range limits.
+    k = min(fld(-exponent(floatmin(T)) - p - 8, 8), fld(exponent(floatmax(T)) - p - nbits - 8, 4))
+    k > 0 || return false
+    lower, upper = ldexp(one(T), -k), ldexp(one(T), k)
+    (
+        _relativistic_magnitude_certified(c, lower, upper) &&
+        _relativistic_magnitude_certified(ps.m, lower, upper)
+    ) || return false
+    vx, vy, vz = ps.v
+    certified = true
+    @inbounds @simd for i in eachindex(ps.weight)
+        certified &=
+            _relativistic_magnitude_certified(vx[i], lower, upper) &
+            _relativistic_magnitude_certified(vy[i], lower, upper) &
+            _relativistic_magnitude_certified(vz[i], lower, upper) &
+            _relativistic_magnitude_certified(ps.weight[i], lower, upper)
+    end
+    return certified
+end
+
 """
     kinetic_energy_relativistic(ps, c) -> Real
 
@@ -580,26 +754,85 @@ In the Newtonian limit `|v| ≪ c` this reduces to [`kinetic_energy`](@ref)`(ps)
 — the per-particle difference is `O(w m |v|⁴/c²)`, i.e. a relative `O(v²/c²)`.
 Throws `ArgumentError` if any particle has `|v| ≥ c`: the relativistic pusher
 keeps `|v| < c`, so such a particle is corrupted state, not a valid energy.
+Uncertain speed comparisons use the exact stored components. For finite mass
+and weights, intermediate overflow or underflow triggers evaluation of the
+complete weighted expression before final rounding. Ordinary inputs retain
+their original arithmetic order; signed and nonfinite factors remain visible.
 """
 function kinetic_energy_relativistic(ps::ParticleSet{D,T}, c::Real) where {D,T}
     cT = _require_finite_positive_real("c", c, T)
+    if _relativistic_range_certificate(ps, cT)
+        return _kinetic_energy_relativistic(ps, cT, Val(false))
+    end
+    return _kinetic_energy_relativistic(ps, cT, Val(true))
+end
+
+function _kinetic_energy_relativistic(
+    ps::ParticleSet{D,T},
+    cT::T,
+    ::Val{check_range},
+) where {D,T,check_range}
     c2 = cT * cT
+    finite_factors = !check_range || (isfinite(ps.m) && all(isfinite, ps.weight))
+    if check_range && finite_factors && (_relativistic_range_lost(c2) || iszero(c2))
+        return _kinetic_energy_relativistic_exact(ps, cT)
+    end
     s = zero(T)
+    range_lost = false
     vx, vy, vz = ps.v
     @inbounds for p in eachindex(ps.weight)
-        v2 = vx[p]^2 + vy[p]^2 + vz[p]^2
-        v2 < c2 || throw(
-            ArgumentError(
-                "particle $p has |v| ≥ c (|v|² = $v2, c² = $c2): not a valid relativistic state",
-            ),
-        )
-        # (γ−1) = β²/(√(1−β²)(1+√(1−β²))): algebraically exact, and avoids the
-        # catastrophic cancellation of computing 1/√(1−β²) − 1 at small β.
-        β2 = v2 / c2
-        r = sqrt(one(T) - β2)
-        s += ps.weight[p] * β2 / (r * (one(T) + r))
+        x, y, z = vx[p], vy[p], vz[p]
+        x2, y2, z2 = x * x, y * y, z * z
+        v2 = x2 + y2 + z2
+        # Resolve either side of the uncertain boundary. Rounded velocity
+        # squares can falsely accept a superluminal stored tuple as well as
+        # falsely reject a valid one. The pusher has a separate, narrower range.
+        uncertain =
+            _relativistic_range_lost(c2) ||
+            iszero(c2) ||
+            !isfinite(v2) ||
+            v2 >= c2 ||
+            c2 - v2 <= T(8) * eps(T) * c2
+        if uncertain
+            finite_factors && return _kinetic_energy_relativistic_exact(ps, cT)
+            beta2, r = _relativistic_beta_root(x, y, z, cT, p)
+        else
+            beta2 = v2 / c2
+            r = sqrt(one(T) - beta2)
+        end
+        if check_range
+            range_lost |=
+                _relativistic_product_lost(x, x, x2) |
+                _relativistic_product_lost(y, y, y2) |
+                _relativistic_product_lost(z, z, z2) |
+                _relativistic_range_lost(beta2) |
+                (iszero(beta2) & !iszero(v2))
+        end
+        weighted = ps.weight[p] * beta2
+        denominator = r * (one(T) + r)
+        contribution = weighted / denominator
+        next_sum = s + contribution
+        if check_range
+            range_lost |=
+                _relativistic_product_lost(ps.weight[p], beta2, weighted) |
+                _relativistic_range_lost(contribution) |
+                (iszero(contribution) & !iszero(weighted)) |
+                _relativistic_range_lost(next_sum)
+        end
+        s = next_sum
     end
-    return ps.m * c2 * s
+    mc2 = ps.m * c2
+    value = mc2 * s
+    if check_range &&
+       finite_factors &&
+       (
+           range_lost ||
+           _relativistic_product_lost(ps.m, c2, mc2) ||
+           _relativistic_product_lost(mc2, s, value)
+       )
+        return _kinetic_energy_relativistic_exact(ps, cT)
+    end
+    return value
 end
 
 "Magnetic energy ∫ ½|B|² dV (normalized units)."

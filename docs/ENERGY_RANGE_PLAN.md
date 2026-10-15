@@ -1,9 +1,9 @@
 # Energy diagnostic range repairs
 
 Status: field-energy repair `bef9802` is pushed and verified on Julia 1.12.7
-and 1.13.1. An isolated relativistic-energy expression prototype passes its
-oracle checks; public integration remains pending. Ordinary diagnostic
-performance remains an optimization target.
+and 1.13.1. The public relativistic-energy repair passes its local gates on both
+versions and is integrated; push and GitHub acceptance remain pending.
+Ordinary diagnostic performance remains an optimization target.
 
 ## Verified behavior
 
@@ -257,14 +257,98 @@ output/resource checks, 1,106 certificate comparisons and boundary checks,
 and 324 independent 8,192-bit complete-expression comparisons and immutability
 checks. All 188 recorded source, test, plan and environment hashes match after
 the run. Log: `/tmp/hybrid-energy-public-v3-gates113.log`.
-The isolated v4 snapshot consolidates permanent tests and documents the public
-range contract; formatting, both native-version gates and package analysis are
-still required. None of these public candidates is ready for adoption.
+The final v4 snapshot consolidates permanent tests and documents the public
+range contract. Each native version passes **2,138 permanent assertions**, the
+13 existing relativistic-budget assertions, 24 concrete compiler analyses,
+three package JET checks (22/21 reports), and nine Aqua checks, exit 0.
+All 178 recorded source/test/environment hashes match afterward. Logs:
+`/tmp/hybrid-energy-public-v4-gates{112,113}.log`.
+All terminal JET diagnostic messages and their multiplicities match baseline
+after normalizing indentation, gensym numbers and the displayed qualification
+of three verified LinearAlgebra type aliases. The initial comparison detects
+those display differences; a second parser rejects an unrecognized BoundsError
+message rather than silently omitting it. Complete comparisons are retained in
+`...jet-report-comparison-v3-{112,113}.log`; no report is suppressed.
 
-Before adoption, integrate a finite-range selector at the existing owner,
-preserve ordinary arithmetic and visible nonfinite-factor behavior, verify
-every failure path and writable-view case, measure ordinary overhead and
-larger exceptional workloads, run concrete/package compiler and neighboring
-physics gates on both versions, and require GitHub acceptance. The exceptional
-square-class work can still be quadratic for ambiguous signed sums; the
-experiment does not establish a general performance bound.
+The final resource runs pass **256 output/allocation checks per version**,
+exit 0. Every ordinary case retains its exact baseline result and 0 B allocation.
+Seven alternating timing pairs per case give larger-case median ratios of
+**1.247–1.986** on 1.12 and **1.426–1.846** on 1.13 for 256/4,096 particles.
+This measured ordinary overhead remains an optimization target. Logs:
+`/tmp/hybrid-energy-public-v4-resources{112,113}.log`.
+
+## Public integration pre-edit brief
+
+- Mode: repair the existing public relativistic-energy diagnostic.
+- Acceptance: retain representable complete finite energies and validate the
+  exact stored-speed boundary; preserve ordinary result ordering, nonfinite
+  factor visibility, return types and input state.
+- Baseline: the native range, speed-boundary and nonfinite-weight controls above
+  reproduce separate failures and distinguish the compatibility requirements.
+- Cause: the current owner rounds squared speeds, weighted contributions and
+  mass/light-speed factors before later factors can recover range. Its rounded
+  norm comparison also admits or rejects the wrong side of the speed boundary.
+- Invariants: every particle's speed is validated even with zero mass/weight.
+  Exceptional finite input rounds the complete population expression once;
+  ordinary inputs retain the original expression and accumulation order.
+  Nonfinite factors retain weight-before-division IEEE arithmetic.
+- Owner and surfaces: `kinetic_energy_relativistic` in
+  `src/integrators/extrapolated_leapfrog.jl`, private helpers beside it, the shared
+  exact-conversion utilities, its public docstring and a new included test file.
+  Repository caller search finds the export and budget tests; there is no
+  integrator call to migrate. The pusher's separate range contract is unchanged.
+- Compatibility: the API and stored state are unchanged. Incorrect extreme-range
+  results and speed-boundary decisions intentionally change. Existing BigFloat
+  calls and writable views remain supported; integer/rational particle storage
+  already fails the existing floating input validator.
+- Strategy: evaluate exceptional finite sums with rational coefficients and
+  integer square-root enclosures, combining equivalent square classes when
+  cancellation prevents rounding. A conservative input certificate removes
+  range checks only inside one shared arithmetic kernel. Uncertain speed checks
+  remain active for both policies; no public mode or second diagnostic is added.
+- Verification: independent 8,192-bit complete-expression oracles, exact midpoint
+  and cancellation controls, nonfinite/invalid inputs, views and immutability,
+  ordinary baseline comparisons, certificate neighbors and forced-policy
+  comparisons, both native versions, concrete/package JET, Aqua, four-thread
+  calls, resource measurements, formatting, final diff and GitHub CI.
+
+Rounding each particle before summation loses signed cancellation and recovered
+range; resolving only rounded norm failures still accepts some superluminal
+tuples; changing nonfinite weighting order changes Inf to NaN. The complete-sum,
+two-sided speed and nonfinite controls reject these three incomplete repairs.
+
+The private checked/unchecked policy is a bounded optimization exception: both
+paths share the same summation, and certification failure retains all range
+checks. The permanent tests vary every certified input boundary and compare
+both policies on identical inputs.
+
+For Float32/64, let `p` be precision, `emin/emax` the normal exponent limits,
+and `nbits` the bit length of `max(N,1)`. The certificate accepts zeros and
+nonzero magnitudes in `[2^-k, 2^k]`, where
+`k = min(floor((-emin-p-8)/8), floor((emax-p-nbits-8)/4))`.
+Component squares and c squared then stay normal. A valid nonzero speed has
+beta squared at least `2^-4k`; the uncertain-speed guard protects the upper
+boundary before the square root. The root denominator lies between `2^-p`
+and 2, so nonzero rounded contributions are at least `2^(-5k-1)` and at most
+`2^(k+p)`, on a lattice with quantum `2^(-5k-p)`. Rounded additions preserve
+that lattice, including signed cancellation. Bounding each rounded increment
+by twice the largest contribution gives a partial-sum bound `2N*2^(k+p)`.
+The mass/c factor lies in `[2^-3k, 2^3k]` or is zero. The eight-bit margins
+therefore keep partials and final products inside the normal range. Float16,
+BigFloat and inputs outside these bounds retain the checked kernel.
+
+- [x] Native 1.12.7 focused, existing-budget, compiler and Aqua gates.
+- [x] Native 1.12.7 ordinary output/allocation/resource comparison.
+- [x] Native 1.12.7 four-thread public replay: **398 assertions**, exit 0,
+  including 384 complete-expression calls on shared immutable input sets;
+  `/tmp/hybrid-energy-public-v4-concurrency112.log`.
+- [x] Native 1.13.1 final quality/resource gates and **398 four-thread checks**,
+  exit 0; `/tmp/hybrid-energy-public-v4-concurrency113.log`.
+- [x] Promote only the three intended source/test files, byte-identical to the
+  hash-verified and formatter-idempotent snapshot.
+- [x] Review the complete final diff, including the new permanent test file.
+- [ ] Push and observe GitHub acceptance.
+
+GitHub acceptance remains required after the push. The exceptional square-class
+work can still be quadratic for ambiguous signed sums; the experiment does not
+establish a general performance bound.
