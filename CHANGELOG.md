@@ -143,6 +143,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Both electromagnetic PIC families combine complete species currents when
+  intermediate arithmetic overflows or underflows, including the legacy
+  longitudinal mean. Midpoint deposition restores borrowed particle positions
+  when deposition fails and propagates the original error.
+
 - CI groups runs by workflow, ref and commit so a new pushed revision can finish
   its checks without cancelling an earlier revision's acceptance run.
 

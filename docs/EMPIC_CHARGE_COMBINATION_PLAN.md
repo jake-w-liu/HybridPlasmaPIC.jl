@@ -1,9 +1,9 @@
 # Complete electromagnetic charge combination
 
-Status: locally verified and promoted; commit/push is next. CI-005 separates
-revision groups so the preceding GitHub run can finish independently. Native numerical, compiler, quality,
-concurrency, resource and solver integration gates pass on Julia 1.12.7 and 1.13.1. Final public-step
-controls also pass on both versions. This repair still requires GitHub acceptance.
+Status: pushed as `4cd642c`; [GitHub acceptance run 38750764319](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/38750764319)
+is active. Native numerical, compiler, quality, concurrency, resource and solver
+integration gates pass on Julia 1.12.7 and 1.13.1. Final public-step controls
+also pass on both versions. GitHub completion remains required.
 
 Candidate: `/tmp/hybrid-empic-charge-combination-v1`, based on `240f77c`.
 Both EMPIC families share the complete charge owner. Combined current, hybrid
@@ -140,7 +140,7 @@ and environment hashes were rechecked after the completed gates.
 - [x] Pass native numerical, compiler, quality, concurrency and resource gates.
 - [x] Complete final public-step controls and both native integrations.
 - [x] Review final diff/format and promote the exact tested patch.
-- [ ] Commit and push to main with its own GitHub acceptance run.
+- [x] Commit and push to main (`4cd642c`) with its own GitHub acceptance run.
 - [ ] Observe all GitHub jobs green for the pushed revision.
 
 ## Promotion evidence

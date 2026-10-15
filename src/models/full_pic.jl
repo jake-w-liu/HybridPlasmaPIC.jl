@@ -336,10 +336,7 @@ function _esirkepov_Jx!(
     cb = g.cbuf
     tb = g.tbuf
     # direct-deposit current mean (k=0 physical net current): Jx0 = Σ_species q Σ w v_x / L
-    Jx0 = _species_Jx0(e, g.L[1])
-    if es.mobile && ions !== nothing
-        Jx0 += _species_Jx0(ions, g.L[1])
-    end
+    Jx0 = _combined_Jx0(es, e, ions)
     # ρ̂^{n+1} − ρ̂^n
     @inbounds for i = 1:n
         cb[i] = Complex{T}(es.rho_np1[i] - es.rho_n[i])
@@ -361,7 +358,7 @@ function _esirkepov_Jx!(
     return es.Jx
 end
 
-@inline function _species_Jx0(s::ParticleSet{1,T}, L::T) where {T}
+@inline function _species_Jx0_with_range(s::ParticleSet{1,T}, L::T) where {T}
     vx = s.v[1]
     w = s.weight
     acc = zero(T)
@@ -381,13 +378,71 @@ end
         _deposition_range_lost(value) ||
         (iszero(value) && !iszero(numerator))
     if finite && lost
-        exact = zero(Rational{BigInt})
-        for p in eachindex(w)
-            exact += _exact_rational(w[p]) * _exact_rational(vx[p])
-        end
-        return _from_exact(T, exact * _exact_rational(s.q) / _exact_rational(L))
+        value = _from_exact(T, _exact_species_Jx0(s, L))
     end
-    return value
+    return (; value, eligible = finite, lost)
+end
+
+function _exact_species_Jx0(s, L)
+    exact = zero(Rational{BigInt})
+    for p in eachindex(s.weight)
+        exact += _exact_rational(s.weight[p]) * _exact_rational(s.v[1][p])
+    end
+    return exact * _exact_rational(s.q) / _exact_rational(L)
+end
+
+@inline _species_Jx0(s::ParticleSet{1,T}, L::T) where {T} = _species_Jx0_with_range(s, L).value
+
+function _combined_Jx0(es::EMPIC1D{T}, e, ions) where {T}
+    electron = _species_Jx0_with_range(e, es.g.L[1])
+    if es.mobile && ions !== nothing
+        ion = _species_Jx0_with_range(ions, es.g.L[1])
+        value = electron.value + ion.value
+        if electron.eligible &&
+           ion.eligible &&
+           (electron.lost || ion.lost || _deposition_range_lost(value))
+            value = _from_exact(
+                T,
+                _exact_species_Jx0(e, es.g.L[1]) + _exact_species_Jx0(ions, es.g.L[1]),
+            )
+        end
+        return value
+    end
+    return electron.value
+end
+
+# The ordinary species passes restore their positions before this cold replay.
+# Borrow each species' own midpoint buffer only while its exact stencil is read.
+function _exact_midpoint_current(s, mid, g, shape, component)
+    _swap_positions_with_midpoints!(s, mid)
+    try
+        return _exact_moment(s, (s.weight, s.v[component]), g, shape, s.q)
+    finally
+        _swap_positions_with_midpoints!(s, mid)
+    end
+end
+
+function _combine_midpoint_current!(
+    out::Array{T},
+    es,
+    e,
+    ions,
+    emid,
+    imid,
+    component,
+    electron,
+    ion,
+) where {T}
+    if electron.eligible &&
+       ion.eligible &&
+       (electron.lost || ion.lost || any(_deposition_range_lost, out))
+        exact_e = _exact_midpoint_current(e, emid, es.g, es.shape, component)
+        exact_i = _exact_midpoint_current(ions, imid, es.g, es.shape, component)
+        for I in eachindex(out)
+            out[I] = _from_exact(T, exact_e[I] + exact_i[I])
+        end
+    end
+    return out
 end
 
 # Transverse current Jy^{n+1/2} = Σ_species q Σ w v_y S(x^{n+1/2}) (CIC). For each
@@ -405,7 +460,7 @@ function _add_transverse_Jy!(
     _validate_deposition_inputs(scratch, s, work, es.g)
     factors = (s.weight, s.v[2])
     state = _deposit_scalar_kernel!(scratch, s, factors, es.g, es.shape, Val(true))
-    _finish_moment!(
+    return _finish_moment!(
         es.Jy,
         scratch,
         s,
@@ -417,7 +472,6 @@ function _add_transverse_Jy!(
         Val(:prescale),
         accumulate,
     )
-    return es.Jy
 end
 
 # Remove the Nyquist DFT mode of a real grid vector in place (no-op for odd n):
@@ -1092,9 +1146,12 @@ function _deposit_Jy_at_midpoints!(
     # Eyp (per-particle) = work buffer; dBz (grid-sized, free until the Ey update
     # below) = deposit scratch. (Using the per-particle Exp here was a latent OOB
     # when the species count < grid size.)
-    _add_transverse_Jy!(es, e, es.Eyp, es.dBz, false)
-    @inbounds for p in eachindex(xe)
-        xe[p] = es.Bzp[p]
+    electron = try
+        _add_transverse_Jy!(es, e, es.Eyp, es.dBz, false)
+    finally
+        @inbounds for p in eachindex(xe)
+            xe[p] = es.Bzp[p]
+        end
     end
     if es.mobile && ions !== nothing
         xi = ions.x[1]
@@ -1102,10 +1159,15 @@ function _deposit_Jy_at_midpoints!(
             es.Bzi[p] = xi[p]
             xi[p] = es.worki[p]
         end
-        _add_transverse_Jy!(es, ions, es.Eyi, es.dBz, true)  # dBz = free grid scratch; accumulate onto Jy
-        @inbounds for p in eachindex(xi)
-            xi[p] = es.Bzi[p]
+        ion = try
+            # dBz is free grid scratch; accumulate onto the electron current.
+            _add_transverse_Jy!(es, ions, es.Eyi, es.dBz, true)
+        finally
+            @inbounds for p in eachindex(xi)
+                xi[p] = es.Bzi[p]
+            end
         end
+        _combine_midpoint_current!(es.Jy, es, e, ions, (es.work,), (es.worki,), 2, electron, ion)
     end
     _zero_nyquist_mode!(es.Jy)     # drop the unrepresentable Nyquist mode (see helper)
     return es.Jy
@@ -1583,12 +1645,12 @@ function _add_species_current!(
 ) where {D,T}
     length(work) == nparticles(s) ||
         throw(DimensionMismatch("current work length must equal particle count"))
-    @inbounds for c = 1:3
+    return ntuple(Val(3)) do c
         @. work = s.weight * s.v[c]
         _validate_deposition_inputs(scratch, s, work, es.g)
         factors = (s.weight, s.v[c])
         state = _deposit_scalar_kernel!(scratch, s, factors, es.g, es.shape, Val(true))
-        _finish_moment!(
+        return _finish_moment!(
             J[c],
             scratch,
             s,
@@ -1601,18 +1663,19 @@ function _add_species_current!(
             accumulate,
         )
     end
-    return J
 end
 
 @inline function _swap_positions_with_midpoints!(
     s::ParticleSet{D,T},
     mid::NTuple{D,Vector{T}},
 ) where {D,T}
+    for d = 1:D
+        length(mid[d]) == length(s.x[d]) ||
+            throw(DimensionMismatch("midpoint buffer length must equal particle count"))
+    end
     @inbounds for d = 1:D
         x = s.x[d]
         xm = mid[d]
-        length(xm) == length(x) ||
-            throw(DimensionMismatch("midpoint buffer length must equal particle count"))
         for p in eachindex(x)
             tmp = x[p]
             x[p] = xm[p]
@@ -1628,12 +1691,31 @@ function _deposit_current_at_midpoints!(
     ions::Union{Nothing,ParticleSet{D,T}},
 ) where {D,T}
     _swap_positions_with_midpoints!(e, es.mide)
-    _add_species_current!(es.Jraw, es, e, es.worke, es.ne, false)
-    _swap_positions_with_midpoints!(e, es.mide)
+    electron = try
+        _add_species_current!(es.Jraw, es, e, es.worke, es.ne, false)
+    finally
+        _swap_positions_with_midpoints!(e, es.mide)
+    end
     if es.mobile && ions !== nothing
         _swap_positions_with_midpoints!(ions, es.midi)
-        _add_species_current!(es.Jraw, es, ions, es.worki, es.ne, true)
-        _swap_positions_with_midpoints!(ions, es.midi)
+        ion = try
+            _add_species_current!(es.Jraw, es, ions, es.worki, es.ne, true)
+        finally
+            _swap_positions_with_midpoints!(ions, es.midi)
+        end
+        for c = 1:3
+            _combine_midpoint_current!(
+                es.Jraw[c],
+                es,
+                e,
+                ions,
+                es.mide,
+                es.midi,
+                c,
+                electron[c],
+                ion[c],
+            )
+        end
     end
     return es.Jraw
 end

@@ -15,6 +15,7 @@ using Test
     include("test_moment_storage.jl")
     include("test_moment_normalization.jl")
     include("test_empic_charge_combination.jl")
+    include("test_empic_current_combination.jl")
     include("test_hybrid.jl")
     include("test_cgl.jl")
     include("test_inertia.jl")
