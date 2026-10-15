@@ -242,9 +242,82 @@ remain at `/tmp/hybrid-charge-wave-runs{112,113}.log` and
 `/tmp/hybrid-charge-repeated-sum-oracle{112,113}.log`.
 Second-prototype full-PIC SHA256: `29424eb42c712ef8da3edde2e97bcf138472ef4204f401dce70a2dbab029d606`.
 
-**Next, untested:** compare a bounded integer accumulator for finite dyadic
-inputs with this exact rational oracle, retaining exact fallback when the
-exponent span exceeds its proven bound. Test rounding boundaries, cancellation,
-Float32/64 and arbitrary weight variation before selecting it. Production
-adoption still requires the precision/shape/mobile-species/range and spatial
-acceptance matrix above; this experiment changes no live solver code.
+### Bounded dyadic accumulator and finite spatial matrix
+
+The next isolated prototype uses an Int128 sum only when the significand width,
+observed exponent span and particle count prove that every partial sum fits.
+Larger spans use the existing exact-rational path. Constant inputs retain an
+exact value-times-count shortcut. No production deposition code has changed.
+
+On native Julia 1.12.7 and 1.13.1, the final v4 prototype passes **70,100 exact
+oracle checks per version**, including every finite Float16 value, random bit
+patterns, signed cancellation, subnormals, extreme exponents and accumulator
+boundaries. In the measured 10,000-value fixtures, varied Float32 sums allocate
+312 B, alternating Float64 328 B and random Float64 352 B. These are warmed
+allocation measurements, not peak-memory or portable timing claims.
+
+An ambient-precision replay exposed a prototype defect: converting the rational
+correction directly to a hardware float used ambient BigFloat precision. The v3
+replay fails two of 30 checks per version. Reusing the existing `_from_exact`
+conversion fixes all **30 checks per version** at precision 2, 4, 8, 32 and 256;
+the caller's precision is preserved. The failing experiment remains recorded.
+
+The v4 full wave passes its five checks per version at the unchanged 1e-8 limit:
+residual **2.877175015333387e-12**. Complete-run allocations, including compilation
+and output, are 557,835,216 B / 19,986,176 B on 1.12 / 1.13. Timings were taken
+under shared load and do not establish a speed ratio. All 17 captured state
+fields match the original exact-reconciliation wave on both versions (34 checks,
+`/tmp/hybrid-charge-dyadic-state-v4.log`, exit 0).
+
+The finite-geometry matrix passes **58,817 assertions per version** across 512
+configurations: Float32/64; general EM dimensions 1–3 and legacy 1D; unit and
+fractional volumes; NGP/CIC/TSC/custom CIC shapes; mobile/immobile populations;
+empty, neutral, varied and signed weights; and a changed particle weight. Exact
+physical charge, per-cell nearest rounding, total rounding budgets, non-DC
+Fourier changes and unchanged particle/scratch storage are checked independently.
+This does not yet cover extreme cell volumes, public coupled evolution, restart
+or nonfinite-input semantics. Those remain production-adoption gates.
+
+Evidence: `/tmp/hybrid-charge-v4-oracle{112,113}.log`,
+`/tmp/hybrid-charge-v3-ambient{112,113}.log` (expected failures),
+`/tmp/hybrid-charge-v4-ambient{112,113}.log`,
+`/tmp/hybrid-charge-wave-dyadic-v4-{112,113}.log`, and
+`/tmp/hybrid-charge-v4-matrix{112,113}.log`. Final passing processes exited 0.
+The isolated full-PIC SHA256 is
+`85ced08fc67446c7ff61201d22becfca22f34bda46c7849361e1787e06e3bfa6`.
+
+### Confirmed prerequisite: cell-volume range
+
+**VERIFIED:** `density!` materializes `prod(g.dx)` before dividing the deposited
+weights (`src/coupling/moments.jl`). On a 2×2 NGP grid with one particle at the
+origin, finite individual cell widths and weights produce these results on both
+native Julia versions:
+
+| Precision | Domain length in both axes | Weight | Observed occupied-cell density | Exact-expression rounded density |
+| --- | ---: | ---: | ---: | ---: |
+| Float32 | 1e25 | 1e30 | 0 | about 4e-20 |
+| Float32 | 1e-25 | 1e-30 | Inf | about 4e20 |
+| Float64 | 1e200 | 1e300 | 0 | about 4e-100 |
+| Float64 | 1e-200 | 1e-300 | Inf | about 4e100 |
+
+All four cells become nonfinite in the small-volume cases. The exact rational
+oracle uses the stored widths and weight; expected occupied-cell results are
+finite and nonzero. Each native version passes 12 witness checks, which confirm
+the defect rather than certify the baseline density implementation. Evidence:
+`/tmp/hybrid-density-volume-repro.jl`, `/tmp/hybrid-density-volume112.log`, and
+`/tmp/hybrid-density-volume113.log` (exit 0).
+
+Repair must address canonical moment normalization before the reconciliation
+prototype is adopted. Inspect numerator deposition, stencil products, signed
+accumulation and the momentum/charge callers as well as volume formation; fixing
+only the final division cannot recover a numerator already lost to range.
+Specify the finite-volume rounding contract, preserve ordinary-path behavior
+where required, then test exact occupied/empty-cell results, variable weights,
+shape and dimension variants, charge coupling, compiler reports and resources.
+The broader numerator cases are not yet measured by this four-case probe.
+The inspected callers include `momentum!` and `current!` in
+`src/coupling/moments.jl`, and both general/legacy `_charge_density!` paths in
+`src/models/full_pic.jl`. EMPIC validates electron/ion charges as −1/+1, so its additional range checks
+must cover cancellation between species or against the background. The public
+`current!` also multiplies by the species charge after materializing momentum.
+Those specific extreme-input outcomes have not yet been measured here.

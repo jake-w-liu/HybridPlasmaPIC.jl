@@ -5,11 +5,22 @@ Updated: 2026-10-15. Goal remains **active**.
 User objective: audit the full codebase until an independent pass finds no new
 confirmed defects; optimize measured bottlenecks; plan and implement missing
 capabilities toward a leading, comprehensive plasma simulation tool. Compatibility with the latest stable Julia is an explicit acceptance gate. Every
-verified fix or implementation is committed and pushed separately to `main`.
+verified fix or implementation is committed and pushed separately to `main`. Each push must
+also pass GitHub CI; a confirmed billing block is recorded separately.
 Passing a subset of tests does not establish whole-project correctness or
 completeness. Comparative leadership requires reproducible external benchmarks.
 
 ## Current evidence
+
+- GitHub run [38710456393](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/38710456393)
+  at `fadc03f` is not green: Julia 1.13.1 cannot resolve the JET 0.9–0.11
+  constraint against the current registry; the 8-rank checkpoint publication
+  test reports missing rank files. Formatting and 2-/4-rank jobs pass; the
+  Julia 1.12 package job is still running. No billing block is evidenced.
+  The local repairs pass both native-version gates and the delayed 8-rank
+  replay. Fixes `fadfbf1` (MPI ordering) and `f0c9ce9` (JET compatibility/import)
+  are committed; their push and final GitHub acceptance remain pending. Logs: `/tmp/hybrid-ci-38710456393-julia-latest.log` and
+  `/tmp/hybrid-ci-38710456393-mpi8-artifact/mpi-smoke.log`.
 
 - Fresh full `Pkg.test()` runs are active at immutable `6341c4b` on native
   Julia 1.12.7 and 1.13.1. They include the archive inference, checkpoint
@@ -180,9 +191,11 @@ performance review. “Pending” means no current-run completion claim.
 | IO-011 | Failed serial checkpoint serialization truncates the previous checkpoint | Pushed (`fe519e9`) | Atomic publication preserves prior files across serializer/write/flush/close/rename errors and reports cleanup failures. Both Julia versions pass 23,747 neighboring assertions and 293 focused checks; four concrete compiler paths are clean and package findings match baseline. [Publication contract and resource evidence](SERIAL_PUBLICATION_PLAN.md). |
 | ENERGY-001 | EM field energy loses finite complete integrals through squared fields, c and cell volume | Pushed (`bef9802`) | Complete-integral cold evaluation passes 27,896 ES/EM assertions on each Julia version. All 24 concrete compiler calls per version are clean; package reports match baseline. Ordinary results stay exact and allocate 0 B; measured latency remains an optimization target. [Scope, resource investigation and evidence](ENERGY_RANGE_PLAN.md). |
 | ENERGY-002 | Relativistic particle energy rejects valid extreme speeds or loses finite weighted results | Confirmed; repair planned | Both Julia versions pass 18 high-precision range witnesses plus 33 exact speed-boundary and 12 signed/nonfinite compatibility checks. Both false acceptance and false rejection occur near c. [Plan](ENERGY_RANGE_PLAN.md). |
-| VALID-001 | Validation case 20 exceeds its charge-residual tolerance | Cause verified; full-wave prototypes compared | Both native versions reproduce the baseline residual 9.89e-7. Kahan deposition still fails the unchanged 1e-8 threshold at 6.88e-8; reconciliation to actual particle charge passes at 2.88e-12 with unchanged final fields/particles for this wave. Exact run-grouping reduces the latest-version prototype from over 12 GB to 182 MB/run; 665 additional oracle/state checks pass on each version. Cost for varied weights and broader semantics remain open before production adoption. [Exact source trace, experiments and remaining acceptance](CHARGE_DEPOSITION_CONSERVATION_PLAN.md). |
+| VALID-001 | Validation case 20 exceeds its charge-residual tolerance | Cause verified; full-wave prototypes compared | Both native versions reproduce the baseline residual 9.89e-7. Kahan deposition still fails the unchanged 1e-8 threshold at 6.88e-8; reconciliation to actual particle charge passes at 2.88e-12 with unchanged final fields/particles for this wave. Exact run-grouping reduces the latest-version prototype from over 12 GB to 182 MB/run; 665 additional oracle/state checks pass on each version. The later bounded-dyadic prototype passes 70,100 exact-oracle, 30 ambient-precision and 58,817 spatial/charge assertions per version, with 312–352 B measured varied-weight sums. Extreme geometry and public evolution/restart semantics remain open before production adoption. [Exact source trace, experiments and remaining acceptance](CHARGE_DEPOSITION_CONSERVATION_PLAN.md). |
 | PERF-004 | Legacy EM continuity diagnostic constructs FFT plans on every call | Pushed (`0f5b205`) | Reuses existing grid plans with 19,980 runtime assertions and 33 clean concrete compiler calls on each Julia version. Package findings exactly match baseline. All 24 measured configurations allocate 544 fewer bytes/call; timing variation is retained without a portable speed claim. [Evidence and compatibility](CONTINUITY_DIAGNOSTIC_RANGE_PLAN.md#legacy-diagnostic-plan-reuse--pre-edit-brief). |
 | JET-002 | Julia 1.12 full-suite compiler-report gate exceeds its ceiling | Pushed (`6341c4b`); full integration running | Reuse the validated archive byte-vector binding through hashing and decoding. Final compiler gates pass at 22/21 package reports on native 1.12/1.13, with zero concrete String/SubString loader reports. Exactly the nine loader findings disappear from the 1.12 baseline; all other leaves remain. Each version passes 234 neighboring assertions and 20 additional metadata checks. [Cause, compatibility and evidence](ARCHIVE_INFERENCE_PLAN.md). |
+| CI-002 | Fresh latest-Julia resolution fails and MPI publication fixture races its readers | Committed (`fadfbf1`, `f0c9ce9`); GitHub acceptance pending | Current-registry resolution requires JET 0.12 on Julia 1.13. The delayed 8-rank replay reproduces the missing-file failure; a pre-rename barrier passes 48 publication assertions on every rank on both native Julia versions. JET 0.12.3 passes all 3 analysis assertions (22/21 reports), 9 Aqua checks and 80 archive assertions per version; the ceiling remains 30. [Plan and GitHub status](CI_RELIABILITY_PLAN.md). |
+| MOMENT-001 | Cell-volume materialization loses finite density | Confirmed; repair planned | Both native Julia versions reproduce zero/Inf occupied-cell density despite finite exact results in four Float32/64 NGP cases; 12 witness checks/version pass. Canonical deposition/normalization must be repaired before charge reconciliation adoption. [Evidence and scope](CHARGE_DEPOSITION_CONSERVATION_PLAN.md#confirmed-prerequisite-cell-volume-range). |
 
 ## Completeness roadmap
 
