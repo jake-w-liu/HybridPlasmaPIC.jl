@@ -166,3 +166,61 @@ numeric/regex values, null pointers, disjoint views, shared arrays, cycles,
 read-only grid geometry and immutable-versus-mutable wrapper edges:
 `/tmp/hybrid-io010-contract-v1-112.log`. This is intermediate evidence, not a final
 verification result.
+
+### Confirmed extensions to the reconstruction contract
+
+Before the corresponding edits, public checkpoint/archive probes confirmed
+that Expr reconstructs its `args` allocation (four checks/version), and distinct
+Expr objects sharing one `args` vector detach (six checks/version). Ordinary
+repeated Expr identity survives and is retained. Evidence:
+`/tmp/hybrid-io010-expr-public-v2-{112,113}.log` and
+`/tmp/hybrid-io010-expr-shared-v2{112,113}.log`.
+
+Rebuilt Dict/IdDict/Expr buffers are checked against evolving storage as well as
+other configuration owners. A Dict `vals` Memory can be identical to supported
+particle storage; the original validator missed that direction. Five public
+witnesses pass in each baseline native version, with the corrected Memory-backed
+fixture (`/tmp/hybrid-io010-config-backing-baseline-v2-112.log` and
+`/tmp/hybrid-io010-config-backing-baseline113.log`). An earlier Array-assignment
+fixture copied the data and did not reproduce the relationship.
+
+The intermediate v1 candidate passes 11,894 focused assertions per version.
+Its initial launch failed before tests because the frozen environment lacked a
+Manifest; native environments were then instantiated independently. Its recursive
+`all` predicate also produced concrete compiler findings. An explicit boolean
+field loop preserves predicate results and removes those findings (10 isolated
+checks; `/tmp/hybrid-io010-predicate-jet112.log`). Frozen v2 passes all 16 concrete
+Julia 1.12 validator analyses and the package ceiling; latest-version and final
+integration gates remain pending. These are intermediate results, not readiness.
+
+### Mutable value-codec alias extension — pre-edit brief
+
+- **Mode:** complete the same serialization-relationship validator.
+- **Requirement:** preserve standalone BigInt/Regex values and shared containing
+  objects, but reject direct repeated references whose identity is not restored.
+  Save/archive rejection must precede publication; retained incoming graphs
+  must reject before destination mutation.
+- **Evidence:** 14 public witness checks pass per native version in
+  `/tmp/hybrid-io010-codec-alias{112,113}.log`. A repeated BigInt or Regex becomes
+  two objects; mutating one restored BigInt or changing Regex match options
+  leaves its former alias unchanged.
+- **Verified cause:** native Julia Serialization `Serialization.jl:342–352`
+  rebuilds these values without `serialize_cycle`. The graph currently caps
+  every mutable object's occurrence count at one.
+- **Contract:** count actual emitted edges for these two known codecs up to two,
+  retaining bounded traversal. Shared mutable containers remain cycle-tracked;
+  they may contain a single such value. Independent equal values remain valid.
+  Already-detached legacy payloads have no recoverable original identity.
+- **Owner:** `_validate_checkpoint_configuration_graph`; use its existing edge
+  counts. Keep the existing private-pointer reconstruction exception. All
+  configurable solver families, checkpoint/archive/MPI callers share this owner.
+- **Compatibility:** explicitly reject previously accepted lossy sharing. No
+  serializer override, schema change or blanket rejection of these value types.
+- **Strategy:** cap these codec occurrences at two and reject counts above one.
+  Add family/layout negative cases and focused positive mutation roundtrips for
+  shared Ref/Array/Dict owners, plus immutable/container fan-out negatives.
+- **Verification:** both native versions, complete configuration matrices,
+  neighboring IO/repro/MPI tests, concrete/package compiler checks, formatter,
+  resources and real two-rank integration. Shared-container positives reject
+  blanket bans; distinct wrappers reject early deduplication; equal independent
+  values reject value-equality-based identity accounting.

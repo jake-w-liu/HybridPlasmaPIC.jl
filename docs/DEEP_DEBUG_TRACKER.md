@@ -1,6 +1,6 @@
 # Plasma simulation audit and implementation tracker
 
-Updated: 2026-10-14. Goal remains **active**.
+Updated: 2026-10-15. Goal remains **active**.
 
 User objective: audit the full codebase until an independent pass finds no new
 confirmed defects; optimize measured bottlenecks; plan and implement missing
@@ -11,14 +11,17 @@ completeness. Comparative leadership requires reproducible external benchmarks.
 
 ## Current evidence
 
-- Full package suites are running at immutable `fe519e9` on Julia 1.12.7 and
-  1.13.1, each with a separately resolved native environment. These include the
-  electromagnetic field-energy and serial-publication fixes. Logs:
+- Full package suites finished at immutable `fe519e9`, each with a separately
+  resolved native environment. Julia 1.13.1 passes **338,415 assertions** in
+  55m10.4s (exit 0). Julia 1.12.7 passes **338,414**, with one failed JET gate in
+  68m53.2s (exit 1): 31 reports exceed the unchanged ceiling of 30. These include
+  the electromagnetic field-energy and serial-publication fixes. Logs:
   `/tmp/hybrid-full-fe519e9-julia112.log` and
   `/tmp/hybrid-full-fe519e9-julia113.log`; snapshot hashes are in
-  `/tmp/hybrid-full-fe519e9-manifest.json`. Both reached `Testing Running tests...`;
-  no final result is claimed yet. Uncommitted continuity and radiation work is
-  excluded from these runs.
+  `/tmp/hybrid-full-fe519e9-manifest.json`. Later continuity and checkpoint
+  serialization repairs, and uncommitted radiation work, are excluded.
+  JET-002 tracks the failed integration gate; latest-version success does not
+  establish that the minimum-version suite is green.
 - The immutable `d2c3da7` full package suite passed **294,035 assertions** on
   each of Julia 1.13.1 (62m33.3s) and Julia 1.12.7 (82m43.6s); both processes
   exited successfully. The real two-rank MPI run also passed and exited successfully.
@@ -171,8 +174,9 @@ performance review. “Pending” means no current-run completion claim.
 | IO-011 | Failed serial checkpoint serialization truncates the previous checkpoint | Pushed (`fe519e9`) | Atomic publication preserves prior files across serializer/write/flush/close/rename errors and reports cleanup failures. Both Julia versions pass 23,747 neighboring assertions and 293 focused checks; four concrete compiler paths are clean and package findings match baseline. [Publication contract and resource evidence](SERIAL_PUBLICATION_PLAN.md). |
 | ENERGY-001 | EM field energy loses finite complete integrals through squared fields, c and cell volume | Pushed (`bef9802`) | Complete-integral cold evaluation passes 27,896 ES/EM assertions on each Julia version. All 24 concrete compiler calls per version are clean; package reports match baseline. Ordinary results stay exact and allocate 0 B; measured latency remains an optimization target. [Scope, resource investigation and evidence](ENERGY_RANGE_PLAN.md). |
 | ENERGY-002 | Relativistic particle energy rejects valid extreme speeds or loses finite weighted results | Confirmed; repair planned | Both Julia versions pass 18 high-precision range witnesses plus 33 exact speed-boundary and 12 signed/nonfinite compatibility checks. Both false acceptance and false rejection occur near c. [Plan](ENERGY_RANGE_PLAN.md). |
-| VALID-001 | Validation case 20 exceeds its charge-residual tolerance | Failure reproduced; cause unverified | Baseline and continuity candidate both return 9.889422779356765e-7 against the unchanged 1e-8 threshold on Julia 1.12.7 and 1.13.1. Frequency metric passes. Retain the failure and trace the evolved state/current correction before choosing a repair. [Evidence](CONTINUITY_DIAGNOSTIC_RANGE_PLAN.md#preserved-failures-and-remaining-work). |
-| PERF-004 | Legacy EM continuity diagnostic constructs FFT plans on every call | Verified; ready to push | Reuses existing grid plans with 19,980 runtime assertions and 33 clean concrete compiler calls on each Julia version. Package findings exactly match baseline. All 24 measured configurations allocate 544 fewer bytes/call; timing variation is retained without a portable speed claim. [Evidence and compatibility](CONTINUITY_DIAGNOSTIC_RANGE_PLAN.md#legacy-diagnostic-plan-reuse--pre-edit-brief). |
+| VALID-001 | Validation case 20 exceeds its charge-residual tolerance | Deposition cause verified; repair design pending | VERIFIED on both Julia versions: particle charge stays constant while deposited total charge changes by 115/2^53. An exact DC lower bound of 23/23257239 exceeds the unchanged 1e-8 threshold; cell accumulation contributes about 98.08% of the measured drift. Diagnostic masking is excluded. [Source trace, independent checks and repair requirements](CHARGE_DEPOSITION_CONSERVATION_PLAN.md). |
+| PERF-004 | Legacy EM continuity diagnostic constructs FFT plans on every call | Pushed (`0f5b205`) | Reuses existing grid plans with 19,980 runtime assertions and 33 clean concrete compiler calls on each Julia version. Package findings exactly match baseline. All 24 measured configurations allocate 544 fewer bytes/call; timing variation is retained without a portable speed claim. [Evidence and compatibility](CONTINUITY_DIAGNOSTIC_RANGE_PLAN.md#legacy-diagnostic-plan-reuse--pre-edit-brief). |
+| JET-002 | Julia 1.12 full-suite compiler-report gate exceeds its ceiling | Confirmed gate failure; triage pending | Immutable fe519e9 has 31 reports against ceiling 30 after the full runtime suite; latest Julia has 30 and passes. Loaded HDF5 paths appear in the retained report, but their causal contribution has not yet been isolated. Compare fresh package analysis with the same loaded extensions and test environment, then concrete calls before classifying reports. `/tmp/hybrid-full-fe519e9-julia112.log`; parsed roots/leaves `/tmp/hybrid-full-fe519e9-jet112-triage.json`. |
 
 ## Completeness roadmap
 

@@ -92,7 +92,9 @@ installation and failed that metric; its failure remains in
 Case 20's charge residual is **9.889422779356765e-7**, exceeding its unchanged
 **1e-8** tolerance on both baseline and candidate. Its frequency error remains
 0.013636642520216225 against tolerance 0.03. This validation is not green and
-requires a separate investigation; this range repair does not explain its cause.
+requires a separate repair. The subsequent particle replay and exact DC bound
+verify deposition-induced total-charge drift; see the
+[charge-deposition plan](CHARGE_DEPOSITION_CONSERVATION_PLAN.md).
 Logs: `/tmp/pic005_final_v4_validation{112,113}.log` and the corresponding
 `validation_comparison` logs.
 
