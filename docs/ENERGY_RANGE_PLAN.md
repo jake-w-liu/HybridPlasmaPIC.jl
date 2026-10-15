@@ -195,6 +195,24 @@ range from 0.078 to 1.214 on the shared machine. These compare two isolated
 exceptional algorithms, not the production diagnostic or its ordinary path.
 Log: `/tmp/hybrid-energy-algebraic-v3-resources113.log`.
 
+The same paired driver on Julia 1.12.7 passes all 26 output checks and records
+identical allocation totals. Its 256-varied-particle median ratios are
+0.079 / 0.090; the complete set spans 0.079–1.617. Log:
+`/tmp/hybrid-energy-algebraic-v3-resources112.log`.
+
+A separate nonfinite-weight compatibility control passes **12 checks per
+version** against committed production code. When beta squared is the smallest
+subnormal and weight is infinite, multiplying the weight before division returns
+Inf; rounding gamma-minus-one first returns zero and changes the result to NaN.
+Thus per-particle energy materialization is also unsuitable as a blanket
+nonfinite compatibility path. Logs:
+`/tmp/hybrid-energy-nonfinite-weight-control{112,113}.log`.
+
+The isolated `/tmp/hybrid-energy-public-v1` starts public integration at the
+existing diagnostic owner, with its own pre-edit brief. Its first extreme-c
+smoke check passes on Julia 1.13.1; full candidate acceptance remains pending.
+No shared production source has been changed by this experiment.
+
 Before adoption, integrate a finite-range selector at the existing owner,
 preserve ordinary arithmetic and visible nonfinite-factor behavior, verify
 every failure path and writable-view case, measure ordinary overhead and
