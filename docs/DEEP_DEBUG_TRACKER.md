@@ -32,11 +32,13 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   are included in that push; final GitHub acceptance remains pending. Logs: `/tmp/hybrid-ci-38710456393-julia-latest.log` and
   `/tmp/hybrid-ci-38710456393-mpi8-artifact/mpi-smoke.log`.
 
-- Fresh full `Pkg.test()` runs are active at immutable `6341c4b` on native
-  Julia 1.12.7 and 1.13.1. They include the archive inference, checkpoint
-  serialization and continuity repairs; uncommitted radiation work is excluded.
-  Results are pending. Logs: `/tmp/hybrid-full-6341c4b-julia{112,113}.log`;
-  initial source/environment hashes: `/tmp/hybrid-full-6341c4b-manifest.json`.
+- The immutable `6341c4b` full `Pkg.test()` suite on native Julia 1.13.1 passes
+  **352,287 assertions** in 132m00.6s and exits 0. All 266 recorded Julia and
+  environment files retain their snapshot hashes. The Julia 1.12.7 run remains
+  active. These snapshots include archive inference, checkpoint serialization
+  and continuity repairs; later KdV, RayCon, threaded-alias and held radiation
+  work are excluded. Logs: `/tmp/hybrid-full-6341c4b-julia{112,113}.log`;
+  source/environment hashes: `/tmp/hybrid-full-6341c4b-manifest.json`.
 
 - Full package suites finished at immutable `fe519e9`, each with a separately
   resolved native environment. Julia 1.13.1 passes **338,415 assertions** in

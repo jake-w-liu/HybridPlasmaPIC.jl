@@ -18,7 +18,7 @@ julia --project=. -e 'using Pkg; Pkg.test()'
 ```
 
 `Pkg.test()` activates the `[targets].test` environment, which adds the
-test-only dependencies (`Test`, `Statistics`, `Aqua`, `JET`, `HDF5`). To iterate on a
+test-only dependencies listed in `Project.toml`. To iterate on a
 single test file while developing, run it against the package project:
 
 ```bash
@@ -27,8 +27,8 @@ julia --project=. test/test_hybrid.jl
 
 Note that test files relying on a test-only dependency must be run through
 `Pkg.test()` so those packages are on the load path. In particular,
-`test_quality.jl` requires Aqua and `test_extensions.jl` requires HDF5. The
-`test_jet.jl` file is the exception: it skips when JET is absent.
+`test_quality.jl` requires Aqua, `test_extensions.jl` requires HDF5, and
+`test_jet.jl` requires JET. Missing JET or a failed analysis fails the test gate.
 
 ### Static analysis (JET) and quality (Aqua)
 

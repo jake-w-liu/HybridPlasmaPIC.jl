@@ -96,8 +96,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Package quality and CI hardening.** JET static-analysis smoke test
   with logged findings and a bounded regression gate, a `.JuliaFormatter.toml`
   (default style, 100-column margin), a
-  formatting-check CI job, a scheduled (cron) CI run, a Windows runner in the
-  test matrix for the non-MPI core, and upload of test logs as CI artifacts.
+  formatting-check CI job, Ubuntu package jobs for the minimum supported Julia
+  minor and latest stable release, real 2-/4-/8-rank MPI jobs, and uploaded test
+  logs. JET is required and permits the 0.12 series for current Julia releases.
 - Project metadata: `CITATION.cff`, `CONTRIBUTING.md`, and this changelog.
 - SHK-005 now includes a compact published external hybrid-code reference from
   the Preisser et al. 2020 Zenodo dataset (`10.5281/zenodo.3697360`): source DOI,
@@ -141,6 +142,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   or Fourier wavenumbers are not finite and representable in the element type.
 
 ### Fixed
+
+- Threaded scalar and density deposition share serial input validation and
+  reject output aliases of values or particle storage before clearing arrays.
+- KdV dealiasing projects both operands and the quadratic product onto the
+  strict integer-mode band `3abs(m) < n`, preventing excluded-input and cutoff
+  aliases while preserving linear evolution of the complete state.
+- RayCon uses analytic Solovev magnetic-field derivatives for geometry and
+  amplitude transport, reducing sensitivity to last-bit launch perturbations.
+- MPI checkpoint-publication tests synchronize all readers before renaming
+  fixture files. The eight-rank CI step has a bounded 40-minute window to
+  finish the full suite; two- and four-rank steps retain 20 minutes.
 
 - Run archives retain the validated byte-vector payload type through checksum
   verification and decoding, eliminating unrelated loader inference reports
