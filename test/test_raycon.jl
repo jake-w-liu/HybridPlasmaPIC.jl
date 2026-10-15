@@ -61,6 +61,59 @@ end
     @test_throws ArgumentError map_flux(RCN_EQ, -0.1, 0.0)
 end
 
+@testset "RCN-003 magnetic derivatives across equilibrium scales" begin
+    R = HybridPlasmaPIC.Raycon
+    # Independent high-precision differences of |B|, computed from the
+    # Solovev flux gradient. A relative step of 1e-20 at 256 bits keeps both
+    # truncation and subtraction errors well below Float64 roundoff.
+    setprecision(BigFloat, 256) do
+        for scale in (1e-3, 1.0, 1e3), elong in (0.7, 1.6, 2.3)
+            eq = SolovevEquilibrium(;
+                b0 = 7.9,
+                r0 = 0.67 * scale,
+                q0 = 2.0,
+                iaspr = 0.22 / 0.67,
+                elong,
+            )
+            r0 = BigFloat(eq.r0)
+            e2 = BigFloat(eq.elong)^2
+            fac = BigFloat(eq.psin) / (BigFloat(eq.iaspr) * r0^2)^2
+            t0 = BigFloat(eq.b0) * r0
+            function bfield(r, z)
+                dpsidr = fac * r * (2 * z^2 / e2 + r^2 - r0^2)
+                dpsidz = 2 * fac * r^2 * z / e2
+                return sqrt((t0^2 + dpsidr^2 + dpsidz^2) / r^2)
+            end
+            h = r0 * BigFloat("1e-20")
+            for (rhofrac, th) in ((0.1, 0.0), (0.15, 0.7), (0.2, -1.2), (1e-6, 2.0))
+                rho = eq.r0 * rhofrac
+                r, z = BigFloat.(R._sol_coords(eq, rho, th))
+                b = bfield(r, z)
+                ref = (
+                    (bfield(r + h, z) - bfield(r - h, z)) / (2h),
+                    (bfield(r, z + h) - bfield(r, z - h)) / (2h),
+                    (bfield(r + h, z) - 2b + bfield(r - h, z)) / h^2,
+                    (
+                        bfield(r + h, z + h) - bfield(r + h, z - h) - bfield(r - h, z + h) +
+                        bfield(r - h, z - h)
+                    ) / (4h^2),
+                    (bfield(r, z + h) - 2b + bfield(r, z - h)) / h^2,
+                )
+                actual = R._dmagnetic(eq, rho, th)
+                for i = 1:5
+                    derivative_scale = eq.b0 / eq.r0^(i <= 2 ? 1 : 2)
+                    @test isapprox(
+                        actual[i],
+                        Float64(ref[i]);
+                        rtol = 1e-12,
+                        atol = 1e-12 * derivative_scale,
+                    )
+                end
+            end
+        end
+    end
+end
+
 @testset "RCN-003 magnetic geometry: identities and FD oracles" begin
     for (rho, th) in ((0.08, 0.5), (0.15, 2.2), (0.11, -0.9))
         g = magnetic_geometry(RCN_EQ, rho, th)
@@ -527,6 +580,15 @@ end
     amp = integrate_ray_amplitude(RCN_PROB, y0, W0, 0.0, σe; damping = false)
     @test amp.status === :end_of_span
     @test amp.nmaslov == 0
+    # Unit conversions can shift any launch component by one ulp. Such
+    # changes must respect the same focusing tolerance as normalized parity.
+    for i in eachindex(y0)
+        yp = copy(y0)
+        yp[i] = nextfloat(yp[i])
+        ampp = integrate_ray_amplitude(RCN_PROB, yp, W0, 0.0, σe; damping = false)
+        @test ampp.status === :end_of_span
+        @test isapprox(ampp.W[1, end], amp.W[1, end]; rtol = 1e-9)
+    end
     u = vcat(y0, vec(Matrix{Float64}(I, 4, 4)))
     nst = 2000
     h = σe / nst
@@ -703,8 +765,8 @@ if isfile(RCN_REF)
                     atol = 1e-9,
                 )
             end
-            # first derivatives of basis vectors: dominated by analytic terms,
-            # dbdr enters via FD (upstream step 1e-8 vs ours 1e-5) → 1e-5 slack
+            # The reference uses finite differences of b with step 1e-8;
+            # keep its derivative noise allowance for the analytic result.
             for fld in (
                 "denerdr",
                 "denezdr",

@@ -5,45 +5,31 @@
 # (parallel), e_p = complement (e_b × e_n orientation as upstream); the wave
 # vector is projected as k_{n,b,p} = kr·e_{n,b,p}r + kφ·e_{n,b,p}φ + kz·e_{n,b,p}z.
 #
-# The (dbdr, dbdz, dbdr2, dbdrz, dbdz2) block reproduces dmagnetic.m: central
-# finite differences of b(R, Z) with the upstream-hardcoded step 1e-8 — kept
-# (not replaced by analytic derivatives) for 1:1 parity with the original.
+# The field derivatives are analytic. Differencing b at a fixed spatial step
+# amplifies roundoff in the Hessian and makes amplitude/conversion results
+# sensitive to the last-bit changes introduced by SI/normalized round trips.
 
-# b(R, Z) exactly as dmagnetic.m builds it (from 1st-order solovev data only).
-function _bfield_at(eq::SolovevEquilibrium, R::Float64, Z::Float64)
-    rho = sqrt((R - eq.r0)^2 + Z^2)
-    th = atan(eq.r0 - R, -Z) + π / 2
-    s = solovev_flux(eq, rho, th; order = 1)
-    dpds = 2 * s.sflx * eq.psin
-    h11 = s.dsdr^2 + s.dsdz^2
-    gp2 = dpds^2 * h11
-    t0 = eq.b0 * eq.r0
-    return sqrt((t0 / R)^2 + gp2 / R^2)
-end
-
-# dmagnetic.m: FD derivatives of b in (R, Z). Upstream hardcodes step 1e-8,
-# which puts ~4·eps·|b|/h² ≈ 10-20% roundoff noise on the SECOND derivatives;
-# we use 1e-5 (documented deviation), reducing that noise to ~1e-5 relative
-# while keeping truncation error negligible (b varies on the ~0.1 m scale).
+# Solovev gives Bφ = b0*r0/r, Br = -ψ_z/r and Bz = ψ_r/r. Differentiate
+# b = sqrt(Bφ² + Br² + Bz²): b_ij = (B_i·B_j + B·B_ij - b_i*b_j)/b.
 function _dmagnetic(eq::SolovevEquilibrium, rho::Float64, theta::Float64)
     r = rho * cos(theta) + eq.r0
     z = -rho * sin(theta)
-    dr = 1e-5
-    dz = 1e-5
-    b00 = _bfield_at(eq, r, z)
-    bpr = _bfield_at(eq, r + dr, z)
-    bmr = _bfield_at(eq, r - dr, z)
-    bpz = _bfield_at(eq, r, z + dz)
-    bmz = _bfield_at(eq, r, z - dz)
-    bpp = _bfield_at(eq, r + dr, z + dz)
-    bpm = _bfield_at(eq, r + dr, z - dz)
-    bmp = _bfield_at(eq, r - dr, z + dz)
-    bmm = _bfield_at(eq, r - dr, z - dz)
-    dbdr = (bpr - bmr) / (2 * dr)
-    dbdz = (bpz - bmz) / (2 * dz)
-    dbdr2 = (bpr - 2 * b00 + bmr) / dr^2
-    dbdz2 = (bpz - 2 * b00 + bmz) / dz^2
-    dbdrz = (bpp - bpm - bmp + bmm) / (4 * dr * dz)
+    fac = eq.psin / (eq.iaspr * eq.r0^2)^2
+    ielong2 = inv(eq.elong^2)
+    Bphi = eq.b0 * eq.r0 / r
+    Br = -2 * fac * r * z * ielong2
+    Bz = fac * (r^2 - eq.r0^2 + 2 * z^2 * ielong2)
+    b = sqrt(Bphi^2 + Br^2 + Bz^2)
+    dBphidr = -Bphi / r
+    dBrdr = -2 * fac * z * ielong2
+    dBrdz = -2 * fac * r * ielong2
+    dBzdr = 2 * fac * r
+    dBzdz = 4 * fac * z * ielong2
+    dbdr = (Bphi * dBphidr + Br * dBrdr + Bz * dBzdr) / b
+    dbdz = (Br * dBrdz + Bz * dBzdz) / b
+    dbdr2 = (dBphidr^2 + 2 * Bphi^2 / r^2 + dBrdr^2 + dBzdr^2 + 2 * fac * Bz - dbdr^2) / b
+    dbdrz = (dBrdr * dBrdz - 2 * fac * ielong2 * Br + dBzdr * dBzdz - dbdr * dbdz) / b
+    dbdz2 = (dBrdz^2 + dBzdz^2 + 4 * fac * ielong2 * Bz - dbdz^2) / b
     return dbdr, dbdz, dbdr2, dbdrz, dbdz2
 end
 
@@ -142,7 +128,7 @@ function magnetic_geometry(eq::SolovevEquilibrium, rho::Real, theta::Real)
     dh11drz = 2 * (dsdrz * dsdr2 + dsdr * dsdr2z + dsdz2 * dsdrz + dsdz * dsdrz2)
     dh11dz2 = 2 * (dsdrz * dsdrz + dsdr * dsdrz2 + dsdz2 * dsdz2 + dsdz * dsdz3)
 
-    # field-amplitude (r,z) derivatives — FD block (dmagnetic.m parity)
+    # analytic field-amplitude (r,z) derivatives
     dbdr, dbdz, dbdr2, dbdrz, dbdz2 = _dmagnetic(eq, rhov, th)
     dbds2 = drds2 * dbdr + dzds2 * dbdz + dbdr2 * drds^2 + dbdz2 * dzds^2 + 2 * drds * dzds * dbdrz
     dbdt2 = drdt2 * dbdr + dzdt2 * dbdz + dbdr2 * drdt^2 + dbdz2 * dzdt^2 + 2 * drdt * dzdt * dbdrz
