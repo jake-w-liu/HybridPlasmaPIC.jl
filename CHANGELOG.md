@@ -142,6 +142,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Checkpoint and archive preflight rejects configuration aliases that Julia
+  reconstructs independently, including copied views/indices, reconstructed
+  container buffers and repeated BigInt/Regex objects. Independent parameters,
+  shared containers and cycles remain supported. Native FFT plans and non-null
+  pointers reject before publication or restore mutation, including MPI saves.
+
 - Both EM continuity diagnostics retain finite complete residual ratios when
   density differences, transforms or timestep-weighted currents exceed the
   element type's intermediate range. Ordinary values and allocations are

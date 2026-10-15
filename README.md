@@ -326,15 +326,18 @@ readable. A cleanup error after publication leaves the new checkpoint usable.
 
 **I/O.** `save_checkpoint` / `load_checkpoint!` restart `HybridStepper`,
 `CAMCLStepper`, `Electrostatic1D`, `ElectrostaticPIC`, `EMPIC1D`, `EMPIC`, and `HallMHDState` runs bitwise-identically
-for the same stepping inputs. Checkpoints preserve particle provenance and
+for the same stepping inputs and numerical environment. Checkpoints preserve particle provenance and
 timestep history, including CAM-CL's persistent magnetic copies and subcycle phase.
 Hybrid restores replace model/shape parameters with the saved values;
 electrostatic destinations require matching background density `n0`.
 Model/shape parameters must be independent of evolving solver and particle
 storage; capture and restore reject retained links to that storage. Custom
-configuration uses Julia Serialization. Internal Array/SubArray or dictionary
-backing aliases and native handles have separate, unresolved serialization
-limits described in the [configuration plan](docs/CHECKPOINT_CONFIGURATION_PLAN.md).
+configuration uses Julia Serialization. Preflight rejects native FFT plans,
+non-null raw pointers and sharing that serialization copies independently.
+Independent views and shared Array/Ref parameters remain supported. Custom
+serializers own their reconstruction semantics; already-detached saved graphs
+cannot recover their original links. See the
+[configuration contract and limits](docs/CHECKPOINT_CONFIGURATION_PLAN.md).
 Hybrid collections use `save_checkpoint(path, st, species)` and
 `load_checkpoint!(st, species, path)`, preserving population order, charge, mass
 and storage. Every destination is checked before any population changes;

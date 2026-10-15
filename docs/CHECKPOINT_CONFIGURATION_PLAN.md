@@ -1,7 +1,8 @@
 # Checkpoint configuration ownership and publication
 
-Status: configuration ownership repair verified on Julia 1.12.7 and 1.13.1;
-independent serialization and publication gaps remain open.
+Status: configuration ownership and serialization-contract repairs verified on
+Julia 1.12.7 and 1.13.1. Custom serializer and already-detached payload limits
+remain explicit below. Serial publication has its own verified repair and plan.
 
 ## Configuration links to solver state
 
@@ -81,7 +82,7 @@ The v11 addition changes only dictionary backing registration and is covered
 by 560 new assertions per version plus the complete final ownership matrices.
 Final full-package integration is a separate gate after the outstanding slices.
 
-## Separate confirmed follow-ups
+## Reproductions that motivated the follow-up repairs
 
 - Internal parameter views: Julia's serialization can detach an Array-backed
   SubArray from its separately stored parent. Independent configuration remains
@@ -109,12 +110,13 @@ Final full-package integration is a separate gate after the outstanding slices.
   serializer/write/close/rename failures, retry, path ownership and bounded
   resources. MPI's existing generation publication is a separate owner.
 
-The serial publication follow-up now has a [dedicated implementation plan](SERIAL_PUBLICATION_PLAN.md),
-including path, permission, asynchronous snapshot and failure-cleanup contracts.
+The serial publication follow-up is implemented; its
+[dedicated plan](SERIAL_PUBLICATION_PLAN.md) records path, permission,
+asynchronous snapshot, failure-cleanup contracts and final verification.
 
 ## IO-010 serialization-contract implementation brief
 
-Reviewed before production edits; final gates remain pending.
+Reviewed before production edits. Final verification is recorded below.
 
 1. **Mode:** repair canonical configuration validation.
 2. **Requirement:** reject relationships and resources that cannot survive
@@ -224,3 +226,90 @@ integration gates remain pending. These are intermediate results, not readiness.
   resources and real two-rank integration. Shared-container positives reject
   blanket bans; distinct wrappers reject early deduplication; equal independent
   values reject value-equality-based identity accounting.
+
+### Shared view indices — pre-edit extension
+
+- **Mode/requirement:** repair the remaining internal copied-storage relationship
+  within one Array-backed view; preserve independent and immutable indices.
+- **Evidence/cause:** eight public checkpoint/archive checks pass per native
+  version in `/tmp/hybrid-io010-shared-axis-index{112,113}.log`. A standard
+  `view(A, index, index)` shares its two mutable index arrays before save; Julia's
+  `unaliascopy` reconstructs them independently. A later index edit within the
+  originally selected extent changes both axes before restart and one afterward.
+  Native `base/subarray.jl:113–121,144` performs this reconstruction.
+- **Contract:** all mutable index storage copied independently within a view
+  must be independent. Repeated ranges and independent equal index arrays remain
+  valid. Cross-view and separately exposed indices retain their existing checks.
+- **Owner:** the existing copied-view branch of the canonical configuration
+  graph validator; no serializer or public API change.
+- **Compatibility:** reject this demonstrated lossy sharing before publication
+  or restore mutation. The earlier self-index hypothesis `view(a, a)` was
+  disproved: public `view` already unaliases indices from its parent at
+  `base/subarray.jl:213`. Its failed witness logs are retained under
+  `/tmp/hybrid-io010-self-index*.log`; it does not justify an additional ban.
+- **Strategy:** compare each mutable index allocation with earlier indices in
+  that copied view using the existing overlap predicate, before registering the
+  existing claims. Keep stored-edge counting and logical extent unchanged.
+- **Verification:** add the shared-axis negative to the full family/layout
+  matrix, independent-array/range positives and mutation-dependent roundtrips.
+  Recheck final focused/compiler/resource gates on both versions and the real
+  MPI one-rank rejection path. Earlier neighboring runs remain separately
+  identified by snapshot; no widened numerical tolerance or skipped assertion.
+
+## IO-010 final verification
+
+The final source is frozen in `/tmp/hybrid-io010-v5`, with hashes and base commit
+in `/tmp/hybrid-io010-v5-freeze.json`. Checkpoint source SHA256:
+`fc623f4eb1ae75ac9d6bc8de1628dd6416c5fd5cad2d54f2e5d68a25ea7de169`.
+The live source and both registered test files match the frozen bytes.
+
+- **12,950 focused assertions per version**, all seven testsets, exit 0:
+  `/tmp/hybrid-io010-v5-focused{112,113}.log`. This covers every configurable
+  family/layout, Float32/64 and 1D–3D, rollback, safe-codec and view mutation
+  continuation, cycles, backing storage and independent native resources.
+- **16 concrete validator analyses per version have zero findings**. Package
+  findings retain the exact earlier leaf-message multisets (26/25), without
+  changing the ceiling. Logs: `/tmp/hybrid-io010-v5-jet{112,113}.log` and
+  `/tmp/hybrid-io010-v5-package-compare{112,113}.log`. The separate full-test
+  environment failure tracked as JET-002 remains open.
+- **Real two-rank MPI passes 296 and 340 assertions per rank on each version**,
+  exit 0. Rank-local invalid configuration preserves the prior generation;
+  incoming native-resource rejection preserves destinations collectively.
+  Shared mutable parameters/cycles and scalar/two-species continuation pass.
+  `/tmp/hybrid-io010-v5-mpi{112,113}.log`; driver
+  `/tmp/hybrid-io010-v5-mpi-integration.jl`.
+- **118,065 neighboring assertions per version**, exit 0, on the preceding v4
+  snapshot: complete existing IO, reproducibility and six MPI files, excluding
+  only the separately executed new configuration test file.
+  `/tmp/hybrid-io010-v4-neighbors{112,113}.log` (34m12.5s/35m42.9s). The final
+  production delta adds only the shared-axis-index rejection; its full family
+  matrix, independent-index positives and real MPI case run on v5. These
+  neighboring results are not relabeled as a complete v5 package run.
+- An independent Array/Memory ownership pass adds **10 checks per version**,
+  exit 0: direct Memory exposure, MemoryRef through Ref, both edge orders and
+  independent-copy positives. `/tmp/hybrid-io010-array-memory-crc{112,113}.log`.
+- JuliaFormatter 1.0.62 is idempotent on the three final files;
+  `/tmp/hybrid-io010-v5-formatter.log`. Final diff and whitespace checks pass.
+
+Three warmed allocation samples agree for every sampled fixture on both native
+versions. All 18 standard configuration guards allocate **0 B**; mutable-cycle
+guards allocate **36,320–60,352 B**. Primitive parameter vectors of length one
+and one million both allocate **45,840 B**. Packed-parent samples allocate
+49,120–53,312 B across the stable-sample processes; a separate earlier sample
+reaches 54,400 B. These are allocated bytes, not peak or retained memory, and
+refer to the configuration guard rather than the whole checkpoint validator.
+Logs: `/tmp/hybrid-io010-v5-stable-resources{112,113}.log` and
+`/tmp/hybrid-io010-v5-resources{112,113}.log`. Timings were collected under shared
+load and do not establish a portable speed claim.
+
+An intermediate v3 test fixture incorrectly assumed `deepcopy(::Regex)` creates
+a distinct Regex. Both native versions return the original object. The corrected
+fixture constructs independent Regex values explicitly and checks identity;
+the 59-pass/1-error logs remain under `/tmp/hybrid-io010-v3-focused{112,113}.log`.
+No production rejection was relaxed to accept that shared object.
+
+No checkpoint schema, global Serialization method, generic `save_run`/`async_save`
+policy or simulation evolution kernel changed. Custom codecs and callbacks
+outside the declared configuration graph retain responsibility for their own
+semantics. Older payloads whose links have already detached cannot reveal the
+original relationship to this validator.

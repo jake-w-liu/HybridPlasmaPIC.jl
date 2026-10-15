@@ -290,85 +290,239 @@ function _validate_checkpoint_grid(s, g::FourierGrid{D,T}) where {D,T}
     return nothing
 end
 
-# Walk stored values without invoking constructors or following type/module globals.
-# Arrays expose logical storage plus wrapper metadata. Their declared parents are
-# inspected only for metadata, so a disjoint view does not expose its full backing
-# storage. Array/Memory buffers and Dict/IdDict table capacity are opaque.
-# Built-in packed buffers and dictionary tables are reported separately to the
-# storage owner; their capacity contents are not arbitrary wrapper metadata.
-# A later logical edge upgrades a metadata-only visit; cycles visit each object at
-# most once in each mode. Custom arrays must declare their parent/dataids correctly.
-function _visit_checkpoint_objects(f, roots; backing = nothing)
+# A raw pointer is process-local even when it is nested in an isbits parameter.
+# Ordinary isbits configuration still avoids graph allocation entirely.
+function _checkpoint_pointer_free_bits(::Type{T}) where {T}
+    isbitstype(T) || return false
+    T <: Ptr && return false
+    for field in fieldtypes(T)
+        _checkpoint_pointer_free_bits(field) || return false
+    end
+    return true
+end
+
+_checkpoint_backing_arrays(value::BitArray) = (value.chunks,)
+_checkpoint_backing_arrays(value::Dict) = (value.slots, value.keys, value.vals)
+_checkpoint_backing_arrays(value::IdDict) = (value.ht,)
+_checkpoint_backing_arrays(value::Expr) = (value.args,)
+
+function _queue_checkpoint_object!(pending, edges, item, logical, stored = true)
+    push!(pending, (item, logical))
+    edges === nothing || push!(edges, (item, stored))
+    return nothing
+end
+
+# Walk logical storage and stored metadata. Array parents do not expand a view's
+# logical extent, and standard container capacity stays opaque. A later logical
+# visit upgrades a metadata visit; each object is expanded at most once per mode.
+# Optional edge records distinguish actual serialized fields from synthetic
+# custom-container iteration, without invoking a serializer or constructor.
+function _visit_checkpoint_objects(f, roots; backing = nothing, record = nothing)
     pending = Tuple{Any,Bool}[(roots, true)]
     seen = IdDict{Any,Bool}()
     while !isempty(pending)
         value, logical = pop!(pending)
         T = typeof(value)
-        (isbitstype(T) || value isa Union{String,Symbol,Module,Type}) && continue
+        (
+            (isbitstype(T) && (record === nothing || _checkpoint_pointer_free_bits(T))) ||
+            value isa Union{String,Symbol,Module,Type}
+        ) && continue
         haskey(seen, value) && (seen[value] || !logical) && continue
         seen[value] = logical
         logical && f(value)
+        edges = record === nothing ? nothing : Tuple{Any,Bool}[]
+        copied_view = value isa SubArray && parent(value) isa Array
         if value isa BitArray
-            backing === nothing || backing(value.chunks)
-            continue
-        end
-        if value isa AbstractArray && !(value isa AbstractRange)
-            if logical && !isbitstype(eltype(value))
+            for buffer in _checkpoint_backing_arrays(value)
+                backing === nothing || backing(buffer)
+                record === nothing || _queue_checkpoint_object!(pending, edges, buffer, false)
+            end
+        elseif value isa AbstractArray && !(value isa AbstractRange)
+            if logical && (
+                !isbitstype(eltype(value)) ||
+                (record !== nothing && !_checkpoint_pointer_free_bits(eltype(value)))
+            )
+                stored = value isa Union{Array,Memory} || copied_view
                 for i in eachindex(value)
-                    isassigned(value, i) && push!(pending, (value[i], true))
+                    isassigned(value, i) &&
+                        _queue_checkpoint_object!(pending, edges, value[i], true, stored)
                 end
             end
-            value isa Union{Array,Memory} && continue
-            array_parent = parent(value)
-            array_parent === value || push!(pending, (array_parent, false))
-            for i = 1:fieldcount(T)
-                isdefined(value, i) || continue
-                item = getfield(value, i)
-                array_parent !== value && item === array_parent && continue
-                push!(pending, (item, true))
+            if !(value isa Union{Array,Memory})
+                array_parent = parent(value)
+                array_parent === value ||
+                    _queue_checkpoint_object!(pending, edges, array_parent, false, !copied_view)
+                for i = 1:fieldcount(T)
+                    isdefined(value, i) || continue
+                    item = getfield(value, i)
+                    array_parent !== value && item === array_parent && continue
+                    # Array-backed views serialize fresh parents and indices.
+                    _queue_checkpoint_object!(pending, edges, item, true, !copied_view)
+                end
             end
-            continue
         elseif value isa AbstractDict
+            stored = value isa Union{Dict,IdDict}
             for (key, item) in value
-                push!(pending, (key, true), (item, true))
+                _queue_checkpoint_object!(pending, edges, key, true, stored)
+                _queue_checkpoint_object!(pending, edges, item, true, stored)
             end
-            if value isa Dict
+            if stored
                 if backing !== nothing
-                    backing(value.slots)
-                    backing(value.keys)
-                    backing(value.vals)
+                    foreach(backing, _checkpoint_backing_arrays(value))
                 end
-                continue
-            elseif value isa IdDict
-                backing === nothing || backing(value.ht)
-                continue
+            else
+                for i = 1:fieldcount(T)
+                    isdefined(value, i) &&
+                        _queue_checkpoint_object!(pending, edges, getfield(value, i), true)
+                end
             end
-        elseif value isa AbstractSet
-            if value isa Set
-                # Set serializes this dictionary as an object; retain its identity
-                # while the Dict branch keeps unused table capacity opaque.
-                push!(pending, (value.dict, true))
-                continue
+        elseif value isa Expr && record !== nothing
+            # Expr serializes each argument, rebuilding its args vector.
+            _queue_checkpoint_object!(pending, edges, value.head, true)
+            _queue_checkpoint_object!(pending, edges, value.args, true, false)
+            for item in value.args
+                _queue_checkpoint_object!(pending, edges, item, true)
             end
-            for item in value
-                push!(pending, (item, true))
-            end
+        elseif value isa Set
+            _queue_checkpoint_object!(pending, edges, value.dict, true)
         elseif value isa Core.SimpleVector
-            # SimpleVector's elements are not ordinary reflected fields.
             for item in value
-                push!(pending, (item, true))
+                _queue_checkpoint_object!(pending, edges, item, true)
             end
-            continue
+        else
+            if value isa AbstractSet
+                for item in value
+                    _queue_checkpoint_object!(pending, edges, item, true, false)
+                end
+            end
+            for i = 1:fieldcount(T)
+                isdefined(value, i) &&
+                    _queue_checkpoint_object!(pending, edges, getfield(value, i), true)
+            end
         end
-        for i = 1:fieldcount(T)
-            isdefined(value, i) && push!(pending, (getfield(value, i), true))
+        record === nothing || record(value, logical, edges)
+    end
+    return nothing
+end
+
+# The owner is the object whose serialized data allocation will hold the logical
+# array after loading. Generic wrappers preserve their declared parent; Arrays,
+# Memory and each serialized Array-backed SubArray allocate their own data.
+function _checkpoint_serialization_owner(array::AbstractArray)
+    seen = IdSet{Any}()
+    while true
+        array in seen && throw(ArgumentError("checkpoint array parent cycle"))
+        push!(seen, array)
+        array isa Union{Array,Memory} && return array
+        array isa BitArray && return array.chunks
+        array isa SubArray && parent(array) isa Array && return array
+        next = parent(array)
+        next === array && return array
+        array = next
+    end
+end
+
+function _validate_checkpoint_configuration_graph(configuration, graph, require_independent)
+    # Logical iteration can expose a raw pointer that lives in a wrapper's data.
+    # Built-in value codecs reconstruct their private native resources instead.
+    reached = IdSet{Any}()
+    pending = Any[configuration]
+    while !isempty(pending)
+        value = pop!(pending)
+        value in reached && continue
+        push!(reached, value)
+        haskey(graph, value) || continue
+        if value isa FFTW.FFTWPlan || (value isa Ptr && value != C_NULL)
+            throw(
+                ArgumentError("checkpoint configuration contains a process-local native resource"),
+            )
+        end
+        for (item, _) in graph[value].edges
+            push!(pending, item)
+        end
+    end
+
+    # Serialization tracks most mutable objects once. Immutable containers and
+    # the BigInt/Regex value codecs are emitted per incoming edge. Counts capped
+    # at two expose copied aliases while keeping fan-out and cycles bounded.
+    counts = IdDict{Any,Int}()
+    pending = Any[configuration]
+    while !isempty(pending)
+        value = pop!(pending)
+        haskey(graph, value) || continue
+        count = get(counts, value, 0)
+        cycle_tracked = ismutable(value) && !(value isa Union{BigInt,Regex})
+        count == (cycle_tracked ? 1 : 2) && continue
+        counts[value] = count + 1
+        for (item, stored) in graph[value].edges
+            stored && push!(pending, item)
+        end
+    end
+
+    claims = Tuple{AbstractArray,Any}[]
+    copied = IdSet{Any}()
+    tables = Union{Dict,IdDict,Expr}[]
+    for (value, node) in graph
+        get(counts, value, 0) > 0 || continue
+        value isa Union{BigInt,Regex} &&
+            get(counts, value, 0) > 1 &&
+            throw(
+                ArgumentError("checkpoint configuration repeats a value that serialization copies"),
+            )
+        value isa Union{Dict,IdDict,Expr} && push!(tables, value)
+        node.logical && value isa AbstractArray || continue
+        owner = _checkpoint_serialization_owner(value)
+        push!(claims, (value, owner))
+        if owner isa SubArray && parent(owner) isa Array
+            get(counts, owner, 0) > 1 && throw(
+                ArgumentError("checkpoint configuration repeats a view that serialization copies"),
+            )
+            if !(owner in copied)
+                push!(copied, owner)
+                indices = parentindices(owner)
+                for (i, index) in enumerate(indices)
+                    index isa AbstractArray && !(index isa AbstractRange) || continue
+                    for j = 1:(i-1)
+                        other = indices[j]
+                        other isa AbstractArray &&
+                            !(other isa AbstractRange) &&
+                            _particle_arrays_mightalias(index, other) &&
+                            throw(
+                                ArgumentError(
+                                    "checkpoint view indices alias storage that serialization copies independently",
+                                ),
+                            )
+                    end
+                    push!(claims, (index, owner))
+                end
+            end
+        end
+    end
+    # Each reconstructed buffer is a separate allocation, including buffers
+    # shared by distinct containers before serialization. Keep capacity opaque.
+    for table in tables
+        for (i, buffer) in enumerate(_checkpoint_backing_arrays(table))
+            require_independent(buffer)
+            push!(claims, (buffer, (table, i)))
+        end
+    end
+    for i in eachindex(claims)
+        array, owner = claims[i]
+        for j = 1:(i-1)
+            other, other_owner = claims[j]
+            owner === other_owner && continue
+            _particle_arrays_mightalias(array, other) && throw(
+                ArgumentError(
+                    "checkpoint configuration aliases storage that serialization copies independently",
+                ),
+            )
         end
     end
     return nothing
 end
 
 function _validate_checkpoint_configuration(s, st, configuration)
-    isbitstype(typeof(configuration)) && return nothing
+    _checkpoint_pointer_free_bits(typeof(configuration)) && return nothing
     owned = IdDict{Any,Nothing}()
     arrays = AbstractArray[]
     function remember(value)
@@ -400,7 +554,15 @@ function _validate_checkpoint_configuration(s, st, configuration)
         (g.plan, g.iplan, g.cbuf, g.tbuf, g.abuf, g.sbuf);
         backing = remember,
     )
-    _visit_checkpoint_objects(configuration) do value
+    graph = IdDict{Any,NamedTuple{(:logical, :edges),Tuple{Bool,Vector{Tuple{Any,Bool}}}}}()
+    function record(value, logical, edges)
+        # Serialization has dedicated value codecs for these types; their private
+        # pointers are reconstructed rather than emitted as stored fields.
+        value isa Union{Regex,BigInt} && empty!(edges)
+        graph[value] = (logical = logical, edges = edges)
+        return nothing
+    end
+    function require_independent(value)
         haskey(owned, value) && throw(
             ArgumentError(
                 "checkpoint configuration must not reference evolving simulation storage",
@@ -416,6 +578,8 @@ function _validate_checkpoint_configuration(s, st, configuration)
             end
         end
     end
+    _visit_checkpoint_objects(require_independent, configuration; record)
+    _validate_checkpoint_configuration_graph(configuration, graph, require_independent)
     return nothing
 end
 

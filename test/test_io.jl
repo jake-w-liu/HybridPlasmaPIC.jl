@@ -601,3 +601,5 @@ include("test_io_particle_storage.jl")
 include("test_io_clock.jl")
 include("test_io_configuration_ownership.jl")
 include("test_io_publication.jl")
+
+include("test_io_configuration_serialization.jl")
