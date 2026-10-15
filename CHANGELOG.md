@@ -143,6 +143,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Per-species density, momentum and current preserve complete finite results
+  across intermediate overflow/underflow, including threaded deposition and
+  both EMPIC current paths. Serial and threaded callers share one stencil
+  kernel; ordinary arithmetic, generic raw deposition and scratch contents
+  retain their existing behavior.
+
 - Relativistic kinetic energy retains finite complete weighted results when
   intermediate squares, products or sums exceed floating-point range, and
   resolves uncertain speed limits from the exact stored velocity components.

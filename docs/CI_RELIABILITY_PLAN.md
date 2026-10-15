@@ -277,8 +277,12 @@ allowed to finish before another push cancels its package jobs.
 The Julia 1.13.1 job in run `38722319490` completes successfully with **352,519
 assertions** in 66m46.4s and 21 JET reports. This accepts the latest-Julia
 dependency repair and the included RayCon/KdV changes on the Linux runner.
-The Julia 1.12 job remains running; the eight-rank timeout still prevents a green
-overall run. Source log: `/tmp/hybrid-ci-38722319490-julia-latest.log`, lines
+The Julia 1.12.7 job also completes successfully with **352,519 assertions** in
+137m59.4s and 22 JET reports. Its source log is
+`/tmp/hybrid-ci-38722319490-julia112.log`, lines 125 (version), 993–994 (JET) and
+1195–1197 (terminal result). The eight-rank timeout is the completed run's only
+failed job; no billing failure is reported. Latest-version source log:
+`/tmp/hybrid-ci-38722319490-julia-latest.log`, lines
 125 (version), 974–975 (JET) and 1151–1153 (terminal package result).
 
 ## Required Aqua gate — CI-004

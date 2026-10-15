@@ -13,6 +13,7 @@ using Test
     include("test_distributed_fft.jl")
     include("test_deposit.jl")
     include("test_moment_storage.jl")
+    include("test_moment_normalization.jl")
     include("test_hybrid.jl")
     include("test_cgl.jl")
     include("test_inertia.jl")

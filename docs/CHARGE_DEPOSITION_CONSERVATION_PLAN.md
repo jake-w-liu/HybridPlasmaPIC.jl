@@ -363,5 +363,7 @@ The independent control passes **eight assertions on each native version**.
 Evidence: `/tmp/hybrid-moment-prescale-control.jl` and
 `/tmp/hybrid-moment-prescale-control{112,113}.log`, both exit 0. Preserve this
 case alongside the overflow/underflow witnesses: changing multiplication order
-alone cannot serve as the complete normalization repair. No production moment
-implementation has changed.
+alone cannot serve as the complete normalization repair. The subsequent
+[per-species moment repair](MOMENT_NORMALIZATION_PLAN.md) records implementation
+and acceptance; [complete EMPIC charge combination](EMPIC_CHARGE_COMBINATION_PLAN.md)
+remains a separate follow-up.

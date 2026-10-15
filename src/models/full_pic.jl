@@ -333,10 +333,29 @@ end
     vx = s.v[1]
     w = s.weight
     acc = zero(T)
+    finite = isfinite(s.q) && isfinite(L) && L > zero(T)
+    lost = false
     @inbounds for p in eachindex(w)
-        acc += w[p] * vx[p]
+        product = w[p] * vx[p]
+        finite &= isfinite(w[p]) && isfinite(vx[p])
+        lost |= _deposition_product_lost(w[p], vx[p], product)
+        acc += product
+        lost |= _deposition_range_lost(acc)
     end
-    return s.q * acc / L
+    numerator = s.q * acc
+    value = numerator / L
+    lost |=
+        _deposition_product_lost(s.q, acc, numerator) ||
+        _deposition_range_lost(value) ||
+        (iszero(value) && !iszero(numerator))
+    if finite && lost
+        exact = zero(Rational{BigInt})
+        for p in eachindex(w)
+            exact += _exact_rational(w[p]) * _exact_rational(vx[p])
+        end
+        return _from_exact(T, exact * _exact_rational(s.q) / _exact_rational(L))
+    end
+    return value
 end
 
 # Transverse current Jy^{n+1/2} = Σ_species q Σ w v_y S(x^{n+1/2}) (CIC). For each
@@ -350,19 +369,22 @@ function _add_transverse_Jy!(
     scratch::Vector{T},
     accumulate::Bool,
 ) where {T}
-    ΔV = prod(es.g.dx)
     @inbounds @. work = s.weight * s.v[2]
-    deposit_scalar!(scratch, s, work, es.g, es.shape)
-    f = s.q / ΔV
-    if accumulate
-        @inbounds for i in eachindex(es.Jy)
-            es.Jy[i] += f * scratch[i]
-        end
-    else
-        @inbounds for i in eachindex(es.Jy)
-            es.Jy[i] = f * scratch[i]
-        end
-    end
+    _validate_deposition_inputs(scratch, s, work, es.g)
+    factors = (s.weight, s.v[2])
+    state = _deposit_scalar_kernel!(scratch, s, factors, es.g, es.shape, Val(true))
+    _finish_moment!(
+        es.Jy,
+        scratch,
+        s,
+        factors,
+        es.g,
+        es.shape,
+        s.q,
+        state,
+        Val(:prescale),
+        accumulate,
+    )
     return es.Jy
 end
 
@@ -1553,20 +1575,23 @@ function _add_species_current!(
 ) where {D,T}
     length(work) == nparticles(s) ||
         throw(DimensionMismatch("current work length must equal particle count"))
-    ΔV = prod(es.g.dx)
     @inbounds for c = 1:3
         @. work = s.weight * s.v[c]
-        deposit_scalar!(scratch, s, work, es.g, es.shape)
-        f = s.q / ΔV
-        if accumulate
-            for I in eachindex(J[c])
-                J[c][I] += f * scratch[I]
-            end
-        else
-            for I in eachindex(J[c])
-                J[c][I] = f * scratch[I]
-            end
-        end
+        _validate_deposition_inputs(scratch, s, work, es.g)
+        factors = (s.weight, s.v[c])
+        state = _deposit_scalar_kernel!(scratch, s, factors, es.g, es.shape, Val(true))
+        _finish_moment!(
+            J[c],
+            scratch,
+            s,
+            factors,
+            es.g,
+            es.shape,
+            s.q,
+            state,
+            Val(:prescale),
+            accumulate,
+        )
     end
     return J
 end

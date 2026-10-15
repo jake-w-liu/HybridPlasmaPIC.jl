@@ -27,67 +27,46 @@ function deposit_scalar_threaded!(
     shape::ShapeFunction,
 ) where {D,T}
     _validate_deposition_inputs(out, ps, vals, g)
-    fill!(out, zero(T))
-    Np = length(vals)
-    val_first = firstindex(vals)
+    _deposit_scalar_threaded_kernel!(out, ps, (vals,), g, shape, Val(false))
+    return out
+end
+
+function _deposit_scalar_threaded_kernel!(
+    out::Array{T,D},
+    ps::ParticleSet{D,T},
+    factors::Tuple,
+    g::FourierGrid{D,T},
+    shape::ShapeFunction,
+    checked::Val{check},
+) where {D,T,check}
+    Np = nparticles(ps)
     nth = Threads.nthreads()
-    n = g.n
-    stamp = CartesianIndices(ntuple(_ -> width(shape), D))
-
-    # Fall back to the in-place serial path when threading buys nothing: a single
-    # thread or a particle count too small to bother allocating partials for.
     if nth == 1 || Np == 0
-        @inbounds for p = 1:Np
-            st = ntuple(d -> _stencil1d(shape, _particle_cell_position(ps, g, d, p)), D)
-            val = vals[val_first+p-1]
-            for c in stamp
-                o = Tuple(c)
-                w = val
-                for d = 1:D
-                    w *= st[d][2][o[d]]
-                end
-                idx = ntuple(d -> mod(st[d][1] + o[d] - 1, n[d]) + 1, D)
-                out[idx...] += w
-            end
-        end
-        return out
+        return _deposit_scalar_kernel!(out, ps, factors, g, shape, checked)
     end
-
-    # One private accumulator per thread, zero-initialised.
-    partials = [zeros(T, n) for _ = 1:nth]
-
-    # Static contiguous partition of the particle index range across threads, so
-    # every particle is deposited exactly once. `@threads :static` would also
-    # work but we partition explicitly so the mapping is independent of the
-    # scheduler and each thread writes only its own `partials[tid]`.
+    fill!(out, zero(T))
+    partials = [Array{T}(undef, g.n) for _ = 1:nth]
+    # Each worker owns one grid and one flag record; reduction follows all jobs.
+    states = check ? Vector{NamedTuple{(:eligible, :lost),Tuple{Bool,Bool}}}(undef, nth) : nothing
     chunks = _partition_ranges(Np, nth)
     Threads.@threads for t = 1:nth
-        rng = chunks[t]
-        isempty(rng) && continue
-        acc = partials[t]   # private to this thread: no other thread touches it
-        @inbounds for p in rng
-            st = ntuple(d -> _stencil1d(shape, _particle_cell_position(ps, g, d, p)), D)
-            val = vals[val_first+p-1]
-            for c in stamp
-                o = Tuple(c)
-                w = val
-                for d = 1:D
-                    w *= st[d][2][o[d]]
-                end
-                idx = ntuple(d -> mod(st[d][1] + o[d] - 1, n[d]) + 1, D)
-                acc[idx...] += w
-            end
-        end
+        state = _deposit_scalar_kernel!(partials[t], ps, factors, g, shape, checked, chunks[t])
+        states === nothing || (states[t] = state)
     end
-
-    # Reduce the per-thread partials into `out`.
-    @inbounds for t = 1:nth
+    eligible = true
+    lost = false
+    for t = 1:nth
+        if states !== nothing
+            eligible &= states[t].eligible
+            lost |= states[t].lost
+        end
         acc = partials[t]
         for I in eachindex(out)
             out[I] += acc[I]
+            check && (lost |= _deposition_range_lost(out[I]))
         end
     end
-    return out
+    return (; eligible, lost)
 end
 
 # Split 1:Np into `nparts` near-equal contiguous index ranges (the first
@@ -117,7 +96,8 @@ function density_threaded!(
     g::FourierGrid{D,T},
     shape::ShapeFunction,
 ) where {D,T}
-    deposit_scalar_threaded!(nout, ps, ps.weight, g, shape)
-    nout ./= prod(g.dx)
-    return nout
+    _validate_deposition_inputs(nout, ps, ps.weight, g)
+    factors = (ps.weight,)
+    state = _deposit_scalar_threaded_kernel!(nout, ps, factors, g, shape, Val(true))
+    return _finish_moment!(nout, nout, ps, factors, g, shape, one(T), state)
 end

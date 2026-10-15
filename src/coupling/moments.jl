@@ -1,39 +1,5 @@
 # Moments.jl — density/momentum/current/pressure moments (from deposit.jl)
 
-@inline function _deposit_weighted_scalar!(
-    out::Array{T,D},
-    ps::ParticleSet{D,T},
-    weight::AbstractVector{T},
-    value::AbstractVector{T},
-    g::FourierGrid{D,T},
-    shape::ShapeFunction,
-) where {D,T}
-    np = nparticles(ps)
-    length(weight) == np ||
-        throw(DimensionMismatch("weight length $(length(weight)) must equal particle count $np"))
-    length(value) == np ||
-        throw(DimensionMismatch("value length $(length(value)) must equal particle count $np"))
-    size(out) == g.n ||
-        throw(DimensionMismatch("out size $(size(out)) does not match grid size $(g.n)"))
-    fill!(out, zero(T))
-    n = g.n
-    stamp = CartesianIndices(ntuple(_ -> width(shape), D))
-    @inbounds for (p, wi) in enumerate(eachindex(weight))
-        st = ntuple(d -> _stencil1d(shape, _particle_cell_position(ps, g, d, p)), D)
-        val = weight[wi] * value[wi]
-        for c in stamp
-            o = Tuple(c)
-            w = val
-            for d = 1:D
-                w *= st[d][2][o[d]]
-            end
-            idx = ntuple(d -> mod(st[d][1] + o[d] - 1, n[d]) + 1, D)
-            out[idx...] += w
-        end
-    end
-    return out
-end
-
 @inline function _deposit_weighted_product!(
     out::Array{T,D},
     ps::ParticleSet{D,T},
@@ -407,15 +373,136 @@ function _validate_moment_storage(
     return nothing
 end
 
+# Track every volume product, including an intermediate subnormal that later
+# returns to the normal range. Keep prod(g.dx) for the ordinary rounding order.
+function _moment_volume(g)
+    finite = true
+    lost = false
+    running = one(eltype(g.dx))
+    for dx in g.dx
+        finite &= isfinite(dx) && dx > zero(dx)
+        product = running * dx
+        lost |= _deposition_product_lost(running, dx, product)
+        running = product
+    end
+    volume = prod(g.dx)
+    lost |= _deposition_range_lost(volume) || iszero(volume)
+    return (; volume, finite, lost)
+end
+
+# Exact arithmetic uses the stored represented factors and coefficients, not
+# rounded products or a materialized volume. Stencils have the same deterministic
+# contract as the shared deposit/gather pair. This bounded replay happens only
+# after eligible finite-input range loss and reuses the package's rounding owner.
+function _exact_moment(ps, factors, g, shape, coefficient)
+    Q = Rational{BigInt}
+    sums = fill(zero(Q), g.n)
+    D = length(g.n)
+    stamp = CartesianIndices(ntuple(_ -> width(shape), D))
+    for p = 1:nparticles(ps)
+        st = ntuple(d -> _stencil1d(shape, _particle_cell_position(ps, g, d, p)), D)
+        value = one(Q)
+        for values in factors
+            value *= _exact_rational(values[firstindex(values)+p-1])
+        end
+        for c in stamp
+            o = Tuple(c)
+            weight = value
+            for d = 1:D
+                weight *= _exact_rational(st[d][2][o[d]])
+            end
+            idx = ntuple(d -> mod(st[d][1] + o[d] - 1, g.n[d]) + 1, D)
+            sums[idx...] += weight
+        end
+    end
+    scale = _exact_rational(coefficient) / prod(_exact_rational(dx) for dx in g.dx)
+    for I in eachindex(sums)
+        sums[I] *= scale
+    end
+    return sums
+end
+
+# Preserve the two existing ordinary evaluation orders: public moments divide
+# the raw sum then multiply by charge; EMPIC multiplies by charge/volume. Both
+# use the same complete expression if an intermediate loses range.
+@inline function _moment_candidate(raw, coefficient, volume, ::Val{:postscale})
+    density = raw / volume
+    value = density * coefficient
+    lost =
+        _deposition_range_lost(density) ||
+        (iszero(density) && !iszero(raw)) ||
+        _deposition_product_lost(density, coefficient, value)
+    return value, lost
+end
+
+@inline function _moment_candidate(raw, coefficient, volume, ::Val{:prescale})
+    scale = coefficient / volume
+    value = scale * raw
+    lost =
+        _deposition_range_lost(scale) ||
+        (iszero(scale) && !iszero(coefficient)) ||
+        _deposition_product_lost(scale, raw, value)
+    return value, lost
+end
+
+function _finish_moment!(
+    out::Array{T},
+    raw,
+    ps,
+    factors,
+    g,
+    shape,
+    coefficient,
+    state,
+    order = Val(:postscale),
+    accumulate::Bool = false,
+) where {T}
+    volume = _moment_volume(g)
+    eligible = state.eligible && volume.finite && _deposition_exact_operand(coefficient)
+    lost = state.lost || volume.lost
+    # Do not overwrite a raw or existing accumulator before deciding whether
+    # the complete finite expression needs replay.
+    for value in raw
+        candidate, candidate_lost = _moment_candidate(value, coefficient, volume.volume, order)
+        lost |= candidate_lost
+    end
+    if eligible && lost
+        exact = _exact_moment(ps, factors, g, shape, coefficient)
+        for I in eachindex(out)
+            value = _from_exact(T, exact[I])
+            out[I] = accumulate ? out[I] + value : value
+        end
+    else
+        for I in eachindex(out)
+            value, _ = _moment_candidate(raw[I], coefficient, volume.volume, order)
+            out[I] = accumulate ? out[I] + value : value
+        end
+    end
+    return out
+end
+
 function density!(
     nout::Array{T,D},
     ps::ParticleSet{D,T},
     g::FourierGrid{D,T},
     shape::ShapeFunction,
 ) where {D,T}
-    deposit_scalar!(nout, ps, ps.weight, g, shape)
-    nout ./= prod(g.dx)
-    return nout
+    _validate_deposition_inputs(nout, ps, ps.weight, g)
+    factors = (ps.weight,)
+    state = _deposit_scalar_kernel!(nout, ps, factors, g, shape, Val(true))
+    return _finish_moment!(nout, nout, ps, factors, g, shape, one(T), state)
+end
+
+function _deposit_vector_moment!(out, ps, g, shape, coefficient, work)
+    for c = 1:3
+        # Preserve the existing scratch contents, even if the original
+        # product overflows. The exact replay reads particle operands instead.
+        work === nothing || (@. work = ps.weight * ps.v[c])
+        factors = (ps.weight, ps.v[c])
+        state = _deposit_scalar_kernel!(out[c], ps, factors, g, shape, Val(true))
+        _finish_moment!(out[c], out[c], ps, factors, g, shape, coefficient, state)
+    end
+    return out
 end
 
 """
@@ -431,20 +518,7 @@ function momentum!(
     work::Union{Nothing,AbstractVector{T}} = nothing,
 ) where {D,T}
     _validate_moment_storage(mom, ps, g, work)
-    ΔV = prod(g.dx)
-    if work === nothing
-        for c = 1:3
-            _deposit_weighted_scalar!(mom[c], ps, ps.weight, ps.v[c], g, shape)
-            mom[c] ./= ΔV
-        end
-    else
-        for c = 1:3
-            @. work = ps.weight * ps.v[c]
-            deposit_scalar!(mom[c], ps, work, g, shape)
-            mom[c] ./= ΔV
-        end
-    end
-    return mom
+    return _deposit_vector_moment!(mom, ps, g, shape, one(T), work)
 end
 
 "Ion current density J_c = q · (Σ_p w_p v_{c,p} S_g(x_p))/ΔV."
@@ -455,11 +529,8 @@ function current!(
     shape::ShapeFunction;
     work::Union{Nothing,AbstractVector{T}} = nothing,
 ) where {D,T}
-    momentum!(J, ps, g, shape; work)
-    for c = 1:3
-        J[c] .*= ps.q
-    end
-    return J
+    _validate_moment_storage(J, ps, g, work)
+    return _deposit_vector_moment!(J, ps, g, shape, ps.q, work)
 end
 
 # (i,j) index pairs of the 6 independent symmetric-tensor components, in order
