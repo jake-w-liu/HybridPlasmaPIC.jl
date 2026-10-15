@@ -203,5 +203,27 @@ per version. Logs: `/tmp/raycon-repair{112,113}.log`,
 `/tmp/raycon-amplitude-roundoff-red112.log`.
 
 The final production source matches the native test snapshots byte-for-byte.
-JuliaFormatter 1 and whitespace checks pass. Combined compiler checks and
-Linux GitHub acceptance remain pending.
+JuliaFormatter 1 and whitespace checks pass. Combined compiler checks pass
+as recorded below. Linux GitHub acceptance remains pending.
+
+## Combined native acceptance
+
+KdV is committed as `c5d7e94`; RayCon as `6a6b316`. All **264 tracked Julia
+files** in both combined snapshots match committed source `4124225` byte-for-byte
+(`/tmp/hybrid-ci-combined-hashes.json`). Held radiation changes are excluded.
+
+Both versions pass **three package JET assertions** and **nine Aqua checks**.
+Report counts remain **22 / 21** on Julia 1.12.7 / 1.13.1; the existing abstract
+FFTW finding at `kdv_solve` remains, while concrete Float32/64 calls are clean.
+Logs: `/tmp/hybrid-ci-combined-gates{112,113}.log`.
+
+The temporary combined driver then used an unqualified RayCon type name, so that
+driver exited 1 after the passing package/Aqua gates. Qualifying the existing
+type fixes the harness. The corrected final concrete driver exits 0 with all
+**three analyses clean** on each version (Float32/64 KdV and the magnetic
+derivative owner): `/tmp/hybrid-ci-concrete-final{112,113}.log`. No production
+change or repeated whole-package analysis was needed for this driver correction.
+
+The four changed Julia files are formatter-idempotent at margin 100
+(`/tmp/hybrid-ci-combined-format.log`). All verified fixes are committed;
+push and GitHub acceptance remain pending.
