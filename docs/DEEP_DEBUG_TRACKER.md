@@ -14,8 +14,10 @@ completeness. Comparative leadership requires reproducible external benchmarks.
 
 - Verified repairs are pushed through `55d996b`; remote `main` matches that SHA.
   [GitHub run 38722319490](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/38722319490)
-  has passed formatting and the 2-/4-rank MPI jobs; both package jobs and the
-  8-rank MPI job are running at the last observed check. Acceptance remains pending; no billing block is evidenced. The combined native source passes JET
+  has passed formatting and the 2-/4-rank MPI jobs. The 8-rank job reaches
+  GitHub's explicit 20-minute timeout after passing checkpoint publication
+  and moment-buffer validation; both package jobs remain running.
+  Acceptance remains pending; no billing block is evidenced. The combined native source passes JET
   (22/21 reports), Aqua and three concrete repair analyses on both versions.
 
 - GitHub run [38710456393](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/38710456393)
@@ -206,6 +208,7 @@ performance review. “Pending” means no current-run completion claim.
 | KDV-002 | Quadratic filtering allows excluded-input and cutoff aliases | Pushed (`c5d7e94`); GitHub pending | VERIFIED: explicit cosine inputs change by 0.00150–0.00175 despite zero projected nonlinear RHS; Nyquist cross products also leak. Strict integer-mode operand/product projection passes 61 KdV checks, two concrete compiler analyses and eight downstream metrics on both versions. New mode tests fail 14 checks against the baseline; physical accuracy thresholds remain unchanged. [Evidence and plan](CI_RELIABILITY_PLAN.md#kdv-filtering-repair--pre-edit-brief). |
 | RAY-001 | Magnetic finite-difference derivatives amplify unit-roundtrip perturbations | Pushed (`6a6b316`); GitHub pending | VERIFIED: one-ulp launch changes perturb focusing by up to 4.87e-7 with the stencil versus 3.76e-13 with analytic derivatives. Both versions pass 961 complete-suite assertions and the final 10-assertion rounding block (two overlap). Existing normalized/SI and MATLAB tolerances remain unchanged; exact Linux failures await CI. [CI status](CI_RELIABILITY_PLAN.md). |
 | THR-007 | Threaded deposition overwrites aliased values instead of rejecting them | Verified locally; push awaits current CI | VERIFIED: one- and four-thread probes clear aliased inputs while serial deposition rejects them unchanged. Shared preflight passes 3,012 one-thread integration and 754 four-thread assertions per native version; 24 concrete analyses are clean, JET/Aqua pass. New tests fail 324 checks on the baseline. All 18 measured ordinary cases retain exact outputs and allocations. [Plan](THREADED_DEPOSITION_PLAN.md). |
+| CI-003 | Eight-rank MPI job is interrupted by its 20-minute step limit | Bounded budget implemented; acceptance pending | VERIFIED: GitHub's explicit timeout diagnostic follows passing checkpoint and collective-buffer testsets. A 40-minute eight-rank window retains the complete test matrix and 20-minute 2/4-rank limits. Full runtime and acceptance remain unverified. [Plan](CI_RELIABILITY_PLAN.md#eight-rank-execution-budget--ci-003). |
 | MOMENT-001 | Deposition, normalization and species scaling lose finite moments | Confirmed; repair planned | Both native versions pass 12 cell-volume and 24 numerator/stencil/current witness checks, confirming zero/Inf outputs despite finite exact complete results. Canonical deposition/normalization must be repaired before charge reconciliation adoption. [Evidence and scope](CHARGE_DEPOSITION_CONSERVATION_PLAN.md#confirmed-prerequisite-cell-volume-range). |
 
 ## Completeness roadmap

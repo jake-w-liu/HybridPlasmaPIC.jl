@@ -69,7 +69,9 @@ jobs:
           version: '1.12'
       - uses: julia-actions/cache@v2
       - name: Run real MPI regression smoke test
-        timeout-minutes: 20
+        # Eight ranks reached 20 minutes with passing checkpoint/moment tests;
+        # leave a bounded window for the complete collection regression suite.
+        timeout-minutes: ${{ matrix.ranks == 8 && 40 || 20 }}
         env:
           MPI_RANKS: ${{ matrix.ranks }}
         run: |

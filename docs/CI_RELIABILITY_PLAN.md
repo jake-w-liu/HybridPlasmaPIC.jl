@@ -227,5 +227,49 @@ change or repeated whole-package analysis was needed for this driver correction.
 The four changed Julia files are formatter-idempotent at margin 100
 (`/tmp/hybrid-ci-combined-format.log`). All verified fixes are pushed through `55d996b`.
 [GitHub run 38722319490](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/38722319490)
-has passed formatting and the 2-/4-rank MPI jobs; both package jobs and the
-8-rank MPI job are running at the last observed check. GitHub acceptance remains pending.
+has passed formatting and the 2-/4-rank MPI jobs. The 8-rank job timed out;
+both package jobs are running at the last observed check. GitHub acceptance remains pending.
+
+## Eight-rank execution budget — CI-003
+
+**VERIFIED:** job 116379636722 ends with GitHub's explicit 20-minute timeout
+diagnostic at `/tmp/hybrid-ci-38722319490-mpi8-job.log:326`. Its captured artifact
+contains passing results through collective moment-buffer validation, including
+all **48 checkpoint-publication checks on each of eight ranks**. The repaired
+reader barrier therefore passes this GitHub replay. The log contains no failed
+assertion; it does not establish that the unfinished suite would pass.
+
+- **Mode:** repair CI execution configuration.
+- **Acceptance:** complete successful 2-, 4- and 8-rank jobs on GitHub.
+- **Baseline:** the 8-rank step is interrupted after 20 minutes; the 4-rank
+  step completes in 7m50s. In those jobs, ordered collection continuation takes
+  11m09.8s and 3m22.1s respectively; the 4-rank final ion collection suite takes
+  1m15.3s. Evidence: the two retained `mpi{4,8}-job.log` files and the 8-rank
+  artifact under `/tmp/hybrid-ci-38722319490-mpi8-artifact/`.
+- **Cause:** the explicit step deadline terminates the 8-rank run. The cause
+  of its longer runtime is unmeasured; no deadlock or hardware-limit claim is made.
+- **Contract:** retain every assertion, all three ranks, failure propagation,
+  and always-uploaded logs. Continue to bound hung jobs.
+- **Owner:** `jobs.mpi-smoke` in `.github/workflows/HybridPlasmaPIC-CI.yml`.
+- **Compatibility:** no production code, launcher, test threshold or API change.
+- **Strategy:** set the 8-rank step budget to 40 minutes, twice the observed
+  interrupted duration; retain 20 minutes for 2/4 ranks. This is a bounded
+  trial budget, not a measured full-runtime prediction.
+- **Verification:** workflow lint and parsed structural comparison; require
+  the complete GitHub suite to pass before calling the change accepted.
+
+Dropping ranks or tests would hide missing coverage. Suppressing a failed exit
+would hide defects. An unlimited timeout would lose the termination bound.
+The final diff must reject all three alternatives.
+
+- [x] Capture explicit timeout diagnostic and passing partial artifact.
+- [x] Implement the rank-specific bounded budget.
+- [x] Validate workflow syntax, matrix and unchanged execution semantics.
+- [ ] Push and observe complete GitHub acceptance.
+
+`actionlint` 1.7.12 exits 0 on the final workflow
+(`/tmp/hybrid-ci-timeout-actionlint.log`). A Ruby YAML structural comparison
+against committed `a2154cf` passes: after restoring the timeout scalar in memory,
+the parsed documents are identical, and the rank matrix remains `[2, 4, 8]`.
+Whitespace checks pass. GitHub acceptance is still pending; the current run is
+allowed to finish before another push cancels its package jobs.
