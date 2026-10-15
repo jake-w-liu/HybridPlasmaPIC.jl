@@ -100,3 +100,34 @@ the package's actual `width` function; no solver code was changed.
 This finding is distinct from the remaining current-materialization range and
 severe FFT-cancellation accuracy work in the
 [continuity plan](CONTINUITY_DIAGNOSTIC_RANGE_PLAN.md).
+
+## Fixed-state design experiment
+
+The first bounded experiment passes 19 checks on each native version, with
+identical measured values. It replays the captured before/after particles and
+reapplies the existing current correction to the original raw current. No
+production code, diagnostic or tolerance is changed. Driver and analysis brief:
+`/tmp/hybrid-validation20-deposition-methods.jl` and
+`/tmp/hybrid-validation20-deposition-analysis-brief.md`; logs
+`/tmp/hybrid-validation20-deposition-methods{112,113}.log`.
+
+| Accumulation / charge treatment | Change in summed charge density | Continuity residual |
+| --- | ---: | ---: |
+| Existing serial cell sum | 115/2^53 | 9.889422779356765e-7 |
+| Kahan cell sum | 1/2^53 | 8.601256684984105e-9 |
+| Neumaier cell sum | 1/2^53 | 8.601256684984105e-9 |
+| Exact sum of the same rounded stencil products, rounded once per cell | 1/2^53 | 8.601256684984105e-9 |
+| Existing deposition with uniform reconciliation to actual particle charge | 0 | 2.877175015333387e-12 |
+
+The last prototype computes its target from the actual weights, species charge
+and background under the existing cell-volume convention. A changed-weight
+control has target -0.0125 and represented sum -0.012499999999999999, so it
+preserves nonzero charge instead of clamping it away. Original captures remain
+unchanged. Exact output-rounding error accounting is retained in the driver.
+
+These are fixed-state results, not an implemented or end-to-end repair. Full
+wave evolution, other dimensions/precisions/shapes, mobile and signed populations,
+nonfinite behavior, spatial/adjoint guarantees and measured cost remain open.
+Compensated accumulation passes this one threshold narrowly; no general
+sufficiency claim follows. Choose the production owner and rounding contract
+only after those comparisons.
