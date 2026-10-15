@@ -1,9 +1,10 @@
 # Complete legacy transverse-current filtering
 
-Status: the final composed source passes 1,090 focused/resource/concurrency
-assertions on each required runtime. It includes the complex-vector refinement
-and PERF-005; final combined compiler and integration gates remain active.
-No Nyquist production change has been promoted yet.
+Status: final native acceptance passes on Julia 1.12.7 and 1.13.2: 1,090
+focused/resource/concurrency, 14,100 quality/numerical and 29,473 complete
+EM/EM1D/checkpoint assertions per runtime. All concrete/package compiler reports
+match baseline. The tested repair is implemented; exact-revision GitHub
+acceptance remains pending.
 
 ## Pre-edit brief
 
@@ -97,8 +98,8 @@ The initial combined gate passes all numerical testsets but exits 1 on each
 version: 22 of 28 concrete calls have zero reports; the six no-ion public-step
 calls each report `_require_subluminal_velocities(::Nothing, ...)` and
 `nparticles(::Nothing)` in existing `es.mobile` branches. The initial logs remain
-at `/tmp/hybrid-nyquist-quality{112,1132}.log`. This is not yet classified as a
-regression or a baseline finding. `/tmp/hybrid-nyquist-compiler-v2.jl` analyzes
+at `/tmp/hybrid-nyquist-quality{112,1132}.log`. These were initially unclassified;
+the completed comparison below establishes baseline equivalence for all six calls. `/tmp/hybrid-nyquist-compiler-v2.jl` analyzes
 and executes the same concrete calls against unchanged `e9c4fa7` source and the
 candidate, records complete reports, and runs package/Aqua checks. Report
 equivalence and valid/invalid-ion execution must be observed before promotion;
@@ -162,4 +163,38 @@ The final composed source is frozen at `/tmp/hybrid-nyquist-dyadic-v1` with
 The final permanent file adds complex compatibility cases and contains 896
 assertions. Together with complete-call resource, wide-range and four-thread
 checks, it passes **1,090 assertions per version**, terminal exit 0. Logs: `/tmp/hybrid-nyquist-dyadic-focused-resources{112,1132}.log`.
-Final quality/integration gates use the same frozen source and remain active.
+Final quality gates use the same frozen source and finish with exit 0: **14,100
+assertions per version** (14,046 numerical, 34 concrete-call execution, eight
+additional concrete compiler, three package JET and nine Aqua). All 28 concrete
+report renderings and 14/13 complete package trees match unchanged source;
+terminal report counts remain 22/21. Comparison logs:
+`/tmp/hybrid-nyquist-dyadic-compiler-comparison{112,1132}.log`. The final complete
+EM/EM1D/checkpoint integration gates pass **29,473 assertions per version**,
+terminal exit 0 (23m23.1s/23m32.6s). Logs:
+`/tmp/hybrid-nyquist-dyadic-integration{112,1132}.log`. All 181 frozen source/test
+hashes remain unchanged after these gates; the final patch replays exactly on
+`afc324f`, including the four-file formatter-idempotence check.
+
+Final composed resource results retain 0 B for all ten ordinary cases and
+2,912/5,280 B for the eight pure-alternating Float32/64 cases. Observed ordinary
+median timing ratios are 1.245–2.933 on 1.12.7 and 1.477–2.112 on 1.13.2;
+shared-host timings are descriptive. Parsed complete-call records:
+`/tmp/hybrid-nyquist-dyadic-resources{112,1132}.json`.
+
+Generated LLVM was captured for the v1/v2 Float32/64 kernels on both versions.
+It is not text-identical after function-name normalization (block labels and,
+on 1.13.2, GC frame assignments differ), so it is not used as an equivalence
+proof. Acceptance uses the completed numerical/integration runs above. Raw IR
+and differences: `/tmp/hybrid-nyquist-ir-*.ll`, `...diff`; comparison JSON:
+`...-comparison.json`. The first capture harness hit Julia's method-world guard;
+the corrected driver evaluates definitions before a new top-level capture loop.
+Both capture logs are retained under `/tmp/hybrid-nyquist-hardware-ir*`.
+
+An isolated IEEE-bit range-predicate optimization was measured and not adopted.
+Each version passes 69 controls: all 65,536 Float16 encodings, 203,584 Float32
+and 228,672 Float64 sampled/boundary encodings, full filter comparisons, zero
+ordinary allocations and consumed-output checks. Seven-pair timing medians span
+0.850–1.311 on 1.12.7 and 0.953–1.147 on 1.13.2 relative to the frozen kernel,
+without consistent improvement. The shared predicate remains unchanged. Evidence:
+`/tmp/hybrid-range-flag-{brief.md,probe.jl,probe112.log,probe1132.log}`; both
+processes exit 0. The measured ordinary filtering overhead remains open.

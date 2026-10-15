@@ -148,6 +148,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Legacy electromagnetic PIC removes the transverse Nyquist mode without
+  overflowing its alternating sum or prematurely rounding a subnormal mean.
+  Selected finite inputs use the complete cell expression, preserving finite
+  currents and electric fields in extreme public-step cases. Ordinary arithmetic,
+  odd-grid behavior and nonfinite propagation retain their existing behavior.
+
 - Both electromagnetic PIC families reconcile finite built-in-shape charge
   snapshots to actual particle and background charge using complete stored cell
   geometry. Each corrected cell is rounded once, preserving nonzero net charge

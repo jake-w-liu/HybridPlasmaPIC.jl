@@ -616,11 +616,32 @@ function _zero_nyquist_mode!(f::Vector{T}) where {T}
     iseven(n) || return f
     acc = zero(T)
     s = one(T)
+    eligible = T <: Union{Float32,Float64}
+    lost = false
+    largest = zero(T)
     @inbounds for i = 1:n
-        acc += s * f[i]
+        value = f[i]
+        if T <: Union{Float32,Float64}
+            eligible &= isfinite(value)
+            largest = max(largest, abs(value))
+        end
+        acc += s * value
+        lost |= _deposition_range_lost(acc)
         s = -s
     end
+    total = acc
     acc /= n
+    lost |= _deposition_range_lost(acc) || (iszero(acc) && !iszero(total))
+    if eligible && n > 0 && (lost || largest > floatmax(T) - abs(acc))
+        # Keep the original alternating sum and its divided mean complete until
+        # each final cell is rounded. The two views are disjoint.
+        odd = view(f, 1:2:n)
+        even = view(f, 2:2:n)
+        mean = (_empic_exact_sum(odd) - _empic_exact_sum(even)) / n
+        _empic_complete_charge_shift!(odd, mean)
+        _empic_complete_charge_shift!(even, -mean)
+        return f
+    end
     s = one(T)
     @inbounds for i = 1:n
         f[i] -= s * acc

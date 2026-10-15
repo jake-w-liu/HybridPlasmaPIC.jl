@@ -393,6 +393,15 @@ is active: formatting and all three MPI jobs pass; both package jobs remain
 running. The earlier revision runs have finished green independently.
 No billing exception is evidenced.
 
+## Acceptance run at afc324f
+
+The dyadic-allocation optimization is pushed as `afc324f` with all 180
+source/test blobs matching native acceptance. [Run 38774781309](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/38774781309)
+is active; formatting and 2-/4-rank MPI pass, while both package jobs and
+8-rank MPI are running.
+No billing block is evidenced. Native commands and complete diagnostic comparison
+are recorded in [PERF-005](CONTINUITY_DIAGNOSTIC_RANGE_PLAN.md#dyadic-digit-extraction-allocation--perf-005).
+
 ## Preserve acceptance for every revision — CI-005
 
 Pre-edit brief:
