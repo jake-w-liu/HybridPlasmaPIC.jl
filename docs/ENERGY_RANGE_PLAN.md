@@ -1,8 +1,9 @@
 # Energy diagnostic range repairs
 
 Status: field-energy repair `bef9802` is pushed and verified on Julia 1.12.7
-and 1.13.1. Relativistic particle energy remains separate planned work; ordinary
-diagnostic performance remains an optimization target.
+and 1.13.1. An isolated relativistic-energy expression prototype passes its
+oracle checks; public integration remains pending. Ordinary diagnostic
+performance remains an optimization target.
 
 ## Verified behavior
 
@@ -153,3 +154,51 @@ negative weighted energy and visible nonfinite mass behavior. The diagnostic's
 accepted exact speed boundary must be specified separately from the pusher's
 explicitly narrower representable beta-squared contract; simply calling the
 pusher preflight would retain valid-input rejections.
+
+## Isolated complete-expression experiment
+
+The prototype at `/tmp/hybrid-energy-algebraic-v3` evaluates the complete finite
+weighted energy as a rational part plus rational multiples of square roots of
+rationals. It validates speed against exact stored components, combines identical
+radicands, and refines integer square-root bounds until both bounds round to the
+same output through `_from_exact`. If the bounds contain zero or straddle one
+rounding boundary, it combines equivalent rational square classes. This permits
+exact cancellation and exact rational midpoint rounding without MPFR
+transcendental operations. The public diagnostic is unchanged.
+
+The experiment's pre-edit brief is retained in its `PLAN.md`; source and driver
+hashes are in `manifest.json`. Each native Julia version passes **409 checks**:
+exact rational and equivalent-radical energies, all three hardware precisions,
+empty populations, finite extreme scales, true final overflow, both directions
+of the stored-speed boundary, signed weights/mass, random independent 8,192-bit
+oracles, input immutability, retained BigFloat inputs, and rounding contexts.
+Both processes exit 0. Logs:
+`/tmp/hybrid-energy-algebraic-v3-final{112,113}.log`.
+
+The first expanded driver used an unsupported BigFloat rounding keyword; its
+nine errors are retained in `hybrid-energy-algebraic-v1-expanded113.log`.
+The corrected driver passes without changing the candidate arithmetic. The
+second arithmetic prototype deferred equivalent-radical comparisons until
+rounded endpoints were adjacent. A bounded probe proves that it fails to
+recognize exact BigFloat zero within 4,096 refinement bits (two witness checks,
+`hybrid-energy-algebraic-v2-zero-probe113.log`). The final prototype also checks
+intervals containing zero; 27 added assertions exercise exact zero at three
+precisions and three rounding modes, including prompt symbolic termination.
+
+The latest-Julia paired resource experiment passes **26 output checks** for
+13 cases. For 256 varied particles, replacing eager pairwise square-class
+comparisons reduces measured allocations from **16,081,424 to 1,653,656 B**
+(Float32) and **16,126,328 to 1,700,344 B** (Float64). Seven alternating timing
+pairs give candidate/baseline median ratios **0.078 / 0.106** in those two cases.
+Single-particle storage rises by 232 B; timing ratios across the complete set
+range from 0.078 to 1.214 on the shared machine. These compare two isolated
+exceptional algorithms, not the production diagnostic or its ordinary path.
+Log: `/tmp/hybrid-energy-algebraic-v3-resources113.log`.
+
+Before adoption, integrate a finite-range selector at the existing owner,
+preserve ordinary arithmetic and visible nonfinite-factor behavior, verify
+every failure path and writable-view case, measure ordinary overhead and
+larger exceptional workloads, run concrete/package compiler and neighboring
+physics gates on both versions, and require GitHub acceptance. The exceptional
+square-class work can still be quadratic for ambiguous signed sums; the
+experiment does not establish a general performance bound.
