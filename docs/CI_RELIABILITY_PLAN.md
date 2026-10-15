@@ -321,3 +321,68 @@ package that throws during import. No quality check is skipped. Logs:
 `/tmp/hybrid-aqua-repair-broken113.log`.
 The tested copy is byte-identical to `test/test_quality.jl`; formatter
 idempotence and whitespace checks pass. The diff retains all Aqua options.
+
+## Acceptance run at 240f77c
+
+**VERIFIED:** at `240f77c`, `.github/workflows/HybridPlasmaPIC-CI.yml:18–20`
+uses one cancellable group per branch. Pushes were held while this run was
+active. CI-005 below changes the group boundary so each revision can finish.
+
+[Run 38741178196](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/38741178196)
+passes formatting and all 2-/4-/8-rank MPI jobs. The
+[eight-rank job](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/38741178196/job/116442965228)
+finishes its smoke step in **19m53s**, within the configured 40-minute limit,
+and reaches the final ion-collection summaries. Retained log:
+`/tmp/hybrid-ci-38741178196-mpi8-job.log`, lines 648–663. This run measures
+successful completion; it does not establish a runtime ceiling or the cause of
+variation between runs. Both Julia package jobs are still running, so the
+complete push remains under verification. No billing block is evidenced.
+
+## Preserve acceptance for every revision — CI-005
+
+Pre-edit brief:
+
+- Mode: CI scheduling repair for the user's requirement that every push pass.
+- Acceptance: a new revision's workflow does not cancel an earlier revision;
+  retain the existing jobs, dependencies, failure behavior, rank/version matrix
+  and artifact publication. Observe actual GitHub completion for each push.
+- Baseline: at `240f77c`, the group uses only workflow and ref with
+  `cancel-in-progress: true`; earlier runs were superseded by subsequent pushes.
+  Run `38741178196` still has two active package jobs, so another push with the
+  same group would prevent their acceptance.
+- Cause: **VERIFIED** in workflow lines 18–20 and GitHub's
+  [concurrency documentation](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency):
+  cancellation is scoped to equal group keys. A branch-wide key groups distinct
+  commits together.
+- Invariants: every distinct pushed SHA retains its own test run. The
+  [GitHub context reference](https://docs.github.com/en/actions/reference/workflows-and-actions/contexts#github-context)
+  defines `github.sha` as the triggering commit and permits `github` in workflow
+  concurrency expressions. Duplicate runs for the same workflow/ref/SHA retain
+  the existing cancellation policy.
+- Owner: the single workflow-level `concurrency.group`; no application or test
+  source, job, dependency, timeout or assertion changes.
+- Compatibility: append SHA to the existing workflow/ref key. Independent
+  revisions may execute concurrently, subject to GitHub's runner capacity;
+  acceptance still requires observing all jobs, not just dispatch.
+- Strategy: one group per workflow/ref/SHA. Retain `cancel-in-progress: true`
+  within that exact group; do not cancel or rerun any existing workflow manually.
+- Verification: actionlint, parsed YAML equality after reverting only the group
+  value, distinct-key controls for current/next commits and workflow/ref changes,
+  exact diff, then observe the old and new GitHub runs remain active and finish.
+
+Simply disabling cancellation with the old default single-pending queue can
+still replace a pending revision; retaining the branch key with cancellation
+leaves the observed problem. Dropping tests would not satisfy acceptance. The
+selected change keeps every job and separates distinct revisions explicitly.
+
+- [x] Pass workflow lint and structural/key checks.
+- [ ] Commit and push only this scheduling repair.
+- [ ] Verify earlier and later revisions remain running independently.
+- [ ] Observe every pushed revision finish green (or record actual billing evidence).
+
+Local CI-005 checks pass: actionlint 1.7.12 exits 0
+(`/tmp/hybrid-ci-per-commit-actionlint.log`), and Ruby's parsed YAML comparison
+confirms the only semantic workflow change is `concurrency.group`. Explicit key
+controls separate distinct SHA/workflow/ref values and the active old group,
+while retaining equal keys for duplicate SHA runs. Evidence:
+`/tmp/hybrid-ci-per-commit-structure.log`. GitHub execution remains pending.

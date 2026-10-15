@@ -143,6 +143,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- CI groups runs by workflow, ref and commit so a new pushed revision can finish
+  its checks without cancelling an earlier revision's acceptance run.
+
 - Per-species density, momentum and current preserve complete finite results
   across intermediate overflow/underflow, including threaded deposition and
   both EMPIC current paths. Serial and threaded callers share one stencil
