@@ -46,8 +46,10 @@ end
     kdv_solve(u0, Ld, c0, α, β, dt, nsteps; dealias=true)
 
 Advance the KdV equation `nsteps` steps on a periodic domain of length `Ld`.
-`dealias` applies the 2/3 rule to the quadratic nonlinearity (an explicit,
-documented spectral filter; disable to study its effect).
+`dealias` applies the 2/3 rule to both operands and the result of the quadratic
+nonlinearity, retaining integer Fourier modes with `3abs(m) < length(u0)`.
+Modes outside this band still evolve under the linear operator. Disable
+`dealias` to use the unfiltered pseudospectral product.
 """
 function kdv_solve(
     u0::AbstractVector{T},
@@ -86,8 +88,10 @@ function kdv_solve(
     E = exp.(dtT .* Lop)
     E2 = exp.(dtT / 2 .* Lop)
     ik = im .* k
-    kc = T(2 / 3) * (T(π) * n / LdT)                   # 2/3 dealias cutoff
-    mask = abs.(k) .<= kc
+    # Strict 3|m| < n prevents cutoff modes from aliasing back into the band.
+    # Use mode indices because the odd-derivative wave number zeros Nyquist.
+    cutoff = (n - 1) ÷ 3
+    mask = [min(i - 1, n - i + 1) <= cutoff for i = 1:n]
     u0c = _complex_copy(u0)
     P = plan_fft!(u0c)
     Pinv = plan_ifft!(u0c)
@@ -102,7 +106,9 @@ function kdv_solve(
     k4 = similar(u0c)
     coeff = -T(α) / 2
     function Nhat!(out, uhat)
-        copyto!(u, uhat)
+        @inbounds for i = 1:n
+            u[i] = dealias && !mask[i] ? zero(Complex{T}) : uhat[i]
+        end
         Pinv * u
         @inbounds for i = 1:n
             ui = real(u[i])

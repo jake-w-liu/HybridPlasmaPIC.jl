@@ -54,10 +54,60 @@ end
     @test abs(sum(uf) - sum(u0)) / abs(sum(u0)) < 1e-8        # ∫u dx (mass, exact at k=0)
     @test abs(sum(uf .^ 2) - sum(u0 .^ 2)) / sum(u0 .^ 2) < 1e-3  # ∫u² dx (momentum)
 
-    # dealiasing sensitivity: removing the 2/3 filter degrades the shape
+    # This resolved soliton must also meet its analytic shape bound without
+    # filtering. Error ordering at roundoff does not test removal of aliases;
+    # the Fourier-mode tests below exercise that contract directly.
     uf_nd = kdv_solve(u0, Ld, c0, α, β, dt, ns; dealias = false)
     shape_err_nd = sqrt(sum((uf_nd .- ua) .^ 2) / sum(ua .^ 2))
-    @test shape_err <= shape_err_nd
+    @test shape_err_nd < 1e-3
+end
+
+@testset "KDV quadratic dealiasing" begin
+    for T in (Float32, Float64)
+        h = T(1e-3)
+        # Each input mode is outside the strict retained band. Its projected
+        # quadratic RHS is zero; the unfiltered square aliases into the band.
+        for (n, m) in ((24, 9), (24, 8), (25, 9), (23, 8), (6, 2), (3, 1))
+            x = T.(2π .* (0:n-1) ./ n)
+            u0 = cos.(T(m) .* x)
+            uf = kdv_solve(u0, T(2π), 0, 1, 0, h, 10)
+            @test maximum(abs, uf - u0) < 64eps(T)
+
+            # cos(mx)^2 = (1 + cos(2mx))/2. Wrap the doubled mode into
+            # the sampled Fourier band to obtain the unfiltered derivative.
+            q = mod(2m + n ÷ 2, n) - n ÷ 2
+            expected = T(q / 4) .* sin.(T(q) .* x)
+            up = kdv_solve(u0, T(2π), 0, 1, 0, h, 1; dealias = false)
+            um = kdv_solve(u0, T(2π), 0, 1, 0, -h, 1; dealias = false)
+            # Central differencing has O(h^2) truncation and O(eps/h) rounding.
+            @test maximum(abs, (up - um) / (2h) - expected) < 100(h^2 + eps(T) / h)
+        end
+
+        n = 24
+        x = T.(2π .* (0:n-1) ./ n)
+        # Keeping the zeroed derivative's Nyquist entry in the input mask
+        # would let its cross product with mode 7 alias into retained mode 5.
+        u0 = cos.(T(12) .* x) + cos.(T(7) .* x)
+        @test maximum(abs, kdv_solve(u0, T(2π), 0, 1, 0, h, 10) - u0) < 128eps(T)
+
+        # A retained mode must retain its nonzero quadratic contribution.
+        u0 = cos.(T(3) .* x)
+        expected = T(1.5) .* sin.(T(6) .* x)
+        for dealias in (false, true)
+            up = kdv_solve(u0, T(2π), 0, 1, 0, h, 1; dealias)
+            um = kdv_solve(u0, T(2π), 0, 1, 0, -h, 1; dealias)
+            @test maximum(abs, (up - um) / (2h) - expected) < 100(h^2 + eps(T) / h)
+        end
+
+        # Filtering the nonlinear operator must not erase linear high modes.
+        for n in (23, 24, 25), dealias in (false, true)
+            x = T.(2π .* (0:n-1) ./ n)
+            u0 = cos.(T(9) .* x)
+            uf = kdv_solve(u0, T(2π), 1, 0, 0, h, 10; dealias)
+            @test maximum(abs, uf - cos.(T(9) .* (x .- 10h))) < 128eps(T)
+        end
+        @test kdv_solve(T[2], T(2π), 1, 1, 1, h, 10) == T[2]
+    end
 end
 
 @testset "KDV-001 long-time phase error" begin
