@@ -213,6 +213,54 @@ existing diagnostic owner, with its own pre-edit brief. Its first extreme-c
 smoke check passes on Julia 1.13.1; full candidate acceptance remains pending.
 No shared production source has been changed by this experiment.
 
+The first public-candidate driver passes 90 range checks, then fails three of
+363 compatibility comparisons. All three failed fixtures contain subnormal
+Float16 component squares, which intentionally select complete-expression
+rounding. A separate trace passes seven checks: each fixture has a measured
+range excursion and its result agrees with the tested algebraic experiment.
+The failed harness/log are retained; a new driver keeps ordinary component
+squares normal while the original fixtures remain covered by the trace.
+Logs: `/tmp/hybrid-energy-public-v1-tests113.log` and
+`/tmp/hybrid-energy-public-v1-selection113.log`. The corrected driver passes
+**528 checks** (90 range, 363 ordinary/nonfinite compatibility and 75 speed
+boundary) on Julia 1.13.1, exit 0; log
+`/tmp/hybrid-energy-public-v1-tests-v2-113.log`.
+
+The broader type probe finds a candidate regression: `BigFloat` succeeds in the
+committed function but throws `MethodError` from `issubnormal` in v1. Integer
+and rational particle storage already fail the unchanged floating input
+validator in both implementations. The ordinary benchmark passes **256 output
+and allocation checks** (all measured allocations remain 0 B), but median
+candidate/baseline ratios for 256/4,096 particles are **4.197–5.457** across
+Float32/64 and one/three spatial dimensions. Seven alternating timing pairs per
+case measure this regression; they do not identify a compiler cause.
+Logs: `/tmp/hybrid-energy-public-v1-types113.log` and
+`/tmp/hybrid-energy-public-v1-resources113.log`.
+
+The separate v2 prototype repairs the generic floating predicate and tests
+deferring range flags until the final result. It passes **105 BigFloat,
+retained-precision, view and invalid-c checks**, and **256 ordinary output and
+allocation checks**, both exit 0 on Julia 1.13.1. Larger-case median latency
+ratios remain 4.433–5.571, with one 133.598 outlier; this change does not establish
+an ordinary-path improvement. Logs:
+`/tmp/hybrid-energy-public-v2-{compatibility,resources}113.log`.
+
+The isolated v3 candidate uses a conservative input-range certificate before the
+shared arithmetic kernel. Its bounds derive from precision, exponent limits and
+population size; only certified Float32/64 inputs omit intermediate range flags.
+Uncertain speed boundaries retain exact validation. The certificate argument and
+pre-edit brief are in `/tmp/hybrid-energy-public-v3/CERTIFICATE_PLAN.md`.
+Its larger ordinary cases measure ratios of 1.483–2.439, with 0 B allocations.
+The combined Julia 1.13.1 run passes **2,319 checks**, exit 0: 256 ordinary
+output/resource checks, 1,106 certificate comparisons and boundary checks,
+105 BigFloat/view/invalid-c checks, 528 public range/compatibility/speed checks,
+and 324 independent 8,192-bit complete-expression comparisons and immutability
+checks. All 188 recorded source, test, plan and environment hashes match after
+the run. Log: `/tmp/hybrid-energy-public-v3-gates113.log`.
+The isolated v4 snapshot consolidates permanent tests and documents the public
+range contract; formatting, both native-version gates and package analysis are
+still required. None of these public candidates is ready for adoption.
+
 Before adoption, integrate a finite-range selector at the existing owner,
 preserve ordinary arithmetic and visible nonfinite-factor behavior, verify
 every failure path and writable-view case, measure ordinary overhead and
