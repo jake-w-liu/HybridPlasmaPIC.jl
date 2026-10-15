@@ -385,13 +385,22 @@ exception. Logs: `/tmp/hybrid-ci-38754771205-julia-latest-job.log`, lines 125,
 1014–1015 and 1207–1209; `/tmp/hybrid-ci-38754771205-julia112-job.log`, lines
 125, 1034 and 1251–1252.
 
+The independent frozen local full-package run also completes on 1.13.2:
+359,871 assertions in 155m28.1s, terminal exit 0, with 21 package JET reports.
+All 179 source/test files still match `6ad7276` after the run. Evidence:
+`/tmp/hybrid-full-6ad7276-julia1132{.log,-verification.json}`.
+
 ## Acceptance run at e9c4fa7
 
 Charge-conservation repair `e9c4fa7` is pushed to main with its exact locally
 verified source and permanent tests. [Run 38767093527](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/38767093527)
-is active: formatting and all three MPI jobs pass; both package jobs remain
-running. The earlier revision runs have finished green independently.
-No billing exception is evidenced.
+is **completed/success**, with formatting and all three MPI jobs green. Actual
+Julia 1.13.2 passes 368,456 assertions in 99m44.3s (22 JET reports); actual
+1.12.7 passes 368,455 in 109m39.8s (23 reports). Logs:
+`/tmp/hybrid-ci-38767093527-julia-latest-job.log`, lines 125, 877 and 1070–1071;
+`...-julia112-job.log`, lines 125, 917 and 1135–1136. The original watch process
+exited after an API read timeout; a fresh run-status query and final watch both
+confirm success. No billing exception is used.
 
 ## Acceptance run at afc324f
 
@@ -410,6 +419,15 @@ is active, with formatting and all three MPI ranks green. Native focused/resourc
 (14,100) and complete solver/checkpoint (29,473) assertions pass on each of
 1.12.7/1.13.2. Full compiler reports match baseline; exact GitHub acceptance
 remains pending. [Contract and evidence](EMPIC_NYQUIST_RANGE_PLAN.md).
+
+## Acceptance run at 2330379
+
+The energy-documentation correction and progress tracker are pushed as
+`2330379`. Removing docstrings leaves identical executable text in
+`src/diagnostics/conservation.jl`; JuliaFormatter 1.0.62 is idempotent. The
+energy balance is checked by 17 exact symbolic assertions. Its independent
+[run 38781510377](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/38781510377)
+is active; exact-revision GitHub acceptance is pending.
 
 ## Preserve acceptance for every revision — CI-005
 

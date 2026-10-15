@@ -379,3 +379,29 @@ Algorithm SHA256:
 Remaining work: independent enclosure review, scalable transforms and bounded
 storage, overflow-boundary decisions, precision-exhaustion/error semantics,
 concurrency and full solver integration. No production current code is changed.
+
+The subsequent isolated mixed-radix experiment uses separable transforms and
+fixed-point integer centers/radii; modal factors round outward instead of
+accumulating unrelated rational denominators. The final allocation refinement
+passes **7,713** arithmetic/transform/conditioning checks per runtime, including
+exact equality of all 26 outputs, centers, radii and certificate decisions to
+its predecessor. It also passes **228,214** exact Fourier-mode/resource/error
+checks at 8³, 12³ and 16³, and **361** Gaussian overflow-threshold and four-thread
+shared-read-only-state checks per runtime. All six processes exit 0 on
+1.12.7/1.13.2; original targets remain unchanged.
+
+Across the 18 larger fixtures, warmed complete calls allocate
+50,357,144–496,507,976 B. The refinement reduces allocation by 19.26–54.62%
+on 1.12.7 and 19.35–54.62% on 1.13.2 versus its measured fixed-point predecessor;
+this is aggregate allocation, not peak memory or a portable timing claim.
+Small-case reductions are 8.51–51.05%. Resources remain substantial. Prime
+line lengths still use a direct transform; the research cell cap and bounded
+precision schedule are not production policies.
+
+Frozen sources, raw logs and per-case comparisons:
+`/tmp/hybrid-current-scalable-v2/{algorithm,check,resources,edges_threads}.jl`,
+`verification.json` and `initial-hashes.json`. Algorithm SHA256:
+`224b98ce1b0b9acaf1f8319ba5f846cb3786cabdc16405a3f2c0ab867bc30854`.
+Production dispatch, general overflow-boundary and precision-exhaustion policy,
+larger-prime cost, canonical projection factoring and solver integration remain
+open. The current materialization repair is still unmerged.

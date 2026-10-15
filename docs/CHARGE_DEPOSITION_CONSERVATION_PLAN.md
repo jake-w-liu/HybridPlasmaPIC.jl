@@ -2,7 +2,9 @@
 
 Status: VALID-001 passes local acceptance on Julia 1.12.7 and 1.13.2 and is
 integrated. Unchanged wave thresholds, resource, concurrency, coupled evolution,
-restart, compiler and quality gates pass. GitHub acceptance remains pending.
+restart, compiler and quality gates pass. Exact-revision GitHub acceptance is
+green at `e9c4fa7`: both Julia package jobs, formatting and 2-/4-/8-rank MPI pass
+in [run 38767093527](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/38767093527).
 
 ## Verified failure and cause
 

@@ -254,15 +254,16 @@ A self-contained perpendicular collisionless-shock laboratory:
 ## Diagnostics
 
 - **Energy**: `energy_budget(ps, B, n, closure, g; de2 = 0)` returns kinetic,
-  magnetic, electron-internal, and (for `de2 > 0`) electron-inertia
-  reservoirs, and closes (total conserved at `η = 0`) for every wired
-  closure — exactly for the scalar closures (polytropic `∫p_e/(γ−1)`,
-  isothermal via the free energy `T_e∫n ln n dV`, its exact `γ→1` limit) and
-  modulo the small anisotropic battery term for CGL (gyrotropic
-  `∫(p_⊥ + p_∥/2) dV`). `kinetic_energy_relativistic(ps, c)` covers
-  relativistic EMPIC runs. `resistive_dissipation`, `jdotE_density`,
-  `electric_work`, and `momentum_budget` complete the ledgers (with honest
-  docstrings about which channel receives what).
+  magnetic, electron-internal/free-energy, and optional quadratic
+  electron-inertia reservoirs. Periodic ideal massless scalar-closure
+  evolution conserves the continuum total when density floors are inactive;
+  the explicit integrator is checked through energy convergence. CGL has an
+  additional anisotropic battery term. The reduced inertia reservoir closes
+  the uniform-density fixed-ion field balance; moving-ion and dissipative energy accounting
+  have further terms described in the [model balance](docs/HYBRID_ENERGY_MODEL_PLAN.md).
+  `kinetic_energy_relativistic(ps, c)` covers relativistic EMPIC runs.
+  `resistive_dissipation` reports the Ohmic quadratic form;
+  `jdotE_density`, `electric_work`, and `momentum_budget` report work and momentum.
 - **Velocity space**: `pressure_tensor!` + `temperatures_par_perp` (T∥/T⊥
   relative to the local field), `pressure_strain` (the −P:∇u interaction),
   `velocity_histogram`, `phase_space_histogram`.
@@ -393,7 +394,7 @@ regression oracles are described in `CHANGELOG.md`.
 | ES/EM PIC | Langmuir & two-stream, spectral Poisson in 2D/3D, charge-conservation residual at roundoff, EMPIC ↔ EMPIC1D equivalence, relativistic beam energetics |
 | collisions | conservation (exact / in-expectation), weight-independent relaxation rates, monotonicity in collisionality, odd-N handling |
 | shocks | Rankine–Hugoniot residuals < 1e-10 incl. the switch-on branch, Leroy 1982 reflected-ion fraction and overshoot, published Preisser 2020 reference summary (DOI 10.5281/zenodo.3697360), 1D ≡ 3D cross-checks |
-| budgets & boundaries | closed energy budgets for every closure, boundary seam/edge contracts, bitwise checkpoint/restart |
+| budgets & boundaries | energy convergence and fixed-ion inertia balance, boundary seam/edge contracts, bitwise checkpoint/restart |
 | ray tracing | WKB dispersion roots vs the two-fluid oracle (~1e-11), stratified-medium invariants; Raycon pinned layer-by-layer against MATLAB reference data, amplitude transport vs symplectic tangent-map oracles |
 
 There is also a 32-study `validation/` suite (analytic benchmarks through
