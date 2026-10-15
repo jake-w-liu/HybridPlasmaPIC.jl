@@ -99,7 +99,7 @@ a missing analyzer into a skipped success.
 - [x] Observe final native JET/Aqua/archive gates on both versions.
 - [x] Observe fixed delayed MPI replay including all publication failure cases on both native versions.
 - [x] Review exact diff, matching snapshot hashes and formatting.
-- [ ] Commit and push the verified fixes.
+- [x] Commit and push the verified fixes.
 - [ ] Observe all GitHub jobs green for the pushed revision.
 
 ## KdV filtering repair — pre-edit brief
@@ -225,5 +225,7 @@ derivative owner): `/tmp/hybrid-ci-concrete-final{112,113}.log`. No production
 change or repeated whole-package analysis was needed for this driver correction.
 
 The four changed Julia files are formatter-idempotent at margin 100
-(`/tmp/hybrid-ci-combined-format.log`). All verified fixes are committed;
-push and GitHub acceptance remain pending.
+(`/tmp/hybrid-ci-combined-format.log`). All verified fixes are pushed through `55d996b`.
+[GitHub run 38722319490](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/38722319490)
+has passed formatting and the 2-/4-rank MPI jobs; both package jobs and the
+8-rank MPI job are running at the last observed check. GitHub acceptance remains pending.

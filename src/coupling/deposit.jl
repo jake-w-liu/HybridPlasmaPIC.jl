@@ -1,5 +1,20 @@
 # Deposit.jl — scalar deposition (from deposit.jl)
 
+function _validate_deposition_inputs(
+    out::Array{T,D},
+    ps::ParticleSet{D,T},
+    vals::AbstractVector,
+    g::FourierGrid{D,T},
+) where {D,T}
+    length(vals) == nparticles(ps) || throw(DimensionMismatch("vals length ≠ particle count"))
+    size(out) == g.n ||
+        throw(DimensionMismatch("out size $(size(out)) does not match grid size $(g.n)"))
+    (_mightalias_particle_storage(out, ps) || _particle_arrays_mightalias(out, vals)) &&
+        throw(ArgumentError("deposition output must not alias particle storage or values"))
+    _validate_particle_positions(ps)
+    return nothing
+end
+
 """
     deposit_scalar!(out, ps, vals, g, shape)
 
@@ -14,12 +29,7 @@ function deposit_scalar!(
     g::FourierGrid{D,T},
     shape::ShapeFunction,
 ) where {D,T}
-    length(vals) == nparticles(ps) || throw(DimensionMismatch("vals length ≠ particle count"))
-    size(out) == g.n ||
-        throw(DimensionMismatch("out size $(size(out)) does not match grid size $(g.n)"))
-    (_mightalias_particle_storage(out, ps) || _particle_arrays_mightalias(out, vals)) &&
-        throw(ArgumentError("deposition output must not alias particle storage or values"))
-    _validate_particle_positions(ps)
+    _validate_deposition_inputs(out, ps, vals, g)
     fill!(out, zero(T))
     n = g.n
     stamp = CartesianIndices(ntuple(_ -> width(shape), D))

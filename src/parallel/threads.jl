@@ -16,6 +16,8 @@ Threaded equivalent of [`deposit_scalar!`](@ref): accumulate
 `out_g = Σ_p vals[p]·S_g(x_p)` over all particles using `Base.Threads`.
 `out` is zeroed first. The result equals the serial deposition up to
 floating-point reduction order (partition of unity ⇒ `Σ_g out_g = Σ_p vals[p]`).
+The output must not overlap `vals` or any particle storage; validation precedes
+all writes, as in the serial routine.
 """
 function deposit_scalar_threaded!(
     out::Array{T,D},
@@ -24,10 +26,7 @@ function deposit_scalar_threaded!(
     g::FourierGrid{D,T},
     shape::ShapeFunction,
 ) where {D,T}
-    length(vals) == nparticles(ps) || throw(DimensionMismatch("vals length ≠ particle count"))
-    size(out) == g.n ||
-        throw(DimensionMismatch("out size $(size(out)) does not match grid size $(g.n)"))
-    _validate_particle_positions(ps)
+    _validate_deposition_inputs(out, ps, vals, g)
     fill!(out, zero(T))
     Np = length(vals)
     val_first = firstindex(vals)

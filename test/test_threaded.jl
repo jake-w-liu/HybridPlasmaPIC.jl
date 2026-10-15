@@ -146,6 +146,56 @@ end
     @test_throws ArgumentError density_threaded!(zeros(T, g.n), ps, g, CIC())
 end
 
+@testset "THR-007 deposition rejects storage overlap before mutation" begin
+    for T in (Float32, Float64), D = 1:3, shape in (NGP(), CIC(), TSC())
+        g = FourierGrid(ntuple(_ -> 2, D), ntuple(_ -> one(T), D))
+        count = prod(g.n)
+        for operation in (deposit_scalar!, deposit_scalar_threaded!, density!, density_threaded!),
+            alias in (:values, :view, :weight, :position, :velocity)
+
+            isdensity = operation === density! || operation === density_threaded!
+            isdensity && alias in (:values, :view) && continue
+            ps = ParticleSet{D,T}(count)
+            for d = 1:D
+                ps.x[d] .= T(0.2d)
+            end
+            for c = 1:3
+                ps.v[c] .= T(c)
+            end
+            ps.weight .= T.(1:count)
+            vals = T.(2:count+1)
+            out = fill(T(7), g.n)
+            if alias === :values
+                vals = vec(out)
+            elseif alias === :view
+                vals = view(vec(out), :)
+            elseif alias === :weight
+                out = reshape(ps.weight, g.n)
+            elseif alias === :position
+                out = reshape(ps.x[D], g.n)
+            else
+                out = reshape(ps.v[3], g.n)
+            end
+            arrays = (out, vals, ps.x..., ps.v..., ps.weight, ps.id, ps.tag)
+            before = map(copy, arrays)
+            if isdensity
+                @test_throws ArgumentError operation(out, ps, g, shape)
+            else
+                @test_throws ArgumentError operation(out, ps, vals, g, shape)
+            end
+            @test all(isequal(a, b) for (a, b) in zip(arrays, before))
+        end
+        # Empty value views still share backing storage with the output.
+        for operation in (deposit_scalar!, deposit_scalar_threaded!)
+            ps = ParticleSet{D,T}(0)
+            out = fill(T(7), g.n)
+            vals = view(vec(out), 1:0)
+            @test_throws ArgumentError operation(out, ps, vals, g, shape)
+            @test all(==(T(7)), out)
+        end
+    end
+end
+
 # When multiple threads are active, the threaded path (not the serial fallback)
 # must still match serial — this asserts the partial-accumulator reduction.
 if Threads.nthreads() > 1
