@@ -79,8 +79,8 @@ the package's actual `width` function; no solver code was changed.
 
 1. Establish the canonical conservation boundary. Compare compensated cell
    deposition with reconciliation against the actual particle charge and
-   background. Both are **untested repair hypotheses**, not verified fixes.
-   Prototype them against the captured states and complete validation case.
+   background. The fixed-state experiment below checks both hypotheses; neither
+   is a verified complete repair. The full-wave results below narrow the choice.
 2. Preserve genuine net charge, changes in particle weights/populations, mobile
    species and the diagnostic's DC response. A uniform zero-charge assumption,
    DC masking or relaxed threshold is not an acceptable repair.
@@ -125,9 +125,78 @@ control has target -0.0125 and represented sum -0.012499999999999999, so it
 preserves nonzero charge instead of clamping it away. Original captures remain
 unchanged. Exact output-rounding error accounting is retained in the driver.
 
-These are fixed-state results, not an implemented or end-to-end repair. Full
-wave evolution, other dimensions/precisions/shapes, mobile and signed populations,
+These fixed-state results do not establish an implemented repair. Full-wave
+results follow; other dimensions/precisions/shapes, mobile and signed populations,
 nonfinite behavior, spatial/adjoint guarantees and measured cost remain open.
 Compensated accumulation passes this one threshold narrowly; no general
 sufficiency claim follows. Choose the production owner and rounding contract
 only after those comparisons.
+
+## Full-wave experiment brief
+
+- **Mode:** isolated numerical design experiment, with no production edits.
+- **Acceptance:** run the unchanged 1,000-step validation case on both native
+  Julia versions; retain frequency and continuity thresholds and failing runs.
+  Compare final fields and actual total charge, and record execution costs.
+- **Baseline:** the public case fails on both versions; fixed-state comparison
+  gives the measured results above. The next copies start from pushed `85ddb1b`.
+- **Verified gap:** the fixed-state test reprojects the original raw current.
+  Changing generic deposition also changes deposited current during evolution,
+  so that result alone does not establish coupled behavior.
+- **Contract:** one prototype adds Kahan compensation to canonical scalar
+  deposition; another reconciles total EM charge density to actual particle
+  weights/charges and background after deposition. Both EM interfaces use the
+  latter helper. The prototype explicitly limits reconciliation to finite raw
+  densities/weights and a finite positive represented cell volume; it is not a
+  proposed final nonfinite or extreme-range contract.
+- **Owners:** temporary copies of `deposit_scalar!` or `_charge_density!` only.
+  Preserve the actual current projector, diagnostic, field solver and validation.
+- **Compatibility:** no live source/API/schema/dependency change. Generic
+  compensation's allocation and adjoint implications remain open; exact-rational
+  target summation is an analysis backend whose production cost is unverified.
+- **Strategy:** baseline, compensated-deposition and reconciled-charge copies;
+  capture the same final physical state and metrics from each complete run.
+  Reconciliation uses the existing rounded cell-volume convention and actual
+  net charge, without DC masking or a neutrality assumption.
+- **Verification:** native 1.12.7/1.13.1, exact source hashes, untouched validation
+  thresholds, actual final charge totals and field differences. Treat first-run
+  timings as compilation-inclusive observations under shared load. Follow with
+  broader precision/shape/species/range and warmed-cost work before selecting a
+  production implementation.
+
+## Full-wave results
+
+The three isolated copies of pushed `85ddb1b` completed the same 1,000-step
+wave on both native versions. The frequency error remains
+0.013636642520216225, below 0.03, in all six runs. The continuity threshold is
+unchanged at 1e-8.
+
+| Prototype | Final continuity residual, both versions | Final-step summed-density drift |
+| --- | ---: | ---: |
+| Baseline | 9.889422779356765e-7, fails | 115/2^53 |
+| Kahan scalar deposition | 6.87978521988381e-8, fails | -1/2^50 |
+| EM charge reconciliation | 2.877175015333387e-12, passes | 0 |
+
+**VERIFIED:** compensated scalar deposition is insufficient for this complete
+case, despite passing the fixed-state comparison. Both candidate failures are
+retained as exit-1 runs; the experiment orchestrator also exits 1. Reconciliation
+passes five grouped checks/version. Its final E, B, corrected/raw current,
+positions and velocities are numerically identical to the baseline in the
+32-assertion final-state comparison. This result applies to this wave only.
+
+The exact-rational prototype has substantial cost. Compilation-inclusive
+allocated bytes for the complete run are 13,172,242,280 on 1.12 and
+12,636,754,200 on 1.13, versus 542,162,464 and 12,239,056 for their baselines.
+Observed wall times are 42.08/35.52 s versus 13.54/5.77 s. These single runs
+include compilation, capture and output under shared machine load; they are
+not warmed kernel benchmarks or portable performance bounds. A cheaper charge
+summation/reconciliation algorithm and the broader acceptance matrix remain
+required before production adoption.
+
+Evidence: `/tmp/hybrid-charge-wave-driver.jl`, isolated copies and SHA256
+manifests under `/tmp/hybrid-charge-wave-v1`, per-mode/runtime logs
+`/tmp/hybrid-charge-wave-v1-{baseline,kahan,reconcile}{112,113}.log`, and
+`/tmp/hybrid-charge-wave-v1-gates.log`. Final captured states are in the matching
+`artifacts-*` directories. Comparison driver/log:
+`/tmp/hybrid-charge-wave-compare.jl`, `/tmp/hybrid-charge-wave-v1-compare.log`.
+No live deposition or EM evolution code was changed by this experiment.
