@@ -1,9 +1,10 @@
 # Complete electromagnetic charge combination
 
 Status: pushed as `4cd642c`; [GitHub acceptance run 38750764319](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/38750764319)
-is active. Native numerical, compiler, quality, concurrency, resource and solver
+is fully green on actual Julia 1.12.7 and 1.13.2. Native numerical, compiler, quality, concurrency, resource and solver
 integration gates pass on Julia 1.12.7 and 1.13.1. Final public-step controls
-also pass on both versions. GitHub completion remains required.
+also pass on both versions. [Completed GitHub job evidence](CI_RELIABILITY_PLAN.md#acceptance-run-at-4cd642c)
+records 358,978/358,979 assertions, formatting and all MPI ranks.
 
 Candidate: `/tmp/hybrid-empic-charge-combination-v1`, based on `240f77c`.
 Both EMPIC families share the complete charge owner. Combined current, hybrid
@@ -141,7 +142,7 @@ and environment hashes were rechecked after the completed gates.
 - [x] Complete final public-step controls and both native integrations.
 - [x] Review final diff/format and promote the exact tested patch.
 - [x] Commit and push to main (`4cd642c`) with its own GitHub acceptance run.
-- [ ] Observe all GitHub jobs green for the pushed revision.
+- [x] Observe all GitHub jobs green for the pushed revision (`38750764319`).
 
 ## Promotion evidence
 

@@ -254,6 +254,42 @@ end
     end
 end
 
+@testset "EM dyadic digits preserve signed band boundaries" begin
+    H, O = HybridPlasmaPIC, ContinuityRangeOracle
+    power_of_two(e) = e >= 0 ? (BigInt(1) << e) // BigInt(1) : BigInt(1) // (BigInt(1) << -e)
+    for T in (Float32, Float64), shape in ((1,), (2,), (4,), (2, 4), (4, 2, 2))
+        g = FourierGrid(shape, ntuple(_ -> T(2pi), length(shape)))
+        width = max(1, precision(T) - (8sizeof(Int) - leading_zeros(prod(shape) - 1)) - 2)
+        tiny = O.exact(nextfloat(zero(T)))
+        # Adjacent binary places exercise carry, floor and mask boundaries.
+        # The oracle uses exact Gaussian-integer roots, not radix extraction.
+        for exponent in (-2width - 1, -width, -1, 0, width - 1, width, width + 1, 2width + 1)
+            quantum = power_of_two(exponent)
+            values = Array{O.CQ}(undef, shape)
+            for (j, I) in enumerate(CartesianIndices(values))
+                sign = isodd(j) ? -1 : 1
+                values[I] = complex(
+                    sign * ((BigInt(1) << width) + j) * quantum - tiny,
+                    -sign * j * quantum + tiny,
+                )
+            end
+            before = deepcopy(values)
+            forward = H._em_dyadic_transform(values, g)
+            @test forward == O.dft4(values)
+            @test H._em_dyadic_transform(values, g, true) == O.dft4(values; inverse = true)
+            @test H._em_dyadic_transform(forward, g, true) == values
+            @test values == before
+        end
+        for invalid in (O.Q(1) / 3, BigInt(1) // BigInt(0))
+            values = fill(zero(O.CQ), shape)
+            values[end] = complex(invalid)
+            before = deepcopy(values)
+            @test_throws ArgumentError H._em_dyadic_transform(values, g)
+            @test values == before
+        end
+    end
+end
+
 @testset "EM continuity normalized transforms on non-power-of-two grids" begin
     O = ContinuityRangeOracle
     for T in (Float32, Float64), D = 1:3, kind in (:difference, :weighted, :zero_dt)

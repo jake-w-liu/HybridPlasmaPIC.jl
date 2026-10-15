@@ -119,6 +119,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Exceptional electromagnetic continuity transforms extract dyadic digits with
+  integer shifts and masks, preserving signed digits and transform order while
+  reducing measured complete-call allocations. Ordinary outputs and allocation
+  totals remain unchanged in the checked diagnostic configurations.
+
 - The legacy EM continuity diagnostic reuses the grid's FFT plans. Checked
   results remain identical and the measured allocation falls by 544 bytes per
   call. Existing grids keep the FFT settings selected at construction.

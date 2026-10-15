@@ -346,15 +346,52 @@ terminal summary are recorded at lines 125 and 1125–1126 of
 `/tmp/hybrid-ci-38741178196-julia-latest-job.log`. The GitHub API reports the
 whole run `completed/success`, with all six jobs successful. This exact SHA is
 fully green, including the latest stable Julia; no billing exception was used.
-The later three revision runs remain under verification.
+Later revisions retain their own acceptance evidence below.
+
+## Acceptance run at 4cd642c
 
 At `4cd642c`, the latest-version package job in
 [run 38750764319](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/38750764319)
 passes **358,979 assertions** in **97m39.2s** on actual **Julia 1.13.2**, with
-22 JET reports. Its minimum-version package job remains running; formatting
-and all MPI jobs pass. This is partial acceptance of the exact revision.
+22 JET reports. Its minimum-version package job also passes **358,978 assertions**
+in **109m26.7s** on actual **1.12.7**, with 23 JET reports. Formatting and all
+MPI jobs pass; the whole run is `completed/success`. This exact revision is
+fully green without a billing exception. Minimum-version log:
+`/tmp/hybrid-ci-38750764319-julia112-job.log`, lines 125, 1040–1041 and 1258–1260.
 Source log: `/tmp/hybrid-ci-38750764319-julia-latest-job.log`, lines 125,
 1012–1014 and 1205–1207.
+
+## Acceptance run at 4c03c87
+
+The latest-version job at scheduling repair `4c03c87` passes **357,259 assertions**
+in **141m36.0s** on actual **Julia 1.13.2**, with 22 JET reports. The minimum job
+passes **357,258 assertions** in **149m40.9s** on actual **1.12.7**, with 23 JET
+reports. Formatting and all MPI ranks pass; the whole run is `completed/success`.
+Logs: `/tmp/hybrid-ci-38750474902-julia-latest-job.log`, lines 125, 1014 and
+1206–1208; `/tmp/hybrid-ci-38750474902-julia112-job.log`, lines 125, 917 and
+1134–1135.
+[Run 38750474902](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/38750474902)
+retains this revision independently of later pushes.
+
+## Acceptance run at 6ad7276
+
+At `6ad7276`, the latest-version package job in
+[run 38754771205](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/38754771205)
+passes **359,871 assertions** in **97m34.8s** on actual **Julia 1.13.2**, with
+22 JET reports. Its minimum-version job passes **359,870 assertions** in
+**111m18.1s** on actual **Julia 1.12.7**, with 23 JET reports. Formatting and all
+MPI ranks pass; the complete run is `completed/success`, without a billing
+exception. Logs: `/tmp/hybrid-ci-38754771205-julia-latest-job.log`, lines 125,
+1014–1015 and 1207–1209; `/tmp/hybrid-ci-38754771205-julia112-job.log`, lines
+125, 1034 and 1251–1252.
+
+## Acceptance run at e9c4fa7
+
+Charge-conservation repair `e9c4fa7` is pushed to main with its exact locally
+verified source and permanent tests. [Run 38767093527](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/38767093527)
+is active: formatting and all three MPI jobs pass; both package jobs remain
+running. The earlier revision runs have finished green independently.
+No billing exception is evidenced.
 
 ## Preserve acceptance for every revision — CI-005
 
@@ -407,9 +444,9 @@ while retaining equal keys for duplicate SHA runs. Evidence:
 
 Scheduling repair `4c03c87` is pushed to main. Its
 [run 38750474902](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/38750474902)
-is in progress while the earlier `240f77c` run remains in progress with both
-package jobs active. This verifies independent dispatch and retention of the
-older run; both still require terminal green results.
+and the earlier `240f77c` run both finish green. They remained independently
+active across later pushes, verifying dispatch, retention and completion for
+distinct revisions. Later pushes retain their own acceptance requirement.
 
 ## Latest stable refresh — October 15
 

@@ -31,8 +31,9 @@ Open boundaries: generic raw deposition; charge/background combination (MOMENT-0
 ## Verification and promotion
 
 Status: pushed as `6ad7276`; [GitHub run 38754771205](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/38754771205)
-is active. Final combined source passes both native gates; GitHub acceptance
-remains pending. The merged checkout
+is fully green on actual Julia 1.12.7/1.13.2, including formatting and every MPI
+rank. [Per-revision evidence](CI_RELIABILITY_PLAN.md#acceptance-run-at-6ad7276).
+The merged checkout
 `/tmp/hybrid-empic-current-combination-merged-v1` starts from `4cd642c` and
 retains the complete charge repair. Exactly three production/test files change.
 
@@ -84,4 +85,4 @@ The full handoff records the failures and exact reproduction commands:
 - [x] Verify combined charge/current source on both native versions.
 - [x] Review final diff/format and promote the exact tested patch.
 - [x] Commit and push to main (`6ad7276`) with its own GitHub acceptance run.
-- [ ] Observe every GitHub job green for that revision.
+- [x] Observe every GitHub job green for that revision.

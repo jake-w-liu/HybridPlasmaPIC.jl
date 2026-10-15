@@ -891,17 +891,19 @@ function _em_dyadic_transform(
     result = fill(zero(Complex{Rational{BigInt}}), size(values))
     lowest == typemax(Int) && return result
     work = similar(g.cbuf)
-    radix = BigInt(1) << width
+    mask = (BigInt(1) << width) - 1
     # The finite input/product bit ranges bound this loop and the integer
     # widths. Empty bands consume no FFT and no additional retained array.
     for band = fld(lowest, width):fld(highest, width)
-        quantum = _em_power_of_two(band * width)
         scale = _em_power_of_two(band * width + width)
         occupied = false
         @inbounds for I in eachindex(values)
             digits = map((real(values[I]), imag(values[I]))) do component
-                scaled = abs(component) / quantum
-                digit = mod(div(numerator(scaled), denominator(scaled)), radix)
+                # The input scan certified a power-of-two denominator. Shift
+                # the magnitude before masking, preserving floor division for
+                # negative bands and keeping the original signed-digit order.
+                offset = trailing_zeros(denominator(component)) + band * width
+                digit = (abs(numerator(component)) >> offset) & mask
                 normalized = ldexp(T(digit), -width)
                 signbit(component) ? -normalized : normalized
             end

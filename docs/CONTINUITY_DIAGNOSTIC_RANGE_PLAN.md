@@ -261,3 +261,56 @@ not establish exact spatial accuracy for those non-integer twiddles or a
 portable speed bound. Evidence: `/tmp/hybrid-current-rational-resource-larger.jl`
 and `...resource-larger1132.log`. A smaller representation or measured justified
 cost policy is still required before production acceptance.
+
+
+## Dyadic digit extraction allocation — PERF-005
+
+Pre-edit brief and contract:
+
+- Mode: measured allocation optimization in the existing exceptional transform.
+- Acceptance: identical signed digits, output arrays, errors and physical state;
+  lower complete-call allocations; unchanged ordinary diagnostics.
+- Baseline: the Float64 8³ current research call on actual 1.13.2 allocates
+  811,238,592 bytes. The unchanged production owner forms a reduced rational for
+  every component and exponent band before integer division/modulo.
+- Cause — VERIFIED: changing only this extraction reduces that call to
+  577,696,680 bytes in three warmed samples with identical output hashes.
+  Profile/counterfactual logs: `/tmp/hybrid-em-dyadic-allocation-profile-{base1132,v1-1132}.log`.
+  Sampled allocation attribution is incomplete; it is not a total-memory proof.
+- Invariants: the preceding input scan validates power-of-two denominators.
+  For `n/2^d`, retain `floor(abs(n)/2^(d+band*width)) mod 2^width` and the original
+  sign. Preserve band width/order, skipped empty bands, FFTs and reconstruction.
+- Owner: `_em_dyadic_transform` in `src/models/full_pic.jl`, used by both public
+  continuity diagnostic families and the isolated current research prototype.
+- Compatibility: no API, schema, dependency, ordinary arithmetic or current
+  projection policy changes; retain invalid-operand rejection.
+- Strategy: shift the integer magnitude by `d+band*width`, then mask its low
+  `width` bits. Julia's negative shift direction retains the same floor digit.
+- Verification: independent rational floor/mod and exact DFT controls, archived
+  baseline transform differentials, complete diagnostic/resource/state checks,
+  concrete and full package diagnostic comparison, Aqua and formatting.
+
+Both actual Julia **1.12.7 and 1.13.2** pass **1,536 differential assertions**,
+**1,695 numerical/state/compiler/quality assertions** and **424 complete-call
+resource controls per baseline/candidate snapshot**, all terminal exit 0.
+The 360 new permanent assertions cover signed band boundaries, low tails,
+forward/inverse exact integer-root transforms, invalid operands and input state.
+All 28 concrete compiler analyses are clean. Package reports remain 22/21;
+all terminal findings and complete printed trees match the respective baseline.
+
+Across each runtime's 52 measured calls, all output hashes match. Sixteen
+ordinary cases retain their allocation totals; 32 exceptional public diagnostic
+cases allocate 11.74–27.17% less on 1.12.7 and 11.98–27.19% less on 1.13.2.
+The four external prototype calls improve by 18.83–28.77% and 18.92–28.79%.
+Each observed candidate exceptional allocation is below the smallest matching
+baseline sample, including two variable baseline cases whose cause is unmeasured.
+Batched ordinary checks preserve all checksums and allocation totals. Timing
+variation is retained; no portable speed or peak-memory claim follows.
+
+Final patch SHA256: `7bacd30f95f6eb560b898c537ed1439e0f1b3ffbccc11110a658945f815834c1`.
+All 180 source/test hashes and a fresh patch replay match the tested candidate.
+Commands, raw logs, preserved harness failures and exact terminal statuses:
+`/tmp/hybrid-em-dyadic-allocation-handoff.md`; machine-readable verification:
+`...-final-verification.json`, `...-quality-statuses.json`, `...-resource-statuses.json`.
+The current prototype still allocates roughly 578–594 MB at 8³. Its rational
+inverse policy and arbitrary-grid accuracy remain separate open work.
