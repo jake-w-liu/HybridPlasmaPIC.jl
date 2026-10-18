@@ -97,6 +97,43 @@ The original source and report are retained; the live implementation is
 unchanged. Public documentation is prepared separately, with its example
 verified on both native runtimes.
 
+The v2 count binding has zero `Core.Box` occurrences in Julia 1.12 lowering,
+versus one in v1. A same-report-object experiment also verifies that importing
+`Serialization` changes one displayed report tree without rerunning analysis.
+After applying only that exact, proved display translation, the complete v1
+comparison retains precisely the added captured-count report. The full v2
+comparison is still pending. Evidence is in
+`/tmp/hybrid-evolving-pressure-v2-verification/verified-serialization-render112.json`
+and `v1-report-delta-render-proved112.json`.
+
+The frozen v2 resource rerun passes 336 assertions on Julia 1.12.7 (exit 0),
+including exact algebraic outputs and allocations, unchanged standalone Euler,
+adjacent CAM-CL/Hall behavior and grid-size-independent field-stage allocations.
+Two subcycles allocate 2,624 bytes in 1D and 2,880 in 2D/3D at 4, 8 and 16 cells
+per axis, for both Float32 and Float64. These are measured allocations, not a
+portable runtime claim. Commands, elapsed time and frozen-source checks are in
+`/tmp/hybrid-evolving-pressure-v2-verification/support-results.json`.
+
+**VERIFIED candidate defect:** the new stored-pressure energy branch loses
+finite complete integrals through its pressure sum, division and cell-volume
+intermediates (`/tmp/hybrid-evolving-pressure-v2/src/integrators/extrapolated_leapfrog.jl:1133`).
+The corrected independent rational witness passes 32 assertions on each
+Julia 1.12.7 and 1.13.2; logs are
+`/tmp/hybrid-evolving-pressure-v2-verification/energy-range-witness-v2-{112,1132}.log`.
+The first harness mistakenly classified one finite-volume Float64 control as
+an overflow case; its 30-pass/two-fail log is retained as
+`energy-range-witness1132.log`. A separate v3 candidate now guards intermediate
+range loss and evaluates exceptional complete integrals through the existing
+exact conversion owner. Its first rounding, ordinary-output/allocation and
+validation run passes 360 assertions on Julia 1.13.2, including zero measured
+ordinary-path allocation. Minimum-version, integrated and compiler acceptance
+remain unfinished. The formatted v3 retains executable syntax from that run;
+183 v2 source/test files are byte-identical, and removing the new helper plus
+reverting its single call recovers the v2 integrator file exactly. Evidence is
+in `/tmp/hybrid-evolving-pressure-v3-verification/first-result.json` and
+`scope.json`. The pre-edit contract is
+`/tmp/hybrid-evolving-pressure-v2-verification/pressure-energy-brief.md`.
+
 - [x] Define the first slice: opt-in `EvolvingElectrons(gamma>1)`, periodic
   `HybridStepper`, `η=ηH=de2=0`; reject unsupported CAMCL/Hall-MHD use explicitly.
 - [x] Define persistent state: users initialize `fields.pe` before `init!`;
@@ -112,6 +149,8 @@ verified on both native runtimes.
   exactly; coordinate MPI failure before subsequent collective operations.
 - [ ] Preserve pe in checkpoint/archive/distributed restart, validate before
   restore mutation, and require explicit `pe=` in evolving-pressure budgets.
+- [ ] Preserve finite stored-pressure integrals across sum, quotient and volume
+  range failures; check exact rounding boundaries and unchanged ordinary costs.
 - [ ] Retain old algebraic outputs and steady-state allocations. Allocate
   pressure/rollback buffers only for the new closure and measure their cost.
 - [ ] Verify analytic advection, compression, Hall transport and battery
