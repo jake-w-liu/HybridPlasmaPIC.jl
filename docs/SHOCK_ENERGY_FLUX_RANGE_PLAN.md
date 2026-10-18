@@ -268,3 +268,84 @@ Further cold-storage and ordinary-latency optimization remains open. Exact-SHA
 GitHub acceptance is required after this repair is pushed.
 
 The component repair is pushed as `daea194035e85cd39c5a497e781f758844881ec4`. [Run 39144368129](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39144368129) is running; formatting passes. The exact 14-path promotion and remote SHA are verified in `committed-evidence.json`; held radiation files retain their hashes. GitHub acceptance remains open, with no billing exception used.
+
+The complete-total repair is pushed as `dd539da0f267f5d18481d0dae7a68111adc0b5d8`. [Run 39146029176](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39146029176) is running. All 12 committed blobs and remote main match `committed-evidence.json` in the canonical total verification directory. Held radiation files remain unchanged; exact-SHA CI acceptance stays open.
+
+## Exact-node reuse optimization brief
+
+- Mode: measured resource optimization, with all numerical contracts retained.
+- Baseline: `/tmp/hybrid-shock-exact-reuse-review-20261019` passes 48 assertions
+  per runtime against the pushed total owner. At 4,096 particles, the two
+  isolated boundary replays together allocate 19,432,880 B (Float32) or
+  22,906,544 B (Float64). The component state has already accumulated those
+  complete nodes in its local dictionary before the total traverses them again.
+- Owner and contract: retain the same canonical ion accumulator and exact
+  component helpers. Expose already-computed exact nodes only to the enclosing
+  boundary calculation, with call-local ownership and no persistent cache.
+  A missing dictionary entry must still trigger complete boundary evaluation;
+  it never means zero. Preserve all public signatures and output semantics.
+- Strategy: prototype a retained optional exact-node result. Measure ordinary
+  return/storage overhead before choosing its internal representation. Reuse
+  present entries before H normalization; retain the canonical evaluation for
+  uncached nodes. No new workspaces on the certified ordinary path.
+- Acceptance: unchanged numerical and bitwise outputs, ordinary allocation,
+  validation and generic behavior; explicit partial-dictionary and zero-entry
+  controls; four-thread ownership; complete compiler comparisons, all shock
+  regressions and formatting. Target cumulative cold allocation at most 60%
+  of the checked baseline for the 256-/4,096-particle cancellation cases, and
+  record balanced latency rather than infer a speedup. Push only after these
+  gates, then require exact-SHA green CI.
+
+The retained V1 prototype passes its numerical checks but adds 32 B to ordinary
+particle calls: 90 ordinary/resource assertions pass and 54 fail per runtime.
+**VERIFIED:** the allocation trace identifies the three-element returned tuple at the state
+owner; its log is `/tmp/hybrid-shock-exact-reuse-v1/allocation-trace112.log`.
+V2 replaces that tuple with a concrete immutable internal result containing the
+flux, raw error and optional exact-node dictionary. All 240 initial assertions
+now pass on each runtime, including the original ordinary allocation checks.
+
+V2 also passes 6,480 numerical/bound assertions, 812 public-total concurrency
+assertions and 234 partial-cache/ownership/concrete-compiler assertions per
+runtime. Both cost suites pass 480 assertions. The 256-/4,096-particle cold
+cases allocate 50.4–50.8% of the prior owner on both runtimes; all ordinary
+bitwise and allocation comparisons pass. Eighteen measured cold profiles per
+runtime include normalization and subnormals. These are local cumulative
+allocation measurements, not peak-memory or portable-latency claims. Logs,
+commands and hashes are under `/tmp/hybrid-shock-exact-reuse-v2`.
+
+The canonical integration is verified in
+`/tmp/hybrid-shock-exact-reuse-public-v1-verification`. Only the private ion-state
+and total-helper callers migrate; public signatures and the ion-vector wrapper
+remain intact. Permanent regressions reject missing-key-as-zero, reusing a
+normalized value, shared cache ownership and a repeat traversal of exact
+boundary contributions. Existing numerical, generic/error-path and ordinary
+resource assertions remain unchanged. The final local gates are recorded below.
+
+Canonical local acceptance now passes on Julia 1.12.7 and 1.13.2:
+
+- 25,091 permanent assertions across 19 testsets, retaining all 17 earlier
+  component/total testsets and adding partial-cache/ownership and reuse-resource
+  regressions. The native driver explicitly checks four threads.
+- 462 assertions across the nine existing shock files and Aqua; 480 measured
+  cost assertions against the AST-verified pushed `dd539da` owner.
+- Complete compiler trees match baseline at 22/21 reports, with no added or
+  removed groups. All 58 migration/prior-owner and six format-preservation
+  checks pass; the whole-repository read-only formatting scan passes.
+- All 12 ordinary profiles retain bitwise outputs and allocation. Paired median
+  latency ratios are 1.00–1.20 (bulk) and 0.91–1.07 (particles) on 1.12.7;
+  0.91–1.14 and 0.94–1.03 on 1.13.2. The 256-/4,096-particle cold allocation
+  ratio is 0.5042–0.5085 on both runtimes, below the declared 0.60 target.
+  A separate alternating-order cold measurement passes 246 assertions per
+  runtime. Its median latency ratios span 0.22–1.87 / 0.27–1.49 across the
+  sampled profiles. Shared-machine timings are mixed and do not establish a
+  portable speedup. The largest measured new cumulative allocation is
+  24,196,048 B. Earlier block-order measurements remain in the original cost logs.
+
+The six tested source/test paths are copied to main with matching hashes;
+all held radiation files remain unchanged. Public APIs, ordinary arithmetic,
+complete-total rounding and validation are retained. There is one canonical
+accumulator, one call-local optional dictionary and no compatibility overload
+for the private helper signature. Uncached nodes still use the existing complete
+evaluator. Commands, assertion inventories, prior-owner AST proof and logs are
+in `/tmp/hybrid-shock-exact-reuse-public-v1-verification`. This local acceptance
+still requires a separate exact-SHA GitHub run after push.

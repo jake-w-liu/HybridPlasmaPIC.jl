@@ -540,3 +540,9 @@ The final V5 native 1.12.7 solver, shock and checkpoint lanes all finish with
 exit code zero. The 1.13.2 lane follows under the same frozen-source launcher;
 its final result remains required. Evidence is retained in
 `/tmp/hybrid-polytropic-energy-public-v5-broad-verification/results112.json`.
+
+Both final V5 native lanes now pass: 3,681 solver, 453 shock and 38,055 checkpoint
+assertions per runtime, across 77/29/84 testsets respectively. The complete
+commands, counts and log hashes are in
+`/tmp/hybrid-polytropic-energy-public-v5-broad-verification/completed-all-lane-counts.json`.
+Exact-SHA GitHub acceptance remains pending.

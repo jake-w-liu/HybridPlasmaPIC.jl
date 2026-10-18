@@ -23,8 +23,8 @@ public_particles(sh, ps) = boundary_energy_flux(sh; ps = ps)
             calls = (
                 (public_particles, (sh, p)),
                 (H._shock_ion_flux_state, (sh, p)),
-                (H._shock_total_flux, (sh, p, 1, T(1), T(2), T(3), 0.0)),
-                (H._shock_total_flux, (sh, nothing, 1, T(1), T(2), T(3), 0.0)),
+                (H._shock_total_flux, (sh, p, 1, T(1), T(2), T(3), 0.0, nothing)),
+                (H._shock_total_flux, (sh, nothing, 1, T(1), T(2), T(3), 0.0, nothing)),
                 (H._shock_zero_boundary_ion_flux, (sh, p, 1)),
                 (H._shock_exact_boundary_ion_flux, (sh, p, 1)),
                 (H._shock_exact_bulk_flux, (T(1), T(2), T(3))),

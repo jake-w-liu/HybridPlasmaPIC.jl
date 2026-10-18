@@ -746,7 +746,7 @@ Checkpoint lanes also pass: 38,055 assertions across 84 testsets per runtime.
 All three lane inventories and log hashes are in
 `/tmp/hybrid-algebraic-final-native-verification/completed-all-lane-counts.json`.
 `15662e1` now has green formatting and all
-2-/4-/8-rank MPI jobs; both package jobs remain active.
+2-/4-/8-rank MPI jobs; the minimum-version package job also passes, while the latest-version package job remains active.
 
 ## Complete polytropic energy integration
 
@@ -771,3 +771,44 @@ The complete energy implementation is pushed as `7104c6190b09daaa01349d7dfd4d299
 `daea194035e85cd39c5a497e781f758844881ec4` is pushed with all native focused, resource, shock, Aqua and complete compiler comparisons passing on Julia 1.12.7/1.13.2. [Run 39144368129](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39144368129) is running; formatting passes; its exact-SHA monitor and eventual full logs are in `/tmp/hybrid-ci-daea194-20261019`. No billing exception is used.
 
 The complete-total follow-up passes all native core gates on 1.12.7/1.13.2: 24,737 focused, 462 shock/Aqua and 414 cost assertions per runtime, plus full compiler comparisons (22/21 baseline reports), migration and read-only formatting. Evidence is in `/tmp/hybrid-shock-total-flux-public-v1-verification`. Its exact pushed SHA must complete GitHub acceptance separately.
+
+The total repair is pushed as `dd539da0f267f5d18481d0dae7a68111adc0b5d8`. [Run 39146029176](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39146029176) is running, monitored under `/tmp/hybrid-ci-dd539da-20261019`. Its complete CI result remains required; no billing exception is used.
+
+Historical `6e7fb01` has now finished. Its actual Julia 1.12.7 package job passes
+404,768 assertions in 215m06.3s, with 25 JET reports; formatting and all MPI
+ranks also pass. The whole run remains **failed** because the latest-Julia job
+has the previously recorded uninitialized-position fixture error, repaired in
+`15662e1`. No billing exception applies. The exact job/runtime/count/log hash
+and all six outcomes are retained in
+`/tmp/hybrid-ci-6e7fb01-20261018/minimum-success-evidence.json`.
+
+Historical `0d8c8e8` has also finished, with both package jobs failed. The newly
+completed Julia 1.12.7 job records 446,175 passes and 15 failures in 215m01.7s:
+11 at `reuse_resources.jl:32` and four at `:52`, with no error-during-test block.
+The full log contains 29 JET reports; this count is retained rather than treated
+as a complete diagnostic comparison. Formatting and all MPI ranks pass.
+Exact SHA, job outcomes, locations and log hash are in
+`/tmp/hybrid-ci-0d8c8e8-20261018/minimum-failure-evidence.json`.
+TEST-002's correction is already pushed in `15662e1`; its minimum-version
+package job passes and latest-version acceptance remains pending. No rerun or
+billing exception is used to relabel either historical failure.
+
+Both complete-energy V5 native broad lanes now pass: 3,681 solver assertions
+across 77 testsets, 453 shock assertions across 29, and 38,055 checkpoint
+assertions across 84 per runtime. Commands, complete assertion inventories and
+log hashes are retained in
+`/tmp/hybrid-polytropic-energy-public-v5-broad-verification/completed-all-lane-counts.json`.
+The exact `7104c61` GitHub package jobs remain separate acceptance gates.
+
+Exact-node reuse passes all local gates on native 1.12.7/1.13.2: 25,091 focused,
+462 shock/Aqua and 480 cost assertions per runtime, complete unchanged compiler
+trees (22/21), 58 migration/prior-owner checks, six formatting-preservation
+checks and a whole-repository read-only formatting scan. The six tested paths
+are integrated with matching hashes; held radiation work is excluded. Evidence:
+`/tmp/hybrid-shock-exact-reuse-public-v1-verification`. A new exact-SHA GitHub run
+is required after push; no pending run is treated as successful.
+
+The final alternating-order cold cost check also passes 246 assertions per
+runtime, with unchanged allocation reductions and mixed latency ratios. Its
+commands, complete samples and log hashes are in `paired-cold-summary.json`
+under the same verification directory. No general speedup is claimed.

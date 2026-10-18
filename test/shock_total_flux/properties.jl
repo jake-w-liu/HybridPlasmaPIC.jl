@@ -87,7 +87,8 @@ end
             sh.s.H .= ldexp(one(T), rand(rng, (-he, he)))
         end
         before = deepcopy((sh.s.H, ps.x, ps.v, ps.weight))
-        actual, error = H._shock_ion_flux_state(sh, ps)
+        state = H._shock_ion_flux_state(sh, ps)
+        actual, error = state.flux, state.error
         @test isfinite(error) && error >= 0
         exact = reference(sh, ps)
         for (j, i) in ((1, 8), (2, 1))
