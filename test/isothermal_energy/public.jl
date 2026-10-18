@@ -68,18 +68,38 @@ end
         end
     end
 end
-@testset "Unsupported coefficients and gamma-rounded polytropes keep their owner" begin
+@testset "Unsupported isothermal coefficients retain their arithmetic" begin
     for T in (Float32, Float64), C in (Float16, BigFloat)
         g = FourierGrid((4,), (T(4),))
         n = T[0.5, 0.75, 1.5, 2]
         closure = IsothermalElectrons(C(0.7))
         @test isequal(electron_internal_energy(n, closure, g), original(n, closure, g))
     end
+end
+@testset "Polytropic energy retains stored gamma on a Float32 grid" begin
     g = FourierGrid((4,), (4.0f0,))
     n = Float32[0.5, 0.75, 1.5, 2]
     closure = PolytropicElectrons(0.7, 1.0, nextfloat(1.0))
     @test Float32(H.closure_gamma(closure)) == 1.0f0
-    @test isequal(electron_internal_energy(n, closure, g), original(n, closure, g))
+    delta = Q(closure.γ) - 1
+    @test 0 < delta < 1
+    # For x >= 1 and 0 < delta < 1, concavity gives
+    # 1 <= x^delta <= 1+delta*(x-1). Apply the reciprocal bound below one.
+    lower = upper = zero(Q)
+    for value in n
+        density = Q(value)
+        if density >= 1
+            lower += density
+            upper += density * (1 + delta * (density - 1))
+        else
+            lower += density / (1 + delta * (inv(density) - 1))
+            upper += density
+        end
+    end
+    factor = Q(closure.pe0) * prod(Q, g.dx) / delta
+    value = electron_internal_energy(n, closure, g)
+    @test Oracle.rounded(value, lower * factor, upper * factor)
+    @test !isequal(value, original(n, closure, g))
 end
 @testset "Public large weak-wave independent eighth-moment accuracy" begin
     for T in (Float32, Float64), count in (256, 4096, 4194304)

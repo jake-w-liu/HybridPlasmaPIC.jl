@@ -182,7 +182,7 @@ function _polytropic_quantize(value::Rational{BigInt}, shift::BigInt, left_limit
     return whole, whole + !iszero(remainder)
 end
 
-function _polytropic_scaled_sum_bounds(intervals, bits::Int)
+function _polytropic_scaled_sum_state(intervals, bits::Int)
     bits > 0 || throw(ArgumentError("sum precision must be positive"))
     largest = nothing
     for (lower, upper, exponent) in intervals
@@ -191,17 +191,26 @@ function _polytropic_scaled_sum_bounds(intervals, bits::Int)
         upper > 0 || continue
         largest = largest === nothing ? exponent : max(largest, exponent)
     end
-    largest === nothing && return BigInt(0), BigInt(0), BigInt(0)
+    largest === nothing && return (BigInt(0), BigInt(0), BigInt(0), false, false)
     scale = BigInt(largest) - bits
     lower = upper = BigInt(0)
+    lower_strict = upper_strict = false
     for (lo, hi, exponent) in intervals
         iszero(hi) && continue
         shift = BigInt(exponent) - scale
-        a, _ = _polytropic_quantize(lo, shift, bits)
-        _, b = _polytropic_quantize(hi, shift, bits)
+        a, aceil = _polytropic_quantize(lo, shift, bits)
+        bfloor, b = _polytropic_quantize(hi, shift, bits)
         lower += a
         upper += b
+        lower_strict |= a != aceil
+        upper_strict |= bfloor != b
     end
+    return lower, upper, scale, lower_strict, upper_strict
+end
+
+
+function _polytropic_scaled_sum_bounds(intervals, bits::Int)
+    lower, upper, scale, _, _ = _polytropic_scaled_sum_state(intervals, bits)
     return lower, upper, scale
 end
 

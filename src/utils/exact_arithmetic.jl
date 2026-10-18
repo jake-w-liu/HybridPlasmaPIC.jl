@@ -84,3 +84,44 @@ function _from_exact(::Type{T}, value::Int128, exponent::Int) where {T<:Union{Fl
     result = ldexp(T(rounded), quantum)
     return value < 0 ? -result : result
 end
+
+# Round a bounded integer ratio and binary scale without a floating intermediate.
+function _from_exact(
+    ::Type{T},
+    signed_n::Int128,
+    d::UInt64,
+    exponent::Int,
+) where {T<:Union{Float32,Float64}}
+    iszero(d) && throw(ArgumentError("exact scaled conversion denominator must be positive"))
+    iszero(signed_n) && return zero(T)
+    negative = signed_n < 0
+    n = negative ? -unsigned(signed_n) : unsigned(signed_n)
+    denominator = UInt128(d)
+    nw = 128 - leading_zeros(n)
+    dw = 64 - leading_zeros(d)
+    binade = nw - dw
+    if binade >= 0 ? n < (denominator << binade) : (n << -binade) < denominator
+        binade -= 1
+    end
+    actual = Int128(exponent) + binade
+    minimum_quantum = Base.exponent(floatmin(T)) - precision(T) + 1
+    actual > Base.exponent(floatmax(T)) && return negative ? -T(Inf) : T(Inf)
+    actual < minimum_quantum - 1 && return negative ? -zero(T) : zero(T)
+    quantum = max(Int(actual) - precision(T) + 1, minimum_quantum)
+    shift = Int128(exponent) - quantum
+    if shift >= 0
+        # The output exponent guards imply nw+shift <= dw+precision(T) <= 117.
+        numerator = n << Int(shift)
+        scaled_denominator = denominator
+    else
+        denominator_bits = Int128(dw) - shift
+        denominator_bits > 128 && return negative ? -zero(T) : zero(T)
+        numerator = n
+        scaled_denominator = denominator << Int(-shift)
+    end
+    whole, rest = divrem(numerator, scaled_denominator)
+    complement = scaled_denominator - rest
+    rounded = whole + (rest > complement || (rest == complement && isodd(whole)))
+    magnitude = ldexp(T(rounded), quantum)
+    return negative ? -magnitude : magnitude
+end

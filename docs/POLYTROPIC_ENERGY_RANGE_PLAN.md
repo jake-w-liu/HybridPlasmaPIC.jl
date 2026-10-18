@@ -1,11 +1,13 @@
 # Polytropic energy range and closure precision
 
-Status: the pointwise pressure correction passes native focused and concrete
-compiler checks on Julia 1.12.7 and 1.13.2. It is pushed as `0d8c8e8`, with
-[exact-revision CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39129830419) running.
-Broader native gates remain pending. The complete integrated polytropic energy
-repair is not implemented. This plan covers the polytropic part of ENERGY-004,
-ENERGY-007 and CLOSURE-001.
+Status: pointwise pressure is pushed as `0d8c8e8`; its latest-Julia CI job
+failed resource-fixture byte-equality assertions. The corrected fixture,
+EMPIC initialization fixture and algebraic dispatch/compiler repair are pushed
+as `15662e1`, with [exact-revision CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39137529999)
+running. Both native solver and shock lanes pass; checkpoint lanes continue.
+The complete polytropic energy repair is integrated from verified V5. Its
+core gates pass on both runtimes; native broad and exact-SHA CI acceptance
+remain pending. This plan covers ENERGY-004, ENERGY-007 and CLOSURE-001/002.
 
 ## Confirmed behavior and implementation contract
 
@@ -443,9 +445,91 @@ trees match baseline (22/21); concrete compiler gates pass 316/300 assertions,
 four-thread checks pass 3,007 per runtime, and Aqua passes nine each. Paired
 polynomial checks pass 528 per runtime, preserving outputs and 72 zero-byte
 calls per implementation/runtime. Timing ratios are mixed (0.776–1.617 on
-1.12.7; 0.507–4.383 on 1.13.2); no speedup is claimed. The minimum focused suite
-passes 57,165 assertions; the latest focused suite remains running. The final
+1.12.7; 0.507–4.383 on 1.13.2); no speedup is claimed. Each native focused suite
+passes 57,165 assertions. The final
 six-file source/test overlay exactly matches the checked snapshots, and all
 other 217 source/test paths match `0d8c8e8`. Whole-repository formatting passes.
 Remaining native broad gates and the new exact-SHA CI remain required after
 push. Evidence: `/tmp/hybrid-algebraic-ci-promotion-v1-verification`.
+
+The reviewed dispatch/CI overlay is pushed as `15662e1`; its
+[exact-SHA GitHub run](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39137529999)
+is running. Integrated polytropic energy remains isolated and unpromoted.
+
+Both dispatch focused suites now pass 57,165 assertions. The recovered
+isothermal V2 native lanes each pass 44,809 assertions across checkpoints,
+all eleven solver files, quality and concurrency. Their complete compiler
+comparisons retain the same two polynomial findings already corrected by
+`15662e1`; those original failed comparisons remain preserved.
+The remaining 22 solver/shock/checkpoint files are running against the final
+pushed source in `/tmp/hybrid-algebraic-final-native-verification`, with both
+oracle modules loaded verbatim. No source/test is changed during these runs.
+
+Energy V3 passes 70,219 focused assertions on each runtime; both complete
+compiler trees match baseline, and all concrete and concurrency tasks pass. V4 rebases exactly 18 energy source/test paths onto `15662e1`, retaining
+both CI fixture corrections; those energy files remain byte-identical to V3
+after a full formatter scan. V4 is not promoted. Distinct-density logarithmic
+resource costs and final native broad acceptance remain open.
+
+The first public-resource harness records 12 zero-byte failures caused by its
+heterogeneous measurement context; the concrete typed/warmed replay passes
+all 108 assertions on each runtime, including every zero-byte control. Both
+runs are retained. The typed 1.12 replay confirms 2,272,925,040 cumulative
+allocated bytes for 4,096 distinct Float64 densities, not peak resident memory.
+Energy promotion remains open on this measured resource cost.
+
+An isolated fixed-width logarithm prototype in
+`/tmp/hybrid-isothermal-fixed-log-v1` now passes 15,086 independent assertions
+per runtime: 13,041 exact wide-product/fraction/rounding checks and 2,045 directed
+logarithm enclosure checks across the binary input range. Its 34-term atanh
+remainder bound is verified by an exact integer inequality. It reuses the
+canonical dyadic sum, coefficient and reference-rounding owners, accepting a
+probe only when both endpoints round identically; unresolved cases retain the
+exact owner. Existing gamma-one fixtures and public resource gates are running.
+No prototype logarithm code is promoted.
+
+The fixed-log prototype now also passes the 862 retained gamma-one assertions,
+120 public numerical/resource assertions and 223 concrete/resource/concurrency
+assertions on each runtime. All 24 measured public profiles per runtime allocate
+zero bytes, including 4,096 distinct densities in Float32 and Float64. These
+measurements establish those cases, not a universal constant-cost exact fallback.
+The unmodified exact evaluator still handles unresolved certificates and exact
+cancellation. Evidence: `integration-results.json`, `quality-results.json` and
+associated logs in `/tmp/hybrid-isothermal-fixed-log-v1`.
+
+Public energy V5 integrates the six fixed-log helpers into the shared isothermal
+arithmetic file and inserts their probe into the canonical gamma-one owner.
+There is no prototype wrapper in production. Its brief and gates are in
+`/tmp/hybrid-polytropic-energy-public-v5-verification`. The corrected formatter
+verifier passes all 233 source/test syntax comparisons and independently checks
+the three original unformatted inputs affected by line annotations. Original
+harness failures are retained. Numerical, compiler and concurrency acceptance
+must complete before promotion.
+
+The final V5 migration checks pass all 45 assertions; the complete Julia 1.12
+compiler tree matches baseline at 22 reports with no added/removed diagnostic
+groups. Both public smoke runs pass 25 assertions. The full focused, latest
+compiler and quality/concurrency gates continue. A separate public audit uses
+512-bit directed MPFR bounds across mixed coefficient precisions, dimensions,
+extreme densities and cell spacings; its results remain pending. The 22-file
+native integration lanes are queued after all core gates succeed.
+
+Both V5 complete compiler trees now match baseline (22/21 reports), and the
+independent public logarithmic audit passes 577 assertions per runtime. All
+144 sampled combinations per runtime retain the declared rounding and sign
+behavior against independent directed MPFR bounds, without input mutation or
+ambient precision changes. These are sampled checks, not an exhaustive proof.
+
+V5's Julia 1.12.7 focused suite passes 85,433 assertions. Both runtimes pass
+1,679 quality/concrete/Aqua assertions, 1,608 threaded assertions and 223
+additional fixed-log compiler/resource/concurrency checks. The latter includes
+explicit unresolved-cancellation and invalid-input controls. Latest focused
+and subsequent native solver/shock/checkpoint acceptance remain pending.
+
+V5's final focused suites both pass 85,433 assertions (9m33.8s on 1.12.7;
+6m44.6s on 1.13.2). All core numerical, migration, complete compiler, quality,
+concurrency, independent public range and read-only formatting gates pass.
+The reviewed 20-file energy overlay is copied to main with matching SHA256s;
+all three held radiation files retain their hashes. Native 22-file broad lanes
+have started; their results and exact-revision GitHub acceptance remain required.
+Promotion manifest: `/tmp/hybrid-polytropic-energy-public-v5-verification/promotion-plan.json`.

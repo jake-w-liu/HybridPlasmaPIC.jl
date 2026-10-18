@@ -100,6 +100,7 @@ using Test
     include("test_isothermal_first_pass.jl")
     include("test_isothermal_reuse.jl")
     include("test_polytropic_pressure.jl")
+    include("test_polytropic_energy.jl")
     include("test_jet.jl")
     include("test_quality.jl")
 end

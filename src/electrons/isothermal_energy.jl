@@ -86,16 +86,22 @@ function _isothermal_exact_energy(
     n::AbstractArray{T},
     temperature::C,
     dx,
-) where {T<:Union{Float32,Float64},C<:Union{Float32,Float64}}
+) where {T<:Union{Float32,Float64},C<:Union{Float32,Float64,Rational{BigInt}}}
     all(isfinite, n) && isfinite(temperature) && all(isfinite, dx) ||
         throw(ArgumentError("the complete isothermal evaluator requires finite inputs"))
     multiplier = Rational{BigInt}(temperature) * prod(Rational{BigInt}, dx)
     iszero(multiplier) && return zero(T)
-    terms = Dict{UInt64,Rational{BigInt}}()
+    # Count stored densities before exact coefficient work. The counts are
+    # integers, so this grouping preserves the complete logarithmic expression.
+    counts = Dict{T,Int}()
     for value in n
-        value > zero(T) || continue
+        value > zero(T) && value != one(T) || continue
+        counts[value] = Base.checked_add(get(counts, value, 0), 1)
+    end
+    terms = Dict{UInt64,Rational{BigInt}}()
+    for (value, count) in counts
         density = Rational{BigInt}(value)
-        coefficient = density * multiplier
+        coefficient = density * multiplier * count
         odd = numerator(density)
         exponent = -(ndigits(denominator(density); base = 2) - 1)
         while iseven(odd)
@@ -299,22 +305,30 @@ function _isothermal_nearunit_energy(
     temperature::C,
     dx,
     state,
-) where {T<:Union{Float32,Float64},C<:Union{Float32,Float64}}
+    reference::R = one(T),
+) where {T<:Union{Float32,Float64},C<:Union{Float32,Float64},R<:Union{Float32,Float64}}
     (iszero(state.active) || iszero(temperature) || any(iszero, dx)) && return zero(T)
+    # Cancel an exact unit coefficient before bounded multiplication can widen it.
+    if temperature == reference
+        temperature = one(C)
+        reference = one(R)
+    end
     bits = precision(T) + 16
     bits <= state.cap || return nothing
     if T === Float64
         # The same complete tail certificate permits a cheaper first pass.
         lower, upper, exponent =
             _isothermal_complete_dyadic(n, temperature, dx, state, bits, Val(8))
-        lo, hi = _from_exact(T, lower, exponent), _from_exact(T, upper, exponent)
+        lo, hi = _isothermal_round_ratio(T, lower, exponent, reference),
+        _isothermal_round_ratio(T, upper, exponent, reference)
         isequal(lo, hi) && return lo
     end
     degree = Val(T === Float32 ? 8 : 12)
     while true
         lower, upper, exponent =
             _isothermal_complete_dyadic(n, temperature, dx, state, bits, degree)
-        lo, hi = _from_exact(T, lower, exponent), _from_exact(T, upper, exponent)
+        lo, hi = _isothermal_round_ratio(T, lower, exponent, reference),
+        _isothermal_round_ratio(T, upper, exponent, reference)
         isequal(lo, hi) && return lo
         bits == state.cap && return nothing
         bits = min(bits + 8, state.cap)
@@ -400,7 +414,8 @@ function _isothermal_general_probe_with_reuse(
     temperature::C,
     dx::NTuple{D,T},
     ::Val{Reuse},
-) where {T<:Union{Float32,Float64},C<:Union{Float32,Float64},D,Reuse}
+    reference::R = one(T),
+) where {T<:Union{Float32,Float64},C<:Union{Float32,Float64},R<:Union{Float32,Float64},D,Reuse}
     total = correction = lower = upper = 0.0
     finite = isfinite(temperature) && all(isfinite, dx)
     operations = valid = true
@@ -473,8 +488,17 @@ function _isothermal_general_probe_with_reuse(
     end
     reduced = total + correction
     product = reduced * volume
-    result = T(product)
     operations &= isfinite(reduced) && _kinetic_normal_product(reduced, volume, product)
+    if reference != one(R)
+        product /= Float64(reference)
+        operations &= isfinite(product) && abs(product) >= floatmin(Float64)
+        if valid
+            lower = prevfloat(lower / Float64(reference))
+            upper = nextfloat(upper / Float64(reference))
+            valid &= isfinite(lower) && isfinite(upper)
+        end
+    end
+    result = T(product)
     certified =
         valid &&
         operations &&
@@ -511,11 +535,12 @@ function _isothermal_general_probe(
     n::AbstractArray{T},
     temperature::C,
     dx::NTuple{D,T},
-) where {T<:Union{Float32,Float64},C<:Union{Float32,Float64},D}
+    reference::R = one(T),
+) where {T<:Union{Float32,Float64},C<:Union{Float32,Float64},R<:Union{Float32,Float64},D}
     if !iszero(temperature) && _isothermal_repeated_active_runs(n)
-        return _isothermal_general_probe_with_reuse(n, temperature, dx, Val(true))
+        return _isothermal_general_probe_with_reuse(n, temperature, dx, Val(true), reference)
     end
-    return _isothermal_general_probe_with_reuse(n, temperature, dx, Val(false))
+    return _isothermal_general_probe_with_reuse(n, temperature, dx, Val(false), reference)
 end
 
 function _isothermal_general_energy(n, temperature, dx)
@@ -537,4 +562,140 @@ function _isothermal_energy(
         end
     end
     return _isothermal_general_energy(n, temperature, dx)
+end
+
+function _isothermal_round_ratio(
+    ::Type{T},
+    value::Int128,
+    exponent::Int,
+    reference::R,
+) where {T<:Union{Float32,Float64},R<:Union{Float32,Float64}}
+    reference == one(R) && return _from_exact(T, value, exponent)
+    isfinite(reference) && reference > 0 ||
+        throw(ArgumentError("complete logarithmic reference must be positive and finite"))
+    fraction, e = frexp(reference)
+    denominator = UInt64(ldexp(fraction, precision(R)))
+    return _from_exact(T, value, denominator, Base.checked_sub(exponent, e - precision(R)))
+end
+
+
+# Fixed-point logarithms retain 112 fractional bits while leaving exponent
+# headroom for every finite Float32/64 value. Unresolved rounding still uses
+# the existing exact logarithmic evaluator. No global precision state is used.
+const _ISOTHERMAL_FIXED_FRACTION_BITS = 112
+const _ISOTHERMAL_FIXED_SCALE = UInt128(1) << _ISOTHERMAL_FIXED_FRACTION_BITS
+const _ISOTHERMAL_FIXED_MASK = _ISOTHERMAL_FIXED_SCALE - 1
+const _ISOTHERMAL_FIXED_LIMB_MASK = UInt128(typemax(UInt64))
+
+function _isothermal_fixed_wide_product(a::UInt128, b::UInt128)
+    al, ah = a & _ISOTHERMAL_FIXED_LIMB_MASK, a >> 64
+    bl, bh = b & _ISOTHERMAL_FIXED_LIMB_MASK, b >> 64
+    low = al * bl
+    cross1 = al * bh
+    cross2 = ah * bl
+    high = ah * bh
+    carry =
+        (low >> 64) +
+        (cross1 & _ISOTHERMAL_FIXED_LIMB_MASK) +
+        (cross2 & _ISOTHERMAL_FIXED_LIMB_MASK)
+    return (low & _ISOTHERMAL_FIXED_LIMB_MASK) | ((carry & _ISOTHERMAL_FIXED_LIMB_MASK) << 64),
+    high + (cross1 >> 64) + (cross2 >> 64) + (carry >> 64)
+end
+
+# Inputs in [0, _ISOTHERMAL_FIXED_SCALE] make the shifted quotient fit in UInt128.
+function _isothermal_fixed_multiply_bounds(a::UInt128, b::UInt128)
+    low, high = _isothermal_fixed_wide_product(a, b)
+    quotient =
+        (high << (128 - _ISOTHERMAL_FIXED_FRACTION_BITS)) | (low >> _ISOTHERMAL_FIXED_FRACTION_BITS)
+    return quotient, quotient + !iszero(low & _ISOTHERMAL_FIXED_MASK)
+end
+
+function _isothermal_fixed_fraction_bounds(n::UInt64, d::UInt64)
+    0 < d && n <= d ||
+        throw(ArgumentError("fixed logarithm fraction requires 0 <= n <= d and d > 0"))
+    q, r = divrem(UInt128(n) << 64, UInt128(d))
+    tail, remainder = divrem(r << (_ISOTHERMAL_FIXED_FRACTION_BITS - 64), UInt128(d))
+    lower = (q << (_ISOTHERMAL_FIXED_FRACTION_BITS - 64)) + tail
+    return lower, lower + !iszero(remainder)
+end
+
+function _isothermal_fixed_logarithm_ratio(n::UInt64, d::UInt64)
+    0 < d && n <= div(d, 3) ||
+        throw(ArgumentError("fixed logarithm requires an atanh argument in [0,1/3]"))
+    iszero(n) && return (Int128(0), Int128(0))
+    zl, zu = _isothermal_fixed_fraction_bounds(n, d)
+    square_lower = first(_isothermal_fixed_multiply_bounds(zl, zl))
+    square_upper = last(_isothermal_fixed_multiply_bounds(zu, zu))
+    power_lower, power_upper = zl, zu
+    lower = upper = UInt128(0)
+    # For z<=1/3 the tail after 34 terms is below 2^-112:
+    # 9*2^112 <4*69*3^69. The independent test proves this integer inequality.
+    for k = 0:33
+        denominator = UInt128(2k + 1)
+        lower += div(2power_lower, denominator)
+        q, r = divrem(2power_upper, denominator)
+        upper += q + !iszero(r)
+        if k < 33
+            power_lower = first(_isothermal_fixed_multiply_bounds(power_lower, square_lower))
+            power_upper = last(_isothermal_fixed_multiply_bounds(power_upper, square_upper))
+        end
+    end
+    return Int128(lower), Int128(upper + 1)
+end
+
+function _isothermal_fixed_logarithm_bounds(x::T, logtwo) where {T<:Union{Float32,Float64}}
+    isfinite(x) && x > 0 || throw(ArgumentError("fixed logarithm requires a finite positive value"))
+    fraction, exponent = frexp(x)
+    integer = UInt64(ldexp(fraction, precision(T)))
+    unit = UInt64(1) << (precision(T) - 1)
+    lower, upper = _isothermal_fixed_logarithm_ratio(integer - unit, integer + unit)
+    exponent -= 1
+    if exponent >= 0
+        lower += exponent * logtwo[1]
+        upper += exponent * logtwo[2]
+    else
+        lower += exponent * logtwo[2]
+        upper += exponent * logtwo[1]
+    end
+    return lower, upper, -_ISOTHERMAL_FIXED_FRACTION_BITS
+end
+
+function _isothermal_fixed_probe(
+    n::AbstractArray{T},
+    temperature::C,
+    dx::NTuple{D,T},
+    reference::R = one(T),
+) where {T<:Union{Float32,Float64},C<:Union{Float32,Float64},R<:Union{Float32,Float64},D}
+    (T === Float32 || T === Float64) || return nothing
+    all(isfinite, (temperature, reference)) && reference > 0 && all(isfinite, dx) || return nothing
+    logtwo = _isothermal_fixed_logarithm_ratio(UInt64(1), UInt64(3))
+    bounds = (Int128(0), Int128(0), 0)
+    previous = zero(T)
+    term = bounds
+    have_previous = false
+    for density in n
+        isfinite(density) || return nothing
+        density > 0 && density != one(T) || continue
+        if !have_previous || density != previous
+            term = _isothermal_multiply_dyadic(
+                _isothermal_fixed_logarithm_bounds(density, logtwo),
+                density,
+            )
+            previous = density
+            have_previous = true
+        end
+        bounds = _isothermal_add_dyadic(bounds, term)
+    end
+    if temperature == reference
+        temperature = one(C)
+        reference = one(R)
+    end
+    bounds = _isothermal_multiply_dyadic(bounds, temperature)
+    for spacing in dx
+        bounds = _isothermal_multiply_dyadic(bounds, spacing)
+    end
+    lower, upper, exponent = bounds
+    lo = _isothermal_round_ratio(T, lower, exponent, reference)
+    hi = _isothermal_round_ratio(T, upper, exponent, reference)
+    return isequal(lo, hi) ? lo : nothing
 end

@@ -1369,6 +1369,14 @@ bounds or range-sensitive operations use the complete stored-input expression
 before final rounding. The compensated path does not guarantee single rounding.
 Nonpositive densities retain their existing zero contribution.
 
+For finite Float32/64 algebraic polytropic inputs, branch selection retains the
+stored closure gamma, including when closure and grid precisions differ.
+Ordinary `gamma != 1` states use compensated accumulation; range-sensitive
+cases retain the complete density ratio, power, coefficient and cell spacings
+before final rounding. This ordinary path does not guarantee single rounding.
+Exact stored `gamma == 1` uses the complete logarithmic expression with the
+coefficient `pe0/n0`, without rounding that ratio first.
+
 For finite Float32/64 CGL inputs and invariant coefficients, range-sensitive
 cases retain the stored density, field components, coefficients and individual
 cell spacings through the complete integral before final rounding. Inputs
@@ -1408,6 +1416,16 @@ function electron_internal_energy(
     is_anisotropic(closure) && return T(NaN)
     if T <: Union{Float32,Float64} && closure isa IsothermalElectrons{<:Union{Float32,Float64}}
         return _isothermal_energy(n, closure.Te, g.dx)
+    end
+    if T <: Union{Float32,Float64} && closure isa PolytropicElectrons{<:Union{Float32,Float64}}
+        if all(isfinite, (closure.pe0, closure.n0, closure.γ)) &&
+           closure.pe0 >= 0 &&
+           closure.n0 > 0 &&
+           closure.γ > 0 &&
+           all(isfinite, n) &&
+           all(isfinite, g.dx)
+            return _polytropic_energy(n, closure, g.dx)
+        end
     end
     γ = T(closure_gamma(closure))
     pe = similar(n)

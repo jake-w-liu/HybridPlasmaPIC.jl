@@ -78,6 +78,7 @@ include("coupling/moments.jl")
 include("electrons/closures.jl")
 include("electrons/isothermal_energy.jl")
 include("electrons/polytropic_pressure.jl")
+include("electrons/polytropic_energy.jl")
 include("fields/field_state.jl")              # HybridFields
 include("fields/antenna.jl")                  # external antenna/RF field source
 include("models/hybrid_pic.jl")               # HybridModel + compute_moments!

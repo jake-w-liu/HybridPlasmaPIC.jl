@@ -709,3 +709,54 @@ runtime (the original six, six with poisoned initial storage, and one replay
 of the observed invalid-position error); full EMPIC1D files remain running.
 The six-file final overlay also contains the verified algebraic dispatch and
 compiler corrections. Full GitHub acceptance requires the exact pushed SHA. No failed historical run is reclassified as green.
+
+The correction is pushed as `15662e1cf24214624a7dab0637798bc6f614701c`.
+[Exact run 39137529999](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39137529999)
+is running. The remote `main` SHA and all nine committed paths match the reviewed
+promotion manifest; the held files retain their recorded hashes. Evidence:
+`/tmp/hybrid-algebraic-ci-promotion-v1-verification/promotion-0d8c8e8-whitelist.json`.
+The monitor and eventual full job logs are in `/tmp/hybrid-ci-15662e1-20261018`.
+Native broad/full-file gates continue; exact-SHA green CI remains required.
+
+Both native dispatch focused suites now pass 57,165 assertions. The final
+22-file solver/shock/checkpoint lanes run against the exact promoted source
+in `/tmp/hybrid-algebraic-final-native-verification`. The earlier isothermal
+V2 recovery passes 44,809 numerical/solver/restart/quality/threaded assertions
+per runtime; its full compiler comparisons retain only the two findings that
+`15662e1` removes. Original failures and corrected harness inputs are retained.
+
+All six jobs for `5323c4dcf1bb3d7449640ab3e0902516f1a27925` now pass in
+[run 39129564503](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39129564503).
+Actual Julia 1.12.7 passes 417,172 assertions in 116m50.0s; Julia 1.13.2 passes 417,173
+in 86m34.4s. Package JET counts are 25/24. Formatting and 2-/4-/8-rank MPI pass.
+Exact-SHA log hashes, runtime versions and counts are retained in
+`/tmp/hybrid-ci-5323c4d-20261018/39129564503-evidence.json`.
+No billing exception is used. This run still contains the two full compiler
+diagnostics separately corrected by `15662e1`; a green count ceiling does not
+replace the complete diagnostic-tree comparison.
+
+Both full EMPIC1D files for TEST-003 pass 5,550 assertions across 21 testsets on
+each native runtime. The original assertions and explicit poisoned-storage
+replays pass as recorded above. The final repair's GitHub run remains active.
+
+Both native solver and shock lanes now pass on the final pushed source; their
+assertion inventories are retained in
+`/tmp/hybrid-algebraic-final-native-verification/completed-solver-shock-counts.json`.
+Checkpoint lanes remain active. `15662e1` now has green formatting and all
+2-/4-/8-rank MPI jobs; both package jobs remain active.
+
+## Complete polytropic energy integration
+
+The reviewed V5 energy overlay passes 85,433 focused assertions on each native
+Julia 1.12.7/1.13.2, 45 migration assertions, 25 smoke assertions per runtime,
+1,679 quality/concrete/Aqua and 1,608 threaded assertions per runtime. Both
+complete compiler trees match baseline (22/21 reports). Direct fixed-log
+quality gates add 223 assertions and the independent public range audit adds
+577 per runtime. Whole-repository formatting passes without mutation.
+
+The explicit 20-source/test plus four-document promotion whitelist excludes
+all held radiation files. Native solver/shock/checkpoint lanes are running
+from the immutable final source. Those lanes and the exact new SHA's complete
+GitHub run remain required; the green core gates do not replace them. Evidence:
+`/tmp/hybrid-polytropic-energy-public-v5-verification` and
+`/tmp/hybrid-polytropic-energy-public-v5-broad-verification`.
