@@ -6,8 +6,9 @@ The shared field correction has completed native integration gates and is
 pushed as `5df5c38`; all six exact-revision GitHub jobs pass on actual Julia
 1.12.7 and 1.13.2. The CGL correction
 is pushed as `63f2420`; all six exact-revision GitHub jobs pass on actual
-Julia 1.12.7 and 1.13.2. Isothermal integration is under
-isolated verification; the polytropic repair remains planned.
+Julia 1.12.7 and 1.13.2. Isothermal and polytropic repairs are also pushed;
+their current exact-SHA results are tracked in [CI acceptance](CI_RELIABILITY_PLAN.md).
+Complete budget composition and the inertia integral remain open.
 This work is separate from the evolving-pressure feature and its stored-pressure
 correction.
 
@@ -304,3 +305,133 @@ complete package compiler comparisons; affected physical/conservation tests;
 and exact-revision green GitHub CI after each pushed repair. Do not alter physical
 forces, closure laws, diagnostic conventions or validation tolerances to fix
 arithmetic range loss.
+
+## Complete budget composition and inertia — current ENERGY-004 scope
+
+**VERIFIED:** both Julia 1.12.7 and 1.13.2 pass 316 defect-witness assertions
+against immutable `99760f0193a40c3a4bdb18ba9d1013e11a49d0ea` source:
+
+- 282 assertions cover 1D–3D, Float32/64, scalar/collection/view populations and
+  polytropic, evolving-pressure and CGL closures. Opposite overflowing kinetic
+  and magnetic reservoirs cancel exactly, leaving unit electron energy, yet
+  `energy_budget.total` is NaN.
+- Sixteen assertions show three positive half-minimum-subnormal reservoirs
+  separately round to zero. Their complete total rounds to two minimum
+  subnormals, while the public total is zero.
+- Eighteen assertions cover electron-inertia square overflow, square underflow
+  and zero current with overflowing cell volume. The public inertia result is
+  infinity, zero or NaN although an independent rational expression from the
+  same finite spectral-current output is finite and defined.
+
+Source hashes, immutable package/environments, commands, observed values and log
+hashes are in `/tmp/hybrid-budget-composition-review-20261019/verified-results.json`
+and `source-hashes.json`. At this exact revision, `conservation.jl:77–81`
+materializes the squared-current reduction before the coefficient/volume, and
+`:88` adds already-rounded reservoirs. These are distinct arithmetic failures;
+the witness does not claim new continuum conservation physics or exact spectral
+differentiation.
+
+### Inertia repair pre-edit brief
+
+- Mode: repair of the existing electron-inertia diagnostic reservoir.
+- Requirement: retain finite computed-current values, the validated grid-precision
+  `de2` and each cell spacing through range-sensitive integration. Preserve
+  normal output bits, allocation, validation order, zero-`de2` bypass and
+  generic/nonfinite behavior. Complete-total composition remains the next step.
+- Baseline/cause: the 18 inertia witnesses above and the checked reduction at
+  `conservation.jl:77–81` establish premature squaring/summing/volume range loss.
+- Owner: `energy_budget` in `src/diagnostics/conservation.jl`; existing field
+  exact arithmetic in `src/models/full_pic.jl` supplies the common square sum.
+  Keep `curl!` and its three output arrays unchanged.
+- Strategy: extract the unchanged ordered inertia reduction into one private
+  owner, add normal-product/volume and positive-upper-bound checks, and retain
+  the complete rational expression when those checks cannot certify range.
+  Share the streamed exact square sum with electromagnetic field energy.
+- Compatibility: no public signature or returned-field changes; no model-law
+  changes, arbitrary precision cap, external cache or alternative diagnostic.
+- Verification: original witnesses, subnormal/overflow neighbors and ties,
+  independent rational rounding cells, ordinary bitwise/zero-allocation
+  controls, public budgets and shared field-energy regressions, invalid and
+  nonfinite cases, four-thread ownership, complete compiler comparisons,
+  formatting, then a separate pushed exact-SHA GitHub run.
+- Wrong-patch controls: scaling a rounded magnetic energy fails the coefficient
+  recovery cases; checking only nonfinite output misses underflow and finite
+  overflow neighbors; changing curl/workspace ownership fails public bitwise,
+  allocation and concurrent-input checks. None is an acceptable shortcut.
+
+The isolated inertia component passes 456 assertions per runtime in
+`/tmp/hybrid-inertia-energy-v1`, preserving ordinary bits and zero allocation.
+Canonical V1 then passes 2,738 focused assertions and 1,987 complete public
+budget/inertia/multispecies/stored-pressure assertions per runtime. Complete
+compiler trees match baseline (22/21). Its first field lane omits the prerequisite
+CGL oracle test; the corrected lane retains every selected test and adds that
+prerequisite. Its first migration harness loses indentation in triple-quoted
+match strings; the corrected harness asserts each exact match and passes all
+77 checks. Original failures are retained in the canonical verification directory.
+
+V1 remains **unaccepted on resources**. Both native runtimes measure
+1,324,357,672 B (Float32) and 1,327,504,552 B (Float64) cumulative allocation
+for one zero-field/current 64³ budget call with overflowing cell volume. Its
+numerical result is zero. These are full-call allocation measurements, not
+peak-memory measurements. The six zero-state samples per runtime are retained
+in `costs{112,1132}.log` under
+`/tmp/hybrid-inertia-energy-public-v1-verification`.
+
+The follow-up resource contract certifies genuinely zero square inputs using
+both the unchanged reduction and the existing nonzero-square minimum sentinel.
+It must not classify an underflowed nonzero square, a nonfinite field or an
+uncertified coefficient as zero. Preserve ordinary signed zero and generic
+behavior. Add the certificate to the shared field finisher and the inertia
+owner before exact accumulation. For 16³ and 64³ zero states, require public
+allocation at most 110% of the corresponding ordinary zero-state call, retain
+all V1 numerical/ordinary checks, and repeat complete compiler, field, budget
+and concurrency gates. This is a measured resource correction within the same
+unpromoted repair, not a waiver of V1's costs.
+
+**VERIFIED allocation attribution:** the sampled public-call profile records
+7,282 allocation samples in `_field_square_sum_exact`, at V1 `full_pic.jl:1484`,
+with `BigInt` and GMP rational allocation types. The initial reporting script
+has a Julia global-counter scope error; `zero_profile_fixed.jl` corrects that
+harness, retaining the failed script/log. Profile command and output are in
+`/tmp/hybrid-inertia-energy-public-v1-verification/zero-profile-fixed112.log`.
+All V1 numerical gates eventually pass: 2,738 focused, 1,987 budget, 12,689
+shared-field and 666 measured-cost assertions per runtime. The high allocation
+keeps V1 unaccepted; a numerical pass does not waive that resource result.
+
+Canonical V2 retains every earlier assertion and adds zero-state allocation and
+false-zero controls. Its measured 64³ zero-state allocation is 3,145,968 B
+(Float32) / 6,291,696 B (Float64) on both runtimes, compared with V1's
+1.32–1.33 GB. Both measured cost suites pass 666 assertions; paired ordinary
+latency ratios for `de2 > 0` are 0.87–1.18 / 0.89–1.19. All ordinary output and
+allocation comparisons pass. Complete V2 local acceptance is still being
+collected in `/tmp/hybrid-inertia-energy-public-v2-verification` before promotion.
+The complete-total composition repair remains a separate required step.
+
+V2 local acceptance is complete on both Julia 1.12.7 and 1.13.2:
+
+- 2,846 focused assertions across 11 testsets, including all V1 checks, 108 new
+  zero-state assertions, explicit four-thread arithmetic ownership, independent
+  public grids and concrete public-budget compiler calls.
+- 1,987 assertions across 22 public budget/inertia/multispecies/stored-pressure
+  testsets, plus 12,689 across 19 shared electromagnetic/hybrid field,
+  kinetic, CGL, joint-budget and Aqua testsets.
+- 666 measured-cost assertions per runtime. All 24 ordinary profiles preserve
+  results and allocation. The declared 110% ordinary-zero allocation gate
+  passes for both 16³ and 64³ states. Nonzero exceptional profiles through
+  4,096 cells allocate at most 26,764,128 B; largest sampled median calls are
+  37.6 ms / 76.2 ms. Larger nonzero cold-grid costs and peak memory are unmeasured.
+- Complete compiler trees match baseline (22/21 reports, no added/removed
+  groups), all 77 final migration checks pass, and 11 formatting AST checks
+  plus the whole-repository read-only scan pass.
+
+The 11 tested source/test paths are copied to main with matching hashes; held
+radiation work is unchanged. The shared exact square sum has one owner. Inertia
+keeps its original floating reduction/order and validation, uses the same
+spectral current and three output arrays, and checks the complete coefficient
+and volume only when range cannot be certified. Zero certificates preserve
+signed ordinary zero, reject nonfinite factors, and distinguish nonzero squares
+whose floating intermediates vanish or overflow. Public signatures and the
+model equations are unchanged. Commands, final assertion inventories, complete
+compiler trees, prototype failures and cost samples remain in the V1/V2
+verification directories. Exact-SHA GitHub acceptance is required after push;
+complete budget composition remains open.

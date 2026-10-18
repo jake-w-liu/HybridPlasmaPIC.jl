@@ -28,6 +28,7 @@ using Test
     include("test_cgl_energy_boundaries.jl")
     include("test_cgl_energy_resources.jl")
     include("test_inertia.jl")
+    include("test_inertia_energy_range.jl")
     include("test_forcing.jl")
     include("test_hall_mhd.jl")
     include("test_dispersion.jl")

@@ -161,6 +161,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- The electron-inertia energy reservoir retains complete finite current squares,
+  its coefficient and cell spacings through range-sensitive integration.
+  Ordinary results and allocations are preserved. Zero magnetic/current states
+  avoid exact-arithmetic traversal when cell-volume or coefficient products
+  overflow, while nonzero underflow and nonfinite inputs retain their handling.
+
 - Shock boundary kinetic and electron enthalpy fluxes retain finite complete
   values when intermediate products overflow or underflow. Particle flux also
   retains CIC weights, nodal cancellation and the final SBP norm. Certified

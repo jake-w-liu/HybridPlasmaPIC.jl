@@ -349,3 +349,5 @@ for the private helper signature. Uncached nodes still use the existing complete
 evaluator. Commands, assertion inventories, prior-owner AST proof and logs are
 in `/tmp/hybrid-shock-exact-reuse-public-v1-verification`. This local acceptance
 still requires a separate exact-SHA GitHub run after push.
+
+Exact-node reuse is pushed as `99760f0193a40c3a4bdb18ba9d1013e11a49d0ea`. [Run 39147850360](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39147850360) is running; formatting and all MPI ranks pass. All 11 committed blobs and remote main match `committed-evidence.json` in the reuse verification directory; held radiation hashes remain unchanged. The exact-SHA monitor is `/tmp/hybrid-ci-99760f0-20261019`. CI acceptance remains open, with no billing exception used.

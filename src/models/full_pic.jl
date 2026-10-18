@@ -1478,15 +1478,16 @@ step_empic!(es::EMPIC1D{T}, e::ParticleSet{1,T}, dt::Real) where {T} =
 
 # ---------------------------------------------------------------- diagnostics
 
+function _field_square_sum_exact(fields)
+    result = zero(Rational{BigInt})
+    for component in fields, value in component
+        result += _exact_rational(value)^2
+    end
+    return result
+end
 function _em_field_energy_exact(E, B, c::T, dx) where {T}
-    electric = zero(Rational{BigInt})
-    magnetic = zero(Rational{BigInt})
-    for component in E, value in component
-        electric += _exact_rational(value)^2
-    end
-    for component in B, value in component
-        magnetic += _exact_rational(value)^2
-    end
+    electric = _field_square_sum_exact(E)
+    magnetic = _field_square_sum_exact(B)
     volume = prod(_exact_rational, dx)
     return _from_exact(T, (electric + _exact_rational(c)^2 * magnetic) * volume / 2)
 end
@@ -1525,6 +1526,14 @@ function _em_field_energy_finish(E, B, c::T, dx, sum_squares, minimum_e2, minimu
     volume = prod(dx)
     half = T(0.5) * sum_squares
     result = half * volume
+    # Untouched minima and a zero sum certify zero inputs. If coefficient
+    # arithmetic produced NaN (for example c² overflow times zero B²), inspect
+    # the fields directly; a nonzero square that overflowed has the same sentinel.
+    if isinf(minimum_e2) && isinf(minimum_b2) && isfinite(c) && all(isfinite, dx)
+        if iszero(sum_squares) || (all(a -> all(iszero, a), E) && all(a -> all(iszero, a), B))
+            return iszero(result) ? result : zero(T)
+        end
+    end
     lost |=
         _spectral_product_lost_range(T(0.5), sum_squares, half) ||
         _spectral_product_lost_range(half, volume, result)

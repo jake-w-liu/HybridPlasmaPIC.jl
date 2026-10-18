@@ -7,6 +7,56 @@
 
 # ---------------------------------------------------------------- energy budget
 
+function _electron_inertia_energy(J, de2::T, dx) where {T}
+    s = zero(T)
+    minimum_j2 = T(Inf)
+    @inbounds for I in eachindex(J[1], J[2], J[3])
+        x, y, z = J[1][I], J[2][I], J[3][I]
+        x2, y2, z2 = x^2, y^2, z^2
+        s += x2 + y2 + z2
+        minimum_j2 = min(
+            minimum_j2,
+            ifelse(iszero(x), T(Inf), x2),
+            ifelse(iszero(y), T(Inf), y2),
+            ifelse(iszero(z), T(Inf), z2),
+        )
+    end
+    half_coefficient = T(0.5) * de2
+    unscaled = half_coefficient * s
+    volume = prod(dx)
+    ordinary = unscaled * volume
+    (T === Float32 || T === Float64) || return ordinary
+    # A zero reduction plus untouched nonzero-square sentinel proves every
+    # current component is zero; an underflowed nonzero square clears it.
+    if iszero(s) && isinf(minimum_j2) && isfinite(de2) && all(isfinite, dx)
+        return iszero(ordinary) ? ordinary : zero(T)
+    end
+    lost =
+        minimum_j2 < floatmin(T) ||
+        _spectral_product_lost_range(T(0.5), de2, half_coefficient) ||
+        _spectral_product_lost_range(half_coefficient, s, unscaled) ||
+        _spectral_product_lost_range(unscaled, volume, ordinary)
+    for first = 1:length(dx)
+        partial = one(T)
+        for last = first:length(dx)
+            product = partial * dx[last]
+            lost |= _spectral_product_lost_range(partial, dx[last], product)
+            partial = product
+        end
+    end
+    if !lost && !iszero(s) && !iszero(de2) && !iszero(volume)
+        # The shared positive-square bound already encloses the reduction and
+        # volume; the coefficient contributes its outward power-of-two bound.
+        upper = _field_energy_upper_exponent(J, (), s, dx) + exponent(abs(de2)) + 1
+        lost = upper > exponent(floatmax(T))
+    end
+    if lost && isfinite(de2) && all(isfinite, dx) && all(a -> all(isfinite, a), J)
+        value = _field_square_sum_exact(J) * _exact_rational(de2) * prod(_exact_rational, dx) / 2
+        return _from_exact(T, value)
+    end
+    return ordinary
+end
+
 """
     energy_budget(ps, B, n, closure, g; de2 = 0.0, pe = nothing)
     energy_budget(species::AbstractVector, B, n, closure, g; de2 = 0.0, pe = nothing)
@@ -35,6 +85,12 @@ not the full electron momentum equation: for moving ions its balance retains
 `d_e² ∫ J_i·∂tJ dV`, where `J_i = n u_i`. Adding this reservoir therefore does
 not establish general total-energy conservation. The default `de2 = 0.0`
 contributes exactly `0`.
+
+For finite Float32/Float64 currents, range-sensitive inertia integration retains
+the computed spectral current, validated `de2` and individual cell spacings
+through final rounding. Ordinary arithmetic keeps its existing order. This does
+not change the spectral differentiation. With `de2 > 0`, concurrent budget calls
+require separate grids because the curl uses each grid's spectral workspace.
 
 For scalar closures with `de2 = 0` and inactive floors, dissipative Ohm terms
 `R = ηJ − ηH∇²J` contribute `∫ (J_i − J)·R dV` to the continuum total rate.
@@ -74,11 +130,7 @@ function energy_budget(
     if de2T > zero(T)
         J = ntuple(_ -> similar(B[1]), 3)
         curl!(J, B, g)
-        s = zero(T)
-        @inbounds for I in eachindex(J[1], J[2], J[3])
-            s += J[1][I]^2 + J[2][I]^2 + J[3][I]^2
-        end
-        ej = T(0.5) * de2T * s * prod(g.dx)
+        ej = _electron_inertia_energy(J, de2T, g.dx)
     end
     return (
         kinetic = ek,

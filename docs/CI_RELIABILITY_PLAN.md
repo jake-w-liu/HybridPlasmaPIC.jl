@@ -812,3 +812,34 @@ The final alternating-order cold cost check also passes 246 assertions per
 runtime, with unchanged allocation reductions and mixed latency ratios. Its
 commands, complete samples and log hashes are in `paired-cold-summary.json`
 under the same verification directory. No general speedup is claimed.
+
+Exact-node reuse is pushed as `99760f0193a40c3a4bdb18ba9d1013e11a49d0ea`. [Run 39147850360](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39147850360) is running; formatting and all MPI ranks pass. All 11 committed blobs and remote main match `committed-evidence.json` in the reuse verification directory; held radiation hashes remain unchanged. The exact-SHA monitor is `/tmp/hybrid-ci-99760f0-20261019`. CI acceptance remains open, with no billing exception used.
+
+All six jobs for `15662e1cf24214624a7dab0637798bc6f614701c` now pass in
+[run 39137529999](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39137529999).
+Actual Julia 1.12.7/1.13.2 pass 446,514/446,515 assertions; formatting and all
+MPI ranks pass. The exact SHA, runtime versions, all job outcomes and full-log
+hashes are retained in
+`/tmp/hybrid-ci-15662e1-20261018/39137529999-evidence.json`.
+
+The complete GitHub compiler trees are compared against the previously green
+`5323c4d` logs, retaining every typed frame and diagnostic. Only transport
+timestamps, equal-source line offsets, source paths and generated `#s` IDs are
+normalized. Both versions remove precisely the two
+`_isothermal_scaled_polynomial_storage` groups and add none; report counts are
+25→23 and 24→22. Full extracted trees, original-log hashes and all removed
+frames are retained in
+`/tmp/hybrid-ci-15662e1-report-review-20261019/summary.json`.
+TEST-002/003 and CLOSURE-002 now satisfy corrected-source GitHub acceptance.
+Their historical failed revisions remain failed; no billing exception or reroll
+is used. Later pushed revisions retain their own pending exact-SHA gates.
+
+The inertia/zero-state correction passes all local gates on native Julia
+1.12.7/1.13.2: 2,846 focused, 1,987 budget, 12,689 shared-field and 666 cost
+assertions per runtime, unchanged complete compiler trees (22/21), 77 migration
+checks, 11 formatting AST checks and the read-only repository scan. The rejected
+V1 resource measurement and harness failures remain available. The final
+11-source/test overlay is integrated with matching hashes and excludes the
+held radiation work. Evidence:
+`/tmp/hybrid-inertia-energy-public-v2-verification`. Its exact pushed revision
+must complete a separate GitHub run; complete budget-total composition is open.
