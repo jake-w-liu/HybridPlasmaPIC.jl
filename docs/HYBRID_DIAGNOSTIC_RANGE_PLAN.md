@@ -3,8 +3,10 @@
 Status: the kinetic correction is pushed as `850fe46`; its exact-revision
 GitHub CI is green in all six jobs on actual Julia 1.12.7 and 1.13.2.
 The shared field correction has completed native integration gates and is
-included in this revision; its GitHub CI remains required. The CGL correction
-remains under isolated verification. Other algebraic-electron repairs remain planned.
+pushed as `5df5c38`; its exact-revision GitHub CI is running. The CGL correction
+has completed native acceptance and is included in the current change; its
+exact-revision GitHub CI remains pending. Isothermal integration is under
+isolated verification; the polytropic repair remains planned.
 This work is separate from the evolving-pressure feature and its stored-pressure
 correction.
 
@@ -182,7 +184,8 @@ arithmetic, handle signed/nonfinite inputs explicitly, and certify the fallback
 selection as well as its final rounding. Polytropic powers and isothermal
 logarithms need their own bounded evaluators and termination arguments; their
 repair must not be described as complete merely by fixing materialized-pressure
-sums. Mixed closure/grid precision is also part of that contract. No algebraic repair has been promoted. The first isolated CGL candidate reuses
+sums. Mixed closure/grid precision is also part of that contract. The first
+isolated CGL candidate reuses
 the existing radical finisher and passes 944 focused assertions on each runtime,
 including independent integrals, mixed precision, ordinary output/allocation and
 operation-error enclosures. Broader resource controls keep it unaccepted:
@@ -208,7 +211,7 @@ confirm the signed certificate and exact owner are unchanged from v1. Both
 runtimes also pass 1,244 solver/multispecies/concrete-compiler/Aqua assertions
 and 990 four-thread checks. Fresh full compiler-report trees match baseline
 on both versions (22 reports/14 groups on 1.12.7, 21/13 on 1.13.2). Combined
-integration is running after the joint quadratic gates completed; no v2 promotion is claimed.
+integration has completed all native gates after the joint quadratic gates passed.
 Pre-edit contracts, source hashes, `focused-acceptance-evidence.json`,
 `large-resource-results.json` and retained failed measurements are in
 `/tmp/hybrid-cgl-energy-v{1,2}-verification`.
@@ -219,11 +222,17 @@ quadratic parent's integrator byte for byte; the CGL block and three CGL
 regression files are byte-identical to v2. A new joint-budget regression covers
 perpendicular, parallel and combined CGL reservoirs alongside particle and
 magnetic energies, with scalar, collection and collection-view callers. Its
-focused execution passes all 402 assertions on Julia 1.13.2. The combined
-native numerical, compiler and threaded lanes are running after both parent gates passed. Assembly scope and source hashes are
+focused execution passes all 402 assertions on Julia 1.13.2. The combined native
+suites pass 15,743 numerical, 1,487 quality and 2,247 threaded assertions per
+runtime. Complete compiler trees match baseline on both versions (22 reports/14
+groups on 1.12.7 and 21/13 on 1.13.2). Assembly scope and source hashes are
 in `/tmp/hybrid-cgl-quadratic-integrated-v1-verification`. A separate public
 documentation overlay passes formatting and executable-AST comparison across
-all 195 source/test files. Nothing from this snapshot has been promoted.
+all 195 source/test files. The CGL delta is included in the current change;
+its exact-revision GitHub CI remains pending. The promotion scope is limited
+to the CGL block, public documentation and four regression files, preserving
+the pushed kinetic and field implementations. Acceptance and current-main scope
+are recorded in `acceptance-complete.json` and `promotion-current-main-scope.json`.
 
 
 A separate isothermal cold-evaluation prototype is being checked in
@@ -247,8 +256,10 @@ scaled ordinary controls round correctly in those cases.
 The [ENERGY-006 accuracy finding](ISOTHERMAL_ENERGY_ACCURACY_PLAN.md) also proves
 that the existing public large-wave result differs from its independent
 complete-integral enclosure by more than 16.08%. Consequently a positivity-only
-certificate retaining that value would be insufficient. A bounded near-unit
-entropy reduction is now planned alongside the range guards. The original
+certificate retaining that value would be insufficient. The corrected uniform-
+density witness additionally establishes 1.38%–3.97%
+Float32 errors outside the near-unit box. Both the bounded near-unit reduction
+and a general accuracy repair are required alongside the range guards. The original
 cold evaluator remains separately tested, but the public repair, broader
 gates and polytropic implementation remain open.
 

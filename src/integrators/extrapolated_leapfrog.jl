@@ -1362,6 +1362,14 @@ Electron closure energy integrated over the grid:
   - CGL (gyrotropic): `∫ (p_⊥ + p_∥/2) dV`, requiring the B-taking method.
     The density-only method retains its existing `NaN` result for CGL.
 
+For finite Float32/64 CGL inputs and invariant coefficients, range-sensitive
+cases retain the stored density, field components, coefficients and individual
+cell spacings through the complete integral before final rounding. Inputs
+certified free of range loss retain the existing floating arithmetic. At zero
+field with nonzero parallel pressure, the existing singular `Inf`/`NaN` result
+is preserved. This diagnostic uses the supplied field magnitude, without the
+floor used by the pressure-force calculation.
+
 Algebraic closures reject an alternate `pe` argument. This function integrates
 supplied state without evolving it. See [`energy_budget`](@ref) for continuum
 model qualifications and particle/field time levels; this diagnostic does not
@@ -1417,6 +1425,190 @@ function electron_internal_energy(
     return electron_internal_energy(n, closure, g; pe)
 end
 
+# The ordinary CGL reduction and its error certificate share one traversal.
+@inline function _cgl_energy_normal_product(a, b, product::T) where {T}
+    return isfinite(product) && (iszero(a) || iszero(b) || abs(product) >= T(2) * floatmin(T))
+end
+@inline function _cgl_energy_normal_conversion(a, converted::T) where {T}
+    return isfinite(converted) && (iszero(a) || abs(converted) >= T(2) * floatmin(T))
+end
+@inline function _cgl_energy_normal_quotient(a, b, quotient::T) where {T}
+    return isfinite(b) &&
+           !iszero(b) &&
+           isfinite(quotient) &&
+           (iszero(a) || abs(quotient) >= T(2) * floatmin(T))
+end
+
+function _cgl_energy_probe(n::Array{T,D}, B, closure, dx, ::Val{check}) where {T,D,check}
+    s = zero(T)
+    absolute = largest = zero(T)
+    normal = true
+    active = false
+    nonnegative = !check || (closure.Cperp >= 0 && closure.Cpar >= 0)
+    @inbounds for I in eachindex(n, B[1], B[2], B[3])
+        bx, by, bz = B[1][I], B[2][I], B[3][I]
+        x2, y2, z2 = bx^2, by^2, bz^2
+        norm2 = x2 + y2 + z2
+        Bmag = sqrt(norm2)
+        perpendicular = T(cgl_pperp(closure, n[I], Bmag))
+        parallel = T(cgl_ppar(closure, n[I], Bmag))
+        half_parallel = T(0.5) * parallel
+        s += perpendicular + half_parallel
+        if check
+            absolute += abs(perpendicular) + abs(half_parallel)
+            largest = max(largest, abs(perpendicular), abs(half_parallel))
+            nonnegative &= n[I] >= zero(T)
+            zero_cell =
+                iszero(n[I]) ||
+                (iszero(closure.Cperp) && iszero(closure.Cpar)) ||
+                (iszero(bx) && iszero(by) && iszero(bz) && iszero(closure.Cpar))
+            zero_cell && continue
+            active = true
+            C = typeof(closure.Cperp)
+            density, field = C(n[I]), C(Bmag)
+            normal &=
+                _cgl_energy_normal_product(bx, bx, x2) &&
+                _cgl_energy_normal_product(by, by, y2) &&
+                _cgl_energy_normal_product(bz, bz, z2) &&
+                isfinite(norm2) &&
+                _cgl_energy_normal_conversion(n[I], density) &&
+                _cgl_energy_normal_conversion(Bmag, field)
+            if !iszero(closure.Cperp)
+                perp_product = closure.Cperp * density
+                raw_perpendicular = perp_product * field
+                normal &=
+                    _cgl_energy_normal_product(closure.Cperp, density, perp_product) &&
+                    _cgl_energy_normal_product(perp_product, field, raw_perpendicular) &&
+                    _cgl_energy_normal_conversion(raw_perpendicular, perpendicular)
+            end
+            if !iszero(closure.Cpar)
+                par_product = closure.Cpar * density
+                par_square = par_product * density
+                par_cube = par_square * density
+                denominator = field * field
+                raw_parallel = par_cube / denominator
+                normal &=
+                    _cgl_energy_normal_product(closure.Cpar, density, par_product) &&
+                    _cgl_energy_normal_product(par_product, density, par_square) &&
+                    _cgl_energy_normal_product(par_square, density, par_cube) &&
+                    _cgl_energy_normal_product(field, field, denominator) &&
+                    _cgl_energy_normal_quotient(par_cube, denominator, raw_parallel) &&
+                    _cgl_energy_normal_conversion(raw_parallel, parallel) &&
+                    _cgl_energy_normal_product(T(0.5), parallel, half_parallel)
+            end
+        end
+    end
+    volume = prod(dx)
+    result = s * volume
+    if check
+        unscaled_absolute = absolute
+        absolute *= abs(volume)
+        normal &=
+            isfinite(s) &&
+            isfinite(unscaled_absolute) &&
+            _cgl_energy_normal_product(s, volume, result) &&
+            _cgl_energy_normal_product(unscaled_absolute, abs(volume), absolute)
+        for first in eachindex(dx)
+            partial = one(T)
+            for last = first:length(dx)
+                product = partial * dx[last]
+                normal &= _cgl_energy_normal_product(partial, dx[last], product)
+                partial = product
+            end
+        end
+    end
+    return result, absolute, normal, active, largest, nonnegative
+end
+
+# Normal operations bound each component's exact/rounded ratio in both
+# directions by 2^19. At most two nonnegative components contribute per cell.
+# Individual spacing exponents retain the complete volume in both bounds.
+function _cgl_energy_positive_certified(largest::T, dx, count::Int) where {T}
+    (count > 0 && isfinite(largest) && largest > zero(T)) || return false
+    count_exponent = 128 - leading_zeros(Int128(count) - 1)
+    lower = Int128(exponent(largest)) - 19
+    upper = Int128(exponent(largest)) + 21 + count_exponent
+    for spacing in dx
+        (isfinite(spacing) && !iszero(spacing)) || return false
+        e = Int128(exponent(abs(spacing)))
+        lower += e
+        upper += e + 1
+    end
+    return lower >= exponent(floatmin(T)) && upper <= exponent(floatmax(T))
+end
+
+function _cgl_energy_normal_certified(value::T, absolute::T, count::Int, ::Type{C}) where {T,C}
+    p = min(precision(T), precision(C))
+    k = Int128(count) + 22
+    k <= Int128(1) << (p - 2) || return false
+    # A parallel term has at most 19 normal rounding factors, including
+    # closure/grid conversions and the squared norm's inverse factors. Add
+    # one cell addition, count-1 grid additions, and <=3 volume products.
+    # The positive absolute evaluation has the same bound. Signed subnormal
+    # additions are exact on the field-precision lattice.
+    delta = ldexp(T(k), -p)
+    factor = nextfloat(delta / (one(T) - T(2) * delta))
+    error = nextfloat(factor * absolute)
+    return prevfloat(abs(value) - error) >= floatmin(T) && isfinite(nextfloat(abs(value) + error))
+end
+
+function _cgl_energy_exact(n::Array{T,D}, B, closure, dx, ordinary) where {T,D}
+    Q = Rational{BigInt}
+    perpendicular, parallel = _exact_rational(closure.Cperp), _exact_rational(closure.Cpar)
+    volume = prod(_exact_rational, dx)
+    rational = zero(Q)
+    radicands, coefficients = Q[], Q[]
+    indices = Dict{Q,Int}()
+    for I in eachindex(n, B[1], B[2], B[3])
+        density = _exact_rational(n[I])
+        iszero(density) && continue
+        norm2 = sum(_exact_rational(component[I])^2 for component in B)
+        if iszero(norm2)
+            # The existing CGL law is singular for nonzero parallel pressure
+            # at zero field; preserve its visible Inf/NaN rather than invent a floor.
+            iszero(parallel) || return ordinary
+            continue
+        end
+        rational += parallel * density^3 * volume / (2norm2)
+        a = perpendicular * density * volume
+        iszero(a) && continue
+        index = get(indices, norm2, 0)
+        if index != 0
+            coefficients[index] += a
+        else
+            root = _relativistic_rational_sqrt(norm2)
+            if root === nothing
+                push!(radicands, norm2)
+                push!(coefficients, a)
+                indices[norm2] = length(radicands)
+            else
+                rational += a * root
+            end
+        end
+    end
+    return _finish_relativistic_energy(T, rational, radicands, coefficients)
+end
+
+function _cgl_energy_checked(n::Array{T,D}, B, closure::CGLElectrons{C}, dx) where {T,D,C}
+    value, absolute, normal, active, largest, nonnegative =
+        _cgl_energy_probe(n, B, closure, dx, Val(true))
+    !active && iszero(value) && return value
+    if normal
+        nonnegative &&
+            !iszero(value) &&
+            _cgl_energy_positive_certified(largest, dx, length(n)) &&
+            return value
+        _cgl_energy_normal_certified(value, absolute, length(n), C) && return value
+    end
+    finite =
+        isfinite(closure.Cperp) &&
+        isfinite(closure.Cpar) &&
+        all(isfinite, n) &&
+        all(isfinite, dx) &&
+        all(a -> all(isfinite, a), B)
+    return finite === true ? _cgl_energy_exact(n, B, closure, dx, value) : value
+end
+
 function electron_internal_energy(
     n::Array{T,D},
     B::NTuple{3,<:Array{T,D}},
@@ -1430,12 +1622,10 @@ function electron_internal_energy(
     _require_grid_tuple(:B, B, g)
     # gyrotropic internal energy ½ tr(P_e) = p_⊥ + p_∥/2 with the CGL-slaved
     # pressures p_⊥ = C_⊥ n|B|, p_∥ = C_∥ n³/|B|² (cgl_pperp / cgl_ppar).
-    s = zero(T)
-    @inbounds for I in eachindex(n, B[1], B[2], B[3])
-        Bmag = sqrt(B[1][I]^2 + B[2][I]^2 + B[3][I]^2)
-        s += T(cgl_pperp(closure, n[I], Bmag)) + T(0.5) * T(cgl_ppar(closure, n[I], Bmag))
+    if T <: Union{Float32,Float64} && closure isa CGLElectrons{<:Union{Float32,Float64}}
+        return _cgl_energy_checked(n, B, closure, g.dx)
     end
-    return s * prod(g.dx)
+    return first(_cgl_energy_probe(n, B, closure, g.dx, Val(false)))
 end
 
 """

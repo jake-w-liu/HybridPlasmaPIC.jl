@@ -576,7 +576,26 @@ package compiler trees match baseline (22/14 reports/groups on 1.12.7, 21/13 on
 1.13.2). Its separate electromagnetic solver/restart and quality gates also pass
 30,668 assertions per runtime. No compiler reports or test thresholds were removed.
 
-This revision includes the field implementation and permanent regressions.
-Exact-SHA GitHub CI remains required after pushing it. Acceptance and current-main
+The field implementation and permanent regressions are pushed as
+`5df5c38c6dbf65136c1618c4591e6b84d95f4d9b`.
+[Exact run 39110639668](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39110639668)
+has green formatting and all three MPI ranks; both package jobs are running.
+Its monitor and saved status are in `/tmp/hybrid-ci-5df5c38-20261018`; no
+green-run claim is made yet. Acceptance and current-main
 scope evidence are in `/tmp/hybrid-quadratic-energy-integrated-v1-verification`.
 The held radiation changes are excluded from this promotion.
+
+## October 18 CGL diagnostic repair
+
+The CGL change passes 15,743 numerical, 1,487 quality/concrete-compiler and
+2,247 four-thread assertions on each actual Julia 1.12.7 and 1.13.2. Complete
+package compiler trees match baseline (22/14 and 21/13 reports/groups). Its
+large positive-grid controls preserve the original value with zero allocations.
+The documentation overlay preserves executable ASTs across all 195 source/test
+files and passes JuliaFormatter 1.0.62.
+
+The current change contains only the verified CGL production delta, regressions
+and tracker documentation. Its exact pushed SHA still requires a completed
+GitHub run; no billing exception is evidenced. Evidence is retained in
+`/tmp/hybrid-cgl-quadratic-integrated-v1-verification`. Held radiation files
+remain excluded.

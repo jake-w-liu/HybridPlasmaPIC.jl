@@ -24,6 +24,9 @@ using Test
     include("test_evolving_pressure_energy.jl")
     include("test_evolving_pressure_io.jl")
     include("test_cgl.jl")
+    include("test_cgl_energy_range.jl")
+    include("test_cgl_energy_boundaries.jl")
+    include("test_cgl_energy_resources.jl")
     include("test_inertia.jl")
     include("test_forcing.jl")
     include("test_hall_mhd.jl")
@@ -90,6 +93,7 @@ using Test
     include("test_empic1d.jl")
     include("test_hybrid_field_energy_range.jl")
     include("test_quadratic_energy_integration.jl")
+    include("test_cgl_quadratic_integration.jl")
     include("test_jet.jl")
     include("test_quality.jl")
 end

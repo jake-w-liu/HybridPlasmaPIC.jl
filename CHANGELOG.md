@@ -156,6 +156,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- CGL electron-energy diagnostics retain complete finite density, field,
+  invariant-coefficient and cell-spacing expressions through range-sensitive
+  arithmetic. Certified ordinary cases keep their existing arithmetic and
+  allocations; the zero-field parallel-pressure singularity remains explicit.
+
 - Nonrelativistic particle-energy diagnostics retain complete finite scalar and
   multispecies expressions when intermediate arithmetic loses range, including
   signed cancellation between overflowing populations and hidden final overflow.

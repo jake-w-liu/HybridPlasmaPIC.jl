@@ -45,8 +45,8 @@ per runtime establish 19 incorrectly accepted intermediate-underflow cases.
    small grids and large grids. Corrected values may intentionally differ from
    the old result; accuracy assertions must use independent complete integrals.
 4. Measure allocations and latency, including scaling with grid size, before
-   choosing the production implementation. Retain ordinary compatibility checks
-   outside the corrected behavior. Complete native solver/compiler/threaded
+   choosing the production implementation. Retain nonfinite and unsupported-type compatibility checks; finite ordinary
+   reductions also require independent accuracy checks. Complete native solver/compiler/threaded
    gates and exact-revision GitHub CI before claiming acceptance.
 
 The existing [diagnostic range plan](HYBRID_DIAGNOSTIC_RANGE_PLAN.md) remains
@@ -121,3 +121,65 @@ reports an undefined-variable possibility in BigInt hashing reached through the
 cold logarithm dictionary; its failure is retained. Julia 1.13.2 passes that gate.
 This combined candidate is unaccepted. A bounded-key representation is under
 investigation; no report filtering is permitted. Public dispatch is unchanged.
+
+A separate combined v2 retains the range, bounded arithmetic, routing and
+integration tests. Its cold dictionary uses UInt64 keys: after removing powers
+of two, a finite Float32/64 density has an odd significand of at most 53 bits.
+Coefficients remain exact rationals; logarithm bounds receive the same integer
+bases. Checked key conversion and independent frexp-based boundary/random tests
+are included. Both native lanes run the unchanged concrete compiler gate first,
+then the cold, key-bound, combined numerical/resource and threaded gates. This
+representation change is under verification; it is not a report suppression or
+a claim of a Julia runtime bug. Evidence: `/tmp/hybrid-isothermal-integrated-design-v2`.
+
+The corrected uniform-density witness confirms that the accuracy problem extends
+beyond the near-unit box. With 4,194,304 Float32 cells, temperature `0.7f0` and
+unit spacing, densities 0.5, 0.75 and 1.5 have relative errors of at least 2.6357%,
+1.3758% and 3.9651% on both native versions. The range-only candidate certifies
+all three inaccurate values. Each corrected native witness passes 22 assertions
+against independent rational logarithm bounds. The public function body matches
+`5df5c38` byte for byte. Evidence, commands and hashes:
+`/tmp/hybrid-isothermal-uniform-accuracy-20261018/corrected-evidence.json`.
+
+The original witness used an endpoint-distance expression valid only outside the
+oracle interval; a separate retained correction uses the general interval-distance
+formula. Only the corrected runs support the finding above. The repair must now
+include ordinary finite reductions outside the near-unit box. Preserving their
+old bits is no longer an acceptance criterion. A widened compensated reduction
+with independent range guards is the next isolated experiment; its accuracy,
+allocation and latency remain unverified.
+
+The combined v2 bounded-key snapshot has completed all seven gates on both
+native versions: 24 clean concrete compiler checks, 243 cold-logarithm checks,
+6,243 key-bound checks across 1,037 densities, 660 range checks, 552 near-unit
+checks, 34 accuracy/resource checks and 1,226 parent-recorded threaded checks.
+All six measured whole calls allocate zero bytes per runtime. This closes its
+compiler representation issue, but the uniform-density finding prevents accepting
+it as the complete public accuracy repair.
+
+A separate near-unit v4 retains the exact polynomial and accumulator bounds but
+uses exact power-of-two floating scaling followed by Int64 conversion for the
+bounded density deviations. Both native versions pass all 5,991 focused, 34
+accuracy/resource, 24 concrete compiler and 1,226 parent-threaded assertions;
+all six measured whole calls allocate zero bytes. The paired 1.13.2 measurement
+records a large Float32 median ratio of 0.689 versus v3 (0.721 s versus 1.047 s).
+The small Float32 sample regresses to a ratio of 2.40; Float64 ratios are 1.04–1.06.
+These shared-host samples support no universal speedup claim. Evidence remains
+in `/tmp/hybrid-isothermal-nearunit-v4`; public promotion is still pending.
+
+The separate general-reduction v1 uses Float64 terms and the existing compensated
+addition primitive, with independent complete-expression range bounds and exact
+logarithm fallback for unresolved finite inputs. Actual nonfinite inputs retain
+the old arithmetic. Both native versions pass 1,416 focused assertions, including
+ordinary accuracy, nonfinite compatibility and range controls. Its general path
+does not claim universal correct rounding. Large-grid resource and compiler/
+threaded gates are still running. Evidence: `/tmp/hybrid-isothermal-general-reduction-v1`.
+
+An isolated public draft combines that general path, near-unit v4 and UInt64-key
+cold evaluation on the CGL/quadratic snapshot. It preserves the original closure
+validation order and generic/polytropic dispatch. The bounded dyadic conversion
+joins the existing exact-conversion owner. Permanent arithmetic, public-owner,
+validation, budget and large-grid regressions are assembled; the first native
+run is in progress. This draft remains unaccepted and has not changed public
+source on main. Assembly and frozen evidence: `/tmp/hybrid-isothermal-public-design-v1`
+and `/tmp/hybrid-isothermal-public-v1-verification`.
