@@ -11,6 +11,9 @@ electron-inertia term `(d_e²/n) ∂_t J`, which — for the transverse field on
 background — is the spectral multiplier `E ← E/(1 + d_e² k²)`: it caps the whistler
 frequency at `ω_pe` scales and enables collisionless reconnection at the `d_e` scale.
 `de2 = 0` recovers the massless (ideal) hybrid exactly.
+
+[`EvolvingElectrons`](@ref) requires `η = ηH = de2 = 0`; its independent
+pressure is initialized in `HybridStepper.fields.pe` before calling `init!`.
 """
 struct HybridModel{C<:ElectronClosure}
     closure::C
@@ -24,7 +27,24 @@ function HybridModel(closure::ElectronClosure; η = 0.0, ηH = 0.0, nfloor = 1e-
     ηHT = _require_finite_nonnegative_real("ηH", ηH, Float64)
     nfloorT = _require_finite_positive_real("nfloor", nfloor, Float64)
     de2T = _require_finite_nonnegative_real("de2", de2, Float64)
-    return HybridModel(closure, ηT, ηHT, nfloorT, de2T)
+    model = HybridModel(closure, ηT, ηHT, nfloorT, de2T)
+    _validate_evolving_model(model, Float64)
+    return model
+end
+
+
+# Also used at stepping and restore boundaries: positional model construction
+# and deserialization must not bypass the evolving closure's physical contract.
+function _validate_evolving_model(model::HybridModel, ::Type{T}) where {T}
+    if _evolves_pressure(model.closure)
+        γ = _require_finite_real("γ", model.closure.γ, T)
+        γ > one(T) ||
+            throw(ArgumentError("evolving electron γ must be greater than one at grid precision"))
+        (iszero(model.η) && iszero(model.ηH) && iszero(model.de2)) ||
+            throw(ArgumentError("EvolvingElectrons requires η = ηH = de2 = 0"))
+        _require_finite_positive_real("nfloor", model.nfloor, T)
+    end
+    return nothing
 end
 
 

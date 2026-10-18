@@ -92,6 +92,11 @@ This reduces to the commonly-cited Hybrid-VPIC estimate
 `Ω_ci Δt < (1/π)(Δx/d_i)²` at large `k_max·d_i` in 1-D. `integrator ∈ (:rk4,
 :leapfrog, :camcl, :cn)`; `:cn` is unconditionally stable on the whistler and the
 resistive decay, so only the gyro limit applies.
+
+These limits do not bound evolving-electron pressure advection/compression or
+ion-acoustic accuracy. For [`EvolvingElectrons`](@ref), select a timestep that
+also resolves those dynamics; the explicit pressure scheme can reject negative
+intermediate pressure even when this magnetic estimate is satisfied.
 """
 function recommended_dt(
     g::FourierGrid{D,T};

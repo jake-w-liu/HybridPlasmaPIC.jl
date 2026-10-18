@@ -28,6 +28,8 @@ struct HallMHDModel{C<:ElectronClosure}
 end
 
 function HallMHDModel(closure::ElectronClosure; Ti = 0.0, η = 0.0, ηH = 0.0, nfloor = 1e-6)
+    _evolves_pressure(closure) &&
+        throw(ArgumentError("HallMHDModel does not evolve EvolvingElectrons; use HybridStepper"))
     TiT = _require_finite_nonnegative_real("Ti", Ti, Float64)
     ηT = _require_finite_nonnegative_real("η", η, Float64)
     ηHT = _require_finite_nonnegative_real("ηH", ηH, Float64)
@@ -68,6 +70,8 @@ mutable struct HallMHDState{D,T,M<:HallMHDModel}
 end
 
 function HallMHDState(g::FourierGrid{D,T}, model::M) where {D,T,M<:HallMHDModel}
+    _evolves_pressure(model.closure) &&
+        throw(ArgumentError("HallMHDState does not evolve EvolvingElectrons; use HybridStepper"))
     nc = g.n
     z() = zeros(T, nc)
     vec3() = ntuple(_ -> z(), 3)
@@ -164,35 +168,6 @@ function _validate_hall_candidate!(st::HallMHDState{D,T}, n, u, B) where {D,T}
     return nothing
 end
 
-function _commit_hall_fields!(destination::HybridFields, candidate::HybridFields)
-    # Preserve the arrays exposed to callers while committing the physical and
-    # derived fields together. All fallible calculations happen on the candidate.
-    for (dst, src) in (
-        (destination.n, candidate.n),
-        (destination.pe, candidate.pe),
-        (destination.ninv, candidate.ninv),
-        (destination.cgl_dp, candidate.cgl_dp),
-    )
-        copyto!(dst, src)
-    end
-    for (dst, src) in (
-        (destination.ui, candidate.ui),
-        (destination.B, candidate.B),
-        (destination.E, candidate.E),
-        (destination.J, candidate.J),
-        (destination.lapJ, candidate.lapJ),
-        (destination.pforce, candidate.pforce),
-    )
-        for c in eachindex(dst)
-            copyto!(dst[c], src[c])
-        end
-    end
-    for d in eachindex(destination.gradp)
-        copyto!(destination.gradp[d], candidate.gradp[d])
-    end
-    destination.floor_count[] = candidate.floor_count[]
-    return nothing
-end
 
 function _hall_ohms_law_fields!(
     f::HybridFields{D,T},
@@ -384,7 +359,7 @@ function step_hall_mhd!(st::HallMHDState{D,T}, dt::Real; project_b::Bool = true)
     for electric in candidate.E
         _require_all_finite("Hall-MHD electric field", electric, "step_hall_mhd!")
     end
-    _commit_hall_fields!(st.fields, candidate)
+    _copy_hybrid_fields!(st.fields, candidate)
     st.time[] = next_time
     st.step[] = next_step
     return st

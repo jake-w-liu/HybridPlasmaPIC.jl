@@ -123,15 +123,20 @@ quantities between this system and SI; `alfven_speed`, `gyrofrequency`, and
 
 - `IsothermalElectrons(Te)` — `p_e = Te·n`
 - `PolytropicElectrons(pe0, n0, γ)` — `p_e = pe0·(n/n0)^γ`
+- `EvolvingElectrons(γ = 5/3)` — independent adiabatic scalar pressure,
+  advanced with B by `HybridStepper`. Initialize `fields.pe` before `init!`;
+  requires `γ > 1` and `η = ηH = de2 = 0`. Supports ion collections and MPI.
 - `CGLElectrons(p⊥0, p∥0, n0, B0)` — anisotropic double-adiabatic
   (Chew–Goldberger–Low): `p_⊥ ∝ n·B`, `p_∥ ∝ n³/B²`, entering Ohm's law
   through the full gyrotropic pressure-tensor force `−(∇·P_e)/n`. (Note the
   fluid mirror mode has no short-wavelength cutoff, so strongly
   mirror-unstable CGL states blow up — a property of the CGL model itself.)
 
-A standalone adiabatic electron pressure-evolution step
-(`advance_electron_pressure!`) is exported as a building block; the built-in
-steppers use the algebraic closures above.
+Evolving pressure must remain finite and nonnegative at every RK4 stage;
+rejected steps restore public state without clipping pressure. See the
+[initialization, timestep, restart, and energy guide](docs/EVOLVING_ELECTRONS.md).
+The standalone `advance_electron_pressure!` remains a forward-Euler building
+block; it does not provide the coupled stepper's validation or rollback.
 
 ### Optional physics (off by default; `nfloor` is an always-on guard)
 
@@ -154,13 +159,14 @@ moments:
 
 - **`HybridStepper`** (`init!`, `step!(st, ps, dt; NB)`) — the default.
   Boris leapfrog for particles; `B` advanced `n → n+1` by `NB` RK4 substeps;
-  the carried `E` recomputed each step. Supports every closure, including CGL.
+  the carried `E` recomputed each step. Supports every closure, including CGL;
+  `EvolvingElectrons` advances pressure through the same RK4 stages as B.
 - **`CAMCLStepper`** (`init_camcl!`, `step_camcl!(st, ps, dt; NB ≥ 2)`) —
   Matthews' CAM-CL (J. Comput. Phys. 112, 102, 1994): current advance method
   plus a cyclic-leapfrog `B` subcycle whose two staggered field copies persist
   across particle steps (neutrally stable, non-dissipative, for whistler
   `ω·h < 2` per substep; two Ohm evaluations per substep instead of RK4's
-  four). Scalar closures only.
+  four). Algebraic scalar closures only.
 
 **Choosing dt.** `recommended_dt(g; NB = 1, integrator = :rk4, safety = 0.8,
 η = 0.0, ηH = 0.0)` returns a conservative particle step from the whistler CFL
@@ -170,12 +176,14 @@ stiffest representable mode in 2D/3D — a single-axis Nyquist estimate is up to
 (`Ω_ci·Δt ≤ 0.3`) and, when `η`/`ηH` are supplied, by the resistive real-axis
 stability of the chosen integrator. In 1D, in the fine-grid limit
 `kmax·d_i ≫ 1`, it reduces to the familiar `Ω_ci Δt ≲ (1/π)(Δx/d_i)²`.
+These limits do not bound evolving-pressure advection/compression or
+ion-acoustic accuracy; choose and refine `dt` to resolve those dynamics too.
 
 ## Beyond the hybrid model
 
 | model | what it is | entry points |
 |---|---|---|
-| **Hall-MHD** | periodic single-fluid Hall-MHD with the same electron closures; ion pressure `p_i = Ti·n`; the electron pressure force acts in both Ohm's law and the bulk momentum equation; explicit RK4 with divergence-free projection | `HallMHDModel`, `HallMHDState`, `step_hall_mhd!` |
+| **Hall-MHD** | periodic single-fluid Hall-MHD with algebraic electron closures; ion pressure `p_i = Ti·n`; the electron pressure force acts in both Ohm's law and the bulk momentum equation; explicit RK4 with divergence-free projection | `HallMHDModel`, `HallMHDState`, `step_hall_mhd!` |
 | **Electrostatic PIC** | full-kinetic electrons over a neutralizing background; spectral Poisson solve; leapfrog with one-time velocity priming; 1D/2D/3D | `ElectrostaticPIC` (or `Electrostatic1D`), `init_espic!`, `step_espic!` |
 | **Electromagnetic PIC** | full EM PIC with kinetic electrons, optional mobile ions (`mobile = true`), optional relativistic Boris push (`relativistic = true`), spectral current correction for charge continuity, Gauss-law initialization, electron/Maxwell subcycling (`n_sub`) in 1D–3D | `EMPIC`, `EMPIC1D`, `init_empic!`, `step_empic!`, `charge_conservation_residual` |
 | **Fusion geometry / gyrokinetics / AMR** | integrated tokamak-oriented building blocks: toroidal curvilinear metric operators, guiding-centre gyrokinetics, and finite-volume AMR primitives alongside the existing mesh/model subsystems | `ToroidalGrid`, `metric_gradient`, `GuidingCentre`, `push_guiding_centre!`, `AMRGrid`, `refine` |
@@ -253,7 +261,7 @@ A self-contained perpendicular collisionless-shock laboratory:
 
 ## Diagnostics
 
-- **Energy**: `energy_budget(ps, B, n, closure, g; de2 = 0)` returns kinetic,
+- **Energy**: `energy_budget(ps, B, n, closure, g; de2 = 0, pe = nothing)` returns kinetic,
   magnetic, electron-internal/free-energy, and optional quadratic
   electron-inertia reservoirs. Periodic ideal massless scalar-closure
   evolution conserves the continuum total when density floors are inactive;
@@ -261,6 +269,9 @@ A self-contained perpendicular collisionless-shock laboratory:
   additional anisotropic battery term. The reduced inertia reservoir closes
   the uniform-density fixed-ion field balance; moving-ion and dissipative energy accounting
   have further terms described in the [model balance](docs/HYBRID_ENERGY_MODEL_PLAN.md).
+  For `EvolvingElectrons`, supply `pe = st.fields.pe` explicitly. Budgets use
+  the supplied particle velocities, which are staggered in hybrid runs;
+  energy-convergence comparisons need reservoirs at a common time.
   `kinetic_energy_relativistic(ps, c)` covers relativistic EMPIC runs.
   `resistive_dissipation` reports the Ohmic quadratic form;
   `jdotE_density`, `electric_work`, and `momentum_budget` report work and momentum.
@@ -337,6 +348,8 @@ readable. A cleanup error after publication leaves the new checkpoint usable.
 `CAMCLStepper`, `Electrostatic1D`, `ElectrostaticPIC`, `EMPIC1D`, `EMPIC`, and `HallMHDState` runs bitwise-identically
 for the same stepping inputs and numerical environment. Checkpoints preserve particle provenance and
 timestep history, including CAM-CL's persistent magnetic copies and subcycle phase.
+Evolving-electron runs also preserve stored pressure through serial and MPI
+checkpoints and archives; missing or invalid saved pressure is rejected.
 Hybrid restores replace model/shape parameters with the saved values;
 electrostatic destinations require matching background density `n0`.
 Model/shape parameters must be independent of evolving solver and particle

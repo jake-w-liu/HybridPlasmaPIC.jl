@@ -8,6 +8,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- `EvolvingElectrons(γ = 5/3)` advances independent scalar pressure with the
+  magnetic field in periodic `HybridStepper` runs, including ion collections
+  and replicated MPI. Set `fields.pe` before initialization. The ideal massless
+  closure requires `γ > 1` and `η = ηH = de2 = 0`; CAM-CL and Hall-MHD reject it.
+  Invalid pressure stages roll back public state without clipping. Checkpoints
+  and archives preserve pressure, and energy diagnostics accept it through
+  `pe=`. The guide covers timestep limits, positivity, time levels and retries.
+
 - MPI checkpoint/restart supports ordered ion collections, unequal local counts,
   empty populations, writable views and continued particle migration. Reads,
   destination validation and species/phase agreement finish on all ranks before

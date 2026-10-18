@@ -179,6 +179,7 @@ export ShapeFunction,
     pressure_tensor!,
     temperature_components
 export ElectronClosure,
+    EvolvingElectrons,
     IsothermalElectrons,
     PolytropicElectrons,
     CGLElectrons,

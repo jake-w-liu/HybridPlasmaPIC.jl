@@ -2,8 +2,9 @@
 #
 # Stepping (step!) uses no RNG, so the state needed for a bitwise-identical
 # restart is: model and shape, particle phase space + provenance, canonical B,
-# carried E, time/step counters, and the previous particle timestep. The frozen
-# n+1/2 moments are scratch recomputed every step, so they are not stored.
+# carried E, evolving electron pressure when present, time/step counters, and
+# the previous particle timestep. The frozen n+1/2 moments are scratch
+# recomputed every step, so they are not stored.
 # CAM-CL also retains its two magnetic copies, prior output, and subcycle phase.
 # Electrostatic PIC retains E, density, background density, and priming/timestep
 # state; the per-particle field gather buffers are scratch.
@@ -254,9 +255,14 @@ function _restore_checkpoint_fields!(fields::NamedTuple, saved)
     return nothing
 end
 
-function _validate_checkpoint_field_state(s, st)
+function _validate_checkpoint_field_state(s, st::_HybridCheckpointStepper{D,T}) where {D,T}
     _validate_checkpoint_field_components(:B, s.B, st.fields.B)
     _validate_checkpoint_field_components(:E, s.E, st.fields.E)
+    if _evolves_pressure(s.model.closure)
+        _validate_checkpoint_container(s, (:pe,))
+        s.pe isa Array{T,D} || throw(ArgumentError("checkpoint pe must be stored as Array{$T,$D}"))
+        _validate_evolving_pressure(s.pe, st.g; context = "checkpoint electron pressure")
+    end
     return nothing
 end
 
@@ -594,6 +600,7 @@ function _validate_checkpoint_state(s, st::_HybridCheckpointStepper{D,T}) where 
         throw(ArgumentError("checkpoint model type $(typeof(s.model)) ≠ $(typeof(st.model))"))
     typeof(s.shape) === typeof(st.shape) ||
         throw(ArgumentError("checkpoint shape type $(typeof(s.shape)) ≠ $(typeof(st.shape))"))
+    _validate_evolving_model(s.model, T)
     if collection
         s.particle_layout === :collection ||
             throw(ArgumentError("unsupported checkpoint particle layout $(s.particle_layout)"))
@@ -651,6 +658,7 @@ function _checkpoint_particle_state(ps::ParticleSet)
 end
 
 function _checkpoint_state(st::_HybridCheckpointStepper{D,T}, ps::ParticleSet{D,T}) where {D,T}
+    _evolves_pressure(st.model.closure) && _validate_pressure_storage(st, ps)
     return _hybrid_checkpoint_state(st, _checkpoint_particle_state(ps))
 end
 
@@ -660,6 +668,7 @@ function _checkpoint_state(
 ) where {D,T}
     species isa AbstractVector{<:ParticleSet{D,T}} ||
         throw(ArgumentError("checkpoint species must match the stepper dimension and precision"))
+    _evolves_pressure(st.model.closure) && _validate_pressure_storage(st, species)
     particles = (
         particle_layout = :collection,
         species = [_checkpoint_particle_state(ps) for ps in species],
@@ -686,6 +695,9 @@ function _hybrid_checkpoint_state(
         step = st.step[],
         last_dt = st.last_dt[],
     )
+    if _evolves_pressure(st.model.closure)
+        return merge(common, (pe = st.fields.pe,))
+    end
     if st isa CAMCLStepper
         return merge(
             common,
@@ -925,6 +937,7 @@ function _validate_hybrid_checkpoint_restore(
         throw(ArgumentError("collection checkpoint requires a species collection destination"))
     N = length(s.weight)
     _validate_checkpoint_destination(ps, N)
+    _evolves_pressure(st.model.closure) && _validate_pressure_storage(st, ps)
     return N
 end
 
@@ -950,6 +963,7 @@ function _validate_hybrid_checkpoint_restore(
         end
         total += count # Saved populations have already passed the total-count overflow check.
     end
+    _evolves_pressure(st.model.closure) && _validate_pressure_storage(st, species)
     return total
 end
 
@@ -992,6 +1006,7 @@ function _restore_hybrid_checkpoint_fields!(st::_HybridCheckpointStepper, s)
         copyto!(st.fields.B[c], s.B[c])
         copyto!(st.fields.E[c], s.E[c])
     end
+    _evolves_pressure(st.model.closure) && copyto!(st.fields.pe, s.pe)
     st.time[] = s.time
     st.step[] = s.step
     st.last_dt[] = s.last_dt
@@ -1178,6 +1193,9 @@ have independent storage so restoring one cannot overwrite another.
 Hybrid destinations require matching concrete model/shape types; the checkpoint
 replaces their parameters, including custom mutable parameters, so restored
 evolution uses the saved physics.
+For `EvolvingElectrons`, stored pressure is required and restored verbatim. Its
+shape, precision, finite nonnegative values, and ideal model parameters are
+validated before mutation. Algebraic closures retain pressure-free payloads.
 Collection destinations require the same number of ordered populations and
 matching dimension/precision. Each population keeps its existing storage while
 saved charge, mass, provenance and phase space replace its values. Every

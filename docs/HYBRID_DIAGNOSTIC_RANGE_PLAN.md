@@ -1,7 +1,8 @@
 # Hybrid diagnostic range follow-up
 
-Status: confirmed defects; implementation pending. This work is separate from
-the isolated evolving-pressure feature and its stored-pressure correction.
+Status: confirmed defects. A kinetic correction is under isolated verification;
+magnetic and algebraic-electron repairs remain planned. This work is separate
+from the evolving-pressure feature and its stored-pressure correction.
 
 ## Evidence
 
@@ -29,6 +30,34 @@ command and revision comparison. The checked owners in
 
 Float32 witnesses reproduce each class. These results concern numerical
 evaluation of diagnostics, independently of the continuum energy-model balance.
+
+**VERIFIED collection and boundary cases:** 20 additional assertions per runtime
+pass in `collection-boundary-witness{112,1132}.log` (both exit 0; commands and
+hashes in `collection-boundary-results.json` under the same evidence directory).
+For two finite populations with opposite weights, each separately evaluated
+energy overflows; adding a third unit-energy population yields NaN although the
+complete rational total is one. Scalar and collection sums can also retain
+`floatmax(T)` when small positive terms bring the complete exact value to the
+nearest-even overflow midpoint. The repair must therefore evaluate the requested
+whole collection and check finite-looking overflow boundaries.
+
+## Kinetic candidate acceptance
+
+The first isolated kinetic candidate passes 2,646 exact-range, population/view
+and nonfinite checks on Julia 1.13.2, but fails its ordinary-resource gate:
+40 passes and eight failures. Four signed Float32 cases change their ordinary
+result and allocate 64,936–16,433,960 bytes. It is not accepted. Frozen source,
+commands and results are in `/tmp/hybrid-kinetic-range-v1-verification`.
+A separate v2 retains the complete rational fallback, adds a forward-error
+certificate for ordinary signed sums, and separates Boolean checks from the
+ordered floating reduction. Its range, certificate and unchanged resource gates
+pass 11,159 assertions on each runtime; all 24 measured ordinary configurations
+retain their output bits and zero allocations. Measured latency remains higher
+than the baseline. A concrete compiler gate exposes a possible `Missing`
+condition for abstract-storage collection types. A separate v3 requires known
+`true` for exact-fallback eligibility; its complete numerical, compiler, threaded
+and package-report gates are running. No kinetic repair has been promoted.
+Evidence: `/tmp/hybrid-kinetic-range-v{1,2,3}-verification`.
 
 ## Repair contract and sequence
 

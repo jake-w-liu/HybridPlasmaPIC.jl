@@ -23,11 +23,11 @@ completeness. Comparative leadership requires reproducible external benchmarks.
 - Latest-version gate advanced to **Julia 1.13.2**, listed as the current stable
   release (October 14) on the [official downloads page](https://julialang.org/downloads/manual-downloads/),
   checked again October 18. Existing 1.13.1 results retain their exact tested version;
-  GitHub acceptance on 1.13.2 is verified through main revision `2bc7085`.
+  GitHub acceptance on 1.13.2 is verified through revision `2bc7085`.
   The minimum-version gate remains 1.12.7.
 
-- Every later pushed revision is now green: `afc324f`, `b73abfe`, `2330379`,
-  and main revision `2bc7085` each pass both package jobs, formatting and
+- Pushed revisions `afc324f`, `b73abfe`, `2330379`, and `2bc7085`
+  each pass both package jobs, formatting and
   2-/4-/8-rank MPI. That revision passes 369,711/369,712 assertions on actual
   Julia 1.12.7/1.13.2. No billing exception is used.
   [Exact revisions and logs](CI_RELIABILITY_PLAN.md#acceptance-run-at-afc324f).
@@ -49,17 +49,24 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   The later `e9c4fa7` run also passes as recorded above.
   No billing block is evidenced. [Per-revision evidence](CI_RELIABILITY_PLAN.md).
 
-- Evolving-pressure implementation remains isolated. Independent direct-DFT
-  stage/work and genuine 3D transport checks pass on 1.12.7/1.13.2; the final
-  accuracy file passes 118 assertions per version. Julia 1.13.2 also passes
-  real 1-/2-/4-rank MPI checks, and 1.12.7 passes 1-/2-rank checks. Review found
-  and repaired pressure/gradient alias mutation in the candidate. One new
-  package-analysis report concerns a captured particle-count variable in its
-  transaction buffer; v2 removes its captured box, with full-report acceptance
-  still pending. A subsequent review confirms finite stored-pressure energies
-  lost through intermediate range failures: 32 witness assertions pass on each
-  runtime. The separate v3 diagnostic repair is under verification.
-  The public guide's example runs on both versions. [Implementation status](HYBRID_ENERGY_MODEL_PLAN.md#evolving-pressure-implementation-tracker).
+- Docs revisions `e339350` and `1150ed3` have green formatting and all
+  2-/4-/8-rank MPI jobs. Their two package jobs remain in progress in
+  [run 39091128686](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39091128686)
+  and [run 39093601976](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39093601976),
+  respectively. Neither exact-revision acceptance is complete; no billing
+  exception is evidenced.
+
+- The evolving-pressure implementation passes local acceptance on Julia
+  **1.12.7 and 1.13.2**: 2,290 broad regression assertions, 336 resource checks,
+  996 final energy/concrete/Aqua checks and 650 four-thread checks per runtime.
+  Real two-rank MPI reruns pass on both. Complete final compiler report trees
+  match the baseline (22/21 reports); concrete field-owner checks add no reports.
+  Independent pressure physics, 3D transport, restart and rollback evidence is
+  in the [implementation plan](HYBRID_ENERGY_MODEL_PLAN.md#evolving-pressure-implementation-tracker).
+  The [user guide](EVOLVING_ELECTRONS.md) describes the ideal massless scope and
+  positivity/timestep limits. Its example runs on both versions. Documentation
+  and formatting preserve executable ASTs across all 186 candidate Julia files.
+  Exact-revision GitHub CI remains pending.
 
 - Completed [GitHub run 38722319490](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/38722319490)
   at `55d996b` passes formatting, the 2-/4-rank MPI jobs and both package jobs:
@@ -254,7 +261,7 @@ performance review. “Pending” means no current-run completion claim.
 | ENERGY-001 | EM field energy loses finite complete integrals through squared fields, c and cell volume | Pushed (`bef9802`) | Complete-integral cold evaluation passes 27,896 ES/EM assertions on each Julia version. All 24 concrete compiler calls per version are clean; package reports match baseline. Ordinary results stay exact and allocate 0 B; measured latency remains an optimization target. [Scope, resource investigation and evidence](ENERGY_RANGE_PLAN.md). |
 | ENERGY-002 | Relativistic particle energy rejects valid extreme speeds or loses finite weighted results | Included in green `240f77c` | Each native version passes 2,138 permanent assertions, existing budgets, concrete/package compiler checks, Aqua and 398 four-thread checks. Ordinary calls retain exact baseline outputs and 0 B allocation; measured larger-case overhead remains 1.247–1.986× on 1.12 and 1.426–1.846× on 1.13. The three integrated source/test files match the verified snapshot. [Plan and remaining gates](ENERGY_RANGE_PLAN.md). |
 | ENERGY-003 | Energy documentation equates Ohmic quadratic form with total loss and overstates reduced-inertia conservation | Documentation pushed (`2330379`); physical extensions planned | VERIFIED: source equations and 17 exact symbolic assertions give nonzero moving-ion balance terms. Existing tests cover fixed-ion inertia. Numerical APIs and forces are unchanged; a new pressure closure initially targets the ideal massless case. [Balance, witnesses and implementation boundaries](HYBRID_ENERGY_MODEL_PLAN.md). |
-| ENERGY-004 | Nonrelativistic particle, hybrid magnetic and algebraic electron energies lose finite complete integrals | Confirmed; repair planned | VERIFIED: 16 independent rational witness assertions pass on each Julia 1.12.7 and 1.13.2 against source byte-identical to `e339350`. Includes false Inf and zero-field NaN. The new stored-pressure correction does not repair these legacy owners. [Scope and acceptance plan](HYBRID_DIAGNOSTIC_RANGE_PLAN.md). |
+| ENERGY-004 | Nonrelativistic particle, hybrid magnetic and algebraic electron energies lose finite complete integrals | Confirmed; kinetic candidate under verification | VERIFIED: 16 independent rational witness assertions and 20 additional collection/boundary assertions pass on each Julia 1.12.7 and 1.13.2 against source byte-identical to `e339350`. Includes false Inf, zero-field NaN, NaN from individually overflowing populations whose exact total is one, and finite-looking true overflow. The new stored-pressure correction does not repair these legacy owners. [Scope and acceptance plan](HYBRID_DIAGNOSTIC_RANGE_PLAN.md). |
 | VALID-001 | Validation case 20 exceeds its charge-residual tolerance | Pushed (`e9c4fa7`); GitHub green | Final source passes the unchanged wave at 2.88e-12, 504 resource/oracle, 2,273 four-thread, 29,113 complete solver/restart and 13,268 numerical/compiler/quality assertions on each of 1.12.7/1.13.2. Exact GitHub CI passes 368,455/368,456 assertions plus formatting and all MPI ranks. Final capture intentionally changes ordinary bits; raw contracts remain tested. [Evidence, costs and production brief](CHARGE_DEPOSITION_CONSERVATION_PLAN.md). |
 | PERF-004 | Legacy EM continuity diagnostic constructs FFT plans on every call | Pushed (`0f5b205`) | Reuses existing grid plans with 19,980 runtime assertions and 33 clean concrete compiler calls on each Julia version. Package findings exactly match baseline. All 24 measured configurations allocate 544 fewer bytes/call; timing variation is retained without a portable speed claim. [Evidence and compatibility](CONTINUITY_DIAGNOSTIC_RANGE_PLAN.md#legacy-diagnostic-plan-reuse--pre-edit-brief). |
 | PERF-005 | Dyadic transform digit extraction constructs rationals per component/band | Pushed (`afc324f`); GitHub green | Each version passes 1,536 differential, 1,695 quality/state and 424 resource checks per snapshot. All outputs match; exceptional public diagnostics allocate 11.74–27.19% less across the two runtimes, with ordinary allocation totals unchanged. Full compiler report trees match baseline. [Contract, measurements and limits](CONTINUITY_DIAGNOSTIC_RANGE_PLAN.md#dyadic-digit-extraction-allocation--perf-005). |
@@ -285,7 +292,7 @@ benchmark before implementation. The roadmap remains open to new findings.
 | 2 | Multispecies conservation diagnostics | Canonical reductions and budgets support typed collections and empty populations; independent particle/field/closure sums and scalar regressions pass on both Julia versions | Verified |
 | 2 | Local moment accuracy under strong weighted cancellation | A 48-check Float32/64 witness retains raw non-DC error despite a correct reconciled total. Compare compensated/binned accumulation with exact spatial oracles; define ordinary rounding compatibility and require threaded, coupled and measured cost gates. [Scope](CHARGE_DEPOSITION_CONSERVATION_PLAN.md#remaining-local-accuracy-boundary) | Assessment |
 | 2 | Exactly conservative coupled hybrid integration | Existing explicit predictor has second-order momentum error verified against a discrete Boris oracle. Assess a coupled midpoint field/current solve with convergence, conservation and nonlinear solve-residual acceptance | Assessment |
-| 2 | Evolving electron pressure integrated into steppers | Reviewed ideal massless slice includes joint B/pressure stages, rollback, MPI, persistence and explicit-pressure budgets. [Contract and implementation checklist](HYBRID_ENERGY_MODEL_PLAN.md#evolving-pressure-implementation-tracker); no production capability yet | Isolated implementation |
+| 2 | Evolving electron pressure integrated into steppers | Ideal massless closure includes joint B/pressure stages, rollback, MPI, persistence and explicit-pressure budgets; both native Julia gates pass. [Contract and implementation checklist](HYBRID_ENERGY_MODEL_PLAN.md#evolving-pressure-implementation-tracker) | Implemented; exact-revision CI pending |
 | 2 | Multidimensional EM electron subcycling | Common EM path extended; charge-continuity, Gauss-law, species phase, coupled convergence and Float32/64 checks pass | Verified |
 | 2 | Nonperiodic EM-PIC boundaries | README declares periodic EM-PIC only; design compatible field/particle boundaries with reflection/transmission and charge tests | Planned |
 | 3 | Production distributed stepping | MPI reference stepping replicates fields; design domain-owned fields/moments with migration and distributed operators; verify serial equivalence and scaling | Planned |

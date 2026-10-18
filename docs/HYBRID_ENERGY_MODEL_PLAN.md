@@ -1,9 +1,10 @@
 # Hybrid energy accounting and pressure extension
 
 Status: the diagnostic documentation is corrected to match the implemented
-force and reduced inertia model. A coupled evolving-pressure closure is in
-isolated implementation for the ideal massless case. Dissipative recoil/heating and complete
-electron inertia remain separate model extensions.
+force and reduced inertia model. The coupled evolving-pressure closure is
+implemented for the ideal massless case and passes both native Julia acceptance
+gates. Exact-revision GitHub CI remains pending. Dissipative recoil/heating and
+complete electron inertia remain separate model extensions.
 
 ## Verified balance and scope
 
@@ -66,99 +67,121 @@ The balance above is derived from this repository's equations.
 The reviewed design is `/tmp/hybrid-evolving-pressure-design-v1/implementation-plan.md`
 (SHA256 `628edafd3d54b15c1bb42576a6d428468bfff850ea26563f5219d5c81005a244`).
 Its baseline probes pass 31 assertions on each Julia 1.12.7 and 1.13.2.
-Implementation acceptance is in progress. The baseline confirms that current Ohm
-preparation overwrites `pe`, restart captures no pressure, budgets reconstruct
-pressure from density, and the standalone Euler routine is first order.
+Local implementation acceptance is complete. The pre-implementation baseline
+confirmed that Ohm preparation overwrote `pe`, restart captured no pressure,
+budgets reconstructed pressure from density, and the standalone Euler routine
+was first order. The new closure uses persistent pressure and joint RK4 stages.
 
-The isolated candidate's 185 source/test files remain frozen in
-`/tmp/hybrid-evolving-pressure-v1-freeze1-hashes.json`. Its final test overlay
-passes 118 assertions on each runtime, including direct production RHS versus
-an independent DFT, periodic pressure work, coupled convergence, and genuine
-3D translation on a 7×9×11 grid. The exact tested accuracy file has SHA256
+The final isolated v4 contains 186 frozen source/test files, recorded in
+`/tmp/hybrid-evolving-pressure-v4-hashes.json`. Compared with v2, only the stored
+pressure energy owner and its regression registration change; 183 files remain
+byte-identical. Removing the new energy helpers and reverting their single call
+recovers the entire v2 integrator exactly (`v4-verification/scope.json`).
+
+The physical accuracy overlay passes 118 assertions on each Julia 1.12.7 and
+1.13.2: direct production RHS versus an independent DFT, periodic pressure work,
+coupled convergence, and genuine 3D translation on a 7×9×11 grid. Its SHA256 is
 `0f0dbee909fa4f7a7e778bd65f14e1b52acca4912b918a7c4d6fda97681f9b63`;
 commands and terminal statuses are in
-`/tmp/hybrid-evolving-pressure-final-test-overlay/results.json`.
+`/tmp/hybrid-evolving-pressure-final-test-overlay/results.json`. Four deliberately
+incorrect implementations fail the unchanged tests on both runtimes: replacing
+electron velocity by ion velocity, freezing the pressure gradient, changing the
+compression coefficient, and omitting z transport.
 
 Real MPI checks pass at 1/2/4 ranks on 1.13.2 and 1/2 ranks on 1.12.7,
-including restart, migration, rank-local rejection and rollback. Commands,
-logs and frozen-file checks are recorded in
-`/tmp/hybrid-evolving-pressure-io-mpi-v1/freeze1-results.json`.
-Review reproduced direct Ohm-law mutation when pressure shared a gradient
-buffer. The shared storage preflight now rejects it before mutation; the
-independent recheck exits 0 on 1.13.2
-(`/tmp/hybrid-pressure-direct-ohm-alias-recheck.log`).
+including restart, migration, rank-local rejection and rollback. Commands and
+frozen-source checks are in
+`/tmp/hybrid-evolving-pressure-io-mpi-v1/freeze1-results.json`. The v2 two-rank
+reruns also pass on both runtimes. Each runtime's 24 concrete I/O/MPI analyses
+match v1's complete report trees; all eight Serialization diagnostics match
+the baseline Serialization subtrees
+(`v2-verification/iojet{112,1132}-comparison.json`). This is a
+no-added-diagnostics result, not a zero-report claim.
 
-The first package-quality run on 1.12.7 adds one JET report (23 versus 22),
-identifying a captured `count` variable in `_save_pressure_transaction!`.
-Concrete calls pass, but the report remains a promotion gate. The isolated v2
-candidate gives the total and per-population counts distinct bindings; final
-full-report comparisons and affected native gates are running. No ceiling is raised.
-The original source and report are retained; the live implementation is
-unchanged. Public documentation is prepared separately, with its example
-verified on both native runtimes.
+Review repaired direct Ohm-law mutation through shared pressure/gradient storage
+and an additional package-analysis report caused by a captured particle count.
+The latter has zero `Core.Box` occurrences on both runtimes. The complete v3
+package report on 1.12.7 matches the baseline: 22 reports in 14 full trees.
+Only source paths, offsets of unchanged source lines and generated identifiers
+are normalized (`v3-verification/canonical-delta112.log`). A separate same-object
+rendering experiment explains the Serialization display difference in the older
+v1 comparison; the original added-count report is retained. No report ceiling
+is raised. The full v2 gates exit 0 on both native runtimes: 2,290 assertions
+each across 66 testsets, including all 48 concrete signatures, existing
+integration regressions, pressure physics and I/O, JET and Aqua. Their complete
+package comparisons match the baseline with independently verified same-object
+Serialization display translations (`v2-verification/v2-report-delta112.log`
+and `v2-report-delta-proved1132.log`). Final v4 complete report comparisons
+also match the baseline on both
+runtimes: 22 reports/14 trees on 1.12.7 and 21 reports/13 trees on 1.13.2
+(`v4-verification/canonical-delta{112,1132}.log`).
 
-The v2 count binding has zero `Core.Box` occurrences in Julia 1.12 lowering,
-versus one in v1. A same-report-object experiment also verifies that importing
-`Serialization` changes one displayed report tree without rerunning analysis.
-After applying only that exact, proved display translation, the complete v1
-comparison retains precisely the added captured-count report. The full v2
-comparison is still pending. Evidence is in
-`/tmp/hybrid-evolving-pressure-v2-verification/verified-serialization-render112.json`
-and `v1-report-delta-render-proved112.json`.
-
-The frozen v2 resource rerun passes 336 assertions on Julia 1.12.7 (exit 0),
+The frozen v2 resource rerun passes 336 assertions on each Julia 1.12.7 and
+1.13.2 (both exit 0),
 including exact algebraic outputs and allocations, unchanged standalone Euler,
 adjacent CAM-CL/Hall behavior and grid-size-independent field-stage allocations.
 Two subcycles allocate 2,624 bytes in 1D and 2,880 in 2D/3D at 4, 8 and 16 cells
-per axis, for both Float32 and Float64. These are measured allocations, not a
-portable runtime claim. Commands, elapsed time and frozen-source checks are in
+per axis, for Float32 and Float64. These are measured allocations, not a portable
+runtime claim. Commands and frozen-source checks are in
 `/tmp/hybrid-evolving-pressure-v2-verification/support-results.json`.
 
-**VERIFIED candidate defect:** the new stored-pressure energy branch loses
-finite complete integrals through its pressure sum, division and cell-volume
-intermediates (`/tmp/hybrid-evolving-pressure-v2/src/integrators/extrapolated_leapfrog.jl:1133`).
-The corrected independent rational witness passes 32 assertions on each
-Julia 1.12.7 and 1.13.2; logs are
-`/tmp/hybrid-evolving-pressure-v2-verification/energy-range-witness-v2-{112,1132}.log`.
-The first harness mistakenly classified one finite-volume Float64 control as
-an overflow case; its 30-pass/two-fail log is retained as
-`energy-range-witness1132.log`. A separate v3 candidate now guards intermediate
-range loss and evaluates exceptional complete integrals through the existing
-exact conversion owner. Its first rounding, ordinary-output/allocation and
-validation run passes 360 assertions on Julia 1.13.2, including zero measured
-ordinary-path allocation. Minimum-version, integrated and compiler acceptance
-remain unfinished. The formatted v3 retains executable syntax from that run;
-183 v2 source/test files are byte-identical, and removing the new helper plus
-reverting its single call recovers the v2 integrator file exactly. Evidence is
-in `/tmp/hybrid-evolving-pressure-v3-verification/first-result.json` and
-`scope.json`. The pre-edit contract is
-`/tmp/hybrid-evolving-pressure-v2-verification/pressure-energy-brief.md`.
+**VERIFIED candidate defects and repairs:** the new stored-pressure integral
+initially loses finite results through sum, quotient and volume intermediates.
+The independent rational witness passes 32 assertions on each runtime. The v3
+repair passes 875 integrated assertions and 260 four-thread checks on 1.12.7,
+but a subsequent eight-assertion witness on each version shows that rounded
+finite sums can conceal true output overflow. The v4 owner adds a conservative
+power-of-two bound and retains a streamed exact fallback through `_from_exact`.
+The final energy, concrete-compiler and Aqua gate passes 996 assertions on each
+runtime with exit 0; a separate four-thread gate passes 650 assertions per
+runtime, including both sides of the overflow boundary. The complete package
+report trees match the baseline on both versions. Commands, elapsed times and
+frozen hashes are recorded in
+`/tmp/hybrid-evolving-pressure-v4-verification/results.json`.
+The broader v2 regressions and repeated MPI/I/O compiler gates are complete
+on both versions (`v2-verification/{minimum,latest,support}-results.json`).
+All failed/predecessor evidence remains in
+`v2-verification` and `v3-verification`; the pre-edit contracts are
+`v2-verification/pressure-energy-brief.md` and `v4-verification/brief.md`.
+
+The public guide example runs on both native versions. The staged documentation
+and formatting preserve executable ASTs across all 186 candidate Julia files;
+all 20 changed Julia files pass JuliaFormatter 1.0.62 idempotence. This does not
+replace exact-revision GitHub CI. An environment
+review found stale v2 `[sources]` entries alongside v4 manifest paths; direct
+and Aqua-style child probes confirmed the v4 source actually loaded. Corrected
+private environment copies pass Aqua on both versions. Latest-Julia resolution
+updates six bundled runtime version metadata entries; both environment probes
+load identical bundled package versions and roots. The original failed graph
+identity assertion and its exact differences are retained in
+`v4-verification/environment-source-audit.json` and its linked evidence.
 
 - [x] Define the first slice: opt-in `EvolvingElectrons(gamma>1)`, periodic
   `HybridStepper`, `η=ηH=de2=0`; reject unsupported CAMCL/Hall-MHD use explicitly.
 - [x] Define persistent state: users initialize `fields.pe` before `init!`;
   finite nonnegative pressure, including exact zero, is accepted. No clipping
   or implicit density-derived reset.
-- [ ] Share the pressure RHS with the standalone equation; advance B and pe
+- [x] Share the pressure RHS with the standalone equation; advance B and pe
   together through each RK4 stage, using stage current and frozen midpoint
   ion moments to form electron velocity.
-- [ ] Integrate serial single/collection populations and replicated MPI with
+- [x] Integrate serial single/collection populations and replicated MPI with
   one field-advance owner. Keep existing staggering and variable-step behavior.
-- [ ] Reject invalid pressure/stages with contextual errors. For new numerical
+- [x] Reject invalid pressure/stages with contextual errors. For new numerical
   rejection, restore public fields, particle positions/velocities and clocks
   exactly; coordinate MPI failure before subsequent collective operations.
-- [ ] Preserve pe in checkpoint/archive/distributed restart, validate before
+- [x] Preserve pe in checkpoint/archive/distributed restart, validate before
   restore mutation, and require explicit `pe=` in evolving-pressure budgets.
-- [ ] Preserve finite stored-pressure integrals across sum, quotient and volume
+- [x] Preserve finite stored-pressure integrals across sum, quotient and volume
   range failures; check exact rounding boundaries and unchanged ordinary costs.
-- [ ] Retain old algebraic outputs and steady-state allocations. Allocate
+- [x] Retain old algebraic outputs and steady-state allocations. Allocate
   pressure/rollback buffers only for the new closure and measure their cost.
-- [ ] Verify analytic advection, compression, Hall transport and battery
+- [x] Verify analytic advection, compression, Hall transport and battery
   coupling; joint-stage and coupled convergence; zero/variable timesteps;
   rollback/retry, restart and MPI failure; compiler/quality gates on both Julia
-  versions. Then push the complete slice and require exact-revision green CI.
+  versions.
+- [ ] Complete exact-revision GitHub CI for the pushed implementation.
 
-The proposed explicit spectral pressure update is not positivity preserving;
+The explicit spectral pressure update is not positivity preserving;
 smaller timesteps or better-resolved positive data may be necessary. The
 existing magnetic timestep recommendation does not bound pressure advection or
 compression. These constraints must be documented with the implementation.

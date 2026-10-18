@@ -4,9 +4,14 @@
     ohms_law!(f, model, g)
 
 Fill `f.E` from generalized Ohm's law using `f.n`, `f.ui`, `f.B`. Also updates
-`f.J = ∇×B`, `f.pe`, `f.gradp`, `f.ninv`, and the density-floor counter.
+`f.J = ∇×B`, `f.gradp`, `f.ninv`, and the density-floor counter. Algebraic
+closures recompute `f.pe`; [`EvolvingElectrons`](@ref) validates and reads its
+stored pressure without changing it. Stored pressure must have independent
+storage, and scalar CGL scratch must retain its empty layout.
 """
 function ohms_law!(f::HybridFields{D,T}, model::HybridModel, g::FourierGrid{D,T}) where {D,T}
+    _validate_evolving_model(model, T)
+    _evolves_pressure(model.closure) && _validate_evolving_pressure_storage(f, g)
     if is_anisotropic(model.closure)
         # gyrotropic (CGL) path: pressure force is the tensor divergence ∇·P_e(n,B),
         # applied on all three E components. The `is_anisotropic` test is resolved at
@@ -74,7 +79,11 @@ function _ohm_prep!(
             DimensionMismatch("gradp[$d] size $(size(gradp[d])) does not match grid size $(g.n)"),
         )
     end
-    electron_pressure!(pe, n, closure)
+    if _evolves_pressure(closure)
+        _validate_evolving_pressure(pe, g)
+    else
+        electron_pressure!(pe, n, closure)
+    end
     gradient!(gradp, pe, g)                              # ∇p_e (D spatial comps)
     cnt = 0
     @inbounds for I in eachindex(n)

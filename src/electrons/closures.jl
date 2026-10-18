@@ -1,6 +1,7 @@
 # hybrid.jl — the massless-electron hybrid field model in Ω_ci-normalized units
 # (§6–7 of the checklist). Proton-only quasineutrality n_e = n_i = n; the
-# electric field is algebraic (generalized Ohm's law), only B is dynamic.
+# electric field is algebraic (generalized Ohm's law); scalar pressure can
+# optionally evolve with B.
 #
 # Normalized equations:
 #   J = ∇×B
@@ -12,6 +13,44 @@
 # ---------------------------------------------------------------- electron closures
 
 abstract type ElectronClosure end
+
+"""
+    EvolvingElectrons(γ = 5/3)
+
+Adiabatic scalar electron pressure, evolved as a persistent `HybridFields.pe`
+state by `HybridStepper`. Set the initial pressure before `init!`; zero is a
+valid cold state. Requires finite `γ > 1` and an ideal massless `HybridModel`
+(`η = ηH = de2 = 0`). CAM-CL and Hall-MHD reject this closure.
+
+The equation is `∂pe/∂t = −ue⋅∇pe − γ*pe*∇⋅ue`, with
+`ue=ui−J/max(n,nfloor)`. Pressure and B share each RK4 stage and are stored
+at integer time; particle velocity retains its half-time level. Pressure must
+be finite and nonnegative at every explicit stage. Rejected numerical steps
+roll back public state and never clip pressure. Checkpoints preserve
+`pe`, and electron-energy diagnostics require it explicitly through `pe=`.
+No heating, heat flux, or discrete total-energy conservation is implied.
+The magnetic [`recommended_dt`](@ref) does not bound pressure advection or
+compression. The explicit spectral pressure scheme is not positivity preserving.
+"""
+struct EvolvingElectrons{T<:AbstractFloat} <: ElectronClosure
+    γ::T
+    function EvolvingElectrons{T}(γ::Real) where {T<:AbstractFloat}
+        value = _require_finite_real("γ", γ, T)
+        value > one(T) || throw(ArgumentError("evolving electron γ must be greater than one"))
+        return new{T}(value)
+    end
+end
+
+EvolvingElectrons(γ::Real = 5 / 3) = EvolvingElectrons{float(typeof(γ))}(γ)
+closure_gamma(c::EvolvingElectrons) = c.γ
+_evolves_pressure(::ElectronClosure) = false
+_evolves_pressure(::EvolvingElectrons) = true
+
+electron_pressure!(::Any, ::Any, ::EvolvingElectrons) = throw(
+    ArgumentError(
+        "EvolvingElectrons requires stored pressure; initialize fields.pe and use ohms_law!",
+    ),
+)
 
 "Isothermal electrons: p_e = T_e · n  (T_e the normalized electron temperature)."
 struct IsothermalElectrons{T} <: ElectronClosure

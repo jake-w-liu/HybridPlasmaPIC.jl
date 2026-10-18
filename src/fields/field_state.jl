@@ -6,6 +6,8 @@
 Grid-resident hybrid fields and scratch: density `n`, ion bulk velocity `ui`,
 magnetic `B`, electric `E`, current `J`, electron pressure `pe`, its gradient
 `gradp`, reciprocal density `ninv`, and a density-floor activation counter.
+For [`EvolvingElectrons`](@ref), `pe` is persistent integer-time state alongside
+B; algebraic closures use it as derived pressure storage.
 """
 mutable struct HybridFields{D,T}
     n::Array{T,D}
@@ -58,3 +60,33 @@ function HybridFields{D,T}(nc::Tuple{Vararg{Int}}; anisotropic::Bool = false) wh
 end
 
 # ---------------------------------------------------------------- moments
+
+function _copy_hybrid_fields!(destination::HybridFields, candidate::HybridFields)
+    # Preserve the arrays exposed to callers while committing the physical and
+    # derived fields together. All fallible calculations happen on the candidate.
+    for (dst, src) in (
+        (destination.n, candidate.n),
+        (destination.pe, candidate.pe),
+        (destination.ninv, candidate.ninv),
+        (destination.cgl_dp, candidate.cgl_dp),
+    )
+        copyto!(dst, src)
+    end
+    for (dst, src) in (
+        (destination.ui, candidate.ui),
+        (destination.B, candidate.B),
+        (destination.E, candidate.E),
+        (destination.J, candidate.J),
+        (destination.lapJ, candidate.lapJ),
+        (destination.pforce, candidate.pforce),
+    )
+        for c in eachindex(dst)
+            copyto!(dst[c], src[c])
+        end
+    end
+    for d in eachindex(destination.gradp)
+        copyto!(destination.gradp[d], candidate.gradp[d])
+    end
+    destination.floor_count[] = candidate.floor_count[]
+    return nothing
+end

@@ -4,6 +4,7 @@
 #   particle position x        : integer n          (→ n+1)
 #   particle velocity v        : half    n−1/2      (→ n+1/2)
 #   magnetic field   B         : integer n          (→ n+1)
+#   evolving electron pe        : integer n          (→ n+1, optional closure)
 #   electric field   E (carried): integer n         (recomputed → n+1)
 #   moments for the B-subcycle : n+1/2 (midpoint positions x^{n+1/2}, v^{n+1/2})
 #
@@ -24,6 +25,34 @@
 #      in the −u_i×B convection term). See _recenter_carried_E!.
 # The Boris update is centered at n; the B update is centered at n+1/2; the scheme is 2nd-order.
 
+# Evolving pressure alone owns these grids and rollback buffers. Algebraic
+# closures use `nothing`, so their hot path carries no extra array storage.
+mutable struct _PressureEvolutionWorkspace{D,T}
+    ue::NTuple{3,Array{T,D}}
+    divue::Array{T,D}
+    kp::NTuple{4,Array{T,D}}
+    ptmp::Array{T,D}
+    saved::HybridFields{D,T}
+    x0::NTuple{D,Vector{T}}
+    v0::NTuple{3,Vector{T}}
+    clock::Tuple{T,Int,T}
+end
+
+function _pressure_workspace(g::FourierGrid{D,T}, closure, count) where {D,T}
+    _evolves_pressure(closure) || return nothing
+    return _PressureEvolutionWorkspace{D,T}(
+        ntuple(_ -> zeros(T, g.n), 3),
+        zeros(T, g.n),
+        ntuple(_ -> zeros(T, g.n), 4),
+        zeros(T, g.n),
+        HybridFields{D,T}(g.n),
+        ntuple(_ -> zeros(T, count), D),
+        ntuple(_ -> zeros(T, count), 3),
+        (zero(T), 0, zero(T)),
+    )
+end
+
+
 """
     HybridStepper(g, model, shape, N::Integer)
 
@@ -31,9 +60,11 @@ Workspace and configuration for time-stepping ions on grid `g` under `model`
 with deposition/gather `shape`. `N` is the initial total particle workspace
 length, resized as needed. Pass one proton `ParticleSet` or a vector of positive
 ion populations to [`init!`](@ref) and [`step!`](@ref), after setting the initial
-field in `stepper.fields.B`.
+field in `stepper.fields.B`. With [`EvolvingElectrons`](@ref), also set the
+finite, nonnegative initial pressure in `stepper.fields.pe`; initialization
+preserves that pressure. Other closures compute pressure from their algebraic law.
 """
-mutable struct HybridStepper{D,T,SH<:ShapeFunction,M<:HybridModel}
+mutable struct HybridStepper{D,T,SH<:ShapeFunction,M<:HybridModel,W}
     g::FourierGrid{D,T}
     model::M
     shape::SH
@@ -54,6 +85,7 @@ mutable struct HybridStepper{D,T,SH<:ShapeFunction,M<:HybridModel}
     time::Base.RefValue{T}
     step::Base.RefValue{Int}
     last_dt::Base.RefValue{T}          # previous drift interval fixes the velocity half level
+    pressure_work::W
 end
 
 const _HybridPopulations{D,T} = Union{ParticleSet{D,T},AbstractVector{<:ParticleSet{D,T}}}
@@ -66,7 +98,9 @@ function HybridStepper(
 ) where {D,T,M<:HybridModel,SH<:ShapeFunction}
     nc = g.n
     Np = _particle_length(N)
-    HybridStepper{D,T,SH,M}(
+    _validate_evolving_model(model, T)
+    pressure_work = _pressure_workspace(g, model.closure, Np)
+    HybridStepper{D,T,SH,M,typeof(pressure_work)}(
         g,
         model,
         shape,
@@ -87,7 +121,125 @@ function HybridStepper(
         Ref(zero(T)),
         Ref(0),
         Ref(zero(T)),                        # last_dt
+        pressure_work,
     )
+end
+
+_pressure_populations(ps::ParticleSet) = (ps,)
+_pressure_populations(species::AbstractVector) = species
+
+function _validate_pressure_storage(st::HybridStepper, ps)
+    w = st.pressure_work
+    w === nothing && return nothing
+    f, g = st.fields, st.g
+    _validate_evolving_pressure_storage(f, g)
+    for a in (
+        st.fn,
+        st.fui...,
+        st.Escr...,
+        st.k1...,
+        st.k2...,
+        st.k3...,
+        st.k4...,
+        st.Btmp...,
+        w.ue...,
+        w.divue,
+        w.kp...,
+        w.ptmp,
+        w.saved.n,
+        w.saved.ui...,
+        w.saved.B...,
+        w.saved.E...,
+        w.saved.J...,
+        w.saved.pe,
+        w.saved.gradp...,
+        w.saved.ninv,
+        w.saved.lapJ...,
+        st.Ep...,
+        st.Bp...,
+        st.vpred...,
+        st.xmid...,
+        st.work,
+        w.x0...,
+        w.v0...,
+    )
+        _particle_arrays_mightalias(f.pe, a) &&
+            throw(ArgumentError("evolving pressure must have independent storage"))
+    end
+    for population in _pressure_populations(ps),
+        a in (population.x..., population.v..., population.weight, population.id, population.tag)
+
+        _particle_arrays_mightalias(f.pe, a) &&
+            throw(ArgumentError("evolving pressure must not alias particle storage"))
+    end
+    return nothing
+end
+
+function _validate_pressure_step_state(st::HybridStepper{D,T}, ps) where {D,T}
+    st.pressure_work === nothing && return nothing
+    _validate_evolving_model(st.model, T)
+    _validate_pressure_storage(st, ps)
+    # The transaction copies x/v before deposition; validate their canonical
+    # layout here so MPI ranks reject malformed storage collectively.
+    for population in _pressure_populations(ps)
+        _validate_moment_particles(population)
+    end
+    _validate_evolving_pressure(st.fields.pe, st.g)
+    for a in (st.fields.B..., st.fields.E...)
+        _validate_pressure_finite(a, "evolving-pressure field input")
+    end
+    return nothing
+end
+
+function _save_pressure_transaction!(st::HybridStepper{D,T}, ps) where {D,T}
+    w = st.pressure_work
+    w === nothing && return nothing
+    total_count = sum(nparticles(p) for p in _pressure_populations(ps); init = 0)
+    if length(w.v0[1]) != total_count
+        w.x0 = ntuple(_ -> Vector{T}(undef, total_count), D)
+        w.v0 = ntuple(_ -> Vector{T}(undef, total_count), 3)
+    end
+    _copy_hybrid_fields!(w.saved, st.fields)
+    offset = 0
+    for population in _pressure_populations(ps)
+        population_count = nparticles(population)
+        for d = 1:D
+            copyto!(w.x0[d], offset + 1, population.x[d], 1, population_count)
+        end
+        for c = 1:3
+            copyto!(w.v0[c], offset + 1, population.v[c], 1, population_count)
+        end
+        offset += population_count
+    end
+    w.clock = (st.time[], st.step[], st.last_dt[])
+    return nothing
+end
+
+function _restore_pressure_transaction!(st::HybridStepper{D,T}, ps) where {D,T}
+    w = st.pressure_work
+    w === nothing && return nothing
+    _copy_hybrid_fields!(st.fields, w.saved)
+    offset = 0
+    for population in _pressure_populations(ps)
+        count = nparticles(population)
+        for d = 1:D
+            copyto!(population.x[d], 1, w.x0[d], offset + 1, count)
+        end
+        for c = 1:3
+            copyto!(population.v[c], 1, w.v0[c], offset + 1, count)
+        end
+        offset += count
+    end
+    st.time[], st.step[], st.last_dt[] = w.clock
+    return nothing
+end
+
+function _validate_pressure_electric!(st::HybridStepper)
+    st.pressure_work === nothing && return nothing
+    for a in st.fields.E
+        _validate_pressure_finite(a, "evolving-pressure carried electric field")
+    end
+    return nothing
 end
 
 function _resize_hybrid_particle_workspaces!(st, n::Integer)
@@ -194,7 +346,11 @@ end
     init!(stepper, species::AbstractVector)
 
 Compute the carried electric field E⁰ from the initial particle moments and
-`stepper.fields.B`. Call once after loading particles and setting B.
+`stepper.fields.B`. Call once after loading particles and setting B. With
+[`EvolvingElectrons`](@ref), set finite nonnegative `stepper.fields.pe` first;
+initialization preserves it, including an exact zero cold state. Reinitialization
+also preserves pressure and resets the clock and leapfrog phase. A rejected
+evolving-pressure initialization restores public fields and clocks.
 Collection calls combine positive ion populations with their own charge and mass
 using charge-weighted moments. Populations require independent storage and a
 common time level. Reinitialize when adding populations loaded at a new physical
@@ -202,13 +358,23 @@ velocity time level. Empty populations contribute zero moments.
 """
 function init!(st::HybridStepper{D,T}, ps::_HybridPopulations{D,T}) where {D,T}
     count = ps isa ParticleSet ? nparticles(ps) : _validate_hybrid_species(ps)
-    _resize_hybrid_particle_workspaces!(st, count)
-    _hybrid_integer_moments!(st, ps)
-    ohms_law!(st.fields, st.model, st.g)
-    st.time[] = zero(T)                 # (re)start at t=0; step==0 triggers leapfrog priming
-    st.step[] = 0
-    st.last_dt[] = zero(T)
-    return st
+    _validate_pressure_step_state(st, ps)
+    _save_pressure_transaction!(st, ps)
+    completed = false
+    try
+        _resize_hybrid_particle_workspaces!(st, count)
+        _hybrid_integer_moments!(st, ps)
+        ohms_law!(st.fields, st.model, st.g)
+        _validate_pressure_electric!(st)
+        st.time[] = zero(T)                 # (re)start at t=0; step==0 triggers leapfrog priming
+        st.step[] = 0
+        st.last_dt[] = zero(T)
+        completed = true
+        return st
+    finally
+        # Cleanup only: the original exception/stack propagates, including interrupts.
+        completed || _restore_pressure_transaction!(st, ps)
+    end
 end
 
 # F = −∇×E(Btrial; frozen moments) into out
@@ -278,6 +444,100 @@ function _rk4_B!(st::HybridStepper{D,T}, h::T) where {D,T}
         @. B[c] += (h / 6) * (st.k1[c] + 2 * st.k2[c] + 2 * st.k3[c] + st.k4[c])
     end
     return B
+end
+
+# One coupled field RHS: E/J and pressure transport use the same B/p stage.
+function _bpressure_rhs!(
+    outB,
+    outp,
+    Btrial,
+    ptrial,
+    st::HybridStepper{D,T},
+    cycle,
+    stage,
+) where {D,T}
+    f, w, g = st.fields, st.pressure_work, st.g
+    _validate_evolving_pressure(ptrial, g; subcycle = cycle, stage)
+    for a in Btrial
+        _validate_pressure_finite(a, "evolving-pressure magnetic stage")
+    end
+    gradient!(f.gradp, ptrial, g)
+    _ohm_Efield!(st.Escr, st.fui, Btrial, f.J, f.lapJ, f.gradp, f.ninv, zero(T), zero(T), g)
+    electron_velocity!(w.ue, st.fui, f.J, st.fn; nfloor = T(st.model.nfloor))
+    divergence!(w.divue, w.ue, g)
+    _electron_pressure_rhs!(outp, ptrial, w.ue, f.gradp, w.divue, T(st.model.closure.γ), Val(D))
+    faraday_rhs!(outB, st.Escr, g)
+    _validate_pressure_finite(outp, "evolving-pressure rate")
+    for a in outB
+        _validate_pressure_finite(a, "evolving-pressure magnetic rate")
+    end
+    return nothing
+end
+
+function _rk4_Bp!(st::HybridStepper{D,T}, h::T, cycle) where {D,T}
+    B, pe, w = st.fields.B, st.fields.pe, st.pressure_work
+    _bpressure_rhs!(st.k1, w.kp[1], B, pe, st, cycle, 1)
+    for c = 1:3
+        @. st.Btmp[c] = B[c] + (h / 2) * st.k1[c]
+    end
+    @. w.ptmp = pe + (h / 2) * w.kp[1]
+    _bpressure_rhs!(st.k2, w.kp[2], st.Btmp, w.ptmp, st, cycle, 2)
+    for c = 1:3
+        @. st.Btmp[c] = B[c] + (h / 2) * st.k2[c]
+    end
+    @. w.ptmp = pe + (h / 2) * w.kp[2]
+    _bpressure_rhs!(st.k3, w.kp[3], st.Btmp, w.ptmp, st, cycle, 3)
+    for c = 1:3
+        @. st.Btmp[c] = B[c] + h * st.k3[c]
+    end
+    @. w.ptmp = pe + h * w.kp[3]
+    _bpressure_rhs!(st.k4, w.kp[4], st.Btmp, w.ptmp, st, cycle, 4)
+    for c = 1:3
+        @. st.Btmp[c] = B[c] + (h / 6) * (st.k1[c] + 2 * st.k2[c] + 2 * st.k3[c] + st.k4[c])
+        _validate_pressure_finite(st.Btmp[c], "evolving-pressure magnetic candidate")
+    end
+    @. w.ptmp = pe + (h / 6) * (w.kp[1] + 2 * w.kp[2] + 2 * w.kp[3] + w.kp[4])
+    _validate_evolving_pressure(w.ptmp, st.g; subcycle = cycle, stage = 5)
+    for c = 1:3
+        copyto!(B[c], st.Btmp[c])
+    end
+    copyto!(pe, w.ptmp)
+    return nothing
+end
+
+# Serial and replicated MPI share preparation and every subcycle. Algebraic
+# closures retain their original pressure preparation and B-only RK arithmetic.
+function _advance_hybrid_fields!(st::HybridStepper{D,T}, dtT::T, NB::Integer) where {D,T}
+    f, g = st.fields, st.g
+    if _evolves_pressure(st.model.closure)
+        _validate_pressure_finite(st.fn, "evolving-pressure midpoint density")
+        for u in st.fui
+            _validate_pressure_finite(u, "evolving-pressure midpoint ion velocity")
+        end
+        _ohm_ninv!(f.ninv, st.fn, T(st.model.nfloor), f.floor_count)
+    elseif is_anisotropic(st.model.closure)
+        _ohm_ninv!(f.ninv, st.fn, T(st.model.nfloor), f.floor_count)
+    else
+        _ohm_prep!(
+            f.pe,
+            f.gradp,
+            f.ninv,
+            st.fn,
+            st.model.closure,
+            T(st.model.nfloor),
+            f.floor_count,
+            g,
+        )
+    end
+    hb = dtT / NB
+    for cycle = 1:NB
+        if _evolves_pressure(st.model.closure)
+            _rk4_Bp!(st, hb, cycle)
+        else
+            _rk4_B!(st, hb)
+        end
+    end
+    return nothing
 end
 
 function _validated_step_dt(
@@ -490,9 +750,18 @@ end
 
 Advance the plasma one timestep `dt` with `NB` magnetic subcycles (periodic box).
 The particle kick spans the previous and next half-time levels when `dt` changes;
-positions and the magnetic field advance by the requested `dt`.
+positions, the magnetic field and evolving pressure advance by the requested
+`dt` to integer time; particle velocity remains at its half-time level.
 Collection calls push every ion population with its own charge-to-mass ratio;
 one field update uses their combined charge-weighted midpoint moments.
+
+With [`EvolvingElectrons`](@ref), pressure and B advance through the same RK4
+stages with frozen midpoint ion moments. This closure requires an ideal massless
+model. Pressure must remain finite and nonnegative at every stage; a rejected
+step restores particles, public fields and clocks, preserving their array
+identities. There is no pressure clipping. Choose a smaller timestep or improve
+spatial resolution when a pressure stage is rejected. A zero timestep changes
+nothing, including invalid input pressure. Private work arrays are scratch.
 """
 function step!(
     st::HybridStepper{D,T},
@@ -504,49 +773,34 @@ function step!(
     iszero(dtT) && return st        # dt=0 is a true no-op: advance nothing, and (critically) do
     #                                 NOT consume the step==0 one-time leapfrog-priming guard.
     next_time, next_step = _validated_step_clock(st.time[], st.step[], dtT)
-    _resize_hybrid_particle_workspaces!(st, _validate_hybrid_species(ps))
-    g = st.g
-    h = dtT / 2
-    kick_dt = st.step[] == 0 ? dtT : st.last_dt[] / 2 + h
-    # 1–2. Push populations and combine all frozen n+1/2 charge moments.
-    _push_hybrid_midpoint_moments!(st, ps, dtT, kick_dt)
-    # frozen-moment Ohm terms computed ONCE; reused every subcycle. Scalar closures freeze
-    # pe/∇pe/1/n; the anisotropic (CGL) closure freezes 1/n and the pressure-tensor force
-    # ∇·P_e(n^{n+1/2}, B^n) instead (compile-time-resolved from the closure type).
-    f = st.fields
-    if is_anisotropic(st.model.closure)
-        # only 1/n is frozen; the gyrotropic force ∇·P_e is recomputed per subcycle stage
-        # (it depends on the trial B direction — see _bfield_rhs!).
-        _ohm_ninv!(f.ninv, st.fn, T(st.model.nfloor), f.floor_count)
-    else
-        _ohm_prep!(
-            f.pe,
-            f.gradp,
-            f.ninv,
-            st.fn,
-            st.model.closure,
-            T(st.model.nfloor),
-            f.floor_count,
-            g,
-        )
+    count = _validate_hybrid_species(ps)
+    _validate_pressure_step_state(st, ps)
+    _save_pressure_transaction!(st, ps)
+    completed = false
+    try
+        _resize_hybrid_particle_workspaces!(st, count)
+        g = st.g
+        h = dtT / 2
+        kick_dt = st.step[] == 0 ? dtT : st.last_dt[] / 2 + h
+        # 1–2. Push populations and combine all frozen n+1/2 charge moments.
+        _push_hybrid_midpoint_moments!(st, ps, dtT, kick_dt)
+        _advance_hybrid_fields!(st, dtT, NB)
+
+        # 4. recompute carried E = E^{n+1} (n^{n+1}, u_i^{n+1/2}, B^{n+1}), then re-center u_i to n+1
+        #    via a predictor half-kick so the carried E is 2nd-order accurate (see _recenter_carried_E!).
+        _hybrid_integer_moments!(st, ps)
+        ohms_law!(st.fields, st.model, st.g)
+        _recenter_carried_E!(st, ps, dtT)
+        _validate_pressure_electric!(st)
+
+        st.time[] = next_time
+        st.step[] = next_step
+        st.last_dt[] = dtT
+        completed = true
+        return st
+    finally
+        completed || _restore_pressure_transaction!(st, ps)
     end
-
-    # 3. subcycle B: n → n+1
-    hb = dtT / NB
-    for _ = 1:NB
-        _rk4_B!(st, hb)
-    end
-
-    # 4. recompute carried E = E^{n+1} (n^{n+1}, u_i^{n+1/2}, B^{n+1}), then re-center u_i to n+1
-    #    via a predictor half-kick so the carried E is 2nd-order accurate (see _recenter_carried_E!).
-    _hybrid_integer_moments!(st, ps)
-    ohms_law!(st.fields, st.model, st.g)
-    _recenter_carried_E!(st, ps, dtT)
-
-    st.time[] = next_time
-    st.step[] = next_step
-    st.last_dt[] = dtT
-    return st
 end
 
 # ---------------------------------------------------------------- diagnostics
@@ -845,32 +1099,96 @@ function magnetic_energy(B::NTuple{3,<:Array{T,D}}, g::FourierGrid{D,T}) where {
     return T(0.5) * s * prod(g.dx)
 end
 
+# For nonnegative inputs, a finite rounded sum is at least every input, hence
+# the exact sum is at most count*pressure_sum. Numerator factors are bounded
+# above by powers of two. The predecessor of rounded gamma-1 bounds its exact
+# positive value from below. Int128 retains the sum of machine-sized exponents.
+function _pressure_energy_upper_exponent(pressure_sum::T, γ::T, dx, count::Int) where {T}
+    count_exponent = 8sizeof(Int) - leading_zeros(count - 1)
+    upper = Int128(exponent(pressure_sum)) + 1 + count_exponent
+    for spacing in dx
+        upper += Int128(exponent(spacing)) + 1
+    end
+    return upper - Int128(exponent(prevfloat(γ - one(T))))
+end
+
+# Pressure and gamma have been validated by the public diagnostic. Preserve
+# ordinary summation/order; recover the complete integral on intermediate range
+# loss or when the positive upper bound cannot exclude final overflow.
+function _stored_pressure_internal_energy(pe::AbstractArray{T}, γ::T, dx::NTuple{D,T}) where {D,T}
+    pressure_sum = sum(pe)
+    denominator = γ - one(T)
+    unscaled = pressure_sum / denominator
+    volume = prod(dx)
+    result = unscaled * volume
+    lost =
+        !isfinite(pressure_sum) ||
+        _spectral_quotient_lost_range(pressure_sum, denominator, unscaled) ||
+        _spectral_product_lost_range(unscaled, volume, result)
+    # Contiguous products cover either multiplication association in D <= 3.
+    for first = 1:length(dx)
+        partial = one(T)
+        for last = first:length(dx)
+            product = partial * dx[last]
+            lost |= _spectral_product_lost_range(partial, dx[last], product)
+            partial = product
+        end
+    end
+    if !lost && !iszero(pressure_sum)
+        upper = _pressure_energy_upper_exponent(pressure_sum, γ, dx, length(pe))
+        lost = upper > exponent(floatmax(T))
+    end
+    if lost
+        total = zero(Rational{BigInt})
+        for pressure in pe
+            total += _exact_rational(pressure)
+        end
+        integral = total * prod(_exact_rational, dx) / (_exact_rational(γ) - 1)
+        return _from_exact(T, integral)
+    end
+    return result
+end
+
 """
-    electron_internal_energy(n, closure, g) -> Real
-    electron_internal_energy(n, B, closure, g) -> Real
+    electron_internal_energy(n, closure, g; pe=nothing) -> Real
+    electron_internal_energy(n, B, closure, g; pe=nothing) -> Real
 
-Electron closure energy — the reservoir that closes the hybrid energy budget
-(see [`energy_budget`](@ref)):
+Electron closure energy integrated over the grid:
 
-  - polytropic `γ ≠ 1`: internal energy `∫ p_e/(γ−1) dV`;
-  - `γ = 1` (isothermal): the electron **free energy**
-    `F_e = T_e ∫ n ln n dV = ∫ p_e ln n dV` (`p_e = T_e n`) — the exact γ→1
-    limit of the polytropic invariant `∫ (p_e − T_e n)/(γ−1) dV` (`∫ n dV` is
-    conserved), and the Lyapunov/budget term making `KE + ∫½|B|² dV + F_e`
-    exactly conserved at `η = 0`. Cells with `n ≤ 0` contribute `0` (the
-    `n ln n → 0⁺` limit; deposited densities are ≥ 0 and floored downstream);
-  - CGL (gyrotropic): the internal energy `∫ ½ tr(P_e) dV = ∫ (p_⊥ + p_∥/2) dV`
-    needs `|B|` — use the `(n, B, closure, g)` method (the density-only method
-    degrades to `NaN` for anisotropic closures, for backward compatibility).
-    The gyrotropic budget is exact modulo the anisotropic battery term
-    `∝ (p_⊥ − p_∥)`; see [`energy_budget`](@ref).
+  - evolving scalar pressure: `∫ pe/(γ−1) dV`, requiring the stored state through
+    `pe=stepper.fields.pe`; density alone cannot reconstruct this reservoir;
+  - polytropic `γ ≠ 1`: `∫ p_e/(γ−1) dV` from the algebraic closure;
+  - `γ = 1` (isothermal): electron free energy `T_e ∫ n ln n dV`, with cells
+    at `n ≤ 0` contributing zero;
+  - CGL (gyrotropic): `∫ (p_⊥ + p_∥/2) dV`, requiring the B-taking method.
+    The density-only method retains its existing `NaN` result for CGL.
+
+Algebraic closures reject an alternate `pe` argument. This function integrates
+supplied state without evolving it. See [`energy_budget`](@ref) for continuum
+model qualifications and particle/field time levels; this diagnostic does not
+imply exact discrete energy conservation.
 """
 function electron_internal_energy(
     n::Array{T,D},
     closure::ElectronClosure,
-    g::FourierGrid{D,T},
+    g::FourierGrid{D,T};
+    pe = nothing,
 ) where {D,T}
     _require_grid_array(:n, n, g)
+    if _evolves_pressure(closure)
+        pe === nothing && throw(
+            ArgumentError("EvolvingElectrons energy requires explicit stored pressure via pe="),
+        )
+        pe isa AbstractArray{T,D} ||
+            throw(ArgumentError("stored pressure must match grid precision and dimension"))
+        _validate_evolving_pressure(pe, g)
+        γ = _require_finite_real("γ", closure.γ, T)
+        γ > one(T) ||
+            throw(ArgumentError("evolving electron γ must be greater than one at grid precision"))
+        return _stored_pressure_internal_energy(pe, γ, g.dx)
+    end
+    pe === nothing ||
+        throw(ArgumentError("algebraic electron energy does not accept an alternate pe"))
     # a gyrotropic (CGL) closure needs |B| for its internal energy — use the
     # (n, B, closure, g) method; degrade to NaN here rather than throwing downstream.
     is_anisotropic(closure) && return T(NaN)
@@ -893,18 +1211,22 @@ function electron_internal_energy(
     n::Array{T,D},
     B::NTuple{3,<:Array{T,D}},
     closure::ElectronClosure,
-    g::FourierGrid{D,T},
+    g::FourierGrid{D,T};
+    pe = nothing,
 ) where {D,T}
     _require_grid_tuple(:B, B, g)
-    return electron_internal_energy(n, closure, g)
+    return electron_internal_energy(n, closure, g; pe)
 end
 
 function electron_internal_energy(
     n::Array{T,D},
     B::NTuple{3,<:Array{T,D}},
     closure::CGLElectrons,
-    g::FourierGrid{D,T},
+    g::FourierGrid{D,T};
+    pe = nothing,
 ) where {D,T}
+    pe === nothing ||
+        throw(ArgumentError("algebraic electron energy does not accept an alternate pe"))
     _require_grid_array(:n, n, g)
     _require_grid_tuple(:B, B, g)
     # gyrotropic internal energy ½ tr(P_e) = p_⊥ + p_∥/2 with the CGL-slaved

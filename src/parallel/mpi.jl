@@ -745,7 +745,20 @@ function _mpi_require_same_species(species::AbstractVector{<:ParticleSet{D,T}}, 
     return nothing
 end
 
+function _mpi_require_same_species(ps::ParticleSet{D,T}, ctx) where {D,T}
+    _mpi_require_equal(T[ps.q, ps.m], ctx, "species charge and mass")
+    return nothing
+end
+
 function _mpi_hybrid_init_count(st, ps::ParticleSet, ctx)
+    if _evolves_pressure(st.model.closure)
+        count = _mpi_collective_validate(ctx) do
+            _validate_pressure_step_state(st, ps)
+            _validate_hybrid_species(ps)
+        end
+        _mpi_require_same_species(ps, ctx)
+        return count
+    end
     _require_finite_positive_real("nfloor", st.model.nfloor, eltype(st.fields.n))
     return nparticles(ps)
 end
@@ -753,6 +766,7 @@ end
 function _mpi_hybrid_init_count(st, species::AbstractVector{<:ParticleSet}, ctx)
     count = _mpi_collective_validate(ctx) do
         _require_finite_positive_real("nfloor", st.model.nfloor, eltype(st.fields.n))
+        _evolves_pressure(st.model.closure) && _validate_pressure_step_state(st, species)
         _validate_hybrid_species(species)
     end
     _mpi_require_same_species(species, ctx)
@@ -767,6 +781,8 @@ function _mpi_hybrid_step_inputs(
     NB,
     migrate,
 ) where {D,T}
+    _evolves_pressure(st.model.closure) &&
+        return _mpi_hybrid_collective_step_inputs(st, ps, ctx, dt, NB, migrate)
     dtT = _validated_step_dt(T, dt, NB; min_NB = 1, name = "mpi_step!")
     iszero(dtT) && return (dtT, st.time[], st.step[], 0)
     next_time, next_step = _validated_step_clock(st.time[], st.step[], dtT)
@@ -777,6 +793,33 @@ end
 function _mpi_hybrid_step_inputs(
     st::HybridStepper{D,T},
     species::AbstractVector{<:ParticleSet},
+    ctx,
+    dt,
+    NB,
+    migrate,
+) where {D,T}
+    return _mpi_hybrid_collective_step_inputs(st, species, ctx, dt, NB, migrate)
+end
+
+function _mpi_require_migration_storage(ps::ParticleSet)
+    for a in (ps.x..., ps.v..., ps.weight, ps.id, ps.tag)
+        a isa Vector || throw(
+            ArgumentError(
+                "MPI collection migration requires Vector particle storage; disable migration to use views",
+            ),
+        )
+    end
+    return nothing
+end
+
+function _mpi_require_migration_storage(species::AbstractVector{<:ParticleSet})
+    foreach(_mpi_require_migration_storage, species)
+    return nothing
+end
+
+function _mpi_hybrid_collective_step_inputs(
+    st::HybridStepper{D,T},
+    ps::_HybridPopulations{D,T},
     ctx,
     dt,
     NB,
@@ -794,24 +837,25 @@ function _mpi_hybrid_step_inputs(
     next_time, next_step, count = _mpi_collective_validate(ctx) do
         following_time, following_step = _validated_step_clock(st.time[], st.step[], dtT)
         _require_finite_positive_real("nfloor", st.model.nfloor, T)
-        local_count = _validate_hybrid_species(species)
+        local_count = _validate_hybrid_species(ps)
+        _evolves_pressure(st.model.closure) && _validate_pressure_step_state(st, ps)
         isfinite(st.last_dt[]) && st.last_dt[] >= zero(T) ||
             throw(ArgumentError("previous hybrid timestep must be finite and nonnegative"))
-        if migrate
-            for ps in species, a in (ps.x..., ps.v..., ps.weight, ps.id, ps.tag)
-                a isa Vector || throw(
-                    ArgumentError(
-                        "MPI collection migration requires Vector particle storage; disable migration to use views",
-                    ),
-                )
-            end
-        end
+        migrate && _mpi_require_migration_storage(ps)
         (following_time, following_step, local_count)
     end
-    _mpi_require_same_species(species, ctx)
+    _mpi_require_same_species(ps, ctx)
     _mpi_require_equal([st.step[]], ctx, "step counts")
     _mpi_require_equal(T[st.time[], st.last_dt[]], ctx, "time and previous timestep")
     return dtT, next_time, next_step, count
+end
+
+# Only the evolving closure adds numerical phase barriers. A rejected local
+# phase must reach the same status collective as its peers before any next
+# moment reduction or migration; the public transaction then restores every rank.
+function _mpi_hybrid_pressure_phase(f, st, ctx)
+    _evolves_pressure(st.model.closure) && return _mpi_collective_validate(f, ctx)
+    return f()
 end
 
 function _mpi_reduce_moments!(nout::Array{T}, uout, nf::T, ctx; gpu_status) where {T}
@@ -921,6 +965,9 @@ end
 MPI reference initialization matching [`init!`](@ref), but with moments summed
 over rank-local particle subsets. Accepts one population or an ordered positive
 ion collection; collection validation completes collectively before mutation.
+For `EvolvingElectrons`, supplied pressure is preserved, and input/numerical
+validation is collective for either population form. A numerical rejection
+restores the public fields, particle positions/velocities, and clocks on every rank.
 """
 function mpi_init!(
     st::HybridStepper{D,T},
@@ -930,9 +977,23 @@ function mpi_init!(
 ) where {D,T}
     count = _mpi_hybrid_init_count(st, ps, ctx)
     _resize_hybrid_particle_workspaces!(st, count)
-    _hybrid_integer_raw_moments!(st, ps)
-    _mpi_reduce_moments!(st.fields.n, st.fields.ui, T(st.model.nfloor), ctx; gpu_status)
-    ohms_law!(st.fields, st.model, st.g)
+    _evolves_pressure(st.model.closure) && _save_pressure_transaction!(st, ps)
+    try
+        _mpi_hybrid_pressure_phase(st, ctx) do
+            _hybrid_integer_raw_moments!(st, ps)
+        end
+        _mpi_reduce_moments!(st.fields.n, st.fields.ui, T(st.model.nfloor), ctx; gpu_status)
+        _mpi_hybrid_pressure_phase(st, ctx) do
+            ohms_law!(st.fields, st.model, st.g)
+            _validate_pressure_electric!(st)
+        end
+    catch err
+        if _evolves_pressure(st.model.closure) &&
+           (err isa ArgumentError || err isa DimensionMismatch)
+            _restore_pressure_transaction!(st, ps)
+        end
+        rethrow()
+    end
     st.time[] = zero(T)                 # (re)start at t=0; step==0 triggers leapfrog priming
     st.step[] = 0
     st.last_dt[] = zero(T)
@@ -952,7 +1013,11 @@ All ranks must use the same ordered species, timestep/subcycle/migration setting
 and integrator phase. Collection input validation failures are reported on every
 rank before particles, fields or workspaces change; zero dt remains a no-op.
 As for the scalar interface, callers supply matching grids, models and replicated
-fields on every rank.
+fields on every rank, including evolving electron pressure. `EvolvingElectrons`
+uses the serial joint field/pressure subcycles; its input and numerical validation
+is collective for either population form. A pressure/numerical rejection restores
+public fields, particle positions/velocities, and clocks before returning an error.
+MPI transport and particle-migration failures are outside that rollback contract.
 """
 function mpi_step!(
     st::HybridStepper{D,T},
@@ -967,34 +1032,39 @@ function mpi_step!(
         _mpi_hybrid_step_inputs(st, ps, ctx, dt, NB, migrate_particles)
     iszero(dtT) && return st
     _resize_hybrid_particle_workspaces!(st, count)
+    _evolves_pressure(st.model.closure) && _save_pressure_transaction!(st, ps)
 
     g = st.g
     h = dtT / 2
     kick_dt = st.step[] == 0 ? dtT : st.last_dt[] / 2 + h
     nf = T(st.model.nfloor)
-    _push_hybrid_midpoint_raw_moments!(st, ps, dtT, kick_dt)
-    _mpi_reduce_moments!(st.fn, st.fui, nf, ctx; gpu_status)
-
-    f = st.fields
-    # scalar closures freeze pe/∇pe/1/n; the anisotropic (CGL) closure freezes only 1/n and
-    # recomputes ∇·P_e per subcycle stage (in _rk4_B!→_bfield_rhs!) — mirror HybridStepper.
-    if is_anisotropic(st.model.closure)
-        _ohm_ninv!(f.ninv, st.fn, nf, f.floor_count)
-    else
-        _ohm_prep!(f.pe, f.gradp, f.ninv, st.fn, st.model.closure, nf, f.floor_count, g)
+    try
+        _mpi_hybrid_pressure_phase(st, ctx) do
+            _push_hybrid_midpoint_raw_moments!(st, ps, dtT, kick_dt)
+        end
+        _mpi_reduce_moments!(st.fn, st.fui, nf, ctx; gpu_status)
+        _mpi_hybrid_pressure_phase(st, ctx) do
+            _advance_hybrid_fields!(st, dtT, NB)
+            _hybrid_integer_raw_moments!(st, ps)
+        end
+        _mpi_reduce_moments!(st.fields.n, st.fields.ui, nf, ctx; gpu_status)
+        _mpi_hybrid_pressure_phase(st, ctx) do
+            ohms_law!(st.fields, st.model, g)
+            _validate_pressure_electric!(st)
+            _hybrid_predictor_raw_moments!(st, ps, dtT)
+        end
+        _mpi_reduce_moments!(st.fields.n, st.fields.ui, nf, ctx; gpu_status)
+        _mpi_hybrid_pressure_phase(st, ctx) do
+            ohms_law!(st.fields, st.model, g)
+            _validate_pressure_electric!(st)
+        end
+    catch err
+        if _evolves_pressure(st.model.closure) &&
+           (err isa ArgumentError || err isa DimensionMismatch)
+            _restore_pressure_transaction!(st, ps)
+        end
+        rethrow()
     end
-
-    hb = dtT / NB
-    for _ = 1:NB
-        _rk4_B!(st, hb)
-    end
-
-    _hybrid_integer_raw_moments!(st, ps)
-    _mpi_reduce_moments!(st.fields.n, st.fields.ui, nf, ctx; gpu_status)
-    ohms_law!(st.fields, st.model, g)
-    _hybrid_predictor_raw_moments!(st, ps, dtT)
-    _mpi_reduce_moments!(st.fields.n, st.fields.ui, nf, ctx; gpu_status)
-    ohms_law!(st.fields, st.model, g)
 
     if migrate_particles
         if ps isa ParticleSet
