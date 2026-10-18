@@ -156,6 +156,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Nonrelativistic particle-energy diagnostics retain complete finite scalar and
+  multispecies expressions when intermediate arithmetic loses range, including
+  signed cancellation between overflowing populations and hidden final overflow.
+  Range checks retain the original arithmetic when they certify it as safe.
+
 - Clarify hybrid energy accounting: the Ohmic quadratic diagnostic is not
   generally the net tracked-energy loss, and the reduced inertia reservoir
   does not establish moving-ion total-energy conservation. Numerical outputs

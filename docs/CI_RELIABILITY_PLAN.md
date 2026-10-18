@@ -524,3 +524,24 @@ exited on a GitHub API read timeout; its retained watch log is not a CI failure.
 Subsequent direct API inspection reports `completed/success` for the whole run
 and all six jobs, and the completed job logs provide the version and test evidence.
 Native `6ad7276` is complete; later pushed revisions retain their own final gates.
+
+## October 18 pressure-feature acceptance
+
+Documentation revision `e33935024aff59f0dbcf1da467c5e1c353fb9676` has fully green
+[run 39091128686](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39091128686).
+All six jobs pass. Actual Julia 1.12.7 passes 369,711 assertions in 111m46.9s;
+1.13.2 passes 369,712 in 98m51.0s. Package JET counts are 23/22. Status and full
+job logs are retained in `/tmp/hybrid-ci-followup-20261018-0440`, with parsed
+version/count/hash evidence in `39091128686-evidence.json`.
+
+Documentation revision `1150ed3a5d53843902d75869bf1f1ce70c6958da` also has all six
+jobs green in [run 39093601976](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39093601976).
+Actual Julia 1.12.7 passes 369,711 assertions in 113m02.0s; 1.13.2 passes 369,712
+in 98m57.8s. Package JET counts remain 23/22. The same evidence directory retains
+all six job logs and `39093601976-evidence.json` with their parsed version/count
+and package-log hashes. The pressure
+implementation is pushed as `013a70b9a6703769fda6e7069c8a00ce6192a8b2`;
+[run 39097756477](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39097756477)
+has green formatting and all MPI ranks, with both package jobs pending. API requests
+briefly returned rate-limit errors; subsequent reads succeeded. This is not
+billing evidence or a CI completion result. Each exact SHA must finish green.

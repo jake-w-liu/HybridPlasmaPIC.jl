@@ -805,18 +805,206 @@ end
 
 # ---------------------------------------------------------------- diagnostics
 
-"Total ion kinetic energy Σ_p ½ m w |v|²."
-function kinetic_energy(ps::ParticleSet{D,T}) where {D,T}
-    s = zero(T)
+@inline _kinetic_factor_certified(value, lower, upper) =
+    iszero(value) | ((lower <= abs(value)) & (abs(value) <= upper))
+
+function _kinetic_energy_bounds(::Type{T}, count::Int128) where {T}
+    count_bits = count <= 1 ? 0 : 128 - leading_zeros(count - 1)
+    upper = fld(exponent(floatmax(T)) - count_bits - 4, 4)
+    positive = min(upper, fld(-exponent(floatmin(T)) - 1, 4))
+    mixed = min(upper, fld(-exponent(floatmin(T)) - 4precision(T) + 3, 4))
+    positive_bounds =
+        positive < 0 ? (T(Inf), zero(T)) : (ldexp(one(T), -positive), ldexp(one(T), positive))
+    mixed_bounds = mixed < 0 ? (T(Inf), zero(T)) : (ldexp(one(T), -mixed), ldexp(one(T), mixed))
+    return (positive_bounds..., mixed_bounds...)
+end
+
+# One ordinary reduction owns scalar and collection arithmetic. Certificates
+# exclude intermediate range loss; uncertain finite cases use one complete sum.
+function _kinetic_energy_probe(ps::ParticleSet{D,T}, bounds, ::Val{check}) where {D,T,check}
+    positive_ok = mixed_ok = true
+    has_positive = has_negative = false
     vx, vy, vz = ps.v
+    if check
+        lo, hi, mixed_lo, mixed_hi = bounds
+        positive_ok = _kinetic_factor_certified(ps.m, lo, hi)
+        mixed_ok = _kinetic_factor_certified(ps.m, mixed_lo, mixed_hi)
+        nonzero_mass, negative_mass = !iszero(ps.m), signbit(ps.m)
+        # Boolean reductions may vectorize; the floating reduction below keeps
+        # its original order. All inputs are read-only, including shared views.
+        @inbounds @simd for p in eachindex(ps.weight)
+            w, x, y, z = ps.weight[p], vx[p], vy[p], vz[p]
+            positive_ok &=
+                _kinetic_factor_certified(w, lo, hi) &
+                _kinetic_factor_certified(x, lo, hi) &
+                _kinetic_factor_certified(y, lo, hi) &
+                _kinetic_factor_certified(z, lo, hi)
+            mixed_ok &=
+                _kinetic_factor_certified(w, mixed_lo, mixed_hi) &
+                _kinetic_factor_certified(x, mixed_lo, mixed_hi) &
+                _kinetic_factor_certified(y, mixed_lo, mixed_hi) &
+                _kinetic_factor_certified(z, mixed_lo, mixed_hi)
+            contributes = nonzero_mass & !iszero(w) & !(iszero(x) & iszero(y) & iszero(z))
+            same_sign = negative_mass == signbit(w)
+            has_positive |= contributes & same_sign
+            has_negative |= contributes & !same_sign
+        end
+    end
+    s = zero(T)
     @inbounds for p in eachindex(ps.weight)
         s += ps.weight[p] * (vx[p]^2 + vy[p]^2 + vz[p]^2)
     end
-    return T(0.5) * ps.m * s
+    return (T(0.5) * ps.m * s, positive_ok, mixed_ok, has_positive, has_negative)
 end
 
-"Total kinetic energy of all populations; a typed empty collection contributes zero."
+@inline function _kinetic_normal_product(a::T, b::T, product::T) where {T}
+    # A rounded value at floatmin can have a subnormal exact product. The
+    # factor of two certifies the exact product's normal range as well.
+    return isfinite(product) && (iszero(a) || iszero(b) || abs(product) >= T(2) * floatmin(T))
+end
+
+function _kinetic_energy_absolute_probe(species, ::Type{T}, ::Val{check}) where {T,check}
+    absolute = zero(T)
+    normal = true
+    for ps in species
+        sum_abs = zero(T)
+        vx, vy, vz = ps.v
+        @inbounds for p in eachindex(ps.weight)
+            x, y, z = vx[p], vy[p], vz[p]
+            x2, y2, z2 = x^2, y^2, z^2
+            speed2 = x2 + y2 + z2
+            weight = abs(ps.weight[p])
+            weighted = weight * speed2
+            if check
+                normal &=
+                    _kinetic_normal_product(x, x, x2) &&
+                    _kinetic_normal_product(y, y, y2) &&
+                    _kinetic_normal_product(z, z, z2) &&
+                    isfinite(speed2) &&
+                    _kinetic_normal_product(weight, speed2, weighted)
+            end
+            sum_abs += weighted
+        end
+        mass = abs(ps.m)
+        half_mass = T(0.5) * mass
+        contribution = half_mass * sum_abs
+        if check
+            normal &=
+                isfinite(sum_abs) &&
+                _kinetic_normal_product(T(0.5), mass, half_mass) &&
+                _kinetic_normal_product(half_mass, sum_abs, contribution)
+        end
+        absolute += contribution
+    end
+    return absolute, normal && isfinite(absolute)
+end
+
+_kinetic_energy_absolute(species, ::Type{T}) where {T} =
+    first(_kinetic_energy_absolute_probe(species, T, Val(false)))
+
+# Wide-certified factors keep products normal. Subnormal additions are exact
+# on the minimum-subnormal lattice. A contribution has at most count+4 rounded
+# operations; the positive absolute evaluation has the same bound.
+function _kinetic_energy_error_bound(absolute::T, count::Int128) where {T}
+    k = count + 4
+    k <= Int128(1) << (precision(T) - 2) || return T(Inf)
+    delta = ldexp(T(k), -precision(T))
+    factor = nextfloat(delta / (one(T) - T(2) * delta))
+    return nextfloat(factor * absolute)
+end
+
+function _kinetic_energy_normal_certified(species, value::T, count::Int128) where {T}
+    count + 4 <= Int128(1) << (precision(T) - 2) || return false
+    absolute = _kinetic_energy_absolute(species, T)
+    error = _kinetic_energy_error_bound(absolute, count)
+    return prevfloat(abs(value) - error) >= floatmin(T)
+end
+
+# Direct product checks cover ordinary inputs outside the uniform factor box.
+# Signed population products can underflow through cancellation. Their combined
+# propagated rounding error is at most 2*count*qmin/3 under the same count limit;
+# count*qmin is exactly representable and gives a conservative extra allowance.
+function _kinetic_energy_operations_certified(species, value::T, count::Int128) where {T}
+    count + 4 <= Int128(1) << (precision(T) - 2) || return false
+    absolute, normal = _kinetic_energy_absolute_probe(species, T, Val(true))
+    normal || return false
+    error = nextfloat(_kinetic_energy_error_bound(absolute, count) + T(count) * nextfloat(zero(T)))
+    return prevfloat(abs(value) - error) >= floatmin(T) && isfinite(nextfloat(abs(value) + error))
+end
+
+function _kinetic_energy_exact(species, ::Type{T}) where {T}
+    total = zero(Rational{BigInt})
+    for ps in species
+        mass = _exact_rational(ps.m)
+        iszero(mass) && continue
+        for p in eachindex(ps.weight)
+            weight = _exact_rational(ps.weight[p])
+            iszero(weight) && continue
+            speed2 = sum(_exact_rational(ps.v[c][p])^2 for c = 1:3)
+            total += mass * weight * speed2 / 2
+        end
+    end
+    return _from_exact(T, total)
+end
+
+function _kinetic_energy_checked(species, ::Type{T}, ::Val{single}) where {T,single}
+    count = Int128(0)
+    for ps in species
+        # Both collection and population lengths fit Int; their complete
+        # product fits Int128, including the largest 64-bit Int lengths.
+        count += length(ps.weight)
+    end
+    bounds = _kinetic_energy_bounds(T, count)
+    energy = zero(T)
+    positive_ok = mixed_ok = true
+    has_positive = has_negative = false
+    for ps in species
+        value, positive, mixed, plus, minus = _kinetic_energy_probe(ps, bounds, Val(true))
+        energy = single ? value : energy + value
+        positive_ok &= positive
+        mixed_ok &= mixed
+        has_positive |= plus
+        has_negative |= minus
+    end
+    # Empty or identically zero contributions keep the ordinary signed zero.
+    (iszero(count) || (!(has_positive || has_negative) && iszero(energy))) && return energy
+    (mixed_ok || (positive_ok && !(has_positive && has_negative))) && return energy
+    positive_ok && _kinetic_energy_normal_certified(species, energy, count) && return energy
+    !positive_ok && _kinetic_energy_operations_certified(species, energy, count) && return energy
+    finite = all(species) do ps
+        isfinite(ps.m) && all(isfinite, ps.weight) && all(a -> all(isfinite, a), ps.v)
+    end
+    # Rational conversion is eligible only when every finite check is known true.
+    return finite === true ? _kinetic_energy_exact(species, T) : energy
+end
+
+"""
+    kinetic_energy(ps) -> Real
+
+Total ion kinetic energy `Σ_p ½ m w |v|²`. For Float16/32/64, range-sensitive
+finite factors are retained through the complete expression before final
+rounding. Inputs certified free of range loss keep their existing summation
+order. Signed weights and masses are supported; nonfinite inputs retain their
+arithmetic behavior.
+"""
+function kinetic_energy(ps::ParticleSet{D,T}) where {D,T}
+    if T <: Union{Float16,Float32,Float64}
+        return _kinetic_energy_checked((ps,), T, Val(true))
+    end
+    return first(_kinetic_energy_probe(ps, nothing, Val(false)))
+end
+
+"""
+    kinetic_energy(species::AbstractVector) -> Real
+
+Total kinetic energy of all populations; a typed empty collection contributes
+zero. Range-sensitive finite Float16/32/64 inputs retain the whole collection
+before rounding, including cancellation between overflowing population energies.
+"""
 function kinetic_energy(species::AbstractVector{<:ParticleSet{D,T}}) where {D,T}
+    if T <: Union{Float16,Float32,Float64}
+        return _kinetic_energy_checked(species, T, Val(false))
+    end
     energy = zero(T)
     for ps in species
         energy += kinetic_energy(ps)
