@@ -198,3 +198,73 @@ second public implementation. Require exact independent total oracles,
 neighboring ties/cancellation, public callers, ordinary bitwise/allocation
 controls, measured cold scaling, concurrency, full compiler comparisons,
 shock regressions and green exact-SHA CI before marking this item complete.
+
+The total-flux pre-edit brief uses the same canonical boundary owner and
+retains the public return shape. The verified cause is component
+materialization before the addition at `shock_surface.jl:156` in `daea194`.
+The isolated experiment `/tmp/hybrid-shock-total-flux-v1` extracts the three
+existing exact component expressions into shared private helpers. The ion
+owner returns its flux and raw error bound internally; its existing vector
+interface remains a wrapper over that owner. A normal-range certificate
+combines field and ion bounds, while an uncertain total replays complete
+boundary contributions and final normalization. This design must preserve
+ordinary bitwise outputs and allocation, including empty and untouched
+boundaries. Initial exact-total and allocation gates are running; the design
+is not yet accepted or copied into production. No model equations, mass
+convention, stencil, validation order, singular gamma-one or generic/nonfinite
+behavior changes are authorized by this arithmetic repair.
+
+Total prototype V1 passes 96 exact-total checks per runtime but fails 60
+ordinary allocation assertions (84 pass). The retained 1.12 allocation
+profile records a `Core.Box` and boxed Float64 values in the total-result
+closure. Its optional lowered-code lookup subsequently fails because the
+script guessed an absent generated method name; that failure is retained.
+V2 replaces the closure with explicit calls for the two API boundaries.
+With every original assertion unchanged, both runtimes pass all 240 initial
+checks, including zero-byte bulk calls and output-vector-only particle calls.
+
+The V2 independent numerical suite passes 6,480 assertions per runtime:
+1,740 complete cancellation/midpoint/overflow checks, 2,000 complete-field
+error-bound checks and 2,740 ion-state bound/immutability checks. Its adapted
+compatibility/concrete-compiler/concurrency suite passes 546 assertions per
+runtime, plus the explicit four-thread gate. Commands, hashes and original
+failures remain under `/tmp/hybrid-shock-total-flux-v1` and `-v2`. Canonical
+integration, full compiler comparison, cost measurements, regressions and
+exact-SHA CI are still required for ENERGY-009.
+
+The canonical total-flux integration is now verified in
+`/tmp/hybrid-shock-total-flux-public-v1-verification`:
+
+- Both native versions pass 24,737 focused assertions across 17 testsets,
+  including the unchanged 17,169 component assertions and 7,568 total checks.
+  The native driver explicitly requires four threads. The total concurrency
+  suite contributes 812 parent-checked assertions per runtime.
+- All nine existing shock files and Aqua pass 462 assertions per runtime.
+  Complete compiler trees match baseline (22/21 reports), with no added or
+  removed diagnostic groups. The final whole-repository formatting scan passes.
+- Thirty-three AST checks preserve prototype arithmetic and all neighboring
+  method overloads. Nine further checks establish that the measured prior
+  owner is the pushed component implementation. Eight formatting checks
+  preserve executable syntax. The first expanded verifier did not parse an
+  existing parametric constructor; its corrected parser retains every overload,
+  and the failed harness and log remain available.
+- Both cost suites pass 414 assertions. Twelve ordinary cases retain bitwise
+  results and allocation counts. Alternating paired median-call ratios against
+  the pushed component owner are 1.25–1.72 for bulk and 0.99–1.56 for particle
+  calls on 1.12.7; on 1.13.2 they are 1.13–2.00 and 0.87–1.75. Eighteen complete
+  cold cases per runtime cover 16–4,096 particles, overflowing cancellation,
+  subnormals and normalization. Their maximum cumulative allocation is
+  47,985,808 B; the largest measured median is 94.0 ms / 219.1 ms. These are
+  local samples, not peak-memory or portable-speed claims.
+
+The internal ion result carries a raw reduction-error bound plus the flux
+vector. A zero bound after global exact recomputation refers to reduction
+error; the total certificate still includes final conversion/normalization
+rounding. Generic or invalid-norm paths retain ordinary behavior. Exact bulk,
+enthalpy and particle expressions have one shared private owner each. The
+existing ion-vector interface delegates to the same accumulator. No public
+API, component-output contract, validation order or physics equations change.
+Further cold-storage and ordinary-latency optimization remains open. Exact-SHA
+GitHub acceptance is required after this repair is pushed.
+
+The component repair is pushed as `daea194035e85cd39c5a497e781f758844881ec4`. [Run 39144368129](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39144368129) is running; formatting passes. The exact 14-path promotion and remote SHA are verified in `committed-evidence.json`; held radiation files retain their hashes. GitHub acceptance remains open, with no billing exception used.

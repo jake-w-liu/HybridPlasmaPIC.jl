@@ -66,6 +66,7 @@ using Test
     include("test_phase_final.jl")
     include("test_shock_diag.jl")
     include("test_shock_energy_flux.jl")
+    include("test_shock_total_flux.jl")
     include("test_shock_injection.jl")
     include("test_instabilities.jl")
     include("test_external_reference.jl")

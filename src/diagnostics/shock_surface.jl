@@ -27,10 +27,7 @@ function _shock_bulk_energy_flux(n::T, ux::T, uy::T) where {T}
     (T === Float32 || T === Float64) || return ordinary
     all(isfinite, (n, ux, uy)) || return ordinary
     _shock_flux_factor_range_certified(T, (n, ux, uy)) && return ordinary
-    value =
-        Rational{BigInt}(n) *
-        (Rational{BigInt}(ux)^2 + Rational{BigInt}(uy)^2) *
-        Rational{BigInt}(ux) / 2
+    value = _shock_exact_bulk_flux(n, ux, uy)
     iszero(value) && return signbit(n) ⊻ signbit(ux) ? -zero(T) : zero(T)
     return _from_exact(T, value)
 end
@@ -41,9 +38,7 @@ function _shock_electron_enthalpy_flux(gamma::T, pressure::T, ux::T) where {T}
     (T === Float32 || T === Float64) || return ordinary
     all(isfinite, (gamma, pressure, ux)) && !iszero(gap) || return ordinary
     _shock_flux_factor_range_certified(T, (gamma, gap, pressure, ux)) && return ordinary
-    value =
-        Rational{BigInt}(gamma) * Rational{BigInt}(pressure) * Rational{BigInt}(ux) /
-        (Rational{BigInt}(gamma) - 1)
+    value = _shock_exact_enthalpy_flux(gamma, pressure, ux)
     if iszero(value)
         negative = signbit(gamma) ⊻ signbit(gap) ⊻ signbit(pressure) ⊻ signbit(ux)
         return negative ? -zero(T) : zero(T)
@@ -124,7 +119,10 @@ Finite Float32/Float64 kinetic and enthalpy components retain the complete
 stored factors when intermediate arithmetic loses range. Particle flux also
 retains the complete nodal sum, CIC weights and SBP normalization. Certified
 ordinary cases preserve the existing operation order; these are not promised
-to be single-rounded. `total` uses ordinary component addition.
+to be single-rounded. When the total is outside the certified normal range,
+its magnetic, kinetic and enthalpy terms retain their complete stored inputs
+through the final addition and rounding. Component outputs keep their own
+rounding; ordinary totals preserve component-addition order.
 """
 function boundary_energy_flux(
     sh::PerpShock{T};
@@ -139,6 +137,7 @@ function boundary_energy_flux(
     mag_wall = sh.Ey[1] * sh.Bz[1]
     enth_inflow = enth(N)
     enth_wall = enth(1)
+    ion_error = 0.0
     if ps === nothing
         # bulk-only ion kinetic flux ½ n |u|² u_x (ion thermal flux needs the ions)
         bulk(i) = _shock_bulk_energy_flux(sh.n[i], sh.ux[i], sh.uy[i])
@@ -146,14 +145,17 @@ function boundary_energy_flux(
         kin_wall = bulk(1)
     else
         # full kinetic-ion energy flux Σ_p w ½|v|² v_x (bulk + thermal) at the boundary
-        Fe = _ion_energy_flux(sh, ps)
+        Fe, ion_error = _shock_ion_flux_state(sh, ps)
         kin_inflow = Fe[N]
         kin_wall = Fe[1]
     end
     magnetic = (mag_inflow, mag_wall)
     kinetic = (kin_inflow, kin_wall)
     enthalpy = (enth_inflow, enth_wall)
-    total = (mag_inflow + kin_inflow + enth_inflow, mag_wall + kin_wall + enth_wall)
+    total = (
+        _shock_total_flux(sh, ps, N, mag_inflow, kin_inflow, enth_inflow, ion_error),
+        _shock_total_flux(sh, ps, 1, mag_wall, kin_wall, enth_wall, ion_error),
+    )
     return (; magnetic, kinetic, enthalpy, total)
 end
 
@@ -161,6 +163,11 @@ end
 # (the same CIC stencil + H-norm as deposit_moments!), returned as a length-N
 # vector. CIC's partition of unity makes Σ_i H[i]·F[i] = Σ_p w·½|v|²·v_x exactly.
 function _ion_energy_flux(sh::PerpShock{T}, ps::ParticleSet{1,T}) where {T}
+    flux, _ = _shock_ion_flux_state(sh, ps)
+    return flux
+end
+
+function _shock_ion_flux_state(sh::PerpShock{T}, ps::ParticleSet{1,T}) where {T}
     N, dx = sh.s.n, sh.s.dx
     acc = zeros(T, N)
     xp, vx, vy, vz, w = ps.x[1], ps.v[1], ps.v[2], ps.v[3], ps.weight
@@ -212,7 +219,7 @@ function _ion_energy_flux(sh::PerpShock{T}, ps::ParticleSet{1,T}) where {T}
         @inbounds for i = 1:N
             acc[i] /= sh.s.H[i]
         end
-        return acc
+        return acc, eligible ? 0.0 : Inf
     end
     # For Float64, each contribution has at most seven rounded operations before at most
     # 2Np additions. The shared bound adds four to its count, so 2Np+4 leaves
@@ -247,7 +254,7 @@ function _ion_energy_flux(sh::PerpShock{T}, ps::ParticleSet{1,T}) where {T}
         acc[i] = certified ? raw / norm : T(NaN)
         uncertain |= !certified
     end
-    uncertain || return acc
+    uncertain || return (acc, Float64(error))
     # NaN marks only a private, uncertified output node. A lazy dictionary
     # avoids exact-allocation overhead for untouched zero nodes.
     exact = nothing
@@ -256,10 +263,7 @@ function _ion_energy_flux(sh::PerpShock{T}, ps::ParticleSet{1,T}) where {T}
         need_a = isnan(acc[a]) && !iszero(wa)
         need_b = isnan(acc[b]) && !iszero(wb)
         (need_a || need_b) && !iszero(w[p]) && !iszero(vx[p]) || continue
-        value =
-            Rational{BigInt}(w[p]) *
-            (Rational{BigInt}(vx[p])^2 + Rational{BigInt}(vy[p])^2 + Rational{BigInt}(vz[p])^2) *
-            Rational{BigInt}(vx[p]) / 2
+        value = _shock_exact_particle_flux(w[p], vx[p], vy[p], vz[p])
         exact === nothing && (exact = Dict{Int,Rational{BigInt}}())
         for (i, coefficient, needed) in ((a, wa, need_a), (b, wb, need_b))
             needed || continue
@@ -270,7 +274,7 @@ function _ion_energy_flux(sh::PerpShock{T}, ps::ParticleSet{1,T}) where {T}
         @inbounds for i = 1:N
             isnan(acc[i]) && (acc[i] = zero(T))
         end
-        return acc
+        return acc, isfinite(error) ? Float64(error) : 0.0
     end
     zero_value = zero(Rational{BigInt})
     @inbounds for i = 1:N
@@ -278,7 +282,95 @@ function _ion_energy_flux(sh::PerpShock{T}, ps::ParticleSet{1,T}) where {T}
         value = exact === nothing ? zero_value : get(exact, i, zero_value)
         acc[i] = iszero(value) ? zero(T) : _from_exact(T, value / Rational{BigInt}(sh.s.H[i]))
     end
-    return acc
+    return acc, isfinite(error) ? Float64(error) : 0.0
+end
+
+_shock_exact_bulk_flux(n, ux, uy) =
+    Rational{BigInt}(n) * (Rational{BigInt}(ux)^2 + Rational{BigInt}(uy)^2) * Rational{BigInt}(ux) /
+    2
+_shock_exact_enthalpy_flux(gamma, pressure, ux) =
+    Rational{BigInt}(gamma) * Rational{BigInt}(pressure) * Rational{BigInt}(ux) /
+    (Rational{BigInt}(gamma) - 1)
+_shock_exact_particle_flux(w, vx, vy, vz) =
+    Rational{BigInt}(w) *
+    (Rational{BigInt}(vx)^2 + Rational{BigInt}(vy)^2 + Rational{BigInt}(vz)^2) *
+    Rational{BigInt}(vx) / 2
+
+function _shock_zero_boundary_ion_flux(sh, ps, node)
+    for p in eachindex(ps.weight)
+        (iszero(ps.weight[p]) || iszero(ps.v[1][p])) && continue
+        a, b, wa, wb = _cic_sbp(ps.x[1][p], sh.s.dx, sh.s.n)
+        ((a == node && !iszero(wa)) || (b == node && !iszero(wb))) && return false
+    end
+    return true
+end
+
+function _shock_exact_boundary_ion_flux(sh, ps, node)
+    total = zero(Rational{BigInt})
+    for p in eachindex(ps.weight)
+        (iszero(ps.weight[p]) || iszero(ps.v[1][p])) && continue
+        a, b, wa, wb = _cic_sbp(ps.x[1][p], sh.s.dx, sh.s.n)
+        need_a, need_b = a == node && !iszero(wa), b == node && !iszero(wb)
+        (need_a || need_b) || continue
+        value = _shock_exact_particle_flux(ps.weight[p], ps.v[1][p], ps.v[2][p], ps.v[3][p])
+        need_a && (total += Rational{BigInt}(wa) * value)
+        need_b && (total += Rational{BigInt}(wb) * value)
+    end
+    return total / Rational{BigInt}(sh.s.H[node])
+end
+
+function _shock_total_flux(
+    sh::PerpShock{T},
+    ps,
+    i,
+    magnetic,
+    kinetic,
+    enthalpy,
+    ion_error,
+) where {T}
+    ordinary = magnetic + kinetic + enthalpy
+    (T === Float32 || T === Float64) || return ordinary
+    gamma, pressure, ux, ey, bz = sh.γe, sh.pe[i], sh.ux[i], sh.Ey[i], sh.Bz[i]
+    all(isfinite, (gamma, pressure, ux, ey, bz)) && gamma != one(T) || return ordinary
+    if ps === nothing
+        all(isfinite, (sh.n[i], sh.uy[i])) || return ordinary
+    else
+        all(x -> isfinite(x) && x > 0, sh.s.H) || return ordinary
+    end
+    factors = _shock_flux_factor_range_certified(T, (gamma, gamma - one(T), pressure, ux, ey, bz))
+    if ps === nothing
+        factors &= _shock_flux_factor_range_certified(T, (sh.n[i], sh.uy[i]))
+    end
+    if factors && all(isfinite, (magnetic, kinetic, enthalpy, ordinary))
+        absolute = abs(magnetic) + abs(kinetic) + abs(enthalpy)
+        if iszero(absolute) && (ps === nothing || _shock_zero_boundary_ion_flux(sh, ps, i))
+            return ordinary
+        end
+        # Four component operations and two additions fit within k=8, including
+        # the positive absolute reduction. Add the independent ion error when
+        # the particle component comes from a longer deposited reduction.
+        error = Float64(_kinetic_energy_error_bound(absolute, Int128(4)))
+        if ps !== nothing
+            normalization_error = nextfloat(0.5 * Float64(eps(kinetic)))
+            particle_error =
+                nextfloat(nextfloat(ion_error / Float64(sh.s.H[i])) + normalization_error)
+            error = nextfloat(error + particle_error)
+        end
+        lower = prevfloat(abs(Float64(ordinary)) - error)
+        upper = nextfloat(abs(Float64(ordinary)) + error)
+        if lower >= floatmin(T) && isfinite(nextfloat(T(upper)))
+            return ordinary
+        end
+    end
+    complete_kinetic =
+        ps === nothing ? _shock_exact_bulk_flux(sh.n[i], ux, sh.uy[i]) :
+        _shock_exact_boundary_ion_flux(sh, ps, i)
+    value =
+        Rational{BigInt}(ey) * Rational{BigInt}(bz) +
+        complete_kinetic +
+        _shock_exact_enthalpy_flux(gamma, pressure, ux)
+    iszero(value) && return iszero(ordinary) ? ordinary : zero(T)
+    return _from_exact(T, value)
 end
 
 # ---------------------------------------------------------------- 2D surface spectrum

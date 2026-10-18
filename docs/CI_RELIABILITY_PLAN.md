@@ -765,3 +765,9 @@ GitHub run remain required; the green core gates do not replace them. Evidence:
 `/tmp/hybrid-polytropic-energy-public-v5-broad-verification`.
 
 The complete energy implementation is pushed as `7104c6190b09daaa01349d7dfd4d299ac9571da3`. [Run 39141208484](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39141208484) is running; formatting and 2-/4-/8-rank MPI pass. Its monitor and eventual full logs are in `/tmp/hybrid-ci-7104c61-20261018`. All 24 committed blobs and remote main match the promotion manifest. No billing exception is used.
+
+## Shock component range repair
+
+`daea194035e85cd39c5a497e781f758844881ec4` is pushed with all native focused, resource, shock, Aqua and complete compiler comparisons passing on Julia 1.12.7/1.13.2. [Run 39144368129](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39144368129) is running; formatting passes; its exact-SHA monitor and eventual full logs are in `/tmp/hybrid-ci-daea194-20261019`. No billing exception is used.
+
+The complete-total follow-up passes all native core gates on 1.12.7/1.13.2: 24,737 focused, 462 shock/Aqua and 414 cost assertions per runtime, plus full compiler comparisons (22/21 baseline reports), migration and read-only formatting. Evidence is in `/tmp/hybrid-shock-total-flux-public-v1-verification`. Its exact pushed SHA must complete GitHub acceptance separately.

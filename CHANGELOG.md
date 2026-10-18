@@ -160,7 +160,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   values when intermediate products overflow or underflow. Particle flux also
   retains CIC weights, nodal cancellation and the final SBP norm. Certified
   ordinary arithmetic and the singular gamma-one enthalpy convention are
-  preserved.
+  preserved. The total retains complete component expressions when their
+  separate rounding or overflowing cancellation would lose its range.
 
 - CGL electron-energy diagnostics retain complete finite density, field,
   invariant-coefficient and cell-spacing expressions through range-sensitive
