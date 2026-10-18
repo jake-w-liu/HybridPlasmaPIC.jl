@@ -1,8 +1,10 @@
 # Polytropic energy range and closure precision
 
-Status: confirmed defects; isolated arithmetic components pass on Julia 1.12.7
-and 1.13.2. The complete public repair is not implemented. This covers the
-polytropic part of ENERGY-004, ENERGY-007 and CLOSURE-001.
+Status: the pointwise pressure correction passes native focused and concrete
+compiler checks on Julia 1.12.7 and 1.13.2 and is entering exact-revision CI.
+Broader native gates remain pending. The complete integrated polytropic energy
+repair is not implemented. This plan covers the polytropic part of ENERGY-004,
+ENERGY-007 and CLOSURE-001.
 
 ## Confirmed behavior and implementation contract
 
@@ -14,8 +16,8 @@ The independent oracle is rational because `(n/n0)^gamma = 1` exactly.
 
 The six 1D–3D witnesses have finite nonzero reference values from approximately
 `4.50e15` to `3.60e16` in magnitude. Both runtimes pass 40 witness assertions,
-including Float64-grid and exact-gamma controls. The diagnostic body is
-byte-identical to `63f2420`: narrowing and branch selection are at
+including Float64-grid and exact-gamma controls. The witness diagnostic body
+is byte-identical to `63f2420`: narrowing and branch selection there are at
 `src/integrators/extrapolated_leapfrog.jl:1402` and `:1405`; the pressure law
 retains stored gamma at `src/electrons/closures.jl:85`. Commands and hashes:
 `/tmp/hybrid-polytropic-complete-design-v1/gamma-evidence.json`.
@@ -48,9 +50,11 @@ already-rounded density ratio. Every observed native pressure correctly rounds
 that altered power, isolating ratio rounding as the source of the large normal-
 output discrepancy. Evidence: `ratio-classification-evidence.json` in the witness
 directory. The six shock expressions listed below have separate public witnesses.
-Their permanent repair and regression gates remain pending.
+Their permanent regressions pass in public pressure v2; broad solver/restart
+and exact-revision GitHub gates remain pending.
 
-The canonical owner is `src/electrons/closures.jl:85`. Its result feeds
+The canonical API is `electron_pressure!` in `src/electrons/closures.jl`,
+with the checked Float32/64 owner in `src/electrons/polytropic_pressure.jl`. Its result feeds
 `gradient!` through `src/electrons/ohms_law.jl:85`–`:87`, as well as the energy
 diagnostic. Repairing only the diagnostic would leave this pressure defect.
 The implementation must share complete power arithmetic while retaining the
@@ -117,8 +121,8 @@ under `/tmp`; the original failed gate is retained.
 
 V2 in `/tmp/hybrid-polytropic-pressure-public-v2` combines the checked scalar
 and array optimizations below. It is the active public acceptance candidate;
-V1 remains a checked reference. Both are based on the unpromoted isothermal
-public v3 snapshot. V2 changes six Julia files relative to V1, with no change
+V1 remains a checked reference. Both are based on the isothermal
+public v3 snapshot, now pushed as `5323c4d`. V2 changes six Julia files relative to V1, with no change
 to integrated polytropic energy. Formatter checks preserve 219 source/test syntax
 trees; all 24 component helpers match. Its 308-file frozen snapshot passes
 27,704 numerical/resource assertions on each Julia 1.12.7/1.13.2. Concrete compiler gates pass 172 assertions on minimum Julia and 156 on latest,
@@ -128,8 +132,10 @@ view-copy reports are retained. Commands, source/log hashes and exit status are 
 under `/tmp`. Broad acceptance is partitioned into the
 same complete 22 files: two checkpoint, eleven solver/diagnostic and nine shock
 files, followed by quality, threaded and full compiler-tree gates. No assertion
-or file is omitted. The original combined gate artifacts remain retained. No pressure source
-has been promoted to `main`.
+or file is omitted. The original combined gate artifacts remain retained. The
+19-file source/test pressure correction, including the independent binomial
+regressions below, is being pushed to run exact-SHA GitHub CI concurrently.
+No pending native or GitHub gate is treated as accepted.
 
 A supplementary independent binomial-series oracle passes 1,314 assertions on
 each runtime, including exact polynomial/square controls, independently searched
@@ -237,8 +243,8 @@ yet close integrated-energy rounding or resource requirements.
 ## Remaining acceptance work
 
 1. Finish public pressure v2's native solver/restart, compiler-tree, quality and
-   threaded gates. Review the final delta, commit/push to `main`, and require
-   green GitHub CI for that exact SHA. Preserve the held radiation files.
+   threaded gates and its exact-revision GitHub CI. Both remain required after
+   the separate pressure push. Preserve the held radiation files.
 2. Complete integrated polytropic final rounding and termination, including
    all-rational multi-term midpoint decisions and resource bounds for large
    integer powers. Pointwise pressure success does not settle this work.

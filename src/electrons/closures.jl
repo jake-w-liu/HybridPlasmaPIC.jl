@@ -57,7 +57,23 @@ struct IsothermalElectrons{T} <: ElectronClosure
     Te::T
 end
 
-"Polytropic electrons: p_e = p_{e0} (n/n_0)^{γ_e}."
+"""
+    PolytropicElectrons(pe0, n0, γ)
+
+Scalar pressure `pe = pe0 * (max(n, 0) / n0)^γ`, with finite `pe0 >= 0`,
+`n0 > 0` and `γ > 0`. The density floor supports transient Hall-MHD predictors;
+the committed state is separately validated against its density floor.
+
+For Float32/64 data, coefficients and destinations, pressure evaluation in
+`Array` storage retains the stored input factors. Supported wrappers are views,
+reshapes, reinterpretations, permutations, transposes and adjoints backed by
+`Array`. Consecutive equal finite densities in compatible arrays reuse their
+pressure within that call; no cache survives the call.
+Ordinary powers use a division-residual correction; sensitive range or large-
+correction cases use scaled intervals and exact midpoint checks. Other element
+types and storage backends retain their native broadcast arithmetic.
+This pointwise pressure contract does not imply exact integrated electron energy.
+"""
 struct PolytropicElectrons{T} <: ElectronClosure
     pe0::T
     n0::T
@@ -82,8 +98,9 @@ electron_pressure!(pe, n, c::IsothermalElectrons) = (@. pe = c.Te * n; pe)
 # but a Hall-MHD RK4 predictor stage can transiently undershoot a cell below 0, and (neg)^γ with a
 # non-integer γ throws an uncontrolled DomainError. pe→0 there (continuous, since 0^γ=0 for γ>0);
 # the committed state is separately validated against nfloor.
-electron_pressure!(pe, n, c::PolytropicElectrons) =
+_legacy_polytropic_pressure!(pe, n, c::PolytropicElectrons) =
     (@. pe = c.pe0 * (max(n, zero(eltype(n))) / c.n0)^c.γ; pe)
+electron_pressure!(pe, n, c::PolytropicElectrons) = _legacy_polytropic_pressure!(pe, n, c)
 
 "Adiabatic index of a closure (for the electron internal-energy budget)."
 closure_gamma(::IsothermalElectrons) = 1.0

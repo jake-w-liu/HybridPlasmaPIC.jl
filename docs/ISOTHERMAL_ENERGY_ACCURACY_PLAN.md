@@ -75,7 +75,7 @@ updates their test includes. All other production files match public v2. Its
 comparison across all 207 source/test files. Both native public focused runs
 pass 27,831 regression assertions plus one preflight check each, and 144
 concrete compiler checks each. Broader lanes await their public-v2 parent lanes;
-the optimization enters its own exact-revision GitHub run concurrently.
+the optimization is pushed as `5323c4d` with its own GitHub run concurrently.
 
 General v2 uses exact frexp range reduction outside `[1/2,2]`, combining bounds
 for the mantissa logarithm and an integer multiple of `log(2)`. The real extreme-
@@ -196,10 +196,12 @@ The 15,427 permanent assertions plus one smoke check and 72 concrete compiler
 checks already pass on each runtime. The performance-v3 and pressure candidates
 remain separate. The latest fully green earlier revision is `d497436`.
 
-The separate public-v3 traversal change is also entering exact-revision CI.
+The separate public-v3 traversal change is pushed as `5323c4d`;
+[its exact-revision CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39129564503)
+is running.
 Its four Julia paths add the checked Float64 degree-eight first pass and local
 repeated-density reuse, with the original complete fallback and accumulation
 order retained. Both native versions pass 27,831 permanent assertions plus one
 smoke check and 144 concrete compiler checks. The 240-assertion paired run and
 92-assertion Float32 repeat above pass. Broader native acceptance remains queued
-and mandatory; the full GitHub run starts in parallel after its separate push.
+and mandatory; its full GitHub run is executing in parallel.

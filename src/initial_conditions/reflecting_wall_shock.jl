@@ -248,7 +248,7 @@ function compute_E!(sh::PerpShock{T}) where {T}
     # :polytropic — pe is an algebraic function of n; :energy — pe is a dynamical
     # field evolved by the energy equation (do not overwrite it here).
     if sh.closure === :polytropic
-        @. sh.pe = sh.Te * sh.n^sh.γe
+        _polytropic_unfloored_pressure!(sh.pe, sh.n, sh.Te, sh.γe)
     end
     sbp_deriv!(sh.DBz, sh.Bz, sh.s)
     sbp_deriv!(sh.Dpe, sh.pe, sh.s)
@@ -302,7 +302,7 @@ end
 "Initialize carried E from the loaded particles (call once after loading)."
 function init_shock!(sh::PerpShock{T}, ps::ParticleSet{1,T}) where {T}
     deposit_moments!(sh, ps)
-    @. sh.pe = sh.Te * sh.n^sh.γe        # consistent IC (the :energy closure evolves from here)
+    _polytropic_unfloored_pressure!(sh.pe, sh.n, sh.Te, sh.γe)        # consistent IC (the :energy closure evolves from here)
     compute_E!(sh)
     return sh
 end
@@ -477,8 +477,8 @@ function _rk4_pe_energy!(sh::PerpShock{T}, h::T) where {T}
     @inbounds for i = 1:N
         pe[i] < pf && (pe[i] = pf)
     end
-    pe[1] = sh.Te * sh.n[1]^γe                                    # downstream-reservoir BC
-    pe[N] = sh.Te * sh.n[N]^γe                                    # upstream-inflow BC
+    pe[1] = _polytropic_unreferenced_pressure(T, sh.n[1], sh.Te, γe)                                    # downstream-reservoir BC
+    pe[N] = _polytropic_unreferenced_pressure(T, sh.n[N], sh.Te, γe)                                    # upstream-inflow BC
     return sh
 end
 

@@ -203,7 +203,7 @@ function compute_E2d!(sh::PerpShock2D{T}) where {T}
     fourier_deriv_y!(sh.Jx, sh.Bz, sh.ywork)         # J_x = ∂y Bz
     sbp_deriv_x!(sh.Jy, sh.Bz, sh.sbp)
     sh.Jy .*= -one(T)   # J_y = −∂x Bz
-    @. sh.pe = sh.Te * sh.n^sh.γe
+    _polytropic_unfloored_pressure!(sh.pe, sh.n, sh.Te, sh.γe)
     sbp_deriv_x!(sh.dpe_x, sh.pe, sh.sbp)
     fourier_deriv_y!(sh.dpe_y, sh.pe, sh.ywork)
     η = sh.η

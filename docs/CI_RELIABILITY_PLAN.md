@@ -627,3 +627,13 @@ are still pending; these run concurrently without removing any required gate.
 Exact tree/remote verification is in
 `/tmp/hybrid-isothermal-public-v2-verification/promotion-d497436-whitelist.json`;
 the run monitor and eventual job logs are in `/tmp/hybrid-ci-6e7fb01-20261018`.
+
+The separate isothermal optimization is pushed as
+`5323c4dcf1bb3d7449640ab3e0902516f1a27925`, with
+[exact run 39129564503](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39129564503)
+running. Each native runtime passes 27,831 permanent assertions plus a smoke
+check and 144 concrete compiler checks. The 240-assertion paired benchmark and
+92-assertion repeat pass; the final overlay preserves all 207 executable syntax
+trees. Its four Julia files and four tracker documents exclude the held files.
+The previous correction run remains active; both commits require green CI.
+Monitor: `/tmp/hybrid-ci-5323c4d-20261018`.

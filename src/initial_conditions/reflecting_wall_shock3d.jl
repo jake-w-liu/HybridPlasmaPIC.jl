@@ -305,7 +305,7 @@ end
 "Particle-push electric field from the full 3-D hybrid Ohm's law."
 function compute_E3d!(sh::PerpShock3D{T}) where {T}
     _curl3d!(sh.J, sh.B, sh)                      # J = ∇×B
-    @. sh.pe = sh.Te * sh.n^sh.γe
+    _polytropic_unfloored_pressure!(sh.pe, sh.n, sh.Te, sh.γe)
     ux, uy, uz = sh.u
     Bx, By, Bz = sh.B
     Jx, Jy, Jz = sh.J
