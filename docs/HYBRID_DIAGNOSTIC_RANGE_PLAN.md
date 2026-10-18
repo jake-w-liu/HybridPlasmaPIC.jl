@@ -1,8 +1,10 @@
 # Hybrid diagnostic range follow-up
 
-Status: the kinetic correction passes local acceptance and is included in this
-revision; exact-revision GitHub CI is pending. Field and CGL corrections remain
-under isolated verification. Other algebraic-electron repairs remain planned.
+Status: the kinetic correction is pushed as `850fe46`; its exact-revision
+GitHub CI is green in all six jobs on actual Julia 1.12.7 and 1.13.2.
+The shared field correction has completed native integration gates and is
+included in this revision; its GitHub CI remains required. The CGL correction
+remains under isolated verification. Other algebraic-electron repairs remain planned.
 This work is separate from the evolving-pressure feature and its stored-pressure
 correction.
 
@@ -83,8 +85,9 @@ checks pass 715 each. Complete package-report trees match the baseline:
 promotion's documentation preserves executable ASTs across all 189 source/test
 files, and all five changed Julia files pass JuliaFormatter 1.0.62.
 
-The kinetic repair is accepted locally and included in this revision; its
-exact-revision GitHub run remains required. The 24 sampled ordinary configurations
+The kinetic repair is pushed as `850fe462e7bb50eacda919dd6a5427411b4d151a`;
+[run 39102304110](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39102304110)
+must finish green before GitHub acceptance is recorded. The 24 sampled ordinary configurations
 retain output bits and zero allocations, as do the added small-weight checks.
 Measured latency for 256–4,096 particles is 2.00–5.48× the old reduction on 1.12.7
 and 1.81–3.45× on 1.13.2 in this shared-machine run. The correctness repair is
@@ -117,8 +120,13 @@ pass 126 output/resource checks with zero allocations, and four-thread checks
 pass 542 assertions per runtime. Measured latency is retained without an
 optimality claim. The initial resource harness lacked a direct dependency;
 corrected private environments resolve without changing the dependency graph.
-Full electromagnetic solver/restart, pressure, concrete compiler and package
-report comparisons remain in progress. All original tests and thresholds remain.
+The full electromagnetic solver/restart, pressure, concrete compiler and Aqua
+suites pass 30,668 assertions per runtime across 88 testsets. Complete package
+compiler trees match baseline (22 reports/14 groups on 1.12.7; 21/13 on 1.13.2),
+with evidence in `broader-complete-evidence.json`. All original tests and thresholds
+remain. Combined integration with the pushed kinetic repair has completed all
+native gates; this revision includes the shared field repair, with exact-SHA
+GitHub verification still required.
 Pre-edit contracts, failed evidence and revised source hashes are retained in
 `/tmp/hybrid-field-energy-v{1,2,3}-verification`. This repair does not cover
 algebraic electron pressure generation or complete energy-budget composition.
@@ -129,11 +137,16 @@ The isolated combined snapshot preserves both candidate implementations and the
 pressure feature. Its 280 Julia files include 191 source/test files. A new
 132-assertion joint-budget regression passes on Julia 1.13.2: individual velocity
 squares, magnetic squares and pressure sums lose range while their complete
-reservoirs and total remain finite. The full joint acceptance lanes wait for the
-separate candidates' completed gates and report comparisons. The proposed public
+reservoirs and total remain finite. Both parents have completed their native
+gates and full compiler comparisons. Both joint numerical lanes pass 13,907
+assertions across 18 testsets. Both also pass 1,271 quality/compiler assertions
+and 1,257 four-thread assertions. Complete package compiler trees match baseline
+on both versions (22 reports/14 groups and 21/13, respectively). The proposed public
 docstrings and changelog are separate from the frozen test source; formatting and
-executable-AST comparison pass across all 191 source/test files. No combined
-repair has been promoted. Evidence:
+executable-AST comparison pass across all 191 source/test files. The promotion
+changes only the magnetic block of the current integrator, preserving the pushed
+kinetic implementation byte for byte outside that block. Exact-SHA GitHub CI
+remains required after the push. Evidence:
 `/tmp/hybrid-quadratic-energy-integrated-v1-verification`.
 
 ## Algebraic closure range — remaining ENERGY-004 scope
@@ -169,10 +182,75 @@ arithmetic, handle signed/nonfinite inputs explicitly, and certify the fallback
 selection as well as its final rounding. Polytropic powers and isothermal
 logarithms need their own bounded evaluators and termination arguments; their
 repair must not be described as complete merely by fixing materialized-pressure
-sums. Mixed closure/grid precision is also part of that contract. No algebraic repair has been promoted. An isolated CGL candidate now reuses the
-existing radical finisher and is being checked against independent integrals,
-ordinary outputs and an operation-error enclosure; it is not yet accepted. Its
-pre-edit contract and source are in `/tmp/hybrid-cgl-energy-v1-verification`.
+sums. Mixed closure/grid precision is also part of that contract. No algebraic repair has been promoted. The first isolated CGL candidate reuses
+the existing radical finisher and passes 944 focused assertions on each runtime,
+including independent integrals, mixed precision, ordinary output/allocation and
+operation-error enclosures. Broader resource controls keep it unaccepted:
+16 witness assertions per runtime establish 1,676,808/1,684,736 B allocations
+for ordinary 256-cell perpendicular field nulls / zero-density cells, versus
+zero in the original owner. On Julia 1.13.2, its real 4,194,304-cell positive
+grid also returns the correct unchanged value but allocates 27,682,407,880 B
+and takes 714.96 s, versus 0 B and 0.304 s in the original reduction. The two
+output/immutability assertions pass; the resource acceptance criterion fails.
+The full measurement and source-hash check are retained in the v1
+`large-grid-resource1132.log` and `resource-rejection.json`.
+
+A separate v2 preserves the ordinary reduction, exact owner and signed error
+certificate. It treats identically zero cells separately and adds a positive-term
+range bound without the signed certificate's count limit. New checks include
+zero-cell allocations, complete overflow midpoints, subnormal tails, mixed-precision
+cancellation and a real 4,194,304-cell grid. Both Julia 1.12.7 and 1.13.2 pass
+1,434 focused assertions. Separate measurements preserve the original large-grid
+value and allocate 0 B on both versions: candidate/original elapsed samples are
+0.768/0.133 s on 1.12.7 and 0.745/0.292 s on 1.13.2. These shared-host samples
+show remaining certificate overhead, not an optimization limit. Source hashes
+confirm the signed certificate and exact owner are unchanged from v1. Both
+runtimes also pass 1,244 solver/multispecies/concrete-compiler/Aqua assertions
+and 990 four-thread checks. Fresh full compiler-report trees match baseline
+on both versions (22 reports/14 groups on 1.12.7, 21/13 on 1.13.2). Combined
+integration is running after the joint quadratic gates completed; no v2 promotion is claimed.
+Pre-edit contracts, source hashes, `focused-acceptance-evidence.json`,
+`large-resource-results.json` and retained failed measurements are in
+`/tmp/hybrid-cgl-energy-v{1,2}-verification`.
+
+The isolated CGL/quadratic integration snapshot contains 284 Julia files,
+including 195 source/test files. Removing only its added CGL block recovers the
+quadratic parent's integrator byte for byte; the CGL block and three CGL
+regression files are byte-identical to v2. A new joint-budget regression covers
+perpendicular, parallel and combined CGL reservoirs alongside particle and
+magnetic energies, with scalar, collection and collection-view callers. Its
+focused execution passes all 402 assertions on Julia 1.13.2. The combined
+native numerical, compiler and threaded lanes are running after both parent gates passed. Assembly scope and source hashes are
+in `/tmp/hybrid-cgl-quadratic-integrated-v1-verification`. A separate public
+documentation overlay passes formatting and executable-AST comparison across
+all 195 source/test files. Nothing from this snapshot has been promoted.
+
+
+A separate isothermal cold-evaluation prototype is being checked in
+`/tmp/hybrid-isothermal-range-design-v1`. It keeps complete rational factors,
+encloses logarithms without MPFR, and handles exact zero using the dyadic
+structure of stored densities. Its independent alternating-series and range tests pass 243 assertions on
+each Julia 1.12.7 and 1.13.2. This verifies the isolated cold evaluator's tested
+cases; 336 independent-bound and immutability assertions also pass under four
+threads on each runtime. It does not establish a complete public repair. An
+ordinary-path prototype uses outward bounds derived from the logarithm's
+series. Both runtimes pass 468 numerical/ordinary-compatibility assertions,
+and eight ordinary configurations retain their bits with 0 B allocations.
+Both resource gates nevertheless fail (40 passes, one failure): a
+4,194,304-cell Float32 weak wave has an uncertified interval spanning
+-162.46265 to 208.69566 around the ordinary result 0.6159884. The large cold
+fallback was not executed; no allocation or latency claim is made for it.
+A further 71 witness assertions per runtime establish 19 incorrectly accepted
+intermediate-underflow cases despite normal complete integrals; independently
+scaled ordinary controls round correctly in those cases.
+
+The [ENERGY-006 accuracy finding](ISOTHERMAL_ENERGY_ACCURACY_PLAN.md) also proves
+that the existing public large-wave result differs from its independent
+complete-integral enclosure by more than 16.08%. Consequently a positivity-only
+certificate retaining that value would be insufficient. A bounded near-unit
+entropy reduction is now planned alongside the range guards. The original
+cold evaluator remains separately tested, but the public repair, broader
+gates and polytropic implementation remain open.
 
 ## Repair contract and sequence
 

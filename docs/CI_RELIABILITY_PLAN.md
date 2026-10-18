@@ -542,6 +542,41 @@ all six job logs and `39093601976-evidence.json` with their parsed version/count
 and package-log hashes. The pressure
 implementation is pushed as `013a70b9a6703769fda6e7069c8a00ce6192a8b2`;
 [run 39097756477](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39097756477)
-has green formatting and all MPI ranks, with both package jobs pending. API requests
-briefly returned rate-limit errors; subsequent reads succeeded. This is not
-billing evidence or a CI completion result. Each exact SHA must finish green.
+now has all six jobs green. Actual Julia 1.12.7 passes 374,060 assertions in
+146m15.4s; Julia 1.13.2 passes 374,061 in 101m21.2s, with package JET counts
+23/22. All six job logs and `39097756477-evidence.json` are retained in the same
+evidence directory. Earlier API rate-limit errors recovered; no billing
+exception was used. Each later exact SHA still requires its own green run.
+
+## October 18 kinetic range repair
+
+Repair `850fe462e7bb50eacda919dd6a5427411b4d151a` is pushed to `main`;
+[run 39102304110](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39102304110)
+is green in all six jobs. Actual Julia 1.12.7 passes 386,955 assertions in
+115m04.2s (23 package JET reports); actual Julia 1.13.2 passes 386,956 in
+100m41.6s (22 reports). Formatting and real MPI at 2, 4 and 8 ranks pass.
+All six completed job logs, hashes and exact-SHA status are retained in
+`/tmp/hybrid-ci-850fe46-20261018/39102304110-evidence.json`.
+Local Julia 1.12.7 and 1.13.2 each pass 12,943 numerical/resource,
+2,235 physical-integration/concrete-compiler/Aqua and 715 four-thread assertions.
+Complete compiler report trees match the baseline (22/14 reports/groups on
+1.12.7 and 21/13 on 1.13.2). The documentation overlay preserves executable ASTs
+across 189 source/test files. Whitelisted staged blobs, the actual push and held
+file preservation are recorded in
+`/tmp/hybrid-kinetic-range-v4-verification/promotion-whitelist.json`.
+The exact GitHub monitor completed successfully; no billing exception was used.
+Each later pushed SHA still requires its own completed green run.
+
+## October 18 shared field energy repair
+
+The shared hybrid/EMPIC field-integral repair has completed both native combined
+lanes against the pushed kinetic implementation: 13,907 numerical, 1,271
+quality/concrete-compiler and 1,257 four-thread assertions per runtime. Complete
+package compiler trees match baseline (22/14 reports/groups on 1.12.7, 21/13 on
+1.13.2). Its separate electromagnetic solver/restart and quality gates also pass
+30,668 assertions per runtime. No compiler reports or test thresholds were removed.
+
+This revision includes the field implementation and permanent regressions.
+Exact-SHA GitHub CI remains required after pushing it. Acceptance and current-main
+scope evidence are in `/tmp/hybrid-quadratic-energy-integrated-v1-verification`.
+The held radiation changes are excluded from this promotion.

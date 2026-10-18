@@ -1491,6 +1491,26 @@ function _em_field_energy_exact(E, B, c::T, dx) where {T}
     return _from_exact(T, (electric + _exact_rational(c)^2 * magnetic) * volume / 2)
 end
 
+# After normal-product checks, each exact contribution is at most eight times
+# its rounded value (three operations for c²B²). The nonnegative rounded sum
+# bounds every rounded contribution, so the exact sum is at most 8*count*sum.
+# Powers of two bound that sum, the cell volume and the final factor of 1/2.
+function _field_energy_upper_exponent(E, B, sum_squares, dx)
+    count = Int128(0)
+    for component in E
+        count += length(component)
+    end
+    for component in B
+        count += length(component)
+    end
+    count_exponent = 128 - leading_zeros(count - 1)
+    upper = Int128(exponent(sum_squares)) + 3 + count_exponent
+    for spacing in dx
+        upper += Int128(exponent(abs(spacing))) + 1
+    end
+    return upper
+end
+
 function _em_field_energy_finish(E, B, c::T, dx, sum_squares, minimum_e2, minimum_b2) where {T}
     c2 = c * c
     lost = _spectral_product_lost_range(c, c, c2)
@@ -1517,6 +1537,9 @@ function _em_field_energy_finish(E, B, c::T, dx, sum_squares, minimum_e2, minimu
             lost |= _spectral_product_lost_range(partial, dx[last], next)
             partial = next
         end
+    end
+    if T <: Union{Float16,Float32,Float64} && !lost && !iszero(sum_squares) && !iszero(volume)
+        lost = _field_energy_upper_exponent(E, B, sum_squares, dx) > exponent(floatmax(T))
     end
     if lost &&
        isfinite(c) &&

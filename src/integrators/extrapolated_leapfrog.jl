@@ -1277,14 +1277,25 @@ function _kinetic_energy_relativistic(
     return value
 end
 
-"Magnetic energy ∫ ½|B|² dV (normalized units)."
+"""
+    magnetic_energy(B, g) -> Real
+
+Magnetic energy `∫ ½|B|² dV` in normalized units. Range-sensitive finite
+Float32/64 fields retain the complete integral before rounding, using the same
+arithmetic owner as [`em_field_energy`](@ref). Inputs certified free of range
+loss keep their existing summation order.
+"""
 function magnetic_energy(B::NTuple{3,<:Array{T,D}}, g::FourierGrid{D,T}) where {D,T}
     _require_grid_tuple(:B, B, g)
     s = zero(T)
+    minimum_b2 = T(Inf)
     @inbounds for c = 1:3, I in eachindex(B[c])
-        s += B[c][I]^2
+        value = B[c][I]
+        square = value^2
+        minimum_b2 = min(minimum_b2, ifelse(iszero(value), T(Inf), square))
+        s += square
     end
-    return T(0.5) * s * prod(g.dx)
+    return _em_field_energy_finish((), B, one(T), g.dx, s, T(Inf), minimum_b2)
 end
 
 # For nonnegative inputs, a finite rounded sum is at least every input, hence

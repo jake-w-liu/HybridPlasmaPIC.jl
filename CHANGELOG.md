@@ -160,6 +160,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   multispecies expressions when intermediate arithmetic loses range, including
   signed cancellation between overflowing populations and hidden final overflow.
   Range checks retain the original arithmetic when they certify it as safe.
+- Hybrid magnetic energy shares the electromagnetic complete-integral evaluator.
+  Both electromagnetic PIC families also detect finite-looking sums that hide
+  true output overflow. Finite fields and cell spacings are retained through
+  final rounding when their intermediate products lose range.
 
 - Clarify hybrid energy accounting: the Ohmic quadratic diagnostic is not
   generally the net tracked-energy loss, and the reduced inertia reservoir
