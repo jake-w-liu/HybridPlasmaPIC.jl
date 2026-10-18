@@ -20,7 +20,7 @@ accumulators fit. A separate 56-assertion cross-check passes on 1.13.2 against
 BigInt sums and independent alternating-logarithm bounds. Resource controls use
 an eighth-moment enclosure, separately cross-checked in 144 assertions. These
 oracles do not use floating logarithms or MPFR transcendental results as proof.
-The public density-energy owner remains byte-identical through `63f2420`.
+These witnesses use the public density-energy owner byte-identical to `63f2420`.
 
 A normal-range certificate alone cannot repair these accuracy defects. Old bits
 are not an acceptance criterion for finite isothermal reductions. Nonfinite and
@@ -53,7 +53,7 @@ The isolated implementation has three paths:
 | General reduction v1 | 1,416 focused, 72 uniform accuracy/resource and 1,627 quality/threaded assertions per runtime, including 24 clean concrete compiler and 17 independent cold rounding-cell checks. Eighteen ordinary measured calls allocate 0 B. | Unaccepted after the separate extreme-density allocation witness. |
 | General reduction v2 | Both versions pass 620 enclosure, 1,416 focused, 72 ordinary-resource, 32 extreme-resource and 1,627 quality/threaded assertions. All 18 ordinary and eight extreme calls allocate 0 B; large controls use 4,194,304 cells. Other value arithmetic and guards are byte-identical to v1. | All isolated gates pass; public integration is running. |
 | Public v1 | Both versions pass 8,532 permanent assertions plus one preflight check and 72 concrete compiler checks. Separate permanent key tests pass 6,243 assertions/version. All measured weak-wave and uniform public calls allocate 0 B. | Solver/restart, quality, threaded and complete compiler-tree lanes continue; resource regression prevents acceptance. |
-| Public v2 | Both versions pass 15,427 permanent assertions plus one preflight check each. Both versions also pass 72 concrete compiler checks each. There are 27 helper-equivalence checks and executable-AST equality across 205 source/test files. All measured public calls allocate 0 B. The frozen 294-file snapshot has a checked 15-file Julia delta against `63f2420`; other integrator arithmetic is byte-identical. | Both broader native lanes are running. No public promotion. |
+| Public v2 | Both versions pass 15,427 permanent assertions plus one preflight check each. Both versions also pass 72 concrete compiler checks each. There are 27 helper-equivalence checks and executable-AST equality across 205 source/test files. All measured public calls allocate 0 B. The frozen 294-file snapshot has a checked 15-file Julia delta against `63f2420`; other integrator arithmetic is byte-identical. | Pushed as `6e7fb01`; broader native lanes and exact-SHA CI remain pending. |
 
 The separate v5 components complete their isolated native gates on both versions:
 
@@ -75,7 +75,7 @@ updates their test includes. All other production files match public v2. Its
 comparison across all 207 source/test files. Both native public focused runs
 pass 27,831 regression assertions plus one preflight check each, and 144
 concrete compiler checks each. Broader lanes await their public-v2 parent lanes;
-this is a separate candidate, not a promoted optimization.
+the optimization enters its own exact-revision GitHub run concurrently.
 
 General v2 uses exact frexp range reduction outside `[1/2,2]`, combining bounds
 for the mantissa logarithm and an integer multiple of `log(2)`. The real extreme-
@@ -86,8 +86,8 @@ the bounded dyadic conversion joins the existing exact-conversion owner.
 A 26-check public-v1 helper comparison verifies retained arithmetic bodies and
 the statistics-entry split. Its documentation overlay preserves executable ASTs
 across 203 source/test files. Public v2 passes its fresh helper and formatting checks; its complete compiler
-comparisons remain pending. Its promotion must preserve the held radiation
-files and all already-pushed kinetic, field and CGL changes.
+comparisons remain pending. Its `6e7fb01` promotion excludes the held radiation
+files and preserves all already-pushed kinetic, field and CGL changes.
 
 Evidence directories:
 
@@ -150,16 +150,17 @@ Near-unit v5's five-pair latest timing run passes 44 assertions with zero measur
 allocations. Its large Float64 ratio is 0.620; the large Float32 ratio is 1.269,
 and small-input ratios are 1.011/0.244. The Float32 arithmetic is unchanged;
 these shared-host timings establish no universal speedup. General v5's separate
-latest run passes 132 paired output/resource assertions. Public v3 still needs
-its own paired comparison and complete public acceptance.
+latest run passes 132 paired output/resource assertions. The public-v3 paired
+comparison is recorded below; complete public acceptance remains pending.
 
 ## Acceptance still required
 
 Complete both public-v2 native lanes and retain the measured timing costs
 against the exact previous public owner as an open optimization task. Native lanes include solver/restart, quality/Aqua,
 threaded and full compiler-tree comparisons. Verify the real extreme-density
-resource controls, preserve failed evidence, and promote only the verified delta.
-Commit/push to main and require a green run for that exact SHA before acceptance.
+resource controls and preserve failed evidence. The correction is pushed as
+`6e7fb01`; its exact-SHA GitHub run and the separate optimization run must both
+finish green before acceptance.
 
 The [polytropic plan](POLYTROPIC_ENERGY_RANGE_PLAN.md) and the
 [complete budget/inertia scope](HYBRID_DIAGNOSTIC_RANGE_PLAN.md) remain separate
@@ -186,10 +187,19 @@ remain required, followed by exact-SHA full-package GitHub CI. A separate typed
 checkpoint-test helper passed its original 276 assertions but showed no timing
 improvement; it is not included in any repository or acceptance snapshot.
 
-The checked 15-file isothermal-v2 correction is being pushed for exact-revision
-GitHub CI while both native broad lanes continue. This overlaps the complete
+The checked 15-file isothermal-v2 correction is pushed as `6e7fb01` for
+[exact-revision GitHub CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39129297310)
+while both native broad lanes continue. This overlaps the complete
 Linux package/format/MPI run with native solver, restart, quality, threaded and
 full compiler-tree checks; it does not accept or remove any pending gate.
 The 15,427 permanent assertions plus one smoke check and 72 concrete compiler
 checks already pass on each runtime. The performance-v3 and pressure candidates
 remain separate. The latest fully green earlier revision is `d497436`.
+
+The separate public-v3 traversal change is also entering exact-revision CI.
+Its four Julia paths add the checked Float64 degree-eight first pass and local
+repeated-density reuse, with the original complete fallback and accumulation
+order retained. Both native versions pass 27,831 permanent assertions plus one
+smoke check and 144 concrete compiler checks. The 240-assertion paired run and
+92-assertion Float32 repeat above pass. Broader native acceptance remains queued
+and mandatory; the full GitHub run starts in parallel after its separate push.

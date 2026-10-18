@@ -97,6 +97,8 @@ using Test
     include("test_isothermal_energy.jl")
     include("test_isothermal_energy_keys.jl")
     include("test_isothermal_logrange.jl")
+    include("test_isothermal_first_pass.jl")
+    include("test_isothermal_reuse.jl")
     include("test_jet.jl")
     include("test_quality.jl")
 end

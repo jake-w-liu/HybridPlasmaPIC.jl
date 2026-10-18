@@ -227,7 +227,8 @@ The first minimum-version quality run passes six compiler checks and 134
 threaded assertions but fails 12 assertions that assumed worker IDs were 1:4.
 The observed fourth default worker has ID 5. The corrected harness checks
 actual default-pool membership and all four workers; it passes six compiler and
-147 parent-threaded checks on minimum Julia, with latest verification pending.
+147 parent-threaded checks on each native runtime. All four default workers
+participate; complete evidence is retained in `native-evidence.json`.
 The candidate arithmetic is unchanged and the failed run is retained in
 `quality-failure.md`. This component has a finite exact decision
 procedure, but large-grid and difficult-tie costs remain unaccepted. It does not

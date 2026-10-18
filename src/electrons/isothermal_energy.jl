@@ -296,6 +296,13 @@ function _isothermal_nearunit_energy(
     (iszero(state.active) || iszero(temperature) || any(iszero, dx)) && return zero(T)
     bits = precision(T) + 16
     bits <= state.cap || return nothing
+    if T === Float64
+        # The same complete tail certificate permits a cheaper first pass.
+        lower, upper, exponent =
+            _isothermal_complete_dyadic(n, temperature, dx, state, bits, Val(8))
+        lo, hi = _from_exact(T, lower, exponent), _from_exact(T, upper, exponent)
+        isequal(lo, hi) && return lo
+    end
     degree = Val(T === Float32 ? 8 : 12)
     while true
         lower, upper, exponent =
@@ -381,39 +388,55 @@ function _isothermal_legacy_energy(n::AbstractArray{T}, temperature, dx) where {
     return total * prod(dx)
 end
 
-function _isothermal_general_probe(
+function _isothermal_general_probe_with_reuse(
     n::AbstractArray{T},
     temperature::C,
     dx::NTuple{D,T},
-) where {T<:Union{Float32,Float64},C<:Union{Float32,Float64},D}
+    ::Val{Reuse},
+) where {T<:Union{Float32,Float64},C<:Union{Float32,Float64},D,Reuse}
     total = correction = lower = upper = 0.0
     finite = isfinite(temperature) && all(isfinite, dx)
     operations = valid = true
     active = false
     te = Float64(temperature)
+    previous_density = zero(T)
+    term = term_lower = term_upper = 0.0
+    term_normal = term_bounded = false
     for density in n
         finite &= isfinite(density)
         density > zero(T) || continue
         density == one(T) && continue
         iszero(temperature) && continue
         active = true
-        value = Float64(density)
-        pressure = te * value
-        logarithm = log(value)
-        term = pressure * logarithm
+        # Reuse the per-density work across consecutive active equal values.
+        # Accumulation, outward bounds and all input checks still run per cell.
+        if !Reuse || density != previous_density
+            previous_density = density
+            value = Float64(density)
+            pressure = te * value
+            logarithm = log(value)
+            term = pressure * logarithm
+            term_normal =
+                _kinetic_normal_product(te, value, pressure) &&
+                _kinetic_normal_product(pressure, logarithm, term)
+            term_bounded = false
+            if valid
+                good, lo, hi = _isothermal_logarithm_bounds(value)
+                if good && isfinite(pressure)
+                    plo, phi = prevfloat(pressure), nextfloat(pressure)
+                    a, b, c, d = plo * lo, plo * hi, phi * lo, phi * hi
+                    term_lower = prevfloat(min(a, b, c, d))
+                    term_upper = nextfloat(max(a, b, c, d))
+                    term_bounded = true
+                end
+            end
+        end
         total, correction = _amr_compensated_add(total, correction, term)
-        operations &=
-            _kinetic_normal_product(te, value, pressure) &&
-            _kinetic_normal_product(pressure, logarithm, term) &&
-            isfinite(total) &&
-            isfinite(correction)
+        operations &= term_normal && isfinite(total) && isfinite(correction)
         if valid
-            good, lo, hi = _isothermal_logarithm_bounds(value)
-            if good && isfinite(pressure)
-                plo, phi = prevfloat(pressure), nextfloat(pressure)
-                a, b, c, d = plo * lo, plo * hi, phi * lo, phi * hi
-                lower = prevfloat(lower + prevfloat(min(a, b, c, d)))
-                upper = nextfloat(upper + nextfloat(max(a, b, c, d)))
+            if term_bounded
+                lower = prevfloat(lower + term_lower)
+                upper = nextfloat(upper + term_upper)
                 valid &= isfinite(lower) && isfinite(upper)
             else
                 valid = false
@@ -453,6 +476,39 @@ function _isothermal_general_probe(
         -Float64(floatmax(T)) <= lower <= upper <= Float64(floatmax(T)) &&
         (lower >= Float64(floatmin(T)) || upper <= -Float64(floatmin(T)))
     return (; value = result, certified, finite, lower, upper)
+end
+
+function _isothermal_repeated_active_runs(n::AbstractArray{T}) where {T}
+    previous = zero(T)
+    started = duplicated = false
+    for density in n
+        density > zero(T) || continue
+        density == one(T) && continue
+        if !started
+            previous = density
+            started = true
+        elseif density == previous
+            duplicated = true
+        else
+            duplicated || return false
+            previous = density
+            duplicated = false
+        end
+    end
+    # Requiring a duplicate in every run guarantees at least as many reuse
+    # hits as misses. A singleton ends this scan immediately.
+    return started && duplicated
+end
+
+function _isothermal_general_probe(
+    n::AbstractArray{T},
+    temperature::C,
+    dx::NTuple{D,T},
+) where {T<:Union{Float32,Float64},C<:Union{Float32,Float64},D}
+    if !iszero(temperature) && _isothermal_repeated_active_runs(n)
+        return _isothermal_general_probe_with_reuse(n, temperature, dx, Val(true))
+    end
+    return _isothermal_general_probe_with_reuse(n, temperature, dx, Val(false))
 end
 
 function _isothermal_general_energy(n, temperature, dx)

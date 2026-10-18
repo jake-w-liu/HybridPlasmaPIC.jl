@@ -615,3 +615,15 @@ Formatting and all MPI ranks pass. All six logs, their hashes and exact-SHA
 evidence are retained in
 `/tmp/hybrid-ci-d497436-20261018/39119245628-evidence.json`.
 No billing exception is used.
+
+## October 18 isothermal correction
+
+`6e7fb01cfd2eff22fc409f26558008e8ffc71975` is pushed to `main` and running
+[exact CI 39129297310](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39129297310).
+The 21-file promotion contains 15 Julia source/test paths and six Markdown
+plans/trackers; held radiation files are excluded. Native focused/concrete and
+formatter/syntax checks pass. Full GitHub and remaining native broad acceptance
+are still pending; these run concurrently without removing any required gate.
+Exact tree/remote verification is in
+`/tmp/hybrid-isothermal-public-v2-verification/promotion-d497436-whitelist.json`;
+the run monitor and eventual job logs are in `/tmp/hybrid-ci-6e7fb01-20261018`.
