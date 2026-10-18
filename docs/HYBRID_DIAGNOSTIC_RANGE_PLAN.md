@@ -3,9 +3,9 @@
 Status: the kinetic correction is pushed as `850fe46`; its exact-revision
 GitHub CI is green in all six jobs on actual Julia 1.12.7 and 1.13.2.
 The shared field correction has completed native integration gates and is
-pushed as `5df5c38`; its exact-revision GitHub CI is running. The CGL correction
-has completed native acceptance and is included in the current change; its
-exact-revision GitHub CI remains pending. Isothermal integration is under
+pushed as `5df5c38`; all six exact-revision GitHub jobs pass on actual Julia
+1.12.7 and 1.13.2. The CGL correction
+is pushed as `63f2420`; its exact-revision GitHub CI is running. Isothermal integration is under
 isolated verification; the polytropic repair remains planned.
 This work is separate from the evolving-pressure feature and its stored-pressure
 correction.
@@ -177,6 +177,12 @@ witness. Commands, source comparisons, observations and terminal statuses are
 in `/tmp/hybrid-algebraic-diagnostic-range-20261018` (`verified-results.json`).
 These are confirmed defects, not accepted repair tests.
 
+A separate [mixed-precision gamma witness](POLYTROPIC_ENERGY_RANGE_PLAN.md)
+passes 40 assertions per native runtime and confirms that narrowing a stored
+polytropic gamma into exactly one selects the wrong diagnostic branch. The
+complete polytropic repair must address branch selection as well as power,
+ratio and integral range.
+
 The next algebraic implementation should first address CGL's complete rational
 plus square-root integral, assessing reuse of the existing exact radical
 finisher. Preserve the current zero-field singularity convention and ordinary
@@ -228,8 +234,8 @@ runtime. Complete compiler trees match baseline on both versions (22 reports/14
 groups on 1.12.7 and 21/13 on 1.13.2). Assembly scope and source hashes are
 in `/tmp/hybrid-cgl-quadratic-integrated-v1-verification`. A separate public
 documentation overlay passes formatting and executable-AST comparison across
-all 195 source/test files. The CGL delta is included in the current change;
-its exact-revision GitHub CI remains pending. The promotion scope is limited
+all 195 source/test files. The CGL delta is pushed as `63f2420`;
+its exact-revision GitHub CI is running. The promotion scope is limited
 to the CGL block, public documentation and four regression files, preserving
 the pushed kinetic and field implementations. Acceptance and current-main scope
 are recorded in `acceptance-complete.json` and `promotion-current-main-scope.json`.

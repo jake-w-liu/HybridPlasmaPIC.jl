@@ -579,10 +579,12 @@ package compiler trees match baseline (22/14 reports/groups on 1.12.7, 21/13 on
 The field implementation and permanent regressions are pushed as
 `5df5c38c6dbf65136c1618c4591e6b84d95f4d9b`.
 [Exact run 39110639668](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39110639668)
-has green formatting and all three MPI ranks; both package jobs are running.
-Its monitor and saved status are in `/tmp/hybrid-ci-5df5c38-20261018`; no
-green-run claim is made yet. Acceptance and current-main
-scope evidence are in `/tmp/hybrid-quadratic-energy-integrated-v1-verification`.
+has all six jobs green. Actual Julia 1.12.7 passes 387,505 assertions in
+95m43.9s; actual Julia 1.13.2 passes 387,506 in 99m44.8s. Package JET counts are
+23/22. Formatting and 2-/4-/8-rank MPI also pass. All six logs, hashes and exact-SHA
+evidence are in `/tmp/hybrid-ci-5df5c38-20261018/39110639668-evidence.json`.
+No billing exception is used. Native acceptance and current-main scope evidence
+are in `/tmp/hybrid-quadratic-energy-integrated-v1-verification`.
 The held radiation changes are excluded from this promotion.
 
 ## October 18 CGL diagnostic repair
@@ -594,8 +596,11 @@ large positive-grid controls preserve the original value with zero allocations.
 The documentation overlay preserves executable ASTs across all 195 source/test
 files and passes JuliaFormatter 1.0.62.
 
-The current change contains only the verified CGL production delta, regressions
-and tracker documentation. Its exact pushed SHA still requires a completed
-GitHub run; no billing exception is evidenced. Evidence is retained in
+The verified CGL production delta, regressions and tracker documentation are
+pushed as `63f2420ea3795a0796bcfa77c76e5667934b6d16`.
+[Exact run 39113547976](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39113547976)
+has green formatting, all three MPI ranks and the latest-Julia package job;
+the Julia 1.12 package job is running. No complete-green claim or billing exception is made. The monitor is in
+`/tmp/hybrid-ci-63f2420-20261018`. Native evidence is retained in
 `/tmp/hybrid-cgl-quadratic-integrated-v1-verification`. Held radiation files
 remain excluded.

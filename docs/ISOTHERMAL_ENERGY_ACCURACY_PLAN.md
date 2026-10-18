@@ -1,185 +1,130 @@
 # Isothermal energy accuracy — ENERGY-006
 
-Status: confirmed on Julia 1.12.7 and 1.13.2; isolated reduction prototype under
-verification. Public repair remains unimplemented.
+Status: defects confirmed on Julia 1.12.7 and 1.13.2. Public v2 is frozen and
+under verification; no public isothermal repair has been pushed. Public v1
+remains unaccepted because a fresh resource witness found excessive allocation.
 
-**VERIFIED:** the public isothermal diagnostic returns `0.6159884f0` for a
-4,194,304-cell Float32 density wave of amplitude 0.001 about density one,
-temperature `0.7f0` and unit cell spacing. An independent enclosure of the
-complete stored-input integral is approximately `0.7340845405043187`, with
-width `4.374e-17`. The relative error exceeds 16.08% on both runtimes. The
-diagnostic and closure source are byte-identical to `850fe46`.
+## Confirmed defects and regression contract
 
-The oracle accumulates the first six dyadic density-deviation moments exactly
-in Int128, with checked input/count bounds proving the accumulators fit. It
-uses the expansion of `(1+d)log(1+d)` and an explicit geometric bound on all
-remaining terms. It uses no floating logarithm or MPFR oracle. Each native
-witness passes three assertions; commands, terminal statuses, source hash,
-moments and numeric enclosures are retained in
-`/tmp/hybrid-isothermal-range-design-v1/large-accuracy-witness{112,1132}.log`
-and `large-accuracy-witness-results.json`. A separate 56-assertion cross-check
-passes on Julia 1.13.2, comparing the Int128 moments with BigInt sums and the
-polynomial/remainder with independent alternating-logarithm bounds
-(`accuracy-oracle-crosscheck1132.log`).
+| Case | VERIFIED observation | Evidence |
+| --- | --- | --- |
+| Large weak Float32 density wave | At 4,194,304 cells, amplitude 0.001, temperature `0.7f0` and unit spacing, the public result is `0.6159884f0`. The independent complete-integral enclosure is near `0.7340845405043187`, width `4.374e-17`: more than 16.08% relative error on both runtimes. | `/tmp/hybrid-isothermal-range-design-v1/large-accuracy-witness-results.json` |
+| Large uniform Float32 states | At the same count/temperature/spacing, densities 0.5, 0.75 and 1.5 have errors of at least 2.6357%, 1.3758% and 3.9651%. The range-only prototype certifies all three inaccurate values. Each corrected native witness passes 22 assertions. | `/tmp/hybrid-isothermal-uniform-accuracy-20261018/corrected-evidence.json` |
+| Intermediate range loss | Pressure, pressure-times-logarithm and spacing products can lose range before a normal complete result. The original range probe incorrectly accepts 19 cases, established by 71 assertions per runtime. | `/tmp/hybrid-isothermal-range-design-v1/rejection-and-accuracy-evidence.json` |
+| General v1 resource regression | Four normal temperature-weighted integrals at 256 cells take the cold path. Complete calls allocate 388,632–16,429,056 B versus 1,120/2,112 B in the existing public routine. Both native witnesses pass 20 assertions against independent logarithm bounds. No large-grid cold allocation was measured or extrapolated. | `/tmp/hybrid-isothermal-logrange-resource-20261018/rejection-evidence.json` |
 
-This changes the acceptance contract for the isothermal follow-up. Retaining
-the original bits cannot be a success criterion for this case. A certificate
-that only proves the exact result is normal and finite would not repair this
-accuracy defect. The previously considered density-box positivity bound is
-insufficient on its own. The isolated range prototype is also unaccepted:
-both native resource gates fail at this grid size, and 71 witness assertions
-per runtime establish 19 incorrectly accepted intermediate-underflow cases.
+The weak-wave oracle sums six dyadic density-deviation moments exactly in Int128
+and bounds the full series remainder. Its input/count bounds prove the integer
+accumulators fit. A separate 56-assertion cross-check passes on 1.13.2 against
+BigInt sums and independent alternating-logarithm bounds. Resource controls use
+an eighth-moment enclosure, separately cross-checked in 144 assertions. These
+oracles do not use floating logarithms or MPFR transcendental results as proof.
+The public density-energy owner remains byte-identical through `63f2420`.
 
-1. Preserve those failures and the independent exact moment oracle. Add
-   explicit guards for pressure, pressure-times-logarithm and spacing products;
-   a normal final value does not excuse a damaged intermediate.
-2. Develop a bounded near-unit entropy reduction, using
-   `n*log(n) = (n-1) + h(n)` with the linear part summed exactly and the
-   nonlinear part enclosed without cancellation. Assess fixed-width integer
-   bounds for a scaled polynomial and its full analytic remainder. A result
-   may be returned only when the complete interval rounds unambiguously.
-   Retain the complete rational/logarithm owner for unresolved inputs.
-3. Verify arithmetic overflow bounds, signed reductions, exact zero, mixed
-   precision, volume/temperature range and rounding boundaries independently.
-   Test weak waves, offsets on either side of unit mean, alternating cells,
-   small grids and large grids. Corrected values may intentionally differ from
-   the old result; accuracy assertions must use independent complete integrals.
-4. Measure allocations and latency, including scaling with grid size, before
-   choosing the production implementation. Retain nonfinite and unsupported-type compatibility checks; finite ordinary
-   reductions also require independent accuracy checks. Complete native solver/compiler/threaded
-   gates and exact-revision GitHub CI before claiming acceptance.
+A normal-range certificate alone cannot repair these accuracy defects. Old bits
+are not an acceptance criterion for finite isothermal reductions. Nonfinite and
+unsupported-type behavior must retain the existing contract. Selected ordinary
+Float64 controls allow two output ulps against independent complete integrals;
+the bounded near-unit and cold paths require unambiguous final rounding.
 
-The existing [diagnostic range plan](HYBRID_DIAGNOSTIC_RANGE_PLAN.md) remains
-open for public isothermal integration, polytropic evaluation and complete
-budget/inertia composition.
+## Current implementation and verification
 
-The isolated `/tmp/hybrid-isothermal-nearunit-v1` prototype uses exact linear
-sums, scaled fixed-point polynomial bounds and an explicit full remainder.
-Both native versions pass 1,902 focused assertions, including independent
-rational checks of fixed-point coefficients/products and complete-integral
-comparisons against alternating logarithm bounds. Each runtime also passes
-28 eighth-moment accuracy/resource assertions across Float32/64 and 256,
-4,096 and 4,194,304 cells. Float64 large-state controls use exactly promoted
-Float32 densities, so the independent integer-moment oracle remains applicable.
-The large Float32 result is corrected to `0.73408455f0`.
+The isolated implementation has three paths:
 
-The grid polynomial kernel allocates 0 B; complete calls allocate 9,896–10,440 B
-independently of grid size in these measurements. That exceeds the old small-grid
-allocations while avoiding the old 16/32 MiB pressure arrays at the largest size.
-Shared-host large-grid samples take 3.47–4.86 s, versus 0.038–1.03 s for the
-original calculation. No optimality or overall performance acceptance is
-claimed. Allocation/latency optimization, operation-range guards, public
-integration and broader gates remain open.
+1. Finite states whose positive densities lie within `1/256` of one use exact
+   linear sums, a bounded fixed-point entropy polynomial and its full analytic
+   remainder. Bounded dyadic arithmetic applies temperature and each spacing;
+   a result returns only when both endpoints round identically. Unresolved
+   states go directly to complete logarithm evaluation.
+2. Other finite states use Float64 terms and the existing compensated-addition
+   primitive. Independent logarithm bounds and normal-operation checks cover
+   pressure, terms, accumulation, volume and output range. This path does not
+   promise universal single rounding.
+3. Unresolved finite cases retain complete rational factors and bounded
+   logarithms without MPFR state. UInt64 logarithm keys preserve the exact
+   odd significands, which have at most 53 bits. Actual nonfinite inputs use
+   the existing arithmetic.
 
-An isolated v2 replaces the rational final interval with bounded dyadic Int128
-arithmetic and direct nearest-even integer rounding. Each native runtime passes
-5,823 focused assertions, including 3,921 new exact-operation, rounding-boundary
-and full-mantissa checks. The resource oracle separately passes 144 comparisons
-against BigInt moments and independent logarithm bounds on Julia 1.13.2.
+| Component | Completed native evidence | Remaining status |
+| --- | --- | --- |
+| Near-unit v4 | 5,991 focused, 34 accuracy/resource, 24 clean concrete compiler and 1,226 parent-threaded assertions per runtime; all six measured calls allocate 0 B. | Tested component; public acceptance pending. |
+| Combined UInt64-key v2 | Both seven-step lanes pass: 243 cold, 6,243 key-bound, 660 range, 552 near-unit, 34 resource, 24 concrete compiler and 1,226 parent-threaded checks. Key tests cover 1,037 densities. | Fixes the compiler representation issue; its old ordinary reduction does not repair uniform-state accuracy. |
+| General reduction v1 | 1,416 focused, 72 uniform accuracy/resource and 1,627 quality/threaded assertions per runtime, including 24 clean concrete compiler and 17 independent cold rounding-cell checks. Eighteen ordinary measured calls allocate 0 B. | Unaccepted after the separate extreme-density allocation witness. |
+| General reduction v2 | Both versions pass 620 enclosure, 1,416 focused, 72 ordinary-resource, 32 extreme-resource and 1,627 quality/threaded assertions. All 18 ordinary and eight extreme calls allocate 0 B; large controls use 4,194,304 cells. Other value arithmetic and guards are byte-identical to v1. | All isolated gates pass; public integration is running. |
+| Public v1 | Both versions pass 8,532 permanent assertions plus one preflight check and 72 concrete compiler checks. Separate permanent key tests pass 6,243 assertions/version. All measured weak-wave and uniform public calls allocate 0 B. | Solver/restart, quality, threaded and complete compiler-tree lanes continue; resource regression prevents acceptance. |
+| Public v2 | Both versions pass 15,427 permanent assertions plus one preflight check each. Both versions also pass 72 concrete compiler checks each. There are 27 helper-equivalence checks and executable-AST equality across 205 source/test files. All measured public calls allocate 0 B. The frozen 294-file snapshot has a checked 15-file Julia delta against `63f2420`; other integrator arithmetic is byte-identical. | Both broader native lanes are running. No public promotion. |
 
-The v2 Julia 1.12.7 resource run records zero whole-call allocations in all six
-cases, but its inherited strict ratio comparison fails twice because it becomes
-`0 < 0`. The run is retained as 26 passes/two failures; the 1.13.2 resource lane
-did not run after that failure. A separate v3 changes the resource contract to
-require zero bytes in every case, retains the independent accuracy assertions,
-and tests Int64 per-cell arithmetic only where the existing product bound leaves
-three sign/carry bits. Whole-grid sums remain Int128. The v3 passes 5,991 focused assertions and 34 independent accuracy/resource
-assertions on each native runtime. All six measured whole calls per runtime
-allocate 0 B. Its 24 concrete compiler checks pass per runtime; an additional
-threaded harness records every worker result in the parent testset on both versions.
-That threaded harness passes 1,226 assertions per runtime across 36 fixtures,
-with all four worker thread IDs observed.
+General v2 uses exact frexp range reduction outside `[1/2,2]`, combining bounds
+for the mantissa logarithm and an integer multiple of `log(2)`. The real extreme-
+density resource controls include 4,194,304 cells. The public owner preserves
+closure validation order, B-adapter validation and generic/polytropic dispatch;
+the bounded dyadic conversion joins the existing exact-conversion owner.
 
-A paired Julia 1.13.2 measurement passes 28 correctness/allocation assertions.
-For 4,194,304 Float32 cells, three alternating-order samples give a candidate/prior
-median runtime ratio of 0.398 (1.274 s versus 3.198 s). Float64 retains the Int128
-kernel. These are shared-host samples, not an optimality result. The candidate
-remains slower than the original inaccurate reduction in the separate resource
-measurements. Public integration remains open. Evidence is retained in
-`/tmp/hybrid-isothermal-nearunit-v{2,3}`.
+A 26-check public-v1 helper comparison verifies retained arithmetic bodies and
+the statistics-entry split. Its documentation overlay preserves executable ASTs
+across 203 source/test files. Public v2 passes its fresh helper and formatting checks; its complete compiler
+comparisons remain pending. Its promotion must preserve the held radiation
+files and all already-pushed kinetic, field and CGL changes.
 
-The separate `/tmp/hybrid-isothermal-range-design-v2` probe adds explicit
-promoted-pressure, grid-conversion, pressure-times-logarithm and contiguous
-spacing-product guards. All 96 assertions for the original intermediate-underflow
-family pass on Julia 1.12.7. Its first added test incorrectly required exact final
-rounding for five ordinary cases outside the corrected domain; the classification
-log verifies all five match the existing public routine bit for bit. That failed
-run (607 passes/five failures overall) is retained. The separate corrected harness
-preserves the prewritten ordinary-compatibility contract and requires complete
-rounding for unsafe cases. It passes 660 assertions on each native runtime.
-No prototype source was changed to repair that test contract.
+Evidence directories:
 
-The combined `/tmp/hybrid-isothermal-integrated-design-v1` snapshot now routes
-finite near-unit states through the accurate bounded reduction, with unresolved
-states sent directly to the complete logarithm evaluator. Other inputs use the
-range-checked ordinary path and existing nonfinite propagation. Its 11 Julia
-files are frozen; the range/cold sources and bounded arithmetic body match the
-tested parents. The entry split avoids a duplicate density-statistics scan.
-Combined numerical and resource gates pass on both runtimes, retaining zero
-whole-call allocation in all six cases. The Julia 1.12 concrete compiler gate
-reports an undefined-variable possibility in BigInt hashing reached through the
-cold logarithm dictionary; its failure is retained. Julia 1.13.2 passes that gate.
-This combined candidate is unaccepted. A bounded-key representation is under
-investigation; no report filtering is permitted. Public dispatch is unchanged.
+- `/tmp/hybrid-isothermal-nearunit-v4`
+- `/tmp/hybrid-isothermal-integrated-design-v2`
+- `/tmp/hybrid-isothermal-general-reduction-v{1,2}`
+- `/tmp/hybrid-isothermal-public-v{1,2}-verification`
 
-A separate combined v2 retains the range, bounded arithmetic, routing and
-integration tests. Its cold dictionary uses UInt64 keys: after removing powers
-of two, a finite Float32/64 density has an odd significand of at most 53 bits.
-Coefficients remain exact rationals; logarithm bounds receive the same integer
-bases. Checked key conversion and independent frexp-based boundary/random tests
-are included. Both native lanes run the unchanged concrete compiler gate first,
-then the cold, key-bound, combined numerical/resource and threaded gates. This
-representation change is under verification; it is not a report suppression or
-a claim of a Julia runtime bug. Evidence: `/tmp/hybrid-isothermal-integrated-design-v2`.
+## Retained failures and measured costs
 
-The corrected uniform-density witness confirms that the accuracy problem extends
-beyond the near-unit box. With 4,194,304 Float32 cells, temperature `0.7f0` and
-unit spacing, densities 0.5, 0.75 and 1.5 have relative errors of at least 2.6357%,
-1.3758% and 3.9651% on both native versions. The range-only candidate certifies
-all three inaccurate values. Each corrected native witness passes 22 assertions
-against independent rational logarithm bounds. The public function body matches
-`5df5c38` byte for byte. Evidence, commands and hashes:
-`/tmp/hybrid-isothermal-uniform-accuracy-20261018/corrected-evidence.json`.
+| Earlier experiment | Outcome retained |
+| --- | --- |
+| Range probe v1 | Both native large-wave resource gates fail: 40 passes/one failure. The interval spans approximately -162.46 to 208.69 around the inaccurate old value. The large cold fallback was not executed. |
+| Near-unit v1 | 1,902 focused and 28 resource/accuracy checks per runtime. Kernel allocation is 0 B; whole calls allocate 9,896–10,440 B. Large shared-host samples take 3.47–4.86 s. |
+| Near-unit v2 | 5,823 focused checks per runtime. The minimum-version resource run records 0 B in all six cases but fails two inherited `0 < 0` comparisons; the latest lane does not run afterward. |
+| Near-unit v3 | The corrected resource contract requires zero bytes directly. Both native focused/resource/compiler/threaded gates pass; the large Float32 paired median is 1.274 s versus 3.198 s for v2. |
+| Near-unit v4 timing | Large Float32 paired median: 0.721 s versus 1.047 s for v3, ratio 0.689. The small Float32 ratio is 2.40; Float64 ratios are 1.04–1.06. No universal speedup or optimality claim follows from these shared-host samples. |
+| Range guard v2 harness | The first run has 607 passes/five failures from requiring exact rounding outside its then-written ordinary-compatibility scope. Classification verifies unchanged public bits. A separate corrected harness passes 660 checks/version; the later uniform witness broadens the accuracy contract. |
+| Combined isothermal v1 | Minimum Julia reports an undefined-variable possibility in Base BigInt hashing through the cold dictionary; latest Julia passes. UInt64 keys fix the representation without filtering reports or claiming a Julia runtime bug. |
+| Uniform witness harness | The initial endpoint-distance expression only applies outside the oracle interval. A separate corrected witness uses general interval distance; only corrected runs support the finding above. |
+| Helper-comparison harness | The first comparison has 24 passes/one failure from an `@assert` source-location node. Explicit source-location normalization yields 26 passes without changing production arithmetic. |
 
-The original witness used an endpoint-distance expression valid only outside the
-oracle interval; a separate retained correction uses the general interval-distance
-formula. Only the corrected runs support the finding above. The repair must now
-include ordinary finite reductions outside the near-unit box. Preserving their
-old bits is no longer an acceptance criterion. A widened compensated reduction
-with independent range guards is the next isolated experiment; its accuracy,
-allocation and latency remain unverified.
+## Performance investigation
 
-The combined v2 bounded-key snapshot has completed all seven gates on both
-native versions: 24 clean concrete compiler checks, 243 cold-logarithm checks,
-6,243 key-bound checks across 1,037 densities, 660 range checks, 552 near-unit
-checks, 34 accuracy/resource checks and 1,226 parent-recorded threaded checks.
-All six measured whole calls allocate zero bytes per runtime. This closes its
-compiler representation issue, but the uniform-density finding prevents accepting
-it as the complete public accuracy repair.
+The paired public-v2 comparison uses the exact `63f2420` public owner, including
+validation, with only its function name changed. Warmed calls alternate order on
+the same data. All 16 cases pass 176 accuracy/stability/resource assertions on Julia 1.13.2;
+all 48 measured corrected calls allocate 0 B. Paired median latency ratios are
+4.16–16.72 relative to the old routine on this shared host. These costs remain
+an optimization task.
+Evidence: `/tmp/hybrid-isothermal-public-v2-timing`.
 
-A separate near-unit v4 retains the exact polynomial and accumulator bounds but
-uses exact power-of-two floating scaling followed by Int64 conversion for the
-bounded density deviations. Both native versions pass all 5,991 focused, 34
-accuracy/resource, 24 concrete compiler and 1,226 parent-threaded assertions;
-all six measured whole calls allocate zero bytes. The paired 1.13.2 measurement
-records a large Float32 median ratio of 0.689 versus v3 (0.721 s versus 1.047 s).
-The small Float32 sample regresses to a ratio of 2.40; Float64 ratios are 1.04–1.06.
-These shared-host samples support no universal speedup claim. Evidence remains
-in `/tmp/hybrid-isothermal-nearunit-v4`; public promotion is still pending.
+An isolated general-v3 experiment reuses the last active density's term and
+term enclosure. Every cell still executes compensated accumulation, input
+checks and outward sum bounds. Both native versions pass 9,216 bit-for-bit full-probe comparisons. A separate
+latest-version paired experiment passes 132 output/resource assertions. Uniform
+and repeated-block cases improve, while varied-input sample ratios span
+1.002–1.304; the latter require follow-up before adoption. Public v2 remains frozen;
+no v3 source is integrated or accepted. Its nine-sample large varied-input
+follow-up passes 58 assertions and reports ratios 1.099 (Float32) and 1.030
+(Float64). Scope and experiment: `/tmp/hybrid-isothermal-general-reduction-v3`.
 
-The separate general-reduction v1 uses Float64 terms and the existing compensated
-addition primitive, with independent complete-expression range bounds and exact
-logarithm fallback for unresolved finite inputs. Actual nonfinite inputs retain
-the old arithmetic. Both native versions pass 1,416 focused assertions, including
-ordinary accuracy, nonfinite compatibility and range controls. Its general path
-does not claim universal correct rounding. Large-grid resource and compiler/
-threaded gates are still running. Evidence: `/tmp/hybrid-isothermal-general-reduction-v1`.
+General v4 selects reuse when every active density run has at least two
+members, and otherwise uses the uncached specialization of the same loop.
+Both native versions pass 15,360 full-state comparisons, including forced
+checks of both specializations. Its 132-assertion latest paired run has large
+uniform/block ratios 0.170–0.232 and large varied ratios 1.021/0.951. Small varied
+samples have ratios 2.755/1.920; a 21-pair repeat passes 130 assertions and
+reports ratios 1.420/1.233. The small-input cost remains unresolved. These are shared-host
+measurements, and v4 remains unaccepted and outside the public candidate.
+Evidence: `/tmp/hybrid-isothermal-general-reduction-v4/experiment-evidence.json`.
 
-An isolated public draft combines that general path, near-unit v4 and UInt64-key
-cold evaluation on the CGL/quadratic snapshot. It preserves the original closure
-validation order and generic/polytropic dispatch. The bounded dyadic conversion
-joins the existing exact-conversion owner. Permanent arithmetic, public-owner,
-validation, budget and large-grid regressions are assembled; the first native
-run is in progress. This draft remains unaccepted and has not changed public
-source on main. Assembly and frozen evidence: `/tmp/hybrid-isothermal-public-design-v1`
-and `/tmp/hybrid-isothermal-public-v1-verification`.
+## Acceptance still required
+
+Complete both public-v2 native lanes and retain the measured timing costs
+against the exact previous public owner as an open optimization task. Native lanes include solver/restart, quality/Aqua,
+threaded and full compiler-tree comparisons. Verify the real extreme-density
+resource controls, preserve failed evidence, and promote only the verified delta.
+Commit/push to main and require a green run for that exact SHA before acceptance.
+
+The [polytropic plan](POLYTROPIC_ENERGY_RANGE_PLAN.md) and the
+[complete budget/inertia scope](HYBRID_DIAGNOSTIC_RANGE_PLAN.md) remain separate
+open work. Correcting isothermal energy does not close them.
