@@ -94,6 +94,9 @@ using Test
     include("test_hybrid_field_energy_range.jl")
     include("test_quadratic_energy_integration.jl")
     include("test_cgl_quadratic_integration.jl")
+    include("test_isothermal_energy.jl")
+    include("test_isothermal_energy_keys.jl")
+    include("test_isothermal_logrange.jl")
     include("test_jet.jl")
     include("test_quality.jl")
 end

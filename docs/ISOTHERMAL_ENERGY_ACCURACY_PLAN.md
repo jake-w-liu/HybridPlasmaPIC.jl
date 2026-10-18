@@ -1,7 +1,8 @@
 # Isothermal energy accuracy — ENERGY-006
 
 Status: defects confirmed on Julia 1.12.7 and 1.13.2. Public v2 is frozen and
-under verification; no public isothermal repair has been pushed. Public v1
+under verification. Public v3 separately integrates verified traversal optimizations;
+no public isothermal repair has been pushed. Public v1
 remains unaccepted because a fresh resource witness found excessive allocation.
 
 ## Confirmed defects and regression contract
@@ -53,6 +54,28 @@ The isolated implementation has three paths:
 | General reduction v2 | Both versions pass 620 enclosure, 1,416 focused, 72 ordinary-resource, 32 extreme-resource and 1,627 quality/threaded assertions. All 18 ordinary and eight extreme calls allocate 0 B; large controls use 4,194,304 cells. Other value arithmetic and guards are byte-identical to v1. | All isolated gates pass; public integration is running. |
 | Public v1 | Both versions pass 8,532 permanent assertions plus one preflight check and 72 concrete compiler checks. Separate permanent key tests pass 6,243 assertions/version. All measured weak-wave and uniform public calls allocate 0 B. | Solver/restart, quality, threaded and complete compiler-tree lanes continue; resource regression prevents acceptance. |
 | Public v2 | Both versions pass 15,427 permanent assertions plus one preflight check each. Both versions also pass 72 concrete compiler checks each. There are 27 helper-equivalence checks and executable-AST equality across 205 source/test files. All measured public calls allocate 0 B. The frozen 294-file snapshot has a checked 15-file Julia delta against `63f2420`; other integrator arithmetic is byte-identical. | Both broader native lanes are running. No public promotion. |
+
+The separate v5 components complete their isolated native gates on both versions:
+
+- Near-unit v5 retains all 5,991 numerical, 34 resource, 24 concrete compiler and
+  1,226 parent-threaded checks. Its extra 98 assertions per version cover eight
+  certified and eight unresolved degree-eight first passes against independent
+  integral bounds. Unresolved Float64 cases retain the degree-12 refinement.
+- General v5 retains all 2,140 numerical/resource and 1,627 quality/threaded
+  checks, including 24 concrete compiler calls. Each runtime also passes 15,360
+  bit-for-bit complete-probe comparisons. Per-density reuse preserves every
+  accumulation and input check; zero temperature skips the reuse-selection scan.
+
+Their `all-native-gates-evidence.json` files are in
+`/tmp/hybrid-isothermal-nearunit-v5` and
+`/tmp/hybrid-isothermal-general-reduction-v5`. Public v3 combines these changes
+in the existing isothermal helper, adds two permanent regression files and
+updates their test includes. All other production files match public v2. Its
+296-file Julia snapshot passes 29 parent-helper comparisons and executable-AST
+comparison across all 207 source/test files. Both native public focused runs
+pass 27,831 regression assertions plus one preflight check each, and 144
+concrete compiler checks each. Broader lanes await their public-v2 parent lanes;
+this is a separate candidate, not a promoted optimization.
 
 General v2 uses exact frexp range reduction outside `[1/2,2]`, combining bounds
 for the mantissa logarithm and an integer multiple of `log(2)`. The real extreme-
@@ -117,6 +140,19 @@ reports ratios 1.420/1.233. The small-input cost remains unresolved. These are s
 measurements, and v4 remains unaccepted and outside the public candidate.
 Evidence: `/tmp/hybrid-isothermal-general-reduction-v4/experiment-evidence.json`.
 
+The v4 small-input batched repeat passes 70 assertions on latest Julia, with
+100 calls per sample and 11 alternating pairs. Its ratios are 0.870/0.918; these
+do not reproduce the slower single-call samples. Both sets remain recorded in
+`/tmp/hybrid-isothermal-general-reduction-v4`, including
+`small-varied-batch-evidence.json`.
+
+Near-unit v5's five-pair latest timing run passes 44 assertions with zero measured
+allocations. Its large Float64 ratio is 0.620; the large Float32 ratio is 1.269,
+and small-input ratios are 1.011/0.244. The Float32 arithmetic is unchanged;
+these shared-host timings establish no universal speedup. General v5's separate
+latest run passes 132 paired output/resource assertions. Public v3 still needs
+its own paired comparison and complete public acceptance.
+
 ## Acceptance still required
 
 Complete both public-v2 native lanes and retain the measured timing costs
@@ -128,3 +164,32 @@ Commit/push to main and require a green run for that exact SHA before acceptance
 The [polytropic plan](POLYTROPIC_ENERGY_RANGE_PLAN.md) and the
 [complete budget/inertia scope](HYBRID_DIAGNOSTIC_RANGE_PLAN.md) remain separate
 open work. Correcting isothermal energy does not close them.
+
+Public v3 paired timing on Julia 1.13.2 passes 240 assertions over 16 cases at
+4,096 and 4,194,304 cells. Both implementations return identical values against
+independent bounds; all 48 measured calls per implementation allocate zero bytes.
+Uniform-density v3/v2 median ratios are 0.131–0.209. Float64 weak-wave ratios are
+0.468 and 0.664; Float32 weak-wave ratios are 1.023 and 1.124. The latter measured
+cost is not reproduced consistently: an 11-pair repeat passes 92 assertions,
+with ratios 1.005 (small) and 0.928 (large), identical values and zero bytes in
+all measured calls (`repeat-evidence.json`). These shared-host measurements do
+not establish a universal speedup. Exact source/commands and per-case data are
+in `/tmp/hybrid-isothermal-public-v3-timing/evidence.json`.
+
+Local broad acceptance now also runs the complete selected suites in separate
+checkpoint and solver/diagnostic processes. The original combined runs remain
+untouched and pending. All 13 files and their assertions are retained; production
+and test hashes are unchanged. V2 split evidence is recorded under
+`/tmp/hybrid-isothermal-public-v2-split-verification`, with the same scheme queued
+for v3. Focused, concrete, quality, threaded and unfiltered compiler-tree gates
+remain required, followed by exact-SHA full-package GitHub CI. A separate typed
+checkpoint-test helper passed its original 276 assertions but showed no timing
+improvement; it is not included in any repository or acceptance snapshot.
+
+The checked 15-file isothermal-v2 correction is being pushed for exact-revision
+GitHub CI while both native broad lanes continue. This overlaps the complete
+Linux package/format/MPI run with native solver, restart, quality, threaded and
+full compiler-tree checks; it does not accept or remove any pending gate.
+The 15,427 permanent assertions plus one smoke check and 72 concrete compiler
+checks already pass on each runtime. The performance-v3 and pressure candidates
+remain separate. The latest fully green earlier revision is `d497436`.

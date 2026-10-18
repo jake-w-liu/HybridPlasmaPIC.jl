@@ -47,9 +47,8 @@ A separate eight-assertion classification per runtime encloses powers of the
 already-rounded density ratio. Every observed native pressure correctly rounds
 that altered power, isolating ratio rounding as the source of the large normal-
 output discrepancy. Evidence: `ratio-classification-evidence.json` in the witness
-directory. The same helper arithmetic must also be reviewed at the separate
-`PerpShock` expression in `src/initial_conditions/reflecting_wall_shock.jl:250`–`:251`;
-that caller has not yet received a public regression or repair.
+directory. The six shock expressions listed below have separate public witnesses.
+Their permanent repair and regression gates remain pending.
 
 The canonical owner is `src/electrons/closures.jl:85`. Its result feeds
 `gradient!` through `src/electrons/ohms_law.jl:85`–`:87`, as well as the energy
@@ -68,6 +67,108 @@ comparing numerator and denominator powers with the exact boundary. Bit-length
 checks bound each constructed integer by the existing target size, including
 very large stored gamma. This is distinct from the remaining multi-term
 all-rational energy tie problem. No public pressure code has changed.
+
+## Scalar pressure and shock coverage
+
+Scalar v2 in `/tmp/hybrid-polytropic-ordinary-v2` passes 13,850 assertions per
+Julia 1.12.7/1.13.2, including independent rational/root bounds, invalid and
+nonfinite values, output precision, signed zeros, resources and parent-checked
+threads. Ordinary calls allocate zero bytes on the measured grids through
+4,194,304 cells. Its four-output-ulp ordinary controls do not establish universal
+correct rounding; exceptional range and midpoint cases use complete intervals.
+The 12 concrete scalar/compiler checks are clean on each runtime.
+
+The original ownership harness retains 1,552 passes and eight failed old-bit
+comparisons for positive ordinary values. A 19-assertion classification checks
+all eight against the declared independent bounds. The corrected harness uses
+old-bit equality for zero/base-zero behavior and independent bounds for positive
+values. Candidate arithmetic is unchanged. Evidence: `native-evidence.json`.
+
+Six shock expressions also require the canonical pressure arithmetic:
+`reflecting_wall_shock.jl:251`, `:305`, `:480`, `:481`,
+`reflecting_wall_shock2d.jl:206`, and `reflecting_wall_shock3d.jl:308`.
+Both corrected native witnesses pass 108 assertions for force preparation,
+initialization, reservoir updates and signed densities. Unlike the closure,
+these callers retain raw signed powers. The first minimum-version witness has
+14 passes and one error: the 2D spectral operator rejects overflowed pressure
+instead of returning a nonfinite field. The corrected witness requires that
+exception and preserves its exact finite-pressure oracle. Original source/log
+and operator hashes remain in `/tmp/hybrid-polytropic-shock-witness-20261018`.
+
+## Public pressure candidates
+
+V1 in `/tmp/hybrid-polytropic-pressure-public-v1` passes 13,603 permanent
+assertions on each native runtime. Earlier array/shock preflights pass 448 each;
+formatter checks preserve 216 source/test syntax trees, 22 arithmetic helpers
+match their components, and the generic owner retains its original expression.
+Its 24 measured ordinary calls allocate zero bytes. Exceptional Float64 controls
+allocate 301,312–318,976 bytes at 32 cells and 2,410,496–2,551,808 bytes at 256
+cells; exceptional Float32 controls allocate zero bytes.
+
+The first minimum-version concrete compiler gate has 100 passes and eight
+failures; latest passes all 108. A 56-assertion classification reproduces all
+eight reports in the unchanged original pressure owner, in Base's matrix-view
+`unaliascopy` path, and checks runtime copying/shared-parent calls. The final
+comparison retains every report and compares the complete unchanged copy
+subtree: 124 assertions pass on minimum Julia, 108 on latest. The eight existing
+minimum-version reports remain visible. Evidence is in
+`hybrid-polytropic-pressure-public-v1-verification/classified-focused-results.json`
+under `/tmp`; the original failed gate is retained.
+
+V2 in `/tmp/hybrid-polytropic-pressure-public-v2` combines the checked scalar
+and array optimizations below. It is the active public acceptance candidate;
+V1 remains a checked reference. Both are based on the unpromoted isothermal
+public v3 snapshot. V2 changes six Julia files relative to V1, with no change
+to integrated polytropic energy. Formatter checks preserve 219 source/test syntax
+trees; all 24 component helpers match. Its 308-file frozen snapshot passes
+27,704 numerical/resource assertions on each Julia 1.12.7/1.13.2. Concrete compiler gates pass 172 assertions on minimum Julia and 156 on latest,
+including the 48 new cache calls; the eight classified minimum-version Base
+view-copy reports are retained. Commands, source/log hashes and exit status are in
+`hybrid-polytropic-pressure-public-v2-verification/focused{112,1132}-evidence.json`
+under `/tmp`. Broad acceptance is partitioned into the
+same complete 22 files: two checkpoint, eleven solver/diagnostic and nine shock
+files, followed by quality, threaded and full compiler-tree gates. No assertion
+or file is omitted. The original combined gate artifacts remain retained. No pressure source
+has been promoted to `main`.
+
+A supplementary independent binomial-series oracle passes 1,314 assertions on
+each runtime, including exact polynomial/square controls, independently searched
+rounding boundaries, mixed precision and actual stored non-integer gamma.
+It uses [NIST DLMF 4.6.7](https://dlmf.nist.gov/4.6#E7) and a derived rational
+geometric-tail bound, without candidate logarithm/exponential calls or MPFR.
+Evidence and the derivation are in `/tmp/hybrid-polytropic-binomial-oracle-v1`.
+The permanent regression overlay passes the same 1,314 checks per runtime;
+parsed syntax verifies that wrapping and formatting preserve all assertions.
+It is separate from the frozen candidate until promotion, and its final suite
+will also require exact-SHA GitHub CI.
+
+## Measured pressure optimizations
+
+Scalar v3 (`/tmp/hybrid-polytropic-ordinary-v3`) passes 26,535 assertions per
+native runtime, including 12,685 new rational Float32 residual/remainder checks.
+All-Float32 calls may use native Float32 powers with a precision-specific guard;
+unresolved calls use Float64 before complete evaluation. Mixed/Float64 outputs
+retain wider arithmetic. A latest-version paired run passes 120 assertions.
+A nine-pair process-CPU/wall run passes 168 more: Float32 CPU ratios versus v2
+are 0.885–0.982, and Float64 ratios are 0.969–1.007. Ordinary measured calls remain
+allocation-free. These measurements do not establish a universal speedup.
+
+Array reuse v1 (`/tmp/hybrid-polytropic-array-reuse-v1`) passes 1,658 assertions
+per runtime: 1,152 scalar/API controls, 264 resource checks and 242 compiler/
+threaded checks. A call-local cache reuses consecutive equal finite densities,
+distinguishes signed zero and passes each nonfinite input to the scalar owner.
+Measured exceptional Float64 uniform/four-block arrays use 9,416–39,872 bytes
+at each actual size: 32, 256 and 4,194,304 cells. Float32 controls use zero bytes.
+This is a repeated-density result, not an allocation bound for arbitrary data.
+Varied ordinary calls retain zero allocations; the 168-assertion latest CPU
+comparison measures large-grid ratios of 1.001–1.008 versus direct scalar calls.
+
+The first reuse harness has 39 passes and one error because its raw negative-
+infinity reference raises `DomainError`. The corrected harness compares exact
+exception type/message as well as returned values; candidate code is unchanged.
+Both component directories retain sources, commands, hashes, logs and measurements
+in `native-evidence.json`. Public integration must preserve these contracts and
+verify all affected callers before promotion.
 
 ## Completed component checks
 
@@ -110,14 +211,36 @@ combines the exact `log(2)` coefficient for binary powers. Both corrected lanes
 pass all 466 assertions with unchanged candidate arithmetic. Original source,
 failed log and classification remain in `/tmp/hybrid-polytropic-log-energy-v1`.
 
+## Exact rational-sum equality prototype
+
+`/tmp/hybrid-polytropic-sum-equality-v1` passes 988 numerical/resource assertions
+on each native runtime. It clears rational denominators, evaluates the integer
+difference modulo distinct deterministically checked primes, and proves equality
+once the divisor product exceeds a strict numerator bound. A nonzero residue
+proves inequality. Uniform inputs reuse the checked pointwise equality owner.
+The derivation is in `brief.md`; no production energy integration is included.
+
+The tests include exact Float32/64 midpoint sums and 997-bit exponents, with
+independent direct-power or monotonic controls. The 4,096-cell repeated tie uses
+8,755,912 allocated bytes; measured elapsed times are 0.553 s and 0.171 s.
+The first minimum-version quality run passes six compiler checks and 134
+threaded assertions but fails 12 assertions that assumed worker IDs were 1:4.
+The observed fourth default worker has ID 5. The corrected harness checks
+actual default-pool membership and all four workers; it passes six compiler and
+147 parent-threaded checks on minimum Julia, with latest verification pending.
+The candidate arithmetic is unchanged and the failed run is retained in
+`quality-failure.md`. This component has a finite exact decision
+procedure, but large-grid and difficult-tie costs remain unaccepted. It does not
+yet close integrated-energy rounding or resource requirements.
+
 ## Remaining acceptance work
 
-1. Complete final rounding and termination, including all-rational midpoint
-   decisions and bounds on resource use for large integer powers.
-2. Integrate exact gamma-one handling with an accurate ordinary path; check
-   nonfinite propagation, generic dispatch, validation order and complete budgets.
-3. Measure large-grid memory and latency. The interval and logarithmic cold
-   components are not accepted as the ordinary public traversal.
-4. Complete both native solver/restart, compiler-tree, quality and threaded
-   gates. Commit/push the verified public delta and require green GitHub CI for
-   that exact SHA. Preserve the separate held radiation changes.
+1. Finish public pressure v2's native solver/restart, compiler-tree, quality and
+   threaded gates. Review the final delta, commit/push to `main`, and require
+   green GitHub CI for that exact SHA. Preserve the held radiation files.
+2. Complete integrated polytropic final rounding and termination, including
+   all-rational multi-term midpoint decisions and resource bounds for large
+   integer powers. Pointwise pressure success does not settle this work.
+3. Integrate exact gamma-one handling and preserved stored gamma with an accurate
+   ordinary energy path. Check nonfinite propagation, generic dispatch,
+   validation order, complete budgets and actual large-grid memory/latency.

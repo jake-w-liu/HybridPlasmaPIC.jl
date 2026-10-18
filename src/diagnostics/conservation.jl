@@ -16,7 +16,7 @@ Energy reservoirs of a hybrid state: ion kinetic `Σ_p ½ m w |v|²`
 ([`kinetic_energy`](@ref)), magnetic `∫ ½|B|² dV` ([`magnetic_energy`](@ref)),
 and the electron closure energy ([`electron_internal_energy`](@ref)) — the
 internal energy `∫ p_e/(γ−1) dV` for a polytropic closure (γ≠1), the electron
-free energy `T_e ∫ n ln n dV` (its exact γ→1 limit) for an isothermal closure,
+free energy `T_e ∫ n ln n dV` for an isothermal closure,
 and the gyrotropic internal energy `∫ (p_⊥ + p_∥/2) dV` for a CGL closure.
 For [`EvolvingElectrons`](@ref), pass the stored state as `pe=stepper.fields.pe`;
 its internal energy is `∫ pe/(γ−1) dV`. Missing stored pressure is an error.

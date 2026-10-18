@@ -1362,6 +1362,13 @@ Electron closure energy integrated over the grid:
   - CGL (gyrotropic): `∫ (p_⊥ + p_∥/2) dV`, requiring the B-taking method.
     The density-only method retains its existing `NaN` result for CGL.
 
+For finite Float32/64 isothermal data and temperature, states whose positive
+densities are all within `1/256` of one use bounded complete free-energy
+evaluation. Other finite states use a compensated Float64 reduction. Unresolved
+bounds or range-sensitive operations use the complete stored-input expression
+before final rounding. The compensated path does not guarantee single rounding.
+Nonpositive densities retain their existing zero contribution.
+
 For finite Float32/64 CGL inputs and invariant coefficients, range-sensitive
 cases retain the stored density, field components, coefficients and individual
 cell spacings through the complete integral before final rounding. Inputs
@@ -1399,6 +1406,9 @@ function electron_internal_energy(
     # a gyrotropic (CGL) closure needs |B| for its internal energy — use the
     # (n, B, closure, g) method; degrade to NaN here rather than throwing downstream.
     is_anisotropic(closure) && return T(NaN)
+    if T <: Union{Float32,Float64} && closure isa IsothermalElectrons{<:Union{Float32,Float64}}
+        return _isothermal_energy(n, closure.Te, g.dx)
+    end
     γ = T(closure_gamma(closure))
     pe = similar(n)
     electron_pressure!(pe, n, closure)

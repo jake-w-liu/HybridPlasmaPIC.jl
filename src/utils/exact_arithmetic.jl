@@ -57,3 +57,30 @@ function _from_exact(::Type{T}, value::Rational{BigInt}) where {T<:Union{Float16
     magnitude = ldexp(T(quotient), quantum)
     return negative ? -magnitude : magnitude
 end
+
+# Fixed-width dyadic conversion used by bounded exact diagnostic intervals.
+@inline _exact_int128_magnitude(x::Int128) = x < 0 ? -unsigned(x) : unsigned(x)
+function _from_exact(::Type{T}, value::Int128, exponent::Int) where {T<:Union{Float32,Float64}}
+    iszero(value) && return zero(T)
+    integer = _exact_int128_magnitude(value)
+    count = 128 - leading_zeros(integer)
+    actual_exponent = Int128(exponent) + count - 1
+    minimum_quantum = Base.exponent(floatmin(T)) - precision(T) + 1
+    actual_exponent > Base.exponent(floatmax(T)) && return copysign(T(Inf), value)
+    actual_exponent < minimum_quantum - 1 && return copysign(zero(T), value)
+    quantum = max(exponent + count - precision(T), minimum_quantum)
+    shift = quantum - exponent
+    rounded = if shift <= 0
+        integer << -shift
+    elseif shift >= 128
+        # Int128 magnitude is at most 2^127; the only half-way case rounds to zero.
+        UInt128(0)
+    else
+        whole = integer >> shift
+        rest = integer & ((UInt128(1) << shift) - 1)
+        half = UInt128(1) << (shift - 1)
+        whole + (rest > half || (rest == half && isodd(whole)))
+    end
+    result = ldexp(T(rounded), quantum)
+    return value < 0 ? -result : result
+end

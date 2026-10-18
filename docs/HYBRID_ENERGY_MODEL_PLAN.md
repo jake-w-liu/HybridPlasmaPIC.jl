@@ -3,8 +3,11 @@
 Status: the diagnostic documentation is corrected to match the implemented
 force and reduced inertia model. The coupled evolving-pressure closure is
 implemented for the ideal massless case and passes both native Julia acceptance
-gates. Exact-revision GitHub CI remains pending. Dissipative recoil/heating and
-complete electron inertia remain separate model extensions.
+gates. Implementation commit `013a70b` passes all six jobs in
+[its exact-revision GitHub run](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39097756477):
+374,060/374,061 assertions on actual Julia 1.12.7/1.13.2, formatting and all
+MPI ranks. Dissipative recoil/heating and complete electron inertia remain
+separate model extensions.
 
 ## Verified balance and scope
 
@@ -179,7 +182,9 @@ identity assertion and its exact differences are retained in
   coupling; joint-stage and coupled convergence; zero/variable timesteps;
   rollback/retry, restart and MPI failure; compiler/quality gates on both Julia
   versions.
-- [ ] Complete exact-revision GitHub CI for the pushed implementation.
+- [x] Complete exact-revision GitHub CI for implementation commit `013a70b`;
+  all six jobs pass. Logs and hashes are in
+  `/tmp/hybrid-ci-followup-20261018-0440/39097756477-evidence.json`.
 
 The explicit spectral pressure update is not positivity preserving;
 smaller timesteps or better-resolved positive data may be necessary. The

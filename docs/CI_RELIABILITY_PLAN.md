@@ -599,8 +599,19 @@ files and passes JuliaFormatter 1.0.62.
 The verified CGL production delta, regressions and tracker documentation are
 pushed as `63f2420ea3795a0796bcfa77c76e5667934b6d16`.
 [Exact run 39113547976](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39113547976)
-has green formatting, all three MPI ranks and the latest-Julia package job;
-the Julia 1.12 package job is running. No complete-green claim or billing exception is made. The monitor is in
-`/tmp/hybrid-ci-63f2420-20261018`. Native evidence is retained in
+has all six jobs green. Actual Julia 1.12.7 passes 389,341 assertions in
+114m36.7s; actual Julia 1.13.2 passes 389,342 in 84m18.0s. Package JET counts
+are 23/22. Formatting and 2-/4-/8-rank MPI pass. All six logs, hashes and exact-SHA
+evidence are in `/tmp/hybrid-ci-63f2420-20261018/39113547976-evidence.json`.
+No billing exception is used. Native evidence is retained in
 `/tmp/hybrid-cgl-quadratic-integrated-v1-verification`. Held radiation files
 remain excluded.
+
+The subsequent evidence/tracker-only commit `d4974363f57c6c65e7fa99e0947183375fc37de1`
+has [exact run 39119245628](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39119245628).
+All six jobs pass. Actual Julia 1.12.7 passes 389,341 assertions in 115m47.5s;
+actual Julia 1.13.2 passes 389,342 in 100m20.6s. Package JET counts are 23/22.
+Formatting and all MPI ranks pass. All six logs, their hashes and exact-SHA
+evidence are retained in
+`/tmp/hybrid-ci-d497436-20261018/39119245628-evidence.json`.
+No billing exception is used.
