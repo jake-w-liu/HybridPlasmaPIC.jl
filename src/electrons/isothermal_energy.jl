@@ -159,39 +159,46 @@ end
     return lower, upper
 end
 
-function _isothermal_scaled_polynomial_storage(
-    n::AbstractArray{T},
-    state,
-    bits::Int,
-    ::Val{K},
-    ::Type{I},
-) where {T,K,I<:Union{Int64,Int128}}
-    exponent = state.q - state.p
-    coefficients = ntuple(Val(K - 1)) do i
-        lo, hi = _isothermal_coefficient_bounds(i + 1, exponent, bits)
-        return I(lo), I(hi)
-    end
-    mask = (I(1) << state.q) - 1
-    scale = I(state.scale)
-    scale_float = T(state.scale)
-    lower = upper = Int128(0)
-    for value in n
-        value > zero(T) || continue
-        d = I(Int64(value * scale_float)) - scale
-        iszero(d) && continue
-        lo, hi = coefficients[K-1]
-        for k = (K-1):-1:2
-            lo, hi = _isothermal_multiply_y(lo, hi, d, state.q, mask)
-            c = coefficients[k-1]
-            lo += c[1]
-            hi += c[2]
+# These are the two storage widths selected by the bounded polynomial owner.
+# Generate both concrete methods from one arithmetic body so integer pairs
+# retain their common width throughout Horner evaluation.
+for I in (Int64, Int128)
+    @eval function _isothermal_scaled_polynomial_storage(
+        n::AbstractArray{T},
+        state,
+        bits::Int,
+        ::Val{K},
+        ::Type{$I},
+    ) where {T,K}
+        exponent = state.q - state.p
+        # Each coefficient is constructed at this exact storage width.
+        # Keep that tuple contract when an abstract degree erases ntuple shape.
+        coefficients = ntuple(Val(K - 1)) do i
+            lo, hi = _isothermal_coefficient_bounds(i + 1, exponent, bits)
+            return $I(lo), $I(hi)
         end
-        lo, hi = _isothermal_multiply_y(lo, hi, d, state.q, mask)
-        lo, hi = _isothermal_multiply_y(lo, hi, d, state.q, mask)
-        lower += lo
-        upper += hi
+        mask = ($I(1) << state.q) - 1
+        scale = $I(state.scale)
+        scale_float = T(state.scale)
+        lower = upper = Int128(0)
+        for value in n
+            value > zero(T) || continue
+            d = $I(Int64(value * scale_float)) - scale
+            iszero(d) && continue
+            lo, hi = coefficients[K-1]::Tuple{$I,$I}
+            for k = (K-1):-1:2
+                lo, hi = _isothermal_multiply_y(lo, hi, d, state.q, mask)
+                c = coefficients[k-1]::Tuple{$I,$I}
+                lo += c[1]
+                hi += c[2]
+            end
+            lo, hi = _isothermal_multiply_y(lo, hi, d, state.q, mask)
+            lo, hi = _isothermal_multiply_y(lo, hi, d, state.q, mask)
+            lower += lo
+            upper += hi
+        end
+        return lower, upper
     end
-    return lower, upper
 end
 
 function _isothermal_scaled_polynomial(n, state, bits, degree)

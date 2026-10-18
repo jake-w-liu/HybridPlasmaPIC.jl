@@ -617,6 +617,7 @@ end
 @testset "EMPIC1D validates changed subcycling before mutation" begin
     g = FourierGrid((8,), (2π,))
     e = ParticleSet{1,Float64}(1; q = -1.0, m = 1.0)
+    e.x[1] .= 0.0
     e.weight .= 0.0
     es = EMPIC1D(g, 1; n0 = 0.0)
     init_empic!(es, e)

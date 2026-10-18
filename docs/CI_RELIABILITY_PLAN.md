@@ -637,3 +637,75 @@ check and 144 concrete compiler checks. The 240-assertion paired benchmark and
 trees. Its four Julia files and four tracker documents exclude the held files.
 The previous correction run remains active; both commits require green CI.
 Monitor: `/tmp/hybrid-ci-5323c4d-20261018`.
+
+## October 18 pointwise polytropic pressure correction
+
+`0d8c8e8daeaad49d374b5e7dcc135dfa96a6a155` is pushed to `main`, with
+[exact run 39129830419](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39129830419)
+running. Each native runtime passes 27,704 focused and 1,314 independent
+binomial-oracle assertions. Concrete compiler comparisons pass 172/156 checks,
+retaining eight pre-existing minimum-version Base view-copy reports. Formatting
+and executable syntax comparisons cover 220 final source/test files. The
+19-source/test plus four-document promotion excludes held radiation files.
+Native broad/full compiler and complete GitHub gates remain pending; none is
+waived. The final tree/remote evidence is in
+`/tmp/hybrid-polytropic-pressure-public-v2-verification/promotion-5323c4d-whitelist.json`.
+Monitor and eventual full job logs: `/tmp/hybrid-ci-0d8c8e8-20261018`.
+
+At the 14:25 UTC check, each of these three exact-SHA monitors records successful
+formatting and 2-/4-/8-rank MPI jobs. Both Julia package jobs remain in progress
+for every revision. This is partial progress, not green-run acceptance.
+
+The latest-Julia package job for `5323c4d` is successful in the 14:31 UTC exact-SHA
+status record; its minimum-version job remains pending. The local isothermal
+V2 split harness passes both checkpoint lanes, but its 1.12 solver lane omits
+`KineticRangeOracle`: 72 UndefVarError errors occur in the first combined-energy
+file after nine prior solver files pass. The normal full suite loads that
+module earlier. The recovery harness loads the original kinetic/CGL oracle
+module definitions and replays both affected integration files, then continues
+the remaining gates. Failed logs are retained; no assertion is removed.
+Evidence: `/tmp/hybrid-isothermal-public-v2-recovery-verification`.
+
+## October 18 failed package checks and corrections
+
+**VERIFIED — TEST-002:** `0d8c8e8` latest job
+[117682532888](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39129830419/job/117682532888)
+finishes on actual Julia 1.13.2 with 446,177 passes and 14 failures, all at
+`test/polytropic_pressure/reuse_resources.jl:32` (ten) and `:52` (four).
+Those assertions require identical allocated byte totals. Repeated samples
+show the same malloc/realloc/pool/big-allocation counters with different bytes.
+Julia's [1.13.2 allocation accounting](https://github.com/JuliaLang/julia/blob/v1.13.2/src/gc-stock.c#L3848-L3902)
+uses allocator-provided usable block capacities in the byte counter. The
+correction compares all four allocation-call counters against independent
+scalar evaluation of the compressed density palette. It retains every output,
+immutability, prior-work byte comparison and ordinary zero-byte assertion, and
+continues reporting every byte sample. Negative controls must reject per-cell
+cold work and an extra output-sized buffer. The isolated candidate and gates
+are at `/tmp/hybrid-pressure-resource-gate-v1-verification`; acceptance is open.
+Full failed log and SHA256:
+`/tmp/hybrid-ci-0d8c8e8-failure-review-20261018/failure-evidence.json`.
+
+**VERIFIED — TEST-003:** `6e7fb01` latest job
+[117680968844](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39129297310/job/117680968844)
+finishes on actual Julia 1.13.2 with 404,763 passes and one setup error in
+`test/test_empic1d.jl:617`. The subcycling-validation fixture writes particle
+weight but leaves position storage uninitialized. The position constructor
+uses `undef` in `src/particles/particle_set.jl:59`; the real validator rejects
+the observed nonfinite position in `src/coupling/shapes.jl:31`. The candidate
+initializes the test particle at the origin, preserving every rejection and
+unchanged-state assertion. Focused, deliberately poisoned-storage and full
+EMPIC1D checks are running in `/tmp/hybrid-empic-subcycling-fixture-20261018`.
+The source test is byte-identical to the failed SHA. Full log and hash:
+`/tmp/hybrid-ci-6e7fb01-failure-review-20261018/failure-evidence.json`.
+
+These are recorded test failures, with no billing exception. Neither failed
+revision is described as green. Both minimum-version jobs remain pending.
+
+The TEST-002 replacement passes 272 resource/numerical assertions per runtime
+and 48 negative-control assertions per runtime: extra per-cell cold work and
+an output-sized buffer both violate the reference allocation signature. Every
+ordinary zero-byte control remains green. TEST-003 passes 13 assertions per
+runtime (the original six, six with poisoned initial storage, and one replay
+of the observed invalid-position error); full EMPIC1D files remain running.
+The six-file final overlay also contains the verified algebraic dispatch and
+compiler corrections. Full GitHub acceptance requires the exact pushed SHA. No failed historical run is reclassified as green.

@@ -1,7 +1,8 @@
 # Polytropic energy range and closure precision
 
 Status: the pointwise pressure correction passes native focused and concrete
-compiler checks on Julia 1.12.7 and 1.13.2 and is entering exact-revision CI.
+compiler checks on Julia 1.12.7 and 1.13.2. It is pushed as `0d8c8e8`, with
+[exact-revision CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39129830419) running.
 Broader native gates remain pending. The complete integrated polytropic energy
 repair is not implemented. This plan covers the polytropic part of ENERGY-004,
 ENERGY-007 and CLOSURE-001.
@@ -134,7 +135,7 @@ same complete 22 files: two checkpoint, eleven solver/diagnostic and nine shock
 files, followed by quality, threaded and full compiler-tree gates. No assertion
 or file is omitted. The original combined gate artifacts remain retained. The
 19-file source/test pressure correction, including the independent binomial
-regressions below, is being pushed to run exact-SHA GitHub CI concurrently.
+regressions below, is pushed as `0d8c8e8` to run exact-SHA GitHub CI concurrently.
 No pending native or GitHub gate is treated as accepted.
 
 A supplementary independent binomial-series oracle passes 1,314 assertions on
@@ -240,6 +241,191 @@ The candidate arithmetic is unchanged and the failed run is retained in
 procedure, but large-grid and difficult-tie costs remain unaccepted. It does not
 yet close integrated-energy rounding or resource requirements.
 
+## Current energy-owner recheck after pressure correction
+
+The energy diagnostic body used by the new witness is byte-identical to
+`0d8c8e8`. Both native runtimes pass 34 witness assertions: four exact dyadic
+integrals remain finite while the public diagnostic returns zero or infinity,
+and six mixed-precision stored-gamma cases still take the wrong branch. This
+confirms that pointwise pressure acceptance does not close ENERGY-004/007.
+The expected Float32 magnitudes are `2^-100` and `2^100`; Float64 uses `2^-600`
+and `2^600`, with inverse box extents. Per-cell pressure rounds before the volume
+can restore the finite complete integral.
+
+A separate 216-assertion observation per runtime records zero/sign behavior over
+108 combinations of precision, cell count, coefficient sign, gamma and density.
+Sources, exact commands, source/log hashes and results are in
+`/tmp/hybrid-polytropic-energy-contract-20261018/evidence.json`.
+`design.md` there records the next canonical integration strategy and its
+unverified fast-path and resource requirements. No complete integral code is
+included in the pressure push.
+
+A further 20-assertion witness on each runtime constructs three complete
+integrals strictly above a Float64 midpoint. The actual diagnostic returns the
+lower float in all three cases. Stored gamma is `2^52`, `2^54` or `2^56`; a
+positive density contribution rounds to zero pointwise. Exact coefficient
+identities and a rational upper bound on the positive increment establish the
+expected adjacent float without constructing the enormous power. Evidence is
+`tiny-term-evidence.json` in the current energy-contract directory.
+
+The isolated strict-scaled-sum component retains the current numeric enclosure
+and additionally records strict inequalities from quantization remainders.
+It passes 1,509 numerical/resource assertions per runtime, including exact
+midpoint decisions at zero, subnormal, normal and overflow boundaries. Tested
+exponents up to 997 bits allocate 5,152–5,296 bytes. Its first compiler harness
+errors because `typeof` widened a singleton type to `DataType`; the corrected
+harness preserves exact argument types and retains every analysis. It passes
+10 compiler/signature assertions and 99 parent-checked concurrency assertions
+on each runtime, with all four default-pool workers participating. Sources,
+failed/corrected harnesses and logs are in
+`/tmp/hybrid-polytropic-strict-scaled-sum-v1`. This remains a component and is
+not included in the pressure commit or an accepted complete-energy repair.
+
+
+The isolated complete cold-integral component passes 273 assertions on each
+runtime: independent rational powers, range restoration, stored gamma, exact
+positive/negative midpoints, the tiny-term witnesses and measured zero signs.
+The three huge-gamma midpoint samples allocate 87,464–96,336 bytes; these are
+small-grid measurements, not a large-grid resource acceptance. The component
+shares the pressure power/rounding owners and the checked strict-sum/equality
+components. It also passes 12 concrete compiler checks and 195 parent-checked threaded
+assertions per runtime. Gamma one, ordinary-path performance and public
+integration remain unimplemented in this cold component.
+Evidence: `/tmp/hybrid-polytropic-complete-rounding-v1/numerical-evidence.json`.
+
+
+The separate ordinary-integral probe passes 1,429 numerical assertions per
+runtime against exact rational and independent binomial integrals. Its range
+certificate bounds the complete positive integral using exact stored-input
+binary exponents; it does not assume that finite intermediates certify the
+complete result. The selected ordinary accuracy target is four ulps, without a
+universal correct-rounding claim. Each runtime also passes 24 concrete compiler,
+36 resource and 291 parent-checked concurrency assertions. All 54 measured calls
+allocate zero bytes across uniform/varied/weak profiles and 32–262,144 cells.
+Timings and combined/public integration remain open. Source, proof and logs:
+`/tmp/hybrid-polytropic-energy-ordinary-v1`.
+
+A fixed-width scaled-rational converter passes 7,836 independent rounding
+assertions per runtime, including signed Int128 limits, UInt64 denominators,
+normal/subnormal/overflow ties and extreme integer exponents. It is intended to
+apply the gamma-one reference density before rounding the shared near-unit
+isothermal enclosure. Both runtimes also pass two concrete compiler calls,
+64 resource assertions (192 measured calls at zero bytes) and 194 threaded
+assertions. No production converter has been changed. Source and logs:
+`/tmp/hybrid-scaled-rational-conversion-v1`.
+
+The shared gamma-one integration v1 fails 12 strict-rounding assertions on the
+minimum runtime (420 pass in that testset). That run is retained. V2 preserves
+every test and requires both general-probe endpoints to round identically
+before accepting that probe; otherwise it uses the shared exact logarithmic
+fallback. Classification records errors of two, four and fourteen ulps in V1;
+six cases also fail the additional four-ulp hypothesis (67 assertions pass,
+six fail). The original range intervals contain the independent reference in
+all twelve cases. That failed classification remains retained.
+
+V2 passes the original 466 strict output assertions, but six near-unit probes
+return unresolved. A separate 31-assertion classification verifies that their
+stored pressure/reference coefficients are equal and that exact cancellation
+before multiplication settles every case. V3 applies that general algebraic
+identity. It passes all 826 original/additional numerical assertions, 12 concrete
+compiler calls, 72 resource assertions and 67 parent-checked concurrency checks
+on each runtime. All 108 measured near-unit calls allocate zero bytes, through
+262,144 cells. General Float64 resource measurements are recorded below. Sources,
+failed trials and logs: `/tmp/hybrid-polytropic-gamma-one-shared-v{1,2,3}`.
+
+
+The ordinary V1 paired benchmark passes 252 assertions per runtime but measures
+uniform-state latency at 8.6–36.8 times the current public diagnostic. V2 reuses
+consecutive positive equal-density pressure terms while keeping every per-cell
+check and compensated addition. Both runtimes pass 3,433 numerical/equivalence
+and 351 quality/resource/threaded assertions. Its direct 11-pair comparison
+passes 184 assertions per runtime; uniform latency is 0.032–0.065 of V1, with
+identical results and 88 zero-byte calls per implementation/runtime. Varied
+profiles remain mixed, and this is not a universal speedup claim. Full samples:
+`/tmp/hybrid-polytropic-energy-ordinary-v2/paired-reuse-evidence.json`.
+
+The gamma-one V3 general-state resource run passes 28 independent-oracle and
+immutability checks per runtime. On 1.12.7, 4,096 uniform/alternating cells
+allocate 6,658,784–7,222,024 bytes; 32 distinct Float64 densities allocate
+1,330,976 bytes. These costs remain open. The near-unit zero-byte measurements
+do not establish acceptable general-state performance.
+
+An isolated canonical integration now exists at
+`/tmp/hybrid-polytropic-energy-public-v1`. Six production Julia paths change;
+shared conversion, isothermal and scaled-sum owners are extended, and a new
+polytropic energy owner connects to the public diagnostic after validation.
+Nonfinite and generic public branches retain the previous path. Permanent
+component and public tests are added, with one shared binomial test oracle.
+The initial migration check catches two error strings altered by textual
+renaming; restoring them passes all 38 helper comparisons. The initial smoke
+harness then errors on `g.ncells`; the reported real field is `g.n`, and the
+harness is corrected. Both failed runs are retained. The final migration check
+passes 41 assertions and both public smoke runs pass 25 assertions. V1 passes
+1,679 concrete/quality and 1,608 threaded assertions per runtime. Its focused
+minimum-version suite records 69,720 passes and one failed legacy expectation:
+the stored-gamma witness still required the old narrowed-gamma answer. V2 retains
+that fixture and checks independent rational concavity bounds for its actual
+stored exponent; it also checks that the old answer is rejected. No tolerance
+is widened. V2 passes 69,903 focused assertions on each native runtime.
+Remaining integrated acceptance is pending. No integrated energy code is in main.
+
+Gamma-one V4 counts repeated positive densities before exact rational log work.
+It passes 1,006 numerical, 151 quality/resource/threaded and 28 general-resource
+assertions per runtime. At 4,096 uniform/alternating cells it allocates
+53,408–84,552 bytes across the two runtimes. At 32 distinct Float64 densities it
+allocates 1,341,048 bytes on 1.12.7 and 1,337,920 on 1.13.2; distinct-density
+costs remain open. The near-unit path retains its zero-byte controls. Source,
+complete measurements and failed predecessors are in
+`/tmp/hybrid-polytropic-gamma-one-shared-v4`. Public V2 includes this shared-owner
+change and 180 independent repeated/distinct-density assertions.
+
+## Algebraic storage dispatch — CLOSURE-002
+
+**VERIFIED:** the pushed pointwise-pressure path fails for union-element input
+or output storage. The corrected observation harness in
+`/tmp/hybrid-algebraic-package-review-20261018/union_storage_corrected.jl` passes
+69 assertions on each native Julia version: the legacy broadcast succeeds in
+all 27 combinations of Float32, Float64 and union input/output/coefficient
+types, while the new owner raises MethodError in the 15 combinations with union
+input or output storage. `src/electrons/polytropic_pressure.jl` selects a cache
+that calls `zero(T)`/`zero(S)` for those nonconcrete types. The original harness's
+unrelated union-output initialization error is retained separately.
+
+The isolated correction at `/tmp/hybrid-algebraic-dispatch-v1` restores legacy
+broadcast for nonconcrete input/output element types. It exposes the actual
+Array check at the cache call site and retains the scalar type explicitly in
+raw shock broadcasts. It also generates the two selected Int64/Int128
+isothermal polynomial methods from one arithmetic body. Full-package analysis
+of the integrated V1 snapshot records six new diagnostic groups on 1.12.7
+(22 to 28 reports): two mixed-width polynomial findings, one hidden-Array-check
+finding and three raw-broadcast findings. These are not waived. The report
+comparison harness initially fails on a new source file; its corrected
+missing-file map preserves every report and marks new source locations for
+review. Both the failure and complete corrected trees are retained in
+`/tmp/hybrid-algebraic-package-review-20261018`.
+
+V1 passes 274 union Array/view/empty-storage assertions per runtime. Its first
+raw-pressure test extension incorrectly uses views for an Array-only helper;
+that failed harness is retained. Corrected fixtures pass another 42 assertions
+per runtime for shared Array storage, self-alias, broadcast expansion, signed
+and nonfinite inputs, empty arrays and explicit rejection of unsupported views.
+Full compiler comparison still fails with two new polynomial diagnostic groups
+on each runtime (24/23 versus 22/21 baseline); all other groups match. V2 exposes
+the existing concrete coefficient-tuple contract at its two indexing sites.
+Thirteen syntax/method assertions verify the two integer widths, those exact
+tuple contracts and the unchanged arithmetic body. Formatting preserves all
+221 source/test executable syntax trees. V2 numerical, full compiler,
+concurrency and paired allocation/latency gates remain running. Verification
+logs and immutable hashes are in
+`/tmp/hybrid-algebraic-dispatch-v{1,2}-verification`.
+
+Energy public V3 merges that dispatch correction into V2, retaining all prior
+energy fixtures and adding the 316 storage/broadcast checks. All 41 helper
+migration assertions pass, including explicit validation of the generated
+polynomial methods. Formatting preserves all 231 source/test executable trees.
+Focused, concrete, threaded and complete compiler checks are running outside
+main at `/tmp/hybrid-polytropic-energy-public-v3-verification`.
+
 ## Remaining acceptance work
 
 1. Finish public pressure v2's native solver/restart, compiler-tree, quality and
@@ -251,3 +437,15 @@ yet close integrated-energy rounding or resource requirements.
 3. Integrate exact gamma-one handling and preserved stored gamma with an accurate
    ordinary energy path. Check nonfinite propagation, generic dispatch,
    validation order, complete budgets and actual large-grid memory/latency.
+
+The final dispatch correction is implemented with the two CI test repairs. Both native complete compiler
+trees match baseline (22/21); concrete compiler gates pass 316/300 assertions,
+four-thread checks pass 3,007 per runtime, and Aqua passes nine each. Paired
+polynomial checks pass 528 per runtime, preserving outputs and 72 zero-byte
+calls per implementation/runtime. Timing ratios are mixed (0.776–1.617 on
+1.12.7; 0.507–4.383 on 1.13.2); no speedup is claimed. The minimum focused suite
+passes 57,165 assertions; the latest focused suite remains running. The final
+six-file source/test overlay exactly matches the checked snapshots, and all
+other 217 source/test paths match `0d8c8e8`. Whole-repository formatting passes.
+Remaining native broad gates and the new exact-SHA CI remain required after
+push. Evidence: `/tmp/hybrid-algebraic-ci-promotion-v1-verification`.

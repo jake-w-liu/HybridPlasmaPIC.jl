@@ -433,8 +433,12 @@ function electron_pressure!(
     n::AbstractArray{T},
     closure::PolytropicElectrons{C},
 ) where {S<:Union{Float32,Float64},T<:Union{Float32,Float64},C<:Union{Float32,Float64}}
+    # Union element storage belongs to the generic broadcast owner; it cannot
+    # supply the single concrete output/input precision used by this path.
+    (S === Float32 || S === Float64) && (T === Float32 || T === Float64) ||
+        return _legacy_polytropic_pressure!(pe, n, closure)
     if _polytropic_host_storage(pe) && _polytropic_host_storage(n)
-        if _polytropic_array_compatible(pe, n)
+        if pe isa Array && n isa Array && _polytropic_array_compatible(pe, n)
             return _polytropic_pressure_array!(pe, n, closure, Val(true))
         end
         broadcast!(pe, n) do density
@@ -451,7 +455,7 @@ function _polytropic_unreferenced_pressure(
     coefficient::T,
     gamma::T,
 ) where {T}
-    if T <: Union{Float32,Float64}
+    if T === Float32 || T === Float64
         closure = PolytropicElectrons{T}(coefficient, one(T), gamma)
         return _polytropic_pressure(T, density, closure)
     end
@@ -465,14 +469,13 @@ function _polytropic_unfloored_pressure!(
     coefficient::T,
     gamma::T,
 ) where {T}
-    if T <: Union{Float32,Float64}
+    if T === Float32 || T === Float64
         closure = PolytropicElectrons{T}(coefficient, one(T), gamma)
         if _polytropic_array_compatible(pe, n)
             return _polytropic_pressure_array!(pe, n, closure, Val(false))
         end
-        broadcast!(pe, n) do density
-            _polytropic_pressure(T, density, closure)
-        end
+        # Preserve the singleton destination type in scalar broadcast storage.
+        broadcast!(_polytropic_pressure, pe, Ref{Type{T}}(T), n, Ref(closure))
     else
         @. pe = coefficient * n^gamma
     end
