@@ -5,7 +5,8 @@ focused/resource/concurrency, 14,100 quality/numerical and 29,473 complete
 EM/EM1D/checkpoint assertions per runtime. All concrete/package compiler reports
 match baseline. The tested repair is pushed as `b73abfe`; its exact-revision
 [GitHub run](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/38777494822)
-is active. Acceptance remains pending.
+is fully green: 369,711/369,712 assertions on actual Julia 1.12.7/1.13.2,
+plus formatting and 2-/4-/8-rank MPI. [CI evidence](CI_RELIABILITY_PLAN.md#acceptance-run-at-b73abfe).
 
 ## Pre-edit brief
 

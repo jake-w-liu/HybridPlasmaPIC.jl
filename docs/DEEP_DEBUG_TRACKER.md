@@ -1,6 +1,6 @@
 # Plasma simulation audit and implementation tracker
 
-Updated: 2026-10-16. Goal remains **active**.
+Updated: 2026-10-18. Goal remains **active**.
 
 User objective: audit the full codebase until an independent pass finds no new
 confirmed defects; optimize measured bottlenecks; plan and implement missing
@@ -17,13 +17,20 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   assertions, 2,273 concurrent checks and 504 resource/oracle checks per version.
   The unchanged 1,000-step wave passes at 2.88e-12 against 1e-8. The exact tested
   source is pushed as `e9c4fa7`; [its CI run](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/38767093527)
-  is active with formatting and all MPI ranks green. [Contract and costs](CHARGE_DEPOSITION_CONSERVATION_PLAN.md).
+  is fully green: 368,455/368,456 assertions on actual Julia 1.12.7/1.13.2,
+  plus formatting and all MPI ranks. [Contract and costs](CHARGE_DEPOSITION_CONSERVATION_PLAN.md).
 
 - Latest-version gate advanced to **Julia 1.13.2**, listed as the current stable
   release (October 14) on the [official downloads page](https://julialang.org/downloads/manual-downloads/),
-  checked October 15. Existing 1.13.1 results retain their exact tested version;
-  GitHub acceptance on 1.13.2 is now verified at `240f77c` below; later revisions
-  are still being checked. The minimum-version gate remains 1.12.7.
+  checked again October 18. Existing 1.13.1 results retain their exact tested version;
+  GitHub acceptance on 1.13.2 is verified through main revision `2bc7085`.
+  The minimum-version gate remains 1.12.7.
+
+- Every later pushed revision is now green: `afc324f`, `b73abfe`, `2330379`,
+  and main revision `2bc7085` each pass both package jobs, formatting and
+  2-/4-/8-rank MPI. That revision passes 369,711/369,712 assertions on actual
+  Julia 1.12.7/1.13.2. No billing exception is used.
+  [Exact revisions and logs](CI_RELIABILITY_PLAN.md#acceptance-run-at-afc324f).
 
 - Pushed `240f77c` now has fully green [GitHub run 38741178196](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/38741178196):
   actual Julia **1.12.7 passes 357,258 assertions** and **1.13.2 passes 357,259**;
@@ -39,8 +46,17 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   Scheduling repair `4c03c87` also has a fully green
   [run 38750474902](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/38750474902):
   357,258/357,259 assertions on actual 1.12.7/1.13.2, with 23/22 JET reports.
-  The later `e9c4fa7` run remains pending.
+  The later `e9c4fa7` run also passes as recorded above.
   No billing block is evidenced. [Per-revision evidence](CI_RELIABILITY_PLAN.md).
+
+- Evolving-pressure implementation remains isolated. Independent direct-DFT
+  stage/work and genuine 3D transport checks pass on 1.12.7/1.13.2; the final
+  accuracy file passes 118 assertions per version. Julia 1.13.2 also passes
+  real 1-/2-/4-rank MPI checks, and 1.12.7 passes 1-/2-rank checks. Review found
+  and repaired pressure/gradient alias mutation in the candidate. One new
+  package-analysis report concerns a captured particle-count variable in its
+  transaction buffer; that finding is being addressed before promotion.
+  The public guide's example runs on both versions. [Implementation status](HYBRID_ENERGY_MODEL_PLAN.md#evolving-pressure-implementation-tracker).
 
 - Completed [GitHub run 38722319490](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/38722319490)
   at `55d996b` passes formatting, the 2-/4-rank MPI jobs and both package jobs:
@@ -222,7 +238,7 @@ performance review. “Pending” means no current-run completion claim.
 | PIC-004 | Squared finite wavenumbers erase nonzero Poisson/Gauss projections | Pushed (`4f4fec4`) | Shared complete-expression projection preserves finite Fourier results and exact null classification. Both Julia versions pass 27,434 ES/EM assertions; 108 concrete JET signatures each are clean, package reports match the baseline, and 146 ordinary state/allocation comparisons pass. Local vacuum timing costs remain visible; FFT/density boundaries are separate PIC-005 work. [Scope, costs and evidence](EMPIC_RANGE_PLAN.md). |
 | GYRO-005 | Ring phase, geometry and sample accumulation lose finite results | Pushed (`de6151d`) | VERIFIED: the Float16 constant-one mean becomes 0.5 at 8,192 samples and zero at 70,000; 12,000 points overflow the phase. Complete geometry and streaming certified accumulation pass 268,187 assertions on each Julia version. All 118 concrete JET calls per version have zero reports; the package gate retains 24. Ordinary calls remain 0 B but measured paired latency is 3.78–20× slower; optimization remains open. [Evidence and performance plan](GYRO_RING_PLAN.md). |
 | PIC-005 | Density subtraction, FFT materialization and standalone residual arithmetic lose finite continuity results | Diagnostic range repair pushed (`1214234`); current correction planned | Both Julia versions pass 29,113 final EM/EM1D/IO assertions, 33 concrete compiler checks and bitwise ordinary/allocation comparisons. Package findings match baseline. Canonical input restrictions and severe arbitrary-grid cancellation accuracy remain explicit; current materialization is a separate repair. [Pipeline scope](EMPIC_RANGE_PLAN.md); [diagnostic contract, resources and remaining limits](CONTINUITY_DIAGNOSTIC_RANGE_PLAN.md). |
-| PIC-006 | Legacy transverse Nyquist subtraction overflows or loses subnormal means | Pushed (`b73abfe`); GitHub acceptance pending | Both runtimes reproduce 68 range witnesses. The final source adds complex compatibility controls and passes 1,090 focused/resource/concurrency assertions. Final combined quality passes 14,100/version, with complete concrete/package reports matching unchanged source. Final complete EM/EM1D/checkpoint integration passes 29,473/version. Exact-revision GitHub acceptance remains required. [Contract and costs](EMPIC_NYQUIST_RANGE_PLAN.md). |
+| PIC-006 | Legacy transverse Nyquist subtraction overflows or loses subnormal means | Pushed (`b73abfe`); GitHub green | Both runtimes reproduce 68 range witnesses. The final source adds complex compatibility controls and passes 1,090 focused/resource/concurrency assertions. Final combined quality passes 14,100/version, with complete concrete/package reports matching unchanged source. Final complete EM/EM1D/checkpoint integration passes 29,473/version. Exact-revision GitHub CI passes 369,711/369,712 assertions plus formatting and all MPI ranks. [Contract and costs](EMPIC_NYQUIST_RANGE_PLAN.md). |
 | PERF-003 | Ordinary gyro ring points repeat complete expansion work | Pushed (`bc7e209`) | Cached lossless alignment and compensated phase products retain fallback and exact sample-mean behavior. Both Julia versions pass 269,015 regressions and 70,308 independent geometry checks; 124 concrete calls per version have zero reports, package count stays 24 on 1.12. Measured default 16-point time falls 18–37%, retaining 0 B; three-point/fallback results are mixed and compilation costs rise. [Evidence and limits](GYRO_RING_PLAN.md). |
 | RR-001 | Radiation inputs can overflow during conversion and silently skip cooling | Pushed (`fdca823`) | VERIFIED: converted inputs now reject before mutation, including invalid no-op calls. Both Julia versions pass 1,810 forcing/particle/orbit assertions; all 27 concrete JET calls per version have zero reports, with package counts unchanged at 26/25. All 27 measured ordinary configurations preserve exact velocities and 0 B allocation (82 comparison checks); shared-validator error/tuple checks pass 54 on baseline and final code. [Evidence and remaining arithmetic plan](RADIATION_REACTION_PLAN.md). |
 | RR-002 | Radiation arithmetic loses finite cooling through intermediate overflow/underflow | Serial gates pass; concurrent failure open | VERIFIED: 12 Float32/64 cases give unchanged or zero velocities instead of finite exponential-substep results; 48 independent high-precision witness checks pass on each version (`/tmp/hybrid-radiation-baseline112.log`, `/tmp/hybrid-radiation-baseline113.log`). [Plan](RADIATION_REACTION_PLAN.md). |
@@ -237,7 +253,7 @@ performance review. “Pending” means no current-run completion claim.
 | ENERGY-003 | Energy documentation equates Ohmic quadratic form with total loss and overstates reduced-inertia conservation | Documentation pushed (`2330379`); physical extensions planned | VERIFIED: source equations and 17 exact symbolic assertions give nonzero moving-ion balance terms. Existing tests cover fixed-ion inertia. Numerical APIs and forces are unchanged; a new pressure closure initially targets the ideal massless case. [Balance, witnesses and implementation boundaries](HYBRID_ENERGY_MODEL_PLAN.md). |
 | VALID-001 | Validation case 20 exceeds its charge-residual tolerance | Pushed (`e9c4fa7`); GitHub green | Final source passes the unchanged wave at 2.88e-12, 504 resource/oracle, 2,273 four-thread, 29,113 complete solver/restart and 13,268 numerical/compiler/quality assertions on each of 1.12.7/1.13.2. Exact GitHub CI passes 368,455/368,456 assertions plus formatting and all MPI ranks. Final capture intentionally changes ordinary bits; raw contracts remain tested. [Evidence, costs and production brief](CHARGE_DEPOSITION_CONSERVATION_PLAN.md). |
 | PERF-004 | Legacy EM continuity diagnostic constructs FFT plans on every call | Pushed (`0f5b205`) | Reuses existing grid plans with 19,980 runtime assertions and 33 clean concrete compiler calls on each Julia version. Package findings exactly match baseline. All 24 measured configurations allocate 544 fewer bytes/call; timing variation is retained without a portable speed claim. [Evidence and compatibility](CONTINUITY_DIAGNOSTIC_RANGE_PLAN.md#legacy-diagnostic-plan-reuse--pre-edit-brief). |
-| PERF-005 | Dyadic transform digit extraction constructs rationals per component/band | Pushed (`afc324f`); GitHub acceptance pending | Each version passes 1,536 differential, 1,695 quality/state and 424 resource checks per snapshot. All outputs match; exceptional public diagnostics allocate 11.74–27.19% less across the two runtimes, with ordinary allocation totals unchanged. Full compiler report trees match baseline. [Contract, measurements and limits](CONTINUITY_DIAGNOSTIC_RANGE_PLAN.md#dyadic-digit-extraction-allocation--perf-005). |
+| PERF-005 | Dyadic transform digit extraction constructs rationals per component/band | Pushed (`afc324f`); GitHub green | Each version passes 1,536 differential, 1,695 quality/state and 424 resource checks per snapshot. All outputs match; exceptional public diagnostics allocate 11.74–27.19% less across the two runtimes, with ordinary allocation totals unchanged. Full compiler report trees match baseline. [Contract, measurements and limits](CONTINUITY_DIAGNOSTIC_RANGE_PLAN.md#dyadic-digit-extraction-allocation--perf-005). |
 | JET-002 | Julia 1.12 full-suite compiler-report gate exceeds its ceiling | Pushed (`6341c4b`); both native full suites pass | Reuse the validated archive byte-vector binding through hashing and decoding. Final focused compiler gates pass at 22/21 package reports on native 1.12/1.13, with zero concrete String/SubString loader reports. Exactly the nine loader findings disappear from the 1.12 baseline; all other leaves remain. Each version passes 234 neighboring assertions and 20 additional metadata checks; frozen full suites now pass 352,287 assertions per version. [Cause, compatibility and evidence](ARCHIVE_INFERENCE_PLAN.md). |
 | CI-002 | Fresh latest-Julia resolution fails and MPI publication fixture races its readers | Pushed; both package jobs and 8-rank publication checks pass | Current-registry resolution requires JET 0.12 on Julia 1.13. The delayed 8-rank replay reproduces the missing-file failure; a pre-rename barrier passes 48 publication assertions on every rank on both native Julia versions. JET 0.12.3 passes all 3 analysis assertions (22/21 reports), 9 Aqua checks and 80 archive assertions per version; the ceiling remains 30. [Plan and GitHub status](CI_RELIABILITY_PLAN.md). |
 | KDV-002 | Quadratic filtering allows excluded-input and cutoff aliases | Pushed (`c5d7e94`); both GitHub package jobs pass | VERIFIED: explicit cosine inputs change by 0.00150–0.00175 despite zero projected nonlinear RHS; Nyquist cross products also leak. Strict integer-mode operand/product projection passes 61 KdV checks, two concrete compiler analyses and eight downstream metrics on both versions. New mode tests fail 14 checks against the baseline; physical accuracy thresholds remain unchanged. [Evidence and plan](CI_RELIABILITY_PLAN.md#kdv-filtering-repair--pre-edit-brief). |

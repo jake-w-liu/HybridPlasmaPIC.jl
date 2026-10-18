@@ -312,6 +312,9 @@ All 180 source/test hashes and a fresh patch replay match the tested candidate.
 Commands, raw logs, preserved harness failures and exact terminal statuses:
 `/tmp/hybrid-em-dyadic-allocation-handoff.md`; machine-readable verification:
 `...-final-verification.json`, `...-quality-statuses.json`, `...-resource-statuses.json`.
+The pushed optimization `afc324f` now has fully green
+[GitHub CI](CI_RELIABILITY_PLAN.md#acceptance-run-at-afc324f): 368,815/368,816
+assertions on actual 1.12.7/1.13.2, plus formatting and all MPI ranks.
 The current prototype still allocates roughly 578–594 MB at 8³. Its rational
 inverse policy and arbitrary-grid accuracy remain separate open work.
 

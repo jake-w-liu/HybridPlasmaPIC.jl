@@ -406,19 +406,22 @@ confirm success. No billing exception is used.
 
 The dyadic-allocation optimization is pushed as `afc324f` with all 180
 source/test blobs matching native acceptance. [Run 38774781309](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/38774781309)
-is active; formatting and all three MPI ranks pass. Both package jobs remain
-running.
-No billing block is evidenced. Native commands and complete diagnostic comparison
+is **completed/success**, including formatting and all three MPI ranks. Actual
+Julia 1.12.7 passes 368,815 assertions in 112m01.6s; actual 1.13.2 passes
+368,816 in 84m09.1s. Package JET counts remain 23/22. No billing exception is
+used. Native commands and complete diagnostic comparison
 are recorded in [PERF-005](CONTINUITY_DIAGNOSTIC_RANGE_PLAN.md#dyadic-digit-extraction-allocation--perf-005).
 
 ## Acceptance run at b73abfe
 
 The transverse Nyquist repair is pushed as `b73abfe`; all 181 source/test index
 hashes match the final frozen native acceptance snapshot. [Run 38777494822](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/38777494822)
-is active, with formatting and all three MPI ranks green. Native focused/resource/concurrency (1,090), quality/numerical
+is **completed/success**, with formatting and all three MPI ranks green. Actual
+Julia 1.12.7 passes 369,711 assertions in 146m07.2s; actual 1.13.2 passes
+369,712 in 107m10.0s. Package JET counts are 23/22. Native focused/resource/concurrency (1,090), quality/numerical
 (14,100) and complete solver/checkpoint (29,473) assertions pass on each of
 1.12.7/1.13.2. Full compiler reports match baseline; exact GitHub acceptance
-remains pending. [Contract and evidence](EMPIC_NYQUIST_RANGE_PLAN.md).
+is complete. [Contract and evidence](EMPIC_NYQUIST_RANGE_PLAN.md).
 
 ## Acceptance run at 2330379
 
@@ -427,7 +430,22 @@ The energy-documentation correction and progress tracker are pushed as
 `src/diagnostics/conservation.jl`; JuliaFormatter 1.0.62 is idempotent. The
 energy balance is checked by 17 exact symbolic assertions. Its independent
 [run 38781510377](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/38781510377)
-is active; exact-revision GitHub acceptance is pending.
+is **completed/success**. Actual Julia 1.12.7/1.13.2 pass 369,711/369,712
+assertions in 114m31.1s/100m59.8s, respectively, with 23/22 package JET reports.
+Formatting and all MPI ranks also pass.
+
+## Acceptance run at 2bc7085
+
+The README energy qualification and progress update are pushed as `2bc7085`.
+[Run 38785224021](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/38785224021)
+is **completed/success**, including formatting and 2-/4-/8-rank MPI. Actual
+Julia 1.12.7 passes 369,711 assertions in 94m16.2s; actual 1.13.2 passes
+369,712 in 141m16.9s. Package JET counts are 23/22. No billing exception is used.
+
+All four runs above were rechecked on October 18. Each exact SHA has six
+successful jobs in `/tmp/hybrid-ci-<run>-final-status.json`. Full package logs
+are `/tmp/hybrid-ci-<run>-complete-julia{112,1132}.log`; the checked versions,
+assertion counts and timings are in `/tmp/hybrid-ci-complete-20261018-summary.json`.
 
 ## Preserve acceptance for every revision — CI-005
 
@@ -490,10 +508,11 @@ The [official manual downloads page](https://julialang.org/downloads/manual-down
 now lists Julia **1.13.2**, released October 14, 2026. Existing 1.13.1 measurements
 remain valid for that tested version; they do not establish 1.13.2 acceptance.
 The explicit 1.13.2 local channel installs successfully; `julia +1.13.2 --version`
-reports 1.13.2 and `juliaup status` retains the original default. A full native
-`Pkg.test()` run is active against immutable pushed `6ad7276`; its 179 Julia
-source/test hashes are recorded in `/tmp/hybrid-full-6ad7276-julia1132-source.json`.
-Log: `/tmp/hybrid-full-6ad7276-julia1132.log`.
+reports 1.13.2 and `juliaup status` retains the original default. The full native
+`Pkg.test()` run against immutable pushed `6ad7276` subsequently passes 359,871
+assertions in 155m28.1s, exit 0. Its 179 Julia source/test hashes still match
+the revision. Evidence: `/tmp/hybrid-full-6ad7276-julia1132-source.json`,
+`...-verification.json` and `/tmp/hybrid-full-6ad7276-julia1132.log`.
 Final new-candidate checks must include 1.13.2 and minimum supported 1.12.7.
 CI already requests version `1`; record the actual selected version from each
 completed job log rather than inferring it from the matrix label.
@@ -504,4 +523,4 @@ The first complete latest-stable GitHub acceptance is now recorded above at
 exited on a GitHub API read timeout; its retained watch log is not a CI failure.
 Subsequent direct API inspection reports `completed/success` for the whole run
 and all six jobs, and the completed job logs provide the version and test evidence.
-Native `6ad7276` and the later pushed revisions still need their own final gates.
+Native `6ad7276` is complete; later pushed revisions retain their own final gates.

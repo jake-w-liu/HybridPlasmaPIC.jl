@@ -65,10 +65,37 @@ The balance above is derived from this repository's equations.
 
 The reviewed design is `/tmp/hybrid-evolving-pressure-design-v1/implementation-plan.md`
 (SHA256 `628edafd3d54b15c1bb42576a6d428468bfff850ea26563f5219d5c81005a244`).
-Its baseline probes pass 31 assertions on each Julia 1.12.7 and 1.13.2;
-implementation acceptance has not run. The baseline confirms that current Ohm
+Its baseline probes pass 31 assertions on each Julia 1.12.7 and 1.13.2.
+Implementation acceptance is in progress. The baseline confirms that current Ohm
 preparation overwrites `pe`, restart captures no pressure, budgets reconstruct
 pressure from density, and the standalone Euler routine is first order.
+
+The isolated candidate's 185 source/test files remain frozen in
+`/tmp/hybrid-evolving-pressure-v1-freeze1-hashes.json`. Its final test overlay
+passes 118 assertions on each runtime, including direct production RHS versus
+an independent DFT, periodic pressure work, coupled convergence, and genuine
+3D translation on a 7×9×11 grid. The exact tested accuracy file has SHA256
+`0f0dbee909fa4f7a7e778bd65f14e1b52acca4912b918a7c4d6fda97681f9b63`;
+commands and terminal statuses are in
+`/tmp/hybrid-evolving-pressure-final-test-overlay/results.json`.
+
+Real MPI checks pass at 1/2/4 ranks on 1.13.2 and 1/2 ranks on 1.12.7,
+including restart, migration, rank-local rejection and rollback. Commands,
+logs and frozen-file checks are recorded in
+`/tmp/hybrid-evolving-pressure-io-mpi-v1/freeze1-results.json`.
+Review reproduced direct Ohm-law mutation when pressure shared a gradient
+buffer. The shared storage preflight now rejects it before mutation; the
+independent recheck exits 0 on 1.13.2
+(`/tmp/hybrid-pressure-direct-ohm-alias-recheck.log`).
+
+The first package-quality run on 1.12.7 adds one JET report (23 versus 22),
+identifying a captured `count` variable in `_save_pressure_transaction!`.
+Concrete calls pass, but the report remains a promotion gate. The isolated v2
+candidate gives the total and per-population counts distinct bindings; final
+full-report comparisons and affected native gates are running. No ceiling is raised.
+The original source and report are retained; the live implementation is
+unchanged. Public documentation is prepared separately, with its example
+verified on both native runtimes.
 
 - [x] Define the first slice: opt-in `EvolvingElectrons(gamma>1)`, periodic
   `HybridStepper`, `η=ηH=de2=0`; reject unsupported CAMCL/Hall-MHD use explicitly.
