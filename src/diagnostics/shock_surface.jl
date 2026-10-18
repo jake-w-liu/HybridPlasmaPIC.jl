@@ -14,6 +14,84 @@
 # u² = u_x² + u_y². Both are reported as the NORMAL (+x) flux evaluated at the
 # inflow node (x=Lx) and the wall node (x=0); a steady shock balances them.
 
+function _shock_flux_factor_range_certified(::Type{T}, factors) where {T}
+    # Four factors and one positive two-term sum fit strictly inside the
+    # normal range. The reciprocal denominator uses the same symmetric box.
+    span = fld(min(exponent(floatmax(T)), -exponent(floatmin(T))) - 4, 4)
+    lower, upper = ldexp(one(T), -span), ldexp(one(T), span)
+    return all(x -> _kinetic_factor_certified(x, lower, upper), factors)
+end
+
+function _shock_bulk_energy_flux(n::T, ux::T, uy::T) where {T}
+    ordinary = T(0.5) * n * (ux^2 + uy^2) * ux
+    (T === Float32 || T === Float64) || return ordinary
+    all(isfinite, (n, ux, uy)) || return ordinary
+    _shock_flux_factor_range_certified(T, (n, ux, uy)) && return ordinary
+    value =
+        Rational{BigInt}(n) *
+        (Rational{BigInt}(ux)^2 + Rational{BigInt}(uy)^2) *
+        Rational{BigInt}(ux) / 2
+    iszero(value) && return signbit(n) ⊻ signbit(ux) ? -zero(T) : zero(T)
+    return _from_exact(T, value)
+end
+
+function _shock_electron_enthalpy_flux(gamma::T, pressure::T, ux::T) where {T}
+    gap = gamma - one(T)
+    ordinary = (gamma / gap) * pressure * ux
+    (T === Float32 || T === Float64) || return ordinary
+    all(isfinite, (gamma, pressure, ux)) && !iszero(gap) || return ordinary
+    _shock_flux_factor_range_certified(T, (gamma, gap, pressure, ux)) && return ordinary
+    value =
+        Rational{BigInt}(gamma) * Rational{BigInt}(pressure) * Rational{BigInt}(ux) /
+        (Rational{BigInt}(gamma) - 1)
+    if iszero(value)
+        negative = signbit(gamma) ⊻ signbit(gap) ⊻ signbit(pressure) ⊻ signbit(ux)
+        return negative ? -zero(T) : zero(T)
+    end
+    return _from_exact(T, value)
+end
+
+function _shock_flux_factor_quantum(x::T) where {T<:Union{Float32,Float64}}
+    fraction, exponent = frexp(x)
+    integer = Int64(ldexp(fraction, precision(T)))
+    return exponent - precision(T) + trailing_zeros(integer)
+end
+
+function _shock_flux_quantum(sh, ps)
+    minimum_quantum = typemax(Int)
+    @inbounds for p in eachindex(ps.weight)
+        weight, vx, vy, vz = ps.weight[p], ps.v[1][p], ps.v[2][p], ps.v[3][p]
+        if iszero(weight) || iszero(vx)
+            continue
+        end
+        base = _shock_flux_factor_quantum(weight) + _shock_flux_factor_quantum(vx) - 1
+        speed = 2 * _shock_flux_factor_quantum(vx)
+        iszero(vy) || (speed = min(speed, 2 * _shock_flux_factor_quantum(vy)))
+        iszero(vz) || (speed = min(speed, 2 * _shock_flux_factor_quantum(vz)))
+        _, _, wa, wb = _cic_sbp(ps.x[1][p], sh.s.dx, sh.s.n)
+        iszero(wa) ||
+            (minimum_quantum = min(minimum_quantum, base + speed + _shock_flux_factor_quantum(wa)))
+        iszero(wb) ||
+            (minimum_quantum = min(minimum_quantum, base + speed + _shock_flux_factor_quantum(wb)))
+    end
+    return minimum_quantum == typemax(Int) ? nothing : minimum_quantum
+end
+
+function _shock_flux_float32_product_error(value::Float32)
+    # A contribution has at most seven normal rounded operations. Expressing
+    # gamma(7) relative to its stored value gives 7u/(1-14u). Float64 bounds
+    # avoid the loose Float32 count-times-total estimate on large populations.
+    u = 2.0^-24
+    factor = nextfloat((7u) / (1 - 14u))
+    return nextfloat(factor * abs(Float64(value)))
+end
+
+function _shock_flux_float32_sum_error(result::Float32)
+    # Half the upward Float32 ULP bounds rounding, including subnormal sums.
+    # It is exactly representable in Float64; overflow requests exact replay.
+    return isfinite(result) ? 0.5 * Float64(eps(result)) : Inf
+end
+
 # ---------------------------------------------------------------- 1D boundary energy flux
 
 """
@@ -41,6 +119,12 @@ x=Lx and the reflecting-wall node x=0):
 Sign convention: positive = energy carried in +x. Inflowing upstream plasma
 (u_x<0) carries energy in −x (toward the wall), so its inflow entries are
 negative.
+
+Finite Float32/Float64 kinetic and enthalpy components retain the complete
+stored factors when intermediate arithmetic loses range. Particle flux also
+retains the complete nodal sum, CIC weights and SBP normalization. Certified
+ordinary cases preserve the existing operation order; these are not promised
+to be single-rounded. `total` uses ordinary component addition.
 """
 function boundary_energy_flux(
     sh::PerpShock{T};
@@ -49,7 +133,7 @@ function boundary_energy_flux(
     N = sh.s.n
     γe = sh.γe
     # electron enthalpy flux  h_e = γe/(γe−1) · p_e · u_x  (internal energy + p·u work)
-    enth(i) = (γe / (γe - one(T))) * sh.pe[i] * sh.ux[i]
+    enth(i) = _shock_electron_enthalpy_flux(γe, sh.pe[i], sh.ux[i])
     # magnetic / Poynting flux S_x = E_y B_z at each boundary
     mag_inflow = sh.Ey[N] * sh.Bz[N]
     mag_wall = sh.Ey[1] * sh.Bz[1]
@@ -57,7 +141,7 @@ function boundary_energy_flux(
     enth_wall = enth(1)
     if ps === nothing
         # bulk-only ion kinetic flux ½ n |u|² u_x (ion thermal flux needs the ions)
-        bulk(i) = T(0.5) * sh.n[i] * (sh.ux[i]^2 + sh.uy[i]^2) * sh.ux[i]
+        bulk(i) = _shock_bulk_energy_flux(sh.n[i], sh.ux[i], sh.uy[i])
         kin_inflow = bulk(N)
         kin_wall = bulk(1)
     else
@@ -77,27 +161,122 @@ end
 # (the same CIC stencil + H-norm as deposit_moments!), returned as a length-N
 # vector. CIC's partition of unity makes Σ_i H[i]·F[i] = Σ_p w·½|v|²·v_x exactly.
 function _ion_energy_flux(sh::PerpShock{T}, ps::ParticleSet{1,T}) where {T}
-    N = sh.s.n
-    dx = sh.s.dx
+    N, dx = sh.s.n, sh.s.dx
     acc = zeros(T, N)
-    xp = ps.x[1]
-    vx = ps.v[1]
-    vy = ps.v[2]
-    vz = ps.v[3]
-    w = ps.weight
+    xp, vx, vy, vz, w = ps.x[1], ps.v[1], ps.v[2], ps.v[3], ps.weight
     _require_finite_real_sequence("particle positions", xp)
     _require_finite_real_sequence("particle velocities vx", vx)
     _require_finite_real_sequence("particle velocities vy", vy)
     _require_finite_real_sequence("particle velocities vz", vz)
     _require_finite_real_sequence("particle weights", w)
+    eligible = (T === Float32 || T === Float64) && all(x -> isfinite(x) && x > 0, sh.s.H)
+    normal = true
+    absolute = zero(T)
+    wide_error = 0.0
     @inbounds for p in eachindex(w)
         a, b, wa, wb = _cic_sbp(xp[p], dx, N)
-        keflux = T(0.5) * (vx[p]^2 + vy[p]^2 + vz[p]^2) * vx[p] * w[p]
-        acc[a] += wa * keflux
-        acc[b] += wb * keflux
+        x2, y2, z2 = vx[p]^2, vy[p]^2, vz[p]^2
+        speed2 = x2 + y2 + z2
+        half = T(0.5) * speed2
+        directed = half * vx[p]
+        flux = directed * w[p]
+        ca, cb = wa * flux, wb * flux
+        left_a = acc[a]
+        acc[a] = left_a + ca
+        result_a = acc[a]
+        left_b = acc[b]
+        acc[b] = left_b + cb
+        result_b = acc[b]
+        if eligible
+            normal &=
+                _kinetic_normal_product(vx[p], vx[p], x2) &&
+                _kinetic_normal_product(vy[p], vy[p], y2) &&
+                _kinetic_normal_product(vz[p], vz[p], z2) &&
+                isfinite(speed2) &&
+                _kinetic_normal_product(T(0.5), speed2, half) &&
+                _kinetic_normal_product(half, vx[p], directed) &&
+                _kinetic_normal_product(directed, w[p], flux) &&
+                _kinetic_normal_product(wa, flux, ca) &&
+                _kinetic_normal_product(wb, flux, cb)
+            absolute += abs(ca)
+            absolute += abs(cb)
+            if T === Float32 && normal
+                wide_error = nextfloat(wide_error + _shock_flux_float32_product_error(ca))
+                wide_error = nextfloat(wide_error + _shock_flux_float32_sum_error(result_a))
+                wide_error = nextfloat(wide_error + _shock_flux_float32_product_error(cb))
+                wide_error = nextfloat(wide_error + _shock_flux_float32_sum_error(result_b))
+            end
+        end
     end
+    if !eligible || (normal && iszero(absolute))
+        @inbounds for i = 1:N
+            acc[i] /= sh.s.H[i]
+        end
+        return acc
+    end
+    # For Float64, each contribution has at most seven rounded operations before at most
+    # 2Np additions. The shared bound adds four to its count, so 2Np+4 leaves
+    # a full operation of slack and includes the positive absolute reduction.
+    error = if !normal || !isfinite(absolute)
+        Inf
+    elseif T === Float32
+        wide_error
+    else
+        _kinetic_energy_error_bound(absolute, 2Int128(length(w)) + 4)
+    end
+    uncertain = false
+    minimum_quantum = nothing
     @inbounds for i = 1:N
-        acc[i] /= sh.s.H[i]
+        raw, norm = acc[i], sh.s.H[i]
+        lower = prevfloat(abs(raw) - error)
+        upper = nextfloat(abs(raw) + error)
+        upper_ok = isfinite(nextfloat(T(upper / norm)))
+        lower_ok = lower > 0 && prevfloat(lower / norm) >= floatmin(T)
+        if normal && upper_ok && !lower_ok && !iszero(raw)
+            minimum_quantum === nothing && (minimum_quantum = _shock_flux_quantum(sh, ps))
+            # Every complete term and rounded binary intermediate is a multiple
+            # of this dyadic quantum. It excludes a nonzero subnormal result
+            # after normalization even when the global error bound is loose.
+            # Computed zero still takes the exact path to check cancellation.
+            _, norm_exponent = frexp(norm)
+            lower_ok =
+                minimum_quantum !== nothing &&
+                minimum_quantum - norm_exponent >= exponent(floatmin(T))
+        end
+        certified = lower_ok && upper_ok
+        acc[i] = certified ? raw / norm : T(NaN)
+        uncertain |= !certified
+    end
+    uncertain || return acc
+    # NaN marks only a private, uncertified output node. A lazy dictionary
+    # avoids exact-allocation overhead for untouched zero nodes.
+    exact = nothing
+    @inbounds for p in eachindex(w)
+        a, b, wa, wb = _cic_sbp(xp[p], dx, N)
+        need_a = isnan(acc[a]) && !iszero(wa)
+        need_b = isnan(acc[b]) && !iszero(wb)
+        (need_a || need_b) && !iszero(w[p]) && !iszero(vx[p]) || continue
+        value =
+            Rational{BigInt}(w[p]) *
+            (Rational{BigInt}(vx[p])^2 + Rational{BigInt}(vy[p])^2 + Rational{BigInt}(vz[p])^2) *
+            Rational{BigInt}(vx[p]) / 2
+        exact === nothing && (exact = Dict{Int,Rational{BigInt}}())
+        for (i, coefficient, needed) in ((a, wa, need_a), (b, wb, need_b))
+            needed || continue
+            exact[i] = get(exact, i, zero(Rational{BigInt})) + Rational{BigInt}(coefficient) * value
+        end
+    end
+    if exact === nothing
+        @inbounds for i = 1:N
+            isnan(acc[i]) && (acc[i] = zero(T))
+        end
+        return acc
+    end
+    zero_value = zero(Rational{BigInt})
+    @inbounds for i = 1:N
+        isnan(acc[i]) || continue
+        value = exact === nothing ? zero_value : get(exact, i, zero_value)
+        acc[i] = iszero(value) ? zero(T) : _from_exact(T, value / Rational{BigInt}(sh.s.H[i]))
     end
     return acc
 end

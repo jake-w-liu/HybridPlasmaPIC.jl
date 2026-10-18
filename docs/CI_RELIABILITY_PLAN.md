@@ -742,7 +742,10 @@ replays pass as recorded above. The final repair's GitHub run remains active.
 Both native solver and shock lanes now pass on the final pushed source; their
 assertion inventories are retained in
 `/tmp/hybrid-algebraic-final-native-verification/completed-solver-shock-counts.json`.
-Checkpoint lanes remain active. `15662e1` now has green formatting and all
+Checkpoint lanes also pass: 38,055 assertions across 84 testsets per runtime.
+All three lane inventories and log hashes are in
+`/tmp/hybrid-algebraic-final-native-verification/completed-all-lane-counts.json`.
+`15662e1` now has green formatting and all
 2-/4-/8-rank MPI jobs; both package jobs remain active.
 
 ## Complete polytropic energy integration
@@ -760,3 +763,5 @@ from the immutable final source. Those lanes and the exact new SHA's complete
 GitHub run remain required; the green core gates do not replace them. Evidence:
 `/tmp/hybrid-polytropic-energy-public-v5-verification` and
 `/tmp/hybrid-polytropic-energy-public-v5-broad-verification`.
+
+The complete energy implementation is pushed as `7104c6190b09daaa01349d7dfd4d299ac9571da3`. [Run 39141208484](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39141208484) is running; formatting and 2-/4-/8-rank MPI pass. Its monitor and eventual full logs are in `/tmp/hybrid-ci-7104c61-20261018`. All 24 committed blobs and remote main match the promotion manifest. No billing exception is used.

@@ -533,3 +533,10 @@ The reviewed 20-file energy overlay is copied to main with matching SHA256s;
 all three held radiation files retain their hashes. Native 22-file broad lanes
 have started; their results and exact-revision GitHub acceptance remain required.
 Promotion manifest: `/tmp/hybrid-polytropic-energy-public-v5-verification/promotion-plan.json`.
+
+The verified overlay is pushed as `7104c6190b09daaa01349d7dfd4d299ac9571da3`. Its [exact-SHA CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39141208484) is running, with formatting and all MPI ranks green. The committed 24-path whitelist and remote SHA are verified in `promotion-15662e1-whitelist.json`.
+
+The final V5 native 1.12.7 solver, shock and checkpoint lanes all finish with
+exit code zero. The 1.13.2 lane follows under the same frozen-source launcher;
+its final result remains required. Evidence is retained in
+`/tmp/hybrid-polytropic-energy-public-v5-broad-verification/results112.json`.

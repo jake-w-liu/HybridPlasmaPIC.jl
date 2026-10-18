@@ -156,6 +156,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Shock boundary kinetic and electron enthalpy fluxes retain finite complete
+  values when intermediate products overflow or underflow. Particle flux also
+  retains CIC weights, nodal cancellation and the final SBP norm. Certified
+  ordinary arithmetic and the singular gamma-one enthalpy convention are
+  preserved.
+
 - CGL electron-energy diagnostics retain complete finite density, field,
   invariant-coefficient and cell-spacing expressions through range-sensitive
   arithmetic. Certified ordinary cases keep their existing arithmetic and
