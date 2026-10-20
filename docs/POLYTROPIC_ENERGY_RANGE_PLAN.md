@@ -1,13 +1,12 @@
 # Polytropic energy range and closure precision
 
-Status: pointwise pressure is pushed as `0d8c8e8`; its latest-Julia CI job
-failed resource-fixture byte-equality assertions. The corrected fixture,
-EMPIC initialization fixture and algebraic dispatch/compiler repair are pushed
-as `15662e1`, with [exact-revision CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39137529999)
-running. Both native solver and shock lanes pass; checkpoint lanes continue.
-The complete polytropic energy repair is integrated from verified V5. Its
-core gates pass on both runtimes; native broad and exact-SHA CI acceptance
-remain pending. This plan covers ENERGY-004, ENERGY-007 and CLOSURE-001/002.
+Status: the pointwise pressure, fixture and dispatch corrections are accepted
+in `15662e1`; [all six GitHub jobs pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39137529999).
+Complete polytropic energy is accepted in `7104c61`; its [six exact-SHA jobs](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39141208484)
+and both native solver/shock/checkpoint lanes pass on Julia 1.12.7/1.13.2.
+Historical failed revisions retain their failures. This plan covers ENERGY-004,
+ENERGY-007 and CLOSURE-001/002; complete-budget composition remains in the
+[diagnostic range plan](HYBRID_DIAGNOSTIC_RANGE_PLAN.md#complete-budget-composition-and-inertia--current-energy-004-scope).
 
 ## Confirmed behavior and implementation contract
 
@@ -534,7 +533,7 @@ all three held radiation files retain their hashes. Native 22-file broad lanes
 have started; their results and exact-revision GitHub acceptance remain required.
 Promotion manifest: `/tmp/hybrid-polytropic-energy-public-v5-verification/promotion-plan.json`.
 
-The verified overlay is pushed as `7104c6190b09daaa01349d7dfd4d299ac9571da3`. Its [exact-SHA CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39141208484) is running, with formatting and all MPI ranks green. The committed 24-path whitelist and remote SHA are verified in `promotion-15662e1-whitelist.json`.
+The verified overlay is pushed as `7104c6190b09daaa01349d7dfd4d299ac9571da3`. Its [exact-SHA CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39141208484) passes all six jobs, with 474,774/474,775 assertions on actual Julia 1.12.7/1.13.2 and unchanged complete compiler trees (23/22). The committed 24-path whitelist and remote SHA are verified in `promotion-15662e1-whitelist.json`.
 
 The final V5 native 1.12.7 solver, shock and checkpoint lanes all finish with
 exit code zero. The 1.13.2 lane follows under the same frozen-source launcher;
@@ -545,4 +544,5 @@ Both final V5 native lanes now pass: 3,681 solver, 453 shock and 38,055 checkpoi
 assertions per runtime, across 77/29/84 testsets respectively. The complete
 commands, counts and log hashes are in
 `/tmp/hybrid-polytropic-energy-public-v5-broad-verification/completed-all-lane-counts.json`.
-Exact-SHA GitHub acceptance remains pending.
+Exact-SHA GitHub acceptance now passes. Full logs and comparison are recorded in
+[the CI plan](CI_RELIABILITY_PLAN.md#complete-polytropic-energy-integration).

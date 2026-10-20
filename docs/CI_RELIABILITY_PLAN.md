@@ -3,6 +3,17 @@
 GitHub CI must pass for each pushed change. Billing blocks are reported only
 when supported by the run's diagnostics; they do not excuse code failures.
 
+Latest accepted implementation `ffdb522aa858622a645c9ace104726ab54782493` is fully green in
+[run 39150381077](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39150381077).
+All six jobs pass. Actual Julia 1.12.7/1.13.2 pass 502,711/502,712 assertions
+in 159m18.0s/188m50.2s, with formatting and all MPI ranks successful.
+Complete compiler trees match `15662e1` at 23/22 reports; no groups are added
+or removed. Exact-SHA evidence and full comparisons are in
+`/tmp/hybrid-ci-ffdb522-20261019/39150381077-evidence.json` and
+`/tmp/hybrid-ci-ffdb522-report-review-20261019/summary.json`.
+All 16 committed blobs and remote main matched the original promotion evidence.
+No billing exception is used. Each later push still needs its own complete run.
+
 ## Verified failures at fadc03f
 
 [Run 38710456393](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/38710456393)
@@ -737,7 +748,7 @@ replace the complete diagnostic-tree comparison.
 
 Both full EMPIC1D files for TEST-003 pass 5,550 assertions across 21 testsets on
 each native runtime. The original assertions and explicit poisoned-storage
-replays pass as recorded above. The final repair's GitHub run remains active.
+replays pass as recorded above. The final repair's GitHub run is green in all six jobs.
 
 Both native solver and shock lanes now pass on the final pushed source; their
 assertion inventories are retained in
@@ -745,8 +756,7 @@ assertion inventories are retained in
 Checkpoint lanes also pass: 38,055 assertions across 84 testsets per runtime.
 All three lane inventories and log hashes are in
 `/tmp/hybrid-algebraic-final-native-verification/completed-all-lane-counts.json`.
-`15662e1` now has green formatting and all
-2-/4-/8-rank MPI jobs; the minimum-version package job also passes, while the latest-version package job remains active.
+`15662e1` now passes both package jobs, formatting and all 2-/4-/8-rank MPI jobs.
 
 ## Complete polytropic energy integration
 
@@ -764,15 +774,23 @@ GitHub run remain required; the green core gates do not replace them. Evidence:
 `/tmp/hybrid-polytropic-energy-public-v5-verification` and
 `/tmp/hybrid-polytropic-energy-public-v5-broad-verification`.
 
-The complete energy implementation is pushed as `7104c6190b09daaa01349d7dfd4d299ac9571da3`. [Run 39141208484](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39141208484) is running; formatting and 2-/4-/8-rank MPI pass. Its monitor and eventual full logs are in `/tmp/hybrid-ci-7104c61-20261018`. All 24 committed blobs and remote main match the promotion manifest. No billing exception is used.
+The complete energy implementation is pushed as `7104c6190b09daaa01349d7dfd4d299ac9571da3`.
+[Run 39141208484](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39141208484)
+passes all six jobs. Actual Julia 1.12.7/1.13.2 pass 474,774/474,775 assertions
+in 196m39.9s/105m20.9s. Full compiler trees remain unchanged relative to
+`15662e1` at 23/22 reports. All six log downloads exit zero; exact-SHA evidence
+and comparison are in `/tmp/hybrid-ci-7104c61-20261018/39141208484-evidence.json`
+and `/tmp/hybrid-ci-7104c61-report-review-20261019/summary.json`.
+All 24 committed blobs and remote main matched the promotion manifest.
+No billing exception is used.
 
 ## Shock component range repair
 
-`daea194035e85cd39c5a497e781f758844881ec4` is pushed with all native focused, resource, shock, Aqua and complete compiler comparisons passing on Julia 1.12.7/1.13.2. [Run 39144368129](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39144368129) is running; formatting passes; its exact-SHA monitor and eventual full logs are in `/tmp/hybrid-ci-daea194-20261019`. No billing exception is used.
+`daea194035e85cd39c5a497e781f758844881ec4` is pushed with all native focused, resource, shock, Aqua and complete compiler comparisons passing on Julia 1.12.7/1.13.2. [Run 39144368129](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39144368129) passes all six jobs, including 491,943/491,944 package assertions on actual Julia 1.12.7/1.13.2. Full logs and exact-SHA evidence are in `/tmp/hybrid-ci-daea194-20261019`; complete compiler trees remain unchanged relative to `15662e1`. No billing exception is used.
 
 The complete-total follow-up passes all native core gates on 1.12.7/1.13.2: 24,737 focused, 462 shock/Aqua and 414 cost assertions per runtime, plus full compiler comparisons (22/21 baseline reports), migration and read-only formatting. Evidence is in `/tmp/hybrid-shock-total-flux-public-v1-verification`. Its exact pushed SHA must complete GitHub acceptance separately.
 
-The total repair is pushed as `dd539da0f267f5d18481d0dae7a68111adc0b5d8`. [Run 39146029176](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39146029176) is running, monitored under `/tmp/hybrid-ci-dd539da-20261019`. Its complete CI result remains required; no billing exception is used.
+The total repair is pushed as `dd539da0f267f5d18481d0dae7a68111adc0b5d8`. [Run 39146029176](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39146029176) passes all six jobs: 499,511/499,512 assertions on actual Julia 1.12.7/1.13.2, formatting and all MPI ranks. The exact-SHA evidence and full logs are in `/tmp/hybrid-ci-dd539da-20261019`; complete compiler trees match `15662e1` at 23/22 reports. No billing exception is used.
 
 Historical `6e7fb01` has now finished. Its actual Julia 1.12.7 package job passes
 404,768 assertions in 215m06.3s, with 25 JET reports; formatting and all MPI
@@ -789,8 +807,8 @@ The full log contains 29 JET reports; this count is retained rather than treated
 as a complete diagnostic comparison. Formatting and all MPI ranks pass.
 Exact SHA, job outcomes, locations and log hash are in
 `/tmp/hybrid-ci-0d8c8e8-20261018/minimum-failure-evidence.json`.
-TEST-002's correction is already pushed in `15662e1`; its minimum-version
-package job passes and latest-version acceptance remains pending. No rerun or
+TEST-002's correction is already pushed in `15662e1`; both package jobs
+and all other exact-SHA checks now pass. No rerun or
 billing exception is used to relabel either historical failure.
 
 Both complete-energy V5 native broad lanes now pass: 3,681 solver assertions
@@ -798,7 +816,7 @@ across 77 testsets, 453 shock assertions across 29, and 38,055 checkpoint
 assertions across 84 per runtime. Commands, complete assertion inventories and
 log hashes are retained in
 `/tmp/hybrid-polytropic-energy-public-v5-broad-verification/completed-all-lane-counts.json`.
-The exact `7104c61` GitHub package jobs remain separate acceptance gates.
+The exact `7104c61` GitHub package jobs now also pass, as recorded above.
 
 Exact-node reuse passes all local gates on native 1.12.7/1.13.2: 25,091 focused,
 462 shock/Aqua and 480 cost assertions per runtime, complete unchanged compiler
@@ -813,7 +831,7 @@ runtime, with unchanged allocation reductions and mixed latency ratios. Its
 commands, complete samples and log hashes are in `paired-cold-summary.json`
 under the same verification directory. No general speedup is claimed.
 
-Exact-node reuse is pushed as `99760f0193a40c3a4bdb18ba9d1013e11a49d0ea`. [Run 39147850360](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39147850360) is running; formatting and all MPI ranks pass. All 11 committed blobs and remote main match `committed-evidence.json` in the reuse verification directory; held radiation hashes remain unchanged. The exact-SHA monitor is `/tmp/hybrid-ci-99760f0-20261019`. CI acceptance remains open, with no billing exception used.
+Exact-node reuse is pushed as `99760f0193a40c3a4bdb18ba9d1013e11a49d0ea`. [Run 39147850360](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39147850360) passes all six jobs: 499,865/499,866 assertions on actual Julia 1.12.7/1.13.2, formatting and all MPI ranks. Complete compiler trees match `15662e1` at 23/22 reports. All 11 committed blobs and remote main match `committed-evidence.json` in the reuse verification directory; held radiation hashes remain unchanged. Logs and exact-SHA evidence are in `/tmp/hybrid-ci-99760f0-20261019`, with full comparisons in `/tmp/hybrid-ci-99760f0-report-review-20261019/summary.json`. No billing exception is used.
 
 All six jobs for `15662e1cf24214624a7dab0637798bc6f614701c` now pass in
 [run 39137529999](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39137529999).
@@ -842,4 +860,5 @@ V1 resource measurement and harness failures remain available. The final
 11-source/test overlay is integrated with matching hashes and excludes the
 held radiation work. Evidence:
 `/tmp/hybrid-inertia-energy-public-v2-verification`. Its exact pushed revision
-must complete a separate GitHub run; complete budget-total composition is open.
+now passes all six GitHub jobs, as recorded above; complete budget-total
+composition remains open.
