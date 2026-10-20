@@ -10,6 +10,7 @@ using Test
     include("test_provenance.jl")
     include("test_migration.jl")
     include("test_pencil_decomposition.jl")
+    include("test_rank_classification.jl")
     include("test_distributed_fft.jl")
     include("test_deposit.jl")
     include("test_moment_storage.jl")

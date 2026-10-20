@@ -45,8 +45,11 @@ function _check_rank(layout::LogicalRankLayout, rank::Integer)
     return r
 end
 
-function _rank_coordinate(name::AbstractString, coord::Integer)
-    typemin(Int) <= coord <= typemax(Int) || throw(ArgumentError("$name must fit in Int"))
+function _rank_coordinate(name::AbstractString, coord::Integer, index::Union{Nothing,Int} = nothing)
+    if !(typemin(Int) <= coord <= typemax(Int))
+        label = index === nothing ? name : "$name[$index]"
+        throw(ArgumentError("$label must fit in Int"))
+    end
     return Int(coord)
 end
 
@@ -67,7 +70,7 @@ Return the 1-based linear rank for 1-based Cartesian `coords`. Periodic axes
 wrap. Nonperiodic out-of-range coordinates return `nothing`.
 """
 function rank_index(layout::LogicalRankLayout{D}, coords::NTuple{D,<:Integer}) where {D}
-    cc = ntuple(d -> _rank_coordinate("coords[$d]", coords[d]), D)
+    cc = ntuple(d -> _rank_coordinate("coords", coords[d], d), D)
     wrapped = ntuple(d -> begin
         c = cc[d]
         if layout.periodic[d]

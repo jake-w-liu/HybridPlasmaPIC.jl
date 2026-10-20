@@ -862,3 +862,18 @@ held radiation work. Evidence:
 `/tmp/hybrid-inertia-energy-public-v2-verification`. Its exact pushed revision
 now passes all six GitHub jobs, as recorded above; complete budget-total
 composition remains open.
+
+
+## Documentation checkpoint `0da4e09`
+
+[Run 39401716377](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39401716377)
+passes all six exact-SHA jobs: 502,711 assertions on Julia 1.12.7 and 502,712 on
+Julia 1.13.2, formatting and real MPI with 2/4/8 ranks. Complete compiler-tree
+comparisons retain 23/22 reports with no added or removed groups. Package test
+times are 122m03.7s and 187m07.8s. The evidence parser checked the commit in each
+job log; source/test trees remain those of `ffdb522`. Both local HEAD and remote
+main were rechecked at `0da4e09c320091d31207f051883f08923bf68888` after completion.
+
+Logs and hashes are retained in `/tmp/hybrid-ci-0da4e09-20261020`; full report
+comparisons are in `/tmp/hybrid-ci-0da4e09-report-review-20261020/summary.json`.
+No failed or pending job is counted as green and no billing exception is used.

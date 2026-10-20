@@ -129,3 +129,28 @@ Largest measured median times are 0.2145/0.2822 seconds on minimum/latest
 Julia. These are absolute measurements; a paired public benchmark remains
 required. `resource-results.json` and `resource-summary.json` retain commands,
 profiles and log hashes. Public accuracy integration remains open.
+
+The wide-accumulation prototype at
+`/tmp/hybrid-field-accuracy-wide-v1-20261020` passes its numerical checks on
+both Julia 1.12.7 and 1.13.2; all large-resource gates also pass.
+Its brief derives a complete-integral bound for Float32 squares, exact stored
+coefficients and one to three spacings; the verification driver compares the
+bound and final rounding with independent per-cell rational integrals.
+The driver also covers exponent groups, mixed scales, midpoint tails,
+nonfinite delegation, ownership and ordinary allocations. Execution began after
+the timing controls and thread-clock diagnostic. Each runtime passes 10,382
+assertions: 10,206 independent enclosure/rounding checks, 170 midpoint/nonfinite/
+zero checks and six ordinary allocation checks. The ordinary profiles allocate
+zero bytes. This is prototype evidence; public integration and its full
+acceptance remain open.
+
+Its resource driver also covers uniform, alternating and exact-midpoint
+32³–160³ fields. The predeclared complete-integral targets are correct rounding
+for every result, zero warmed allocations for certified ordinary results,
+and at most 256 KiB for each exact-midpoint evaluation. Each runtime passes
+148 resource assertions across 12 profiles. Certified
+ordinary evaluations allocate zero bytes; exact-midpoint evaluations allocate
+51,464–51,632 bytes, below 256 KiB. Maximum measured median elapsed times are
+0.2467/0.2564 seconds on minimum/latest Julia. `summary.json` retains all
+commands, profiles and log hashes. These absolute observations do not satisfy
+the still-pending paired public latency gate.

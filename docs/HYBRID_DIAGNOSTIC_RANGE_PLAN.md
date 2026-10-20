@@ -1050,8 +1050,80 @@ prototype must correct the wrapper, first pass a short numerical/allocation
 preflight, and demonstrate timing reliability and slowdown sensitivity.
 No replacement protocol or composition implementation is accepted.
 
+Both first-prototype controls are complete. Minimum/latest Julia record
+192 slowdown-wrapper byte mismatches each, plus three/four identical-call
+timing assertion failures. The complete profiles and assertion classifications
+are in `completed-summary.json`. The second prototype at
+`/tmp/hybrid-budget-timing-calibration-v2-20261020` specializes the sampler
+arguments and uses direct, observable doubled batch results. It increases the
+minimum warmed batch to 50 ms while retaining all 48 pairs, both 1.5× limits
+and reciprocal identical-call controls. Each runtime passes all 16 short
+preflight assertions, including zero allocations in both wrappers. Full
+identical-owner and slowdown-sensitivity controls are running; their results
+remain required before any candidate timing matrix.
+
+The second prototype is also rejected before completion. On minimum Julia,
+Float32/N=8/general/polytropic-gamma=1.5 identical calls yield ratios
+0.640656 and 0.609563, below the reciprocal limit 2/3. Both failures remain in
+`control112.log`; all runtimes continue to completion for the full record.
+The prepared V13 creator requires successful complete controls and therefore
+cannot create an acceptance snapshot from this failed protocol.
+
+Minimum Julia has now completed: 9,342 passes and two failures, both on that
+profile. All four deliberate-slowdown controls pass, and all 3,072 recorded
+sample pairs show zero GC, compilation and recompilation time. Identical-call
+ratios span 0.640656–1.446462; paired medians span 0.609563–1.228870.
+`minimum-completed-summary.json` retains every sample and the completed log
+hash. Latest Julia subsequently completes all 9,344 assertions successfully:
+identical-call ratios span 0.762858–1.332155 and paired medians
+0.794188–1.182381. All 3,072 sample pairs also have zero GC/compilation time.
+Both runtimes' four deliberate-slowdown profiles exceed 1.5. The complete
+`completed-summary.json` recomputes every reported ratio from the samples and
+records `accepted=false`; minimum Julia's failures prevent protocol acceptance.
+
+A separate diagnostic is complete at
+`/tmp/hybrid-budget-thread-timing-20261020`. It records elapsed and
+calling-thread execution times for the three most
+deviant identical-call profiles on each runtime, preserving their fixtures,
+batch counts and all sample metadata. It uses the local SDK clock API and
+checks thread identity and a sleeping control. Its ratios cannot accept a
+candidate or replace the elapsed-time gate. The separate Float32 accuracy
+prototype runs afterward.
+
+Each runtime passes 436 checks, including the sleeping/monotonicity control
+and 144 identical-call pairs. `summary.json` retains all samples and hashes.
+Across the six profiles, elapsed ratios are 0.792513–1.369321 and
+thread-execution ratios are 0.982471–1.015660. Median execution fractions of
+the enclosing wall interval are 16.1–21.2%; median thread execution times are
+14.4–24.8 ms for batch counts selected by the earlier 50 ms wall-time
+calibration. All samples have zero GC, compilation and recompilation time.
+
+These measurements establish that the selected batches did not ensure
+50 ms of thread execution. They do not identify a competing process or
+operating-system policy, establish a hardware limit, or accept the rejected
+composition candidate. A subsequent protocol can use measured thread execution
+to calibrate batch work while retaining the elapsed-time ratio gates; it still
+requires complete identical-owner and slowdown controls before use.
+
 The separate accuracy assessment against exact `ffdb522` is complete. Both
 native versions reproduce large-grid Float32 magnetic-energy errors, with
 exact rational integer-multiplicity controls. This is tracked separately as
 [ENERGY-010](MAGNETIC_ENERGY_ACCURACY_PLAN.md); it does not change the ordinary
 component compatibility contract of this composition repair.
+
+
+### Next timing-protocol experiment
+
+Prepare a new isolated protocol that changes only batch calibration: require
+five warmed samples to each contain at least 50 ms of measured calling-thread
+execution, using the same SDK clock shim already checked above. Retain the
+48 alternating pairs, elapsed ratio-of-medians and paired-median 1.5 limits,
+reciprocal identical-call bounds, all 60 fixtures and four deliberate-slowdown
+controls. Record both CPU and elapsed calibration values; keep the original
+paired sampler unchanged. Calibration CPU time must not replace any acceptance
+measurement. Run preflight and the complete controls on both runtimes after
+particle-growth verification, without overlapping our other native work.
+
+This is a new, unaccepted measurement procedure. The earlier failed controls
+and rejected composition candidates remain rejected. Only complete controls
+can authorize a subsequent composition acceptance snapshot.

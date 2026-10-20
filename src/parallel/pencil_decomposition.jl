@@ -112,7 +112,7 @@ end
 Return the 1-based linear rank for 1-based pencil process coordinates.
 """
 function pencil_rank_index(dec::PencilDecomposition3D, coords::NTuple{2,<:Integer})
-    cc = ntuple(d -> _rank_coordinate("coords[$d]", coords[d]), 2)
+    cc = ntuple(d -> _rank_coordinate("coords", coords[d], d), 2)
     return _pencil_rank_index_checked(dec, cc)
 end
 
@@ -121,7 +121,7 @@ function pencil_rank_index(dec::PencilDecomposition3D, coords::Tuple)
         throw(ArgumentError("pencil rank coordinates must have length 2, got $(length(coords))"))
     all(x -> x isa Integer, coords) ||
         throw(ArgumentError("pencil rank coordinates must be integers, got $coords"))
-    cc = ntuple(d -> _rank_coordinate("coords[$d]", coords[d]), 2)
+    cc = ntuple(d -> _rank_coordinate("coords", coords[d], d), 2)
     return _pencil_rank_index_checked(dec, cc)
 end
 
@@ -143,11 +143,18 @@ function _pencil_axes(::Val{:z})
     return 3, (1, 2)
 end
 
-function _pencil_axes(::Val{name}) where {name}
+function _pencil_orientation_error(name)
     throw(ArgumentError("pencil orientation must be :x, :y, or :z, got $(name)"))
 end
 
-_pencil_val(orientation::Symbol) = Val(orientation)
+_pencil_axes(::Val{name}) where {name} = _pencil_orientation_error(name)
+
+function _pencil_val(orientation::Symbol)
+    orientation === :x && return Val(:x)
+    orientation === :y && return Val(:y)
+    orientation === :z && return Val(:z)
+    return _pencil_orientation_error(orientation)
+end
 _pencil_val(orientation::Val) = orientation
 
 function _partition_range(n::Int, parts::Int, coord::Int)
@@ -204,7 +211,7 @@ orientation. Since pencil decompositions here are fully periodic, out-of-range
 indices wrap onto the global grid before owner lookup.
 """
 function pencil_owner(dec::PencilDecomposition3D, index::NTuple{3,<:Integer}, orientation = :x)
-    idx = ntuple(d -> _rank_coordinate("index[$d]", index[d]), 3)
+    idx = ntuple(d -> _rank_coordinate("index", index[d], d), 3)
     return _pencil_owner_checked(dec, idx, orientation)
 end
 
@@ -213,7 +220,7 @@ function pencil_owner(dec::PencilDecomposition3D, index::Tuple, orientation = :x
         throw(ArgumentError("pencil owner index must have length 3, got $(length(index))"))
     all(x -> x isa Integer, index) ||
         throw(ArgumentError("pencil owner index entries must be integers, got $index"))
-    idx = ntuple(d -> _rank_coordinate("index[$d]", index[d]), 3)
+    idx = ntuple(d -> _rank_coordinate("index", index[d], d), 3)
     return _pencil_owner_checked(dec, idx, orientation)
 end
 
