@@ -1,11 +1,11 @@
 # Particle-growth audit
 
-Status: append defects confirmed on both supported runtimes; repair under
-verification. A fresh cross-species backing-storage witness also exposes
-partial mutation in V3. V3 and the first rank-integration snapshot must not be
-promoted, even if their earlier checks pass.
+Status: revised repair passes local correctness, integration, compiler and
+resource gates on both supported runtimes. Exact-commit GitHub acceptance
+remains required. The cross-species backing-storage witness rejects V3 and
+the first rank-integration snapshot; neither is the promoted source.
 
-Current `append_particles!` checks species charge and mass, then appends
+The audited baseline `append_particles!` checks species charge and mass, then appends
 position, velocity, weight, id and tag arrays sequentially
 (`src/particles/migration.jl:36`). Its implementation comment requires resizable
 fields, but the public `ParticleSet` constructor accepts matching one-based
@@ -298,11 +298,29 @@ command supplied `/private/tmp/.../source` while the captured frames contained
 `/tmp/hybrid-growth-parent-comparison-v2-20261021` checks that these are the
 same filesystem object and that this path spelling alone explains every one
 of the 14/13 differing complete groups. Corrected commands use the original
-comparator unchanged and pass both fixture-loaded comparisons. Original
-failures remain intact. The two unloaded V3 comparisons still await the
-original capture queue; no reports or semantic differences are suppressed.
+comparator unchanged and pass all four fixture-loaded/unloaded comparisons.
+Original failures remain intact. Complete report/log hashes and 696 frozen
+files were checked; no reports or semantic differences are suppressed.
 
-V3's minimum-Julia neighboring suite passes all 43,941 assertions, including
-both checkpoint test files, with its log hash verified. The latest-Julia suite
-is still running. These regressions and the remaining original compiler
-captures remain required evidence before promotion.
+V3's neighboring suites now pass all 43,941 assertions on each Julia version,
+including both checkpoint test files. All twelve original native command/log
+hashes and 356 frozen files were checked.
+
+The original unloaded compiler comparison cannot use its old baseline source
+directory: **VERIFIED**, it contains zero Julia files, so the comparator builds
+no source-line mappings and marks every candidate frame as changed. The new
+comparison at `/tmp/hybrid-growth-original-comparison-v2-20261021` reconstructs
+`b73abfe11cafa4c65e456cd3fe66bdc8796843a3` from Git and verifies all 349
+committed blobs. It retains the recorded old root solely for report-path
+normalization; the complete-tree and equal-source-line rules are unchanged.
+Both corrected unloaded comparisons pass with 22/21 reports and no changed
+groups. The original failures remain available. Both final fixture-loaded
+comparisons also pass, using a separately verified 92-file `ffdb522` baseline.
+
+The seven revised source/test files match the final candidate exactly.
+The promotion evidence at `/tmp/hybrid-growth-promotion-20261021` checks 54
+native/capture/comparison command logs and nine frozen-source manifests,
+including original and revised regressions, direct comparisons with committed
+main, corrected historical comparisons, birth allocations and checkpoint
+resources. The held radiation files are excluded. This repair is committed
+separately; all six exact-SHA GitHub jobs remain required before completion.

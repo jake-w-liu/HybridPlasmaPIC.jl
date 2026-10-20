@@ -9,6 +9,8 @@ using Test
     include("test_boundary_edges.jl")
     include("test_provenance.jl")
     include("test_migration.jl")
+    include("test_particle_growth.jl")
+    include("test_ionization_growth_alias.jl")
     include("test_pencil_decomposition.jl")
     include("test_rank_classification.jl")
     include("test_distributed_fft.jl")

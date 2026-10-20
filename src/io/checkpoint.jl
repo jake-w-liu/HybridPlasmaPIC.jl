@@ -894,16 +894,7 @@ end
 function _validate_checkpoint_destination(ps::ParticleSet, N::Int)
     _particle_components_mightalias(ps) &&
         throw(ArgumentError("checkpoint destination particle components must not alias"))
-    for a in (ps.x..., ps.v..., ps.weight, ps.id, ps.tag)
-        if length(a) != N && !applicable(resize!, a, N)
-            throw(
-                ArgumentError(
-                    "checkpoint requires $N particles, but destination $(typeof(a)) cannot resize from $(length(a))",
-                ),
-            )
-        end
-    end
-    return nothing
+    return _require_particle_resize_support(ps, N, "checkpoint")
 end
 
 function _restore_checkpoint_particles!(ps::ParticleSet{D}, s) where {D}

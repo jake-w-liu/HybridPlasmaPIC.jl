@@ -40,11 +40,11 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   both runtimes verify that the serializer diagnostics already exist on the
   baseline, with only the expected preparation-wrapper frames added.
   V4 also passes all six focused real-MPI runs across both runtimes; full
-  fixture-loaded package trees match baseline on both runtimes. Unloaded
-  comparisons remain under verification; both full two-rank suites pass, with
+  fixture-loaded and unloaded package trees match baseline on both runtimes.
+  Both full two-rank suites pass, with
   all eight MPI command/log hashes and frozen sources checked. V5 preserves
-  the revised growth/rank source; its seven-path union is verified, but native
-  checks on the combined snapshot have not run.
+  the revised growth/rank source; its seven-path union is verified, and native
+  checks on the combined snapshot are running.
   [Evidence and repair plan](MIGRATION_STORAGE_PLAN.md).
 
 - **VERIFIED — GROWTH-001:** public append probes reproduce partial growth
@@ -58,7 +58,7 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   the measured resize-check allocation; V3 repairs the fixtures without
   changing V2 production code. Both V2 runtimes pass 226 original/resource
   smoke checks and 3,060 retained-capacity append checks. V3 passes 1,784
-  focused checks on each runtime, with integration/compiler gates running. Tiny
+  focused checks on each runtime. Tiny
   append costs increase and are recorded in the plan. A fresh finite-state
   cross-species backing-storage probe then reproduces 24 baseline and 12 V3
   failed assertions per runtime. V3 and its first rank-integration snapshot
@@ -71,8 +71,12 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   `b3e2eb6` on both runtimes (22/21 reports, no changed groups); all 92 reference
   source/extension blobs match that commit. The old-parent comparison retained
   a path-normalization failure; a same-file proof and corrected commands are
-  recorded in the plan. The original minimum-Julia neighboring regression
-  passes 43,941 assertions; its latest-Julia counterpart remains running.
+  recorded in the plan; all four corrected comparisons now pass. Both original
+  neighboring suites pass 43,941 assertions. Restoring a missing historical
+  baseline from its exact Git commit also completes all four original compiler
+  comparisons, with no changed report groups. The revised seven-file repair
+  passes its local gates and is committed separately; GitHub acceptance remains
+  pending. Original failures and rejected candidates remain retained.
 
 - **VERIFIED — COLL-001:** ionization can miss eligible births, leave primary
   energy unchanged, or select an event with an erroneously saturated probability
@@ -83,7 +87,18 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   near-threshold probe adds 19 reproduced failures per runtime, with 77
   arithmetic/RNG/control passes and no fixture errors. It also demonstrates
   a Float32 birth at exact threshold equality and missed Float64 births just
-  above threshold. The original ambiguous RNG fixture remains retained.
+  above threshold. The original ambiguous RNG fixture remains retained. The
+  V2 repair passes 53,519 focused and 5,879 integration checks per runtime;
+  complete compiler trees remain unchanged, and ordinary full-call outputs and
+  allocations match the parent. A separate BigFloat
+  endpoint probe then reproduces 12 failures per runtime in the new primitive,
+  with 78 other assertions passing. V1/V2 are rejected. V3 passes those
+  endpoints but a wider-precision probe exposes six integer-intermediate
+  failures per runtime; V3 is also rejected. V4 passes 53,521 focused checks
+  per runtime plus 252 child-process endpoint checks. Both integration suites
+  pass 5,879 assertions. Ordinary outputs and allocations match the parent,
+  while exact-fallback costs are recorded separately. Full compiler comparisons
+  remain open; it has not been promoted.
 
 - Documentation checkpoint `0da4e09` is pushed to `main`; all six committed
   documentation blobs and the remote SHA match the promotion manifest.
@@ -466,7 +481,7 @@ performance review. “Pending” means no current-run completion claim.
 | ENERGY-008 | Shock bulk, particle and enthalpy fluxes lose finite complete values | Pushed (`daea194`); native/compiler and all six exact-SHA CI gates pass | VERIFIED: 52 baseline scalar/nodal witness assertions per runtime establish the range failures. Canonical V2 passes 17,169 permanent, 1,044 resource/cost and 462 shock/Aqua assertions per runtime, plus migration/format checks. Complete compiler trees match baseline (22/21). Earlier prototype and migration failures are retained. Ordinary latency overhead remains an optimization task. [Evidence and repair contract](SHOCK_ENERGY_FLUX_RANGE_PLAN.md). |
 | ENERGY-009 | Complete shock total is lost by materializing components before combining | Pushed (`dd539da`); native/compiler and all six exact-SHA CI gates pass | VERIFIED: 36 witness assertions per runtime establish NaN for complete signed-one totals and zero for a two-subnormal total. The integrated repair passes 24,737 component/total assertions, 462 shock/Aqua and 414 cost assertions per runtime. Complete compiler trees match baseline (22/21); migration, formatting and four-thread checks pass. Ordinary latency and cold-storage costs are recorded. [Contract and evidence](SHOCK_ENERGY_FLUX_RANGE_PLAN.md#complete-total--energy-009). |
 | ENERGY-010 | Ordinary Float32 magnetic sums lose percent-level accuracy on large grids | Confirmed; canonical implementation planned | VERIFIED: exact-main probes on Julia 1.12.7/1.13.2 reproduce 1.49–3.34% errors for uniform/alternating 128³ and 160³ fields. Each run passes 88 witness/control assertions; all eight Float64 controls are exact. Integer-multiplicity rational integrals are independent of the sequential reduction that reproduces each public output. [Evidence and acceptance plan](MAGNETIC_ENERGY_ACCURACY_PLAN.md). |
-| GROWTH-001 | Append partially grows or corrupts particle storage on nonresizable/aliased inputs | Confirmed; private repair under verification | VERIFIED: both Julia 1.12.7 and 1.13.2 reproduce 48 append/ionization invariant failures across Float32/64 and 1D–3D; independent/self/read-only-source and RNG/birth controls pass. [Evidence and contract](PARTICLE_APPEND_PLAN.md). |
+| GROWTH-001 | Append partially grows or corrupts particle storage on nonresizable/aliased inputs | Local repair verified; exact-commit CI pending | Both Julia versions pass revised focused/integration/compiler/resource gates; original baseline retains 48 append/ionization invariant failures. Cross-species backing-storage rejection is included. [Evidence and contract](PARTICLE_APPEND_PLAN.md). |
 | GROWTH-002 | Migration changes aliased weights and partially publishes invalid replacement storage | Confirmed; private repair under verification | VERIFIED: both runtimes reproduce 24 integrity failures across Float32/64 and 1D–3D, with 36 ordinary controls passing. Candidate MPI rejection/recovery checks are recorded separately from the serial baseline witnesses. [Evidence and plan](MIGRATION_STORAGE_PLAN.md). |
 | CLOSURE-001 | Polytropic pressure loses finite pointwise values and has large normal-output errors | Pushed (`0d8c8e8`); historical CI failed in TEST-002; corrected-source native gates and `15662e1` CI pass | VERIFIED: 44 witness assertions pass on each Julia 1.12.7/1.13.2 against `src/electrons/closures.jl` byte-identical to `63f2420`. Six cases return Inf or zero instead of finite nonzero pressures. Two finite cases return approximately 7.389 instead of a complete-input enclosure near 2.718. The public pressure owner feeds the Ohm-law pressure gradient. [Evidence and canonical repair plan](POLYTROPIC_ENERGY_RANGE_PLAN.md#pointwise-pressure--closure-001). |
 | CLOSURE-002 | Concrete pressure path accepts union element types it cannot evaluate | Pushed (`15662e1`); native gates and exact-SHA CI pass | VERIFIED: 69 observations per Julia 1.12.7/1.13.2 establish 15 failures among 27 storage/coefficient combinations against `0d8c8e8`. The final correction passes 57,165 focused assertions per runtime and complete compiler trees match baseline (22/21). Solver, shock and checkpoint lanes also pass on both runtimes; all six exact-SHA GitHub jobs pass; complete CI report comparison removes only the two targeted diagnostics. [Plan and evidence](POLYTROPIC_ENERGY_RANGE_PLAN.md#algebraic-storage-dispatch--closure-002). |
@@ -485,7 +500,7 @@ performance review. “Pending” means no current-run completion claim.
 | CI-004 | Required Aqua import errors become skipped-success quality gates | Included in green `240f77c` | VERIFIED: an actual missing-Aqua baseline exits 0 with one broken test. The repaired gate passes all nine checks on both native versions; missing-package and injected import-failure probes now exit 1. Existing checks/options are unchanged. [Contract and gates](CI_RELIABILITY_PLAN.md#required-aqua-gate--ci-004). |
 | CI-005 | New pushes cancel unfinished checks for earlier commits | Pushed (`4c03c87`); complete GitHub run green | The group now includes commit SHA; actionlint and parsed workflow/key checks pass. Older runs retained their package jobs across subsequent pushes, and `240f77c`/`4cd642c` have since finished green. All jobs, thresholds and matrices are unchanged. [Plan](CI_RELIABILITY_PLAN.md#preserve-acceptance-for-every-revision--ci-005). |
 | PERF-006 | Rank classification allocates indexed labels and pencil orientation intermediates | Pushed (`b3e2eb6`); all six GitHub jobs green | V2 passes 46,188 focused checks per runtime and reduces measured complete-migration allocation by 59.68–84.19% / 47.04–76.16%, with identical outputs. Complete compiler trees match baseline locally and in CI; actual GitHub Julia versions are 1.12.7/1.13.2. [Contract](RANK_CLASSIFICATION_ALLOCATION_PLAN.md). |
-| COLL-001 | Ionization loses threshold, cooling and probability accuracy at floating-point boundaries | Confirmed; repair under design | Both runtimes reproduce 30 energy/range, 18 probability/state and 19 strict-threshold/cooling failures with finite stored inputs; controls pass. [Contract and evidence](IONIZATION_ARITHMETIC_PLAN.md). |
+| COLL-001 | Ionization loses threshold, cooling and probability accuracy at floating-point boundaries | Isolated repair under verification | Both runtimes reproduce 30 energy/range, 18 probability/state and 19 strict-threshold/cooling failures. V1–V3 are rejected by further BigFloat probes. V4 passes 53,521 focused checks per runtime plus 252 child endpoint checks; remaining gates are open. [Contract and evidence](IONIZATION_ARITHMETIC_PLAN.md). |
 
 ## Completeness roadmap
 

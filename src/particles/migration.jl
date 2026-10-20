@@ -31,12 +31,22 @@ end
     append_particles!(dest, src) -> dest
 
 Append every particle in `src` to `dest`, preserving all per-particle fields.
-Species charge and mass must match exactly.
+Species charge and mass must match exactly. For a nonempty source, destination
+components must have independent resizable storage. Distinct populations must
+not share backing storage; self-append is supported. Detectable storage input
+errors are rejected before either population changes.
 """
 function append_particles!(dest::ParticleSet{D,T}, src::ParticleSet{D,T}) where {D,T}
     dest.q == src.q || throw(ArgumentError("cannot append particles with different charge"))
     dest.m == src.m || throw(ArgumentError("cannot append particles with different mass"))
     nparticles(src) == 0 && return dest
+    count = _check_particle_storage_axes(src)
+    _validate_particle_growth(dest, count, "append_particles!: destination")
+    dest === src ||
+        !_particle_sets_mightalias(dest, src, _particle_backing_mightalias) ||
+        throw(
+            ArgumentError("append_particles!: distinct populations must not share backing storage"),
+        )
     # In-place append! (not vcat): vcat reallocates and copies every destination array on
     # each call, so repeated appends (ionization sources, per-step MPI receives) cost O(N²)
     # over a run; append! amortizes to O(total). Requires resizable (Vector) fields, which

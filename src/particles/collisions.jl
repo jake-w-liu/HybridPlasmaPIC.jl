@@ -753,91 +753,6 @@ function _require_finite_particle_velocities(ps::ParticleSet, context::AbstractS
     return nothing
 end
 
-function _particle_backing_mightalias(a::AbstractArray, b::AbstractArray)
-    (a === b || Base.mightalias(a, b)) && return true
-    pa, pb = parent(a), parent(b)
-    pa === a || (_particle_backing_mightalias(pa, b) && return true)
-    pb === b || (_particle_backing_mightalias(a, pb) && return true)
-    # A view's mutable indices can grow along with another particle array even
-    # when its data parent is independent. Ranges contain no resizable storage.
-    if a isa SubArray
-        for index in parentindices(a)
-            index isa AbstractArray &&
-                !(index isa AbstractRange) &&
-                _particle_backing_mightalias(index, b) &&
-                return true
-        end
-    end
-    if b isa SubArray
-        for index in parentindices(b)
-            index isa AbstractArray &&
-                !(index isa AbstractRange) &&
-                _particle_backing_mightalias(a, index) &&
-                return true
-        end
-    end
-    return false
-end
-
-function _particle_arrays_mightalias(a::AbstractArray, b::AbstractArray)
-    (a === b || Base.mightalias(a, b)) && return true
-    # Empty arrays have no overlapping elements, but wrappers can still share
-    # storage whose later resize would change another particle component.
-    return (isempty(a) || isempty(b)) && _particle_backing_mightalias(a, b)
-end
-
-function _particle_components_mightalias(ps::ParticleSet)
-    for (d, x) in enumerate(ps.x)
-        for k = 1:(d-1)
-            _particle_arrays_mightalias(x, ps.x[k]) && return true
-        end
-        for v in ps.v
-            _particle_arrays_mightalias(x, v) && return true
-        end
-        _particle_arrays_mightalias(x, ps.weight) && return true
-        _particle_arrays_mightalias(x, ps.id) && return true
-        _particle_arrays_mightalias(x, ps.tag) && return true
-    end
-    for (c, v) in enumerate(ps.v)
-        for k = 1:(c-1)
-            _particle_arrays_mightalias(v, ps.v[k]) && return true
-        end
-        _particle_arrays_mightalias(v, ps.weight) && return true
-        _particle_arrays_mightalias(v, ps.id) && return true
-        _particle_arrays_mightalias(v, ps.tag) && return true
-    end
-    _particle_arrays_mightalias(ps.weight, ps.id) && return true
-    _particle_arrays_mightalias(ps.weight, ps.tag) && return true
-    _particle_arrays_mightalias(ps.id, ps.tag) && return true
-    return false
-end
-
-function _mightalias_particle_storage(candidate, ps::ParticleSet)
-    for d = 1:length(ps.x)
-        _particle_arrays_mightalias(candidate, ps.x[d]) && return true
-    end
-    for c = 1:3
-        _particle_arrays_mightalias(candidate, ps.v[c]) && return true
-    end
-    _particle_arrays_mightalias(candidate, ps.weight) && return true
-    _particle_arrays_mightalias(candidate, ps.id) && return true
-    _particle_arrays_mightalias(candidate, ps.tag) && return true
-    return false
-end
-
-function _particle_sets_mightalias(a::ParticleSet, b::ParticleSet)
-    for d = 1:length(a.x)
-        _mightalias_particle_storage(a.x[d], b) && return true
-    end
-    for c = 1:3
-        _mightalias_particle_storage(a.v[c], b) && return true
-    end
-    _mightalias_particle_storage(a.weight, b) && return true
-    _mightalias_particle_storage(a.id, b) && return true
-    _mightalias_particle_storage(a.tag, b) && return true
-    return false
-end
-
 function _require_nonaliasing_collision_scratch(candidate, candidate_name, work, context)
     (candidate === nothing || work === nothing) && return nothing
     (work isa Tuple && length(work) == 3) || return nothing
@@ -1124,6 +1039,12 @@ function ionize_mcc!(
             )
         end
     end
+
+    # Both populations must support the complete birth batch before either changes.
+    _validate_particle_growth(electrons, nb, "ionize_mcc!: electron destination")
+    _validate_particle_growth(ions, nb, "ionize_mcc!: ion destination")
+    _particle_sets_mightalias(electrons, ions, _particle_backing_mightalias) &&
+        throw(ArgumentError("ionize_mcc!: electron and ion particle storage must not alias"))
 
     # Reserve both species' complete id ranges before cooling a primary or appending a
     # newborn. This keeps id exhaustion an exception-safe input error instead of leaving

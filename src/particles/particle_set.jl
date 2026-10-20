@@ -132,3 +132,149 @@ nparticles(ps::ParticleSet) = length(ps.weight)
 Base.eltype(::ParticleSet{D,T}) where {D,T} = T
 
 # ---------------------------------------------------------------- loading
+
+# Shared storage checks also serve collision scratch, collections and checkpoint restore.
+function _particle_backing_mightalias(a::AbstractArray, b::AbstractArray)
+    (a === b || Base.mightalias(a, b)) && return true
+    pa, pb = parent(a), parent(b)
+    pa === a || (_particle_backing_mightalias(pa, b) && return true)
+    pb === b || (_particle_backing_mightalias(a, pb) && return true)
+    # A view's mutable indices can grow along with another particle array even
+    # when its data parent is independent. Ranges contain no resizable storage.
+    if a isa SubArray
+        for index in parentindices(a)
+            index isa AbstractArray &&
+                !(index isa AbstractRange) &&
+                _particle_backing_mightalias(index, b) &&
+                return true
+        end
+    end
+    if b isa SubArray
+        for index in parentindices(b)
+            index isa AbstractArray &&
+                !(index isa AbstractRange) &&
+                _particle_backing_mightalias(a, index) &&
+                return true
+        end
+    end
+    return false
+end
+
+function _particle_arrays_mightalias(a::AbstractArray, b::AbstractArray)
+    (a === b || Base.mightalias(a, b)) && return true
+    # Empty arrays have no overlapping elements, but wrappers can still share
+    # storage whose later resize would change another particle component.
+    return (isempty(a) || isempty(b)) && _particle_backing_mightalias(a, b)
+end
+
+function _particle_components_mightalias(ps::ParticleSet, alias_test = _particle_arrays_mightalias)
+    for (d, x) in enumerate(ps.x)
+        for k = 1:(d-1)
+            alias_test(x, ps.x[k]) && return true
+        end
+        for v in ps.v
+            alias_test(x, v) && return true
+        end
+        alias_test(x, ps.weight) && return true
+        alias_test(x, ps.id) && return true
+        alias_test(x, ps.tag) && return true
+    end
+    for (c, v) in enumerate(ps.v)
+        for k = 1:(c-1)
+            alias_test(v, ps.v[k]) && return true
+        end
+        alias_test(v, ps.weight) && return true
+        alias_test(v, ps.id) && return true
+        alias_test(v, ps.tag) && return true
+    end
+    alias_test(ps.weight, ps.id) && return true
+    alias_test(ps.weight, ps.tag) && return true
+    alias_test(ps.id, ps.tag) && return true
+    return false
+end
+
+function _mightalias_particle_storage(
+    candidate,
+    ps::ParticleSet,
+    alias_test = _particle_arrays_mightalias,
+)
+    for d = 1:length(ps.x)
+        alias_test(candidate, ps.x[d]) && return true
+    end
+    for c = 1:3
+        alias_test(candidate, ps.v[c]) && return true
+    end
+    alias_test(candidate, ps.weight) && return true
+    alias_test(candidate, ps.id) && return true
+    alias_test(candidate, ps.tag) && return true
+    return false
+end
+
+function _particle_sets_mightalias(
+    a::ParticleSet,
+    b::ParticleSet,
+    alias_test = _particle_arrays_mightalias,
+)
+    for d = 1:length(a.x)
+        _mightalias_particle_storage(a.x[d], b, alias_test) && return true
+    end
+    for c = 1:3
+        _mightalias_particle_storage(a.v[c], b, alias_test) && return true
+    end
+    _mightalias_particle_storage(a.weight, b, alias_test) && return true
+    _mightalias_particle_storage(a.id, b, alias_test) && return true
+    _mightalias_particle_storage(a.tag, b, alias_test) && return true
+    return false
+end
+
+function _require_particle_resize_support(a::AbstractVector, N::Int, context::AbstractString)
+    if length(a) != N && !applicable(resize!, a, N)
+        throw(
+            ArgumentError(
+                "$context requires $N particles, but destination $(typeof(a)) cannot resize from $(length(a))",
+            ),
+        )
+    end
+    return nothing
+end
+
+function _require_particle_resize_support(ps::ParticleSet, N::Int, context::AbstractString)
+    # Check homogeneous position/velocity tuples separately from id/tag storage.
+    # This keeps the applicable(resize!, ...) calls concretely typed.
+    for x in ps.x
+        _require_particle_resize_support(x, N, context)
+    end
+    for v in ps.v
+        _require_particle_resize_support(v, N, context)
+    end
+    _require_particle_resize_support(ps.weight, N, context)
+    _require_particle_resize_support(ps.id, N, context)
+    _require_particle_resize_support(ps.tag, N, context)
+    return nothing
+end
+
+function _check_particle_storage_axes(ps::ParticleSet)
+    N = nparticles(ps)
+    for (d, x) in enumerate(ps.x)
+        axes(x, 1) == Base.OneTo(N) || _check_particle_vector_axes(Symbol(:x, d), x, N)
+    end
+    for (c, v) in enumerate(ps.v)
+        axes(v, 1) == Base.OneTo(N) || _check_particle_vector_axes(Symbol(:v, c), v, N)
+    end
+    _check_particle_vector_axes(:weight, ps.weight, N)
+    _check_particle_vector_axes(:id, ps.id, N)
+    _check_particle_vector_axes(:tag, ps.tag, N)
+    return N
+end
+
+function _validate_particle_growth(ps::ParticleSet, count::Int, context::AbstractString)
+    N = _check_particle_storage_axes(ps)
+    0 <= count <= typemax(Int) - N ||
+        throw(ArgumentError("$context particle count exceeds Int capacity"))
+    # Growth affects backing storage and mutable view indices, even where element
+    # ranges do not overlap. Ordinary fixed-size writes keep the less strict predicate.
+    _particle_components_mightalias(ps, _particle_backing_mightalias) &&
+        throw(ArgumentError("$context particle components must not share backing storage"))
+    _require_particle_resize_support(ps, N + count, context)
+    return nothing
+end
