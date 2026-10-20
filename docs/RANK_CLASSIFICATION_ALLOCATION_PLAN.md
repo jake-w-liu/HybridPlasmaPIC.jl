@@ -1,7 +1,12 @@
 # Rank-classification allocation reduction
 
-Status: implementation passes local acceptance on Julia 1.12.7 and 1.13.2.
-Exact-commit GitHub CI is required after promotion.
+Status: pushed as `b3e2eb62e644ab7f2de970af56bbc1939202fbc8` after local
+acceptance on Julia 1.12.7 and 1.13.2.
+[Exact-commit GitHub CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39432448426)
+passes all six jobs. Downloaded logs verify Julia 1.12.7/1.13.2 and
+504,062/504,063 package assertions. Complete CI compiler trees retain 23/22
+reports with no added or removed groups. The six log hashes and exact SHA
+are recorded in `/tmp/hybrid-ci-b3e2eb6-20261020/verified-results.json`.
 
 The pinned-main probe at `/tmp/hybrid-rank-allocation-review-20261020/probe.jl`
 passes six value controls on Julia 1.12.7. Warm `rank_index` and

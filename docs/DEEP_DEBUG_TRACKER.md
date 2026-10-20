@@ -1,6 +1,6 @@
 # Plasma simulation audit and implementation tracker
 
-Updated: 2026-10-20. Goal remains **active**.
+Updated: 2026-10-21. Goal remains **active**.
 
 User objective: audit the full codebase until an independent pass finds no new
 confirmed defects; optimize measured bottlenecks; plan and implement missing
@@ -17,8 +17,13 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   runtime. Complete migration output fingerprints match across all 35 samples
   per runtime while allocation falls by 59.68–84.19% on Julia 1.12.7 and
   47.04–76.16% on 1.13.2. No elapsed speedup is claimed. Complete package compiler
-  trees match baseline (22/21 reports, no added or removed groups). Local
-  acceptance is complete; exact-commit GitHub acceptance remains required.
+  trees match baseline (22/21 reports, no added or removed groups). Pushed as
+  `b3e2eb6`; all 11 committed files and remote main matched the promotion manifest
+  at that push.
+  Its [exact-commit CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39432448426)
+  passes all six jobs. The package logs verify actual Julia 1.12.7/1.13.2 and
+  504,062/504,063 assertions. Complete CI compiler trees retain 23/22 reports
+  with no added or removed groups. All six downloaded log hashes were checked.
   [Evidence and contract](RANK_CLASSIFICATION_ALLOCATION_PLAN.md).
 
 - **VERIFIED — GROWTH-002:** serial migration can partially replace particle
@@ -34,7 +39,12 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   concrete compiler gate retains six failed assertions. Matched captures on
   both runtimes verify that the serializer diagnostics already exist on the
   baseline, with only the expected preparation-wrapper frames added.
-  Full package comparisons and MPI integration remain under verification.
+  V4 also passes all six focused real-MPI runs across both runtimes; full
+  fixture-loaded package trees match baseline on both runtimes. Unloaded
+  comparisons remain under verification; both full two-rank suites pass, with
+  all eight MPI command/log hashes and frozen sources checked. V5 preserves
+  the revised growth/rank source; its seven-path union is verified, but native
+  checks on the combined snapshot have not run.
   [Evidence and repair plan](MIGRATION_STORAGE_PLAN.md).
 
 - **VERIFIED — GROWTH-001:** public append probes reproduce partial growth
@@ -49,8 +59,31 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   changing V2 production code. Both V2 runtimes pass 226 original/resource
   smoke checks and 3,060 retained-capacity append checks. V3 passes 1,784
   focused checks on each runtime, with integration/compiler gates running. Tiny
-  append costs increase and are recorded in the plan. Full acceptance remains
-  pending.
+  append costs increase and are recorded in the plan. A fresh finite-state
+  cross-species backing-storage probe then reproduces 24 baseline and 12 V3
+  failed assertions per runtime. V3 and its first rank-integration snapshot
+  must not be promoted. The revised combined candidate preserves both rank
+  and append coverage and passes 4,236 focused checks on both Julia versions;
+  both also pass 47,838 neighboring integration and 52 concrete compiler
+  checks. All 120 ordinary-birth output samples per runtime match V3 exactly,
+  with identical allocation bytes and zero measured compilation/recompilation.
+  Complete unloaded and fixture-loaded compiler trees match committed
+  `b3e2eb6` on both runtimes (22/21 reports, no changed groups); all 92 reference
+  source/extension blobs match that commit. The old-parent comparison retained
+  a path-normalization failure; a same-file proof and corrected commands are
+  recorded in the plan. The original minimum-Julia neighboring regression
+  passes 43,941 assertions; its latest-Julia counterpart remains running.
+
+- **VERIFIED — COLL-001:** ionization can miss eligible births, leave primary
+  energy unchanged, or select an event with an erroneously saturated probability
+  when finite velocity components have an unrepresentable norm. Both Julia
+  versions reproduce 30 energy/threshold failures and 18 probability/state
+  failures, with all independent arithmetic/RNG controls passing.
+  [Evidence and repair plan](IONIZATION_ARITHMETIC_PLAN.md). The corrected
+  near-threshold probe adds 19 reproduced failures per runtime, with 77
+  arithmetic/RNG/control passes and no fixture errors. It also demonstrates
+  a Float32 birth at exact threshold equality and missed Float64 births just
+  above threshold. The original ambiguous RNG fixture remains retained.
 
 - Documentation checkpoint `0da4e09` is pushed to `main`; all six committed
   documentation blobs and the remote SHA match the promotion manifest.
@@ -451,7 +484,8 @@ performance review. “Pending” means no current-run completion claim.
 | MOMENT-003 | EMPIC current combination loses complete values; deposition errors retain temporary positions | Pushed (`6ad7276`); complete GitHub run green | Both native versions pass 4,805 checks on the final combined charge/current source, including 892 current assertions, public steps, 70 concrete analyses and unchanged package JET/Aqua. Each also passes 1,862 existing integration assertions. Ten ordinary cases preserve exact outputs/scratch and 0 B allocation. [Contract and gates](EMPIC_CURRENT_COMBINATION_PLAN.md). |
 | CI-004 | Required Aqua import errors become skipped-success quality gates | Included in green `240f77c` | VERIFIED: an actual missing-Aqua baseline exits 0 with one broken test. The repaired gate passes all nine checks on both native versions; missing-package and injected import-failure probes now exit 1. Existing checks/options are unchanged. [Contract and gates](CI_RELIABILITY_PLAN.md#required-aqua-gate--ci-004). |
 | CI-005 | New pushes cancel unfinished checks for earlier commits | Pushed (`4c03c87`); complete GitHub run green | The group now includes commit SHA; actionlint and parsed workflow/key checks pass. Older runs retained their package jobs across subsequent pushes, and `240f77c`/`4cd642c` have since finished green. All jobs, thresholds and matrices are unchanged. [Plan](CI_RELIABILITY_PLAN.md#preserve-acceptance-for-every-revision--ci-005). |
-| PERF-006 | Rank classification allocates indexed labels and pencil orientation intermediates | Local acceptance complete; exact-commit GitHub CI pending | V2 passes 46,188 focused checks per runtime and reduces measured complete-migration allocation by 59.68–84.19% / 47.04–76.16%, with identical outputs. Complete compiler trees match baseline (22/21 reports, no changed groups). [Contract](RANK_CLASSIFICATION_ALLOCATION_PLAN.md). |
+| PERF-006 | Rank classification allocates indexed labels and pencil orientation intermediates | Pushed (`b3e2eb6`); all six GitHub jobs green | V2 passes 46,188 focused checks per runtime and reduces measured complete-migration allocation by 59.68–84.19% / 47.04–76.16%, with identical outputs. Complete compiler trees match baseline locally and in CI; actual GitHub Julia versions are 1.12.7/1.13.2. [Contract](RANK_CLASSIFICATION_ALLOCATION_PLAN.md). |
+| COLL-001 | Ionization loses threshold, cooling and probability accuracy at floating-point boundaries | Confirmed; repair under design | Both runtimes reproduce 30 energy/range, 18 probability/state and 19 strict-threshold/cooling failures with finite stored inputs; controls pass. [Contract and evidence](IONIZATION_ARITHMETIC_PLAN.md). |
 
 ## Completeness roadmap
 

@@ -186,8 +186,12 @@ V4 adds `init = 0` to those two expected sums, retaining all assertions.
 All 88 production files are byte-identical to V3, recorded in
 `/tmp/hybrid-migration-storage-v4-20261020/production-identity.json`.
 Its formatting and 92 owner checks pass, followed by 1,262 focused checks on
-each runtime. Final real-MPI verification remains in progress. V3's failed logs
-are preserved.
+each runtime. All six focused real-MPI commands (2/4/8 ranks on both runtimes)
+also pass. The full two-rank suites on both Julia versions pass, including
+checkpoint restore/publication, ordered-collection continuation, moment
+validation, ion collection and evolving-pressure checks. All eight MPI command
+exits, complete log hashes and frozen sources are verified. The full-suite
+elapsed times are 3,304.79 and 3,297.16 seconds. V3's failed logs are preserved.
 
 V4's first concrete compiler command retains 14 passes and six failed
 zero-report assertions. Each failing MPI-migration specialization reports two
@@ -211,8 +215,13 @@ the same serializer subtree and adds only the collective-stage/preparation-
 closure frames. All typed inputs and those source locations were checked;
 `prefix-review.json` records the review. The original zero-report gate remains
 failed because its expectation also fails on the baseline. Latest-Julia checks
-of the new helper owners and full unloaded/fixture-loaded package captures
-continue at `/tmp/hybrid-migration-compiler-followup-20261020`.
+of the new helper owners pass all eight assertions; full unloaded/fixture-loaded
+package captures at `/tmp/hybrid-migration-compiler-followup-20261020` now
+complete all seven commands. All command/log and frozen-file hashes pass.
+Both complete fixture-loaded trees match baseline: 22/21 reports in 14/13
+groups, with no added or removed group. Unloaded comparisons await the original
+growth captures. Final combined-source MPI regressions and transport cost
+measurements remain required.
 
 The initial resource matrix at `/tmp/hybrid-migration-resources-20261020`
 passes 953,733 value/resource-observation assertions in each of four commands
@@ -239,3 +248,72 @@ candidate adds 352, 544, 608 or 1,040 bytes per call, depending on the profile.
 This compares the actual GROWTH-001 V3 owner with migration V2; final MPI
 transport costs still require measurement. No elapsed-time acceptance claim
 is made.
+
+## Composition with the revised growth owner
+
+V4 inherits GROWTH-001 V3's newly reproduced cross-species birth alias defect
+and predates the pushed rank-classification optimization. It cannot be
+promoted as a complete source snapshot. Its completed checks remain evidence
+for the migration changes.
+
+The isolated `/tmp/hybrid-migration-storage-v5-20261020` snapshot applies only
+V4's seven changed source/test paths to the revised growth/rank candidate.
+Six paths have an unchanged parent and are copied exactly; `test/runtests.jl`
+adds both migration includes while retaining the append, birth-alias and rank
+tests. `integration-manifest.json` verifies this union against both frozen
+parents, preserving the revised ionization guard. Dependency TOML files
+preserve their resolved contents apart from the package source path. Native
+checks on this combined snapshot have not run.
+
+No migration algorithm change is intended in this composition. Before
+promotion, require the revised growth parent's acceptance, combined focused
+storage/rank checks, full compiler comparisons with identical fixture methods,
+real MPI rejection/recovery and integration checks, and resource measurements
+against the combined parent. The older cost queue still references the failed
+zero-report expectation and must not provide acceptance for the new source.
+
+V5's controller is queued behind the revised growth initial, integration,
+resource and complete compiler gates, plus V4's full MPI and compiler
+comparisons. Its dependency TOML structures match the revised growth parent
+after normalizing only the package source path. All 11 Julia drivers parse on
+minimum Julia; Python syntax, driver paths, comparison filenames and all 268
+source/test/extension hashes are checked. These are preparation checks, not
+native acceptance.
+
+The queued matrix combines the original migration witnesses, permanent
+migration/growth/birth-alias/rank tests and quality checks. It requires 66
+direct zero-report compiler calls per runtime, complete baseline/candidate
+MPI/serializer trees, full unloaded/fixture-loaded package comparisons, six
+focused real-MPI runs and both full two-rank suites. The known MPI Serialization
+reports are compared in full rather than assigned a false zero-report
+expectation. Source review of the retained wrapper frames, final resource
+measurements and exact-commit GitHub acceptance still remain separate gates.
+
+The final resource protocol will compare the revised growth/rank parent with
+V5, preserving the 54 serial Float32/64, 1D–3D, kept/exchanged/lost profiles and
+the million-particle case. Exchange profiles with 32 and 4,096 particles per
+rank retain ten measured samples. Every measured call follows garbage
+collection outside its timing window and must report zero compilation and
+recompilation. Independent field/id invariants and complete output hashes
+cover every sample. Process peak RSS remains a whole-process observation.
+
+The two-rank MPI matrix retains 0/16/1,024 particles per rank, three warmups and
+16 samples. It will check complete positions, velocities, weights, ids, tags,
+species properties and routing, and gather each rank's full output hash outside
+the timed call. These measurements record the added collective cost; unpaired
+elapsed observations cannot establish a speedup. Run them only after combined
+native/compiler acceptance and review of the complete typed MPI trees.
+
+V5's first controller stopped before native work because the growth parent's comparison
+had a verified source-path spelling defect. The replacement controller
+requires the corrected full comparisons, retains all original semantic gates,
+and additionally requires the four direct comparisons with committed main.
+Production source and Julia test drivers are unchanged.
+
+The final measurement harness at
+`/tmp/hybrid-migration-final-resources-v1-20261020` passes a minimum-Julia
+preflight: seven drivers parse, 864 serial protocol assertions pass, and the
+real two-rank byte-digest gather control passes. This verifies the harness,
+not the final migration costs. Its eight measurement commands are queued
+behind V5's 32 native commands and explicit review of the complete typed
+MPI trees.

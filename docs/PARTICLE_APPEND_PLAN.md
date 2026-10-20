@@ -1,7 +1,9 @@
 # Particle-growth audit
 
-Status: append defects confirmed on both supported runtimes; repair planned.
-Ionization mutation also reproduced; the isolated candidate is under verification.
+Status: append defects confirmed on both supported runtimes; repair under
+verification. A fresh cross-species backing-storage witness also exposes
+partial mutation in V3. V3 and the first rank-integration snapshot must not be
+promoted, even if their earlier checks pass.
 
 Current `append_particles!` checks species charge and mass, then appends
 position, velocity, weight, id and tag arrays sequentially
@@ -25,7 +27,7 @@ before appending the electron and ion batches (`collisions.jl:1177`).
 
 **VERIFIED — GROWTH-001:** the public probe at
 `/tmp/hybrid-particle-append-review-20261020` reproduces all three append defects
-on Julia 1.12.7 and 1.13.2 against source byte-identical to current main.
+on Julia 1.12.7 and 1.13.2 against source byte-identical to `0da4e09`.
 For a 3D two-particle destination and one appended particle, a nonresizable tag
 leaves x/v/weight/id lengths 3 and tag length 2. A destination sharing x₁ and
 weight ends with lengths 4 versus 3, without throwing. Distinct populations
@@ -168,3 +170,139 @@ Both runtimes now complete with 36 control passes and 24 integrity failures.
 No invalid-input baseline MPI collective is launched. The confirmed GROWTH-002
 finding has its own [repair plan](MIGRATION_STORAGE_PLAN.md) and remains outside
 the append repair.
+
+## Integration after rank-classification promotion
+
+`b3e2eb6` independently changes the logical/pencil classification owners and
+adds `test_rank_classification.jl`. V3 remains frozen against its original
+baseline while its long regression and compiler gates finish.
+
+Before append promotion, retain both classification source files and the rank
+regression test from `b3e2eb6`. Merge the two new `runtests.jl` includes; copying
+V3's old runner would drop rank coverage. Verify that the combined source tree
+is exactly the union of the two reviewed changes, rerun append/rank/migration
+focused checks and concrete analyses on both Julia versions, and compare full
+unloaded/fixture-loaded compiler trees. Recheck formatting and frozen hashes.
+The completed V3 neighboring regressions remain evidence for the unchanged
+storage implementation; the combined commit must still pass all six GitHub
+jobs before acceptance.
+
+The combined snapshot is assembled at
+`/tmp/hybrid-particle-growth-rank-integration-v1-20261020`.
+`integration-manifest.json` verifies exactly those six differences from
+committed `b3e2eb6`, with both test includes present once. Dependency TOML files
+retain the original resolved environments, changing only the package source
+path. The original witness's source-location assertion points to the combined
+owner; its behavior assertions are unchanged.
+
+At assembly, native verification was queued behind V3's twelve main commands, four
+fixture-loaded captures and four complete report comparisons. The combined
+run requires formatting, the storage-owner audit, focused append/migration/
+pencil/rank tests, both sets of concrete analyses, and unloaded/fixture-loaded
+captures on both runtimes. A separate comparator checks every complete report
+tree against V3. Snapshot assembly and Python driver syntax checks passed.
+The following backing-storage finding disqualifies this first snapshot;
+its queued runs remain diagnostic evidence.
+
+## Cross-species backing storage: follow-up before promotion
+
+**VERIFIED on Julia 1.12.7 and 1.13.2:** the finite-state probe at
+`/tmp/hybrid-ionization-growth-alias-review-v2-20261020/probe.jl` retains 66
+passes and 24 failures per runtime against the pushed rank candidate's source. Distinct
+resizable wrappers expose the same `parent` vector for an electron position
+and an ion weight. The birth call returns successfully but leaves those arrays
+at length three while the other fields have length two; both counters advance.
+Independent-wrapper birth and shared-wrapper no-event controls pass. The
+original witness left the existing ion positions uninitialized; V2 initializes
+them and retains every other assertion. No finding relies on those unspecified
+values.
+
+The same finite-state witness reaches `ArgumentError` in V3 after growing the
+electron and changing the ion weight through the shared parent. Each runtime
+retains 78 passes and 12 failed state-preservation assertions.
+`summary.json` checks all four command/log hashes and classifies every failed
+assertion; there are no fixture errors. This rules out V3 and the first
+rank-integration snapshot as complete repairs.
+
+Pre-edit brief:
+
+- Mode: repair the remaining birth-preflight gap within GROWTH-001.
+- Evidence and owner: V3's `collisions.jl:998` uses the ordinary cross-species
+  predicate, while lines 1044–1045 check backing storage only within each
+  population. `particle_set.jl:137` already owns the recursive parent/index
+  check. Julia's installed `base/abstractarray.jl:1581–1590` documents `dataids`
+  specialization as opt-in; a custom vector can expose its parent without
+  participating in `Base.mightalias`.
+- Contract: a selected birth batch must reject shared backing across species
+  before reserving IDs, cooling primaries or appending either population.
+  Preserve valid independent custom storage and the existing no-event behavior.
+- Strategy: use `_particle_sets_mightalias` with the existing backing predicate
+  after both growth preflights, before ID reservation. Retain the earlier
+  ordinary alias check and its error message. No new validator or storage API.
+- Verification: retain the finite-state witness, cover every same-type
+  cross-species component pair in Float32/64 and 1D–3D, check complete states
+  and counters, and retain independent/no-event controls. Check ordinary birth
+  allocation and output equivalence, concrete analyses and complete
+  unloaded/fixture-loaded compiler trees on both runtimes. Preserve the rank
+  optimization and both regression suites in the revised candidate.
+
+Rejecting all custom vectors would fail the independent controls; checking only
+object identity would miss the distinct wrappers; checking after the first
+append would fail the full-state assertions; tightening the initial check for
+all calls would fail the existing no-event behavior. The old snapshots and
+their ongoing checks remain evidence, not promotion candidates.
+
+The revised combined candidate is
+`/tmp/hybrid-particle-growth-rank-integration-v2-20261020`. Its production
+change beyond the first combined snapshot is the existing cross-species
+backing predicate before ID reservation. A new permanent test checks all 232
+same-type component pairings, independent parent wrappers, no-event calls,
+both population states and both counters. Formatting passes 349 assertions
+and the source-owner audit passes 108. Both Julia versions pass 4,236 focused
+assertions: 90 new witness checks, 220 original witnesses and 3,926 permanent
+checks. All four initial command exits, log hashes and 359 frozen-file hashes
+were checked after completion.
+
+After those initial checks, queued commands cover neighboring collision,
+injection, migration, pencil/rank and quality tests, concrete analyses and full
+compiler captures on both runtimes. Fresh fixture-loaded baseline/candidate
+captures include the same new wrapper methods. An ordinary-birth resource
+matrix compares V3 with the revised owner, retaining complete output hashes,
+allocation/compilation metadata and all observations. No elapsed speedup is
+inferred from those unpaired runs. All gates remain required before promotion.
+
+Both neighboring suites now pass 47,838 assertions, followed by all 36
+storage/birth and 16 rank concrete compiler checks per runtime. All six
+command exits, complete log hashes and frozen sources were checked.
+
+All four ordinary-birth commands pass 720 checks each. The complete comparison
+verifies 177 frozen files and 120 full output hashes per runtime: Float32/64,
+1D–3D, 0/1/16/256 incident particles and five samples per profile. Every
+candidate sample has identical output and identical allocated bytes to V3;
+all measured calls have zero compilation/recompilation. Thus the additional
+cross-species backing guard adds no allocations in this matrix. Timing remains
+an unpaired observation, with no elapsed-time acceptance claim.
+`resource-comparison.json` retains all command/log hashes and observations.
+
+All twelve revised follow-up commands now complete successfully. Direct
+comparisons with pushed `b3e2eb6` retain identical complete compiler trees,
+both unloaded and with the same new fixture methods loaded: 22/21 reports in
+14/13 groups, with no additions or removals. The reference's 92 source and
+extension files match the committed blobs exactly. All capture/comparison log,
+report and frozen-source hashes were checked. Evidence is at
+`/tmp/hybrid-growth-committed-compiler-comparison-20261020`.
+
+The original comparison against V3 failed on both runtimes because its
+command supplied `/private/tmp/.../source` while the captured frames contained
+`/tmp/.../source`. **VERIFIED:** `path-proof.json` at
+`/tmp/hybrid-growth-parent-comparison-v2-20261021` checks that these are the
+same filesystem object and that this path spelling alone explains every one
+of the 14/13 differing complete groups. Corrected commands use the original
+comparator unchanged and pass both fixture-loaded comparisons. Original
+failures remain intact. The two unloaded V3 comparisons still await the
+original capture queue; no reports or semantic differences are suppressed.
+
+V3's minimum-Julia neighboring suite passes all 43,941 assertions, including
+both checkpoint test files, with its log hash verified. The latest-Julia suite
+is still running. These regressions and the remaining original compiler
+captures remain required evidence before promotion.
