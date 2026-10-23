@@ -166,6 +166,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Every `BackendMemoryStatus` construction form now rejects negative,
+  noninteger and out-of-range byte counts through the same validation owner.
+  Keyword and full-positional construction previously bypassed the checks.
+  Valid integer/missing counters, metadata conversions and independent telemetry
+  samples retain their behavior; pressure clamping is unchanged.
+
 - `PerpShock3D` Crank–Nicolson field steps now solve the frozen-moment induction
   equation with restarted GMRES and a finite true-residual check. This replaces
   four unchecked Picard iterations that could amplify resistive decay. The

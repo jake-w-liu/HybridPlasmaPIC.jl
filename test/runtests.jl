@@ -57,6 +57,7 @@ using Test
     include("test_io.jl")
     include("test_extensions.jl")
     include("test_gpu_backend.jl")
+    include("test_backend_memory_status.jl")
     include("test_metal_uniform_push.jl")
     include("test_ngp_metal_boundaries.jl")
     include("test_kdv.jl")

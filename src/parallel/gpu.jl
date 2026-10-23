@@ -16,6 +16,10 @@ Memory telemetry for a compute backend. `total_bytes`, `free_bytes`,
 `used_bytes`, `cached_bytes`, and `reserved_bytes` are `nothing` when the loaded
 backend does not expose that counter. `pool_supported` reports whether the
 backend exposes explicit pool/cache telemetry or reclamation hooks.
+
+Every constructor requires counters to be nonnegative integers that fit `Int`,
+or `nothing`. Counters are independent telemetry samples; their ordering is not
+constrained.
 """
 Base.@kwdef struct BackendMemoryStatus
     backend::Symbol
@@ -27,6 +31,30 @@ Base.@kwdef struct BackendMemoryStatus
     cached_bytes::Union{Nothing,Int} = nothing
     reserved_bytes::Union{Nothing,Int} = nothing
     note::String = ""
+
+    function BackendMemoryStatus(
+        backend,
+        device_available,
+        pool_supported,
+        total_bytes,
+        free_bytes,
+        used_bytes,
+        cached_bytes,
+        reserved_bytes,
+        note,
+    )
+        return new(
+            backend,
+            device_available,
+            pool_supported,
+            _nonnegative_bytes(total_bytes, :total_bytes),
+            _nonnegative_bytes(free_bytes, :free_bytes),
+            _nonnegative_bytes(used_bytes, :used_bytes),
+            _nonnegative_bytes(cached_bytes, :cached_bytes),
+            _nonnegative_bytes(reserved_bytes, :reserved_bytes),
+            note,
+        )
+    end
 end
 
 function _nonnegative_bytes(value, field::Symbol)
@@ -52,12 +80,12 @@ function BackendMemoryStatus(
         backend,
         device_available,
         pool_supported,
-        _nonnegative_bytes(total_bytes, :total_bytes),
-        _nonnegative_bytes(free_bytes, :free_bytes),
-        _nonnegative_bytes(used_bytes, :used_bytes),
-        _nonnegative_bytes(cached_bytes, :cached_bytes),
-        _nonnegative_bytes(reserved_bytes, :reserved_bytes),
-        String(note),
+        total_bytes,
+        free_bytes,
+        used_bytes,
+        cached_bytes,
+        reserved_bytes,
+        note,
     )
 end
 

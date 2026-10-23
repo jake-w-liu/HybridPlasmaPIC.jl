@@ -43,8 +43,8 @@ the stated source/contract fact was inspected, not that all numerical behavior
 was rerun. Subsequent runtime findings are recorded in the live audit tracker
 and stage status. Unmeasured risks remain hypotheses with explicit settling tests.
 
-Line references below are anchored to the revision above. Recheck them when a
-dependent slice changes the owner. Search methods, exports and callers as well
+Line references below are anchored to the revision above unless a later accepted
+change is explicitly identified. Recheck them when a dependent slice changes the owner. Search methods, exports and callers as well
 as filenames before changing a capability's status.
 
 Source names below resolve to these canonical files:
@@ -77,7 +77,7 @@ Source names below resolve to these canonical files:
 | Nonperiodic EM | `EMPIC` constructor requires `FourierGrid`; `full_pic.jl:2199` wraps ions, electron path likewise periodic | Missing coupled field/particle boundary implementation, CAP-002 |
 | Distributed evolution | `mpi.jl:934–960,1008–1027` explicitly deposits/reduces full grids and steps replicated fields; Pencil extension:31–60 wraps FFTs | Infrastructure and reference evolution exist; domain-owned solver missing, CAP-003 |
 | GPU | Metal extension has deposit/gather/push methods; CUDA extension:1–68 has storage/telemetry hooks; `HybridFields` uses `Array` at field_state:12–29 | Partial kernels, not complete resident solvers, CAP-004; device availability is not numerical acceptance |
-| Implicit evolution | `semi_implicit.jl:57–96` evolves linear Fourier amplitudes; shock3d:389–404 performs four Picard field iterations | Two limited paths exist; nonlinear coupled particle/field solve and solve-failure contract missing, CAP-005 |
+| Implicit evolution | Linear Fourier amplitudes in `semi_implicit.jl`; subsequent `ce52836` adds a residual-checked `ShockCNWorkspace` solve and full-step rollback ([contract](SHOCK_CN_SOLVE_PLAN.md)) | Limited field-only paths exist; nonlinear coupled particle/field solve remains missing, CAP-005 |
 | Geometry | `ToroidalGrid`, metric gradient/divergence in curvilinear_mesh:20–49,90–235 | Geometry operators exist; no coupled toroidal plasma stepper, CAP-006A |
 | Gyrokinetics | `GuidingCentre`, local-field push and `gyroaverage` in gyrokinetics:559–645,823–876 | Single-particle/local sampling utilities; no self-consistent gyrokinetic distribution/field solve, CAP-006B |
 | AMR | `AMRGrid` is a single 1D scalar level, adaptive_mesh_refinement:8–23; prolong/restrict/refine:322–366 | Transfer primitives; no adaptive plasma hierarchy, particle crossing or coupled timestep, CAP-006C |
@@ -200,16 +200,16 @@ these agent names identify existing ownership, not running processes.
 
 | Slice | Implementation owner / canonical code | Dependencies | State and checked evidence | Next concrete action |
 | --- | --- | --- | --- | --- |
-| 001 local self/cross collisions | `/root/local_multispecies_collisions`; `particles/collisions.jl`, `particles/sorting.jl` | Existing particle/moment arithmetic gates | Isolated candidate retained; final gates open | Complete normalization, independent rate, rollback, legacy compatibility and resource gates |
+| 001 local self/cross collisions | Root continuing saved `/root/local_multispecies_collisions` work; `particles/collisions.jl`, `particles/sorting.jl` | Existing particle/moment arithmetic gates | Isolated candidate retained; final gates open | Complete normalization, independent rate, rollback, legacy compatibility and resource gates |
 | 002A/B bounded Maxwell + particles | Agent unassigned; `models/full_pic.jl`, mesh/operator and coupling owners | Shared storage/layout decision; current periodic EM remains oracle | Planned; constructor and periodic calls checked | Derive staggered discrete operators and wall charge ledger; build vacuum/trajectory baseline before editing |
 | 002C/D open boundaries + production integration | Agent unassigned; boundaries, EM, I/O | 002A/B; 003/004 for parallel/device claims | Planned; no coupled open Maxwell path | Pre-register pulse reflection/charge-flux suite and absorber state schema |
 | 003A/B local storage + distributed operators | Agent unassigned; MPI/domain/pencil owners, Pencil extension | Storage/layout contract; existing real-MPI infrastructure | Planned; replicated moments and FFT wrapper inspected | Specify index/halo ownership and implement analytic distributed-operator tests |
 | 003C/D distributed coupled solvers | Agent unassigned; MPI orchestration + canonical solver owners | 003A/B and accepted serial solver | Planned; full-grid allreduce reference inspected | Compose a periodic hybrid step without replicated grids and test 2/4/8 ranks |
 | 003E cluster scale/restart | Agent unassigned; benchmark/MPI/I/O | 003C/D; real multi-node allocation | Hardware campaign pending | Freeze strong/weak scaling and changed-layout restart workloads before requesting/running resources |
-| 004A GPU primitive closure | Root; extensions and coupling | Current kernel gates and exact-SHA CI | Metal uniform push and NGP have green CI; gathered V1 fails allocation, V2/V3 fail latency; V4 uses a guarded disjoint-storage kernel | Complete fixed V4 gates and alias compatibility, then enumerate remaining CUDA/Metal primitive paths |
+| 004A GPU primitive closure | Root; extensions and coupling | Current kernel gates and exact-SHA CI | Metal uniform push and NGP have green CI; gathered V1 fails allocation, V2/V3 fail latency; V4 passes untimed gates but timing controls require calibration repair | Validate repaired controls and complete the fixed V4 cost matrix, then enumerate remaining CUDA/Metal primitive paths |
 | 004B/C resident solver families | Agent unassigned; fields, integrators/models, extensions | 004A; storage/operator contract; actual device operators | Planned; concrete host arrays inspected | Implement one complete resident hybrid path and trace all transfers/scalar access |
 | 004D multi-GPU | Agent unassigned; MPI + device extensions | 003C/D, 004B/C; real devices/network | Hardware/integration pending | Establish buffer ownership/staging contract and matched device/rank oracle |
-| 005A existing CN-labelled paths | `/root/completeness_architecture`; shock3d and integrator stability owners | Independent linear-system oracle | Shock CN repair pushed as ce52836; exact-SHA CI and other CN-labelled paths remain open | Require all six CI jobs, then audit the remaining existing paths |
+| 005A existing CN-labelled paths | Root continuing saved architecture work; shock3d and integrator stability owners | Independent linear-system oracle | Shock CN repair pushed as ce52836; exact-SHA CI and other CN-labelled paths remain open | Require all six CI jobs, then audit the remaining existing paths |
 | 005B/C implicit hybrid | Agent unassigned; integrator + moment/Ohm owners | Derived discrete conservation and solve contract | Planned | Freeze unknowns/residual, independent small-system oracle and failed-solve transaction |
 | 005D implicit EM / parallel geometry | Agent unassigned; EM/parallel/geometry owners | 005B/C method evidence; accepted relevant operators | Planned | Derive EM-specific continuity/work residual before adding a public method |
 | 006A curvilinear solver | Agent unassigned; mesh/coupling/model/I/O | Compatible geometry operators, chosen physical model | Partial primitives; no production callers found | Specify coordinate/component/volume conventions and coupled manufactured problem |

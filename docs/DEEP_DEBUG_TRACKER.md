@@ -163,7 +163,9 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   checks and 66 concrete compiler checks. The fixed small-profile timing screen
   passes all 60 profiles and 11,761 assertions per runtime, with unchanged
   source/protocol hashes. Maximum median ratios are 1.485094 / 1.459885
-  (limit 1.5). Broader cost, threading and cold-path gates remain open.
+  (limit 1.5). Both subsequent component suites pass 125,263 assertions,
+  mutation controls pass 16, and four-thread independent-workspace checks pass
+  182 per runtime. Broader cost, cold-path and final composition gates remain open.
 - [x] Locally accept the NGP nearest-node boundary repair on `bf2a8bc`.
   Both CPU runtimes reproduce 14 baseline failures; actual Metal retains 13.
   The shared upward-tie owner passes 7,472 focused, 46 concrete compiler,
@@ -229,8 +231,15 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   device diagnostics are retained/classified. V3 still fails 44 latency assertions
   across 23 minimum-version profiles; latest timing is unrun. V4 reuses the
   canonical scalar Boris update in one guarded kernel for disjoint arrays and
-  retains the existing ordered path for aliases. Its gates are running; no
-  gathered-push candidate is accepted or pushed.
+  retains the existing ordered path for aliases. Both runtimes pass 6,783
+  integration checks, 864 heterogeneous disjoint comparisons, 865 range checks
+  and 2,034 expanded alias/rejection checks. Full package trees match (29/27);
+  all device diagnostics are retained and classified. The first V4 timing run
+  stops on a failed parent-only doubled-work control before measuring candidate
+  profiles. Its single calibration sample was 0.830592 seconds, but subsequent
+  one-call batches were near 0.0013 seconds. A separately versioned five-sample
+  median calibration is under control validation; every profile and threshold
+  is unchanged. No gathered-push candidate is accepted or pushed.
   [Repair plan](METAL_GATHERED_VALIDATION_PLAN.md).
 - [x] Locally accept the shock CN field-solve repair. Both runtimes retain the
   parent's 66 control passes and 50 failures across 28 direct/public profiles.
@@ -250,15 +259,24 @@ completeness. Comparative leadership requires reproducible external benchmarks.
 - [x] Shock CN repair pushed separately as `ce52836`; all 363 committed Julia
   files match the accepted candidate and held hashes are unchanged.
 - [ ] [Exact-SHA CI for ce52836](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39999012813)
-  has green formatting and 2/4-rank MPI jobs; both Julia suites and 8-rank MPI
-  remain running. All six jobs are required.
-- [ ] Resolve the exported memory-status constructor invariant. Both runtimes
+  has green formatting and real 2/4/8-rank MPI jobs; both Julia suites remain
+  running at this checkpoint. All six jobs are required.
+- [x] Locally accept the exported memory-status constructor repair. Both runtimes
   verify that keyword/full-positional construction accepts negative byte counts
   rejected by the checked wrapper (185 passes, ten failed rejection assertions).
   All current telemetry callers use the wrapper. The repair plan now explicitly
   applies that existing nonnegative-integer-or-missing contract to every public
   constructor, with the intentional raw-constructor compatibility tightening
-  documented. Fresh parent characterization and implementation remain open.
+  documented. Fresh exact-parent reproduction and 21 metadata cases per runtime
+  precede the canonical inner-constructor repair. Both candidate lanes pass
+  1,313 permanent and 195 original witness assertions, 116 backend checks
+  including actual Metal, and 49 concrete compiler checks. The full package
+  trees match the parent (29/27 reports); all 27 ordinary allocation profiles
+  remain at zero bytes. Both fixed 27-profile cost matrices pass; the existing
+  checked wrapper's maximum median ratio is 1.046512 / 1.038560 across the two
+  runtimes. Added raw-constructor validation costs are retained in the plan.
+  Promotion and all six exact-SHA CI jobs remain required.
+  [Repair contract and checklist](BACKEND_MEMORY_CONSTRUCTOR_PLAN.md).
 - [x] Reconcile external-validation READMEs with the checked runners: missing
   reference output fails; NHDS compares the eigenvalue oracle; VPIC compares
   scalar metrics. Record current gates and unresolved source/cache provenance
@@ -794,7 +812,7 @@ benchmark before implementation. The roadmap remains open to new findings.
 | 3 | Production distributed stepping | MPI reference stepping replicates fields; design domain-owned fields/moments with migration and distributed operators; verify serial equivalence and scaling | Planned |
 | 3 | Complete GPU-resident stepping | Metal particle kernels exist and uniform push now passes actual-device gates; hybrid/EM field storage remains CPU Array-based and CUDA currently supplies storage/telemetry. Generalize the canonical field/step owners, then verify complete backend trajectories and measured resources | Partially implemented |
 | 2 | Spatially local, interspecies Coulomb collisions | Current public Coulomb operator takes one ParticleSet; isolated cell-local collection implementation is undergoing independent rate, normalization and rollback checks | Active; unaccepted |
-| 2 | Integrated implicit field advancement | `run_whistler` evolves a linear reference packet; the shock CN field option uses four fixed Picard iterations without a residual check. Assess convergence-controlled field/current/particle coupling, stability, conservation and rejection benchmarks | Partial implementations; assessment |
+| 2 | Integrated implicit field advancement | `run_whistler` evolves a linear reference packet; shock CN now uses a true-residual-checked frozen-moment solve and full-step rollback (`ce52836`). Full particle/field coupling, stability and conservation benchmarks remain planned | Limited field solve implemented; general coupled solver missing |
 | 3 | Model/geometry completeness | Assess Hall-MHD, gyrokinetic, AMR and fusion building blocks for missing end-to-end coupling before planning extensions | Assessment |
 | 2 | Guiding-centre position, public drift and ring cost | Position, drift and ring correctness repairs verified. Ordinary hardware paths remain allocation-free; paired local latency increases are recorded in GYRO-003/004/005. Profile complete point construction, streaming accumulation and cross-expansion work; require unchanged exact-range certificates plus measured improvement | Correctness and ordinary-ring optimization verified; further costs remain open |
 | 3 | Published validation and external comparisons | Run local validation; inspect full Preisser profile replay and external solver cases; add reproducible accuracy/cost comparisons | Planned |
@@ -809,11 +827,11 @@ the expanded plan owns capability staging. Both remain active.
 
 | Capability | Owner / current state | Next acceptance milestone |
 | --- | --- | --- |
-| CAP-001 Local multispecies collisions | Collision agent; isolated implementation, unaccepted | Independent rates, units, locality, rollback, legacy compatibility and resource gates |
+| CAP-001 Local multispecies collisions | Root continuing the saved collision candidate; unaccepted | Independent rates, units, locality, rollback, legacy compatibility and resource gates |
 | CAP-002 Nonperiodic EM-PIC | Unassigned; planned | Compatible bounded Maxwell/current operators and vacuum/wall oracles |
 | CAP-003 Domain-owned distributed stepping | Unassigned; replicated reference exists | Local storage, halos and distributed operator equivalence on real ranks |
 | CAP-004 Complete GPU-resident stepping | Root auditing primitives; coupled solver planned | Gathered-push validation, remaining kernels, then one resident solver with measured transfers |
-| CAP-005 Coupled implicit advancement | Architecture agent auditing existing shock CN; general coupled solver planned | Independent trapezoidal solve, residual/stability/failure contract |
+| CAP-005 Coupled implicit advancement | Root; shock field-solve repair pushed, general coupled solver planned | Finish exact-SHA CI, then audit remaining CN-labelled paths and derive coupled residuals |
 | CAP-006 Geometry, gyrokinetics and adaptive evolution | Unassigned; standalone primitives exist | Separate coupled model contracts and manufactured solutions for each branch |
 | CAP-007 External validation and comparisons | Unassigned; partial reference comparisons exist | Pinned provenance, production time-series dispersion, full profiles and matched cost/accuracy |
 | CAP-008 Arbitrary ES/EM species | Expanded scope; planned | Species/background/time-level contract and collection ES slice |

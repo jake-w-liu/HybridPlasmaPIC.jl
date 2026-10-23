@@ -397,6 +397,9 @@ GPU backend storage is exposed through `particle_storage_backend`. The Metal
 extension includes particle gather, deposit and push kernels; the CUDA extension
 currently supplies storage and telemetry. Hybrid and EM field storage remains
 CPU-based, so complete GPU-resident coupled stepping is still planned.
+`backend_memory_status` returns independent telemetry counters as nonnegative
+integers fitting `Int`, or `nothing` when unavailable. Every `BackendMemoryStatus`
+constructor enforces that counter contract; [validation details](docs/BACKEND_MEMORY_CONSTRUCTOR_PLAN.md).
 
 ## Verification
 
