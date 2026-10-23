@@ -2,7 +2,7 @@
 
 Status: baseline confirmed on Julia 1.12.7 and 1.13.2 with actual Metal 1.11.1;
 V1 rejected by the fixed allocation gate; V2, V3 and V4 rejected by latency;
-V5 is under verification.
+V5 passes native correctness gates but fails its fixed latency gate; no gathered-push candidate is accepted.
 Original parent: `ff4a973` (Julia sources match `df75656`); V3 starts from
 `61356f1`, with identical committed Julia sources. Persistent evidence: `../HybridPlasmaPIC-audit-evidence/2026-10-23/metal-gathered-validation`.
 
@@ -217,5 +217,26 @@ fixture-specific condition, copied Boris formula or exception fallback. The
 pre-edit contract is retained in `pre-edit-v5.md`. New instrumented tests exercise
 actual stores across group sizes, inactive threads, forced strides and all six
 invalid field components; valid zero-step controls still require real stores.
-All original behavioral, compiler and fixed cost gates remain required. V5 is
-unaccepted, and no speedup is claimed before measurement.
+The 29 native commands covering both runtimes all pass. Each runtime records
+165 original witness assertions,
+16,935 integration assertions, 1,313 constructor assertions, 864 heterogeneous
+trajectory comparisons, 865 range checks, 2,034 alias/rejection checks and 360
+original alias/resource checks. The new single-group store instrumentation adds
+10,152 assertions per runtime. Full package trees match (29/27 reports); all
+12 device captures retain complete classifications of 30 versus 24 reports.
+
+The unchanged calibrated 30-profile matrix passes all four parent controls on
+Julia 1.12.7, then records 296 passes and four latency assertion failures:
+
+| Profile | Ratio of medians | Median paired ratio | Limit |
+| --- | ---: | ---: | ---: |
+| D3, one particle, midpoint | 1.521545 | 1.532365 | 1.5 |
+| D3, 257 particles, no midpoint | 1.550458 | 1.563715 | 1.5 |
+
+All outputs and allocation checks pass. The runner stops before latest-version
+timing as declared. V5 is rejected; it is neither retried nor promoted. Complete
+commands, samples, frozen source and failure classifications are retained in
+`metal-gathered-validation/candidate6-timing-rejection.json` and
+`timing-candidate6-*` under the persistent audit evidence directory. A further
+implementation requires a new concrete hypothesis and pre-edit contract; the
+original profiles and acceptance limits remain binding.

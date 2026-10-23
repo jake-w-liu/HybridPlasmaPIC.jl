@@ -13,6 +13,47 @@ composition remains open.
 This work is separate from the evolving-pressure feature and its stored-pressure
 correction.
 
+## Current complete-budget work (2026-10-24)
+
+V6 remains isolated and unaccepted. Its final zero-offset sign correction
+passes 16,030 focused assertions, 5,760 power-endpoint assertions and 66 concrete
+compiler checks per runtime. All 60 small cost profiles pass the fixed 48-pair
+matrix on both Julia versions; maximum median ratios are 1.485094 / 1.459886
+against the unchanged 1.5 gate. Subsequent component suites pass 125,263
+assertions, mutation controls pass 16, and independent four-thread workspace
+checks pass 182 per runtime. These results do not replace broader acceptance.
+
+The cold resource fixture investigation is complete. Earlier V1/V2 samples
+retain their failed zero-compilation assertions. A marked compilation trace
+identifies `FFTW.maybe_destroy_plan` inside two sampled calls: 49 / 52 ms at
+`cold-v6-trace1132.log:333–336,778–781`. Retaining the fixture grids through the
+matrix keeps their setup teardown outside budget calls; GC stays enabled and
+all numerical and zero-compilation gates remain unchanged. V3 passes 867
+quadratic and 1,083 computed-current assertions on each runtime, with 72
+profiles and 216 zero-compilation samples per matrix. Every retained grid is
+released afterward, with separately recorded teardown.
+
+Maximum sampled cold allocation is 70,069,304 bytes for the quadratic matrix
+and 289,261,648 / 286,656,176 bytes for computed current. These measured repair
+costs remain optimization work, not evidence of optimal allocation. Full
+commands, failures, dependency hashes and the trace are retained under
+`HybridPlasmaPIC-audit-evidence/2026-10-23/budget-composition/` in
+`cold-resource-fixture-review.md` and `cold-v6-v3-review.json`.
+
+- [x] Numerical, ordinary small-profile, component, mutation and threaded gates.
+- [x] Cold-call correctness/resource matrices with checked fixture lifetimes.
+- [ ] Fixed broader costs: 324 ordinary, 54 mixed-precision, 132 large-field,
+  88 large-particle and 16 signed-field profiles per runtime. The ordinary
+  minimum-version lane is running; remaining lanes are unrun. All 48 pairs,
+  complete output equality, warmed-byte equality and both 1.5 median-ratio
+  gates remain required, stopping at the first failed profile.
+- [ ] Current-main composition, full compiler/physical integration and final
+  independent review. Push only after these gates, then require exact-SHA CI.
+
+The following sections preserve earlier experiments. In particular, the final
+historical calibration proposal has since been exercised by the V6 work above;
+its old pending status does not describe the current candidate.
+
 ## Evidence
 
 **VERIFIED:** the public nonrelativistic `kinetic_energy`, `magnetic_energy`
@@ -1112,7 +1153,7 @@ exact rational integer-multiplicity controls. This is tracked separately as
 component compatibility contract of this composition repair.
 
 
-### Next timing-protocol experiment
+### Historical timing-protocol proposal (superseded by current V6 checks)
 
 Prepare a new isolated protocol that changes only batch calibration: require
 five warmed samples to each contain at least 50 ms of measured calling-thread

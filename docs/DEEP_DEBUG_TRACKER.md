@@ -12,6 +12,14 @@ completeness. Comparative leadership requires reproducible external benchmarks.
 
 ## Current progress (2026-10-24)
 
+| Active work | Checked state | Remaining gate |
+| --- | --- | --- |
+| Shock CN solve and memory-status constructors | Pushed as `ce52836` and `c810eb0`; native acceptance passed | Both Julia CI lanes still running; formatting and all MPI jobs green |
+| Complete energy-budget composition | V6 small costs, numerical and cold-resource gates pass | Broader fixed costs running, then current-main composition and full review |
+| Metal gathered push | V5 native correctness passes; two fixed timing profiles fail | New implementation hypothesis required; no rejected candidate is pushed |
+| Linear CN reference multiplier | Finite range and integer phase failures reproduced on both runtimes | [Expanded repair and acceptance plan](LINEAR_CN_RANGE_PLAN.md) |
+| Full simulator scope | CAP-001–011 remain open in whole or part | [Staged implementation roadmap](PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md) |
+
 - [x] Rechecked the [official Julia downloads page](https://julialang.org/downloads/):
   current stable is 1.13.2, released 2026-10-14. Native and complete CI logs
   verify execution on 1.13.2 alongside minimum supported 1.12.7.
@@ -167,8 +175,14 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   mutation controls pass 16, and four-thread independent-workspace checks pass
   182 per runtime. The first cold quadratic matrix retains all 72 profiles,
   864 passes and two failures of the zero-compilation requirement; all numerical
-  assertions pass. A versioned shared timed sampler is under verification with
-  the same assertions. Broader costs and final composition remain open.
+  assertions pass. A shared-sampler V2 still fails one latest-runtime compilation
+  check. A marked trace identifies FFTW plan-finalizer compilation inside sampled
+  calls. V3 retains fixture grids through the matrix and records their teardown
+  separately; all original numerical and zero-compilation gates stay unchanged.
+  Both runtimes pass 867 quadratic and 1,083 computed-current assertions across
+  72 profiles each. Every one of the 216 samples per matrix has zero compilation.
+  The frozen broader cost matrix is running; final composition remains open.
+  [Current evidence and remaining gates](HYBRID_DIAGNOSTIC_RANGE_PLAN.md#current-complete-budget-work-2026-10-24).
 - [x] Locally accept the NGP nearest-node boundary repair on `bf2a8bc`.
   Both CPU runtimes reproduce 14 baseline failures; actual Metal retains 13.
   The shared upward-tie owner passes 7,472 focused, 46 concrete compiler,
@@ -246,9 +260,12 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   passes and two latency failures: D3/N1/midpoint reaches 1.798107 / 1.765316
   against the unchanged 1.5 limits. The other 29 profiles pass; latest timing
   is unrun. V4 is rejected. V5 composes the existing scan and disjoint update
-  with a device-memory barrier only for one-group launches; actual store-count
-  and complete hardware/compiler gates are running. No gathered-push candidate
-  is accepted or pushed.
+  with a device-memory barrier only for one-group launches. Both runtimes pass
+  16,935 integration assertions and all numerical, alias, resource and compiler
+  gates. The fixed minimum-version matrix passes all four controls, then retains
+  296 passes and four latency failures: D3/N1/midpoint and D3/N257/nonmidpoint
+  exceed the unchanged 1.5 limits. Latest timing is unrun. V5 is rejected and
+  retained unchanged; no gathered-push candidate is accepted or pushed.
   [Repair plan](METAL_GATHERED_VALIDATION_PLAN.md).
 - [x] Locally accept the shock CN field-solve repair. Both runtimes retain the
   parent's 66 control passes and 50 failures across 28 direct/public profiles.
@@ -296,6 +313,13 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   revision `61356f1` and the earlier plan revision `ff4a973` have all six
   exact-SHA CI jobs green. Complete logs on each verify 623,694 / 623,695
   assertions and unchanged full compiler trees (23 / 22 reports).
+- [ ] Repair the separate linear CN multiplier range defect. Both runtimes
+  retain 18 baseline passes and 35 failed assertions against exact-rational
+  component oracles, including a complete whistler packet with finite timestep.
+  Fixed-width integer multiplication also yields the wrong phase while retaining
+  unit modulus. Ordinary type/zero/nonfinite characterization is recorded; the
+  extended precision/frequency audit and implementation remain open.
+  [Scope and planned acceptance](LINEAR_CN_RANGE_PLAN.md).
 - [ ] Complete remaining audit/implementation tracks listed below.
 
 Recovery limitation: the earlier `/tmp` candidate and evidence directories are
@@ -843,7 +867,7 @@ the expanded plan owns capability staging. Both remain active.
 | CAP-002 Nonperiodic EM-PIC | Unassigned; planned | Compatible bounded Maxwell/current operators and vacuum/wall oracles |
 | CAP-003 Domain-owned distributed stepping | Unassigned; replicated reference exists | Local storage, halos and distributed operator equivalence on real ranks |
 | CAP-004 Complete GPU-resident stepping | Root auditing primitives; coupled solver planned | Gathered-push validation, remaining kernels, then one resident solver with measured transfers |
-| CAP-005 Coupled implicit advancement | Root; shock field-solve repair pushed, general coupled solver planned | Finish exact-SHA CI, then audit remaining CN-labelled paths and derive coupled residuals |
+| CAP-005 Coupled implicit advancement | Root; shock repair pushed; linear CN range defect confirmed | Finish exact-SHA CI, implement the linear reference repair, then derive coupled residuals |
 | CAP-006 Geometry, gyrokinetics and adaptive evolution | Unassigned; standalone primitives exist | Separate coupled model contracts and manufactured solutions for each branch |
 | CAP-007 External validation and comparisons | Unassigned; partial reference comparisons exist | Pinned provenance, production time-series dispersion, full profiles and matched cost/accuracy |
 | CAP-008 Arbitrary ES/EM species | Expanded scope; planned | Species/background/time-level contract and collection ES slice |
