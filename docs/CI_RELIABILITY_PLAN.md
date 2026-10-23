@@ -3,7 +3,21 @@
 GitHub CI must pass for each pushed change. Billing blocks are reported only
 when supported by the run's diagnostics; they do not excuse code failures.
 
-Latest accepted implementation `ffdb522aa858622a645c9ace104726ab54782493` is fully green in
+Current exact-revision status is maintained in the [audit tracker](DEEP_DEBUG_TRACKER.md).
+The most recent completed log review before the current push sequence is
+[`61356f1`, run 39920189347](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39920189347):
+all six jobs pass, with 623,694 / 623,695 assertions on Julia 1.12.7 / 1.13.2.
+Both full compiler trees match the reviewed baseline (23 / 22 reports). Complete
+logs and hashes are retained under
+`../HybridPlasmaPIC-audit-evidence/2026-10-23/ci/39920189347`.
+The newly pushed CN and memory-status fixes still require their own complete CI
+runs; no billing exception has been observed.
+
+The sections below record earlier checkpoints and their original evidence paths.
+
+## Earlier CI repair checkpoint
+
+Implementation `ffdb522aa858622a645c9ace104726ab54782493` passed all checks in
 [run 39150381077](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39150381077).
 All six jobs pass. Actual Julia 1.12.7/1.13.2 pass 502,711/502,712 assertions
 in 159m18.0s/188m50.2s, with formatting and all MPI ranks successful.

@@ -7,10 +7,10 @@ of companion solvers (Hall-MHD, electrostatic PIC, full electromagnetic PIC),
 collision operators, shock drivers, geometric-optics ray tracing, and an
 extensive analytic-oracle verification suite.
 
-Everything is dimension-parametric: the same code runs 1D3V, 2D3V, and 3D3V
-(positions carry exactly `D` coordinates, velocities always carry 3), with no
-global mutable state — simulations are explicit
-`HybridStepper` / `ParticleSet` / `HybridFields` objects you own.
+The periodic hybrid core supports 1D3V, 2D3V, and 3D3V: positions carry `D`
+coordinates and velocities carry 3. Particle, field and integrator state lives
+in the `ParticleSet`, `HybridFields` and `HybridStepper` objects you own.
+Companion models have the dimensional and physical limits described below.
 
 **Contents:**
 [Install](#installation) ·

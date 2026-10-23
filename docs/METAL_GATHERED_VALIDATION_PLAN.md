@@ -1,8 +1,8 @@
 # Metal gathered-field preflight repair
 
 Status: baseline confirmed on Julia 1.12.7 and 1.13.2 with actual Metal 1.11.1;
-V1 rejected by the fixed allocation gate; V2 and V3 rejected by latency;
-V4 is under verification.
+V1 rejected by the fixed allocation gate; V2, V3 and V4 rejected by latency;
+V5 is under verification.
 Original parent: `ff4a973` (Julia sources match `df75656`); V3 starts from
 `61356f1`, with identical committed Julia sources. Persistent evidence: `../HybridPlasmaPIC-audit-evidence/2026-10-23/metal-gathered-validation`.
 
@@ -178,3 +178,44 @@ comparisons with heterogeneous nonzero fields and actual store instrumentation
 for the fused kernel. All existing hardware, compiler, allocation and unchanged
 latency gates remain required. `pre-edit-v4.md` records the compatibility decision
 and tests before editing; no speedup is claimed before measurement.
+
+
+## V4 completed checks and rejection
+
+Both runtimes pass 6,783 integration checks, 864 heterogeneous disjoint
+comparisons, 865 range checks and 2,034 expanded alias/rejection checks, along
+with the original 165 witnesses and 360 original alias/resource assertions.
+Full package compiler trees match the CN parent (29/27 reports). All 12 complete
+device captures are retained and classified, including the added fused-kernel
+report. Ordinary host allocation decreases in every sampled profile.
+
+The first minimum-runtime timing attempt stops in a parent-only doubled-work
+control: one 0.830592-second calibration observation selects one repetition,
+but subsequent parent batches are near 0.0013 seconds. No candidate profile is
+measured. A separately registered five-observation median calibration passes
+93 deterministic checks and all four real controls on each runtime. It retains
+every original profile, 21 alternating pairs, allocation and median-ratio gates.
+The original failed measurement and all earlier rejected revisions remain intact.
+
+With that verified calibration, the complete minimum-version matrix retains
+298 passes and two latency failures. D3/N1/midpoint has median ratios 1.798107 /
+1.765316 against limits of 1.5; all other 29 profiles pass. V4 is rejected, and
+latest-version timing is unrun. No V4 candidate is pushed.
+
+## V5 single-group composition
+
+V5 starts from `c810eb0`, retaining the accepted memory-status constructor repair.
+When the existing launch geometry has one group and outputs are disjoint, a
+small wrapper calls the existing field scan, a device-memory threadgroup barrier,
+then the existing disjoint update. Every thread reaches the barrier after its
+scan returns, including inactive threads and early invalid-field returns. Other
+launches retain the separate scan and guarded update; aliases retain the ordered
+broadcast path. The public owner allocates one private status flag per call.
+
+This uses the existing launch group's count, with no new particle threshold,
+fixture-specific condition, copied Boris formula or exception fallback. The
+pre-edit contract is retained in `pre-edit-v5.md`. New instrumented tests exercise
+actual stores across group sizes, inactive threads, forced strides and all six
+invalid field components; valid zero-step controls still require real stores.
+All original behavioral, compiler and fixed cost gates remain required. V5 is
+unaccepted, and no speedup is claimed before measurement.

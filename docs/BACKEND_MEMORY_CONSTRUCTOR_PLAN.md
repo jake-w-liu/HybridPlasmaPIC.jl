@@ -1,7 +1,8 @@
 # Backend memory-status constructor consistency
 
-Status: locally accepted canonical repair; both native correctness/compiler and
-fixed cost lanes pass. Final promotion and exact-SHA CI remain open. Parent:
+Status: pushed as `c810eb0`; both native correctness/compiler and fixed cost
+lanes pass. [Exact-SHA CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40005434857)
+remains required. Parent:
 `ba3694c` (production GPU owner unchanged from `61356f1`). Evidence: `../HybridPlasmaPIC-audit-evidence/2026-10-23/backend-constructor`.
 
 ## Contract and scope
@@ -11,7 +12,8 @@ uses `nothing` for unavailable counters, and its existing three-positional
 constructor requires each counter to be a nonnegative integer that fits `Int`.
 All current backend telemetry callers use that checked constructor.
 
-**VERIFIED:** the keyword and full-positional constructors bypass those checks.
+**VERIFIED baseline:** the parent's keyword and full-positional constructors
+bypass those checks.
 The retained public witness has 185 passing controls and ten failed negative
 rejections on each supported Julia version. All five counters admit `-1`
 through either bypass. Source: `src/parallel/gpu.jl:20–61`, checked against
@@ -49,8 +51,10 @@ backend telemetry APIs and pressure calculation unchanged.
   parent; require no additional allocation for ordinary integer/missing inputs.
   Record construction cost without claiming an optimization. Existing checked
   wrapper and real telemetry paths must retain their behavior.
-- [ ] Review the final diff and composed source, verify held-change hashes,
-  commit/push this repair separately and require all six exact-SHA CI jobs green.
+- [x] Review the final diff and composed source, verify held-change hashes and
+  commit/push separately as `c810eb0`; all 364 committed Julia files match the
+  validated candidate. Fifteen final command logs and 144 Markdown links checked.
+- [ ] Require all six exact-SHA CI jobs green.
 
 This is a host metadata invariant repair. It does not establish GPU kernel
 correctness, device memory capacity or a complete GPU-resident solver.

@@ -165,7 +165,10 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   source/protocol hashes. Maximum median ratios are 1.485094 / 1.459885
   (limit 1.5). Both subsequent component suites pass 125,263 assertions,
   mutation controls pass 16, and four-thread independent-workspace checks pass
-  182 per runtime. Broader cost, cold-path and final composition gates remain open.
+  182 per runtime. The first cold quadratic matrix retains all 72 profiles,
+  864 passes and two failures of the zero-compilation requirement; all numerical
+  assertions pass. A versioned shared timed sampler is under verification with
+  the same assertions. Broader costs and final composition remain open.
 - [x] Locally accept the NGP nearest-node boundary repair on `bf2a8bc`.
   Both CPU runtimes reproduce 14 baseline failures; actual Metal retains 13.
   The shared upward-tie owner passes 7,472 focused, 46 concrete compiler,
@@ -238,8 +241,14 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   stops on a failed parent-only doubled-work control before measuring candidate
   profiles. Its single calibration sample was 0.830592 seconds, but subsequent
   one-call batches were near 0.0013 seconds. A separately versioned five-sample
-  median calibration is under control validation; every profile and threshold
-  is unchanged. No gathered-push candidate is accepted or pushed.
+  median calibration passes deterministic and real identical/doubled controls
+  on both runtimes. Its complete minimum-version V4 matrix then retains 298
+  passes and two latency failures: D3/N1/midpoint reaches 1.798107 / 1.765316
+  against the unchanged 1.5 limits. The other 29 profiles pass; latest timing
+  is unrun. V4 is rejected. V5 composes the existing scan and disjoint update
+  with a device-memory barrier only for one-group launches; actual store-count
+  and complete hardware/compiler gates are running. No gathered-push candidate
+  is accepted or pushed.
   [Repair plan](METAL_GATHERED_VALIDATION_PLAN.md).
 - [x] Locally accept the shock CN field-solve repair. Both runtimes retain the
   parent's 66 control passes and 50 failures across 28 direct/public profiles.
@@ -275,7 +284,10 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   remain at zero bytes. Both fixed 27-profile cost matrices pass; the existing
   checked wrapper's maximum median ratio is 1.046512 / 1.038560 across the two
   runtimes. Added raw-constructor validation costs are retained in the plan.
-  Promotion and all six exact-SHA CI jobs remain required.
+  Pushed separately as `c810eb0`; all 364 committed Julia files match the
+  validated candidate and held hashes are unchanged.
+  [All six exact-SHA CI jobs](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40005434857)
+  remain required.
   [Repair contract and checklist](BACKEND_MEMORY_CONSTRUCTOR_PLAN.md).
 - [x] Reconcile external-validation READMEs with the checked runners: missing
   reference output fails; NHDS compares the eigenvalue oracle; VPIC compares
