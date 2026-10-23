@@ -84,7 +84,11 @@ end
         J = ntuple(_ -> randn(rng, T, ntuple(_ -> count, D)), 3)
         dx = ntuple(i -> T(i) / 2, D)
         before = map(copy, J)
-        @test isequal(H._electron_inertia_energy(J, d, dx), original(J, d, dx))
+        if T === Float32
+            @test rounded(H._electron_inertia_energy(J, d, dx), exact(J, d, dx))
+        else
+            @test isequal(H._electron_inertia_energy(J, d, dx), original(J, d, dx))
+        end
         cost(J, d, dx)
         @test cost(J, d, dx) == 0
         @test all(isequal.(J, before))

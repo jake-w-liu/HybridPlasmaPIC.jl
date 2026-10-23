@@ -1280,13 +1280,17 @@ end
 """
     magnetic_energy(B, g) -> Real
 
-Magnetic energy `∫ ½|B|² dV` in normalized units. Range-sensitive finite
-Float32/64 fields retain the complete integral before rounding, using the same
-arithmetic owner as [`em_field_energy`](@ref). Inputs certified free of range
-loss keep their existing summation order.
+Magnetic energy `∫ ½|B|² dV` in normalized units. Finite Float32 fields use
+certified wide accumulation and exact completion before rounding, sharing the
+arithmetic owner of [`em_field_energy`](@ref). Other precisions retain their
+ordinary summation order and range repair.
 """
 function magnetic_energy(B::NTuple{3,<:Array{T,D}}, g::FourierGrid{D,T}) where {D,T}
     _require_grid_tuple(:B, B, g)
+    if T === Float32
+        value = _field_energy_float32((), B, 1.0, g.dx)
+        value === nothing || return value
+    end
     s = zero(T)
     minimum_b2 = T(Inf)
     @inbounds for c = 1:3, I in eachindex(B[c])

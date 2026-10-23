@@ -1,7 +1,70 @@
 # Magnetic energy accuracy — ENERGY-010
 
-Status: confirmed on current `main`; implementation planned after the
-complete-budget composition repair. Updated 2026-10-20.
+Status (2026-10-23): reconstructed V5 and its composition onto `7be1916`
+pass their final local gates on Julia 1.12.7 and 1.13.2. Separate promotion
+and exact-commit CI remain required. Complete-budget composition is a separate
+open repair.
+
+The earlier `/tmp` artifacts below are unavailable; their historical counts
+do not validate the reconstructed source. New evidence is retained at
+`../HybridPlasmaPIC-audit-evidence/2026-10-23/field-accuracy`.
+
+## Current reconstruction and integration contract
+
+The shared Float32 owner certifies a wide complete-integral reduction and uses
+bounded exact square bins when both outward bounds do not round to the same
+value. It serves magnetic, legacy/general electromagnetic and inertia energy;
+electromagnetic normalization retains `E + c²B`, while inertia retains linear
+`de2`. Float64 ordinary arithmetic and the public total's association remain
+unchanged. The independent exact rational oracle checks final rounding cells,
+including midpoint tails, zero and overflow.
+
+The final isolated V5 source passes 18,862 focused assertions, 756 cost
+assertions across 164 profiles, 12 mutant checks, 50 concrete compiler checks
+and 210 concurrency assertions per runtime. Maximum ordinary median ratios are
+1.322575 and 1.244453, within the unchanged 1.5 gate. Ordinary component calls
+allocate zero; public-budget allocations match the parent. The largest measured
+large magnetic midpoint completion allocates 51,600 bytes, below 256 KiB.
+All earlier numerical-harness and latency failures remain retained; no timing
+cause is attributed to external load.
+
+Before composition, root checked all nine owned hashes, eight final command
+logs, the complete patch hash and 343 unchanged Julia files against `b251cb7`.
+The current-parent integration will preserve the accepted interval, migration
+and seam changes, insert the permanent accuracy test in the existing runner,
+then run the same numerical/resource/concrete gates and complete package
+compiler comparisons on the exact composed source. Source ownership and
+held radiation hashes remain explicit promotion gates.
+
+## Current composed acceptance
+
+The frozen current-parent candidate passes 21,313 focused assertions on each
+runtime, including the accepted interval-validation tests. Each runtime also
+passes 756 resource assertions across 164 profiles, 12 independent mutant
+checks, 50 concrete compiler checks and 210 concurrency assertions. All 18
+formatting/parsed-semantics checks pass. Complete single-thread package compiler
+trees and their ordering match `7be1916`: 30 reports on Julia 1.12.7 and 27 on
+1.13.2; no diagnostics were suppressed.
+
+All 160 ordinary profiles satisfy the unchanged 1.5 median-ratio gate. Maximum
+Float32/Float64 ratios are 1.396129/1.191699 on minimum Julia and
+0.931504/1.357780 on latest Julia. Component allocations remain zero, and
+public-budget allocations match the parent. All four large midpoint profiles
+meet the 256 KiB allocation gate; the measured maximum is 51,600 bytes. These
+are paired measurements, not a claim that every call is faster.
+
+Root verified all 11 native command/log hashes, 272 frozen source/test/extension
+files and 348 unchanged committed Julia files. The independent review traces
+the UInt128 bin bound, nonnegative wide-reduction error bound, exact coefficient
+and spacing retention, rounding-cell oracle, midpoint and nonfinite paths,
+unchanged Float64 owners and the complete final diff. The new test remains
+registered alongside all accepted migration, seam and interval tests.
+
+Persistent integration evidence is at
+`../HybridPlasmaPIC-audit-evidence/2026-10-23/field-accuracy-combined`:
+`commands.json`, `compiler-comparison.json`, `resource-and-source-review.json`,
+the full native logs and per-profile TOML records. Earlier failed candidates
+remain in `field-accuracy`; their failures were not removed or reclassified.
 
 ## Verified evidence
 

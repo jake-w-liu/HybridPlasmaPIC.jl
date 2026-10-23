@@ -8,6 +8,10 @@
 # ---------------------------------------------------------------- energy budget
 
 function _electron_inertia_energy(J, de2::T, dx) where {T}
+    if T === Float32 && all(a -> eltype(a) === Float32, J)
+        value = _field_energy_float32((), J, Float64(de2), dx)
+        value === nothing || return value
+    end
     s = zero(T)
     minimum_j2 = T(Inf)
     @inbounds for I in eachindex(J[1], J[2], J[3])
@@ -86,10 +90,10 @@ not the full electron momentum equation: for moving ions its balance retains
 not establish general total-energy conservation. The default `de2 = 0.0`
 contributes exactly `0`.
 
-For finite Float32/Float64 currents, range-sensitive inertia integration retains
-the computed spectral current, validated `de2` and individual cell spacings
-through final rounding. Ordinary arithmetic keeps its existing order. This does
-not change the spectral differentiation. With `de2 > 0`, concurrent budget calls
+For finite Float32 currents, inertia integration retains the computed spectral
+current, validated `de2` and individual cell spacings through final rounding.
+Float64 retains its ordinary summation order and complete-input range repair.
+This does not change the spectral differentiation. With `de2 > 0`, concurrent budget calls
 require separate grids because the curl uses each grid's spectral workspace.
 
 For scalar closures with `de2 = 0` and inactive floors, dissipative Ohm terms

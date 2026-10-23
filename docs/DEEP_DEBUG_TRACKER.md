@@ -31,7 +31,11 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   match the validated candidate, remote main matches, and held hashes are unchanged.
 - [ ] [Exact-SHA CI for b251cb7](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39885899763):
   formatting and real 2/4/8-rank MPI are green; both Julia suites remain running.
-  The full local latest-Julia suite is also running.
+  The full local Julia 1.13.2 run finished with 599,361 passes, zero failed
+  assertions and one error in the metadata subprocess harness. Its child
+  selects a manifest-free checkout instead of the resolved active environment;
+  `full1132.log` retains the failed command and dependency-load error. A separate
+  harness repair is in progress. This local full-suite run is not green.
 - [x] Reconstruct and locally accept GROWTH-002 in a separate persistent worktree.
   Fresh serial probes retain 30 passes/30 failed integrity checks on both
   runtimes. Both reproduce negative MPI byte displacements. Frozen V2 passes
@@ -47,15 +51,19 @@ completeness. Comparative leadership requires reproducible external benchmarks.
 - [x] GROWTH-002 pushed separately as `7c6e1e4`; all 353 committed Julia files
   match the validated candidate and held hashes are unchanged.
 - [ ] [Exact-SHA CI for 7c6e1e4](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39892881923):
-  formatting and real 2/4-rank MPI are green; both Julia suites and MPI8 remain running.
-- [ ] Reconstruct ENERGY-010's Float32 field-energy accuracy repair in a separate
+  formatting and real 2/4/8-rank MPI are green; both Julia suites remain running.
+- [x] Reconstruct ENERGY-010's Float32 field-energy accuracy repair in a separate
   persistent worktree. Fresh exact-`b251cb7` probes reproduce all four large-grid
   errors on both runtimes; 120 characterization assertions pass per runtime.
   Float64 and smaller-grid controls are exact. Frozen V5 now passes 18,862
   focused assertions, all 164 measured owner profiles, 50 concrete compiler
   checks and 210 concurrency assertions per runtime. Earlier failed candidates
-  remain retained. Composition with current main and full-package compiler
-  acceptance remain required before promotion.
+  remain retained. The frozen composition onto `7be1916` passes 21,313 focused
+  assertions per runtime and the same resource, mutant, concrete compiler and
+  concurrency gates. Full package compiler trees match (30/27 reports). All
+  11 native command logs, 272 frozen sources and 348 unchanged committed Julia
+  files are checked. [Acceptance details](MAGNETIC_ENERGY_ACCURACY_PLAN.md).
+- [ ] Push ENERGY-010 separately and require all six exact-SHA CI jobs.
 - [x] Locally accept the separately repaired periodic migration seam inconsistency.
   Both runtimes retain 144 control passes and 72 failed invariants against
   `b251cb7`; the public boundary folds the rounded upper endpoint while rank
@@ -68,13 +76,19 @@ completeness. Comparative leadership requires reproducible external benchmarks.
 - [x] Periodic seam repair pushed separately as `e8925e8`; all 355 committed
   Julia files match the validated candidate and held hashes are unchanged.
 - [ ] [Exact-SHA CI for e8925e8](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39893248890):
-  formatting and real 2/4-rank MPI are green; both Julia suites and MPI8 remain running.
+  formatting and real 2/4/8-rank MPI are green; both Julia suites remain running.
 - [x] Locally accept the measured interval-validation allocation improvement.
   Both runtimes pass 21,723 neighboring assertions and 40 concrete compiler
   checks. All 270 complete public-output/RNG samples match per runtime, with
   zero candidate allocation in all samples. Complete package compiler groups
   match the parent (30/27). [Plan and evidence](INTERVAL_VALIDATION_ALLOCATION_PLAN.md).
-- [ ] Push interval validation separately and require all six exact-SHA CI jobs.
+- [x] Interval validation pushed separately as `7be1916`; all 356 committed
+  Julia files match the validated candidate and held hashes are unchanged.
+- [ ] [Exact-SHA CI for 7be1916](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39895197004):
+  formatting and real 2/4-rank MPI are green; both Julia suites and MPI8 remain running.
+- [ ] Repair the metadata subprocess environment; both runtimes reproduce the
+  dependency-load error from a resolved external environment. Keep both child
+  processes and all checksum assertions; verify source identity explicitly.
 - [ ] Complete remaining audit/implementation tracks listed below.
 
 Recovery limitation: the earlier `/tmp` candidate and evidence directories are

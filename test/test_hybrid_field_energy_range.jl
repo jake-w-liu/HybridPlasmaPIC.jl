@@ -140,7 +140,11 @@ end
         g = FourierGrid(ntuple(_ -> count, D), ntuple(d -> T(d + 1), D))
         B = ntuple(_ -> randn(rng, T, g.n), 3)
         before = map(copy, B)
-        @test magnetic_energy(B, g) === oracle.original(B, g.dx)
+        if T === Float32
+            @test oracle.rounded(magnetic_energy(B, g), oracle.integral(B, g.dx))
+        else
+            @test magnetic_energy(B, g) === oracle.original(B, g.dx)
+        end
         @test oracle.allocations(B, g) == 0
         @test all(isequal.(B, before))
     end

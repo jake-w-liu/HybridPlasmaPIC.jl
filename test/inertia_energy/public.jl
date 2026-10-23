@@ -38,7 +38,7 @@ new_public(ps, B, n, c, g, d) = @timed energy_budget(ps, B, n, c, g; de2 = d)
         @test all(iszero, result)
     end
 end
-@testset "Public budget ordinary outputs allocations and validation remain unchanged" begin
+@testset "Public budget uses accepted components and retains allocation and validation" begin
     rng = MersenneTwister(678302)
     for T in (Float32, Float64), D = 1:3
         g = FourierGrid(ntuple(_ -> 8, D), ntuple(d -> T(2pi), D))
@@ -54,7 +54,18 @@ end
             new_public(population, B, n, c, g, de2)
             old = old_public(population, B, n, c, g, de2)
             new = new_public(population, B, n, c, g, de2)
-            @test isequal(new.value, old.value)
+            if T === Float32
+                @test new.value.kinetic === old.value.kinetic
+                @test new.value.magnetic === old.value.magnetic
+                @test new.value.electron_internal === old.value.electron_internal
+                J = ntuple(_ -> zeros(T, g.n), 3)
+                H.curl!(J, B, g)
+                @test rounded(new.value.electron_inertia, exact(J, de2, g.dx))
+                v = new.value
+                @test v.total === v.kinetic + v.magnetic + v.electron_internal + v.electron_inertia
+            else
+                @test isequal(new.value, old.value)
+            end
             @test new.bytes == old.bytes
             @test isequal((ps.x, ps.v, ps.weight, B, n), before)
         end

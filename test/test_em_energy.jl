@@ -170,7 +170,11 @@ end
             randn!(rng, a)
         end
         before = map(copy, (E..., B...))
-        @test em_field_energy(es) === _em_energy_old(es)
+        if T === Float32
+            @test EMFieldEnergyOracle.rounded(em_field_energy(es), EMFieldEnergyOracle.integral(es))
+        else
+            @test em_field_energy(es) === _em_energy_old(es)
+        end
         @test _em_energy_allocation(es) == 0
         @test all(isequal.(before, (E..., B...)))
     end

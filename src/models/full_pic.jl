@@ -1485,11 +1485,108 @@ function _field_square_sum_exact(fields)
     end
     return result
 end
-function _em_field_energy_exact(E, B, c::T, dx) where {T}
+
+function _field_square_sum_exact(fields::Tuple{Vararg{AbstractArray{Float32}}})
+    isempty(fields) && return zero(Rational{BigInt})
+    # Finite binary32 values have at most 24 significand bits. Their squares
+    # occupy 254 scales, -298:2:208; subnormals share the first scale. Each
+    # square is below 2^48, so three Int64-sized arrays need fewer than 113
+    # bits per bin. Check the general count bound before accumulating.
+    maximum_square = ((UInt128(1) << 24) - 1)^2
+    capacity = typemax(UInt128) ÷ maximum_square
+    count = UInt128(0)
+    for component in fields
+        count += UInt128(length(component))
+    end
+    count <= capacity || throw(OverflowError("exact Float32 field square sum exceeds bin capacity"))
+    bins = zeros(UInt128, 254)
+    @inbounds for component in fields, value in component
+        bits = reinterpret(UInt32, value) & 0x7fffffff
+        scale = Int(bits >> 23)
+        # Preserve the existing exact owner's behavior for nonfinite inputs.
+        scale == 255 && return invoke(_field_square_sum_exact, Tuple{Any}, fields)
+        significand = UInt128(bits & 0x007fffff)
+        if scale != 0
+            significand |= UInt128(1) << 23
+        else
+            scale = 1
+        end
+        bins[scale] += significand^2
+    end
+    total = BigInt(0)
+    for index = 254:-1:1
+        total = (total << 2) + bins[index]
+    end
+    return total // (BigInt(1) << 298)
+end
+
+function _field_energy_exact(E, B, coefficient::Rational{BigInt}, dx, ::Type{T}) where {T}
     electric = _field_square_sum_exact(E)
     magnetic = _field_square_sum_exact(B)
     volume = prod(_exact_rational, dx)
-    return _from_exact(T, (electric + _exact_rational(c)^2 * magnetic) * volume / 2)
+    return _from_exact(T, (electric + coefficient * magnetic) * volume / 2)
+end
+function _em_field_energy_exact(E, B, c::T, dx) where {T}
+    return _field_energy_exact(E, B, _exact_rational(c)^2, dx, T)
+end
+
+@inline function _field_square_sum_wide(fields)
+    isempty(fields) && return (0.0, Int128(0))
+    total = 0.0
+    count = Int128(length(first(fields))) * length(fields)
+    @inbounds @simd for index in eachindex(fields...)
+        # A binary32 square has at most 48 bits and is exact in binary64.
+        total += sum(component -> Float64(component[index])^2, fields)
+    end
+    return total, count
+end
+
+@inline _field_nonnegative_lower(value::Float64) = max(0.0, prevfloat(value))
+
+function _field_roundoff_bounds(total::Float64, count::Int128)
+    iszero(total) && return (0.0, 0.0)
+    # With u=eps(Float64)/2 and n*u<1/4, the n-addition bound (also
+    # valid for the reassociated nonnegative SIMD reduction)
+    # gamma_n=n*u/(1-n*u) implies |exact-total| <= n*eps(Float64)*total.
+    # Outward operations also cover rounding of the count and error bound.
+    relative = nextfloat(Float64(count)) * eps(Float64)
+    relative < 0.5 || return nothing
+    error = nextfloat(relative * total)
+    return _field_nonnegative_lower(total - error), nextfloat(total + error)
+end
+
+@inline function _field_energy_float32(E, B, coefficient::Float64, dx)
+    # Public spacings and coefficients are nonnegative. Other private inputs,
+    # including signed zeros, retain the established arithmetic below callers.
+    (isfinite(coefficient) && !signbit(coefficient) && all(x -> isfinite(x) && x > 0, dx)) ||
+        return nothing
+    electric, electric_count = _field_square_sum_wide(E)
+    magnetic, magnetic_count = _field_square_sum_wide(B)
+    (isfinite(electric) && isfinite(magnetic)) || return nothing
+    # Positive finite spacings and a nonnegative coefficient make exact zero
+    # positive, including volumes whose ordinary product overflows.
+    iszero(electric) && iszero(magnetic) && return 0.0f0
+    weighted = coefficient * magnetic
+    lost = _spectral_product_lost_range(coefficient, magnetic, weighted)
+    combined = electric + weighted
+    value = 0.5 * combined
+    lost |= _spectral_product_lost_range(0.5, combined, value)
+    for spacing in dx
+        next = value * Float64(spacing)
+        lost |= _spectral_product_lost_range(value, Float64(spacing), next)
+        value = next
+    end
+    # Every positive contribution traverses at most the reduction additions,
+    # coefficient product, E+B addition, half and spacing products. With normal
+    # intermediates (or exact zeros), the same relative bound encloses this
+    # complete expression, independent of its nonnegative reduction order.
+    operations = electric_count + magnetic_count + length(dx) + 3
+    bounds = lost ? nothing : _field_roundoff_bounds(value, operations)
+    if bounds !== nothing
+        low_result, high_result = Float32(bounds[1]), Float32(bounds[2])
+        low_result == high_result && return low_result
+    end
+    return _field_energy_exact(E, B, _exact_rational(coefficient), dx, Float32)
 end
 
 # After normal-product checks, each exact contribution is at most eight times
@@ -1567,10 +1664,15 @@ end
 Total electromagnetic field energy ∫ ½(ε0|E|² + |B|²/μ0) dx in normalized units
 (ε0 = 1, μ0 = 1/c²): ½ Σ_i (Ex² + Ey² + c²Bz²) dx. The c² on Bz is the 1/μ0
 factor (μ0 = 1/c² so that the wave speed is c).
-Range-sensitive finite inputs retain the complete integral before rounding;
-ordinary inputs keep their existing summation order.
+Finite Float32 inputs retain the complete integral before rounding, using wide
+accumulation certified by outward bounds and exact completion when needed.
+Other precisions retain their ordinary summation order and range repair.
 """
 function em_field_energy(es::EMPIC1D{T}) where {T}
+    if T === Float32
+        value = _field_energy_float32((es.Ex, es.Ey), (es.Bz,), Float64(es.c)^2, es.g.dx)
+        value === nothing || return value
+    end
     c2 = es.c * es.c
     minimum_e2 = minimum_b2 = T(Inf)
     s = zero(T)
@@ -2216,6 +2318,10 @@ step_empic!(es::EMPIC{D,T}, e::ParticleSet{D,T}, dt::Real) where {D,T} =
     step_empic!(es, e, nothing, dt)
 
 function em_field_energy(es::EMPIC{D,T}) where {D,T}
+    if T === Float32
+        value = _field_energy_float32(es.E, es.B, Float64(es.c)^2, es.g.dx)
+        value === nothing || return value
+    end
     c2 = es.c * es.c
     minimum_e2 = minimum_b2 = T(Inf)
     s = zero(T)
