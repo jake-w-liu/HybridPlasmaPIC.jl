@@ -206,10 +206,10 @@ these agent names identify existing ownership, not running processes.
 | 003A/B local storage + distributed operators | Agent unassigned; MPI/domain/pencil owners, Pencil extension | Storage/layout contract; existing real-MPI infrastructure | Planned; replicated moments and FFT wrapper inspected | Specify index/halo ownership and implement analytic distributed-operator tests |
 | 003C/D distributed coupled solvers | Agent unassigned; MPI orchestration + canonical solver owners | 003A/B and accepted serial solver | Planned; full-grid allreduce reference inspected | Compose a periodic hybrid step without replicated grids and test 2/4/8 ranks |
 | 003E cluster scale/restart | Agent unassigned; benchmark/MPI/I/O | 003C/D; real multi-node allocation | Hardware campaign pending | Freeze strong/weak scaling and changed-layout restart workloads before requesting/running resources |
-| 004A GPU primitive closure | Root; extensions and coupling | Current kernel gates and exact-SHA CI | Metal uniform push and NGP have green CI; gathered V1 fails allocation, V2–V5 fail fixed latency gates; V5 native correctness passes | V6 shared-status candidate is in native checks; require complete correctness/resources/compiler review and fixed costs, then enumerate remaining CUDA/Metal primitive paths |
+| 004A GPU primitive closure | Root; extensions and coupling | Current kernel gates and exact-SHA CI | Metal uniform push and NGP have green CI; gathered V1 fails allocation, V2–V5 fail fixed latency gates; V5 native correctness passes | V6 native/compiler/resource gates pass both; minimum fixed costs pass but latest doubled-work calibration fails. Hold without retry; latest candidate timing and primitive closure remain open |
 | 004B/C resident solver families | Agent unassigned; fields, integrators/models, extensions | 004A; storage/operator contract; actual device operators | Planned; concrete host arrays inspected | Implement one complete resident hybrid path and trace all transfers/scalar access |
 | 004D multi-GPU | Agent unassigned; MPI + device extensions | 003C/D, 004B/C; real devices/network | Hardware/integration pending | Establish buffer ownership/staging contract and matched device/rank oracle |
-| 005A existing CN-labelled paths | Root continuing saved architecture work; shock3d and integrator stability owners | Independent linear-system oracle | Shock CN repair pushed as ce52836; separate linear multiplier range/integer defects reproduced on both runtimes | Require shock CI and implement the [linear CN repair](LINEAR_CN_RANGE_PLAN.md); audit frequency construction separately |
+| 005A existing CN-labelled paths | Root continuing saved architecture work; shock3d and integrator stability owners | Independent linear-system oracle | Shock CN repair pushed as ce52836; separate linear multiplier range/integer defects reproduced on both runtimes | Shock all-six CI and complete compiler review pass. Implement the [linear CN repair](LINEAR_CN_RANGE_PLAN.md), including frequency construction and near-quarter-turn phase components |
 | 005B/C implicit hybrid | Agent unassigned; integrator + moment/Ohm owners | Derived discrete conservation and solve contract | Planned | Freeze unknowns/residual, independent small-system oracle and failed-solve transaction |
 | 005D implicit EM / parallel geometry | Agent unassigned; EM/parallel/geometry owners | 005B/C method evidence; accepted relevant operators | Planned | Derive EM-specific continuity/work residual before adding a public method |
 | 006A curvilinear solver | Agent unassigned; mesh/coupling/model/I/O | Compatible geometry operators, chosen physical model | Partial primitives; no production callers found | Specify coordinate/component/volume conventions and coupled manufactured problem |
@@ -245,6 +245,9 @@ The current candidate is unaccepted. Earlier test counts are tied to older
 source hashes: local collision arithmetic, normalization and the focused/rate
 fixtures have since changed. The revised SI/normalized fixture requires actual
 velocity changes and the new four-species generator test is still unrun.
+The [shared BigFloat materializer](EXACT_BIGFLOAT_CONVERSION_PLAN.md) has a
+confirmed compact-range defect and an unaccepted candidate; its repair is a
+numerical dependency, not a new simulator capability.
 [NORM-001](NORMALIZATION_RANGE_PLAN.md) additionally reproduces range loss in the
 existing reference-scale owner on both runtimes. Repair that owner and re-run
 final-source gates before accepting collision unit conversion.

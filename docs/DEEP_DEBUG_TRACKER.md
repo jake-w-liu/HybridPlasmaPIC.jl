@@ -14,10 +14,11 @@ completeness. Comparative leadership requires reproducible external benchmarks.
 
 | Active work | Checked state | Remaining gate |
 | --- | --- | --- |
-| Shock CN solve and memory-status constructors | Pushed as `ce52836` and `c810eb0`; native acceptance passed | Shock minimum Julia passes; its compiler delta is under review. Remaining Julia lanes pending; formatting and MPI green |
+| Shock CN solve and memory-status constructors | `ce52836` has all six CI jobs green and full compiler review; `c810eb0` has five green jobs and one failed allocation assertion | Investigate the shock-total resource failure; source attribution remains open |
 | Complete energy-budget composition | V6 broader fixed costs fail at profile 192/324; numerical/resource passes retained | Optimize the implementation before a new frozen candidate; composition held |
-| Metal gathered push | V5 rejected; V6 shared-status implementation is in native checks | Complete correctness/resources/compiler review, then unchanged fixed costs |
+| Metal gathered push | V6 native correctness/resources/compiler gates pass both runtimes; minimum timing passes all 30 profiles | Latest-Julia doubled-work control failed; zero candidate timing profiles ran there. Held without retry |
 | Linear CN reference multiplier | Expanded matrix: 2,571 passes / 237 failures per runtime, including complete frequencies | [Expanded repair and acceptance plan](LINEAR_CN_RANGE_PLAN.md) |
+| Shared BigFloat exact conversion | Candidate passes original 323 checks and 15,150 endpoint/public-owner checks per runtime | [Canonical repair and remaining gates](EXACT_BIGFLOAT_CONVERSION_PLAN.md) |
 | Reference-unit normalization | 45 passes / 25 failures per runtime against independent complete scales | [Canonical scale and conversion repair](NORMALIZATION_RANGE_PLAN.md) |
 | Full simulator scope | CAP-001–011 remain open in whole or part | [Staged implementation roadmap](PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md) |
 
@@ -269,7 +270,17 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   gates. The fixed minimum-version matrix passes all four controls, then retains
   296 passes and four latency failures: D3/N1/midpoint and D3/N257/nonmidpoint
   exceed the unchanged 1.5 limits. Latest timing is unrun. V5 is rejected and
-  retained unchanged; no gathered-push candidate is accepted or pushed.
+  retained unchanged. V6 initializes a per-call shared-storage status through
+  Metal's public array constructor. Both final integration runs pass 17,571
+  assertions; full compiler trees match and every additional device report is
+  classified. The corrected lifetime fixture passes 636 checks per runtime;
+  the original fixture's uninitialized positions invalidate both earlier
+  lifetime results. V6 minimum timing passes all 30 profiles and four controls
+  (maximum ratio 1.382485). Latest timing stops at the doubled-work/non-midpoint
+  control: ratio of medians 1.490785 fails the required >1.5 threshold while
+  the paired median 1.992524 passes. No latest candidate profile ran. V6 remains
+  held; no retry, relaxed gate or unmeasured hardware-cause claim follows.
+  No gathered-push candidate is accepted or pushed.
   [Repair plan](METAL_GATHERED_VALIDATION_PLAN.md).
 - [x] Locally accept the shock CN field-solve repair. Both runtimes retain the
   parent's 66 control passes and 50 failures across 28 direct/public profiles.
@@ -288,11 +299,14 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   [Contract, limitations and measured repair costs](SHOCK_CN_SOLVE_PLAN.md).
 - [x] Shock CN repair pushed separately as `ce52836`; all 363 committed Julia
   files match the accepted candidate and held hashes are unchanged.
-- [ ] [Exact-SHA CI for ce52836](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39999012813)
-  has green formatting, real 2/4/8-rank MPI jobs and minimum Julia: the full
-  1.12.7 log records 624,178 passing assertions. Its complete compiler tree adds
-  one `_zero_ion_moments!` / JSON generic-iteration diagnostic; classification
-  remains open. Latest Julia is still running. All six jobs are required.
+- [x] [All six exact-SHA CI jobs for ce52836](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39999012813)
+  pass. Complete Julia 1.12.7 / 1.13.2 logs verify 624,178 / 624,179 assertions.
+  Both full compiler trees are byte-identical to the reviewed `ba3694c` trees
+  (24 / 21 reports); these commits differ only in Markdown. The minimum-only
+  generic JSON traversal originates in `_zero_ion_moments!(..., u::Any)`;
+  production callers use typed three-array tuples, and all six concrete
+  signatures have zero reports on both runtimes (72 owner/storage assertions
+  each). No diagnostic is suppressed. `ba3694c` also passes all six jobs.
 - [x] Locally accept the exported memory-status constructor repair. Both runtimes
   verify that keyword/full-positional construction accepts negative byte counts
   rejected by the checked wrapper (185 passes, ten failed rejection assertions).
@@ -310,7 +324,11 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   Pushed separately as `c810eb0`; all 364 committed Julia files match the
   validated candidate and held hashes are unchanged.
   [All six exact-SHA CI jobs](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40005434857)
-  remain required.
+  are not green: Julia 1.12.7 records 625,490 passes and one allocation failure
+  at `test/shock_total_flux/reuse_resources.jl:53` (1,501,504 bytes exceed the
+  unchanged 1,492,110.4-byte bound). The shock owner and this test are byte-identical
+  to green `ce52836`; attribution remains open. The other five jobs pass. No
+  rerun or relaxed allocation bound is accepted as a repair.
   [Repair contract and checklist](BACKEND_MEMORY_CONSTRUCTOR_PLAN.md).
 - [x] Reconcile external-validation READMEs with the checked runners: missing
   reference output fails; NHDS compares the eigenvalue oracle; VPIC compares
@@ -325,13 +343,21 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   Fixed-width integer multiplication also yields the wrong phase while retaining
   unit modulus. Ordinary type/zero/nonfinite characterization is recorded; the
   expanded matrix now retains 2,571 passes / 237 failures per runtime, including
-  17 complete-frequency failures. Rational/large-exponent characterization and
-  implementation remain open.
+  17 complete-frequency failures. Rational/large-exponent characterization
+  records 132 passes / 16 failures and 13 explicit rational-input exceptions
+  per runtime. Independent near-quarter-turn components add 12 passes / 12
+  failures per runtime. Compatibility decisions and implementation remain open.
   [Scope and planned acceptance](LINEAR_CN_RANGE_PLAN.md).
 - [ ] Repair NORM-001: finite reference-unit scales are lost through intermediate
   range loss in the canonical accessors and `_scale`. Both runtimes retain
   45 passes / 25 failures across four independent complete-scale profiles.
   [Repair and acceptance plan](NORMALIZATION_RANGE_PLAN.md).
+- [ ] Repair NUM-002, the shared complete-rational BigFloat materializer. Both
+  original baselines retain 212 passes / 111 failures; V1 passes all 323 checks
+  and the 15,150-check independent endpoint/public-owner matrix per runtime.
+  The existing 49,080 exact-arithmetic checks also pass. Neighbor, compiler,
+  concurrency, resource and frozen cost gates remain before promotion.
+  [Contract and acceptance tracker](EXACT_BIGFLOAT_CONVERSION_PLAN.md).
 - [ ] Complete remaining audit/implementation tracks listed below.
 
 Recovery limitation: the earlier `/tmp` candidate and evidence directories are

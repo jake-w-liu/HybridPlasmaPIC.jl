@@ -46,8 +46,19 @@ The six recorded cases cover ordinary construction, coefficient overflow and
 underflow, squared-wavenumber overflow and underflow, and zero guide field.
 The oracle combines stored `Float64(2π)`, mode index, guide field, density and
 length as one rational expression. Repairing `cn_multiplier` alone cannot close
-these recorded frequency failures. Rational-input behavior and very large
-BigFloat exponents still need characterization before choosing the cold path.
+these recorded frequency failures.
+
+The subsequent rational/large-exponent matrix records 132 passes / 16 failures
+and 79 profiles per runtime. It retains 11 `OverflowError` and two `InexactError`
+observations for rational inputs rather than counting them as successful phase
+results. Large canceling BigFloat exponents pass; overflowing products lose
+16 checked components. The compatibility choice for narrow rational types
+remains open.
+
+An independent near-quarter-turn witness records another 12 passes / 12 failures
+per runtime. `nextfloat(one(T))*prevfloat(T(2))`, with both argument orders and
+signs for Float16/32/64, loses a nonzero real component when the intermediate
+product rounds to two. An overflow-only repair would miss this defect.
 
 ## Compatibility decisions to verify before implementation
 
@@ -82,8 +93,11 @@ unbounded rational expansion of canceling input exponents.
 - [x] Characterize ordinary public return types, zero signs and NaN propagation.
 - [x] Extend baseline probes to promoted fixed-width integers, stored BigFloat
   precision/compact exponent boundaries and complete frequency construction.
-- [ ] Characterize rational inputs and very large BigFloat exponents; fix the
-  compatibility contract before editing.
+- [x] Characterize rational inputs and very large BigFloat exponents, including
+  explicit exception records. Reproduce near-quarter-turn component loss.
+- [ ] Fix the rational compatibility contract before editing. Complete the
+  [shared BigFloat materializer repair](EXACT_BIGFLOAT_CONVERSION_PLAN.md)
+  before relying on it for finite quotients under compact exponent limits.
 - [ ] Implement the repair at the canonical multiplier. Preserve ordinary
   arithmetic, finite phase signs and representable subnormal components.
 - [ ] Audit `_whistler_omega` separately: coefficient division, `k²`, zero mode

@@ -94,3 +94,20 @@ wrapper and pressure consumer. Both installed Julia versions' string conversion
 owner delegates `convert(String, ::AbstractString)` to `String`; the captured
 ordinary and SubString metadata controls retain their results. No GPU kernel,
 telemetry fallback, field type or pressure formula changes in this repair.
+
+
+## Exact-revision CI status
+
+The repair is pushed as `c810eb0`. [CI run 40005434857](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40005434857)
+has five passing jobs and one failed minimum-Julia job. Julia 1.13.2 passes
+625,492 assertions; Julia 1.12.7 records 625,490 passes and one failed allocation
+gate at `test/shock_total_flux/reuse_resources.jl:53`: 1,501,504 bytes exceed the
+unchanged 1,492,110.4-byte bound. Both complete compiler trees are byte-identical
+to the reviewed `ba3694c` trees (24 / 21 reports). Formatting and all MPI jobs pass.
+
+The shock owner and resource test are byte-identical to green `ce52836`, but
+the failed log lacks per-profile allocation attribution. The cause remains
+unverified; no retry, relaxed gate or billing exception has been claimed.
+The allocation investigation must be resolved before this revision's CI gate
+can be marked complete. Full logs and hashes are retained in the persistent
+`ci/40005434857/` and `shock-total-resource-ci/` evidence directories.

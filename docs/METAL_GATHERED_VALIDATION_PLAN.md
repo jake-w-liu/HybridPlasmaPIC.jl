@@ -2,7 +2,8 @@
 
 Status: baseline confirmed on Julia 1.12.7 and 1.13.2 with actual Metal 1.11.1;
 V1 rejected by the fixed allocation gate; V2, V3 and V4 rejected by latency;
-V5 passes native correctness gates but fails its fixed latency gate; no gathered-push candidate is accepted.
+V5 fails its fixed latency gate. V6 passes native gates and minimum-Julia costs,
+but latest-Julia timing calibration fails; no gathered-push candidate is accepted.
 Original parent: `ff4a973` (Julia sources match `df75656`); V3 starts from
 `61356f1`, with identical committed Julia sources. Persistent evidence: `../HybridPlasmaPIC-audit-evidence/2026-10-23/metal-gathered-validation`.
 
@@ -240,3 +241,38 @@ commands, samples, frozen source and failure classifications are retained in
 `timing-candidate6-*` under the persistent audit evidence directory. A further
 implementation requires a new concrete hypothesis and pre-edit contract; the
 original profiles and acceptance limits remain binding.
+
+
+## V6 shared status and retained timing failure
+
+V6 uses a fresh initialized `MtlArray{UInt32,1,SharedStorage}` through Metal's
+public constructor. The existing validators, scan, guarded disjoint update,
+one-group barrier and ordered alias path remain the owners. Public copy routines
+synchronize transfer and protect array lifetime; no unsafe host pointer, private
+Metal API or shared global status cache is introduced.
+
+The original new lifetime fixture left particle positions uninitialized. Its
+minimum-Julia run recorded 462 passes / six failures, including NaN positions;
+both original lifetime runs were invalidated. The corrected fixture explicitly
+initializes every position, retains every original assertion and adds finite
+initial/final state and actual-motion checks: 636 passes per runtime. This was
+a fixture repair, not a production relaxation.
+
+The final source composed onto `f850b84` passes **17,571 integration assertions
+on each runtime**. The previously recorded exact, alias, range, store-instrumentation
+and allocation gates also pass. Full package trees match the parent (29 / 27
+reports). Each of the 12 complete device captures retains 30 reports versus 24
+in the parent: three existing Metal launch leaves have the new kernel signature;
+six additions are classified at GPUCompiler method-definition access and Metal's
+optional-device branches for shared status copies. Every full typed path remains
+in evidence; none is suppressed.
+
+The frozen 30-profile matrix passes all four controls on Julia 1.12.7; all
+candidate outputs, allocation bounds and latency gates pass, with maximum of
+both ratio estimators **1.382485**. Julia 1.13.2 records four controls and **zero
+candidate profiles**: doubled non-midpoint work has ratio of medians
+**1.4907853205918302**, failing its required **>1.5** gate, although the paired
+median is 1.9925238486913364. The runner exits 1 as declared. Latest-runtime
+performance is unverified; V6 remains held. The failed calibration is preserved
+in `candidate7-timing-review.json`, full samples and command logs. No rerun,
+threshold adjustment or hardware-cause conclusion is accepted from these data.

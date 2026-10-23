@@ -42,10 +42,14 @@ Evidence is retained under
 - [x] Trace accessors, public scalar/array conversions, RayCon callers and tests.
 - [x] Reproduce complete-scale failures against independent references on both
   supported Julia versions; preserve the ordinary controls.
-- [ ] Characterize raw positional constructors, stored floating types, invalid
-  constants, BigFloat precision/exponent/rounding behavior and zero signs.
-  The keyword constructor and raw constructor have different current checks;
-  choose and document compatibility before changing either.
+- [x] Characterize raw positional constructors, stored floating types and invalid
+  constants: 112 records per runtime retain the mixed-positional `MethodError`
+  and show that raw typed constructors accept zero, negative and nonfinite
+  constants. Eight huge-exponent BigFloat profiles retain 20 passes / 16 failures.
+  Precision, rounding and exponent limits are restored after characterization.
+- [ ] Choose and document constructor/zero-sign compatibility before changing
+  either constructor. Complete the [shared BigFloat materializer repair](EXACT_BIGFLOAT_CONVERSION_PLAN.md)
+  before relying on exact complete-scale conversion.
 - [ ] Repair the canonical complete scale, retaining ordinary outputs and types
   where the existing evaluation is safe. Reuse exact conversion/square-root
   ownership where applicable. Bound exceptional work; avoid expanding enormous

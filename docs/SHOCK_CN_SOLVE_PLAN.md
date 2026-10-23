@@ -455,7 +455,11 @@ master trackers retain the broader implicit-coupling and model gaps. Pushed
 separately as `ce52836`; all 363 committed Julia files match the
 validated composition and held hashes remain unchanged.
 [Exact-SHA CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39999012813)
-is running; all six jobs remain required.
+passes all six jobs. Complete logs verify 624,178 / 624,179 assertions on Julia
+1.12.7 / 1.13.2. Full compiler trees (24 / 21 reports) match the separately
+reviewed `ba3694c` trees byte for byte; the two commits differ only in Markdown.
+Every job log contains the exact checkout SHA. Evidence and report classification
+are recorded in the [audit tracker](DEEP_DEBUG_TRACKER.md).
 
 A follow-up optimization should profile and cache the existing Fourier
 operator's repeated plans/buffers behind the same operator and residual

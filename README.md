@@ -449,6 +449,11 @@ julia --project=validation validation/run_validation.jl --quick   # or --all
   summary with checksums is bundled; the full HDF5 requires downloading the
   upstream data).
 - Non-periodic EM-PIC boundaries (`EMPIC` and `EMPIC1D` use periodic geometry).
+- Extreme-range arithmetic remains under repair. The confirmed
+  [normalization](docs/NORMALIZATION_RANGE_PLAN.md),
+  [linear CN](docs/LINEAR_CN_RANGE_PLAN.md) and
+  [BigFloat conversion](docs/EXACT_BIGFLOAT_CONVERSION_PLAN.md) plans record
+  the failing cases and the gates still required.
 
 ## Running the tests
 
