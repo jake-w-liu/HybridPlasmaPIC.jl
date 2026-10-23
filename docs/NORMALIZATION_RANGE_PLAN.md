@@ -48,8 +48,9 @@ Evidence is retained under
   constants. Eight huge-exponent BigFloat profiles retain 20 passes / 16 failures.
   Precision, rounding and exponent limits are restored after characterization.
 - [ ] Choose and document constructor/zero-sign compatibility before changing
-  either constructor. Complete the [shared BigFloat materializer repair](EXACT_BIGFLOAT_CONVERSION_PLAN.md)
-  before relying on exact complete-scale conversion.
+  either constructor. The [shared BigFloat materializer repair](EXACT_BIGFLOAT_CONVERSION_PLAN.md)
+  now passes local acceptance; its exact-SHA CI remains a dependency before
+  accepting the complete-scale implementation.
 - [ ] Repair the canonical complete scale, retaining ordinary outputs and types
   where the existing evaluation is safe. Reuse exact conversion/square-root
   ownership where applicable. Bound exceptional work; avoid expanding enormous

@@ -166,6 +166,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Shared exact BigFloat fallbacks round the complete finite rational even when
+  its integer factors exceed the active MPFR exponent range. Guard/sticky bits
+  preserve the caller's precision and rounding mode through compact overflow
+  and underflow endpoints; production code does not change numerical settings.
+  Public AMR cell-center and gyroaverage regressions cover retained-precision
+  inputs. Independent rounding-cell, concurrency, resource and fixed-cost
+  checks pass on Julia 1.12.7 and 1.13.2.
+
 - Every `BackendMemoryStatus` construction form now rejects negative,
   noninteger and out-of-range byte counts through the same validation owner.
   Keyword and full-positional construction previously bypassed the checks.

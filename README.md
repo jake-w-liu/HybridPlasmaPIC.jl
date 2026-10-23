@@ -450,10 +450,11 @@ julia --project=validation validation/run_validation.jl --quick   # or --all
   upstream data).
 - Non-periodic EM-PIC boundaries (`EMPIC` and `EMPIC1D` use periodic geometry).
 - Extreme-range arithmetic remains under repair. The confirmed
-  [normalization](docs/NORMALIZATION_RANGE_PLAN.md),
-  [linear CN](docs/LINEAR_CN_RANGE_PLAN.md) and
-  [BigFloat conversion](docs/EXACT_BIGFLOAT_CONVERSION_PLAN.md) plans record
-  the failing cases and the gates still required.
+  [normalization](docs/NORMALIZATION_RANGE_PLAN.md) and
+  [linear CN](docs/LINEAR_CN_RANGE_PLAN.md) plans record the failing cases and
+  remaining gates. The shared BigFloat exact-conversion repair has passed its
+  [local acceptance checks](docs/EXACT_BIGFLOAT_CONVERSION_PLAN.md); its
+  exact-revision CI gate remains open.
 
 ## Running the tests
 

@@ -18,7 +18,7 @@ completeness. Comparative leadership requires reproducible external benchmarks.
 | Complete energy-budget composition | V6 broader fixed costs fail at profile 192/324; numerical/resource passes retained | Optimize the implementation before a new frozen candidate; composition held |
 | Metal gathered push | V6 native correctness/resources/compiler gates pass both runtimes; minimum timing passes all 30 profiles | Latest-Julia doubled-work control failed; zero candidate timing profiles ran there. Held without retry |
 | Linear CN reference multiplier | Expanded matrix: 2,571 passes / 237 failures per runtime, including complete frequencies | [Expanded repair and acceptance plan](LINEAR_CN_RANGE_PLAN.md) |
-| Shared BigFloat exact conversion | Candidate passes original 323 checks and 15,150 endpoint/public-owner checks per runtime | [Canonical repair and remaining gates](EXACT_BIGFLOAT_CONVERSION_PLAN.md) |
+| Shared BigFloat exact conversion | V1 passes all local numerical, concurrency, resource, compiler and fixed-cost gates on both runtimes | [Accepted local repair; exact-SHA CI remains](EXACT_BIGFLOAT_CONVERSION_PLAN.md) |
 | Reference-unit normalization | 45 passes / 25 failures per runtime against independent complete scales | [Canonical scale and conversion repair](NORMALIZATION_RANGE_PLAN.md) |
 | Full simulator scope | CAP-001–011 remain open in whole or part | [Staged implementation roadmap](PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md) |
 
@@ -352,11 +352,16 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   range loss in the canonical accessors and `_scale`. Both runtimes retain
   45 passes / 25 failures across four independent complete-scale profiles.
   [Repair and acceptance plan](NORMALIZATION_RANGE_PLAN.md).
-- [ ] Repair NUM-002, the shared complete-rational BigFloat materializer. Both
+- [x] Locally accept NUM-002, the shared complete-rational BigFloat materializer. Both
   original baselines retain 212 passes / 111 failures; V1 passes all 323 checks
   and the 15,150-check independent endpoint/public-owner matrix per runtime.
-  The existing 49,080 exact-arithmetic checks also pass. Neighbor, compiler,
-  concurrency, resource and frozen cost gates remain before promotion.
+  The existing 49,080 exact-arithmetic checks and 148,054 neighboring assertions
+  also pass. Corrected per-worker TLS tests pass 4,201 checks, and 270 exceptional
+  resource profiles pass 1,081 checks per runtime. Full compiler trees match
+  (29 / 27 reports); all 75 frozen ordinary cost profiles and controls pass
+  per runtime, with zero extra warmed bytes and maximum ratios 1.170083 /
+  1.183004 against the 1.25 limit. The original faulty threaded fixture is
+  retained and explained. Exact-SHA CI remains required after promotion.
   [Contract and acceptance tracker](EXACT_BIGFLOAT_CONVERSION_PLAN.md).
 - [ ] Complete remaining audit/implementation tracks listed below.
 

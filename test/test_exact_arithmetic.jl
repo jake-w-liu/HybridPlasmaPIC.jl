@@ -136,3 +136,17 @@ using Test
         end
     end
 end
+
+@testset "Complete BigFloat conversion in an isolated process" begin
+    project = Base.active_project()
+    @test project !== nothing
+    fixture = joinpath(@__DIR__, "exact_bigfloat_conversion_fixture.jl")
+    package = dirname(@__DIR__)
+    command = `$(Base.julia_cmd()) --startup-file=no --threads=1 --project=$(dirname(project)) $fixture $package`
+    log = IOBuffer()
+    process = run(pipeline(ignorestatus(command); stdout = log, stderr = log))
+    transcript = String(take!(log))
+    success(process) || @error "BigFloat conversion fixture failed" transcript
+    @test success(process)
+    @test occursin("BigFloat conversion settings restored", transcript)
+end

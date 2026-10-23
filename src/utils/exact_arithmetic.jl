@@ -16,11 +16,45 @@ _from_exact(::Type{T}, value::Rational{BigInt}) where {T<:AbstractFloat} = T(val
 
 function _from_exact(::Type{BigFloat}, value::Rational{BigInt})
     n, d = numerator(value), denominator(value)
-    # Both operands are exact. MPFR division then rounds once at the caller's
-    # working precision and rounding mode, without changing either setting.
-    nfloat = BigFloat(n; precision = max(2, ndigits(n; base = 2)))
-    dfloat = BigFloat(d; precision = max(2, ndigits(d; base = 2)))
-    return nfloat / dfloat
+    iszero(n) && return zero(BigFloat)
+    nbits, dbits = ndigits(n; base = 2), ndigits(d; base = 2)
+    minimum = ccall((:mpfr_get_emin, Base.MPFR.libmpfr), Clong, ())
+    maximum = ccall((:mpfr_get_emax, Base.MPFR.libmpfr), Clong, ())
+    if iszero(d) || (minimum <= nbits <= maximum && minimum <= dbits <= maximum)
+        # Exact integer operands followed by one division retain the ordinary
+        # result and the caller's precision and rounding mode.
+        nfloat = BigFloat(n; precision = max(2, nbits))
+        dfloat = BigFloat(d; precision = max(2, dbits))
+        return nfloat / dfloat
+    end
+
+    negative = n < 0
+    magnitude = abs(n)
+    binade = nbits - dbits
+    if binade >= 0 ? magnitude < d << binade : magnitude << -binade < d
+        binade -= 1
+    end
+    # Retain p significant bits plus guard/sticky bits without first converting
+    # either integer. A nonzero remainder distinguishes a tie from its upper
+    # side; folding it into the low bit preserves all directed rounding choices.
+    quantum = binade - precision(BigFloat) - 1
+    scaled_n, scaled_d = quantum >= 0 ? (magnitude, d << quantum) : (magnitude << -quantum, d)
+    whole, remainder = divrem(scaled_n, scaled_d)
+    iszero(remainder) || (whole |= 1)
+    negative && (whole = -whole)
+    result = zero(BigFloat)
+    # Significand and scale enter MPFR together, so compact exponent limits
+    # apply to the complete result, including overflow and underflow endpoints.
+    ccall(
+        (:mpfr_set_z_2exp, Base.MPFR.libmpfr),
+        Cint,
+        (Ref{BigFloat}, Ref{BigInt}, Clong, Base.MPFR.MPFRRoundingMode),
+        result,
+        whole,
+        quantum,
+        Base.MPFR.rounding_raw(BigFloat),
+    )
+    return result
 end
 
 function _from_exact(::Type{T}, value::Rational{BigInt}) where {T<:Union{Float16,Float32,Float64}}

@@ -246,7 +246,7 @@ source hashes: local collision arithmetic, normalization and the focused/rate
 fixtures have since changed. The revised SI/normalized fixture requires actual
 velocity changes and the new four-species generator test is still unrun.
 The [shared BigFloat materializer](EXACT_BIGFLOAT_CONVERSION_PLAN.md) has a
-confirmed compact-range defect and an unaccepted candidate; its repair is a
+locally accepted compact-range repair, with exact-SHA CI still required. It is a
 numerical dependency, not a new simulator capability.
 [NORM-001](NORMALIZATION_RANGE_PLAN.md) additionally reproduces range loss in the
 existing reference-scale owner on both runtimes. Repair that owner and re-run

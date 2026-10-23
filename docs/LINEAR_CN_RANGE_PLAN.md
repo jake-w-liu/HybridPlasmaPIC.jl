@@ -97,7 +97,9 @@ unbounded rational expansion of canceling input exponents.
   explicit exception records. Reproduce near-quarter-turn component loss.
 - [ ] Fix the rational compatibility contract before editing. Complete the
   [shared BigFloat materializer repair](EXACT_BIGFLOAT_CONVERSION_PLAN.md)
-  before relying on it for finite quotients under compact exponent limits.
+  through its remaining exact-SHA CI gate before accepting a multiplier that
+  relies on it. Its bounded-rational contract does not yet cover arbitrary
+  separate binary exponents.
 - [ ] Implement the repair at the canonical multiplier. Preserve ordinary
   arithmetic, finite phase signs and representable subnormal components.
 - [ ] Audit `_whistler_omega` separately: coefficient division, `k²`, zero mode

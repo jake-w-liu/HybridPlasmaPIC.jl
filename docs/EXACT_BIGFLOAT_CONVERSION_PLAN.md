@@ -1,6 +1,6 @@
 # Complete BigFloat rational conversion
 
-Status: **NUM-002 confirmed; V1 candidate under validation, not pushed.**
+Status: **NUM-002 V1 locally accepted on Julia 1.12.7 and 1.13.2; exact-SHA CI remains required.**
 This shared arithmetic repair supports existing exact fallbacks. It does not
 close the separate normalization, linear-CN, concurrency or capability work.
 
@@ -51,12 +51,28 @@ alone is not accepted as a solution to this defect.
   `gyroaverage` exercise retained-precision inputs through the shared owner.
 - [x] Pass the existing 49,080 exact-arithmetic checks per runtime; the child
   fixture uses the resolved active project and checks the loaded source path.
-- [ ] Reject lost-sticky, lost-guard and forced-nearest wrong-patch controls.
-- [ ] Verify concurrent calls with fixed settings, exceptional resource bounds,
-  neighboring solver tests and concrete/full compiler trees on both runtimes.
-- [ ] Execute the frozen ordinary 75-profile cost matrix once per runtime:
-  exact outputs, at most 32 extra allocation bytes, both latency estimators
-  at most 1.25; identical/doubled-work controls must pass. Preserve failures.
-- [ ] Review the exact final source, docs and tests; push this repair separately
-  to main and require all six exact-SHA CI jobs. Do not mark earlier native
+- [x] Reject lost-sticky, lost-guard and forced-nearest wrong-patch controls:
+  they violate 176, 800 and 688 independent rounding-cell checks, respectively,
+  on each runtime.
+- [x] Pass 4,201 concurrent checks per runtime, with each static worker's TLS
+  exponent limits explicitly configured and restored. The original fixture's
+  assumption that main-thread bounds propagate to workers was disproved by
+  native before/after probes; its 1,804 passes / 2,367 failures are retained as
+  invalid fixture evidence. No production change or assertion relaxation followed.
+- [x] Pass 1,081 resource assertions over 270 exceptional profiles per runtime,
+  including 65,536-bit integer factors and precision up to 4,096 bits. Maximum
+  allocation is 41,864 bytes; all first exceptional-input observations have
+  zero compilation after ordinary-signature warmup.
+- [x] Pass 148,054 neighboring assertions, five concrete compiler checks, nine
+  Aqua checks and three JET checks per runtime. Both complete package trees
+  match the parent (29 / 27 reports) after checked source-line shifts only.
+- [x] Execute the frozen ordinary 75-profile cost matrix once per runtime.
+  All complete outputs and controls pass, with zero extra warmed allocation.
+  Maximum ratio of medians is 1.170083 / 1.183004; maximum paired-median ratio
+  is 1.125468 / 1.087506, within the unchanged 1.25 limit. These are measured
+  repair costs, not a speedup claim. No timing reruns or sample filtering.
+- [x] Review the exact final source through the caller contracts and a separate
+  guard/sticky rounding argument; find no additional confirmed defect in this
+  bounded conversion pass. No full-simulator or general MPFR guarantee follows.
+- [ ] Push this repair separately to main and require all six exact-SHA CI jobs. Do not mark earlier native
   subsets or a successful test process as full-project acceptance.
