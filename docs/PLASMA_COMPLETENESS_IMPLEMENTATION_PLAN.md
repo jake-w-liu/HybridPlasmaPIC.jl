@@ -249,7 +249,9 @@ The [shared BigFloat materializer](EXACT_BIGFLOAT_CONVERSION_PLAN.md) has a
 locally accepted compact-range repair, with exact-SHA CI still required. It is a
 numerical dependency, not a new simulator capability.
 [NORM-001](NORMALIZATION_RANGE_PLAN.md) additionally reproduces range loss in the
-existing reference-scale owner on both runtimes. Repair that owner and re-run
+existing reference-scale owner and complete value conversion on both runtimes.
+The isolated scaled-root dependency passes its numerical matrix, but the full
+normalization implementation remains unaccepted. Repair that owner and re-run
 final-source gates before accepting collision unit conversion.
 
 - [ ] Cell-local self/cross pairing, empty/singleton/odd populations, arbitrary

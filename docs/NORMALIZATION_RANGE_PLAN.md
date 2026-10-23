@@ -1,6 +1,7 @@
 # Reference-unit normalization range repair
 
-Status: **NORM-001 confirmed on Julia 1.12.7 and 1.13.2; repair not implemented.**
+Status: **NORM-001 confirmed on Julia 1.12.7 and 1.13.2; isolated implementation
+in progress, not accepted or promoted.**
 This is a prerequisite for accepting the new local collision normalization
 helper, and also affects existing public unit conversion and RayCon adapters.
 
@@ -37,6 +38,85 @@ Evidence is retained under
 `source.json`, `witness.jl`, `baseline-commands.json`, both full logs/TOMLs and
 `baseline-review.json`. The source hash is checked by each executed witness.
 
+## Complete conversion evidence and implementation contract
+
+The expanded baseline has **416 passes / 304 failures on each runtime**.
+All 64 Float32/Float64 profiles have finite complete references but lose them
+when pressure, electric, current or time scales are materialized first. Eight
+BigFloat profiles additionally cancel enormous exponents analytically; both
+conversion directions fail. Original logs, 72 records per runtime and source
+hashes remain in `complete-baseline-*` under the evidence directory above.
+
+A separate characterization passes 54 checks per runtime: 50 ordinary
+input/direction records cover integer and rational promotion, complex numbers,
+nonfinite values, signed zero, missing values, arrays, views, tuples, empty
+containers and zero-dimensional broadcasting. Four checks establish that raw
+constructors retain stored 512-bit BigFloat values at 24-bit working precision.
+
+**VERIFIED fixture correction:** the first candidate passes 69 of the original
+70 assertions. The remaining assertion incorrectly requires the inverse of a
+rounded subnormal reference to equal one within normal-value epsilon. An
+independent 200-digit Decimal computation gives `1.00000001413406` for that
+complete inverse, agreeing with the candidate. `witness-v2.jl` uses an
+independent complete inverse oracle with the original tolerance; the original
+failed run and `subnormal-inverse-fixture-review.json` remain preserved.
+
+The pre-edit contract and live execution checklist are retained in
+`normalization-range/pre-edit-v1.md`. The canonical implementation is being
+built in a separate checkout based on `f1410b7`:
+
+- Generalize the existing exact square-root owner to a bounded rational with
+  a separate Int128 exponent, explicit rounding and sign. Its existing
+  two-argument collision entry retains nearest rounding. The first candidate
+  passes **429,664 independent signed rounding-cell checks and all 86,988
+  unchanged root checks per runtime**. This is numerical evidence, not final
+  acceptance; compiler, resource and cost gates remain open.
+- Express each complete scale's square as a rational monomial of the stored
+  references. Combine the caller's value and exponent before final rounding
+  on exceptional paths. Preserve the ordinary formulas and their output bits.
+- Enforce finite positive values for all six unit fields in the inner
+  constructor. Preserve valid same-type positional construction, typed
+  conversion and stored BigFloat precision; retain the mixed-positional
+  `MethodError`. Rejecting previously accepted invalid raw constants is an
+  intentional compatibility change, pending verification and documentation.
+- Treat signed zero and nonfinite values as multiplication/division by a
+  positive physical scale. Preserve ordinary broadcast behavior. Verify the
+  exceptional container/device path explicitly before acceptance.
+
+The first normalization candidate passes the 720-check complete-conversion
+witness, 54 compatibility checks, 143 existing normalization checks and Aqua's
+nine checks on Julia 1.12. Its broader BigFloat run fails because `issubnormal`
+has no BigFloat method. The failed source/logs are preserved. A second candidate
+uses a separate MPFR endpoint guard. It passes all 720 complete-conversion,
+54 compatibility, 143 existing normalization, 36 huge-exponent and nine Aqua
+checks on each runtime. The corrected 70-check witness passes both; the
+unchanged parent still fails 25 checks. Three directed-rounding cases fail
+on the parent and pass on this second candidate.
+
+Further independent checks keep acceptance open:
+
+| Surface | Retained result | Required correction |
+| --- | --- | --- |
+| Broad CPU formulas and constructors | 28,019 passes / four errors per runtime | Preserve Julia's floating promotion for `π` and `ℯ`; they do not provide exact rational decomposition |
+| Metal ordinary conversions | 48 checks pass on each candidate/runtime | Retain native device output type, input immutability and ordinary values |
+| Metal complete exceptional conversions | Parent: 56 passes / four numerical failures; candidate: 48 passes / four GPU compilation errors | Keep Rational/BigInt work on the host and return corrected values to the original backend |
+| Final value operation | 157 binary16 failures on Julia 1.12, despite an ordinary scale | Guard final multiplication/division too; an exactly representable Float64 oracle holds all three binary16 significands |
+
+The initial Metal harness used a nonexistent status field; its failure logs
+are retained separately. The table uses the corrected harness and actual native
+runs. V3 addresses the verified gaps through the canonical conversion owner
+and shared device staging, with thin CUDA/Metal adapters. V3 passes 28,027
+broader CPU assertions, 3,800 final-operation range checks and 60 native Metal
+conversion checks per runtime. Device layout, compiler, resource and cost
+acceptance remain open.
+Device inspection adds synchronization; its complete-call resource and timing
+costs must be measured before acceptance. Native CUDA execution is not verified.
+No candidate is promoted on the strength of partial results.
+
+RayCon has additional compound temperature, frequency and amplitude conversions
+in its adapter. Repairing these shared accessors alone does not establish the
+range correctness of every RayCon expression; that integration remains open.
+
 ## Repair and acceptance tracker
 
 - [x] Trace accessors, public scalar/array conversions, RayCon callers and tests.
@@ -47,8 +127,9 @@ Evidence is retained under
   and show that raw typed constructors accept zero, negative and nonfinite
   constants. Eight huge-exponent BigFloat profiles retain 20 passes / 16 failures.
   Precision, rounding and exponent limits are restored after characterization.
-- [ ] Choose and document constructor/zero-sign compatibility before changing
-  either constructor. The [shared BigFloat materializer repair](EXACT_BIGFLOAT_CONVERSION_PLAN.md)
+- [x] Record constructor/zero-sign compatibility before the isolated edit.
+  The implementation and its full validation remain unaccepted. The
+  [shared BigFloat materializer repair](EXACT_BIGFLOAT_CONVERSION_PLAN.md)
   now passes local acceptance; its exact-SHA CI remains a dependency before
   accepting the complete-scale implementation.
 - [ ] Repair the canonical complete scale, retaining ordinary outputs and types
@@ -56,9 +137,10 @@ Evidence is retained under
   ownership where applicable. Bound exceptional work; avoid expanding enormous
   BigFloat exponents into unbounded rational integers or changing global MPFR
   state. Do not patch only the collision normalization helper.
-- [ ] Audit conversion of the caller's value separately: a finite result may
-  involve a scale outside the destination range. Decide the full scalar/array
-  contract before treating a scale-only repair as complete conversion coverage.
+- [x] Reproduce full-value conversion failures separately from scale failures.
+- [ ] Complete scalar/container/device compatibility checks before accepting
+  the public conversion implementation, including irrational promotion, final
+  output endpoints, GPU staging, empty arrays, views and zero-dimensional arrays.
 - [ ] Add independent boundary and exponent matrices, subnormal outputs,
   forward/inverse scalar and array checks, and retained-precision inputs.
   Reject zero-clamping, independent-factor rounding and round-trip-only patches

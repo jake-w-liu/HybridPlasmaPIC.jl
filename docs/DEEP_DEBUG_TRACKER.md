@@ -19,7 +19,7 @@ completeness. Comparative leadership requires reproducible external benchmarks.
 | Metal gathered push | V6 native correctness/resources/compiler gates pass both runtimes; minimum timing passes all 30 profiles | Latest-Julia doubled-work control failed; zero candidate timing profiles ran there. Held without retry |
 | Linear CN reference multiplier | Expanded matrix: 2,571 passes / 237 failures per runtime, including complete frequencies | [Expanded repair and acceptance plan](LINEAR_CN_RANGE_PLAN.md) |
 | Shared BigFloat exact conversion | `245e73a` pushed after numerical, concurrency, resource, compiler and fixed-cost gates pass both runtimes | [Exact-SHA CI pending](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40026749996); [repair evidence](EXACT_BIGFLOAT_CONVERSION_PLAN.md) |
-| Reference-unit normalization | 45 passes / 25 failures per runtime against independent complete scales | [Canonical scale and conversion repair](NORMALIZATION_RANGE_PLAN.md) |
+| Reference-unit normalization | Expanded full-value baseline: 416 passes / 304 failures each; isolated scaled-root candidate passes 429,664 new and 86,988 existing checks each | [Canonical scale and conversion repair](NORMALIZATION_RANGE_PLAN.md) |
 | Full simulator scope | CAP-001–011 remain open in whole or part | [Staged implementation roadmap](PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md) |
 
 - [x] Rechecked the [official Julia downloads page](https://julialang.org/downloads/):
@@ -351,6 +351,14 @@ completeness. Comparative leadership requires reproducible external benchmarks.
 - [ ] Repair NORM-001: finite reference-unit scales are lost through intermediate
   range loss in the canonical accessors and `_scale`. Both runtimes retain
   45 passes / 25 failures across four independent complete-scale profiles.
+  Expanded full-value baselines retain 416 passes / 304 failures each. Isolated
+  scaled-root numerical checks pass 429,664 new and 86,988 unchanged assertions
+  each. Normalization V2 passes the focused both-version checks but expanded
+  tests find irrational-input errors, Metal kernel argument errors and 157
+  final-operation range failures. V3 passes 28,027 expanded CPU, 3,800 final-range
+  and 60 native Metal checks per runtime; broader acceptance remains open.
+  The subnormal inverse fixture correction is independently documented; all
+  failed runs are retained. No normalization implementation has been promoted.
   [Repair and acceptance plan](NORMALIZATION_RANGE_PLAN.md).
 - [x] Locally accept NUM-002, the shared complete-rational BigFloat materializer. Both
   original baselines retain 212 passes / 111 failures; V1 passes all 323 checks
