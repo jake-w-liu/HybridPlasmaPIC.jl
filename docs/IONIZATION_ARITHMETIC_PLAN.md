@@ -3,7 +3,8 @@
 Status (2026-10-23): COLL-001 is freshly reproduced against pushed `16c9776`.
 Both native runtimes retain 3,834 passes and 127 failed behavior assertions,
 without fixture errors. The reconstructed repair passes its final local gates below. Parent CI is
-green on all six jobs; separate main promotion and exact-SHA CI remain required.
+green on all six jobs. The repair is pushed as `b251cb7`; its exact-SHA CI
+run 39885899763 is in progress (formatting and real 2/4/8-rank MPI are green).
 
 The earlier `/tmp` candidates and evidence below are no longer available.
 Their historical counts do not validate the reconstructed implementation.

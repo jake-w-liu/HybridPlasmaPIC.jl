@@ -1,13 +1,14 @@
 # Particle migration storage integrity
 
-Status: **GROWTH-002 confirmed** on Julia 1.12.7 and 1.13.2. Private repair candidates are under verification;
-no migration implementation has been promoted. GROWTH-001's append validation is a
-separate candidate and does not repair this finding.
+Status (2026-10-23): **GROWTH-002 final V3 passes all local acceptance gates**
+on Julia 1.12.7 and 1.13.2. Its separate main push still requires all six
+exact-commit GitHub CI jobs. GROWTH-001's append validation is a separate
+accepted fix (`16c9776`) and does not repair this finding.
 
 Recovery note (2026-10-23): the uncommitted `/tmp` candidate and evidence
 locations below are unavailable. No prior running handle remains accessible.
-Reconstruct and revalidate this repair before promotion; historical results
-are not current acceptance evidence. The separate GROWTH-001 repair is now
+The reconstructed source and new acceptance evidence are recorded below;
+historical results are not current acceptance evidence. The separate GROWTH-001 repair is now
 pushed as `16c9776` with all six GitHub CI jobs green.
 
 ## Verified public behavior
@@ -339,3 +340,95 @@ the comparison, MPI source and all 72 capture hashes. All four command logs
 and 723 frozen files were checked. This closes the manual typed-tree review;
 full package comparisons, real-MPI integration, final resource measurements
 and exact-commit GitHub acceptance remain required.
+
+
+## Persistent reconstruction (2026-10-23)
+
+Fresh serial probes against `16c9776` retain 30 passes and 30 failed integrity
+assertions on both runtimes. They cover whole-rank rollback, within/cross-rank
+aliases and repeated owners. Both native MPI metadata probes reproduce negative
+Cint displacements without allocating or communicating a huge buffer.
+`../HybridPlasmaPIC-audit-evidence/2026-10-23/migration/pre-edit-brief.md` records
+the source-backed contract and collective error policy before production edits.
+
+The reconstructed prepare/publish repair passes 8,432 focused assertions per
+runtime and first real two-rank rejection/recovery runs on both runtimes.
+V2 adds axes, disjoint-view and empty-byte controls without a production algorithm
+change; its four files are frozen under `migration/v2-files`. Broader native,
+six real-MPI lanes, compiler and resource checks remain in progress.
+
+All six V2 focused real-MPI commands now exit successfully (2/4/8 ranks on both
+runtimes); `migration/v2-mpi-results.json` records commands and log hashes.
+This does not close the final review. The safe `position-stage-witness.jl`
+singleton probe retains four passes and one failure per runtime: a custom
+position getter throws inside the stage in the direct control, but outside it
+through public migration. Source `parallel/mpi.jl:1177` reads positions before
+the following Allreduce. This verifies an uncoordinated local failure; no
+multirank hang was attempted or observed.
+
+V3's planned repair moves the existing storage-validation stage into the
+canonical migration input validator, covering both axes validation and the
+finite-position scan. It preserves the following collective position/species
+checks and error text without adding a collective. The permanent MPI regression
+must reject one rank's read error, preserve all original populations, then
+complete a subsequent valid collective. V2 snapshots remain frozen, and V3
+requires its own source-bound acceptance checks.
+
+V3 is frozen in `../HybridPlasmaPIC-migration-v3-20261023`, based on `b251cb7`.
+Its position-read witness passes five assertions on each runtime; the original
+storage witness passes 60. The first real two-rank run passes on minimum Julia.
+A separate combined V3 snapshot includes both permanent tests in the package
+and real-MPI runners. Its six formatting checks pass. All twelve fully typed
+MPI compiler captures retain the same two serializer diagnostics as the parent;
+the complete serializer subtrees match. The two added frames are the reviewed
+local collective stage and preparation closure, with exact captured input types.
+No diagnostic was suppressed. `migration-combined-v3/typed-comparison.json`
+pins the source and all capture hashes.
+
+A separate combined worktree at `../HybridPlasmaPIC-migration-combined-20261023`
+uses `b251cb7` as parent, composes the four frozen files, and adds both test-runner
+includes so GitHub's package and real-MPI jobs exercise the new regressions.
+Its 268-file source/test snapshot is frozen; six formatting checks pass.
+Its combined suites have completed; this older V2 snapshot remains separate
+from the final V3 acceptance below.
+
+### Current V3 acceptance
+
+Both final direct suites pass 8,495 assertions, and all six focused real-MPI
+commands pass (2/4/8 ranks on Julia 1.12.7 and 1.13.2). The final combined V3
+worktree is `../HybridPlasmaPIC-migration-combined-v3-20261023`; its neighboring
+suite passes 99,191 assertions per runtime. Both full two-rank integration
+commands pass, including checkpoint continuation, collective rejection and
+rollback, multispecies and ion-collection integration. The older V2 combined snapshot is retained separately
+and does not substitute for V3 acceptance.
+
+Fresh complete single-thread compiler captures match the parent in all groups
+and group order (30/27 reports). The earlier four-thread equality failures are
+retained: each runtime selected one different entry caller into an otherwise
+identical existing diagnostic subtree. Source review verifies JET's concurrent
+signature analysis and deduplication by final error frame, with no entry caller
+in that key. The affected project sources are byte-identical. Both the original
+differences and the complete single-thread comparisons are retained under
+`migration-combined-v3`; no diagnostic is filtered or declared harmless.
+
+Final serial resource commands pass 11,672 assertions each. All 541 complete
+outputs match the parent per runtime across 55 profiles, with no measured
+compilation or recompilation. The 1,048,576-particle 3D exchange allocates
+270,764,976 bytes on minimum Julia and 268,929,968 on latest, versus
+267,094,576 baseline bytes: increases of 3,670,400 and 1,835,392 bytes.
+Smaller profiles have both increases and reductions. The million-particle case
+has one measured sample after three warmups; it does not establish a latency
+distribution. Whole-process peak RSS is retained as an observation.
+
+The real two-rank resource matrix passes 496 assertions per rank per command.
+All 96 complete rank samples match per runtime, including gathered output
+hashes. Each profile adds 240 allocated bytes per rank per call, with zero
+measured compilation/recompilation. The unpaired elapsed measurements do not
+establish a speedup. `migration/final-evidence-check.json` records all 22 final
+command logs and both source manifests; comparison files preserve every sample.
+
+The final root check in `migration-combined-v3/final-verification.json` verifies
+all 34 accepted command logs, the three frozen source manifests, the six owned
+files and 347 unchanged committed Julia files. Complete typed/package compiler
+and resource comparisons are rerun from the retained captures. Git diff checks
+pass. No held radiation changes belong to this repair.

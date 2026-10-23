@@ -541,23 +541,25 @@ function load_mpi_checkpoint!(
     return _restore_validated_hybrid_checkpoint!(st, ps, state, count)
 end
 
-# Checkpoint I/O can fail during deserialization or destination validation, with
-# exception types supplied by the filesystem, serializer, or saved types. At
-# this collective boundary every recoverable failure remains an error; retain
-# the original exception and stack locally and notify all peers before mutation.
-# Interrupts and fatal resource failures remain outside this protocol.
-function _mpi_checkpoint_stage(f, ctx, phase::AbstractString)
+# Local preparation can fail in storage, serialization or I/O code. At this
+# collective boundary retain the original exception and stack locally and notify
+# peers before they enter the next collective or publish state. The closure must
+# contain no collectives. Interrupts and fatal resource failures are excluded.
+function _mpi_collective_stage(f, comm::MPI.Comm, context::AbstractString, phase::AbstractString)
     result = try
         f()
     catch err
         (err isa InterruptException || err isa OutOfMemoryError || err isa StackOverflowError) && rethrow()
-        MPI.Allreduce(1, max, ctx.comm)
+        MPI.Allreduce(1, max, comm)
         rethrow()
     end
-    MPI.Allreduce(0, max, ctx.comm) == 0 ||
-        throw(ErrorException("MPI checkpoint $phase failed on another rank"))
+    MPI.Allreduce(0, max, comm) == 0 ||
+        throw(ErrorException("$context $phase failed on another rank"))
     return result
 end
+
+_mpi_checkpoint_stage(f, ctx, phase::AbstractString) =
+    _mpi_collective_stage(f, ctx.comm, "MPI checkpoint", phase)
 
 function _mpi_reduction_op(op::Symbol)
     op === :sum && return +
@@ -1102,38 +1104,62 @@ end
 
 _check_mpi_byte_count(n::Integer) = _check_mpi_count(n, "MPI byte payload")
 
+function _mpi_byte_displacements(counts::AbstractVector{<:Integer})
+    Base.require_one_based_indexing(counts)
+    displacements = Vector{Cint}(undef, length(counts))
+    total = 0
+    for i in eachindex(counts)
+        count = Int(_check_mpi_byte_count(counts[i]))
+        # MPI ignores the displacement of an empty chunk. A final nonempty
+        # chunk may end past Cint capacity, provided its start and count fit.
+        displacements[i] = count == 0 ? Cint(0) : _check_mpi_count(total, "MPI byte displacement")
+        total = Base.Checked.checked_add(total, count)
+    end
+    return displacements, total
+end
+
 function _mpi_alltoallv_bytes(send_chunks::AbstractVector{<:AbstractVector{UInt8}}, comm::MPI.Comm)
     ncomm = MPI.Comm_size(comm)
-    length(send_chunks) == ncomm || throw(
-        ArgumentError(
-            "send_chunks length $(length(send_chunks)) must equal communicator size $ncomm",
-        ),
+    send_counts, send_displacements, sendbuf =
+        _mpi_collective_stage(comm, "MPI byte transport", "send preparation") do
+            Base.require_one_based_indexing(send_chunks)
+            length(send_chunks) == ncomm || throw(
+                ArgumentError(
+                    "send_chunks length $(length(send_chunks)) must equal communicator size $ncomm",
+                ),
+            )
+            counts = Cint[_check_mpi_byte_count(length(chunk)) for chunk in send_chunks]
+            displacements, total = _mpi_byte_displacements(counts)
+            buffer = Vector{UInt8}(undef, total)
+            for i in eachindex(send_chunks)
+                n = Int(counts[i])
+                n == 0 || copyto!(
+                    buffer,
+                    Int(displacements[i]) + 1,
+                    send_chunks[i],
+                    firstindex(send_chunks[i]),
+                    n,
+                )
+            end
+            (counts, displacements, buffer)
+        end
+    recv_counts = MPI.Alltoall(MPI.UBuffer(send_counts, 1), comm)
+    recv_displacements, recvbuf =
+        _mpi_collective_stage(comm, "MPI byte transport", "receive preparation") do
+            displacements, total = _mpi_byte_displacements(recv_counts)
+            (displacements, Vector{UInt8}(undef, total))
+        end
+    MPI.Alltoallv!(
+        MPI.VBuffer(sendbuf, send_counts, send_displacements),
+        MPI.VBuffer(recvbuf, recv_counts, recv_displacements),
+        comm,
     )
 
-    send_counts = Cint[_check_mpi_byte_count(length(chunk)) for chunk in send_chunks]
-    recv_counts = MPI.Alltoall(MPI.UBuffer(send_counts, 1), comm)
-    send_total = sum(Int, send_counts)
-    recv_total = sum(Int, recv_counts)
-
-    sendbuf = Vector{UInt8}(undef, send_total)
-    offset = 1
-    for chunk in send_chunks
-        n = length(chunk)
-        if n > 0
-            copyto!(sendbuf, offset, chunk, firstindex(chunk), n)
-            offset += n
-        end
-    end
-
-    recvbuf = Vector{UInt8}(undef, recv_total)
-    MPI.Alltoallv!(MPI.VBuffer(sendbuf, send_counts), MPI.VBuffer(recvbuf, recv_counts), comm)
-
     chunks = Vector{Vector{UInt8}}(undef, ncomm)
-    offset = 1
     for i = 1:ncomm
         n = Int(recv_counts[i])
-        chunks[i] = n == 0 ? UInt8[] : recvbuf[offset:(offset+n-1)]
-        offset += n
+        offset = Int(recv_displacements[i])
+        chunks[i] = n == 0 ? UInt8[] : recvbuf[(offset+1):(offset+n)]
     end
     return chunks
 end
@@ -1148,7 +1174,11 @@ function _validate_mpi_particle_migration_inputs!(
     ps::ParticleSet{D,T},
     ctx::MPICartesianCommunicator{D},
 ) where {D,T<:Real}
-    local_bad_position = _has_nonfinite_particle_positions(ps)
+    local_bad_position =
+        _mpi_collective_stage(ctx.comm, "MPI particle migration", "storage validation") do
+            _check_particle_storage_axes(ps)
+            _has_nonfinite_particle_positions(ps)
+        end
     any_bad_position = MPI.Allreduce(local_bad_position ? 1 : 0, max, ctx.comm)
     if any_bad_position != 0
         local_bad_position && _validate_migration_positions!(ps)
@@ -1453,7 +1483,8 @@ according to `ctx`'s Cartesian layout. Periodic coordinates are wrapped before
 destination classification; particles outside a nonperiodic global boundary are
 removed. Each rank serializes only the particles needed by each destination and
 exchanges variable-size byte payloads with `MPI.Alltoallv!`, so inbound data is
-received only by its owning rank.
+received only by its owning rank. Recoverable local storage preparation or
+assembly failures are rejected collectively before any population is published.
 """
 function mpi_migrate_particles!(
     ps::ParticleSet{D,T},
@@ -1465,47 +1496,39 @@ function mpi_migrate_particles!(
         throw(ArgumentError("MPI communicator size must equal nranks(ctx.layout)"))
     _validate_mpi_particle_migration_inputs!(ps, ctx)
 
-    _wrap_for_layout!(ps, g, ctx.layout)
-    keep = Int[]
-    by_dest = Dict{Int,Vector{Int}}()
-    lost_local = 0
-
-    @inbounds for p = 1:nparticles(ps)
-        pos = ntuple(d -> ps.x[d][p], D)
-        dest = rank_of_position(pos, g, ctx.layout)
-        if dest === nothing
-            lost_local += 1
-        elseif dest == ctx.logical_rank
-            push!(keep, p)
-        else
-            push!(get!(by_dest, dest, Int[]), p)
+    prepared, send_chunks, sent_local, lost_local =
+        _mpi_collective_stage(ctx.comm, "MPI particle migration", "preparation") do
+            partition = _partition_particle_migration(ps, g, ctx.layout, ctx.logical_rank)
+            kept = _prepare_particle_replacement(ps, partition.keep)
+            _wrap_for_layout!(kept, g, ctx.layout)
+            outgoing = [UInt8[] for _ = 1:ctx.mpi_size]
+            sent = 0
+            for dest in sort!(collect(keys(partition.by_dest)))
+                subset = _subset_particles(ps, partition.by_dest[dest])
+                _wrap_for_layout!(subset, g, ctx.layout)
+                mpi_dest = _mpi_rank_for_logical(ctx, dest)
+                outgoing[mpi_dest+1] = _serialize_mpi_payload(subset)
+                sent += nparticles(subset)
+            end
+            (kept, outgoing, sent, partition.lost)
         end
-    end
 
-    send_chunks = [UInt8[] for _ = 1:ctx.mpi_size]
-    sent_local = 0
-    for dest in sort!(collect(keys(by_dest)))
-        subset = _subset_particles(ps, by_dest[dest])
-        mpi_dest = _mpi_rank_for_logical(ctx, dest)
-        send_chunks[mpi_dest+1] = _serialize_mpi_payload(subset)
-        sent_local += nparticles(subset)
-    end
-
-    _replace_particles!(ps, keep)
-
-    payload_type = ParticleSet{D,T}
     chunks = _mpi_alltoallv_bytes(send_chunks, ctx.comm)
-    received_local = 0
-    for chunk in chunks
-        if !isempty(chunk)
-            incoming = _deserialize_mpi_payload(payload_type, chunk)
-            append_particles!(ps, incoming)
-            received_local += nparticles(incoming)
+    received_local = _mpi_collective_stage(ctx.comm, "MPI particle migration", "assembly") do
+        received = 0
+        for chunk in chunks
+            if !isempty(chunk)
+                incoming = _deserialize_mpi_payload(ParticleSet{D,T}, chunk)
+                append_particles!(prepared, incoming)
+                received += nparticles(incoming)
+            end
         end
+        received
     end
 
     moved_global = MPI.Allreduce(sent_local, +, ctx.comm)
     lost_global = MPI.Allreduce(lost_local, +, ctx.comm)
+    _publish_particle_replacement!(ps, prepared)
     return (;
         moved = Int(moved_global),
         lost = Int(lost_global),

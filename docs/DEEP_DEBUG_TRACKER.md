@@ -27,12 +27,37 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   runtime. Full compiler groups match (30/27 reports); only group ordering
   differs on minimum Julia. Independent review found and repaired the public
   compact-range BigFloat conversion gap, then found no further confirmed defect.
-- [ ] Push this six-path COLL-001 repair separately and require all six
-  exact-SHA GitHub jobs. Full local latest-Julia suite is also running.
-- [ ] Reconstruct and revalidate GROWTH-002 in a separate persistent worktree.
-  Fresh minimum-Julia serial probes retain 30 passes/30 failed integrity
-  checks. Both runtimes reproduce negative MPI byte displacements; repair is
-  underway in the canonical migration and MPI owners.
+- [x] COLL-001 pushed separately as `b251cb7`; all 351 committed Julia blobs
+  match the validated candidate, remote main matches, and held hashes are unchanged.
+- [ ] [Exact-SHA CI for b251cb7](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39885899763):
+  formatting and real 2/4/8-rank MPI are green; both Julia suites remain running.
+  The full local latest-Julia suite is also running.
+- [x] Reconstruct and locally accept GROWTH-002 in a separate persistent worktree.
+  Fresh serial probes retain 30 passes/30 failed integrity checks on both
+  runtimes. Both reproduce negative MPI byte displacements. Frozen V2 passes
+  all six focused MPI runs (2/4/8 ranks on both runtimes); a subsequent safe
+  singleton witness finds a position-read exception outside the collective
+  failure stage. V3 closes that path and passes all six focused MPI runs,
+  8,495 direct assertions and 99,191 combined assertions per runtime. Complete
+  single-thread compiler groups match the parent; the retained threaded entry
+  context differences are reviewed in the plan. Both final full two-rank
+  integration commands pass. All 34 command logs, frozen sources and unchanged
+  committed Julia files are checked. Resource measurements and complete output comparisons are recorded
+  in [the repair plan](MIGRATION_STORAGE_PLAN.md).
+- [ ] Push GROWTH-002 separately and require all six exact-SHA GitHub CI jobs.
+- [ ] Reconstruct ENERGY-010's Float32 field-energy accuracy repair in a separate
+  persistent worktree. Fresh exact-`b251cb7` probes reproduce all four large-grid
+  errors on both runtimes; 120 characterization assertions pass per runtime.
+  Float64 and smaller-grid controls are exact. The shared-owner numerical and
+  resource acceptance gates remain required before any accuracy implementation
+  is promoted.
+- [ ] Repair the independently reproduced periodic migration seam inconsistency.
+  Both runtimes retain 144 control passes and 72 failed invariants against
+  `b251cb7`; the public boundary folds the rounded upper endpoint while rank
+  lookup and migration do not consistently do so. The separate candidate passes
+  the original 216 assertions, 27 concrete compiler checks and real 2/4/8-rank
+  routing on both runtimes. Expanded compatibility gates remain running.
+  [Separate repair plan](PERIODIC_MIGRATION_PLAN.md).
 - [ ] Complete remaining audit/implementation tracks listed below.
 
 Recovery limitation: the earlier `/tmp` candidate and evidence directories are

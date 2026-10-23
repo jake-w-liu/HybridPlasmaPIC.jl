@@ -692,6 +692,7 @@ end
 include("test_mpi_checkpoint.jl")
 include("test_mpi_checkpoint_collections.jl")
 include("test_moment_storage_mpi.jl")
+include("test_migration_storage_mpi.jl")
 include("test_multispecies_mpi.jl")
 
 include("test_evolving_pressure_mpi.jl")

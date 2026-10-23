@@ -18,12 +18,35 @@ function _subset_particles(ps::ParticleSet{D,T}, idx::AbstractVector{<:Integer})
     return out
 end
 
-function _replace_particles!(ps::ParticleSet{D,T}, idx::AbstractVector{<:Integer}) where {D,T}
-    ps.x = ntuple(d -> ps.x[d][idx], D)
-    ps.v = ntuple(c -> ps.v[c][idx], 3)
-    ps.weight = ps.weight[idx]
-    ps.id = ps.id[idx]
-    ps.tag = ps.tag[idx]
+# Construct the exact destination type before publishing any field. Indexing and
+# field conversion can fail for custom storage, including a late id/tag field.
+function _prepare_particle_replacement(
+    ps::P,
+    idx::AbstractVector{<:Integer},
+) where {D,T,P<:ParticleSet{D,T}}
+    prepared = P(
+        ntuple(d -> ps.x[d][idx], D),
+        ntuple(c -> ps.v[c][idx], 3),
+        ps.weight[idx],
+        ps.id[idx],
+        ps.tag[idx],
+        ps.q,
+        ps.m,
+    )
+    _check_particle_storage_axes(prepared)
+    _particle_sets_mightalias(prepared, ps, _particle_backing_mightalias) &&
+        throw(ArgumentError("migration indexed storage must be independent of the source"))
+    _particle_components_mightalias(prepared, _particle_backing_mightalias) &&
+        throw(ArgumentError("migration indexed components must have independent storage"))
+    return prepared
+end
+
+function _publish_particle_replacement!(ps::P, prepared::P) where {P<:ParticleSet}
+    ps.x = prepared.x
+    ps.v = prepared.v
+    ps.weight = prepared.weight
+    ps.id = prepared.id
+    ps.tag = prepared.tag
     return ps
 end
 
@@ -96,6 +119,13 @@ end
 function _validate_particle_migration_inputs!(
     rank_particles::AbstractVector{<:ParticleSet{D,T}},
 ) where {D,T}
+    Base.require_one_based_indexing(rank_particles)
+    owners = Base.IdSet{Any}()
+    for ps in rank_particles
+        ps in owners && throw(ArgumentError("migration ranks must have distinct particle owners"))
+        push!(owners, ps)
+        _check_particle_storage_axes(ps)
+    end
     _validate_rank_particle_species!(rank_particles)
     for ps in rank_particles
         _validate_migration_positions!(ps)
@@ -119,6 +149,30 @@ function _wrap_for_layout!(
     return ps
 end
 
+function _partition_particle_migration(
+    ps::ParticleSet{D,T},
+    g::FourierGrid{D,T},
+    layout::LogicalRankLayout{D},
+    rank::Int,
+) where {D,T}
+    keep = Int[]
+    by_dest = Dict{Int,Vector{Int}}()
+    lost = 0
+    @inbounds for p = 1:nparticles(ps)
+        # Match wrapping before classification without writing through input aliases.
+        pos = ntuple(d -> layout.periodic[d] ? mod(ps.x[d][p], g.L[d]) : ps.x[d][p], D)
+        dest = rank_of_position(pos, g, layout)
+        if dest === nothing
+            lost += 1
+        elseif dest == rank
+            push!(keep, p)
+        else
+            push!(get!(by_dest, dest, Int[]), p)
+        end
+    end
+    return (; keep, by_dest, lost)
+end
+
 """
     migrate_particles!(rank_particles, g, layout) -> (; moved, lost)
 
@@ -129,7 +183,9 @@ classification. Particles outside a nonperiodic axis are removed and counted as
 
 This routine is deliberately local and deterministic; an MPI implementation can
 use the same classification and subset rules before replacing the in-process
-append with send/receive.
+append with send/receive. Distinct mutable population owners are required. All
+results are prepared before publication, so a storage preparation or assembly
+failure leaves every input population unchanged.
 """
 function migrate_particles!(
     rank_particles::AbstractVector{<:ParticleSet{D,T}},
@@ -141,38 +197,29 @@ function migrate_particles!(
     _validate_particle_migration_inputs!(rank_particles)
 
     moves = Tuple{Int,ParticleSet{D,T}}[]
+    prepared = Vector{eltype(rank_particles)}(undef, length(rank_particles))
     moved = 0
     lost = 0
 
     for r = 1:length(rank_particles)
         ps = rank_particles[r]
-        _wrap_for_layout!(ps, g, layout)
-        keep = Int[]
-        lost_idx = Int[]
-        by_dest = Dict{Int,Vector{Int}}()
-
-        @inbounds for p = 1:nparticles(ps)
-            pos = ntuple(d -> ps.x[d][p], D)
-            dest = rank_of_position(pos, g, layout)
-            if dest === nothing
-                push!(lost_idx, p)
-            elseif dest == r
-                push!(keep, p)
-            else
-                push!(get!(by_dest, dest, Int[]), p)
-            end
-        end
-
-        for (dest, idx) in by_dest
-            push!(moves, (dest, _subset_particles(ps, idx)))
+        partition = _partition_particle_migration(ps, g, layout, r)
+        for (dest, idx) in partition.by_dest
+            payload = _subset_particles(ps, idx)
+            _wrap_for_layout!(payload, g, layout)
+            push!(moves, (dest, payload))
             moved += length(idx)
         end
-        lost += length(lost_idx)
-        _replace_particles!(ps, keep)
+        lost += partition.lost
+        prepared[r] = _prepare_particle_replacement(ps, partition.keep)
+        _wrap_for_layout!(prepared[r], g, layout)
     end
 
     for (dest, payload) in moves
-        append_particles!(rank_particles[dest], payload)
+        append_particles!(prepared[dest], payload)
+    end
+    for r = 1:length(rank_particles)
+        _publish_particle_replacement!(rank_particles[r], prepared[r])
     end
 
     return (; moved, lost)
