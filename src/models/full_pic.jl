@@ -478,7 +478,7 @@ function _esirkepov_Jx!(
         if ikm == 0
             tb[m] = zero(Complex{T})         # k=0 handled separately (set after ifft)
         else
-            tb[m] = -(cb[m] / dt) / ikm      # Ĵx_m
+            tb[m] = _spectral_longitudinal_current(cb[m], imag(ikm), dt) # Ĵx_m
         end
     end
     g.iplan * tb

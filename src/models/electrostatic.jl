@@ -164,6 +164,27 @@ end
     isfinite(source) &&
     isfinite(divisor) &&
     !iszero(divisor)
+
+@inline function _spectral_longitudinal_current(source::Complex{T}, k::T, dt::T) where {T}
+    # Legacy continuity uses -source/(dt*ik) on a nonzero derivative mode.
+    # Keep its ordinary two-quotient order, retaining original operands when
+    # either intermediate loses range before the completed modal coefficient.
+    scaled = source / dt
+    result = -scaled / Complex{T}(0, k)
+    # Each source component follows its scalar quotient through the pure
+    # imaginary divisor. A nonzero component must remain normal at both stages.
+    real_normal = (abs(real(scaled)) >= floatmin(T)) & (abs(imag(result)) >= floatmin(T))
+    imaginary_normal = (abs(imag(scaled)) >= floatmin(T)) & (abs(real(result)) >= floatmin(T))
+    safe =
+        isfinite(scaled) &
+        isfinite(result) &
+        (iszero(real(source)) | real_normal) &
+        (iszero(imag(source)) | imaginary_normal)
+    zero_mode = (zero(Complex{T}),)
+    cold = !safe && _spectral_projection_eligible(zero_mode, (k,), -source, dt)
+    return cold ? only(_spectral_exact_projection(zero_mode, (k,), -source, dt)) : result
+end
+
 function _spectral_project_mode(
     a::NTuple{D,Complex{T}},
     k::NTuple{D,T},

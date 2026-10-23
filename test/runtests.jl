@@ -25,6 +25,7 @@ using Test
     include("test_empic_charge_combination.jl")
     include("test_empic_charge_conservation.jl")
     include("test_empic_nyquist_range.jl")
+    include("test_empic_legacy_current_mode.jl")
     include("test_empic_current_combination.jl")
     include("test_hybrid.jl")
     include("test_evolving_pressure.jl")
