@@ -552,6 +552,32 @@ function HybridPlasmaPIC.gather_vector!(
     return out
 end
 
+function _push_uniform_kernel!(
+    x::NTuple{D},
+    v::NTuple{3},
+    E::NTuple{3,Float32},
+    B::NTuple{3,Float32},
+    qm::Float32,
+    dt::Float32,
+    N::UInt32,
+) where {D}
+    thread = Metal.thread_position_in_grid().x
+    # The padded final group can exceed typemax(Int32) at the supported limit.
+    # Reject inactive threads before narrowing the index.
+    thread > N && return nothing
+    p = Int32(thread)
+    @inbounds begin
+        nx, ny, nz = HybridPlasmaPIC.boris_kick(v[1][p], v[2][p], v[3][p], E..., B..., qm, dt)
+        v[1][p] = nx
+        v[2][p] = ny
+        v[3][p] = nz
+        for d = 1:D
+            x[d][p] += dt * v[d][p]
+        end
+    end
+    return nothing
+end
+
 function HybridPlasmaPIC.push_uniform!(
     ps::HybridPlasmaPIC.ParticleSet{D,T,X,V,W,I,G},
     E::NTuple{3},
@@ -567,7 +593,25 @@ function HybridPlasmaPIC.push_uniform!(
     G<:Metal.MtlArray{UInt32,1},
 }
     HybridPlasmaPIC.validate_particle_backend_eltype(Val(:metal), T)
-    return HybridPlasmaPIC._push_uniform_broadcast!(ps, E, B, dt)
+    qm = HybridPlasmaPIC._validated_qm(ps)
+    dtT = HybridPlasmaPIC._require_finite_real("dt", dt, T)
+    electric = HybridPlasmaPIC._validated_uniform_field("E", E, T)
+    magnetic = HybridPlasmaPIC._validated_uniform_field("B", B, T)
+    N = HybridPlasmaPIC.nparticles(ps)
+    N <= typemax(Int32) ||
+        throw(ArgumentError("Metal uniform push supports at most $(typemax(Int32)) particles"))
+    N == 0 && return ps
+    threads, groups = _metal_launch_config(N)
+    Metal.@metal threads = threads groups = groups _push_uniform_kernel!(
+        ps.x,
+        ps.v,
+        electric,
+        magnetic,
+        qm,
+        dtT,
+        UInt32(N),
+    )
+    return ps
 end
 
 function HybridPlasmaPIC.push_gathered!(

@@ -201,13 +201,4 @@ function push_gathered!(
     return ps
 end
 
-function _push_uniform_broadcast!(
-    ps::ParticleSet{D,T},
-    E::NTuple{3},
-    B::NTuple{3},
-    dt::Real,
-) where {D,T}
-    return push_uniform!(ps, E, B, dt)
-end
-
 # ---------------------------------------------------------------- boundaries

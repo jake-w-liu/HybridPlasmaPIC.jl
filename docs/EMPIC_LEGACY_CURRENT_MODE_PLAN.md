@@ -53,7 +53,7 @@ Any failed gate remains a failed candidate; no retry-until-green acceptance.
 - [x] Reproduce both range failures and ordinary controls on both runtimes.
 - [x] Implement the shared-owner modal completion and permanent regression in isolation.
 - [x] Pass numerical, neighboring, compiler, format and resource gates.
-- [ ] Review the exact source, preserve held changes, commit and push separately.
+- [x] Review the exact source, preserve held changes, commit and push separately.
 - [ ] Require all six exact-SHA GitHub jobs.
 
 Fixing only infinities misses the zero-result witness. Multiplying `dt*k` first
@@ -142,4 +142,5 @@ The ordinary 40-profile gates and zero-allocation results remain as recorded
 above. All 273 frozen source/test/extension files still match `source-v5.json`.
 `neighbor-commands-v5-*.json`, `compiler-comparison.json`, and
 `exceptional-review-v5.json` retain the final command, source and log evidence.
-The separately reviewed change is ready for promotion; exact-SHA CI is pending.
+Pushed separately as `7b50b51`; all 358 committed Julia blobs match the validated
+candidate and held hashes are unchanged. [Exact-SHA CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39905400737) is pending.
