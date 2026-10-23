@@ -166,6 +166,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- `PerpShock3D` Crank–Nicolson field steps now solve the frozen-moment induction
+  equation with restarted GMRES and a finite true-residual check. This replaces
+  four unchecked Picard iterations that could amplify resistive decay. The
+  complete step commits only after all subcycles and final fields succeed;
+  failure preserves caller state. `ShockCNWorkspace` reuses trial/solver
+  storage, and explicit tolerances/iteration controls expose solve acceptance.
+  CN requires CPU Float32/Float64 and ordinary particle `Vector`s; RK4 remains
+  the default. The reduced induction model and checkpoint state are unchanged.
+
 - External NHDS and Hybrid-VPIC validation READMEs describe the actual failure
   behavior, comparison scope and acceptance limits. Moving reference revisions
   and unchecked cached output are documented; historical numbers are not

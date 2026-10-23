@@ -335,7 +335,7 @@ end
 # ---- induction RHS + RK4 ---------------------------------------------------
 
 # ∂t B = −∇×E_ind, E_ind = −u×B + ηJ, evaluated at trial field `Bt`.
-function _b_rhs3d!(K::_Vec3{T}, Bt::_Vec3{T}, sh::PerpShock3D{T}) where {T}
+function _b_rhs3d!(K::_Vec3{T}, Bt::_Vec3{T}, sh::PerpShock3D{T}, sat_target::T = sh.B0) where {T}
     _curl3d!(sh.J, Bt, sh)                        # J = ∇×Bt
     ux, uy, uz = sh.u
     Bx, By, Bz = Bt
@@ -352,7 +352,7 @@ function _b_rhs3d!(K::_Vec3{T}, Bt::_Vec3{T}, sh::PerpShock3D{T}) where {T}
     end
     # SAT inflow at x = Lx face: relax B toward B0 ẑ
     τH = sh.τ / sh.sbp.H[sh.nx]
-    B0vec = (zero(T), zero(T), sh.B0)
+    B0vec = (zero(T), zero(T), sat_target)
     @inbounds for c = 1:3, iz = 1:sh.nz, iy = 1:sh.ny
         K[c][sh.nx, iy, iz] += -τH * (Bt[c][sh.nx, iy, iz] - B0vec[c])
     end
@@ -381,28 +381,8 @@ function _rk4_b3d!(sh::PerpShock3D{T}, h::T) where {T}
     return sh
 end
 
-# A-stable trapezoidal (Crank–Nicolson) field substep, solved by fixed-point
-# (Picard) iteration. The field RHS is LINEAR in B (moments are frozen during the
-# substep), so the trapezoid B^{n+1} = B^n + h/2(f(Bⁿ)+f(B^{n+1})) converges in a
-# few iterations at the substep size. This is the conservative/semi-implicit
-# integrator option used to compare integrators on an identical shock.
-function _cn_b3d!(sh::PerpShock3D{T}, h::T; iters::Int = 4) where {T}
-    B = sh.B
-    _b_rhs3d!(sh.k1, B, sh)                       # f(Bⁿ)
-    @inbounds for c = 1:3
-        @. sh.Btmp[c] = B[c]                      # initial iterate = Bⁿ
-    end
-    for _ = 1:iters
-        _b_rhs3d!(sh.k2, sh.Btmp, sh)            # f(iterate)
-        @inbounds for c = 1:3
-            @. sh.Btmp[c] = B[c] + h / 2 * (sh.k1[c] + sh.k2[c])
-        end
-    end
-    @inbounds for c = 1:3
-        @. B[c] = sh.Btmp[c]
-    end
-    return sh
-end
+# The CN solve and its public-step transaction share this state owner.
+include("shock_cn.jl")
 
 # ---- public step / init ----------------------------------------------------
 
@@ -414,11 +394,19 @@ function init_shock3d!(sh::PerpShock3D{T}, ps::ParticleSet{3,T}) where {T}
 end
 
 """
-    step_shock3d!(sh, ps, dt; NB=2)
+    step_shock3d!(sh, ps, dt; NB=2, field_method=:rk4, cn_workspace=nothing,
+                  cn_rtol=100eps(T), cn_atol=0, cn_maxiter=200)
 
 Advance the 3-D perpendicular shock one step: Boris push (gathered E,B) →
 reflect at x=0 / wrap y,z / absorb past x=Lx → deposit moments → subcycle B
-(RK4) → recompute the push E.
+(RK4 or converged Crank–Nicolson) → recompute the push E.
+
+CN uses frozen deposited moments and the existing reduced induction equation.
+Its true linear residual must satisfy `norm(r) ≤ cn_atol + cn_rtol*norm(rhs)`.
+Failure leaves the entire caller state unchanged. CN requires ordinary CPU
+`Vector` particle storage; reuse a [`ShockCNWorkspace`](@ref) to amortize trial
+and solver storage. Nondefault CN controls or a CN workspace with RK4 are rejected. Magnetic
+implicitness does not remove particle/coupling time-resolution requirements.
 """
 function step_shock3d!(
     sh::PerpShock3D{T},
@@ -426,9 +414,45 @@ function step_shock3d!(
     dt::Real;
     NB::Integer = 2,
     field_method::Symbol = :rk4,
+    cn_workspace = nothing,
+    cn_rtol::Real = 100eps(T),
+    cn_atol::Real = 0,
+    cn_maxiter::Integer = 200,
 ) where {T}
     field_method in (:rk4, :cn) || throw(ArgumentError("field_method must be :rk4 or :cn"))
     dtT = _validated_step_dt(T, dt, NB; min_NB = 1, name = "step_shock3d!")
+    if field_method === :rk4
+        cn_workspace === nothing && cn_rtol == 100eps(T) && cn_atol == 0 && cn_maxiter == 200 ||
+            throw(ArgumentError("CN options require field_method=:cn"))
+        return _step_shock3d!(sh, ps, dtT, NB, nothing, zero(T), zero(T), 0)
+    end
+    cycles = _require_positive_intlike("CN NB", NB)
+    rtol, atol, maxiter = _shock_cn_controls(T, cn_rtol, cn_atol, cn_maxiter)
+    ws = cn_workspace === nothing ? ShockCNWorkspace(sh, ps) : cn_workspace
+    _validate_shock_cn_workspace(ws, sh, ps)
+    _copy_shock_cn_state!(ws.trial, sh)
+    _copy_shock_cn_particles!(ws.particles, ps)
+    _step_shock3d!(ws.trial, ws.particles, dtT, cycles, ws, rtol, atol, maxiter)
+    for a in (ws.trial.B..., ws.trial.E..., ws.trial.u..., ws.trial.n, ws.trial.pe)
+        all(isfinite, a) || throw(DomainError(:cn, "nonfinite final shock state"))
+    end
+    # The trial can only remove particles. Plain Vector storage and lengths were
+    # checked before staging, so commit needs no growth or custom array methods.
+    _copy_shock_cn_state!(sh, ws.trial)
+    _copy_shock_cn_particles!(ps, ws.particles)
+    return sh
+end
+
+function _step_shock3d!(
+    sh::PerpShock3D{T},
+    ps::ParticleSet{3,T},
+    dtT::T,
+    NB::Integer,
+    cn_workspace,
+    cn_rtol::T,
+    cn_atol::T,
+    cn_maxiter::Int,
+) where {T}
     dx = sh.sbp.dx
     dy = sh.dy
     dz = sh.dz
@@ -458,6 +482,10 @@ function step_shock3d!(
         xp[p] += dtT * nvx
         yp[p] += dtT * nvy
         zp[p] += dtT * nvz
+        if cn_workspace !== nothing
+            all(isfinite, (xp[p], yp[p], zp[p], nvx, nvy, nvz)) ||
+                throw(DomainError(:cn, "nonfinite trial particle advance"))
+        end
     end
     # boundaries: reflect wall x=0, wrap y,z, absorb x>Lx
     @inbounds for p in eachindex(ps.weight)
@@ -498,8 +526,23 @@ function step_shock3d!(
     end
     deposit_moments3d!(sh, ps)
     hb = dtT / NB
+    cn_workspace !== nothing &&
+        dtT > zero(T) &&
+        hb == zero(T) &&
+        throw(ArgumentError("CN substep interval is not representable; reduce subcycling"))
     for _ = 1:NB
-        field_method === :rk4 ? _rk4_b3d!(sh, hb) : _cn_b3d!(sh, hb)
+        if cn_workspace === nothing
+            _rk4_b3d!(sh, hb)
+        else
+            _cn_b3d!(
+                sh,
+                hb;
+                workspace = cn_workspace,
+                rtol = cn_rtol,
+                atol = cn_atol,
+                maxiter = cn_maxiter,
+            )
+        end
     end
     compute_E3d!(sh)
     return sh
@@ -653,6 +696,10 @@ function run_perp_shock3d(;
     seed::Integer = 1,
     field_method::Symbol = :rk4,
     db_turb::Real = 0.0,
+    cn_rtol::Real = 100eps(Float64),
+    cn_atol::Real = 0,
+    cn_maxiter::Integer = 200,
+    cn_memory::Integer = 20,
 )
     nx >= 3 || throw(ArgumentError("nx must be at least 3"))
     ny >= 1 || throw(ArgumentError("ny must be positive"))
@@ -666,9 +713,26 @@ function run_perp_shock3d(;
     U0 = MAT * vA
     vth = T(vthi)
     sh, ps = _load_shock3d(; MA, nx, ny, nz, Lx, Ly, Lz, Te, γe, vthi, η, nppc, seed, db_turb)
-
+    field_method in (:rk4, :cn) || throw(ArgumentError("field_method must be :rk4 or :cn"))
+    if field_method === :rk4
+        cn_rtol == 100eps(T) && cn_atol == 0 && cn_maxiter == 200 && cn_memory == 20 ||
+            throw(ArgumentError("CN options require field_method=:cn"))
+    else
+        _shock_cn_controls(T, cn_rtol, cn_atol, cn_maxiter)
+    end
+    cn_workspace = field_method === :cn ? ShockCNWorkspace(sh, ps; memory = cn_memory) : nothing
     for _ = 1:nsteps
-        step_shock3d!(sh, ps, T(dt); NB = 2, field_method = field_method)
+        step_shock3d!(
+            sh,
+            ps,
+            T(dt);
+            NB = 2,
+            field_method = field_method,
+            cn_workspace,
+            cn_rtol,
+            cn_atol,
+            cn_maxiter,
+        )
     end
     _require_all_finite("Bz", sh.B[3], "unstable 3-D run")
 

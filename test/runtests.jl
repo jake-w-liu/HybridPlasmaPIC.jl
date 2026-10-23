@@ -76,6 +76,7 @@ using Test
     include("test_shock_ramp.jl")
     include("test_shock2d.jl")
     include("test_shock3d.jl")
+    include("test_shock_cn.jl")
     include("test_phase_final.jl")
     include("test_shock_diag.jl")
     include("test_shock_energy_flux.jl")

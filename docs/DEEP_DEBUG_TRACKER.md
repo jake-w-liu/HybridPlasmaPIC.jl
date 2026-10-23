@@ -225,22 +225,22 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   not a relaxed gate or acceptance claim. V3 queues conditional device commits
   after validation and reads status at the end; it is untested. No gathered-push
   candidate is pushed. [Repair plan](METAL_GATHERED_VALIDATION_PLAN.md).
-- [ ] Repair the shock CN field solve. Both runtimes retain 66 control passes
-  and 50 failed assertions across 28 direct/public profiles. Independent
-  assembled SBP/Fourier RHS and direct-solve residual controls pass; the four
-  fixed iterations fail the trapezoidal residual and solution checks.
+- [x] Locally accept the shock CN field-solve repair. Both runtimes retain the
+  parent's 66 control passes and 50 failures across 28 direct/public profiles.
   **VERIFIED:** public resistive decay at `dt=4` gives maximum field 3.125
   versus direct CN 0.533709 (`shock-cn-solve/baseline-*.toml` and logs).
-  A residual-checked matrix-free solve and complete CN-step transaction are
-  implemented in an isolated candidate; the existing reduced induction model
-  is preserved. V6 passes 666 broad and 24 independent boundary assertions on
-  each runtime, including solver-history aliases, stationary fields, particle
-  absorption/growth and restart. Four RK4 timing profiles exceed the predeclared
-  1.10 flag in the first matrix. The one prescribed reverse-order confirmation
-  passes all four ratios (0.969113 / 0.883692 / 1.087395 / 1.030978), with
-  identical allocations; both matrices remain retained. Complete state controls
-  match. Fresh matched-context compiler captures
-  on both runtimes remain required; lower report counts are not acceptance.
+  The residual-checked matrix-free solve and full-step transaction pass 666
+  broad and 24 independent boundary assertions per runtime, including
+  solver-history aliases, stationary fields, absorption/growth and restart.
+  All RK4 state/allocation comparisons match. Four first-matrix timing flags
+  pass the one prescribed reverse-order confirmation within 1.10; both matrices
+  are retained. Fresh matched compiler records match 28 minimum and all 27
+  latest records, with two removed and one reviewed generic KdV record on
+  minimum Julia. Matched concrete KdV/FFT checks pass 86 assertions and the
+  existing 61-assertion suite in all four processes; complete outputs match.
+  All 363 Julia files in the final composition match the validated candidate.
+  [Contract, limitations and measured repair costs](SHOCK_CN_SOLVE_PLAN.md).
+- [ ] Push the shock CN repair separately and require all six exact-SHA CI jobs.
 - [ ] Resolve the exported memory-status constructor invariant. Both runtimes
   verify that keyword/full-positional construction accepts negative byte counts
   rejected by the checked wrapper (185 passes, ten failed rejection assertions).

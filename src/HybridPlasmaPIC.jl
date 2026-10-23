@@ -10,6 +10,7 @@ module HybridPlasmaPIC
 
 using FFTW
 using LinearAlgebra
+import Krylov
 using Random
 import SpectralOperators
 using SpectralOperators:
@@ -354,6 +355,8 @@ export PerpShock2D,
     shock2d_density_weight,
     shock_surface
 export PerpShock3D,
+    ShockCNWorkspace,
+    ShockCNConvergenceError,
     init_shock3d!,
     step_shock3d!,
     deposit_moments3d!,

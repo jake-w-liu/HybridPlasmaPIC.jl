@@ -249,7 +249,15 @@ A self-contained perpendicular collisionless-shock laboratory:
   grids), rippled-front surface diagnostics, initial upstream
   Alfvénic-fluctuation seeding (3D, `db_turb`), and a campaign layer
   (`shock_campaign_3d`, `production_3d_case`) with bitwise
-  checkpoint/restart.
+  checkpoint/restart. For `PerpShock3D`, `field_method=:cn` solves the frozen-moment
+  induction equation with a checked true residual. Reuse
+  `ShockCNWorkspace(sh, ps)` through `cn_workspace=`; configure `cn_rtol`,
+  `cn_atol` and `cn_maxiter` for the solve. CN supports CPU Float32/Float64 with
+  ordinary `Vector` particle storage. A failed solve leaves the entire caller
+  state unchanged and reports `ShockCNConvergenceError`; nonfinite arithmetic
+  also rejects the step. The default remains RK4. This magnetic solve retains
+  the reduced induction model and explicit particle time-resolution requirements.
+  See the [CN contract and measured costs](docs/SHOCK_CN_SOLVE_PLAN.md).
 - **Jump conditions**: `rankine_hugoniot` / `rh_branches` solve the coplanar
   MHD Rankine–Hugoniot system with residuals of all six conservation laws
   reported; the field-aligned (`Bt = 0`) bifurcation is handled explicitly —
