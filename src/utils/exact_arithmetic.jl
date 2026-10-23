@@ -162,58 +162,91 @@ function _from_exact(
     return negative ? -magnitude : magnitude
 end
 
-# Round the square root directly from a nonnegative exact rational. Integer
-# midpoint comparisons implement nearest, ties to even, independently of the
-# caller's BigFloat rounding mode and without a transcendental intermediate.
-function _sqrt_from_exact(::Type{T}, value::Rational{BigInt}) where {T<:AbstractFloat}
+# Existing collision callers require nearest, ties to even, independently of
+# the caller's BigFloat mode. Scaled callers select rounding explicitly.
+_sqrt_from_exact(::Type{T}, value::Rational{BigInt}) where {T<:AbstractFloat} =
+    _sqrt_from_exact(T, value, Int128(0), RoundNearest, false)
+
+# Round sign*sqrt(value*2^power) without expanding the absolute binary scale.
+# Integer work depends on the rational's bit widths and destination precision.
+function _sqrt_from_exact(
+    ::Type{T},
+    value::Rational{BigInt},
+    power::Int128,
+    mode::RoundingMode,
+    negative::Bool,
+) where {T<:AbstractFloat}
     n, d = numerator(value), denominator(value)
     n < 0 && throw(DomainError(value, "exact square root requires a nonnegative value"))
-    iszero(n) && return zero(T)
+    iszero(d) && throw(ArgumentError("exact square root requires a finite value"))
+    nearest = mode === RoundNearest
+    away = mode === RoundFromZero || (negative ? mode === RoundDown : mode === RoundUp)
+    (nearest || away || mode === RoundToZero || mode === RoundUp || mode === RoundDown) ||
+        throw(ArgumentError("unsupported exact square-root rounding mode"))
+    iszero(n) && return negative ? -zero(T) : zero(T)
     p = precision(T)
     maximum_exponent = exponent(floatmax(T))
     minimum_quantum = exponent(floatmin(T)) - p + 1
+
     e = ndigits(n; base = 2) - ndigits(d; base = 2)
     if e >= 0 ? n < d << e : n << -e < d
         e -= 1
     end
-    root_exponent = fld(e, 2)
-    root_exponent > maximum_exponent && return T(Inf)
+    # Int128 holds sums of the bounded number of native MPFR input exponents,
+    # including cancellation near their Int64 limits.
+    root_exponent = fld(Int128(e) + power, 2)
+    if root_exponent > maximum_exponent
+        magnitude = nearest || away ? T(Inf) : floatmax(T)
+        return negative ? -magnitude : magnitude
+    end
 
-    # MPFR has no subnormals. Decide its half-minimum endpoint before rounding
-    # a significand; a rounded intermediate can otherwise erase the tie side.
     minimum_positive = nextfloat(zero(T))
     minimum_exponent = exponent(minimum_positive)
-    root_exponent < minimum_exponent - 1 && return zero(T)
     if root_exponent < minimum_exponent
-        square_exponent = 2 * (minimum_exponent - 1)
-        above_half = square_exponent >= 0 ? n > d << square_exponent : n << -square_exponent > d
-        return above_half ? minimum_positive : zero(T)
+        above_half = false
+        if nearest && root_exponent == minimum_exponent - 1
+            # Resolve the half-minimum tie before significand rounding. MPFR
+            # has no subnormals; rounding first could erase the side of a tie.
+            shift = power - 2 * Int128(minimum_exponent - 1)
+            above_half = shift >= 0 ? n << Int(shift) > d : n > d << Int(-shift)
+        end
+        magnitude = away || above_half ? minimum_positive : zero(T)
+        return negative ? -magnitude : magnitude
     end
 
-    quantum = max(root_exponent - p + 1, minimum_quantum)
-    square_quantum = 2 * quantum
-    scaled_n, scaled_d = square_quantum >= 0 ? (n, d << square_quantum) : (n << -square_quantum, d)
+    quantum = max(root_exponent - p + 1, Int128(minimum_quantum))
+    shift = power - 2 * quantum
+    # The selected root binade cancels power. These shifts are bounded by the
+    # rational bit widths plus twice the output precision, even for huge power.
+    scaled_n, scaled_d = shift >= 0 ? (n << Int(shift), d) : (n, d << Int(-shift))
     whole = isqrt(div(scaled_n, scaled_d))
-    midpoint_square = scaled_d * (2 * whole + 1)^2
-    four_n = 4 * scaled_n
-    if four_n > midpoint_square || (four_n == midpoint_square && isodd(whole))
+    if nearest
+        midpoint_square = scaled_d * (2 * whole + 1)^2
+        four_n = 4 * scaled_n
+        if four_n > midpoint_square || (four_n == midpoint_square && isodd(whole))
+            whole += 1
+        end
+    elseif away && whole^2 * scaled_d != scaled_n
         whole += 1
     end
-    root_exponent == maximum_exponent && ndigits(whole; base = 2) > p && return T(Inf)
+    if root_exponent == maximum_exponent && ndigits(whole; base = 2) > p
+        return negative ? -T(Inf) : T(Inf)
+    end
     if T === BigFloat
-        # Construct significand and scale together: under a compact MPFR
-        # exponent range the integer alone need not be representable.
+        # The integer alone may lie outside the caller's exponent range. This
+        # signed significand and quantum already lie exactly on the output grid.
         result = BigFloat(0; precision = p)
         ccall(
             (:mpfr_set_z_2exp, Base.MPFR.libmpfr),
             Cint,
             (Ref{BigFloat}, Ref{BigInt}, Clong, Base.MPFR.MPFRRoundingMode),
             result,
-            whole,
-            quantum,
+            negative ? -whole : whole,
+            Clong(quantum),
             Base.MPFR.MPFRRoundNearest,
         )
         return result
     end
-    return ldexp(T(whole), quantum)
+    magnitude = ldexp(T(whole), Int(quantum))
+    return negative ? -magnitude : magnitude
 end

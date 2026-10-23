@@ -136,3 +136,10 @@ compiler trees exactly match reviewed `ba3694c` (24/21 reports). The full archiv
 log hashes, complete trees and zero-length differences are retained under
 `ci/40017267108/`. This revision predates the added per-profile diagnostics.
 The attribution remains open; no billing exception or retry is claimed.
+
+The diagnostic-only successor `f1410b7` passes all six
+[exact-SHA jobs](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40027319048).
+Complete logs retain 625,494 / 625,495 passes and full compiler trees equal to
+the reviewed parent after checked line mappings (24 / 21 reports). There are no
+failed samples in that run to attribute; the historical allocation cause remains
+unresolved, and the failed original revisions remain recorded.

@@ -117,11 +117,20 @@ Faraday:   ∂B/∂t = −∇×E,    ∇·B = 0  (spectrally enforced)
 
 `PlasmaUnits(; n0, B0, mi)` plus `to_SI` / `to_normalized` convert the table's
 quantities between this system and SI; `alfven_speed`, `gyrofrequency`, and
-`inertial_length` give the reference scales. Extreme finite references can
-currently lose representable scales and complete converted values through
-intermediate overflow or underflow. An isolated repair is under validation;
-its contract, retained failures and acceptance gates are tracked in
-[NORM-001](docs/NORMALIZATION_RANGE_PLAN.md).
+`inertial_length` give the reference scales. All six stored references, including
+physical constants supplied to a positional constructor, must be finite and
+positive. Ordinary conversions keep their arithmetic order. Range-sensitive
+conversions evaluate the complete expression before rounding, recovering
+representable results even when the scale itself cannot be represented.
+`BigFloat` arithmetic uses the current working precision and rounding mode;
+typed construction retains the precision of existing `BigFloat` references.
+
+CUDA/Metal array conversion inspects ordinary results on the device and
+synchronizes. Exceptional cases use host arithmetic, then return the original
+backend and shape; zero-dimensional arrays return a scalar. Native Metal Float16/32
+arrays and reference scales have been tested; native NVIDIA execution remains
+unverified. See
+[NORM-001](docs/NORMALIZATION_RANGE_PLAN.md) for coverage, costs and open gates.
 
 ### Electron closures
 
@@ -452,11 +461,11 @@ julia --project=validation validation/run_validation.jl --quick   # or --all
   upstream data).
 - Non-periodic EM-PIC boundaries (`EMPIC` and `EMPIC1D` use periodic geometry).
 - Extreme-range arithmetic remains under repair. The confirmed
-  [normalization](docs/NORMALIZATION_RANGE_PLAN.md) and
-  [linear CN](docs/LINEAR_CN_RANGE_PLAN.md) plans record the failing cases and
-  remaining gates. The shared BigFloat exact-conversion repair has passed its
-  [local acceptance checks](docs/EXACT_BIGFLOAT_CONVERSION_PLAN.md); its
-  exact-revision CI gate remains open.
+  [linear CN](docs/LINEAR_CN_RANGE_PLAN.md) plan records failing cases and
+  remaining gates. The [normalization repair](docs/NORMALIZATION_RANGE_PLAN.md)
+  does not establish range correctness of every compound RayCon expression.
+  The shared BigFloat exact-conversion repair has passed its
+  [local acceptance and exact-revision CI checks](docs/EXACT_BIGFLOAT_CONVERSION_PLAN.md).
 
 ## Running the tests
 

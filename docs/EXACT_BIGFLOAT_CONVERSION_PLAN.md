@@ -1,6 +1,6 @@
 # Complete BigFloat rational conversion
 
-Status: **NUM-002 V1 locally accepted on Julia 1.12.7 and 1.13.2; exact-SHA CI remains required.**
+Status: **NUM-002 V1 pushed as `245e73a`; all six exact-SHA CI jobs and complete compiler review pass.**
 This shared arithmetic repair supports existing exact fallbacks. It does not
 close the separate normalization, linear-CN, concurrency or capability work.
 
@@ -76,5 +76,8 @@ alone is not accepted as a solution to this defect.
   bounded conversion pass. No full-simulator or general MPFR guarantee follows.
 - [x] Push this repair separately as `245e73a`; all 366 committed Julia/Project
   files match the accepted source snapshot, and held radiation hashes are unchanged.
-- [ ] Require all six [exact-SHA CI jobs](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40026749996). Do not mark earlier native
-  subsets or a successful test process as full-project acceptance.
+- [x] All six [exact-SHA CI jobs](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40026749996) pass.
+  Downloaded complete logs verify 625,494 / 625,495 assertions on Julia 1.12.7 /
+  1.13.2. Full compiler trees match reviewed `ba3694c` (24 / 21 reports) after
+  checked unchanged-source line mappings. Archive, log and tree hashes are retained.
+  This closes this repair's CI gate, not the full simulator audit.

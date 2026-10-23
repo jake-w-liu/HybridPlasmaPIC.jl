@@ -6,6 +6,15 @@ import HybridPlasmaPIC
 HybridPlasmaPIC.extension_dependency_module(::Val{:cuda}) = CUDA
 HybridPlasmaPIC.extension_device_array_type(::Val{:cuda}) = CUDA.CuArray
 
+function HybridPlasmaPIC._convert_normalization(
+    value::CUDA.AnyCuArray,
+    kind::Symbol,
+    u::HybridPlasmaPIC.PlasmaUnits,
+    inverse,
+)
+    return HybridPlasmaPIC._convert_normalization_device(value, kind, u, inverse)
+end
+
 _cuda_functional() =
     try
         CUDA.functional()

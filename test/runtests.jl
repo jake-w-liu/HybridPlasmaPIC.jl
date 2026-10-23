@@ -71,6 +71,7 @@ using Test
     include("test_spacecraft.jl")
     include("test_metadata.jl")
     include("test_normalization.jl")
+    include("test_normalization_range.jl")
     include("test_push_long.jl")
     include("test_shock_sim.jl")
     include("test_shock_sweep.jl")

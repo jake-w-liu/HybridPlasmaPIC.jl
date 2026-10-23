@@ -1,7 +1,7 @@
 # Reference-unit normalization range repair
 
-Status: **NORM-001 confirmed on Julia 1.12.7 and 1.13.2; isolated implementation
-in progress, not accepted or promoted.**
+Status: **NORM-001 V7 passes local acceptance on Julia 1.12.7 and 1.13.2;
+exact-revision GitHub CI remains required.**
 This is a prerequisite for accepting the new local collision normalization
 helper, and also affects existing public unit conversion and RayCon adapters.
 
@@ -113,25 +113,28 @@ Device inspection adds synchronization; its complete-call resource and timing
 costs must be measured before acceptance. Native CUDA execution is not verified.
 No candidate is promoted on the strength of partial results.
 
-## Current candidate: V6
+## Current candidate: V7
 
-V6 is isolated and **not promoted**. Its permanent suite passes 98,697 assertions
-per runtime, plus the isolated child suites: 429,664 signed square-root cells,
+The V7 permanent run passes 99,481 assertions per runtime, plus the isolated
+child suites: 429,664 signed square-root cells,
 40,500 endpoint-guard checks, 1,100 working-precision checks, three directed
 endpoint cases and 16 huge-exponent conversions. The child also checks restoration
 of numerical settings. Native Metal coverage includes 624 singleton boundary
 assertions and 288 storage/layout assertions; empty, zero-dimensional, strided
-and transposed arrays are included. The original normalization checks remain.
+and transposed arrays are included. A further 784 flag boundary/lifetime checks
+and 96 complex-device checks pass per runtime. The final Metal-only rerun passes
+all 1,792 assertions after adding the complex cases to the permanent suite.
+The original normalization checks remain.
 
 | Additional validation | Verified result on Julia 1.12.7 and 1.13.2 |
 | --- | --- |
-| Neighboring arithmetic, collisions, ionization and RayCon | 141,936 passes each on V5; V6 changes only normalization guards/special outputs |
+| Neighboring arithmetic, collisions, ionization and RayCon | 141,936 passes each on V5; V6/V7 changes only normalization guards, special outputs and device inspection |
 | Four-thread numerical-context preservation | 6,525 passes each, with each worker's MPFR exponent limits set and restored explicitly |
 | Exceptional resource profiles | 720 complete conversions each, 2,880 checks, zero measured compilation; maximum 59,200 bytes against the frozen significand/precision bound |
 | Concrete compiler analysis | All 60 signatures have zero reports each |
 | Package quality/compiler | Aqua and JET gates pass; full 29/27 report trees equal the reviewed parent after exact unchanged-line mapping |
 | CUDA 6.4.1 interface and joint extension loading | Ten routing checks and one ambiguity check each; native NVIDIA execution unavailable |
-| Final ordinary timing/allocation profiles | First frozen run stops at its Metal zero-compilation gate: 630 passes / 12 failures in controls; zero candidate profiles, latest runtime not run |
+| Final ordinary timing/allocation profiles | V2 passes all 306 profiles and six controls per runtime; all measured compilation is zero and all predeclared resource limits pass. V1 failures remain retained |
 
 Earlier failed candidates remain evidence. V3's expanded layout checks exposed
 wrapper dispatch and zero-dimensional return changes; V4 fixes these. V4's
@@ -151,15 +154,54 @@ precision while leaving constructor reference precision intact. Both original
 regressions now pass, alongside negative, nonfinite and complex controls.
 
 Full command records, source snapshots, complete compiler trees and results are
-in `normalization-range/*-v6-*` and `compiler-v6-review.json`. The resource
+in `normalization-range/*-v7-*` and `compiler-v7-review.json`. The resource
 protocol is `resources-v6.md`; the original failures are never overwritten.
-The fixed run retains all samples. Identical/doubled-work ratio controls pass,
-but warmed Metal calls report nonzero aggregate compilation time, including one
-substantial calibration event. Attribution is under investigation; this is not
-a valid timing pass. No unchanged retry or relaxed gate is accepted. The 306
-candidate profiles per runtime remain unrun. Performance review, final
-documentation/diff review, separate push and all six exact-SHA CI jobs remain
-required. CAP-001 and broader GPU evolution remain open.
+The failed V1 fixed run retains all samples: its six ratio controls pass, but
+12 zero-compilation assertions fail before any candidate profiles run.
+**VERIFIED:** native traces identify Metal's shape-specialized broadcast
+transition after ten calls, beyond the original three warmups. Separate
+component probes reproduce recurring inference in `Metal.return_type` used by
+`mapreduce`; changing warmup alone cannot remove that per-call query. Dependency
+sources and full probes are retained as `gpu-compile-counter-v2-*` and `-v3-*`.
+
+V7 replaces that Metal inspection reduction with an initialized, per-call
+atomic flag using the same numerical predicate. It covers empty inputs,
+thread-group boundaries, concurrent flag writes and lifetime through
+synchronization. All 60 warmed compilation observations per runtime are zero.
+CUDA retains the generic reduction. This change does not promote the separate
+held gathered-push implementation.
+
+The frozen V2 run passes all 210 CPU and 96 Metal profiles on each runtime,
+plus six identical/doubled-work controls. Every calibration and paired sample
+has zero measured compilation. Machine CPU calls add no bytes; BigFloat public
+conversions stay at or below parent allocation, while the three accessors use
+at most the predeclared one-temporary allowance (80/96/112 bytes at 24/128/256
+bits). Metal adds at most 1,716 / 1,682 host bytes. No failed sample was removed,
+no unchanged run retried, and no threshold relaxed.
+
+Measured ratios of median complete-call times against the unchanged parent:
+
+| Profile group | Julia 1.12.7 ratio range | Julia 1.13.2 ratio range |
+| --- | --- | --- |
+| CPU Float16 | 1.1398–4.0971 | 1.1085–4.3082 |
+| CPU Float32 | 1.2252–3.6217 | 1.1846–3.4115 |
+| CPU Float64 | 1.2967–2.5934 | 1.1177–2.6213 |
+| CPU BigFloat p=24 | 0.1235–1.4393 | 0.1230–1.6082 |
+| CPU BigFloat p=128 | 0.0886–1.3157 | 0.1061–1.3199 |
+| CPU BigFloat p=256 | 0.0854–1.3394 | 0.0818–1.2406 |
+| Native Metal, all 96 profiles | 1.4830–2.6198 | 1.7813–2.4828 |
+
+These ratios report local costs, including synchronization for Metal. The
+predeclared correctness-repair protocol has validity and allocation limits,
+with no latency-improvement claim. The measured CPU and device regressions are
+open optimization work. All samples and complete outputs remain in
+`costs-v2-*.toml` and `.outputs`; `cost-v2-review.json` checks every frozen gate.
+A separate output review compares values, types and stored precision.
+
+The final source/caller review finds no additional confirmed defect in this
+bounded conversion surface. API docstring edits preserve the executable AST;
+formatting and relative documentation links pass. Exact-revision GitHub CI
+remains required. CAP-001 and broader GPU evolution remain open.
 
 RayCon has additional compound temperature, frequency and amplitude conversions
 in its adapter. Repairing these shared accessors alone does not establish the
@@ -176,30 +218,50 @@ range correctness of every RayCon expression; that integration remains open.
   constants. Eight huge-exponent BigFloat profiles retain 20 passes / 16 failures.
   Precision, rounding and exponent limits are restored after characterization.
 - [x] Record constructor/zero-sign compatibility before the isolated edit.
-  The implementation and its full validation remain unaccepted. The
+  Local implementation and validation pass; exact-revision CI remains open. The
   [shared BigFloat materializer repair](EXACT_BIGFLOAT_CONVERSION_PLAN.md)
-  now passes local acceptance; its exact-SHA CI remains a dependency before
-  accepting the complete-scale implementation.
-- [ ] Repair the canonical complete scale, retaining ordinary outputs and types
+  now passes local acceptance and all six exact-SHA CI jobs with full compiler
+  review. The complete-scale implementation still has its own acceptance gates.
+- [x] Implement the canonical complete scale in the isolated candidate, retaining ordinary outputs and types
   where the existing evaluation is safe. Reuse exact conversion/square-root
   ownership where applicable. Bound exceptional work; avoid expanding enormous
   BigFloat exponents into unbounded rational integers or changing global MPFR
   state. Do not patch only the collision normalization helper.
 - [x] Reproduce full-value conversion failures separately from scale failures.
-- [ ] Complete scalar/container/device compatibility checks before accepting
+- [x] Complete scalar/container/device compatibility checks for
   the public conversion implementation, including irrational promotion, final
   output endpoints, GPU staging, empty arrays, views and zero-dimensional arrays.
-- [ ] Add independent boundary and exponent matrices, subnormal outputs,
+- [x] Add independent boundary and exponent matrices, subnormal outputs,
   forward/inverse scalar and array checks, and retained-precision inputs.
   Reject zero-clamping, independent-factor rounding and round-trip-only patches
   with explicit negative controls.
-- [ ] Run the original witness unchanged, existing normalization/RayCon tests,
-  collision unit-equivalence tests on their final source, concrete/full compiler
-  comparisons and threaded state checks on both Julia versions.
-- [ ] Freeze ordinary and exceptional complete-call resource/cost profiles before
-  measuring. Keep all failed measurements; no timing retries or relaxed gates.
-- [ ] Update API docs, README and changelog; review the final diff; push this fix
-  separately to main and require all six exact-SHA CI jobs.
+- [x] Run the corrected independent witness, existing normalization/RayCon tests,
+  concrete/full compiler comparisons and threaded state checks on both versions.
+  The original failed inverse-subnormal fixture remains recorded; its oracle
+  correction and independent decimal check are documented above.
+- [ ] Run collision unit-equivalence tests on the final collision source; this
+  remains part of CAP-001 acceptance, not evidence supplied by NORM-001.
+- [x] Freeze and pass exceptional resource profiles; retain every failed ordinary
+  measurement and keep the original validity/resource thresholds.
+- [x] Execute and review all final ordinary complete-call cost profiles.
+- [x] Update API docs, README and changelog; review final source, callers and diff.
+- [x] Integrate this repair as a separate change on main.
+- [ ] Require all six exact-SHA CI jobs for this repair.
+
+## Measured optimization follow-up
+
+- [ ] Profile CPU scalar/vector paths against this accepted repair. The worst
+  observed Float16 profile is over four times the old parent. Test whether
+  separating array conversion and range inspection reduces complete-call cost;
+  this is an untested design hypothesis, not an attributed cause.
+- [ ] Profile native Metal conversion and inspection. Test a single fused device
+  kernel against the two-stage implementation, preserving the exact predicate,
+  signed/subnormal behavior, storage/layout, per-call ownership and host fallback.
+- [ ] Before each implementation's measurements, freeze all 306 profiles, both
+  runtime lanes, controls and allocation limits. Require no profile above 1.25
+  times this repair's cost, and at least a 20% reduction in the specifically
+  targeted worst profiles. Retain every failed candidate. These are future
+  optimization targets; they do not retroactively change V2's declared gates.
 
 This plan does not establish correctness of the unaccepted collision candidate
 or close CAP-001. Its corrected unit-equivalence and coupled-channel tests still

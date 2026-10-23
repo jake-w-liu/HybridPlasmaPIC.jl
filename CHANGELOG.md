@@ -166,6 +166,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Unit conversion evaluates complete physical expressions when intermediate
+  scales or final operations lose floating-point range. The shared exact-root
+  owner separates significands from exponents, preserving signed endpoints and
+  working BigFloat precision/rounding without changing numerical settings.
+  All six stored `PlasmaUnits` fields now require finite positive values,
+  including positional construction. Ordinary arithmetic order is retained.
+  CUDA/Metal adapters keep device layout and backend through exceptional host
+  staging; ordinary device inspection synchronizes. Native Metal boundary,
+  storage, complex-value and flag-lifetime regressions pass on Julia 1.12.7 and
+  1.13.2; native CUDA execution remains unverified. See the
+  [normalization plan](docs/NORMALIZATION_RANGE_PLAN.md) for costs and open gates.
+
 - Shared exact BigFloat fallbacks round the complete finite rational even when
   its integer factors exceed the active MPFR exponent range. Guard/sticky bits
   preserve the caller's precision and rounding mode through compact overflow

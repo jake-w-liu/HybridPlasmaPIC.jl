@@ -6,6 +6,44 @@ import Metal
 HybridPlasmaPIC.extension_dependency_module(::Val{:metal}) = Metal
 HybridPlasmaPIC.extension_device_array_type(::Val{:metal}) = Metal.MtlArray
 
+function HybridPlasmaPIC._convert_normalization(
+    value::Metal.WrappedMtlArray,
+    kind::Symbol,
+    u::HybridPlasmaPIC.PlasmaUnits,
+    inverse,
+)
+    return HybridPlasmaPIC._convert_normalization_device(value, kind, u, inverse)
+end
+
+function _normalization_range_flag_kernel!(flag, value, result)
+    i = Int(Metal.thread_position_in_grid().x)
+    stride = Int(Metal.threads_per_grid().x)
+    while i <= length(value)
+        if HybridPlasmaPIC._needs_complete_normalization(value[i], result[i])
+            Metal.atomic_fetch_or_explicit(pointer(flag, 1), UInt32(1))
+        end
+        i += stride
+    end
+    return nothing
+end
+
+function HybridPlasmaPIC._normalization_device_needs_complete(
+    value::Metal.WrappedMtlArray,
+    result::Metal.WrappedMtlArray,
+)
+    isempty(value) && return false
+    # A known Boolean predicate needs no reflective reduction-type inference.
+    # Each call owns an initialized flag, kept alive until GPU completion.
+    flag = Metal.MtlArray{UInt32,1,Metal.SharedStorage}(UInt32[0])
+    kernel = Metal.@metal launch = false _normalization_range_flag_kernel!(flag, value, result)
+    threads = min(length(value), kernel.maxthreads)
+    # Metal's grid dimensions are UInt32; the kernel strides over larger inputs.
+    groups = cld(min(length(value), Int(typemax(UInt32)) - threads), threads)
+    kernel(flag, value, result; threads, groups)
+    Metal.synchronize()
+    return !iszero(only(Array(flag)))
+end
+
 _metal_functional() =
     try
         !isdefined(Metal, :functional) || getproperty(Metal, :functional)()
