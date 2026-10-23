@@ -11,6 +11,8 @@ using Test
     include("test_migration.jl")
     include("test_migration_storage.jl")
     include("test_migration_storage_mpi.jl")
+    include("test_periodic_migration.jl")
+    include("test_periodic_migration_mpi.jl")
     include("test_particle_growth.jl")
     include("test_ionization_growth_alias.jl")
     include("test_pencil_decomposition.jl")

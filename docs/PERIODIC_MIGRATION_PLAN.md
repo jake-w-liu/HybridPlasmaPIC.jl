@@ -1,6 +1,7 @@
 # Periodic seam consistency
 
-Status: confirmed on exact `b251cb7`; separate from GROWTH-002 storage integrity.
+Status: final local acceptance passes on Julia 1.12.7 and 1.13.2; separate
+promotion and all six exact-commit GitHub CI jobs remain required.
 Updated 2026-10-23.
 
 ## Verified behavior
@@ -39,10 +40,10 @@ rank-arithmetic or integrator change is part of this repair.
 
 - [x] Reproduce the public inconsistency on both supported runtimes.
 - [x] Implement the shared coordinate owner in a separate candidate.
-- [ ] Check Float32/64 and 1D–3D seams, nonzero lower bounds, mixed periodic
+- [x] Check Float32/64 and 1D–3D seams, nonzero lower bounds, mixed periodic
   layouts, ordinary bit compatibility, unchanged payloads and storage rollback.
 - [x] Run real 2/4/8-rank seam routing and subsequent migration controls.
-- [ ] Check neighboring boundaries, rank lookup, migration, deposition and
+- [x] Check neighboring boundaries, rank lookup, migration, deposition and
   MPI/checkpoint behavior; compare complete compiler reports and allocations.
 - [ ] Commit and push separately, then require all six exact-SHA CI jobs.
 
@@ -55,8 +56,10 @@ coordinates, nonperiodic loss and subsequent valid migration. Source and log
 hashes are retained under `migration-seam` in the persistent evidence directory.
 
 The expanded neighboring suite passes 54,480 assertions on each runtime.
-The complete single-thread package compiler comparison and
-ordinary-output/allocation matrix remain in progress. The latter
+The complete single-thread package compiler comparison passes, retaining all
+30/27 parent reports and group order. The ordinary-output/allocation matrix
+passes 667,584 assertions in each of its four commands. All 108 complete output
+and allocation samples match the parent per runtime. The matrix
 covers Float32/64, 1D–3D, empty/16/1,024 particles per rank, periodic/mixed
 layouts, random interior positions and whole-box offsets. Rank operations must
 retain zero warmed allocation; public boundary and migration allocations and
@@ -70,3 +73,10 @@ its unchanged `_validated_open_interval` owner: 640 bytes per axis on minimum
 Julia and 384 on latest. The corrected, separately retained harness requires
 the same measured validation allocation and exact parent/candidate allocation
 equality. Production source and numerical assertions are unchanged.
+
+Final review verifies that the MPI storage/collective protocol and migration
+prepare/publish logic remain intact. The seven owned files are frozen;
+348 other committed Julia files match parent `7c6e1e4`. All accepted native
+observations, log hashes and comparisons are checked in
+`migration-seam/final-verification.json`. The full review also names the tests
+that reject rank-only, storage-only and nonperiodic-folding incomplete fixes.

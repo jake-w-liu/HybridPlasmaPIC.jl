@@ -115,7 +115,7 @@ function rank_of_position(
         isfinite(xd) || throw(ArgumentError("x[$d] must be finite"))
         Ld = g.L[d]
         if layout.periodic[d]
-            xd = mod(xd, Ld)
+            xd = _periodic_coordinate(xd, zero(T), Ld, Ld)
             c = floor(Int, xd * layout.ranks[d] / Ld) + 1
             clamp(c, 1, layout.ranks[d])
         elseif xd < zero(T) || xd >= Ld

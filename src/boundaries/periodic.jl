@@ -1,5 +1,13 @@
 # Periodic.jl — periodic particle boundary (from particles.jl)
 
+# The caller supplies a validated interval and its loop-invariant width.
+# Floating-point mod or the translated result can round to hi; all periodic
+# consumers use the same half-open interval convention in that case.
+@inline function _periodic_coordinate(x, lo, hi, width)
+    wrapped = lo + mod(x - lo, width)
+    return wrapped >= hi ? lo : wrapped
+end
+
 """
     apply_periodic!(ps, lo::NTuple{D}, hi::NTuple{D})
 
@@ -19,11 +27,7 @@ function apply_periodic!(ps::ParticleSet{D,T}, lo::NTuple{D}, hi::NTuple{D}) whe
         L = h - l
         xd = ps.x[d]
         for p in eachindex(xd)
-            xd[p] = l + mod(xd[p] - l, L)
-            # float rounding can land exactly on hi (mod can return L, and l + m
-            # can round up to hi); x==hi is the same physical point as lo — fold
-            # it back so the half-open box [lo,hi) contract holds.
-            xd[p] >= h && (xd[p] = l)
+            xd[p] = _periodic_coordinate(xd[p], l, h, L)
         end
     end
     return ps

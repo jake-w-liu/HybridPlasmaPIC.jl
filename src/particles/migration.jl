@@ -142,7 +142,7 @@ function _wrap_for_layout!(
         if layout.periodic[d]
             Ld = g.L[d]
             for p = 1:nparticles(ps)
-                ps.x[d][p] = mod(ps.x[d][p], Ld)
+                ps.x[d][p] = _periodic_coordinate(ps.x[d][p], zero(T), Ld, Ld)
             end
         end
     end
@@ -159,8 +159,8 @@ function _partition_particle_migration(
     by_dest = Dict{Int,Vector{Int}}()
     lost = 0
     @inbounds for p = 1:nparticles(ps)
-        # Match wrapping before classification without writing through input aliases.
-        pos = ntuple(d -> layout.periodic[d] ? mod(ps.x[d][p], g.L[d]) : ps.x[d][p], D)
+        # Rank lookup owns periodic wrapping; classification does not write input storage.
+        pos = ntuple(d -> ps.x[d][p], D)
         dest = rank_of_position(pos, g, layout)
         if dest === nothing
             lost += 1

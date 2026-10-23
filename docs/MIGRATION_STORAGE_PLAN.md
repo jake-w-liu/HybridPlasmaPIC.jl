@@ -1,8 +1,9 @@
 # Particle migration storage integrity
 
 Status (2026-10-23): **GROWTH-002 final V3 passes all local acceptance gates**
-on Julia 1.12.7 and 1.13.2. Its separate main push still requires all six
-exact-commit GitHub CI jobs. GROWTH-001's append validation is a separate
+on Julia 1.12.7 and 1.13.2 and is pushed separately as `7c6e1e4`.
+[Exact-commit CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39892881923)
+has passed formatting; the other five jobs remain running. GROWTH-001's append validation is a separate
 accepted fix (`16c9776`) and does not repair this finding.
 
 Recovery note (2026-10-23): the uncommitted `/tmp` candidate and evidence
