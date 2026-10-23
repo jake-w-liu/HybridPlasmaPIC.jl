@@ -37,10 +37,11 @@ approval is presumed necessary for work already authorized by the active goal.
 ## Assessment boundaries and evidence
 
 This pass reads source, call sites, public contracts, tests and primary method
-references. **It runs no Julia, GPU, MPI or timing workload**, to preserve the
-exclusive measurement window of another audit track. “Verified” below means
+references. **The initial assessment ran no Julia, GPU, MPI or timing workload**,
+to preserve another track's measurement window. “Verified” in its source matrix means
 the stated source/contract fact was inspected, not that all numerical behavior
-was rerun. Runtime risks remain hypotheses with explicit settling tests.
+was rerun. Subsequent runtime findings are recorded in the live audit tracker
+and stage status. Unmeasured risks remain hypotheses with explicit settling tests.
 
 Line references below are anchored to the revision above. Recheck them when a
 dependent slice changes the owner. Search methods, exports and callers as well
@@ -202,16 +203,16 @@ implementation agent is explicitly unassigned, not implicitly running.
 | 003A/B local storage + distributed operators | Agent unassigned; MPI/domain/pencil owners, Pencil extension | Storage/layout contract; existing real-MPI infrastructure | Planned; replicated moments and FFT wrapper inspected | Specify index/halo ownership and implement analytic distributed-operator tests |
 | 003C/D distributed coupled solvers | Agent unassigned; MPI orchestration + canonical solver owners | 003A/B and accepted serial solver | Planned; full-grid allreduce reference inspected | Compose a periodic hybrid step without replicated grids and test 2/4/8 ranks |
 | 003E cluster scale/restart | Agent unassigned; benchmark/MPI/I/O | 003C/D; real multi-node allocation | Hardware campaign pending | Freeze strong/weak scaling and changed-layout restart workloads before requesting/running resources |
-| 004A GPU primitive closure | Root; extensions and coupling | Current kernel gates and exact-SHA CI | Metal uniform push and NGP pushed; gathered-push validation audit active | Complete gathered-push hardware witness, then enumerate remaining CUDA/Metal primitive paths |
+| 004A GPU primitive closure | Root; extensions and coupling | Current kernel gates and exact-SHA CI | Metal uniform push and NGP pushed; gathered V1 passes behavior but fails allocation gate; V2 active | Complete public V2 hardware/compiler/cost gates, then enumerate remaining CUDA/Metal primitive paths |
 | 004B/C resident solver families | Agent unassigned; fields, integrators/models, extensions | 004A; storage/operator contract; actual device operators | Planned; concrete host arrays inspected | Implement one complete resident hybrid path and trace all transfers/scalar access |
 | 004D multi-GPU | Agent unassigned; MPI + device extensions | 003C/D, 004B/C; real devices/network | Hardware/integration pending | Establish buffer ownership/staging contract and matched device/rank oracle |
-| 005A existing CN-labelled paths | `/root/completeness_architecture`; shock3d and integrator stability owners | Independent linear-system oracle | Audit active; runtime hypothesis; fixed four-iterate source verified | Compare residual/amplification with direct linear solve and public shock stepping |
+| 005A existing CN-labelled paths | `/root/completeness_architecture`; shock3d and integrator stability owners | Independent linear-system oracle | Confirmed residual/solution failures on both runtimes; repair active | Implement residual-checked solve and full-step rollback; retain direct-solve oracle |
 | 005B/C implicit hybrid | Agent unassigned; integrator + moment/Ohm owners | Derived discrete conservation and solve contract | Planned | Freeze unknowns/residual, independent small-system oracle and failed-solve transaction |
 | 005D implicit EM / parallel geometry | Agent unassigned; EM/parallel/geometry owners | 005B/C method evidence; accepted relevant operators | Planned | Derive EM-specific continuity/work residual before adding a public method |
 | 006A curvilinear solver | Agent unassigned; mesh/coupling/model/I/O | Compatible geometry operators, chosen physical model | Partial primitives; no production callers found | Specify coordinate/component/volume conventions and coupled manufactured problem |
 | 006B self-consistent gyrokinetics | Agent unassigned; gyrokinetics/coupling/field/I/O | Explicit model choice; 006A for toroidal claim | Partial primitives; no distribution/field integration found | Fix electrostatic model, marker/weight state and polarization equation |
 | 006C adaptive plasma hierarchy | Agent unassigned; AMR/coupling/model/I/O | Composite field method; 002/003/004 only where claimed | Partial scalar-level primitives | Design static ES hierarchy and crossing/self-force oracle before dynamic refinement |
-| 007A/B reference provenance + production dispersion | Agent unassigned; validation/reference owners | Source/network/toolchain; accepted production solver | Planned; moving clones and eigenvalue-only comparison verified | Pin references and define time-series fitting/refinement contract |
+| 007A/B reference provenance + production dispersion | Agent unassigned; validation/reference owners | Source/network/toolchain; accepted production solver | Moving clones, unchecked cache reuse and eigenvalue-only comparison verified; READMEs reconciled | Pin references and define time-series fitting/refinement contract |
 | 007C–E profiles, new physics, comparative costs | Agent unassigned; validation/benchmark owners | Accepted corresponding capability; datasets/hardware | Existing scalar comparisons inspected; campaigns unrun here | Freeze matched inputs/diagnostics/uncertainty and preserve raw reference outputs |
 | 008 ES/EM arbitrary species | Scope proposal; root selects implementation agent | Species charge/time-level design; existing EM current owner | Current two-species restriction verified | Fix compatibility/background/multirate contract, then implement ES collection slice |
 | 009 full-Hall multidimensional shocks | Scope proposal; root selects implementation agent | Full mixed-operator/field-boundary balance; 005 optional | Deliberate reduced induction verified | Derive full induction and SAT budget; build transverse-mode witness |
@@ -639,7 +640,7 @@ the ES/EM/GK model's responsibility, not an implicit property of a fluid closure
 
 | Candidate | Verified source observation | Exact settling work |
 | --- | --- | --- |
-| Four-iterate shock CN may violate implicit stability/conservation expectations | shock3d:389–404 has a fixed iteration count and no residual test | Build small frozen-moment linear operator; compare one-step map to direct trapezoidal solve across advection/resistive/SAT stiffness; record residual, amplification and errors, then exercise public `step_shock3d!` |
+| Converged shock field solve may still leave coupled energy/accuracy limits | The fixed-iteration residual defect is now reproduced on both runtimes; CAP-005A owns its repair. The reduced SBP/SAT and particle splitting remain separate contracts | Verify the accepted residual solve, then assess whole-step temporal convergence, boundary work, diffusion energy and particle/field exchange; a converged linear solve alone is not a global energy-stability proof |
 | Backend integration may introduce hidden host copies or unsupported arithmetic | fields/workspaces currently `Array`; GPU helpers cover only selected primitive calls | Real-device complete-step profile with scalar indexing disabled, transfer traces, allocation/memory ledger and all exceptional validation paths |
 | Local weighted cancellation may remain despite correct global charge | Existing roadmap:690 records an unresolved local moment accuracy assessment | Independent exact per-cell deposition oracle across shapes/weights; serial/thread/device comparisons and coupled non-DC field response |
 | Existing validation numbers may not replay on current dependencies | Source has historical numerical prose; this pass did not rerun campaigns | Immutable source/dependency replay with raw outputs, checksums and fitting scripts; classify unavailable artifacts rather than copying claims |

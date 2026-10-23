@@ -1,7 +1,7 @@
 # Metadata subprocess test environment
 
-Status: 2026-10-23; final local validation passes. Separate push and exact-SHA
-GitHub CI remain required.
+Status: 2026-10-23; pushed separately as `2993f5a`. All six exact-SHA
+GitHub jobs pass; complete logs and compiler trees are reviewed.
 
 ## Pre-edit brief
 
@@ -38,7 +38,7 @@ GitHub CI remain required.
 - [x] Repair the launch environment without changing checksum assertions.
 - [x] Pass external-environment and checkout-environment metadata runs on both runtimes.
 - [x] Verify formatting and unchanged production files; held hashes are checked at promotion.
-- [ ] Commit and push separately; require exact-SHA GitHub CI.
+- [x] Commit and push separately; require exact-SHA GitHub CI.
 
 Skipping the child, ignoring its exit status, and selecting an arbitrary
 installed checkout would each invalidate this test. The final diff must retain
@@ -68,3 +68,12 @@ Persistent evidence:
 `baseline-commands.json`, `commands.json`, `composed-commands.json`,
 `final-verification.json` and the full logs. The earlier full-suite error remains
 recorded in `../full1132.log`; focused replay does not turn that failed run green.
+
+## GitHub verification
+
+[Run 39897483287](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39897483287)
+passes both Julia suites, real 2/4/8-rank MPI and formatting. Complete logs
+record 614,784 / 614,785 assertions on Julia 1.12.7 / 1.13.2. Full compiler
+trees match `5c2796b` (23 / 22 reports); these existing reports remain tracked.
+Archive and all six log hashes are retained in
+`../HybridPlasmaPIC-audit-evidence/2026-10-23/ci/39897483287/complete-log-review.json`.

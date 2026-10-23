@@ -73,10 +73,11 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   files are checked. [Acceptance details](MAGNETIC_ENERGY_ACCURACY_PLAN.md).
 - [x] ENERGY-010 pushed separately as `5c2796b`; all 357 committed Julia files
   match the validated candidate and held hashes are unchanged.
-- [ ] [Exact-SHA CI for 5c2796b](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39897058507):
-  formatting, real 2/4/8-rank MPI and latest Julia are green; minimum Julia
-  remains running. The downloaded latest log verifies 614,785 passing
-  assertions and the same complete compiler tree after checked source-line shifts.
+- [x] [All six exact-SHA CI jobs for 5c2796b pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39897058507).
+  Downloaded complete logs verify 614,784 / 614,785 passing assertions on Julia
+  1.12.7 / 1.13.2. Both full compiler trees retain 23 / 22 diagnostic messages
+  and match the reviewed parent after checked source-line shifts. All six
+  job-log hashes and the archive hash are retained.
 - [x] Locally accept the separately repaired periodic migration seam inconsistency.
   Both runtimes retain 144 control passes and 72 failed invariants against
   `b251cb7`; the public boundary folds the rounded upper endpoint while rank
@@ -111,8 +112,10 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   final `5c2796b` composition. [Plan](TEST_SUBPROCESS_ENVIRONMENT_PLAN.md).
 - [x] Metadata harness repair pushed separately as `2993f5a`; all 357 committed
   Julia files match the validated candidate and held hashes are unchanged.
-- [ ] [Exact-SHA CI for 2993f5a](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39897483287):
-  formatting and real 2/4/8-rank MPI are green; both Julia suites remain running.
+- [x] [All six exact-SHA CI jobs for 2993f5a pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39897483287).
+  Complete logs verify 614,784 / 614,785 passing assertions on Julia 1.12.7 /
+  1.13.2. Both full compiler trees match the field-energy CI baseline (23 / 22
+  reports); all six log hashes are retained.
 - [x] Locally accept PIC-007, the separately reproduced legacy longitudinal-current
   modal quotient loss. Both runtimes pass 24 baseline characterization checks.
   V1/V2/V3/V4 retain failed cost matrices. V4 passes 433,206 guard comparisons
@@ -146,8 +149,14 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   V3 passes the expanded untimed gates but its fixed timing screen rejects
   Float64/4/unit/iso at ratio-of-medians 1.524693 (limit 1.5); paired median
   1.458859 passes. Thirty Float32 profiles pass; the remaining 29 minimum
-  profiles and all 60 latest profiles are unrun. V4's helper-inlining change
-  is an optimization hypothesis under untimed testing, not an accepted result.
+  profiles and all 60 latest profiles are unrun. V4 passes all untimed gates
+  and 66 concrete compiler checks per runtime, but its fixed screen rejects
+  Float32/4/unit/polyhalf at median ratios 1.525357 / 1.535156. The remaining
+  57 minimum profiles and all latest profiles are unrun. Complete-owner
+  profiling informed V5 arithmetic changes. A subsequent public zero-sign
+  probe retains 54 passes / 18 failures: exact quadratic cancellation can return
+  negative zero with a zero polytropic reservoir. The canonical offset branch
+  is under repair; no V5 timing was accepted.
 - [x] Locally accept the NGP nearest-node boundary repair on `bf2a8bc`.
   Both CPU runtimes reproduce 14 baseline failures; actual Metal retains 13.
   The shared upward-tie owner passes 7,472 focused, 46 concrete compiler,
@@ -185,12 +194,33 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   particles and midpoint output. **VERIFIED:** the Metal owner uses raw `q/m`
   and `T(dt)` and has no finite-sample preflight (`ext/HybridPlasmaPICMetalExt.jl:643-675`);
   `metal-gathered-validation/baseline*.log` retains the public witnesses.
-  The separate repair is under design; it is not accepted or pushed.
+  V1 passes the original 165 and full 6,394 integration assertions on each
+  runtime. Both parent differential preflights pass all 120 alias
+  checks and retain 234 passes / six resource failures: the 262,144-particle
+  profiles add at least 9,344 host bytes, exceeding the fixed 8,192-byte limit.
+  Full allocation profiling attributes all additional sampled bytes to the
+  reduction. V2 uses a per-call atomic flag; its independent device probe passes
+  344 assertions per runtime. The full V2 sequence retains a test-loading error
+  (optional macro expanded before import); the corrected fixture is being
+  rechecked. No gathered-push candidate is accepted or pushed.
+- [ ] Repair the shock CN field solve. Both runtimes retain 66 control passes
+  and 50 failed assertions across 28 direct/public profiles. Independent
+  assembled SBP/Fourier RHS and direct-solve residual controls pass; the four
+  fixed iterations fail the trapezoidal residual and solution checks.
+  **VERIFIED:** public resistive decay at `dt=4` gives maximum field 3.125
+  versus direct CN 0.533709 (`shock-cn-solve/baseline-*.toml` and logs).
+  A residual-checked matrix-free solve and complete CN-step transaction are
+  under implementation; the existing reduced induction model is preserved.
 - [ ] Resolve the exported memory-status constructor invariant. Both runtimes
   verify that keyword/full-positional construction accepts negative byte counts
   rejected by the checked wrapper (185 passes, ten failed rejection assertions).
   All current telemetry callers use the wrapper; the raw-constructor contract
   needs an explicit compatibility decision before a repair is classified.
+- [x] Reconcile external-validation READMEs with the checked runners: missing
+  reference output fails; NHDS compares the eigenvalue oracle; VPIC compares
+  scalar metrics. Record current gates and unresolved source/cache provenance
+  instead of asserting fresh historical measurements. This documentation
+  revision includes the checked CI progress above; its own exact-SHA CI is pending.
 - [ ] Complete remaining audit/implementation tracks listed below.
 
 Recovery limitation: the earlier `/tmp` candidate and evidence directories are

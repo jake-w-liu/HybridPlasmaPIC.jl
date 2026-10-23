@@ -1,52 +1,46 @@
-# Case 28 — Perpendicular shock vs Hybrid-VPIC (live external hybrid code)
+# Case 28 — Perpendicular-shock comparison with Hybrid-VPIC
 
-The **nonlinear** code-to-code comparison (the shock analog of case 27's NHDS dispersion):
-our perpendicular hybrid shock vs **Hybrid-VPIC**, a *different, independent* open-source
-kinetic-ion/fluid-electron hybrid PIC code from LANL
-([github.com/lanl/vpic-kokkos](https://github.com/lanl/vpic-kokkos), branch `hybridVPIC`),
-**built and run from source**.
+This case runs the committed [`shock_perp.cxx`](shock_perp.cxx) deck with external
+Hybrid-VPIC, extracts scalar shock metrics from its magnetic-field profile, and
+compares them with `run_perp_shock_rh` at the inferred shock-frame Mach number.
+The local run uses an RH-initialized shock. This comparison covers compression
+and overshoot; a shock-aligned profile comparison and broader model validation
+remain in [CAP-007](../../docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md#cap-007--independent-validation-and-comparative-evidence).
 
-## What is compared
+## Acceptance and artifacts
 
-`build_vpic.sh` builds Hybrid-VPIC and runs its `examples/shock/` deck reconfigured to match
-ours — **θ_Bn = 90° (perpendicular, B = Bz)**, β_i = 1, T_e = T_i, drift Mach 4 (→ measured
-shock-frame **M_A ≈ 6**), 1-rank thin-2D, natural hybrid units (v_A = Ω_ci = d_i = B0 = 1, the
-same as ours). It dumps the Bz(x) profile (`shock_perp.cxx`, an ASCII dump added to the deck).
-Since Bz/n is frozen-in, that profile gives both compression (Bz₂/Bz₁) and overshoot
-(Bz_max/Bz₂); the shock-front speed gives M_A.
+[`case_28_hybridvpic_perp_shock`](run.jl) owns these gates:
 
-## Result (measured)
+- At least 20 external profile points.
+- External overshoot within `[1.1, 1.5]`.
+- External compression no greater than the computed fluid RH compression.
+- Relative overshoot difference between the two runs no greater than 25%.
+- Relative compression difference no greater than 15%.
+- Inferred external shock-frame Mach number within 5% of 6.
 
-| | compression | overshoot |
-|---|---|---|
-| **Hybrid-VPIC** (external, M_A≈6.07) | **2.89** | **1.28** |
-| ours (`run_perp_shock_rh`, M_A=6) | 3.20 | 1.43 (per-snapshot) |
-| fluid Rankine–Hugoniot | 3.21 | — |
-| Leroy 1982 (published hybrid) | < RH | 1.26 ± 0.06 |
+These are acceptance limits, not measurements from a fresh run. Passing these
+scalar checks alone does not validate the complete plasma model or explain a
+difference between the simulations. The runner writes metric and external-profile
+CSV files; the plot displays the external profile.
 
-- **Overshoot:** Hybrid-VPIC **1.28** ≈ ours (clean profile ~1.33 / energy-closure ~1.27) ≈
-  Leroy **1.26**. Independent codes agree on the key kinetic observable. *Gated:* VPIC overshoot
-  in Leroy's band [1.1, 1.5], and ours-vs-VPIC overshoot agree within 25% (measured 11%).
-- **Compression:** Hybrid-VPIC self-consistently gives **2.89 < fluid RH 3.21** — the
-  *kinetic-compresses-less-than-fluid* effect (Leroy's point). *Gated:* VPIC compression ≤ RH.
-  Our `run_perp_shock_rh`/`leroy` use an RH initialization that holds the fluid compression
-  (3.20), so they sit at RH by construction — the difference is that init choice, not a
-  disagreement (our self-consistent overshoot still matches VPIC).
+## Running
 
-So an independent external hybrid code **confirms** our perpendicular-shock physics
-(overshoot, and kinetic < fluid compression), consistent with Leroy 1982.
-
-## Running it
-
-VPIC source/binary/output are **gitignored** (`validation/**/vpic_build/`, `*.txt`); only the
-deck + scripts are committed. Run:
-
-```
-bash validation/28_hybridvpic_perp_shock/build_vpic.sh   # needs git+cmake+MPI (brew installs OpenMPI on macOS)
+```bash
+bash validation/28_hybridvpic_perp_shock/build_vpic.sh
 julia --project=validation validation/28_hybridvpic_perp_shock/run.jl
-julia --project=validation validation/28_hybridvpic_perp_shock/plot.jl   # VPIC Bz(x) profile PDF
+julia --project=validation validation/28_hybridvpic_perp_shock/plot.jl
 ```
 
-`run.jl` auto-runs `build_vpic.sh` if the profile is missing and **skips cleanly** if VPIC
-cannot be built. `default=false` (research validation; not in the package CI test suite —
-no MPI/network there). A future extension is a full shock-aligned Bz(x) overlay of both codes.
+The builder requires Git, CMake and an MPI C/C++ toolchain. If `mpicxx` is absent
+and Homebrew is available, the current script invokes `brew install open-mpi`.
+It compiles the deck and launches one MPI rank. The runner attempts a build when
+the profile is absent. Missing output or too few profile points produces a failed
+metric; malformed numeric input can raise a parsing error. These failures are
+not skips. The case is `default=false` and is outside the default package suite.
+
+Source, binaries and output are gitignored. The builder clones the moving
+`hybridVPIC` branch and removes its Git metadata. It reuses an existing compiler
+binary and recreates its run directory. The runner reuses an existing profile
+without verifying source, binary or input checksums. Pinning and provenance
+verification remain open under CAP-007; current cached output does not establish
+a reproducible reference.

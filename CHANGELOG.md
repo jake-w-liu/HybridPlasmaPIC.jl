@@ -166,6 +166,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- External NHDS and Hybrid-VPIC validation READMEs describe the actual failure
+  behavior, comparison scope and acceptance limits. Moving reference revisions
+  and unchecked cached output are documented; historical numbers are not
+  presented as current verified results.
+
 - NGP nearest-node selection preserves values immediately below a half-cell
   boundary and uses upward ties consistently on CPU and Metal. CIC and TSC
   retain their existing rounding policies.

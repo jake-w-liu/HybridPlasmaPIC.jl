@@ -4,7 +4,11 @@ Status (2026-10-23): reconstructed V5 and its composition onto `7be1916`
 pass their final local gates on Julia 1.12.7 and 1.13.2. The repair is pushed
 separately as `5c2796b`; all 357 committed Julia files match the candidate and
 held hashes remain unchanged. Its [exact-commit CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39897058507)
-is pending; formatting is green. Complete-budget composition is a separate open repair.
+passes all six jobs. Downloaded complete logs verify 614,784 / 614,785 passing
+assertions on Julia 1.12.7 / 1.13.2; full compiler trees match the reviewed
+parent after checked line shifts (23 / 22 diagnostic messages). All six log
+hashes and the archive hash are retained. Complete-budget composition is a
+separate open repair.
 
 The earlier `/tmp` artifacts below are unavailable; their historical counts
 do not validate the reconstructed source. New evidence is retained at
