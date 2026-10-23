@@ -15,8 +15,8 @@ correction.
 
 ## Current complete-budget work (2026-10-24)
 
-V6 remains isolated and unaccepted. Its final zero-offset sign correction
-passes 16,030 focused assertions, 5,760 power-endpoint assertions and 66 concrete
+V6 is rejected by the broader fixed timing gate and remains isolated. Its final
+zero-offset sign correction passes 16,030 focused assertions, 5,760 power-endpoint assertions and 66 concrete
 compiler checks per runtime. All 60 small cost profiles pass the fixed 48-pair
 matrix on both Julia versions; maximum median ratios are 1.485094 / 1.459886
 against the unchanged 1.5 gate. Subsequent component suites pass 125,263
@@ -44,9 +44,13 @@ commands, failures, dependency hashes and the trace are retained under
 - [x] Cold-call correctness/resource matrices with checked fixture lifetimes.
 - [ ] Fixed broader costs: 324 ordinary, 54 mixed-precision, 132 large-field,
   88 large-particle and 16 signed-field profiles per runtime. The ordinary
-  minimum-version lane is running; remaining lanes are unrun. All 48 pairs,
-  complete output equality, warmed-byte equality and both 1.5 median-ratio
-  gates remain required, stopping at the first failed profile.
+  minimum-version lane stopped at profile 192/324: `Float64/D1/8/unit/polyhalf/de2=0.0`
+  measured median ratios 1.533852 / 1.521902 against the unchanged 1.5 limits.
+  The command retains 37,631 passes and two failures; complete outputs and
+  warmed bytes match in the measured profiles. The remaining 132 ordinary
+  profiles, all later matrices and the latest-runtime lane are unrun.
+  `broad-v6-rejection.json` and the complete log/TOML retain this result.
+  A new implementation must precede any new measurement; V6 is not retried.
 - [ ] Current-main composition, full compiler/physical integration and final
   independent review. Push only after these gates, then require exact-SHA CI.
 

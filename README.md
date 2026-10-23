@@ -117,7 +117,9 @@ Faraday:   ∂B/∂t = −∇×E,    ∇·B = 0  (spectrally enforced)
 
 `PlasmaUnits(; n0, B0, mi)` plus `to_SI` / `to_normalized` convert the table's
 quantities between this system and SI; `alfven_speed`, `gyrofrequency`, and
-`inertial_length` give the reference scales.
+`inertial_length` give the reference scales. Extreme finite references can
+currently lose representable scales through intermediate overflow or underflow; the reproduced cases and
+repair gates are tracked in [NORM-001](docs/NORMALIZATION_RANGE_PLAN.md).
 
 ### Electron closures
 

@@ -200,13 +200,13 @@ these agent names identify existing ownership, not running processes.
 
 | Slice | Implementation owner / canonical code | Dependencies | State and checked evidence | Next concrete action |
 | --- | --- | --- | --- | --- |
-| 001 local self/cross collisions | Root continuing saved `/root/local_multispecies_collisions` work; `particles/collisions.jl`, `particles/sorting.jl` | Existing particle/moment arithmetic gates | Isolated candidate retained; final gates open | Complete normalization, independent rate, rollback, legacy compatibility and resource gates |
+| 001 local self/cross collisions | Root continuing saved `/root/local_multispecies_collisions` work; `particles/collisions.jl`, `particles/sorting.jl` | Existing particle/moment arithmetic gates | Isolated candidate retained; final gates open | Repair [reference-scale range loss](NORMALIZATION_RANGE_PLAN.md), then run final-source normalization, independent rate, rollback, legacy compatibility and resource gates |
 | 002A/B bounded Maxwell + particles | Agent unassigned; `models/full_pic.jl`, mesh/operator and coupling owners | Shared storage/layout decision; current periodic EM remains oracle | Planned; constructor and periodic calls checked | Derive staggered discrete operators and wall charge ledger; build vacuum/trajectory baseline before editing |
 | 002C/D open boundaries + production integration | Agent unassigned; boundaries, EM, I/O | 002A/B; 003/004 for parallel/device claims | Planned; no coupled open Maxwell path | Pre-register pulse reflection/charge-flux suite and absorber state schema |
 | 003A/B local storage + distributed operators | Agent unassigned; MPI/domain/pencil owners, Pencil extension | Storage/layout contract; existing real-MPI infrastructure | Planned; replicated moments and FFT wrapper inspected | Specify index/halo ownership and implement analytic distributed-operator tests |
 | 003C/D distributed coupled solvers | Agent unassigned; MPI orchestration + canonical solver owners | 003A/B and accepted serial solver | Planned; full-grid allreduce reference inspected | Compose a periodic hybrid step without replicated grids and test 2/4/8 ranks |
 | 003E cluster scale/restart | Agent unassigned; benchmark/MPI/I/O | 003C/D; real multi-node allocation | Hardware campaign pending | Freeze strong/weak scaling and changed-layout restart workloads before requesting/running resources |
-| 004A GPU primitive closure | Root; extensions and coupling | Current kernel gates and exact-SHA CI | Metal uniform push and NGP have green CI; gathered V1 fails allocation, V2–V5 fail fixed latency gates; V5 native correctness passes | Develop a new measured implementation hypothesis, preserve fixed gates, then enumerate remaining CUDA/Metal primitive paths |
+| 004A GPU primitive closure | Root; extensions and coupling | Current kernel gates and exact-SHA CI | Metal uniform push and NGP have green CI; gathered V1 fails allocation, V2–V5 fail fixed latency gates; V5 native correctness passes | V6 shared-status candidate is in native checks; require complete correctness/resources/compiler review and fixed costs, then enumerate remaining CUDA/Metal primitive paths |
 | 004B/C resident solver families | Agent unassigned; fields, integrators/models, extensions | 004A; storage/operator contract; actual device operators | Planned; concrete host arrays inspected | Implement one complete resident hybrid path and trace all transfers/scalar access |
 | 004D multi-GPU | Agent unassigned; MPI + device extensions | 003C/D, 004B/C; real devices/network | Hardware/integration pending | Establish buffer ownership/staging contract and matched device/rank oracle |
 | 005A existing CN-labelled paths | Root continuing saved architecture work; shock3d and integrator stability owners | Independent linear-system oracle | Shock CN repair pushed as ce52836; separate linear multiplier range/integer defects reproduced on both runtimes | Require shock CI and implement the [linear CN repair](LINEAR_CN_RANGE_PLAN.md); audit frequency construction separately |
@@ -240,6 +240,14 @@ nonrelativistic, periodic Cartesian 1D–3D, Float32/64; rejection of unsupporte
 backends is part of the contract. Equal macro weights conserve pair momentum and
 energy using physical species masses; unequal weights require the selected
 method's statistical conservation, rate and reuse-count proof.
+
+The current candidate is unaccepted. Earlier test counts are tied to older
+source hashes: local collision arithmetic, normalization and the focused/rate
+fixtures have since changed. The revised SI/normalized fixture requires actual
+velocity changes and the new four-species generator test is still unrun.
+[NORM-001](NORMALIZATION_RANGE_PLAN.md) additionally reproduces range loss in the
+existing reference-scale owner on both runtimes. Repair that owner and re-run
+final-source gates before accepting collision unit conversion.
 
 - [ ] Cell-local self/cross pairing, empty/singleton/odd populations, arbitrary
   species counts/weights and validated staging before committing velocities.

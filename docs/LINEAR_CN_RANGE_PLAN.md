@@ -32,6 +32,23 @@ multiplication wraps before division. Source hashes, executed commands and all
 `HybridPlasmaPIC-audit-evidence/2026-10-23/linear-cn-range/` directory in
 `baseline-commands.json`, `baseline-*.toml` and their logs.
 
+## Expanded baseline
+
+Both Julia versions retain **2,571 passes and 237 failures** across 686 recorded
+profiles in `extended-baseline-commands.json` and `extended-baseline-*.toml`.
+The binary/integer matrix has 2,316 passes / 180 failures, the isolated compact
+BigFloat exponent matrix 242 / 40, and complete frequency construction 13 / 17.
+There are no test errors. The BigFloat fixture restores exponent limits,
+precision and rounding settings; its exact oracle reads stored input bits.
+
+**VERIFIED:** frequency construction also loses finite complete frequencies.
+The six recorded cases cover ordinary construction, coefficient overflow and
+underflow, squared-wavenumber overflow and underflow, and zero guide field.
+The oracle combines stored `Float64(2π)`, mode index, guide field, density and
+length as one rational expression. Repairing `cn_multiplier` alone cannot close
+these recorded frequency failures. Rational-input behavior and very large
+BigFloat exponents still need characterization before choosing the cold path.
+
 ## Compatibility decisions to verify before implementation
 
 The completed V2 characterization records Float16/32/64 outputs, promoted
@@ -63,8 +80,10 @@ unbounded rational expansion of canceling input exponents.
 - [x] Map canonical helper, frequency builder, both public callers and tests.
 - [x] Reproduce the scalar and complete-packet failures on both Julia versions.
 - [x] Characterize ordinary public return types, zero signs and NaN propagation.
-- [ ] Extend baseline probes to promoted integer/rational inputs and BigFloat
-  precision/exponent boundaries; fix the compatibility contract before editing.
+- [x] Extend baseline probes to promoted fixed-width integers, stored BigFloat
+  precision/compact exponent boundaries and complete frequency construction.
+- [ ] Characterize rational inputs and very large BigFloat exponents; fix the
+  compatibility contract before editing.
 - [ ] Implement the repair at the canonical multiplier. Preserve ordinary
   arithmetic, finite phase signs and representable subnormal components.
 - [ ] Audit `_whistler_omega` separately: coefficient division, `k²`, zero mode

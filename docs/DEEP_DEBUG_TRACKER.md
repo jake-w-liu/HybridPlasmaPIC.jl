@@ -14,10 +14,11 @@ completeness. Comparative leadership requires reproducible external benchmarks.
 
 | Active work | Checked state | Remaining gate |
 | --- | --- | --- |
-| Shock CN solve and memory-status constructors | Pushed as `ce52836` and `c810eb0`; native acceptance passed | Both Julia CI lanes still running; formatting and all MPI jobs green |
-| Complete energy-budget composition | V6 small costs, numerical and cold-resource gates pass | Broader fixed costs running, then current-main composition and full review |
-| Metal gathered push | V5 native correctness passes; two fixed timing profiles fail | New implementation hypothesis required; no rejected candidate is pushed |
-| Linear CN reference multiplier | Finite range and integer phase failures reproduced on both runtimes | [Expanded repair and acceptance plan](LINEAR_CN_RANGE_PLAN.md) |
+| Shock CN solve and memory-status constructors | Pushed as `ce52836` and `c810eb0`; native acceptance passed | Shock minimum Julia passes; its compiler delta is under review. Remaining Julia lanes pending; formatting and MPI green |
+| Complete energy-budget composition | V6 broader fixed costs fail at profile 192/324; numerical/resource passes retained | Optimize the implementation before a new frozen candidate; composition held |
+| Metal gathered push | V5 rejected; V6 shared-status implementation is in native checks | Complete correctness/resources/compiler review, then unchanged fixed costs |
+| Linear CN reference multiplier | Expanded matrix: 2,571 passes / 237 failures per runtime, including complete frequencies | [Expanded repair and acceptance plan](LINEAR_CN_RANGE_PLAN.md) |
+| Reference-unit normalization | 45 passes / 25 failures per runtime against independent complete scales | [Canonical scale and conversion repair](NORMALIZATION_RANGE_PLAN.md) |
 | Full simulator scope | CAP-001–011 remain open in whole or part | [Staged implementation roadmap](PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md) |
 
 - [x] Rechecked the [official Julia downloads page](https://julialang.org/downloads/):
@@ -181,7 +182,10 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   separately; all original numerical and zero-compilation gates stay unchanged.
   Both runtimes pass 867 quadratic and 1,083 computed-current assertions across
   72 profiles each. Every one of the 216 samples per matrix has zero compilation.
-  The frozen broader cost matrix is running; final composition remains open.
+  The broader fixed matrix rejects V6 at ordinary minimum-runtime profile
+  192/324: median ratios 1.533852 / 1.521902 exceed 1.5. The command retains
+  37,631 passes and two failures. All later profiles/lanes are unrun; the
+  candidate is not retried or promoted. Final composition remains held.
   [Current evidence and remaining gates](HYBRID_DIAGNOSTIC_RANGE_PLAN.md#current-complete-budget-work-2026-10-24).
 - [x] Locally accept the NGP nearest-node boundary repair on `bf2a8bc`.
   Both CPU runtimes reproduce 14 baseline failures; actual Metal retains 13.
@@ -285,8 +289,10 @@ completeness. Comparative leadership requires reproducible external benchmarks.
 - [x] Shock CN repair pushed separately as `ce52836`; all 363 committed Julia
   files match the accepted candidate and held hashes are unchanged.
 - [ ] [Exact-SHA CI for ce52836](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39999012813)
-  has green formatting and real 2/4/8-rank MPI jobs; both Julia suites remain
-  running at this checkpoint. All six jobs are required.
+  has green formatting, real 2/4/8-rank MPI jobs and minimum Julia: the full
+  1.12.7 log records 624,178 passing assertions. Its complete compiler tree adds
+  one `_zero_ion_moments!` / JSON generic-iteration diagnostic; classification
+  remains open. Latest Julia is still running. All six jobs are required.
 - [x] Locally accept the exported memory-status constructor repair. Both runtimes
   verify that keyword/full-positional construction accepts negative byte counts
   rejected by the checked wrapper (185 passes, ten failed rejection assertions).
@@ -318,8 +324,14 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   component oracles, including a complete whistler packet with finite timestep.
   Fixed-width integer multiplication also yields the wrong phase while retaining
   unit modulus. Ordinary type/zero/nonfinite characterization is recorded; the
-  extended precision/frequency audit and implementation remain open.
+  expanded matrix now retains 2,571 passes / 237 failures per runtime, including
+  17 complete-frequency failures. Rational/large-exponent characterization and
+  implementation remain open.
   [Scope and planned acceptance](LINEAR_CN_RANGE_PLAN.md).
+- [ ] Repair NORM-001: finite reference-unit scales are lost through intermediate
+  range loss in the canonical accessors and `_scale`. Both runtimes retain
+  45 passes / 25 failures across four independent complete-scale profiles.
+  [Repair and acceptance plan](NORMALIZATION_RANGE_PLAN.md).
 - [ ] Complete remaining audit/implementation tracks listed below.
 
 Recovery limitation: the earlier `/tmp` candidate and evidence directories are
