@@ -250,9 +250,10 @@ locally accepted compact-range repair, with exact-SHA CI still required. It is a
 numerical dependency, not a new simulator capability.
 [NORM-001](NORMALIZATION_RANGE_PLAN.md) additionally reproduces range loss in the
 existing reference-scale owner and complete value conversion on both runtimes.
-The isolated scaled-root dependency passes its numerical matrix, but the full
-normalization implementation remains unaccepted. Repair that owner and re-run
-final-source gates before accepting collision unit conversion.
+The isolated V6 normalization candidate passes permanent CPU/Metal/MPFR,
+threaded, exceptional-resource and compiler checks on both Julia versions.
+Performance review, promotion and exact-SHA CI remain open. Re-run collision
+unit-equivalence and coupled-channel gates on the final source before acceptance.
 
 - [ ] Cell-local self/cross pairing, empty/singleton/odd populations, arbitrary
   species counts/weights and validated staging before committing velocities.

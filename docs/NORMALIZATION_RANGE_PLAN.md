@@ -113,6 +113,54 @@ Device inspection adds synchronization; its complete-call resource and timing
 costs must be measured before acceptance. Native CUDA execution is not verified.
 No candidate is promoted on the strength of partial results.
 
+## Current candidate: V6
+
+V6 is isolated and **not promoted**. Its permanent suite passes 98,697 assertions
+per runtime, plus the isolated child suites: 429,664 signed square-root cells,
+40,500 endpoint-guard checks, 1,100 working-precision checks, three directed
+endpoint cases and 16 huge-exponent conversions. The child also checks restoration
+of numerical settings. Native Metal coverage includes 624 singleton boundary
+assertions and 288 storage/layout assertions; empty, zero-dimensional, strided
+and transposed arrays are included. The original normalization checks remain.
+
+| Additional validation | Verified result on Julia 1.12.7 and 1.13.2 |
+| --- | --- |
+| Neighboring arithmetic, collisions, ionization and RayCon | 141,936 passes each on V5; V6 changes only normalization guards/special outputs |
+| Four-thread numerical-context preservation | 6,525 passes each, with each worker's MPFR exponent limits set and restored explicitly |
+| Exceptional resource profiles | 720 complete conversions each, 2,880 checks, zero measured compilation; maximum 59,200 bytes against the frozen significand/precision bound |
+| Concrete compiler analysis | All 60 signatures have zero reports each |
+| Package quality/compiler | Aqua and JET gates pass; full 29/27 report trees equal the reviewed parent after exact unchanged-line mapping |
+| CUDA 6.4.1 interface and joint extension loading | Ten routing checks and one ambiguity check each; native NVIDIA execution unavailable |
+| Final ordinary timing/allocation profiles | First frozen run stops at its Metal zero-compilation gate: 630 passes / 12 failures in controls; zero candidate profiles, latest runtime not run |
+
+Earlier failed candidates remain evidence. V3's expanded layout checks exposed
+wrapper dispatch and zero-dimensional return changes; V4 fixes these. V4's
+256-bit, 128-element BigFloat conversion allocated 84,096 bytes versus the
+parent's 16,688. V5 preserves the exact endpoint predicate using an exponent
+check, reducing that profile to 15,680 bytes. All 30 ordinary allocation profiles
+per runtime retained complete parent outputs and zero measured compilation.
+These are allocation results, not latency measurements.
+
+V5 singleton device checks then retained 608 passes/16 failures per runtime.
+A native predicate probe verifies that Float32 subnormals survive transfer but
+numeric zero comparison classifies them as zero. V6 inspects stored IEEE bits
+before deciding whether a lost finite input needs complete conversion. A second
+V5 witness retained 400 passes/200 failures: exceptional BigFloat special values
+kept stored 512-bit precision. V6 constructs arithmetic outputs at working
+precision while leaving constructor reference precision intact. Both original
+regressions now pass, alongside negative, nonfinite and complex controls.
+
+Full command records, source snapshots, complete compiler trees and results are
+in `normalization-range/*-v6-*` and `compiler-v6-review.json`. The resource
+protocol is `resources-v6.md`; the original failures are never overwritten.
+The fixed run retains all samples. Identical/doubled-work ratio controls pass,
+but warmed Metal calls report nonzero aggregate compilation time, including one
+substantial calibration event. Attribution is under investigation; this is not
+a valid timing pass. No unchanged retry or relaxed gate is accepted. The 306
+candidate profiles per runtime remain unrun. Performance review, final
+documentation/diff review, separate push and all six exact-SHA CI jobs remain
+required. CAP-001 and broader GPU evolution remain open.
+
 RayCon has additional compound temperature, frequency and amplitude conversions
 in its adapter. Repairing these shared accessors alone does not establish the
 range correctness of every RayCon expression; that integration remains open.

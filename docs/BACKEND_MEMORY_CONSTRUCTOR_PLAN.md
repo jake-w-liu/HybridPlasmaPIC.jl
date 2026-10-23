@@ -127,3 +127,12 @@ lanes retain all 120 passes; replaying the exact state deliberately yields 108
 passes / 12 failed allocation gates and 12 complete diagnostic records. This
 instrumentation improves the next CI failure's evidence; it does not close the
 allocation investigation or relax any gate.
+
+
+The later documentation-only `f850b84` run also finishes with five successful
+jobs and a failed minimum-Julia allocation check: 1,736,112 bytes exceed the
+unchanged 1,733,300.8 limit. It records 625,490 passes / one failure. Both complete
+compiler trees exactly match reviewed `ba3694c` (24/21 reports). The full archive,
+log hashes, complete trees and zero-length differences are retained under
+`ci/40017267108/`. This revision predates the added per-profile diagnostics.
+The attribution remains open; no billing exception or retry is claimed.

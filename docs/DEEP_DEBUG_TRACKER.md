@@ -19,7 +19,7 @@ completeness. Comparative leadership requires reproducible external benchmarks.
 | Metal gathered push | V6 native correctness/resources/compiler gates pass both runtimes; minimum timing passes all 30 profiles | Latest-Julia doubled-work control failed; zero candidate timing profiles ran there. Held without retry |
 | Linear CN reference multiplier | Expanded matrix: 2,571 passes / 237 failures per runtime, including complete frequencies | [Expanded repair and acceptance plan](LINEAR_CN_RANGE_PLAN.md) |
 | Shared BigFloat exact conversion | `245e73a` pushed after numerical, concurrency, resource, compiler and fixed-cost gates pass both runtimes | [Exact-SHA CI pending](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40026749996); [repair evidence](EXACT_BIGFLOAT_CONVERSION_PLAN.md) |
-| Reference-unit normalization | Expanded full-value baseline: 416 passes / 304 failures each; isolated scaled-root candidate passes 429,664 new and 86,988 existing checks each | [Canonical scale and conversion repair](NORMALIZATION_RANGE_PLAN.md) |
+| Reference-unit normalization | V6 permanent CPU/Metal and isolated MPFR regressions pass both runtimes; threaded, bounded-resource and complete compiler comparisons pass | Frozen timing controls fail the Metal zero-compilation gate before candidate profiles; [evidence and retained failures](NORMALIZATION_RANGE_PLAN.md) |
 | Full simulator scope | CAP-001–011 remain open in whole or part | [Staged implementation roadmap](PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md) |
 
 - [x] Rechecked the [official Julia downloads page](https://julialang.org/downloads/):
@@ -348,18 +348,18 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   per runtime. Independent near-quarter-turn components add 12 passes / 12
   failures per runtime. Compatibility decisions and implementation remain open.
   [Scope and planned acceptance](LINEAR_CN_RANGE_PLAN.md).
-- [ ] Repair NORM-001: finite reference-unit scales are lost through intermediate
-  range loss in the canonical accessors and `_scale`. Both runtimes retain
-  45 passes / 25 failures across four independent complete-scale profiles.
-  Expanded full-value baselines retain 416 passes / 304 failures each. Isolated
-  scaled-root numerical checks pass 429,664 new and 86,988 unchanged assertions
-  each. Normalization V2 passes the focused both-version checks but expanded
-  tests find irrational-input errors, Metal kernel argument errors and 157
-  final-operation range failures. V3 passes 28,027 expanded CPU, 3,800 final-range
-  and 60 native Metal checks per runtime; broader acceptance remains open.
-  The subnormal inverse fixture correction is independently documented; all
-  failed runs are retained. No normalization implementation has been promoted.
-  [Repair and acceptance plan](NORMALIZATION_RANGE_PLAN.md).
+- [ ] Repair NORM-001: V6 passes 98,697 permanent assertions per runtime,
+  plus isolated signed-root, endpoint and precision suites. Four-thread checks
+  pass 6,525 assertions each. All 720 exceptional profiles per runtime satisfy
+  the frozen allocation bound with zero measured compilation. All 60 concrete
+  signatures have zero compiler reports; complete package trees match the
+  reviewed parent. V6 fixes the retained V5 singleton-Metal and BigFloat result
+  precision failures. Native CUDA execution remains unavailable. Frozen cost
+  controls retain 630 passes / 12 failures at the Metal zero-compilation
+  gate; zero candidate profiles ran and latest-Julia timing is unrun. The
+  aggregate counter and calibration event are under investigation, without
+  retry. Ordinary allocations/timing, final review, promotion and exact-SHA CI
+  remain open. [Detailed acceptance tracker](NORMALIZATION_RANGE_PLAN.md).
 - [x] Locally accept NUM-002, the shared complete-rational BigFloat materializer. Both
   original baselines retain 212 passes / 111 failures; V1 passes all 323 checks
   and the 15,150-check independent endpoint/public-owner matrix per runtime.
@@ -375,9 +375,9 @@ completeness. Comparative leadership requires reproducible external benchmarks.
 - [x] Complete the older `083082d` exact-SHA CI review: all six jobs pass,
   623,694 / 623,695 assertions run on Julia 1.12.7 / 1.13.2, and both full
   compiler trees match the reviewed baseline (23 / 22 reports).
-- [ ] Resolve the shock-total allocation failure in `c810eb0` and `d6bce16`
-  minimum-Julia CI. The latter records 1,754,288 bytes against 1,733,265.6;
-  both runs retain 625,490 passes / one failure and matching full compiler
+- [ ] Resolve the shock-total allocation failure in `c810eb0`, `d6bce16` and `f850b84`
+  minimum-Julia CI. `d6bce16` records 1,754,288 bytes against 1,733,265.6;
+  the first two runs retain 625,490 passes / one failure and matching full compiler
   trees. Local ARM probes, including actual CI coverage/bounds flags, pass
   all original cases with maximum ratio 1.014246 and zero sample compilation.
   Attribution remains open. The test now reports type/count/profile and all
@@ -386,6 +386,11 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   runtimes pass 120 original checks; deliberately replaying the exact state
   produces all 12 expected allocation failures and all 12 diagnostic records.
   No tolerance, sample filtering, GC policy or retry was changed.
+  The documentation-only `f850b84` successor also records 625,490 passes / one
+  failure: 1,736,112 bytes exceed 1,733,300.8 at the same assertion. Five other
+  jobs pass. Both complete compiler trees equal reviewed `ba3694c` (24/21).
+  [Retained failed run](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40017267108).
+
 - [ ] Complete remaining audit/implementation tracks listed below.
 
 Recovery limitation: the earlier `/tmp` candidate and evidence directories are
