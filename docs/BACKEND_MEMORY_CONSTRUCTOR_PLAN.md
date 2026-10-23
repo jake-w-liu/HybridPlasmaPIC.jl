@@ -111,3 +111,19 @@ unverified; no retry, relaxed gate or billing exception has been claimed.
 The allocation investigation must be resolved before this revision's CI gate
 can be marked complete. Full logs and hashes are retained in the persistent
 `ci/40005434857/` and `shock-total-resource-ci/` evidence directories.
+
+
+The documentation-only successor `d6bce16` also fails one minimum-Julia allocation
+assertion (1,754,288 bytes against 1,733,265.6). Its complete compiler trees match
+the same reviewed baseline. Both local runtimes pass all 12 profiles / 120 checks
+with the original and actual CI coverage/bounds flags; maximum allocation ratio
+is 1.014246 and every measured sample has zero compilation. The CI cause remains
+unverified.
+
+A separate test-only change records type/count/profile, bytes, compilation and
+GC time when the existing gate fails. Parsed-code comparison proves that removing
+this logging conditional exactly recovers the original fixture. Both runtime
+lanes retain all 120 passes; replaying the exact state deliberately yields 108
+passes / 12 failed allocation gates and 12 complete diagnostic records. This
+instrumentation improves the next CI failure's evidence; it does not close the
+allocation investigation or relax any gate.

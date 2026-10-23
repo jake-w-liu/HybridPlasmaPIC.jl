@@ -74,5 +74,7 @@ alone is not accepted as a solution to this defect.
 - [x] Review the exact final source through the caller contracts and a separate
   guard/sticky rounding argument; find no additional confirmed defect in this
   bounded conversion pass. No full-simulator or general MPFR guarantee follows.
-- [ ] Push this repair separately to main and require all six exact-SHA CI jobs. Do not mark earlier native
+- [x] Push this repair separately as `245e73a`; all 366 committed Julia/Project
+  files match the accepted source snapshot, and held radiation hashes are unchanged.
+- [ ] Require all six [exact-SHA CI jobs](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40026749996). Do not mark earlier native
   subsets or a successful test process as full-project acceptance.

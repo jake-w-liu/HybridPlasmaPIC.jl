@@ -50,6 +50,10 @@ public_cost(sh::S, ps::P) where {S,P} = @timed boundary_energy_flux(sh; ps = ps)
         # The enclosing total may add bounded field arithmetic, but replaying
         # both boundary populations nearly doubles the measured state work.
         # A 10% allowance retains that distinction at both tested sizes.
+        if maximum(s.bytes for s in totals) > 1.1minimum(s.bytes for s in states)
+            @error "Shock exact-node reuse exceeded its allocation bound" julia = VERSION T count profile state_bytes =
+                [s.bytes for s in states] total_bytes = [s.bytes for s in totals] state_compile = [s.compile_time for s in states] total_compile = [s.compile_time for s in totals] state_gc = [s.gctime for s in states] total_gc = [s.gctime for s in totals]
+        end
         @test maximum(s.bytes for s in totals) <= 1.1minimum(s.bytes for s in states)
     end
 end

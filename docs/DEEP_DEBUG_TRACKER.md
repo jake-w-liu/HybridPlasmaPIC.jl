@@ -18,7 +18,7 @@ completeness. Comparative leadership requires reproducible external benchmarks.
 | Complete energy-budget composition | V6 broader fixed costs fail at profile 192/324; numerical/resource passes retained | Optimize the implementation before a new frozen candidate; composition held |
 | Metal gathered push | V6 native correctness/resources/compiler gates pass both runtimes; minimum timing passes all 30 profiles | Latest-Julia doubled-work control failed; zero candidate timing profiles ran there. Held without retry |
 | Linear CN reference multiplier | Expanded matrix: 2,571 passes / 237 failures per runtime, including complete frequencies | [Expanded repair and acceptance plan](LINEAR_CN_RANGE_PLAN.md) |
-| Shared BigFloat exact conversion | V1 passes all local numerical, concurrency, resource, compiler and fixed-cost gates on both runtimes | [Accepted local repair; exact-SHA CI remains](EXACT_BIGFLOAT_CONVERSION_PLAN.md) |
+| Shared BigFloat exact conversion | `245e73a` pushed after numerical, concurrency, resource, compiler and fixed-cost gates pass both runtimes | [Exact-SHA CI pending](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40026749996); [repair evidence](EXACT_BIGFLOAT_CONVERSION_PLAN.md) |
 | Reference-unit normalization | 45 passes / 25 failures per runtime against independent complete scales | [Canonical scale and conversion repair](NORMALIZATION_RANGE_PLAN.md) |
 | Full simulator scope | CAP-001–011 remain open in whole or part | [Staged implementation roadmap](PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md) |
 
@@ -361,8 +361,23 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   (29 / 27 reports); all 75 frozen ordinary cost profiles and controls pass
   per runtime, with zero extra warmed bytes and maximum ratios 1.170083 /
   1.183004 against the 1.25 limit. The original faulty threaded fixture is
-  retained and explained. Exact-SHA CI remains required after promotion.
+  retained and explained. Pushed separately as `245e73a`; all 366 committed
+  Julia/Project files match the accepted snapshot. Exact-SHA CI remains required.
   [Contract and acceptance tracker](EXACT_BIGFLOAT_CONVERSION_PLAN.md).
+- [x] Complete the older `083082d` exact-SHA CI review: all six jobs pass,
+  623,694 / 623,695 assertions run on Julia 1.12.7 / 1.13.2, and both full
+  compiler trees match the reviewed baseline (23 / 22 reports).
+- [ ] Resolve the shock-total allocation failure in `c810eb0` and `d6bce16`
+  minimum-Julia CI. The latter records 1,754,288 bytes against 1,733,265.6;
+  both runs retain 625,490 passes / one failure and matching full compiler
+  trees. Local ARM probes, including actual CI coverage/bounds flags, pass
+  all original cases with maximum ratio 1.014246 and zero sample compilation.
+  Attribution remains open. The test now reports type/count/profile and all
+  byte, compilation and GC samples when its original gate fails. AST comparison
+  proves the fixture, warmups, observations and assertions unchanged. Both
+  runtimes pass 120 original checks; deliberately replaying the exact state
+  produces all 12 expected allocation failures and all 12 diagnostic records.
+  No tolerance, sample filtering, GC policy or retry was changed.
 - [ ] Complete remaining audit/implementation tracks listed below.
 
 Recovery limitation: the earlier `/tmp` candidate and evidence directories are
