@@ -97,4 +97,8 @@ GitHub CI remains required after the separate push; its Ubuntu jobs do not
 replace the local actual-Metal execution.
 
 Pushed as `bf2a8bc`; all 359 committed Julia files match the validated candidate.
-[Exact-SHA CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39909168466) is running.
+[All six exact-SHA CI jobs pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39909168466).
+Complete logs verify 616,222 / 616,223 passing assertions on Julia 1.12.7 /
+1.13.2. Full compiler trees match the reviewed legacy-current CI baseline
+(23 / 22 reports). All six log hashes and the archive hash are retained in
+`ci/39909168466/complete-log-review.json` within the evidence root.

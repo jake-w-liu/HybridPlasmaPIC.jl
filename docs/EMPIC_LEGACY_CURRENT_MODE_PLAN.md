@@ -143,4 +143,8 @@ above. All 273 frozen source/test/extension files still match `source-v5.json`.
 `neighbor-commands-v5-*.json`, `compiler-comparison.json`, and
 `exceptional-review-v5.json` retain the final command, source and log evidence.
 Pushed separately as `7b50b51`; all 358 committed Julia blobs match the validated
-candidate and held hashes are unchanged. [Exact-SHA CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39905400737) is pending.
+candidate and held hashes are unchanged. [All six exact-SHA CI jobs pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39905400737).
+Complete logs verify 616,222 / 616,223 passing assertions on Julia 1.12.7 /
+1.13.2. Full compiler trees match the reviewed metadata-repair CI baseline
+(23 / 22 reports). All six log hashes and the downloaded archive hash are
+retained in `ci/39905400737/complete-log-review.json` within the evidence root.

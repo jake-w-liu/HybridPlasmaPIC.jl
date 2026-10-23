@@ -1,6 +1,7 @@
 # NGP nearest-node boundary repair
 
-Status: 2026-10-23; final local gates pass, pushed as `df75656`; CI remains.
+Status: 2026-10-24; final local gates and all six exact-SHA CI jobs pass;
+pushed as `df75656`.
 
 ## Pre-edit brief
 
@@ -43,7 +44,7 @@ Status: 2026-10-23; final local gates pass, pushed as `df75656`; CI remains.
   allocations must match; all fixed profile median latency ratios must be <=1.5.
   Boundary output differences must match the independent oracle.
 - [x] Review exact source, preserve held changes, commit and push separately.
-- [ ] Require all six exact-SHA GitHub jobs green.
+- [x] Require all six exact-SHA GitHub jobs green.
 
 Three tempting wrong patches are rejected explicitly: nearest-even breaks
 half-cell translation; fixing only CPU leaves the Metal tie mismatch; changing
@@ -123,4 +124,7 @@ and held hashes. Promotion verifies all 361 committed Julia files against the
 validated candidate and unchanged held hashes; remote main matches
 `df75656390ed416f7b0a37cb1173058cd9465e71`. All six jobs in the
 [exact-SHA GitHub run](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39912564815)
-remain required.
+pass. Complete logs verify 623,694 / 623,695 assertions on Julia 1.12.7 /
+1.13.2. Full compiler trees match the accepted Metal uniform-push CI baseline
+(23 / 22 reports). All six log hashes and the archive hash are retained in
+`ci/39912564815/complete-log-review.json` within the evidence root.

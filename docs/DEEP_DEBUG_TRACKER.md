@@ -1,6 +1,6 @@
 # Plasma simulation audit and implementation tracker
 
-Updated: 2026-10-23. Goal remains **active**.
+Updated: 2026-10-24 (Asia/Taipei). Goal remains **active**.
 
 User objective: audit the full codebase until an independent pass finds no new
 confirmed defects; optimize measured bottlenecks; plan and implement missing
@@ -10,7 +10,7 @@ also pass GitHub CI; a confirmed billing block is recorded separately.
 Passing a subset of tests does not establish whole-project correctness or
 completeness. Comparative leadership requires reproducible external benchmarks.
 
-## Current progress (2026-10-23)
+## Current progress (2026-10-24)
 
 - [x] Rechecked the [official Julia downloads page](https://julialang.org/downloads/):
   current stable is 1.13.2, released 2026-10-14. Native and complete CI logs
@@ -129,9 +129,10 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   (30/27 reports). All 358 committed Julia blobs match the validated candidate;
   held changes are unchanged. [Bounded repair plan](EMPIC_LEGACY_CURRENT_MODE_PLAN.md).
 - [x] PIC-007 pushed separately as `7b50b51`.
-- [ ] [Exact-SHA CI for 7b50b51](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39905400737)
-  has green formatting and real 2/4/8-rank MPI jobs; both Julia suites remain
-  running. All six jobs are required.
+- [x] [All six exact-SHA CI jobs for 7b50b51 pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39905400737).
+  Complete logs verify 616,222 / 616,223 passing assertions on Julia 1.12.7 /
+  1.13.2. Both full compiler trees match the metadata-repair CI baseline
+  (23 / 22 reports); all six log hashes and the archive hash are retained.
 - [ ] Reconstruct the remaining ENERGY-004 complete-budget composition against
   the accepted field-energy source; retain the earlier rejected cost matrices.
   The isolated implementation and numerical checks are in progress. Root has
@@ -156,7 +157,13 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   profiling informed V5 arithmetic changes. A subsequent public zero-sign
   probe retains 54 passes / 18 failures: exact quadratic cancellation can return
   negative zero with a zero polytropic reservoir. The canonical offset branch
-  is under repair; no V5 timing was accepted.
+  is repaired in V6; no V5 timing was accepted. Both V6 lanes pass 16,030 focused
+  assertions, the unchanged 72-assertion sign probe, 5,760 endpoint checks,
+  379 / 65 / 121 zero/signed/small resource assertions, 193 kinetic-underflow
+  checks and 66 concrete compiler checks. The fixed small-profile timing screen
+  passes all 60 profiles and 11,761 assertions per runtime, with unchanged
+  source/protocol hashes. Maximum median ratios are 1.485094 / 1.459885
+  (limit 1.5). Broader cost, threading and cold-path gates remain open.
 - [x] Locally accept the NGP nearest-node boundary repair on `bf2a8bc`.
   Both CPU runtimes reproduce 14 baseline failures; actual Metal retains 13.
   The shared upward-tie owner passes 7,472 focused, 46 concrete compiler,
@@ -171,8 +178,9 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   [Plan and evidence](NGP_NEAREST_NODE_PLAN.md).
 - [x] NGP pushed separately as `df75656`; all 361 committed Julia files match
   the validated candidate, remote main matches and held hashes are unchanged.
-- [ ] [Exact-SHA CI for df75656](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39912564815)
-  is running; all six jobs are required.
+- [x] [All six exact-SHA CI jobs for df75656 pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39912564815).
+  Complete logs verify 623,694 / 623,695 assertions on Julia 1.12.7 / 1.13.2.
+  Full compiler trees match the Metal uniform-push CI baseline (23 / 22 reports).
 - [x] Locally accept the separate Metal uniform-push repair. Both supported
   runtimes reproduce the parent's recursive dispatch and stack overflow from an
   initialized state. The kernel reuses the canonical scalar Boris update and
@@ -184,9 +192,10 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   changes are unchanged. [Plan and measured limits](METAL_UNIFORM_PUSH_PLAN.md).
 - [x] Metal uniform-push repair pushed separately as `bf2a8bc`; all 359 committed
   Julia files match the candidate and held hashes are unchanged.
-- [ ] [Exact-SHA CI for bf2a8bc](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39909168466)
-  has green formatting and real 2/4/8-rank MPI jobs; both Julia suites remain
-  running. All six jobs are required.
+- [x] [All six exact-SHA CI jobs for bf2a8bc pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39909168466).
+  Complete logs verify 616,222 / 616,223 passing assertions on Julia 1.12.7 /
+  1.13.2. Both full compiler trees match the legacy-current CI baseline
+  (23 / 22 reports); all six log hashes and the archive hash are retained.
 - [ ] Repair Metal gathered-field preflight. Both actual-device runtimes retain
   114 passes and 51 failed assertions, with all 45 finite-input CPU/device
   controls passing and no fixture errors. Invalid host parameters and late
@@ -201,8 +210,21 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   Full allocation profiling attributes all additional sampled bytes to the
   reduction. V2 uses a per-call atomic flag; its independent device probe passes
   344 assertions per runtime. The full V2 sequence retains a test-loading error
-  (optional macro expanded before import); the corrected fixture is being
-  rechecked. No gathered-push candidate is accepted or pushed.
+  (optional macro expanded before import). The corrected fixture passes the
+  original 165 and full 6,426 integration assertions on each runtime. All 120
+  alias checks and 240 untimed cost/state checks pass per runtime; maximum
+  extra host allocation is 4,048 / 4,016 bytes, within the unchanged 8,192-byte
+  limit. Full package compiler trees match (30 / 27 reports). Complete concrete
+  device captures retain 24 matching parent diagnostic leaves plus three
+  upstream status-transfer/kernel-launch reports; every full signature and
+  caller path is retained and reviewed. The fixed minimum-version timing matrix
+  passes all four identical/doubled controls but retains 254 passes and 46
+  latency failures; all 30 profiles are recorded. Latest-version timing is
+  unrun. V2 is rejected. A separate six-profile fence intervention preserves
+  complete outputs (54 checks); its observations motivate further profiling,
+  not a relaxed gate or acceptance claim. V3 queues conditional device commits
+  after validation and reads status at the end; it is untested. No gathered-push
+  candidate is pushed. [Repair plan](METAL_GATHERED_VALIDATION_PLAN.md).
 - [ ] Repair the shock CN field solve. Both runtimes retain 66 control passes
   and 50 failed assertions across 28 direct/public profiles. Independent
   assembled SBP/Fourier RHS and direct-solve residual controls pass; the four
@@ -210,17 +232,29 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   **VERIFIED:** public resistive decay at `dt=4` gives maximum field 3.125
   versus direct CN 0.533709 (`shock-cn-solve/baseline-*.toml` and logs).
   A residual-checked matrix-free solve and complete CN-step transaction are
-  under implementation; the existing reduced induction model is preserved.
+  implemented in an isolated candidate; the existing reduced induction model
+  is preserved. V6 passes 666 broad and 24 independent boundary assertions on
+  each runtime, including solver-history aliases, stationary fields, particle
+  absorption/growth and restart. Four RK4 timing profiles exceed the predeclared
+  1.10 flag in the first matrix. The one prescribed reverse-order confirmation
+  passes all four ratios (0.969113 / 0.883692 / 1.087395 / 1.030978), with
+  identical allocations; both matrices remain retained. Complete state controls
+  match. Fresh matched-context compiler captures
+  on both runtimes remain required; lower report counts are not acceptance.
 - [ ] Resolve the exported memory-status constructor invariant. Both runtimes
   verify that keyword/full-positional construction accepts negative byte counts
   rejected by the checked wrapper (185 passes, ten failed rejection assertions).
-  All current telemetry callers use the wrapper; the raw-constructor contract
-  needs an explicit compatibility decision before a repair is classified.
+  All current telemetry callers use the wrapper. The repair plan now explicitly
+  applies that existing nonnegative-integer-or-missing contract to every public
+  constructor, with the intentional raw-constructor compatibility tightening
+  documented. Fresh parent characterization and implementation remain open.
 - [x] Reconcile external-validation READMEs with the checked runners: missing
   reference output fails; NHDS compares the eigenvalue oracle; VPIC compares
   scalar metrics. Record current gates and unresolved source/cache provenance
   instead of asserting fresh historical measurements. This documentation
-  revision includes the checked CI progress above; its own exact-SHA CI is pending.
+  revision `61356f1` and the earlier plan revision `ff4a973` have all six
+  exact-SHA CI jobs green. Complete logs on each verify 623,694 / 623,695
+  assertions and unchanged full compiler trees (23 / 22 reports).
 - [ ] Complete remaining audit/implementation tracks listed below.
 
 Recovery limitation: the earlier `/tmp` candidate and evidence directories are
@@ -687,7 +721,7 @@ performance review. “Pending” means no current-run completion claim.
 | GYRO-005 | Ring phase, geometry and sample accumulation lose finite results | Pushed (`de6151d`) | VERIFIED: the Float16 constant-one mean becomes 0.5 at 8,192 samples and zero at 70,000; 12,000 points overflow the phase. Complete geometry and streaming certified accumulation pass 268,187 assertions on each Julia version. All 118 concrete JET calls per version have zero reports; the package gate retains 24. Ordinary calls remain 0 B but measured paired latency is 3.78–20× slower; optimization remains open. [Evidence and performance plan](GYRO_RING_PLAN.md). |
 | PIC-005 | Density subtraction, FFT materialization and standalone residual arithmetic lose finite continuity results | Diagnostic range repair pushed (`1214234`); current correction planned | Both Julia versions pass 29,113 final EM/EM1D/IO assertions, 33 concrete compiler checks and bitwise ordinary/allocation comparisons. Package findings match baseline. Canonical input restrictions and severe arbitrary-grid cancellation accuracy remain explicit; current materialization is a separate repair. [Pipeline scope](EMPIC_RANGE_PLAN.md); [diagnostic contract, resources and remaining limits](CONTINUITY_DIAGNOSTIC_RANGE_PLAN.md). |
 | PIC-006 | Legacy transverse Nyquist subtraction overflows or loses subnormal means | Pushed (`b73abfe`); GitHub green | Both runtimes reproduce 68 range witnesses. The final source adds complex compatibility controls and passes 1,090 focused/resource/concurrency assertions. Final combined quality passes 14,100/version, with complete concrete/package reports matching unchanged source. Final complete EM/EM1D/checkpoint integration passes 29,473/version. Exact-revision GitHub CI passes 369,711/369,712 assertions plus formatting and all MPI ranks. [Contract and costs](EMPIC_NYQUIST_RANGE_PLAN.md). |
-| PIC-007 | Legacy longitudinal current narrows the first modal quotient before completing it | Pushed (`7b50b51`); exact-SHA CI pending | Both runtimes pass 37,916 complete EM assertions, six concrete compiler checks, unchanged complete compiler trees, 40 ordinary resource profiles and 16 exceptional profiles. [Scope and evidence](EMPIC_LEGACY_CURRENT_MODE_PLAN.md). |
+| PIC-007 | Legacy longitudinal current narrows the first modal quotient before completing it | Pushed (`7b50b51`); all six exact-SHA CI jobs green | Both runtimes pass 37,916 complete EM assertions, six concrete compiler checks, unchanged complete compiler trees, 40 ordinary resource profiles and 16 exceptional profiles. [Scope and evidence](EMPIC_LEGACY_CURRENT_MODE_PLAN.md). |
 | PERF-003 | Ordinary gyro ring points repeat complete expansion work | Pushed (`bc7e209`) | Cached lossless alignment and compensated phase products retain fallback and exact sample-mean behavior. Both Julia versions pass 269,015 regressions and 70,308 independent geometry checks; 124 concrete calls per version have zero reports, package count stays 24 on 1.12. Measured default 16-point time falls 18–37%, retaining 0 B; three-point/fallback results are mixed and compilation costs rise. [Evidence and limits](GYRO_RING_PLAN.md). |
 | RR-001 | Radiation inputs can overflow during conversion and silently skip cooling | Pushed (`fdca823`) | VERIFIED: converted inputs now reject before mutation, including invalid no-op calls. Both Julia versions pass 1,810 forcing/particle/orbit assertions; all 27 concrete JET calls per version have zero reports, with package counts unchanged at 26/25. All 27 measured ordinary configurations preserve exact velocities and 0 B allocation (82 comparison checks); shared-validator error/tuple checks pass 54 on baseline and final code. [Evidence and remaining arithmetic plan](RADIATION_REACTION_PLAN.md). |
 | RR-002 | Radiation arithmetic loses finite cooling through intermediate overflow/underflow | Serial gates pass; concurrent failure open | VERIFIED: 12 Float32/64 cases give unchanged or zero velocities instead of finite exponential-substep results; 48 independent high-precision witness checks pass on each version (`/tmp/hybrid-radiation-baseline112.log`, `/tmp/hybrid-radiation-baseline113.log`). [Plan](RADIATION_REACTION_PLAN.md). |
@@ -706,7 +740,7 @@ performance review. “Pending” means no current-run completion claim.
 | ENERGY-007 | Mixed-precision polytropic gamma selects the isothermal branch after narrowing | Pushed (`7104c61`); core, broad native and all six exact-SHA CI gates pass | VERIFIED: 40 witness assertions pass on each actual Julia 1.12.7 and 1.13.2 against the density-energy owner byte-identical to `63f2420`. Six unit-density 1D–3D cases return zero although the exact stored-gamma integrals are finite and nonzero; Float64-grid and exact-gamma controls pass. [Evidence and complete repair contract](POLYTROPIC_ENERGY_RANGE_PLAN.md). |
 | ENERGY-008 | Shock bulk, particle and enthalpy fluxes lose finite complete values | Pushed (`daea194`); native/compiler and all six exact-SHA CI gates pass | VERIFIED: 52 baseline scalar/nodal witness assertions per runtime establish the range failures. Canonical V2 passes 17,169 permanent, 1,044 resource/cost and 462 shock/Aqua assertions per runtime, plus migration/format checks. Complete compiler trees match baseline (22/21). Earlier prototype and migration failures are retained. Ordinary latency overhead remains an optimization task. [Evidence and repair contract](SHOCK_ENERGY_FLUX_RANGE_PLAN.md). |
 | ENERGY-009 | Complete shock total is lost by materializing components before combining | Pushed (`dd539da`); native/compiler and all six exact-SHA CI gates pass | VERIFIED: 36 witness assertions per runtime establish NaN for complete signed-one totals and zero for a two-subnormal total. The integrated repair passes 24,737 component/total assertions, 462 shock/Aqua and 414 cost assertions per runtime. Complete compiler trees match baseline (22/21); migration, formatting and four-thread checks pass. Ordinary latency and cold-storage costs are recorded. [Contract and evidence](SHOCK_ENERGY_FLUX_RANGE_PLAN.md#complete-total--energy-009). |
-| ENERGY-010 | Ordinary Float32 magnetic sums lose percent-level accuracy on large grids | Pushed (`5c2796b`); exact-SHA CI pending | Both runtimes pass 21,313 combined assertions, all 164 cost profiles and complete compiler comparisons (30/27 reports). The final nine Julia files match the validated composition. [Contract and evidence](MAGNETIC_ENERGY_ACCURACY_PLAN.md). |
+| ENERGY-010 | Ordinary Float32 magnetic sums lose percent-level accuracy on large grids | Pushed (`5c2796b`); all six exact-SHA CI jobs green | Both runtimes pass 21,313 combined assertions, all 164 cost profiles and complete compiler comparisons (30/27 reports). The final nine Julia files match the validated composition. [Contract and evidence](MAGNETIC_ENERGY_ACCURACY_PLAN.md). |
 | GROWTH-001 | Append partially grows or corrupts particle storage on nonresizable/aliased inputs | Pushed (`16c9776`); all six exact-SHA jobs green | Both Julia versions pass revised focused/integration/compiler/resource gates; original baseline retains 48 append/ionization invariant failures. Cross-species backing-storage rejection is included. [Evidence and contract](PARTICLE_APPEND_PLAN.md). |
 | GROWTH-002 | Migration changes aliased weights and partially publishes invalid replacement storage | Pushed (`7c6e1e4`); all six CI jobs green | V3 passes 8,495 focused and 99,191 combined assertions per runtime, all six real MPI 2/4/8-rank runs, complete compiler comparisons and resource/output gates. [Evidence and plan](MIGRATION_STORAGE_PLAN.md). |
 | CLOSURE-001 | Polytropic pressure loses finite pointwise values and has large normal-output errors | Pushed (`0d8c8e8`); historical CI failed in TEST-002; corrected-source native gates and `15662e1` CI pass | VERIFIED: 44 witness assertions pass on each Julia 1.12.7/1.13.2 against `src/electrons/closures.jl` byte-identical to `63f2420`. Six cases return Inf or zero instead of finite nonzero pressures. Two finite cases return approximately 7.389 instead of a complete-input enclosure near 2.718. The public pressure owner feeds the Ohm-law pressure gradient. [Evidence and canonical repair plan](POLYTROPIC_ENERGY_RANGE_PLAN.md#pointwise-pressure--closure-001). |
