@@ -16,8 +16,8 @@ CAP-005's nonlinear particle–field coupling or add Hall induction to this mode
 | CRC numerical, failure, caller and restart verification | Pass | Candidate6: 666/666 broad and 24/24 independent public-boundary checks on each native lane |
 | Measure storage, allocation, ordinary and error-matched costs | Pass with recorded repair costs | First fixed matrix and one prescribed four-profile confirmation complete; all raw samples retained |
 | Matched fresh-process compiler comparison | Pass with retained abstract diagnostics | 28 full records match on minimum plus two removed/one reviewed generic KdV report; all 27 match on latest; concrete KdV/FFT differentials pass |
-| Independent final audit and exact final diff | Local and root source review pass | Boundary audit passes; root reviewed six source/test diffs and full owner/tests without a new confirmed defect; final promotion awaits composition and exact-SHA CI |
-| Push main and exact-SHA GitHub CI | Root-owned, pending | No commit or push from this worktree |
+| Independent final audit and exact final diff | Local and root source review pass | Boundary audit passes; root reviewed six source/test diffs and full owner/tests without a new confirmed defect; final composition is verified; exact-SHA CI remains |
+| Push main and exact-SHA GitHub CI | Pushed ce52836; CI running | All 363 committed Julia files match the candidate; all six exact-SHA jobs required |
 
 Durable evidence directory, outside the source worktree:
 `HybridPlasmaPIC-audit-evidence/2026-10-23/shock-cn-solve/`.
@@ -451,8 +451,11 @@ The repair is composed onto `083082d` without modifying any validated Julia
 source. All 363 Julia files match the accepted candidate byte for byte;
 `Project.toml` also matches its frozen hash. README and changelog describe the
 new solve/failure controls and intentional CPU/Vector storage contract. The
-master trackers retain the broader implicit-coupling and model gaps. Separate
-push and all six exact-SHA GitHub jobs remain required.
+master trackers retain the broader implicit-coupling and model gaps. Pushed
+separately as `ce52836`; all 363 committed Julia files match the
+validated composition and held hashes remain unchanged.
+[Exact-SHA CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39999012813)
+is running; all six jobs remain required.
 
 A follow-up optimization should profile and cache the existing Fourier
 operator's repeated plans/buffers behind the same operator and residual

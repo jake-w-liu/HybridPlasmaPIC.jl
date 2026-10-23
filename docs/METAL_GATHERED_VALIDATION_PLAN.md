@@ -1,7 +1,8 @@
 # Metal gathered-field preflight repair
 
 Status: baseline confirmed on Julia 1.12.7 and 1.13.2 with actual Metal 1.11.1;
-V1 rejected by the fixed allocation gate; V2 rejected by latency; V3 is untested.
+V1 rejected by the fixed allocation gate; V2 and V3 rejected by latency;
+V4 is under verification.
 Original parent: `ff4a973` (Julia sources match `df75656`); V3 starts from
 `61356f1`, with identical committed Julia sources. Persistent evidence: `../HybridPlasmaPIC-audit-evidence/2026-10-23/metal-gathered-validation`.
 
@@ -128,7 +129,7 @@ or new public alias restriction is introduced.
 The installed Metal source routes device fill, scan and copy launches through
 the same default queue; the host read flushes and waits for that queue. Runtime
 ordering, invalid-input rollback and compatibility still require verification.
-This is an untested implementation in a separate worktree, not an accepted fix.
+The original V3 proposal is retained here; its completed results follow below.
 
 Additional gates: instrument actual stores so a rejection cannot pass merely
 by writing old values; verify that the instrument detects those writes; expand
@@ -137,3 +138,43 @@ behavior, full hardware/compiler and unchanged allocation/latency matrices on
 both runtimes. Every checkbox in the final acceptance list remains open until
 that final source passes. `pre-edit-v3.md` retains the full pre-edit brief and
 wrong-implementation challenges in the evidence directory.
+
+
+## V3 completed checks and rejection
+
+Both runtimes pass the original 165 assertions, 6,459 full integration checks,
+120 original alias checks and 240 resource/state checks. Additional tests pass
+1,944 cross-component/overlapping-storage comparisons and 90 full-buffer
+rejection checks per runtime. Actual store counters distinguish a rejected
+no-store operation from a write of the previous value. Maximum additional host
+bytes are 1,088 / 1,040 within the unchanged 8,192 limit.
+
+Full package compiler trees match (30/27 reports). Every concrete device call
+retains 21 matching typed parent leaves, three changed fill-kernel
+specializations at the same upstream sites/signatures/messages, and four added
+upstream kernel/status-transfer reports. Full captures and their explicit
+classification are retained in `compiler-candidate4-structural-comparison.json`
+and `compiler-candidate4-review.md`; no diagnostics are suppressed.
+
+The minimum-version fixed 30-profile timing matrix passes its identical/doubled
+controls but retains 256 passing assertions and 44 latency failures across 23
+profiles. V3 is rejected; latest-version timing is unrun. Original samples,
+source hashes and rejected revisions remain preserved.
+
+## V4 disjoint-storage kernel
+
+V4 starts from the accepted CN commit `ce52836`. For disjoint storage, a single
+guarded per-particle kernel calls the existing canonical `boris_kick` and writes
+velocity, midpoint and position. For overlapping storage, the existing ordered
+guarded-broadcast body is retained, preserving cross-component/view semantics.
+`Base.mightalias` selects the storage strategy before device updates. Both paths
+share the same host validation, complete finite-field scan and final status
+read. No new public alias restriction, exception fallback or copied scalar
+Boris formula is introduced. The pre-existing broadcast algebra remains a
+separate consolidation concern.
+
+This revision remains unaccepted. Its new gates include exact parent-bit
+comparisons with heterogeneous nonzero fields and actual store instrumentation
+for the fused kernel. All existing hardware, compiler, allocation and unchanged
+latency gates remain required. `pre-edit-v4.md` records the compatibility decision
+and tests before editing; no speedup is claimed before measurement.

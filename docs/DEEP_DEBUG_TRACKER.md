@@ -223,8 +223,15 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   unrun. V2 is rejected. A separate six-profile fence intervention preserves
   complete outputs (54 checks); its observations motivate further profiling,
   not a relaxed gate or acceptance claim. V3 queues conditional device commits
-  after validation and reads status at the end; it is untested. No gathered-push
-  candidate is pushed. [Repair plan](METAL_GATHERED_VALIDATION_PLAN.md).
+  after validation and reads status at the end. Both runtimes pass 6,459 full
+  integration checks and 2,034 expanded alias/rejection checks; additional host
+  bytes are at most 1,088 / 1,040. Full package compiler trees match, and all
+  device diagnostics are retained/classified. V3 still fails 44 latency assertions
+  across 23 minimum-version profiles; latest timing is unrun. V4 reuses the
+  canonical scalar Boris update in one guarded kernel for disjoint arrays and
+  retains the existing ordered path for aliases. Its gates are running; no
+  gathered-push candidate is accepted or pushed.
+  [Repair plan](METAL_GATHERED_VALIDATION_PLAN.md).
 - [x] Locally accept the shock CN field-solve repair. Both runtimes retain the
   parent's 66 control passes and 50 failures across 28 direct/public profiles.
   **VERIFIED:** public resistive decay at `dt=4` gives maximum field 3.125
@@ -240,7 +247,11 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   existing 61-assertion suite in all four processes; complete outputs match.
   All 363 Julia files in the final composition match the validated candidate.
   [Contract, limitations and measured repair costs](SHOCK_CN_SOLVE_PLAN.md).
-- [ ] Push the shock CN repair separately and require all six exact-SHA CI jobs.
+- [x] Shock CN repair pushed separately as `ce52836`; all 363 committed Julia
+  files match the accepted candidate and held hashes are unchanged.
+- [ ] [Exact-SHA CI for ce52836](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39999012813)
+  has green formatting and 2/4-rank MPI jobs; both Julia suites and 8-rank MPI
+  remain running. All six jobs are required.
 - [ ] Resolve the exported memory-status constructor invariant. Both runtimes
   verify that keyword/full-positional construction accepts negative byte counts
   rejected by the checked wrapper (185 passes, ten failed rejection assertions).
