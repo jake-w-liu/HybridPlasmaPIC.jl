@@ -43,7 +43,8 @@ Status: 2026-10-23; parent stack overflow reproduced on an actual Metal device.
 - [x] Implement the canonical device path and regression tests.
 - [x] Pass actual device, neighboring, validation, compiler and format gates.
 - [x] Review measured resources and the final source/held-file hashes.
-- [ ] Commit and push this repair separately; require all six exact-SHA CI jobs.
+- [x] Commit and push this repair separately as `bf2a8bc`.
+- [ ] Require all six exact-SHA CI jobs.
 
 Wrong patches to reject: invoking the CPU particle loop would require prohibited
 scalar device indexing; updating velocity components in separate dependent
@@ -94,3 +95,6 @@ Evidence files: `final-verification-v1.json`, `device-commands-v1.json`,
 resource TOML, and `compiler-comparison.json` under the evidence path above.
 GitHub CI remains required after the separate push; its Ubuntu jobs do not
 replace the local actual-Metal execution.
+
+Pushed as `bf2a8bc`; all 359 committed Julia files match the validated candidate.
+[Exact-SHA CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39909168466) is running.

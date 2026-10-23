@@ -385,8 +385,10 @@ guarantee. [Publication contract](docs/SERIAL_PUBLICATION_PLAN.md).
 Field dumps use a self-describing binary format with zero heavy dependencies;
 HDF5 output activates as a package extension when HDF5.jl is loaded, and
 distributed FFTs (PencilFFTs.jl) as another for fully periodic 3D domains.
-GPU array-backend plumbing (CUDA/Metal extensions) exists behind
-`particle_storage_backend`; production GPU kernels are not claimed.
+GPU backend storage is exposed through `particle_storage_backend`. The Metal
+extension includes particle gather, deposit and push kernels; the CUDA extension
+currently supplies storage and telemetry. Hybrid and EM field storage remains
+CPU-based, so complete GPU-resident coupled stepping is still planned.
 
 ## Verification
 
@@ -420,8 +422,10 @@ julia --project=validation validation/run_validation.jl --quick   # or --all
 
 ### Honest limits (not claimed)
 
-- **GPU** production kernels and multi-GPU scaling (no hardware here; the
-  array-backend plumbing and extensions exist).
+- **Complete GPU-resident coupled stepping and multi-GPU scaling.** Metal
+  uniform-field particle pushing has passed actual-device checks on supported
+  Julia versions; that does not establish full GPU solver support. See the
+  [implementation and evidence](docs/METAL_UNIFORM_PUSH_PLAN.md).
 - **MPI cluster scaling data**: all building blocks pass real-MPI tests at
   2–8 ranks locally/CI; production runs need a cluster.
 - **Full-profile replay** of the Preisser 2020 dataset (the compact scalar

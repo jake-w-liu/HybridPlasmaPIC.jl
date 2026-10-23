@@ -36,8 +36,12 @@ end
 # 1-D stencil at fractional cell position s: returns (base, weights), where the
 # touched nodes are base, base+1, … (0-based, to be wrapped mod n). Weights sum
 # to 1 (partition of unity) for every s.
+# Round before integer conversion so CPU and device stencils share the same
+# upward-tie policy without rounding a just-below-half coordinate onto the tie.
+@inline _ngp_node(s) = round(s, RoundNearestTiesUp)
+
 @inline function _stencil1d(::NGP, s::T) where {T}
-    c = floor(Int, s + T(0.5))
+    c = Int(_ngp_node(s))
     return (c, (one(T),))
 end
 @inline function _stencil1d(::CIC, s::T) where {T}

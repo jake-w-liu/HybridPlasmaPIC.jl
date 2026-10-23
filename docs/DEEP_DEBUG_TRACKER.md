@@ -12,6 +12,10 @@ completeness. Comparative leadership requires reproducible external benchmarks.
 
 ## Current progress (2026-10-23)
 
+- [x] Rechecked the [official Julia downloads page](https://julialang.org/downloads/):
+  current stable is 1.13.2, released 2026-10-14. Native and complete CI logs
+  verify execution on 1.13.2 alongside minimum supported 1.12.7.
+
 - [x] GROWTH-001 pushed as `16c9776`; [all six exact-SHA jobs pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39465803412).
   Downloaded logs verify 507,988 assertions on Julia 1.12.7 and 507,989 on
   1.13.2. Complete JET trees retain 23/22 diagnostic leaves against `b3e2eb6`;
@@ -84,11 +88,10 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   [Separate repair plan](PERIODIC_MIGRATION_PLAN.md).
 - [x] Periodic seam repair pushed separately as `e8925e8`; all 355 committed
   Julia files match the validated candidate and held hashes are unchanged.
-- [ ] [Exact-SHA CI for e8925e8](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39893248890):
-  formatting, real 2/4/8-rank MPI and Julia 1.12.7 are green. Its downloaded log
-  verifies 607,041 passing assertions and the same 23 diagnostic messages as
-  `16c9776`; all changed source/dependency frames are retained in the comparison.
-  Latest Julia remains running.
+- [x] [All six exact-SHA CI jobs for e8925e8 pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39893248890).
+  Downloaded complete logs verify 607,041 / 607,042 passing assertions on Julia
+  1.12.7 / 1.13.2. Complete compiler trees match the reviewed CI trees with
+  23 / 22 diagnostic messages. All six job-log hashes are retained.
 - [x] Locally accept the measured interval-validation allocation improvement.
   Both runtimes pass 21,723 neighboring assertions and 40 concrete compiler
   checks. All 270 complete public-output/RNG samples match per runtime, with
@@ -140,18 +143,19 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   the timing screen rejects the third minimum-version profile at median ratios
   1.683 / 1.651. The remaining 57 profiles and latest lane are unrun. V2 remains
   rejected; further optimization, full integration and CI remain open.
-- [ ] Repair the newly reproduced NGP nearest-node boundary defect. Both runtimes
-  retain 118 passes and 14 failures against exact `2993f5a`, including public
-  gather/deposit on Float32/64 in dimensions 1–3. The single `s + 0.5`
-  intermediate at `src/coupling/shapes.jl:40` rounds the immediately lower neighbor
-  onto the tie. Extracted Metal helpers also retain five CPU disagreements;
-  actual Metal 1.11.1 execution on Julia 1.13.2 retains 77 passes and 13 failures.
-  The combined shared-policy candidate passes 49,590 neighboring CPU assertions
-  and 46 concrete compiler checks per runtime; complete compiler trees match
-  the parent (30 / 27 reports). The first candidate also passed 516 actual
-  device assertions. Full device integration exposed the separate uniform-push
-  recursion below, so combined GPU acceptance and timing remain open. Evidence:
-  `../HybridPlasmaPIC-audit-evidence/2026-10-23/metal-shape-boundaries`.
+- [x] Locally accept the NGP nearest-node boundary repair on `bf2a8bc`.
+  Both CPU runtimes reproduce 14 baseline failures; actual Metal retains 13.
+  The shared upward-tie owner passes 7,472 focused, 46 concrete compiler,
+  1,410 actual-Metal integration and 204 additional scalar-type assertions
+  per runtime. Prior complete CPU coupling/solver integration passes 49,590
+  assertions per runtime; checked source composition records the sole added
+  CPU difference (the accepted unused-helper removal). Complete final compiler
+  trees match (30 / 27 reports). All 126 fixed cost profiles per version preserve
+  outputs and 0-byte allocation; maximum median ratios are 1.210 / 1.195,
+  within the fixed 1.5 gate. All controls pass. Fifteen final command logs,
+  276 frozen Julia files and 356 unchanged committed files are checked.
+  [Plan and evidence](NGP_NEAREST_NODE_PLAN.md).
+- [ ] Push NGP separately and require all six exact-SHA CI jobs.
 - [x] Locally accept the separate Metal uniform-push repair. Both supported
   runtimes reproduce the parent's recursive dispatch and stack overflow from an
   initialized state. The kernel reuses the canonical scalar Boris update and
@@ -161,7 +165,10 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   Complete package compiler trees match (30 / 27 reports). All 274 frozen Julia
   files, 355 unchanged committed files and 14 command logs are checked; held
   changes are unchanged. [Plan and measured limits](METAL_UNIFORM_PUSH_PLAN.md).
-- [ ] Push the Metal uniform-push repair separately and require all six CI jobs.
+- [x] Metal uniform-push repair pushed separately as `bf2a8bc`; all 359 committed
+  Julia files match the candidate and held hashes are unchanged.
+- [ ] [Exact-SHA CI for bf2a8bc](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39909168466)
+  is running; all six jobs are required.
 - [ ] Resolve the exported memory-status constructor invariant. Both runtimes
   verify that keyword/full-positional construction accepts negative byte counts
   rejected by the checked wrapper (185 passes, ten failed rejection assertions).
@@ -693,13 +700,57 @@ benchmark before implementation. The roadmap remains open to new findings.
 | 2 | Multidimensional EM electron subcycling | Common EM path extended; charge-continuity, Gauss-law, species phase, coupled convergence and Float32/64 checks pass | Verified |
 | 2 | Nonperiodic EM-PIC boundaries | README declares periodic EM-PIC only; design compatible field/particle boundaries with reflection/transmission and charge tests | Planned |
 | 3 | Production distributed stepping | MPI reference stepping replicates fields; design domain-owned fields/moments with migration and distributed operators; verify serial equivalence and scaling | Planned |
-| 3 | Production GPU kernels | README claims array plumbing only; implement coupled gather/push/deposit/field paths with backend equivalence, memory and throughput measurements | Planned |
+| 3 | Complete GPU-resident stepping | Metal particle kernels exist and uniform push now passes actual-device gates; hybrid/EM field storage remains CPU Array-based and CUDA currently supplies storage/telemetry. Generalize the canonical field/step owners, then verify complete backend trajectories and measured resources | Partially implemented |
 | 2 | Spatially local, interspecies Coulomb collisions | Current public Coulomb operator takes one ParticleSet; design cell-local multispecies pairing with momentum/energy and equilibration-rate oracles | Planned |
-| 2 | Integrated implicit field advancement | Current `run_whistler` CN implementation evolves a linear reference packet; assess nonlinear implicit hybrid/EM integration with stability, accuracy and solve-residual benchmarks | Assessment |
+| 2 | Integrated implicit field advancement | `run_whistler` evolves a linear reference packet; the shock CN field option uses four fixed Picard iterations without a residual check. Assess convergence-controlled field/current/particle coupling, stability, conservation and rejection benchmarks | Partial implementations; assessment |
 | 3 | Model/geometry completeness | Assess Hall-MHD, gyrokinetic, AMR and fusion building blocks for missing end-to-end coupling before planning extensions | Assessment |
 | 2 | Guiding-centre position, public drift and ring cost | Position, drift and ring correctness repairs verified. Ordinary hardware paths remain allocation-free; paired local latency increases are recorded in GYRO-003/004/005. Profile complete point construction, streaming accumulation and cross-expansion work; require unchanged exact-range certificates plus measured improvement | Correctness and ordinary-ring optimization verified; further costs remain open |
 | 3 | Published validation and external comparisons | Run local validation; inspect full Preisser profile replay and external solver cases; add reproducible accuracy/cost comparisons | Planned |
 | 4 | Independent final audit | Revisit every matrix row from another entry point, resolve all confirmed defects, rerun final acceptance gates | Pending |
+
+## Capability implementation queue
+
+Source rechecked on 2026-10-23. Existing solver families and passing CI do not
+establish completion of the broader design. These milestones remain part of the
+active goal; the next capability track is local multispecies Coulomb collisions
+after the current NGP repair. Budget-composition work continues independently.
+
+- [ ] **CAP-001 — Local multispecies collisions.** Replace whole-population,
+  single-species pairing with a separately specified cell-local collection path
+  that reuses the canonical scattering physics. Preserve existing single-set
+  behavior. Before implementation, define unequal physical masses and particle
+  weights, pair-rate normalization, sparse/odd/empty cells, RNG/restart state and
+  rejection semantics. Acceptance: independent momentum/energy and relaxation
+  oracles, no collisions between different cells, species-order controls,
+  rollback, and ordinary resource measurements. Current scope:
+  `src/particles/collisions.jl:562-615`.
+- [ ] **CAP-002 — Nonperiodic EM-PIC.** Specify compatible electromagnetic and
+  particle boundaries before extending the periodic Fourier owner. Acceptance:
+  manufactured Maxwell waves, reflected/transmitted energy, charge continuity,
+  Gauss constraints, multidimensional corners and restart.
+- [ ] **CAP-003 — Distributed field ownership.** Replace replicated-field
+  reference evolution with domain-owned fields/moments and distributed
+  operators. Acceptance: serial equivalence, migration/halo integrity, restart,
+  collective failure handling and measured strong/weak scaling. Current
+  replicated contract: `src/parallel/mpi.jl:1008-1022`.
+- [ ] **CAP-004 — Complete GPU-resident stepping.** Extend the canonical field,
+  gather/push/deposit and step owners; preserve backend validation and state
+  semantics. Acceptance requires complete trajectories on real hardware,
+  CPU/backend equivalence, retained device storage and measured throughput.
+  Current CPU field owner: `src/fields/field_state.jl:12-23`; CUDA extension
+  currently supplies storage/telemetry, while Metal has particle kernels.
+- [ ] **CAP-005 — Coupled implicit advancement.** Specify the nonlinear
+  field/current/particle solve and convergence/failure contract. Acceptance:
+  residuals, temporal convergence, conservation, stiff-mode stability and
+  rollback. `src/integrators/semi_implicit.jl` evolves a linear reference
+  whistler packet; `src/initial_conditions/reflecting_wall_shock3d.jl:389-404`
+  supplies a separate four-iteration Picard field update. Neither establishes
+  completion of the general convergence-controlled coupled solver.
+- [ ] **CAP-006 — Completeness and external validation.** Trace remaining
+  geometry/gyrokinetic/AMR building blocks into end-to-end workflows, execute
+  the published validation cases and reproducible external comparisons, then
+  complete an independent audit of every coverage row. This list is not an
+  exhaustive finding that no other missing implementation exists.
 
 ## Verification commands
 

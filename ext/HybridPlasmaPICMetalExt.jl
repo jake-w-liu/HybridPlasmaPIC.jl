@@ -60,7 +60,7 @@ end
 
 @inline function _stencil_base(code::Int32, s::Float32)
     if code == Int32(1)
-        return _round_nearest_even_int32(s)
+        return unsafe_trunc(Int32, HybridPlasmaPIC._ngp_node(s))
     elseif code == Int32(2)
         return _floor_int32(s)
     else
