@@ -1,8 +1,20 @@
 # Ionization energy and optical-depth arithmetic
 
-Status: COLL-001 confirmed on Julia 1.12.7 and 1.13.2; an isolated repair is
-under verification and has not been promoted. This is separate from the GROWTH-001 storage preflight
-and GROWTH-002 migration repairs.
+Status (2026-10-23): COLL-001 is freshly reproduced against pushed `16c9776`.
+Both native runtimes retain 3,834 passes and 127 failed behavior assertions,
+without fixture errors. The reconstructed repair passes its final local gates below. Parent CI is
+green on all six jobs; separate main promotion and exact-SHA CI remain required.
+
+The earlier `/tmp` candidates and evidence below are no longer available.
+Their historical counts do not validate the reconstructed implementation.
+Current logs, exact parent archive and a 92-file production manifest are at
+`../HybridPlasmaPIC-audit-evidence/2026-10-23`; the new worktree is
+`../HybridPlasmaPIC-ionization-20261023`. The established pre-edit brief below
+continues to define the repair: canonical ionization and exact arithmetic
+owners, unchanged public/storage/ID contracts, strict threshold semantics,
+complete cooling components and overflow-safe optical depth. No production
+edit preceded the fresh minimum-version reproduction; the latest-version
+reproduction ran against its separately frozen parent.
 
 ## Verified baseline
 
@@ -240,6 +252,78 @@ outputs per runtime matching the parent and zero allocation increase across
 all 24 profiles. All measured calls have zero compilation/recompilation;
 the complete resource logs and 195 frozen files were checked.
 
-Concrete compiler checks and full compiler comparisons remain in progress.
-No V4 acceptance, performance improvement or production promotion is claimed
-yet.
+Both concrete compiler gates pass 34 checks. All four complete unloaded and
+fixture-loaded package comparisons retain 22/21 reports without added or
+removed groups. Their eight capture/comparison logs and 711 frozen files were
+checked at `/tmp/hybrid-ionization-arithmetic-followup-v4-20261021`.
+All 92 source/extension files in the comparison parent match pushed
+`16c97765b6d53dc4135a4afee5be0061d2c19ef6` exactly. All nine final native
+command/log hashes and 360 frozen files were also checked.
+
+The local arithmetic repair is verified at this scope. Wait for the growth
+parent's exact-commit CI, then promote this repair separately and require its
+own six GitHub jobs. No elapsed speed improvement or production promotion is
+claimed yet.
+
+
+## Reconstructed public-path follow-up (2026-10-23)
+
+The first reconstruction passes 91,216 focused and 54,959 neighboring checks
+per runtime, 34 concrete compiler checks, 24 scalar allocation/compatibility
+checks, and 120 ordinary full-output/allocation comparisons. Its complete
+unloaded compiler trees match the parent at 30/27 reports. Cold-path checks
+pass 960 assertions per runtime; observed allocations are 8,336–3,908,240
+bytes. These are intermediate results, superseded by the required follow-up.
+
+An independent public-path probe confirms a remaining compact-range BigFloat
+failure on both runtimes at precision 96/128 under Nearest/Up/Down rounding.
+With MPFR limits -64/+64, velocity `(nextfloat(1),0,0)`, mass 1 and loss 0.5,
+exact stored energy exceeds the threshold but `ionize_mcc!` throws before
+an RNG draw. The square-root primitive itself passes `sqrt(4)` in the same
+contexts. `semantic-compact-bigfloat{112,1132}.log` records each result and
+restoration of all caller settings.
+
+**VERIFIED cause:** `_exact_rational(::BigFloat)` delegates to Julia's
+`Rational{BigInt}` conversion; installed `base/mpfr.jl:570–571` scales the
+floating value before converting to an integer. Direct conversion of finite
+`BigFloat(2)` reproduces the overflow/inexact integer exception. The new public
+exact path depends on this canonical helper, so acceptance requires fixing it.
+
+Follow-up pre-edit brief: replace that finite-input conversion with stored
+significand/exponent/sign decomposition and integer scaling. Preserve stored
+precision, finite-input semantics and callers; add no parallel conversion,
+catch or setting mutation. Permanent isolated-child tests must cover exact
+conversion and public births under compact limits, alongside existing
+rounding cells and caller settings. Re-run all affected native, compiler,
+resource and format gates on the final source, and require exact-SHA CI.
+
+
+## Final reconstructed local gates (2026-10-23)
+
+The final six-path source passes all eight native commands on Julia 1.12.7
+and 1.13.2. `final-verification.json` checks all sixteen command exits/log
+hashes and both 266-file source/test manifests against the current worktree.
+Per runtime: 91,372 focused assertions; 2,358 isolated child assertions;
+54,959 neighboring assertions; 34 concrete compiler checks; 24 zero-allocation
+scalar compatibility checks; 480 ordinary full-call assertions; 960 measured
+cold-path assertions (plus the 4,384 public assertions included by that driver).
+All 120 ordinary full-population/counter/RNG fingerprints and allocation
+counts match the exact parent. Cold allocations remain 8,336–3,908,240 bytes.
+No elapsed-speed claim is made.
+
+A first full-compiler comparison used a single-thread parent with four-thread
+candidate and retained differing contexts in existing MPI/Raycon reports.
+Both parent captures were repeated with the candidate's four-thread command.
+Every complete diagnostic group now matches, with 30/27 reports; minimum Julia
+only reorders the unchanged MPI checkpoint group. Raw logs, source-line maps
+and both diffs remain retained. The comparison preserves every frame and leaf;
+it does not suppress or classify existing findings as harmless.
+
+`semantic-audit.md` records independent review of the exact source hashes.
+A directed-rounding concern did not survive 15,893 accepted-case exact error
+checks per runtime; no patch was made for that unconfirmed hypothesis.
+`ionization-control-flow-proof.json` also verifies byte-identical validation,
+selected-batch/storage/ID/newborn blocks, and final append/counter publication.
+Formatting passes twelve parsed-semantics/idempotence checks. The complete
+latest-Julia local suite is running; exact-SHA GitHub acceptance remains a
+separate required gate after promotion.

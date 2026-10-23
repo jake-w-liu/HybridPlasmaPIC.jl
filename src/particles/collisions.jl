@@ -917,6 +917,91 @@ end
 
 # ---------------------------------------------------------------- electron-impact ionization
 
+# Enclose each nonnegative operation with adjacent floats. Most particles can
+# then use ordinary arithmetic; uncertain thresholds use their exact stored bits.
+@inline _ionization_nonnegative_lower(x::T) where {T} = max(zero(T), prevfloat(x))
+
+@inline function _ionization_energy_bounds(v::NTuple{3,T}, mass::T) where {T}
+    x, y, z = v[1] * v[1], v[2] * v[2], v[3] * v[3]
+    lower = _ionization_nonnegative_lower(
+        _ionization_nonnegative_lower(
+            _ionization_nonnegative_lower(x) + _ionization_nonnegative_lower(y),
+        ) + _ionization_nonnegative_lower(z),
+    )
+    upper = nextfloat(nextfloat(nextfloat(x) + nextfloat(y)) + nextfloat(z))
+    lower = _ionization_nonnegative_lower(_ionization_nonnegative_lower(mass * lower) / T(2))
+    upper = nextfloat(nextfloat(mass * upper) / T(2))
+    return lower, upper
+end
+
+_ionization_exact_speed_squared(v) = sum(x -> _exact_rational(x)^2, v)
+_ionization_exact_energy(v, mass) = _exact_rational(mass) * _ionization_exact_speed_squared(v) / 2
+
+@inline function _ionization_eligible(v, mass, loss, lower, upper)
+    iszero(loss) && return any(!iszero, v)
+    loss < lower && return true
+    loss >= upper && return false
+    return _ionization_exact_energy(v, mass) > _exact_rational(loss)
+end
+
+function _ionization_exact_cooling(v::NTuple{3,T}, mass::T, loss::T) where {T}
+    energy = _ionization_exact_energy(v, mass)
+    remaining = (energy - _exact_rational(loss)) / energy
+    return ntuple(Val(3)) do c
+        copysign(_sqrt_from_exact(T, _exact_rational(v[c])^2 * remaining), v[c])
+    end
+end
+
+@inline function _ionization_component_certified(
+    value::T,
+    scale::T,
+    low_scale::T,
+    high_scale::T,
+) where {T}
+    iszero(value) && return true
+    magnitude = abs(value)
+    output = magnitude * scale
+    lower = _ionization_nonnegative_lower(magnitude * low_scale)
+    upper = nextfloat(magnitude * high_scale)
+    (lower > zero(T) && isfinite(upper) && isfinite(output)) || return false
+    error = max(nextfloat(abs(output - lower)), nextfloat(abs(upper - output)))
+    # Six machine eps bounds the ordinary component's relative error. Tight
+    # threshold/subnormal cases use the complete exact component instead.
+    tolerance = prevfloat((T(6) * eps(T)) * lower)
+    return error <= tolerance
+end
+
+@inline function _ionization_cooling(
+    v::NTuple{3,T},
+    mass::T,
+    loss::T,
+    lower::T,
+    upper::T,
+    speed::T,
+    threshold::T,
+) where {T}
+    iszero(loss) && return v
+    if lower > loss && isfinite(upper) && isfinite(speed) && isfinite(threshold)
+        low_remaining = _ionization_nonnegative_lower(one(T) - nextfloat(loss / lower))
+        high_remaining =
+            min(one(T), nextfloat(one(T) - _ionization_nonnegative_lower(loss / upper)))
+        low_scale = _ionization_nonnegative_lower(sqrt(low_remaining))
+        high_scale = nextfloat(sqrt(high_remaining))
+        ratio = threshold / speed
+        scale = sqrt(max(zero(T), one(T) - ratio * ratio))
+        if all(x -> _ionization_component_certified(x, scale, low_scale, high_scale), v)
+            return map(x -> x * scale, v)
+        end
+    end
+    return _ionization_exact_cooling(v, mass, loss)
+end
+
+function _ionization_overflow_probability(v::NTuple{3,T}, rate::T, dt::T) where {T}
+    depth_squared =
+        (_exact_rational(rate) * _exact_rational(dt))^2 * _ionization_exact_speed_squared(v)
+    return -expm1(-_sqrt_from_exact(T, depth_squared))
+end
+
 function _reserve_ionization_ids(
     ids::AbstractVector{UInt64},
     nextid::Union{Nothing,Base.RefValue{UInt64}},
@@ -942,7 +1027,10 @@ end
 
 One **electron-impact ionization** MCC substep: `e_fast + N → e_primary + e_secondary + N⁺`.
 Each electron with kinetic energy `KE = ½ mₑ|v|² > E_iz` ionizes a background neutral with
-probability `P = 1 − exp(−nσ_iz·|v|·dt)`. On ionization:
+probability `P = 1 − exp(−nσ_iz·|v|·dt)`. Eligibility uses the strict energy
+comparison for the stored finite components, including when intermediate norms overflow.
+Uncertain cooling components are evaluated from the complete expression before rounding;
+an overflowing norm alone does not saturate a representable optical depth. On ionization:
 
   * the incident (primary) electron is **cooled by exactly `E_iz`** — its speed is rescaled
     by `√((KE−E_iz)/KE)` (so its new `KE = KE−E_iz`), the energy going into unbinding;
@@ -1013,9 +1101,13 @@ function ionize_mcc!(
 
     born = Int[]                                   # incident electrons that ionized
     @inbounds for p = 1:Ne
-        speed = hypot(evx[p], evy[p], evz[p])
-        speed > ionization_speed || continue       # below the ionization threshold
-        Pcoll = _collision_probability(nσT, speed, dtT)
+        velocity = (evx[p], evy[p], evz[p])
+        lower, upper = _ionization_energy_bounds(velocity, me)
+        _ionization_eligible(velocity, me, Eiz, lower, upper) || continue
+        speed = hypot(velocity...)
+        Pcoll =
+            isfinite(speed) ? _collision_probability(nσT, speed, dtT) :
+            _ionization_overflow_probability(velocity, nσT, dtT)
         rand(rng, T) < Pcoll || continue
         push!(born, p)
     end
@@ -1086,14 +1178,18 @@ function ionize_mcc!(
         new_i.id[k] = first_i + UInt64(k - 1)
     end
     @inbounds for p in born
-        speed = hypot(evx[p], evy[p], evz[p])
-        loss_ratio = ionization_speed / speed
-        # KE'/KE = 1 - Eiz/KE = 1 - (v_threshold/|v|)^2.
-        # This ratio neither squares a tiny speed nor forms Inf/Inf at high energy.
-        scale = sqrt(max(zero(T), one(T) - loss_ratio * loss_ratio))
-        evx[p] *= scale
-        evy[p] *= scale
-        evz[p] *= scale
+        velocity = (evx[p], evy[p], evz[p])
+        lower, upper = _ionization_energy_bounds(velocity, me)
+        cooled = _ionization_cooling(
+            velocity,
+            me,
+            Eiz,
+            lower,
+            upper,
+            hypot(velocity...),
+            ionization_speed,
+        )
+        evx[p], evy[p], evz[p] = cooled
     end
     append_particles!(electrons, new_e)
     append_particles!(ions, new_i)

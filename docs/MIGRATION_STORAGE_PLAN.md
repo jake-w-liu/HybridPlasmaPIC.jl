@@ -4,6 +4,12 @@ Status: **GROWTH-002 confirmed** on Julia 1.12.7 and 1.13.2. Private repair cand
 no migration implementation has been promoted. GROWTH-001's append validation is a
 separate candidate and does not repair this finding.
 
+Recovery note (2026-10-23): the uncommitted `/tmp` candidate and evidence
+locations below are unavailable. No prior running handle remains accessible.
+Reconstruct and revalidate this repair before promotion; historical results
+are not current acceptance evidence. The separate GROWTH-001 repair is now
+pushed as `16c9776` with all six GitHub CI jobs green.
+
 ## Verified public behavior
 
 The pinned-main probe at
@@ -317,3 +323,19 @@ real two-rank byte-digest gather control passes. This verifies the harness,
 not the final migration costs. Its eight measurement commands are queued
 behind V5's 32 native commands and explicit review of the complete typed
 MPI trees.
+
+The corrected parent comparisons have completed, and V5's native matrix is
+running. Its four matched typed captures and complete comparison pass on both
+runtimes. All twelve cases retain the same two serializer diagnostics as the
+baseline. The complete serializer subtrees match, and source review at
+`parallel/mpi.jl:548–562` and `1508–1518` accounts for the two additional
+collective-stage/preparation-closure frames. Every public signature and
+complete captured closure type matches its inputs. Local recoverable
+exceptions are rethrown after notifying peers; peers receive an explicit error.
+The original zero-report failure remains retained.
+
+`/tmp/hybrid-migration-storage-v5-20261020/typed-review-accepted.json` pins
+the comparison, MPI source and all 72 capture hashes. All four command logs
+and 723 frozen files were checked. This closes the manual typed-tree review;
+full package comparisons, real-MPI integration, final resource measurements
+and exact-commit GitHub acceptance remain required.

@@ -87,6 +87,8 @@ using Test
     include("test_kinetic_energy_operations.jl")
     include("test_repro.jl")
     include("test_collisions.jl")
+    include("test_ionization_arithmetic.jl")
+    include("test_exact_square_root.jl")
     include("test_inject.jl")
     include("test_mpi.jl")
     include("test_mpi_checkpoint.jl")

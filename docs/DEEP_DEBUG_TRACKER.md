@@ -1,6 +1,6 @@
 # Plasma simulation audit and implementation tracker
 
-Updated: 2026-10-21. Goal remains **active**.
+Updated: 2026-10-23. Goal remains **active**.
 
 User objective: audit the full codebase until an independent pass finds no new
 confirmed defects; optimize measured bottlenecks; plan and implement missing
@@ -10,7 +10,41 @@ also pass GitHub CI; a confirmed billing block is recorded separately.
 Passing a subset of tests does not establish whole-project correctness or
 completeness. Comparative leadership requires reproducible external benchmarks.
 
-## Current evidence
+## Current progress (2026-10-23)
+
+- [x] GROWTH-001 pushed as `16c9776`; [all six exact-SHA jobs pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39465803412).
+  Downloaded logs verify 507,988 assertions on Julia 1.12.7 and 507,989 on
+  1.13.2. Complete JET trees retain 23/22 diagnostic leaves against `b3e2eb6`;
+  the only changed frame is a generated Base type-variable name. No findings
+  were suppressed. The earlier `c4da551` documentation push also passes all six jobs.
+- [x] Recovered CI logs and exact Git source into persistent evidence storage.
+- [x] Reproduced COLL-001 against `16c9776` on both runtimes: 3,834 passes,
+  127 behavior failures, no fixture errors in the reconstructed public suite.
+- [x] Reconstructed COLL-001 passes final local gates on both runtimes:
+  91,372 focused assertions, 2,358 isolated endpoint assertions, 54,959
+  neighboring assertions, 34 concrete compiler checks and 24 scalar checks.
+  All 120 ordinary full outputs and allocation counts match the parent per
+  runtime. Full compiler groups match (30/27 reports); only group ordering
+  differs on minimum Julia. Independent review found and repaired the public
+  compact-range BigFloat conversion gap, then found no further confirmed defect.
+- [ ] Push this six-path COLL-001 repair separately and require all six
+  exact-SHA GitHub jobs. Full local latest-Julia suite is also running.
+- [ ] Reconstruct and revalidate GROWTH-002 in a separate persistent worktree.
+  Fresh minimum-Julia serial probes retain 30 passes/30 failed integrity
+  checks. Both runtimes reproduce negative MPI byte displacements; repair is
+  underway in the canonical migration and MPI owners.
+- [ ] Complete remaining audit/implementation tracks listed below.
+
+Recovery limitation: the earlier `/tmp` candidate and evidence directories are
+no longer present. Old process handles are unavailable. The historical records
+below describe prior observations; their local artifacts cannot currently be
+rechecked and are not acceptance evidence for reconstructed code. New source,
+logs and manifests live outside `/tmp` at
+`../HybridPlasmaPIC-audit-evidence/2026-10-23`; the ionization worktree is
+`../HybridPlasmaPIC-ionization-20261023`. Existing held radiation changes remain
+excluded from this repair.
+
+## Historical evidence (artifacts subject to the recovery limitation)
 
 - **VERIFIED — PERF-006:** the isolated rank-lookup candidate passes 46,188
   focused, 16 concrete compiler and 137 MPI/quality integration checks per
@@ -75,8 +109,9 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   neighboring suites pass 43,941 assertions. Restoring a missing historical
   baseline from its exact Git commit also completes all four original compiler
   comparisons, with no changed report groups. The revised seven-file repair
-  passes its local gates and is committed separately; GitHub acceptance remains
-  pending. Original failures and rejected candidates remain retained.
+  passes its local gates and is pushed separately as `16c9776`;
+  [exact-commit CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39465803412)
+  remains pending. Original failures and rejected candidates remain retained.
 
 - **VERIFIED — COLL-001:** ionization can miss eligible births, leave primary
   energy unchanged, or select an event with an erroneously saturated probability
@@ -97,8 +132,10 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   failures per runtime; V3 is also rejected. V4 passes 53,521 focused checks
   per runtime plus 252 child-process endpoint checks. Both integration suites
   pass 5,879 assertions. Ordinary outputs and allocations match the parent,
-  while exact-fallback costs are recorded separately. Full compiler comparisons
-  remain open; it has not been promoted.
+  while exact-fallback costs are recorded separately. Both concrete compiler
+  gates and all four complete package comparisons pass. Its 92-file comparison
+  parent matches pushed `16c9776`. Parent CI and separate promotion/CI remain
+  required; the arithmetic repair has not been promoted.
 
 - Documentation checkpoint `0da4e09` is pushed to `main`; all six committed
   documentation blobs and the remote SHA match the promotion manifest.
@@ -500,7 +537,7 @@ performance review. “Pending” means no current-run completion claim.
 | CI-004 | Required Aqua import errors become skipped-success quality gates | Included in green `240f77c` | VERIFIED: an actual missing-Aqua baseline exits 0 with one broken test. The repaired gate passes all nine checks on both native versions; missing-package and injected import-failure probes now exit 1. Existing checks/options are unchanged. [Contract and gates](CI_RELIABILITY_PLAN.md#required-aqua-gate--ci-004). |
 | CI-005 | New pushes cancel unfinished checks for earlier commits | Pushed (`4c03c87`); complete GitHub run green | The group now includes commit SHA; actionlint and parsed workflow/key checks pass. Older runs retained their package jobs across subsequent pushes, and `240f77c`/`4cd642c` have since finished green. All jobs, thresholds and matrices are unchanged. [Plan](CI_RELIABILITY_PLAN.md#preserve-acceptance-for-every-revision--ci-005). |
 | PERF-006 | Rank classification allocates indexed labels and pencil orientation intermediates | Pushed (`b3e2eb6`); all six GitHub jobs green | V2 passes 46,188 focused checks per runtime and reduces measured complete-migration allocation by 59.68–84.19% / 47.04–76.16%, with identical outputs. Complete compiler trees match baseline locally and in CI; actual GitHub Julia versions are 1.12.7/1.13.2. [Contract](RANK_CLASSIFICATION_ALLOCATION_PLAN.md). |
-| COLL-001 | Ionization loses threshold, cooling and probability accuracy at floating-point boundaries | Isolated repair under verification | Both runtimes reproduce 30 energy/range, 18 probability/state and 19 strict-threshold/cooling failures. V1–V3 are rejected by further BigFloat probes. V4 passes 53,521 focused checks per runtime plus 252 child endpoint checks; remaining gates are open. [Contract and evidence](IONIZATION_ARITHMETIC_PLAN.md). |
+| COLL-001 | Ionization loses threshold, cooling and probability accuracy at floating-point boundaries | Local V4 repair verified; parent CI and separate promotion pending | Both runtimes reproduce 30 energy/range, 18 probability/state and 19 strict-threshold/cooling failures. V1–V3 are rejected. V4 passes focused, endpoint, integration, compiler and resource gates. [Contract and evidence](IONIZATION_ARITHMETIC_PLAN.md). |
 
 ## Completeness roadmap
 

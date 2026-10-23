@@ -3,11 +3,13 @@
 
 _exact_rational(value) = Rational{BigInt}(value)
 function _exact_rational(value::BigFloat)
-    # Julia's Rational conversion scales at the current BigFloat precision.
-    # Preserve stored bits if the caller has lowered its working precision.
-    return setprecision(BigFloat, precision(value)) do
-        Rational{BigInt}(value)
-    end
+    isfinite(value) || return Rational{BigInt}(value)
+    # Read stored bits directly. Floating scaling can overflow under a compact
+    # MPFR exponent range, even when both the input and rational are finite.
+    # Integer scaling also preserves inputs wider than the caller's precision.
+    significand, power, sign = Base.decompose(value)
+    n = BigInt(sign) * significand
+    return power >= 0 ? (n << power) // BigInt(1) : n // (BigInt(1) << -power)
 end
 
 _from_exact(::Type{T}, value::Rational{BigInt}) where {T<:AbstractFloat} = T(value)
@@ -124,4 +126,60 @@ function _from_exact(
     rounded = whole + (rest > complement || (rest == complement && isodd(whole)))
     magnitude = ldexp(T(rounded), quantum)
     return negative ? -magnitude : magnitude
+end
+
+# Round the square root directly from a nonnegative exact rational. Integer
+# midpoint comparisons implement nearest, ties to even, independently of the
+# caller's BigFloat rounding mode and without a transcendental intermediate.
+function _sqrt_from_exact(::Type{T}, value::Rational{BigInt}) where {T<:AbstractFloat}
+    n, d = numerator(value), denominator(value)
+    n < 0 && throw(DomainError(value, "exact square root requires a nonnegative value"))
+    iszero(n) && return zero(T)
+    p = precision(T)
+    maximum_exponent = exponent(floatmax(T))
+    minimum_quantum = exponent(floatmin(T)) - p + 1
+    e = ndigits(n; base = 2) - ndigits(d; base = 2)
+    if e >= 0 ? n < d << e : n << -e < d
+        e -= 1
+    end
+    root_exponent = fld(e, 2)
+    root_exponent > maximum_exponent && return T(Inf)
+
+    # MPFR has no subnormals. Decide its half-minimum endpoint before rounding
+    # a significand; a rounded intermediate can otherwise erase the tie side.
+    minimum_positive = nextfloat(zero(T))
+    minimum_exponent = exponent(minimum_positive)
+    root_exponent < minimum_exponent - 1 && return zero(T)
+    if root_exponent < minimum_exponent
+        square_exponent = 2 * (minimum_exponent - 1)
+        above_half = square_exponent >= 0 ? n > d << square_exponent : n << -square_exponent > d
+        return above_half ? minimum_positive : zero(T)
+    end
+
+    quantum = max(root_exponent - p + 1, minimum_quantum)
+    square_quantum = 2 * quantum
+    scaled_n, scaled_d = square_quantum >= 0 ? (n, d << square_quantum) : (n << -square_quantum, d)
+    whole = isqrt(div(scaled_n, scaled_d))
+    midpoint_square = scaled_d * (2 * whole + 1)^2
+    four_n = 4 * scaled_n
+    if four_n > midpoint_square || (four_n == midpoint_square && isodd(whole))
+        whole += 1
+    end
+    root_exponent == maximum_exponent && ndigits(whole; base = 2) > p && return T(Inf)
+    if T === BigFloat
+        # Construct significand and scale together: under a compact MPFR
+        # exponent range the integer alone need not be representable.
+        result = BigFloat(0; precision = p)
+        ccall(
+            (:mpfr_set_z_2exp, Base.MPFR.libmpfr),
+            Cint,
+            (Ref{BigFloat}, Ref{BigInt}, Clong, Base.MPFR.MPFRRoundingMode),
+            result,
+            whole,
+            quantum,
+            Base.MPFR.MPFRRoundNearest,
+        )
+        return result
+    end
+    return ldexp(T(whole), quantum)
 end
