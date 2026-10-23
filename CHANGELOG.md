@@ -8,6 +8,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- A source-backed completeness plan and live implementation tracker separate
+  existing solvers, partial building blocks and missing coupled capabilities.
+  Each stage records owners, dependencies and correctness, restart, hardware,
+  performance and CI gates; planned capabilities are not advertised as complete.
+
 - `EvolvingElectrons(γ = 5/3)` advances independent scalar pressure with the
   magnetic field in periodic `HybridStepper` runs, including ion collections
   and replicated MPI. Set `fields.pe` before initialization. The ideal massless
@@ -160,6 +165,33 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   or Fourier wavenumbers are not finite and representable in the element type.
 
 ### Fixed
+
+- NGP nearest-node selection preserves values immediately below a half-cell
+  boundary and uses upward ties consistently on CPU and Metal. CIC and TSC
+  retain their existing rounding policies.
+
+- Metal uniform-field particle pushing uses a device kernel calling the shared
+  Boris update, removing recursive dispatch. Invalid charge, mass, timestep
+  and uniform field values reject before particle mutation, including empty sets.
+
+- Legacy electromagnetic PIC retains complete longitudinal current coefficients
+  when intermediate modal division loses floating-point range.
+
+- Checksum subprocess tests keep the resolved active package environment and
+  verify source identity when run from an external test environment.
+
+- Float32 field-energy reduction checks accumulated rounding error and retains
+  complete finite integrals when the ordinary sum cannot certify accuracy.
+
+- Ordinary interval validation creates indexed error labels only on rejection,
+  preserving outputs and random-number state while removing measured allocations.
+
+- Particle rank lookup and migration use the same half-open periodic seam as
+  position wrapping. Migration prepares replacement storage before publishing
+  it and coordinates storage/count preparation failures across MPI ranks.
+
+- Ionization retains threshold, cooling and optical-depth decisions when
+  intermediate floating-point arithmetic loses range or endpoint accuracy.
 
 - The electron-inertia energy reservoir retains complete finite current squares,
   its coefficient and cell spacings through range-sensitive integration.

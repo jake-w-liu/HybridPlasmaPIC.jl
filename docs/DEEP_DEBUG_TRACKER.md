@@ -143,6 +143,11 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   the timing screen rejects the third minimum-version profile at median ratios
   1.683 / 1.651. The remaining 57 profiles and latest lane are unrun. V2 remains
   rejected; further optimization, full integration and CI remain open.
+  V3 passes the expanded untimed gates but its fixed timing screen rejects
+  Float64/4/unit/iso at ratio-of-medians 1.524693 (limit 1.5); paired median
+  1.458859 passes. Thirty Float32 profiles pass; the remaining 29 minimum
+  profiles and all 60 latest profiles are unrun. V4's helper-inlining change
+  is an optimization hypothesis under untimed testing, not an accepted result.
 - [x] Locally accept the NGP nearest-node boundary repair on `bf2a8bc`.
   Both CPU runtimes reproduce 14 baseline failures; actual Metal retains 13.
   The shared upward-tie owner passes 7,472 focused, 46 concrete compiler,
@@ -155,7 +160,10 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   within the fixed 1.5 gate. All controls pass. Fifteen final command logs,
   276 frozen Julia files and 356 unchanged committed files are checked.
   [Plan and evidence](NGP_NEAREST_NODE_PLAN.md).
-- [ ] Push NGP separately and require all six exact-SHA CI jobs.
+- [x] NGP pushed separately as `df75656`; all 361 committed Julia files match
+  the validated candidate, remote main matches and held hashes are unchanged.
+- [ ] [Exact-SHA CI for df75656](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39912564815)
+  is running; all six jobs are required.
 - [x] Locally accept the separate Metal uniform-push repair. Both supported
   runtimes reproduce the parent's recursive dispatch and stack overflow from an
   initialized state. The kernel reuses the canonical scalar Boris update and
@@ -168,7 +176,16 @@ completeness. Comparative leadership requires reproducible external benchmarks.
 - [x] Metal uniform-push repair pushed separately as `bf2a8bc`; all 359 committed
   Julia files match the candidate and held hashes are unchanged.
 - [ ] [Exact-SHA CI for bf2a8bc](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39909168466)
-  is running; all six jobs are required.
+  has green formatting and real 2/4/8-rank MPI jobs; both Julia suites remain
+  running. All six jobs are required.
+- [ ] Repair Metal gathered-field preflight. Both actual-device runtimes retain
+  114 passes and 51 failed assertions, with all 45 finite-input CPU/device
+  controls passing and no fixture errors. Invalid host parameters and late
+  nonfinite gathered samples bypass CPU rejection semantics and can mutate
+  particles and midpoint output. **VERIFIED:** the Metal owner uses raw `q/m`
+  and `T(dt)` and has no finite-sample preflight (`ext/HybridPlasmaPICMetalExt.jl:643-675`);
+  `metal-gathered-validation/baseline*.log` retains the public witnesses.
+  The separate repair is under design; it is not accepted or pushed.
 - [ ] Resolve the exported memory-status constructor invariant. Both runtimes
   verify that keyword/full-positional construction accepts negative byte counts
   rejected by the checked wrapper (185 passes, ten failed rejection assertions).
@@ -701,7 +718,7 @@ benchmark before implementation. The roadmap remains open to new findings.
 | 2 | Nonperiodic EM-PIC boundaries | README declares periodic EM-PIC only; design compatible field/particle boundaries with reflection/transmission and charge tests | Planned |
 | 3 | Production distributed stepping | MPI reference stepping replicates fields; design domain-owned fields/moments with migration and distributed operators; verify serial equivalence and scaling | Planned |
 | 3 | Complete GPU-resident stepping | Metal particle kernels exist and uniform push now passes actual-device gates; hybrid/EM field storage remains CPU Array-based and CUDA currently supplies storage/telemetry. Generalize the canonical field/step owners, then verify complete backend trajectories and measured resources | Partially implemented |
-| 2 | Spatially local, interspecies Coulomb collisions | Current public Coulomb operator takes one ParticleSet; design cell-local multispecies pairing with momentum/energy and equilibration-rate oracles | Planned |
+| 2 | Spatially local, interspecies Coulomb collisions | Current public Coulomb operator takes one ParticleSet; isolated cell-local collection implementation is undergoing independent rate, normalization and rollback checks | Active; unaccepted |
 | 2 | Integrated implicit field advancement | `run_whistler` evolves a linear reference packet; the shock CN field option uses four fixed Picard iterations without a residual check. Assess convergence-controlled field/current/particle coupling, stability, conservation and rejection benchmarks | Partial implementations; assessment |
 | 3 | Model/geometry completeness | Assess Hall-MHD, gyrokinetic, AMR and fusion building blocks for missing end-to-end coupling before planning extensions | Assessment |
 | 2 | Guiding-centre position, public drift and ring cost | Position, drift and ring correctness repairs verified. Ordinary hardware paths remain allocation-free; paired local latency increases are recorded in GYRO-003/004/005. Profile complete point construction, streaming accumulation and cross-expansion work; require unchanged exact-range certificates plus measured improvement | Correctness and ordinary-ring optimization verified; further costs remain open |
@@ -710,47 +727,31 @@ benchmark before implementation. The roadmap remains open to new findings.
 
 ## Capability implementation queue
 
-Source rechecked on 2026-10-23. Existing solver families and passing CI do not
-establish completion of the broader design. These milestones remain part of the
-active goal; the next capability track is local multispecies Coulomb collisions
-after the current NGP repair. Budget-composition work continues independently.
+The [expanded implementation plan](PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md)
+records checked source, canonical owners, dependencies, model contracts and
+acceptance gates for every slice below. This tracker owns accepted fixes and CI;
+the expanded plan owns capability staging. Both remain active.
 
-- [ ] **CAP-001 — Local multispecies collisions.** Replace whole-population,
-  single-species pairing with a separately specified cell-local collection path
-  that reuses the canonical scattering physics. Preserve existing single-set
-  behavior. Before implementation, define unequal physical masses and particle
-  weights, pair-rate normalization, sparse/odd/empty cells, RNG/restart state and
-  rejection semantics. Acceptance: independent momentum/energy and relaxation
-  oracles, no collisions between different cells, species-order controls,
-  rollback, and ordinary resource measurements. Current scope:
-  `src/particles/collisions.jl:562-615`.
-- [ ] **CAP-002 — Nonperiodic EM-PIC.** Specify compatible electromagnetic and
-  particle boundaries before extending the periodic Fourier owner. Acceptance:
-  manufactured Maxwell waves, reflected/transmitted energy, charge continuity,
-  Gauss constraints, multidimensional corners and restart.
-- [ ] **CAP-003 — Distributed field ownership.** Replace replicated-field
-  reference evolution with domain-owned fields/moments and distributed
-  operators. Acceptance: serial equivalence, migration/halo integrity, restart,
-  collective failure handling and measured strong/weak scaling. Current
-  replicated contract: `src/parallel/mpi.jl:1008-1022`.
-- [ ] **CAP-004 — Complete GPU-resident stepping.** Extend the canonical field,
-  gather/push/deposit and step owners; preserve backend validation and state
-  semantics. Acceptance requires complete trajectories on real hardware,
-  CPU/backend equivalence, retained device storage and measured throughput.
-  Current CPU field owner: `src/fields/field_state.jl:12-23`; CUDA extension
-  currently supplies storage/telemetry, while Metal has particle kernels.
-- [ ] **CAP-005 — Coupled implicit advancement.** Specify the nonlinear
-  field/current/particle solve and convergence/failure contract. Acceptance:
-  residuals, temporal convergence, conservation, stiff-mode stability and
-  rollback. `src/integrators/semi_implicit.jl` evolves a linear reference
-  whistler packet; `src/initial_conditions/reflecting_wall_shock3d.jl:389-404`
-  supplies a separate four-iteration Picard field update. Neither establishes
-  completion of the general convergence-controlled coupled solver.
-- [ ] **CAP-006 — Completeness and external validation.** Trace remaining
-  geometry/gyrokinetic/AMR building blocks into end-to-end workflows, execute
-  the published validation cases and reproducible external comparisons, then
-  complete an independent audit of every coverage row. This list is not an
-  exhaustive finding that no other missing implementation exists.
+| Capability | Owner / current state | Next acceptance milestone |
+| --- | --- | --- |
+| CAP-001 Local multispecies collisions | Collision agent; isolated implementation, unaccepted | Independent rates, units, locality, rollback, legacy compatibility and resource gates |
+| CAP-002 Nonperiodic EM-PIC | Unassigned; planned | Compatible bounded Maxwell/current operators and vacuum/wall oracles |
+| CAP-003 Domain-owned distributed stepping | Unassigned; replicated reference exists | Local storage, halos and distributed operator equivalence on real ranks |
+| CAP-004 Complete GPU-resident stepping | Root auditing primitives; coupled solver planned | Gathered-push validation, remaining kernels, then one resident solver with measured transfers |
+| CAP-005 Coupled implicit advancement | Architecture agent auditing existing shock CN; general coupled solver planned | Independent trapezoidal solve, residual/stability/failure contract |
+| CAP-006 Geometry, gyrokinetics and adaptive evolution | Unassigned; standalone primitives exist | Separate coupled model contracts and manufactured solutions for each branch |
+| CAP-007 External validation and comparisons | Unassigned; partial reference comparisons exist | Pinned provenance, production time-series dispersion, full profiles and matched cost/accuracy |
+| CAP-008 Arbitrary ES/EM species | Expanded scope; planned | Species/background/time-level contract and collection ES slice |
+| CAP-009 Full-Hall multidimensional shocks | Expanded scope; planned | Full induction/boundary balance and transverse-mode oracle |
+| CAP-010 Composed sources and RNG restart | Expanded scope; required for restartable collision integration | Split phases, complete RNG persistence and transaction semantics |
+| CAP-011 Electron transport and energy | Expanded scope; planned | Term-specific heating/loss balance and transport convergence |
+
+Every slice requires physics/conservation, convergence, failure/rollback,
+restart, compiler/quality, applicable hardware/parallel and fixed performance
+evidence, then an independent audit and exact-SHA CI. Unsupported combinations
+remain explicit. Existing green CPU CI does not close missing physics, GPU
+residency or cluster-scaling gates. Held radiation changes remain separately
+owned and excluded from current promotions.
 
 ## Verification commands
 

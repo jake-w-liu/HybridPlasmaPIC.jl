@@ -1,6 +1,6 @@
 # NGP nearest-node boundary repair
 
-Status: 2026-10-23; final local gates pass, promotion and CI remain.
+Status: 2026-10-23; final local gates pass, pushed as `df75656`; CI remains.
 
 ## Pre-edit brief
 
@@ -42,7 +42,7 @@ Status: 2026-10-23; final local gates pass, promotion and CI remain.
 - [x] Measure complete public NGP calls against the parent: ordinary outputs and
   allocations must match; all fixed profile median latency ratios must be <=1.5.
   Boundary output differences must match the independent oracle.
-- [ ] Review exact source, preserve held changes, commit and push separately.
+- [x] Review exact source, preserve held changes, commit and push separately.
 - [ ] Require all six exact-SHA GitHub jobs green.
 
 Three tempting wrong patches are rejected explicitly: nearest-even breaks
@@ -68,10 +68,10 @@ Formatting passes ten syntax/idempotence assertions. An earlier formatter
 harness incorrectly passed a string style keyword; its failed log is retained,
 and the corrected driver delegates configuration discovery to JuliaFormatter.
 
-The candidate is now composed onto accepted `7b50b51`. The four production/test
-blobs are copied without modification, and both test includes are added to the
-new parent's runner. Combined numerical/device, neighboring, compiler and
-resource gates remain required. Original evidence is retained in
+The first combined candidate was composed onto accepted `7b50b51`. The four
+production/test blobs were copied without modification, and both test includes
+were added to the new parent's runner. Its combined gates and final composition are
+recorded below. Original evidence is retained in
 `../HybridPlasmaPIC-audit-evidence/2026-10-23/ngp-nearest-node`; combined evidence
 is in the sibling `ngp-nearest-node-combined` directory.
 
@@ -119,4 +119,8 @@ An additional private-scalar compatibility probe passes 204 Float16/BigFloat
 half-cell/neighbor assertions on each runtime. It does not claim complete
 solver support for those scalar types. `final-verification.json` checks all
 15 final commands, 276 frozen Julia files, 356 unchanged committed Julia files
-and held hashes. Separate promotion and exact-SHA GitHub acceptance remain.
+and held hashes. Promotion verifies all 361 committed Julia files against the
+validated candidate and unchanged held hashes; remote main matches
+`df75656390ed416f7b0a37cb1173058cd9465e71`. All six jobs in the
+[exact-SHA GitHub run](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39912564815)
+remain required.

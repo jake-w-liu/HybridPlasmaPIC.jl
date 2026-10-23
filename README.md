@@ -393,10 +393,14 @@ CPU-based, so complete GPU-resident coupled stepping is still planned.
 ## Verification
 
 The suite is oracle-driven: analytic dispersion relations, an independent
-two-fluid eigenvalue solver, conservation laws, convergence orders, and pinned
-external references. CI runs `Pkg.test()` on Julia 1.12 and the latest stable
-Julia release. The [audit tracker](docs/DEEP_DEBUG_TRACKER.md) records tested
-revisions, version-specific results, and outstanding coverage. Fixes and their
+two-fluid eigenvalue solver, conservation laws, convergence orders, and
+external reference comparisons. CI runs `Pkg.test()` on Julia 1.12 and the latest
+stable Julia release. The [audit tracker](docs/DEEP_DEBUG_TRACKER.md) records tested
+revisions, version-specific results, and outstanding coverage. The
+[implementation plan](docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md) tracks
+missing end-to-end capabilities, owners, dependencies and acceptance gates.
+The expanded simulator goal remains incomplete; current solver support and
+standalone building blocks are distinguished in that plan. Fixes and their
 regression oracles are described in `CHANGELOG.md`.
 
 | area | oracles (selection) |
