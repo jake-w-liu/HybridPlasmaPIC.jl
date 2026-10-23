@@ -5,9 +5,17 @@ function _require_all_finite(name::AbstractString, a, context::AbstractString)
     return nothing
 end
 
-function _require_finite_real(name::AbstractString, value::Real, ::Type{T}) where {T<:AbstractFloat}
+function _require_finite_real(
+    name::AbstractString,
+    value::Real,
+    ::Type{T},
+    index::Union{Nothing,Integer} = nothing,
+) where {T<:AbstractFloat}
     v = T(value)
-    isfinite(v) || throw(ArgumentError("$(name) must be finite"))
+    if !isfinite(v)
+        label = index === nothing ? name : "$name[$index]"
+        throw(ArgumentError("$label must be finite"))
+    end
     return v
 end
 

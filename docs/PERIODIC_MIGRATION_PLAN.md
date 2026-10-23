@@ -1,7 +1,8 @@
 # Periodic seam consistency
 
-Status: final local acceptance passes on Julia 1.12.7 and 1.13.2; separate
-promotion and all six exact-commit GitHub CI jobs remain required.
+Status: pushed separately as `e8925e8` after local acceptance on Julia 1.12.7
+and 1.13.2. [Exact-commit CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39893248890)
+has passed formatting and 2/4-rank MPI; the other three jobs remain running.
 Updated 2026-10-23.
 
 ## Verified behavior
@@ -45,7 +46,8 @@ rank-arithmetic or integrator change is part of this repair.
 - [x] Run real 2/4/8-rank seam routing and subsequent migration controls.
 - [x] Check neighboring boundaries, rank lookup, migration, deposition and
   MPI/checkpoint behavior; compare complete compiler reports and allocations.
-- [ ] Commit and push separately, then require all six exact-SHA CI jobs.
+- [x] Commit and push separately as `e8925e8`.
+- [ ] Require all six exact-SHA CI jobs.
 
 The candidate at `../HybridPlasmaPIC-periodic-seam-20261023` layers this change
 over frozen GROWTH-002 V3. Its original witness passes 216/216 assertions on both

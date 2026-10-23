@@ -10,8 +10,8 @@ function _validated_open_interval(
     hi::NTuple{D},
     ::Type{T},
 ) where {D,T<:AbstractFloat}
-    loT = ntuple(d -> _require_finite_real("lo[$d]", lo[d], T), D)
-    hiT = ntuple(d -> _require_finite_real("hi[$d]", hi[d], T), D)
+    loT = ntuple(d -> _require_finite_real("lo", lo[d], T, d), D)
+    hiT = ntuple(d -> _require_finite_real("hi", hi[d], T, d), D)
     @inbounds for d = 1:D
         hiT[d] > loT[d] || throw(ArgumentError("hi[$d] must be greater than lo[$d]"))
     end
