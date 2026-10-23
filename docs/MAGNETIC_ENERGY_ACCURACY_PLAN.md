@@ -1,9 +1,10 @@
 # Magnetic energy accuracy — ENERGY-010
 
 Status (2026-10-23): reconstructed V5 and its composition onto `7be1916`
-pass their final local gates on Julia 1.12.7 and 1.13.2. Separate promotion
-and exact-commit CI remain required. Complete-budget composition is a separate
-open repair.
+pass their final local gates on Julia 1.12.7 and 1.13.2. The repair is pushed
+separately as `5c2796b`; all 357 committed Julia files match the candidate and
+held hashes remain unchanged. Its [exact-commit CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39897058507)
+is pending; formatting is green. Complete-budget composition is a separate open repair.
 
 The earlier `/tmp` artifacts below are unavailable; their historical counts
 do not validate the reconstructed source. New evidence is retained at

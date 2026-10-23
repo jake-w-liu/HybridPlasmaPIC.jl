@@ -63,7 +63,10 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   concurrency gates. Full package compiler trees match (30/27 reports). All
   11 native command logs, 272 frozen sources and 348 unchanged committed Julia
   files are checked. [Acceptance details](MAGNETIC_ENERGY_ACCURACY_PLAN.md).
-- [ ] Push ENERGY-010 separately and require all six exact-SHA CI jobs.
+- [x] ENERGY-010 pushed separately as `5c2796b`; all 357 committed Julia files
+  match the validated candidate and held hashes are unchanged.
+- [ ] [Exact-SHA CI for 5c2796b](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39897058507):
+  formatting is green; both Julia suites and the MPI matrix are pending.
 - [x] Locally accept the separately repaired periodic migration seam inconsistency.
   Both runtimes retain 144 control passes and 72 failed invariants against
   `b251cb7`; the public boundary folds the rounded upper endpoint while rank
@@ -86,9 +89,15 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   Julia files match the validated candidate and held hashes are unchanged.
 - [ ] [Exact-SHA CI for 7be1916](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39895197004):
   formatting and real 2/4-rank MPI are green; both Julia suites and MPI8 remain running.
-- [ ] Repair the metadata subprocess environment; both runtimes reproduce the
+- [x] Repair the metadata subprocess environment; both runtimes reproduce the
   dependency-load error from a resolved external environment. Keep both child
-  processes and all checksum assertions; verify source identity explicitly.
+  processes and all checksum assertions; source identity is checked explicitly.
+  Both runtimes pass all 80 metadata assertions and six rejection controls in
+  both external and checkout environments, then pass the same checks on the
+  final `5c2796b` composition. [Plan](TEST_SUBPROCESS_ENVIRONMENT_PLAN.md).
+- [ ] Push the metadata harness repair separately and require all six CI jobs.
+- [ ] Reconstruct the remaining ENERGY-004 complete-budget composition against
+  the accepted field-energy source; retain the earlier rejected cost matrices.
 - [ ] Complete remaining audit/implementation tracks listed below.
 
 Recovery limitation: the earlier `/tmp` candidate and evidence directories are

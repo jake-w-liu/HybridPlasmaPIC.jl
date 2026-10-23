@@ -115,18 +115,25 @@ end
 end
 
 @testset "save_run / load_run checksum survives process boundary" begin
-    project_dir = pkgdir(HybridPlasmaPIC)
+    project = Base.active_project()
+    project === nothing && error("checksum subprocess test requires an active project")
+    project_dir = dirname(project)
+    package_file = realpath(pathof(HybridPlasmaPIC))
     external_state = (a = Dict(i => string(i) for i = 1:300), label = "external", step = 11)
 
     mktemp() do path, io
         close(io)
         writer = """
         using HybridPlasmaPIC
+        realpath(pathof(HybridPlasmaPIC)) == ARGS[2] ||
+            error("external writer loaded a different package source")
         meta = capture_metadata(; rng_seed = 17, timestamp = "2026-06-28T00:00:00Z")
         state = (a = Dict(i => string(i) for i = 1:300), label = "external", step = 11)
         save_run(ARGS[1], state, meta)
         """
-        run(`$(Base.julia_cmd()) --project=$project_dir -e $writer $path`)
+        run(
+            `$(Base.julia_cmd()) --startup-file=no --project=$project_dir -e $writer $path $package_file`,
+        )
 
         loaded = load_run(path)
         @test loaded.state == external_state
@@ -136,12 +143,16 @@ end
         save_run(path, current_state, capture_metadata(; rng_seed = 18))
         reader = """
         using HybridPlasmaPIC
+        realpath(pathof(HybridPlasmaPIC)) == ARGS[2] ||
+            error("external reader loaded a different package source")
         loaded = load_run(ARGS[1])
         loaded.state == (a = Set(string(i) for i = 1:300), label = "current", step = 12) ||
             error("external load_run saw the wrong state")
         loaded.meta.rng_seed == 18 || error("external load_run saw the wrong metadata")
         """
-        run(`$(Base.julia_cmd()) --project=$project_dir -e $reader $path`)
+        run(
+            `$(Base.julia_cmd()) --startup-file=no --project=$project_dir -e $reader $path $package_file`,
+        )
     end
 end
 

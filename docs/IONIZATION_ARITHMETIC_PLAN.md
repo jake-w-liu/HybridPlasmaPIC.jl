@@ -6,6 +6,15 @@ without fixture errors. The reconstructed repair passes its final local gates be
 green on all six jobs. The repair is pushed as `b251cb7`; its exact-SHA CI
 run 39885899763 is in progress (formatting and real 2/4/8-rank MPI are green).
 
+The full local Julia 1.13.2 run exited unsuccessfully after 599,361 passes,
+zero failed assertions and one metadata subprocess error. Its child selected
+the manifest-free package checkout instead of the resolved outer environment
+and could not load FFTW. The original command and complete report remain in
+`../HybridPlasmaPIC-audit-evidence/2026-10-23/full1132.log`. A separately verified
+[test-harness repair](TEST_SUBPROCESS_ENVIRONMENT_PLAN.md) preserves both child
+processes and all checksum assertions. The failed full run is not reported as
+passing; exact-commit GitHub package results remain required.
+
 The earlier `/tmp` candidates and evidence below are no longer available.
 Their historical counts do not validate the reconstructed implementation.
 Current logs, exact parent archive and a 92-file production manifest are at
