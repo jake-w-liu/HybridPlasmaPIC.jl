@@ -460,6 +460,10 @@ julia --project=validation validation/run_validation.jl --quick   # or --all
   summary with checksums is bundled; the full HDF5 requires downloading the
   upstream data).
 - Non-periodic EM-PIC boundaries (`EMPIC` and `EMPIC1D` use periodic geometry).
+- Spatially local multispecies Coulomb collisions remain an unaccepted
+  implementation. The published operator takes one homogeneous population;
+  [the implementation tracker](docs/LOCAL_MULTISPECIES_COULOMB_PLAN.md) records
+  remaining numerical, resource and integration gates.
 - Extreme-range arithmetic remains under repair. The confirmed
   [linear CN](docs/LINEAR_CN_RANGE_PLAN.md) plan records failing cases and
   remaining gates. The [normalization repair](docs/NORMALIZATION_RANGE_PLAN.md)

@@ -19,7 +19,8 @@ completeness. Comparative leadership requires reproducible external benchmarks.
 | Metal gathered push | V6 native correctness/resources/compiler gates pass both runtimes; minimum timing passes all 30 profiles | Latest-Julia doubled-work control failed; zero candidate timing profiles ran there. Held without retry |
 | Linear CN reference multiplier | Expanded matrix: 2,571 passes / 237 failures per runtime, including complete frequencies | [Expanded repair and acceptance plan](LINEAR_CN_RANGE_PLAN.md) |
 | Shared BigFloat exact conversion | `245e73a` pushed after numerical, concurrency, resource, compiler and fixed-cost gates pass both runtimes | [All six exact-SHA jobs and full compiler review pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40026749996); [repair evidence](EXACT_BIGFLOAT_CONVERSION_PLAN.md) |
-| Reference-unit normalization | V7 local numerical, native Metal, resource/compiler and all 306 fixed-cost profiles pass both runtimes | Exact-SHA CI required; measured latency regressions remain optimization work. [Evidence and next steps](NORMALIZATION_RANGE_PLAN.md) |
+| Reference-unit normalization | V7 local numerical, native Metal, resource/compiler and all 306 fixed-cost profiles pass both runtimes | `1097076` pushed; formatting and 2/4/8-rank MPI pass, both Julia jobs pending. Measured latency regressions remain optimization work. [Evidence and next steps](NORMALIZATION_RANGE_PLAN.md) |
+| Local multispecies collisions | Composed on `1097076`; 1,716 existing and 516 original angle checks pass per runtime. Expanded sampled-angle checks and ordinary allocation gates still fail | Repair oblique backscatter cancellation and allocation cost; [detailed implementation tracker](LOCAL_MULTISPECIES_COULOMB_PLAN.md) |
 | Full simulator scope | CAP-001–011 remain open in whole or part | [Staged implementation roadmap](PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md) |
 
 - [x] Rechecked the [official Julia downloads page](https://julialang.org/downloads/):
@@ -35,6 +36,9 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   Complete logs verify 625,491 / 625,492 assertions on Julia 1.12.7 / 1.13.2;
   full compiler trees are byte-identical to reviewed `ba3694c` (24 / 21 reports).
   This does not clear the separate failed revisions' shock allocation gate.
+- [x] [All six exact-SHA CI jobs for `0fec43b` pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40024662957).
+  Complete logs verify 625,491 / 625,492 assertions on Julia 1.12.7 / 1.13.2;
+  both full compiler trees are byte-identical to reviewed `ba3694c` (24 / 21 reports).
 - [x] Recovered CI logs and exact Git source into persistent evidence storage.
 - [x] Reproduced COLL-001 against `16c9776` on both runtimes: 3,834 passes,
   127 behavior failures, no fixture errors in the reconstructed public suite.
@@ -948,7 +952,7 @@ the expanded plan owns capability staging. Both remain active.
 
 | Capability | Owner / current state | Next acceptance milestone |
 | --- | --- | --- |
-| CAP-001 Local multispecies collisions | Root continuing the saved collision candidate; unaccepted | Independent rates, units, locality, rollback, legacy compatibility and resource gates |
+| CAP-001 Local multispecies collisions | Current-main composition under repair; unaccepted | Complete angular/physical updates, ordinary allocation, legacy/compiler/fixed-cost gates; [progress checklist](LOCAL_MULTISPECIES_COULOMB_PLAN.md) |
 | CAP-002 Nonperiodic EM-PIC | Unassigned; planned | Compatible bounded Maxwell/current operators and vacuum/wall oracles |
 | CAP-003 Domain-owned distributed stepping | Unassigned; replicated reference exists | Local storage, halos and distributed operator equivalence on real ranks |
 | CAP-004 Complete GPU-resident stepping | Root auditing primitives; coupled solver planned | Gathered-push validation, remaining kernels, then one resident solver with measured transfers |
