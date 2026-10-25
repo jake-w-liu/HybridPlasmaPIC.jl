@@ -17,20 +17,28 @@ completeness. Comparative leadership requires reproducible external benchmarks.
 | Shock CN solve and memory-status constructors | `ce52836` has all six CI jobs green and full compiler review; `c810eb0` has five green jobs and one failed allocation assertion | Investigate the shock-total resource failure; source attribution remains open |
 | Complete energy-budget composition | V6 broader fixed costs fail at profile 192/324; numerical/resource passes retained | Optimize the implementation before a new frozen candidate; composition held |
 | Metal gathered push | V6 native correctness/resources/compiler gates pass both runtimes; minimum timing passes all 30 profiles | Latest-Julia doubled-work control failed; zero candidate timing profiles ran there. Held without retry |
-| Linear CN reference multiplier | V5c passes 16,762 registered assertions per runtime, expanded BigFloat child gates, compiler review and all 24 ordinary allocation profiles | Exceptional resources and complete fixed costs remain; V4 failures retained. [Acceptance plan](LINEAR_CN_RANGE_PLAN.md) |
+| Linear CN reference multiplier | Frozen V5c passes numerical/compiler gates, 307 workload preflights plus 18 controls and 199 exceptional resource profiles per runtime | Exclusive fixed costs remain; a separate optimization targets repeated invariant multipliers in cold packet evolution. [Acceptance plan](LINEAR_CN_RANGE_PLAN.md) |
 | Shared BigFloat exact conversion | `245e73a` pushed after numerical, concurrency, resource, compiler and fixed-cost gates pass both runtimes | [All six exact-SHA jobs and full compiler review pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40026749996); [repair evidence](EXACT_BIGFLOAT_CONVERSION_PLAN.md) |
 | Reference-unit normalization | V7 local numerical, native Metal, resource/compiler and all 306 fixed-cost profiles pass both runtimes | `1097076` passes all six exact-SHA CI jobs and full compiler review. Measured latency regressions remain optimization work. [Evidence and next steps](NORMALIZATION_RANGE_PLAN.md) |
 | Local multispecies collisions | V10 passes 141,143 permanent assertions plus normalization subprocess checks per runtime; all 108 ordinary profiles allocate zero bytes; concrete/full compiler review passes | Arithmetic review complete; fixed costs and final promotion/CI remain; [detailed implementation tracker](LOCAL_MULTISPECIES_COULOMB_PLAN.md). Feature remains unaccepted |
-| Bounded Maxwell vacuum/cavity | V7 repairs interpolated-Poynting subnormal loss; 96 additional diagnostic resource rows pass each runtime with zero native retention and corrected retention at most 12,528 B | Final expanded cost preflight/timing and promotion remain. Bounded particle coupling remains a later slice |
+| Bounded Maxwell vacuum/cavity | Independent V7 review confirms scaled-curl and whole-face cancellation failures on both runtimes; V8 combined repair is active | Reverify all numerical/resource/compiler/cost gates before promotion. Bounded particle coupling remains a later slice |
 | Electrostatic species collections | V7 removes a duplicate position scan; final affected checks and expanded cost matrix remain active | A fresh zero-field test exposes inherited Boris coefficient overflow; a separate canonical repair is required before acceptance |
 | External reference provenance | Pushed as `95c5678`: pinned builds, 50 offline + 4 independent + 44 real-cache + 16 caller checks, Aqua and all ten comparison metrics pass per runtime | [Exact-SHA CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40186481856) and complete compiler review remain; [implementation and evidence](EXTERNAL_REFERENCE_PROVENANCE_PLAN.md) |
-| Validation frequency extraction | Final repair passes 3,153 registered checks, four concrete compiler calls, 40 resource checks and actual case 20 per runtime; eight allocation counts match parent each | Push/exact-SHA CI and full compiler review remain; [repair plan and evidence](VALIDATION_FREQUENCY_PLAN.md) |
+| Validation frequency extraction | `01a1b3c` fails CI test loading/formatting; the correction passes 3,153 frequency assertions and nine Aqua checks in each real test sandbox, plus whole-tree formatting | Corrected exact-SHA full CI and compiler review remain. [Failure and repair evidence](VALIDATION_FREQUENCY_PLAN.md) |
 | Full simulator scope | CAP-001–011 remain open in whole or part | [Staged implementation roadmap](PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md) |
 
 - [x] Reconfirmed the full implementation objective on 2026-10-25: CAP-001–011
   remain active, including missing coupled solvers, backend integration and
   restart. Passing a primitive or this collision slice closes none of those
   dependent capabilities.
+- [ ] Complete the combined Maxwell cancellation repair. **VERIFIED:** independent
+  root witnesses fail on Julia 1.12.7 and 1.13.2 against frozen V7. A scaled
+  curl returns zero instead of approximately 0.25 (six passes/two failures per
+  runtime); a face integral returns `(0,0)` instead of `(1,-1)` (four passes/two
+  failures). The complete original products must survive cancellation before
+  final scaling. Source hashes, exact commands, logs and the owner review are in
+  `bounded-maxwell/root-review-v1.json` and `ROOT_REVIEW_V1.md` in the retained
+  evidence directory. Prior resource passes do not clear these numerical failures.
 - [x] CAP-001 V8 repairs the component-product witness; a fresh unequal-mass
   Float32 cancellation witness then fails 12 checks on each runtime. V9 guards
   the widened result against the original pair scale. The corrected permanent

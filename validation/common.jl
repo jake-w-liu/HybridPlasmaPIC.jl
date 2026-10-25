@@ -226,7 +226,7 @@ function _peak_frequency(series::AbstractVector{<:Complex}, dt::Real)
     peak, best = findmax(mag)
     isfinite(peak) && peak > 0 || return NaN
     a = mag[best-1] / peak
-    c = mag[best == nt ? 1 : best+1] / peak
+    c = mag[best == nt ? 1 : best + 1] / peak
     denom = a - 2 + c
     offset = denom != 0 ? 0.5 * (a - c) / denom : 0.0
     bin = best - 1 + offset

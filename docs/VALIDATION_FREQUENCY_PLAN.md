@@ -1,7 +1,8 @@
 # Validation frequency extraction repair
 
-Status: local correctness, compiler, resource and case-20 checks pass on
-Julia 1.12.7 and 1.13.2; push and exact-SHA CI remain pending.
+Status: numerical repair pushed as `01a1b3c`. Its CI run fails test loading and
+formatting. The dependency/format correction passes both local test sandboxes
+and whole-tree formatting; corrected exact-SHA CI remains required.
 
 ## Pre-edit brief
 
@@ -50,7 +51,8 @@ separation. Those remain separate CAP-007B requirements.
 - [x] Verify both-sign/DC boundary witnesses before implementation.
 - [x] Repair the owning helper and register independent regression tests.
 - [x] Run actual production case, final source review and both runtime gates.
-- [ ] Commit/push separately to main and review all six exact-SHA CI jobs.
+- [x] Commit/push the numerical repair separately as `01a1b3c`.
+- [ ] Correct test integration and review all six jobs on the corrected exact SHA.
 
 Evidence: `../HybridPlasmaPIC-audit-evidence/2026-10-23/validation-frequency`,
 including `first-bin-v1-commands.json` and complete logs.
@@ -95,3 +97,30 @@ all six terminal commands and log hashes:
 The canonical helper is the only behavior change; case 20 and its thresholds
 are unchanged. Full package tests and complete compiler-tree review remain
 required on the pushed exact revision. The broader CAP-007B campaign stays open.
+
+## CI integration correction
+
+[Run 40188149376](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40188149376)
+fails both Julia test jobs and formatting. **VERIFIED:** the registered test
+loads `validation/common.jl:7`, which imports `Printf`; `Project.toml` omitted
+that standard library from its test target. The completed latest-Julia job log
+records `Package Printf not found in current path`. Both local runtimes reproduce
+the same failure using `Pkg.Operations.gen_target_project` and `sandbox`, the
+owners used by `Pkg.test`. The earlier broad local environment did not exercise
+that restricted load path.
+
+The correction declares `Printf` in test extras, the test target and compat.
+Production dependencies and the estimator algorithm remain unchanged.
+The exact CI formatter, JuliaFormatter 1.0.62 with `format(".")`, also reproduces
+the formatting failure and changes only whitespace in the helper and its test.
+The earlier single-file formatter results remain recorded but do not establish
+whole-tree formatting acceptance. Correction evidence is in
+`CI_REPAIR_BRIEF.md`, `ci-sandbox-before-commands.json`, both retained baseline
+logs and `ci-format-reproduction-v1.log` in the evidence directory above.
+
+The corrected sandbox commands exit zero on Julia 1.12.7 and 1.13.2, each with
+3,153 frequency assertions and nine Aqua checks (`ci-sandbox-after-commands.json`).
+Five formatter checks pass: exact formatter version, both Julia syntax trees
+unchanged from `01a1b3c`, and two successful complete-tree formatting passes
+(`ci-format-final-v1.log`). No test was skipped or weakened. The original failed
+CI revision remains failed; these local results await the correction's full CI.
