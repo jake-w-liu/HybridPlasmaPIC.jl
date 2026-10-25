@@ -200,7 +200,7 @@ these agent names identify existing ownership, not running processes.
 
 | Slice | Implementation owner / canonical code | Dependencies | State and checked evidence | Next concrete action |
 | --- | --- | --- | --- | --- |
-| 001 local self/cross collisions | Root continuing saved `/root/local_multispecies_collisions` work; `particles/collisions.jl`, `particles/sorting.jl` | Existing particle/moment arithmetic gates | Isolated candidate retained; final gates open | [Normalization repair](NORMALIZATION_RANGE_PLAN.md) is pushed; composed collision candidate passes existing/rate checks but expanded angular and resource gates still fail. [Detailed tracker](LOCAL_MULTISPECIES_COULOMB_PLAN.md) |
+| 001 local self/cross collisions | Root continuing saved `/root/local_multispecies_collisions` work; `particles/collisions.jl`, `particles/sorting.jl` | Existing particle/moment arithmetic gates | Isolated candidate retained; final gates open | [Normalization repair](NORMALIZATION_RANGE_PLAN.md) is pushed; V7 collision candidate passes ordinary zero-allocation gates and expanded sampled-angle checks; fresh component-product range loss remains under repair. [Detailed tracker](LOCAL_MULTISPECIES_COULOMB_PLAN.md) |
 | 002A/B bounded Maxwell + particles | Agent unassigned; `models/full_pic.jl`, mesh/operator and coupling owners | Shared storage/layout decision; current periodic EM remains oracle | Planned; constructor and periodic calls checked | Derive staggered discrete operators and wall charge ledger; build vacuum/trajectory baseline before editing |
 | 002C/D open boundaries + production integration | Agent unassigned; boundaries, EM, I/O | 002A/B; 003/004 for parallel/device claims | Planned; no coupled open Maxwell path | Pre-register pulse reflection/charge-flux suite and absorber state schema |
 | 003A/B local storage + distributed operators | Agent unassigned; MPI/domain/pencil owners, Pencil extension | Storage/layout contract; existing real-MPI infrastructure | Planned; replicated moments and FFT wrapper inspected | Specify index/halo ownership and implement analytic distributed-operator tests |
@@ -242,15 +242,21 @@ energy using physical species masses; unequal weights require the selected
 method's statistical conservation, rate and reuse-count proof.
 
 The current candidate is unaccepted. The composition on `1097076` passes
-1,716 existing checks per runtime, including the corrected SI/normalized fixture
-with actual velocity changes and the 32 four-species generator checks. The
-normalization helper's exponent-growth allocation witness now passes 162 checks
-per runtime. The angular repair passes its original 516 checks per runtime, but
-an independent oblique sampled-angle matrix still fails 139 of 22,320 checks and
-12 of 108 ordinary allocation profiles fail on each runtime. A separate
-physical-rate oracle retains 164 failures pending rate-conditioning analysis.
-No failing gate has been waived. The [detailed tracker](LOCAL_MULTISPECIES_COULOMB_PLAN.md)
-records completed work and the remaining implementation/acceptance steps.
+1,716 existing checks per runtime, including actual SI/normalized velocity changes
+and all 32 four-species generator checks. Its normalization helper passes 7,590
+independent physical rounding checks, 100 compact MPFR checks and the separate
+bounded-allocation witness on both runtimes.
+
+V7 collision arithmetic passes 516 original angle checks, 39,060 combined sampled/
+conditioned physical checks, 14,402 Float32 widening checks and 60,002 Float64
+compensated checks per runtime. All 108 ordinary resource profiles allocate zero
+bytes. The original physical residual-only oracle retains 25 failed comparisons;
+separate measured rate/norm/phase errors and strict sampled-update checks verify
+the conditioned physical comparisons for those cases. No old failing log has been relabeled as green.
+A fresh component-product witness then finds 48 failures per runtime: normal
+angle and direction factors can multiply to zero before physical-speed scaling.
+That repair and final acceptance remain open. The [detailed tracker](LOCAL_MULTISPECIES_COULOMB_PLAN.md)
+records each version and the remaining steps.
 The [shared BigFloat materializer](EXACT_BIGFLOAT_CONVERSION_PLAN.md) has a
 compact-range repair with all six exact-SHA CI jobs and full compiler review
 passed. It is a numerical dependency, not a new simulator capability.
@@ -260,7 +266,7 @@ The V7 normalization repair passes permanent CPU/Metal/MPFR,
 threaded, exceptional-resource and compiler checks on both Julia versions.
 All 306 frozen ordinary profiles and six controls pass per runtime, with measured
 latency regressions retained as optimization work. It is pushed as `1097076`;
-formatting and all three MPI jobs pass, while both Julia jobs are pending.
+all six exact-SHA CI jobs and complete compiler review pass.
 Re-run all collision gates on the final repaired source before acceptance.
 
 - [ ] Cell-local self/cross pairing, empty/singleton/odd populations, arbitrary

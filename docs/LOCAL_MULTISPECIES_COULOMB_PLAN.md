@@ -460,3 +460,53 @@ compatibility checks must all pass on the final source before code promotion.
 The detailed command records are `complete-angle-v3-commands.json`,
 `complete-angle-oblique-v2-commands.json` and
 `complete-angle-sampled-v1-commands.json` in the evidence directory above.
+
+## Completed V6 checks and remaining resource work
+
+- Original extreme-angle witness: 516 checks pass per runtime.
+- V5 sampled center-of-mass oracle: 22,320 checks pass per runtime.
+- V6 combined sampled/conditioned physical oracle: 39,060 checks pass per runtime.
+- V6 independent Float32 widening boundary matrix: 14,402 checks pass per runtime.
+- Helper physical rounding cells: 7,590 checks pass per runtime; compact MPFR
+  boundaries add 100, followed by a successful final settings-restoration check.
+- Original physical residual-relative oracle retains 25 failures. The companion
+  diagnostic verifies rate, norm and phase rounding and compares physical updates
+  on their conditioning scale while preserving strict sampled-update checks.
+  Measured maximum relative sampled-rate error is 9.08105e-6 (Float32) and
+  3.35716e-13 (Float64), within the frozen 4096eps budgets. The old failures remain
+  evidence; they are not relabeled as passes.
+- VERIFIED: `complete-update-inference-v1-1132.log:348` identifies the captured
+  rotation as Core.Box. Full allocation stacks in both v1 attribution records
+  locate boxed arithmetic. V6 assigns the branch result once; the same direct
+  widened helper now allocates zero bytes on both runtimes, versus 2,000 before.
+- The full ordinary resource gate remains failed: 84 of 108 profiles pass,
+  24 fail on each runtime. Further Float64 completion optimization is required.
+
+The implementation remains isolated and unaccepted. Permanent regressions,
+registration, final compiler/legacy/neighbor checks, frozen costs, independent
+review, code promotion and exact-SHA CI remain required. The source checkpoint
+`composition-v6-source.json` predates this documentation-only update; numerical
+sources are unchanged. No fixed timing acceptance run has begun for this version.
+
+## Completed V7 resource repair and fresh numerical finding
+
+V7 evaluates the existing complete physical expression with bounded compensated
+Float64 operands, retaining exact completion outside its range/conditioning
+certificate. Both runtimes pass the original 516, conditioned 39,060, Float32
+boundary 14,402 and Float64 boundary 60,002 checks. All 108 ordinary allocation
+profiles now record zero bytes; four direct helper paths also record zero bytes
+and no concrete JET reports. The exponent/error certificate still requires an
+independent boundary audit before final acceptance.
+
+A fresh mixed-component witness retains 96 passes / 48 failures per runtime:
+both normalized direction and angle-square can be normal while their product
+underflows. Multiplication by physical speed would produce a finite component
+kick. V8 is repairing the canonical local increment's product and sum guards.
+The original legacy representation and random draw ordering remain compatibility
+gates. This feature is not promoted; formatting, permanent test registration,
+neighbor/legacy/full compiler/fixed-cost checks and final review remain required.
+
+Evidence: `complete-angle-v7-commands.json`,
+`compensated-boundaries-v2-commands.json`,
+`complete-update-allocation-v3-commands.json`, and
+`mixed-component-angle-v1-commands.json` in the retained evidence directory.

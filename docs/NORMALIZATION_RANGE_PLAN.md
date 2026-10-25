@@ -1,7 +1,7 @@
 # Reference-unit normalization range repair
 
-Status: **NORM-001 V7 passes local acceptance on Julia 1.12.7 and 1.13.2;
-exact-revision GitHub CI remains required.**
+Status: **NORM-001 V7 is pushed as `1097076`; local acceptance and all six
+exact-revision CI jobs pass on Julia 1.12.7 and 1.13.2.**
 This is a prerequisite for accepting the new local collision normalization
 helper, and also affects existing public unit conversion and RayCon adapters.
 
@@ -200,8 +200,12 @@ A separate output review compares values, types and stored precision.
 
 The final source/caller review finds no additional confirmed defect in this
 bounded conversion surface. API docstring edits preserve the executable AST;
-formatting and relative documentation links pass. Exact-revision GitHub CI
-remains required. CAP-001 and broader GPU evolution remain open.
+formatting and relative documentation links pass.
+[All six exact-revision CI jobs pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40042288497).
+Complete logs verify 723,136 / 723,137 assertions on Julia 1.12.7 / 1.13.2.
+Full compiler trees match reviewed `ba3694c` after checked unchanged-line maps
+(24 / 21 reports), with no suppressed diagnostics. CAP-001 and broader GPU
+evolution remain open.
 
 RayCon has additional compound temperature, frequency and amplitude conversions
 in its adapter. Repairing these shared accessors alone does not establish the
@@ -218,10 +222,10 @@ range correctness of every RayCon expression; that integration remains open.
   constants. Eight huge-exponent BigFloat profiles retain 20 passes / 16 failures.
   Precision, rounding and exponent limits are restored after characterization.
 - [x] Record constructor/zero-sign compatibility before the isolated edit.
-  Local implementation and validation pass; exact-revision CI remains open. The
+  Local implementation, validation and exact-revision CI pass. The
   [shared BigFloat materializer repair](EXACT_BIGFLOAT_CONVERSION_PLAN.md)
   now passes local acceptance and all six exact-SHA CI jobs with full compiler
-  review. The complete-scale implementation still has its own acceptance gates.
+  review. Both repairs retain their separate evidence and scope.
 - [x] Implement the canonical complete scale in the isolated candidate, retaining ordinary outputs and types
   where the existing evaluation is safe. Reuse exact conversion/square-root
   ownership where applicable. Bound exceptional work; avoid expanding enormous
@@ -246,7 +250,7 @@ range correctness of every RayCon expression; that integration remains open.
 - [x] Execute and review all final ordinary complete-call cost profiles.
 - [x] Update API docs, README and changelog; review final source, callers and diff.
 - [x] Integrate this repair as a separate change on main.
-- [ ] Require all six exact-SHA CI jobs for this repair.
+- [x] Require all six exact-SHA CI jobs for this repair; full compiler reports reviewed.
 
 ## Measured optimization follow-up
 

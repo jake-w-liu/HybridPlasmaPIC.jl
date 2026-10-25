@@ -1,6 +1,6 @@
 # Plasma simulation audit and implementation tracker
 
-Updated: 2026-10-24 (Asia/Taipei). Goal remains **active**.
+Updated: 2026-10-25 (Asia/Taipei). Goal remains **active**.
 
 User objective: audit the full codebase until an independent pass finds no new
 confirmed defects; optimize measured bottlenecks; plan and implement missing
@@ -10,7 +10,7 @@ also pass GitHub CI; a confirmed billing block is recorded separately.
 Passing a subset of tests does not establish whole-project correctness or
 completeness. Comparative leadership requires reproducible external benchmarks.
 
-## Current progress (2026-10-24)
+## Current progress (2026-10-25)
 
 | Active work | Checked state | Remaining gate |
 | --- | --- | --- |
@@ -19,9 +19,20 @@ completeness. Comparative leadership requires reproducible external benchmarks.
 | Metal gathered push | V6 native correctness/resources/compiler gates pass both runtimes; minimum timing passes all 30 profiles | Latest-Julia doubled-work control failed; zero candidate timing profiles ran there. Held without retry |
 | Linear CN reference multiplier | Expanded matrix: 2,571 passes / 237 failures per runtime, including complete frequencies | [Expanded repair and acceptance plan](LINEAR_CN_RANGE_PLAN.md) |
 | Shared BigFloat exact conversion | `245e73a` pushed after numerical, concurrency, resource, compiler and fixed-cost gates pass both runtimes | [All six exact-SHA jobs and full compiler review pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40026749996); [repair evidence](EXACT_BIGFLOAT_CONVERSION_PLAN.md) |
-| Reference-unit normalization | V7 local numerical, native Metal, resource/compiler and all 306 fixed-cost profiles pass both runtimes | `1097076` pushed; formatting and 2/4/8-rank MPI pass, both Julia jobs pending. Measured latency regressions remain optimization work. [Evidence and next steps](NORMALIZATION_RANGE_PLAN.md) |
-| Local multispecies collisions | Composed on `1097076`; 1,716 existing and 516 original angle checks pass per runtime. Expanded sampled-angle checks and ordinary allocation gates still fail | Repair oblique backscatter cancellation and allocation cost; [detailed implementation tracker](LOCAL_MULTISPECIES_COULOMB_PLAN.md) |
+| Reference-unit normalization | V7 local numerical, native Metal, resource/compiler and all 306 fixed-cost profiles pass both runtimes | `1097076` passes all six exact-SHA CI jobs and full compiler review. Measured latency regressions remain optimization work. [Evidence and next steps](NORMALIZATION_RANGE_PLAN.md) |
+| Local multispecies collisions | V7 passes 108/108 zero-allocation profiles and expanded sampled-angle checks per runtime; a fresh component-product witness finds 48 failures each | Repair the confirmed component-product range loss, then final acceptance gates; [detailed implementation tracker](LOCAL_MULTISPECIES_COULOMB_PLAN.md) |
 | Full simulator scope | CAP-001–011 remain open in whole or part | [Staged implementation roadmap](PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md) |
+
+- [x] Normalization `1097076` and progress documentation `7d83dc7` both pass all
+  six exact-SHA CI jobs. Complete logs verify 723,136 / 723,137 assertions on
+  Julia 1.12.7 / 1.13.2. Full compiler trees match reviewed `ba3694c` after
+  checked unchanged-line mappings (24 / 21 reports).
+  [Normalization run](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40042288497),
+  [documentation run](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40046655381).
+- [x] Earlier documentation `0461c80` and `5f99e3d` also pass all six jobs,
+  625,494 / 625,495 assertions and the same complete compiler comparison.
+  [First run](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40031897947),
+  [second run](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40038593016).
 
 - [x] Rechecked the [official Julia downloads page](https://julialang.org/downloads/):
   current stable is 1.13.2, released 2026-10-14. Native and complete CI logs
