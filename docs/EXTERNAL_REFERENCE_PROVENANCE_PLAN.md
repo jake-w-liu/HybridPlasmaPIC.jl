@@ -1,6 +1,7 @@
 # External reference provenance — CAP-007A
 
-Status: local implementation and validation gates passed; exact-SHA GitHub CI
+Status: pushed as `95c5678`; local implementation and validation gates passed.
+[Exact-SHA GitHub CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40186481856)
 remains pending. Production dispersion and full shock-profile comparisons remain
 CAP-007B/C.
 
@@ -61,7 +62,8 @@ the unchanged case metrics.
 - [x] Run offline mutation/failure checks on Julia 1.12.7 and 1.13.2.
 - [x] Build and execute both pinned external references; verify cache replay.
 - [x] Review physics metrics, formatting, final diff and documentation.
-- [ ] Push accepted slice to main and review all six exact-SHA CI jobs.
+- [x] Push the locally verified slice to main as `95c5678`.
+- [ ] Review all six exact-SHA CI jobs and complete compiler output.
 
 ## Verification ledger
 

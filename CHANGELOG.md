@@ -172,6 +172,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Validation frequency extraction includes the first Fourier bin and both
+  rotation directions, removes DC before peak interpolation, and rejects
+  histories without usable oscillation evidence. Component centering and
+  amplitude normalization preserve small oscillations beside large DC values.
+  Invalid sampling intervals raise `ArgumentError`; case 20 retains its
+  original physical acceptance thresholds.
+
 - Unit conversion evaluates complete physical expressions when intermediate
   scales or final operations lose floating-point range. The shared exact-root
   owner separates significands from exponents, preserving signed endpoints and

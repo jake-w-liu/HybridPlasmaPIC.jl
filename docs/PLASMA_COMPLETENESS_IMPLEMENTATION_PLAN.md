@@ -542,14 +542,18 @@ performance comparisons separate in reported results.
   patches, compiler/build options, input decks, checksums, units, license and raw
   outputs. The [shared provenance implementation](EXTERNAL_REFERENCE_PROVENANCE_PLAN.md)
   replaces moving clones and unchecked cache reuse. Real pinned builds and all
-  ten unchanged physics metrics pass on Julia 1.12.7 and 1.13.2; final local
-  integration checks pass and exact-SHA CI remains open. Missing/build-failed references stay
+  ten unchanged physics metrics pass on Julia 1.12.7 and 1.13.2; pushed as
+  `95c5678`, with exact-SHA CI still open. Missing/build-failed references stay
   failed/unavailable. This metadata does not establish a hermetic toolchain.
 - [ ] **007B: production dispersion.** Keep the independent eigenvalue comparison
   in case 27, but also measure frequencies/damping/growth from actual initialized
   hybrid/Hall/EM time series and compare with the applicable independent theory
   or solver. Sweep modes, angles, temperature/mass ratios and refinement; freeze
   fitting windows, uncertainty estimation and branch selection before results.
+  The [existing frequency helper repair](VALIDATION_FREQUENCY_PLAN.md) is a
+  prerequisite: 3,153 registered checks, compiler/resource review and actual
+  case 20 pass per runtime; exact-SHA CI remains. This does not close the
+  broader campaign.
 - [ ] **007C: nonlinear profiles.** Reproduce matched shock setups, including
   initialization, boundary conditions, closures and diagnostics. Compare full
   density/B/velocity/pressure profiles and time statistics, not just peak scalar

@@ -8,6 +8,14 @@ This case validates the 2D electromagnetic PIC transverse-wave dispersion.
 - Frequency extraction from the simulated field history.
 - Charge-conservation residual during the run.
 
+The shared frequency estimator selects the strongest nonzero Fourier peak in
+the complex field history, including both rotation directions, and returns its
+unsigned angular frequency. It removes DC and fits a parabola to the peak and
+its two neighbors. Constant, nonfinite or fewer-than-five-sample histories have
+no measured frequency and fail validation. Sampling intervals must be finite
+and positive. This finite-history estimate does not measure damping or separate
+unresolved neighboring modes; its off-bin interpolation can be biased.
+
 ## Reference
 
 The analytic cold electromagnetic plasma reference is

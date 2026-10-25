@@ -200,26 +200,38 @@ function _write_skip_metric_csv(path::AbstractString, metric::AbstractString)
     )
 end
 
+"""Estimate the unsigned angular frequency of the strongest nonzero FFT peak.
+
+Use a rectangular observation window and three-bin parabolic interpolation.
+Short, constant or nonfinite histories return NaN; invalid sampling intervals
+throw `ArgumentError`. The estimate does not resolve overlapping spectral peaks.
+"""
 function _peak_frequency(series::AbstractVector{<:Complex}, dt::Real)
+    isfinite(dt) && dt > 0 || throw(ArgumentError("sampling interval must be finite and positive"))
     nt = length(series)
     nt >= 5 || return NaN
-    spectrum = fft(series)
-    mag = abs.(spectrum)
-    best = 2
-    bestmag = -Inf
-    for j = 2:(nt÷2)
-        if mag[j+1] > bestmag
-            bestmag = mag[j+1]
-            best = j
-        end
-    end
-    best <= 1 && return NaN
-    a = mag[best]
-    b = mag[best+1]
-    c = mag[best+2]
-    denom = a - 2b + c
+    all(isfinite, series) || return NaN
+    all(==(first(series)), series) && return NaN
+    signal = float.(series)
+    # Center components before scaling: a large DC component must not erase a
+    # small oscillation in the other component. Halved endpoints avoid overflow.
+    re = minimum(real, signal) / 2 + maximum(real, signal) / 2
+    im = minimum(imag, signal) / 2 + maximum(imag, signal) / 2
+    signal .-= complex(re, im)
+    scale = maximum(z -> max(abs(real(z)), abs(imag(z))), signal)
+    scale > 0 || return NaN
+    signal ./= scale
+    mag = abs.(fft!(signal))
+    mag[1] = 0 # DC cannot be a peak or contribute to first-bin interpolation.
+    peak, best = findmax(mag)
+    isfinite(peak) && peak > 0 || return NaN
+    a = mag[best-1] / peak
+    c = mag[best == nt ? 1 : best+1] / peak
+    denom = a - 2 + c
     offset = denom != 0 ? 0.5 * (a - c) / denom : 0.0
-    return 2π * (best + offset) / (nt * dt)
+    bin = best - 1 + offset
+    bin > nt / 2 && (bin -= nt)
+    return (2π * abs(bin) / nt) / dt
 end
 
 function _zero_cross_frequency(series::AbstractVector{<:Real}, dt::Real)

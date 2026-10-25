@@ -10,6 +10,7 @@ using Test
     include("test_interval_validation.jl")
     include("test_provenance.jl")
     include("test_reference_provenance.jl")
+    include("test_validation_frequency.jl")
     include("test_migration.jl")
     include("test_migration_storage.jl")
     include("test_migration_storage_mpi.jl")

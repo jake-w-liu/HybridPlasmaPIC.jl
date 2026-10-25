@@ -21,10 +21,10 @@ completeness. Comparative leadership requires reproducible external benchmarks.
 | Shared BigFloat exact conversion | `245e73a` pushed after numerical, concurrency, resource, compiler and fixed-cost gates pass both runtimes | [All six exact-SHA jobs and full compiler review pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40026749996); [repair evidence](EXACT_BIGFLOAT_CONVERSION_PLAN.md) |
 | Reference-unit normalization | V7 local numerical, native Metal, resource/compiler and all 306 fixed-cost profiles pass both runtimes | `1097076` passes all six exact-SHA CI jobs and full compiler review. Measured latency regressions remain optimization work. [Evidence and next steps](NORMALIZATION_RANGE_PLAN.md) |
 | Local multispecies collisions | V10 passes 141,143 permanent assertions plus normalization subprocess checks per runtime; all 108 ordinary profiles allocate zero bytes; concrete/full compiler review passes | Arithmetic review complete; fixed costs and final promotion/CI remain; [detailed implementation tracker](LOCAL_MULTISPECIES_COULOMB_PLAN.md). Feature remains unaccepted |
-| Bounded Maxwell vacuum/cavity | V6 has 28,659 functional assertions per runtime, ordinary zero-allocation checks and 240 cold-resource rows passing each runtime | A fresh interpolated-Poynting subnormal witness fails twice per runtime; V7 repair active. Bounded particle coupling remains a later slice |
-| Electrostatic species collections | V6 functional/compiler/checkpoint gates, 216 scalar and 720 collection resource checks pass both runtimes | V7 removes a duplicate position scan; final affected checks and expanded cost matrix remain active |
-| External reference provenance | Pinned builds, 50 offline + 4 independent + 44 real-cache + 16 caller checks, Aqua and all ten comparison metrics pass per runtime | Exact-SHA CI and complete compiler review; [implementation and evidence](EXTERNAL_REFERENCE_PROVENANCE_PLAN.md) |
-| Validation frequency extraction | Root's independent witness fails three checks per runtime: first Fourier bin is omitted and constant histories receive a frequency | Separate canonical helper repair and case-20 integration checks; retained evidence in `validation-frequency/` |
+| Bounded Maxwell vacuum/cavity | V7 repairs interpolated-Poynting subnormal loss; 96 additional diagnostic resource rows pass each runtime with zero native retention and corrected retention at most 12,528 B | Final expanded cost preflight/timing and promotion remain. Bounded particle coupling remains a later slice |
+| Electrostatic species collections | V7 removes a duplicate position scan; final affected checks and expanded cost matrix remain active | A fresh zero-field test exposes inherited Boris coefficient overflow; a separate canonical repair is required before acceptance |
+| External reference provenance | Pushed as `95c5678`: pinned builds, 50 offline + 4 independent + 44 real-cache + 16 caller checks, Aqua and all ten comparison metrics pass per runtime | [Exact-SHA CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40186481856) and complete compiler review remain; [implementation and evidence](EXTERNAL_REFERENCE_PROVENANCE_PLAN.md) |
+| Validation frequency extraction | Final repair passes 3,153 registered checks, four concrete compiler calls, 40 resource checks and actual case 20 per runtime; eight allocation counts match parent each | Push/exact-SHA CI and full compiler review remain; [repair plan and evidence](VALIDATION_FREQUENCY_PLAN.md) |
 | Full simulator scope | CAP-001–011 remain open in whole or part | [Staged implementation roadmap](PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md) |
 
 - [x] Reconfirmed the full implementation objective on 2026-10-25: CAP-001–011
@@ -94,6 +94,18 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   723,136 / 723,137 assertions. Complete compiler trees are byte-identical to
   reviewed `1097076` (24 / 21 reports); source, tests and package manifest
   declarations are unchanged. [CI run](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40171266893).
+- [x] Progress revision `c5e8472` passes all six exact-SHA jobs and
+  723,136 / 723,137 assertions. Its complete compiler trees are byte-identical
+  to reviewed `1097076` (24 / 21 existing reports); no source-line normalization
+  is needed. [CI run](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40174249763).
+- [ ] Repair the inherited Boris coefficient range failure found during the
+  ES collection audit. **VERIFIED:** finite q/m and dt with zero fields produce
+  `(NaN, NaN, NaN)` because `src/particles/boris.jl:16` forms an overflowing
+  coefficient before field multiplication. The Float32/64 equilibrium witness
+  retains two passes, two failures and two errors on Julia 1.12.7
+  (`electrostatic-species/zero-field-large-charge-before-112.log`). The ES agent
+  owns a separate complete-expression/priming repair; the frozen V7 collection
+  implementation and held radiation work remain separate.
 - [x] Earlier documentation `0461c80` and `5f99e3d` also pass all six jobs,
   625,494 / 625,495 assertions and the same complete compiler comparison.
   [First run](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40031897947),
