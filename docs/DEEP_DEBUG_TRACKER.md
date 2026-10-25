@@ -17,12 +17,13 @@ completeness. Comparative leadership requires reproducible external benchmarks.
 | Shock CN solve and memory-status constructors | `ce52836` has all six CI jobs green and full compiler review; `c810eb0` has five green jobs and one failed allocation assertion | Investigate the shock-total resource failure; source attribution remains open |
 | Complete energy-budget composition | V6 broader fixed costs fail at profile 192/324; numerical/resource passes retained | Optimize the implementation before a new frozen candidate; composition held |
 | Metal gathered push | V6 native correctness/resources/compiler gates pass both runtimes; minimum timing passes all 30 profiles | Latest-Julia doubled-work control failed; zero candidate timing profiles ran there. Held without retry |
-| Linear CN reference multiplier | Isolated implementation active; baseline retains 2,571 passes / 237 failures per runtime | Complete range/integer/frequency repair and independent gates; [acceptance plan](LINEAR_CN_RANGE_PLAN.md) |
+| Linear CN reference multiplier | Isolated V4 candidate passes 16,534 registered parent assertions and 115,600 BigFloat child assertions per runtime; concrete/Aqua and full compiler trees pass | Broader ordinary allocation preflight fails 21/24 profiles per runtime; optimize before frozen timing/promotion. [Acceptance plan](LINEAR_CN_RANGE_PLAN.md) |
 | Shared BigFloat exact conversion | `245e73a` pushed after numerical, concurrency, resource, compiler and fixed-cost gates pass both runtimes | [All six exact-SHA jobs and full compiler review pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40026749996); [repair evidence](EXACT_BIGFLOAT_CONVERSION_PLAN.md) |
 | Reference-unit normalization | V7 local numerical, native Metal, resource/compiler and all 306 fixed-cost profiles pass both runtimes | `1097076` passes all six exact-SHA CI jobs and full compiler review. Measured latency regressions remain optimization work. [Evidence and next steps](NORMALIZATION_RANGE_PLAN.md) |
-| Local multispecies collisions | V10 passes 141,143 permanent assertions plus normalization subprocess checks per runtime; all 108 ordinary profiles allocate zero bytes; concrete/full compiler review passes | Complete arithmetic certificates, fixed costs and final promotion/CI; [detailed implementation tracker](LOCAL_MULTISPECIES_COULOMB_PLAN.md). Feature remains unaccepted |
+| Local multispecies collisions | V10 passes 141,143 permanent assertions plus normalization subprocess checks per runtime; all 108 ordinary profiles allocate zero bytes; concrete/full compiler review passes | Arithmetic review complete; fixed costs and final promotion/CI remain; [detailed implementation tracker](LOCAL_MULTISPECIES_COULOMB_PLAN.md). Feature remains unaccepted |
 | Bounded Maxwell vacuum/cavity | Separate CAP-002A implementation active: staggered fields and mixed periodic/PEC axes | Discrete conservation, convergence, boundary and failure tests; particle coupling remains a later slice |
 | Electrostatic species collections | Separate CAP-008 implementation active: shared field, explicit neutrality, synchronized populations | Collection checkpoint, dispersion, compatibility and rollback gates |
+| External reference provenance | Root owns CAP-007A; existing builders reuse moving source/cache without provenance verification | Pin source/build/output identities and retain failure causes in a separate worktree |
 | Full simulator scope | CAP-001–011 remain open in whole or part | [Staged implementation roadmap](PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md) |
 
 - [x] Reconfirmed the full implementation objective on 2026-10-25: CAP-001–011
@@ -55,19 +56,32 @@ completeness. Comparative leadership requires reproducible external benchmarks.
 - [x] Final V10 concrete/Aqua checks pass; complete compiler trees match V9 after
   checked unchanged-line mapping (29/27 reports). Strengthened preconversion
   bounds pass 16,198 checks and adjacent limits pass 5,564 per runtime. The
-  source-level arithmetic argument remains under final review; tests alone do
-  not certify all input bit patterns.
+  manual source-level arithmetic review is complete for the frozen expression
+  and checked runtime operations; tests alone are not a proof over bit patterns.
+- [x] V10 neighboring regressions pass 49,720 assertions per runtime; the public
+  two-species example runs successfully on Julia 1.12.7 and 1.13.2.
 - [x] The fixed-cost harness passes 104 mutation-sensitivity checks and 56 tiny
   replay/resource profiles per runtime. These are harness checks, not timing
-  acceptance. Exceptional completion costs and the final source freeze remain
-  part of the premeasurement work.
+  acceptance. Exceptional completion adds 30 mutation checks and eight tiny
+  profiles per runtime. The full harness is frozen at 304 profiles per runtime;
+  an exclusive timing window remains required.
 - [x] Three fresh implementation agents started successfully on 2026-10-25:
   linear CN, electrostatic species collections and bounded Maxwell vacuum/cavity.
   Earlier agent quota errors are historical; they do not describe current service
   availability. Root retains collision acceptance, integration and CI ownership.
-- [ ] CAP-001 arithmetic certification, fixed performance measurements, final
+- [ ] CAP-001 fixed performance measurements, final
   review, code push and exact-SHA CI remain open. The fixed-cost design is
   recorded before measurement; no timing campaign has started.
+
+- [x] A fresh CN resource preflight verifies **21 failed / three passing**
+  ordinary profiles on each runtime. Ten alternating same-input measurements
+  agree exactly: at precision 256, `(3,2)` allocates 590,528 bytes versus 3,360
+  in the parent. Integer/mixed coefficient packets at n=128 allocate about
+  2.5–2.62 MB versus roughly 24 KB; default Float64 packets match the parent.
+  No latency acceptance ran. The agent is optimizing this confirmed regression
+  before promotion, preserving every numerical gate and failed measurement.
+  Evidence: `linear-cn-range/repair-v1/root-resource-preflight-v1-commands.json`
+  and both runtime TOML/log records in the retained evidence directory.
 
 - [x] Normalization `1097076` and progress documentation `7d83dc7` both pass all
   six exact-SHA CI jobs. Complete logs verify 723,136 / 723,137 assertions on

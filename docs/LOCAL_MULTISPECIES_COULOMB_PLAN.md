@@ -2,7 +2,7 @@
 
 Status: isolated implementation under verification; not committed or accepted.
 Original base: `bf2a8bc615f514f8d2868934849bf44814140bbb`.
-Current V9 composition: `438b1c266073d39f5d20cb847cddd06d5ba74839`; production baseline is unchanged from `1097076` and its accepted normalization prefix is retained.
+Current V10 composition: `c5e8472084dff861ae92d8ff6466edfaaeeebe44`; production baseline is unchanged from `1097076` and its accepted normalization prefix is retained.
 Evidence directory: `../HybridPlasmaPIC-audit-evidence/2026-10-23/local-multispecies-coulomb`.
 
 ## Verified starting point
@@ -592,11 +592,23 @@ not clamp outputs or change the sampled physics.
 - [x] Formatter: 40 AST/idempotence checks across 20 owned Julia files.
 - [x] Performance harness preflight: 104 mutation-sensitivity assertions and
   56 tiny replay/resource profiles per runtime. No timing acceptance run.
-- [ ] Finish the source-level error/range certificate review. Exact-fraction
-  propagation and structured tests support the argument but are not a
-  machine-checked proof over all inputs.
-- [ ] Complete exceptional-completion cost coverage, freeze the final harness
-  and execute the exclusive fixed-cost campaign. Retain every failed control.
+- [x] Final source-level error/range review is recorded in
+  `completion-certificate-derivation-v5.md`. The manual proof checks primitive
+  normalization, bounded intermediates, underflow propagation and both rounded
+  outputs against the actual Julia implementations. It is not machine checked;
+  changed runtime arithmetic requires review again.
+- [x] Exceptional cost preflight passes 30 state/doubled-replay mutation checks
+  and eight tiny profiles per runtime; allocation stacks confirm exact
+  completion. The complete harness is frozen at 304 profiles per runtime,
+  including controls. The first preflight retains an RNG fixture ambiguity,
+  corrected through concrete Float32/64 methods before the successful runs.
+- [x] V10 legacy differential rerun passes all 8,064 assertions per runtime,
+  retaining complete outputs, scratch, RNG and exact byte equality.
+- [x] V10 neighboring regressions pass 49,720 assertions per runtime and the
+  public two-species example runs successfully on both runtimes. Commands and
+  log hashes are in `neighbors-current-v2-commands.json`.
+- [ ] Execute the exclusive fixed-cost campaign and retain every failed control.
+  No timing acceptance run has begun; other live Julia work prevents exclusivity.
 - [ ] Reconcile final example/neighbor/legacy/API/docs evidence, promote the
   accepted implementation and require all six exact-SHA GitHub CI jobs green.
 
@@ -605,7 +617,8 @@ Current evidence: `composition-v10-permanent-source.json`,
 `widened-overflow-midpoint-v2-commands.json`,
 `widened-overflow-regression-v1-commands.json`, `completion-v10-commands.json`,
 `package-jet-current-v3-*-review.json`,
-`completion-certificate-derivation-v4.md` and `fixed-cost-v2-design.md`.
+`completion-certificate-derivation-v5.md`, `fixed-cost-v2-final-freeze.json`,
+`fixed-exceptional-selfcheck-v1-commands.json` and `fixed-cost-v2-design.md`.
 
 Three independent implementation agents are active for linear CN, ES species
 collections and bounded Maxwell vacuum/cavity. This collision slice does not

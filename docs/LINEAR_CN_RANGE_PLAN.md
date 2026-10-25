@@ -123,3 +123,26 @@ unbounded rational expansion of canceling input exponents.
 No correctness, performance or full-simulator completion claim follows from
 this plan. The unresolved capabilities remain in the
 [implementation roadmap](PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md).
+
+## Current implementation and allocation finding (2026-10-25)
+
+The isolated V4 implementation passes 16,534 registered parent assertions and
+115,600 isolated BigFloat child assertions per runtime, plus the retained
+witnesses and neighboring exact-arithmetic checks. Concrete compiler/Aqua gates
+pass; complete compiler trees match the parent after checked unchanged-line
+mapping (29/27 reports). These checks do not establish performance acceptance.
+
+Root's next ordinary allocation preflight fails 21 of 24 profiles on **each**
+Julia 1.12.7/1.13.2. Ten alternating same-input measurements have identical byte
+counts per profile. At precision 256, `cn_multiplier(BigFloat(3), BigFloat(2))`
+allocates 590,528 bytes versus 3,360 in the clean parent. Integer/mixed coefficient
+packets at n = 128 allocate about 2.5–2.62 MB versus roughly 24 KB. Ordinary Float64
+packets retain exact byte equality. The underlying allocation paths require
+profiling; these measurements alone do not assign every allocation to an owner.
+
+V4 and its failures remain frozen. Canonical resource optimization is active
+before any timing campaign or promotion. Exact component/rounding-cell tests,
+compact and huge exponent behavior, return types and unchanged resource limits
+remain required. Evidence is in
+`linear-cn-range/repair-v1/root-resource-preflight-v1-{112,1132}.{log,toml}` and
+`root-resource-preflight-v1-commands.json` under the retained evidence directory.
