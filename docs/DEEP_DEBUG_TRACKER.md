@@ -20,8 +20,33 @@ completeness. Comparative leadership requires reproducible external benchmarks.
 | Linear CN reference multiplier | Expanded matrix: 2,571 passes / 237 failures per runtime, including complete frequencies | [Expanded repair and acceptance plan](LINEAR_CN_RANGE_PLAN.md) |
 | Shared BigFloat exact conversion | `245e73a` pushed after numerical, concurrency, resource, compiler and fixed-cost gates pass both runtimes | [All six exact-SHA jobs and full compiler review pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40026749996); [repair evidence](EXACT_BIGFLOAT_CONVERSION_PLAN.md) |
 | Reference-unit normalization | V7 local numerical, native Metal, resource/compiler and all 306 fixed-cost profiles pass both runtimes | `1097076` passes all six exact-SHA CI jobs and full compiler review. Measured latency regressions remain optimization work. [Evidence and next steps](NORMALIZATION_RANGE_PLAN.md) |
-| Local multispecies collisions | V7 passes 108/108 zero-allocation profiles and expanded sampled-angle checks per runtime; a fresh component-product witness finds 48 failures each | Repair the confirmed component-product range loss, then final acceptance gates; [detailed implementation tracker](LOCAL_MULTISPECIES_COULOMB_PLAN.md) |
+| Local multispecies collisions | V9 passes 140,303 permanent assertions plus normalization subprocess checks per runtime; all 108 ordinary profiles allocate zero bytes; concrete/full compiler review passes | Complete arithmetic certificates, fixed costs and final promotion/CI; [detailed implementation tracker](LOCAL_MULTISPECIES_COULOMB_PLAN.md). Feature remains unaccepted |
 | Full simulator scope | CAP-001–011 remain open in whole or part | [Staged implementation roadmap](PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md) |
+
+- [x] Reconfirmed the full implementation objective on 2026-10-25: CAP-001–011
+  remain active, including missing coupled solvers, backend integration and
+  restart. Passing a primitive or this collision slice closes none of those
+  dependent capabilities.
+- [x] CAP-001 V8 repairs the component-product witness; a fresh unequal-mass
+  Float32 cancellation witness then fails 12 checks on each runtime. V9 guards
+  the widened result against the original pair scale. The corrected permanent
+  suite passes 140,303 assertions per runtime, including 24,304 structured
+  boundary checks and 48 cancellation checks. Child normalization checks pass
+  7,590 + 100 assertions and confirm settings restoration. Two earlier suite
+  runs retain a missing-import fixture error; they are not marked green.
+- [x] Legacy ordinary differential checks pass 8,064 assertions per runtime.
+  Float16/BigFloat checks pass 672 per runtime after warming the exact measured
+  state. Identical-parent and reversed-order controls reproduce and reverse the
+  previous three allocation differences, respectively; strict byte equality
+  remains the gate. The underlying runtime allocation owner is unclassified.
+- [x] V8 neighboring suites pass 49,720 assertions and the example runs on both
+  runtimes. V9 concrete checks/Aqua pass; complete package compiler trees match
+  V8 after checked source-line mapping (29/27 reports). One generic sampler
+  entry changed relative to the accepted parent; its complete callee chain,
+  signature and diagnostic match, with concrete execution checked separately.
+- [ ] CAP-001 arithmetic certification, fixed performance measurements, final
+  review, code push and exact-SHA CI remain open. The fixed-cost design is
+  recorded before measurement; no timing campaign has started.
 
 - [x] Normalization `1097076` and progress documentation `7d83dc7` both pass all
   six exact-SHA CI jobs. Complete logs verify 723,136 / 723,137 assertions on

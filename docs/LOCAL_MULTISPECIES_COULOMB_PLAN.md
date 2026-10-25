@@ -2,7 +2,7 @@
 
 Status: isolated implementation under verification; not committed or accepted.
 Original base: `bf2a8bc615f514f8d2868934849bf44814140bbb`.
-Current composition: `1097076dcbe323a202e305621891cc33f5923faf`; accepted normalization prefix retained.
+Current V9 composition: `438b1c266073d39f5d20cb847cddd06d5ba74839`; production baseline is unchanged from `1097076` and its accepted normalization prefix is retained.
 Evidence directory: `../HybridPlasmaPIC-audit-evidence/2026-10-23/local-multispecies-coulomb`.
 
 ## Verified starting point
@@ -216,9 +216,11 @@ using the direct increment rather than renormalization noise.
   and finite-N generator choices are recorded above.
 - [x] Prove pairing expectations by independent enumeration for even/odd self
   populations and unequal cross counts, including 2:3 and 3:7.
-- [ ] Extract the shared scatter without changing legacy outputs, RNG state,
-  allocations or error semantics; compare against the frozen parent. The
-  expanded BigFloat allocation repair is awaiting its final recheck.
+- [x] Extract the shared scatter and check legacy outputs, RNG state and warmed
+  allocations against the frozen parent. Both runtimes pass 8,064 ordinary
+  differential assertions and 672 Float16/BigFloat assertions. The allocation
+  measurement controls and retained initial failures are recorded below;
+  latency acceptance remains separate.
 - [x] Implement reusable cell bins and transactional multispecies collisions;
   runtime and resource acceptance is still in progress.
 - [x] Test both precisions and all dimensions: locality, periodic seams,
@@ -510,3 +512,57 @@ Evidence: `complete-angle-v7-commands.json`,
 `compensated-boundaries-v2-commands.json`,
 `complete-update-allocation-v3-commands.json`, and
 `mixed-component-angle-v1-commands.json` in the retained evidence directory.
+
+## Current V9 evidence and acceptance gates
+
+The V8 product/sum guards pass the previously failing 144-check component
+matrix and all 108 ordinary allocation profiles on both runtimes. Its registered
+suite passes 115,951 assertions per runtime. Its neighboring suites pass 49,720
+and its example runs successfully on each runtime.
+
+A different cancellation witness then finds a Float32 widening defect. With
+unequal physical masses, a small azimuthal term disappears inside the rotated
+increment before the old final-sum guard can inspect it. Both runtimes retain
+36 passes / 12 failures in `widened-cancellation-witness-v2`. The equal-mass
+control passes because another coordinate already requests exact completion.
+V9 checks all final coordinates against the original pair scale, including a
+rounded-zero change, and retains the same canonical exact physical expression.
+
+- [x] V9 permanent suite: **140,303 assertions per runtime**, including 24,304
+  structured cancellation/boundary gates and the 48-check witness. Normalization
+  subprocesses pass 7,590 + 100 checks and confirm settings restoration.
+- [x] All 108 ordinary reused-workspace profiles record zero bytes per runtime.
+- [x] Concrete compiler/quality checks: 55 local, 10 sampler/legacy, six complete
+  representation checks and nine Aqua checks pass on each runtime. Complete
+  package trees match V8 after checked unchanged-line mapping (29/27 reports).
+  Compared with the accepted parent, one generic entry moves between two
+  `hypot` calls; every downstream frame, signature and message is identical.
+  Concrete checks and execution cover that changed entry separately.
+- [x] Formatter preserves ASTs and is idempotent for all 20 owned Julia files.
+  The first integrated V9 fixture omitted `Random`; both failed runs retain
+  140,144 passes and one fixture error. The import is corrected, and both full
+  registered suites were rerun successfully. Production code was unchanged.
+- [x] Strict Float16/BigFloat allocation and value comparison passes all 672
+  checks per runtime after warming the exact measured state. The earlier
+  latest-Julia failures are retained: an identical-parent control reproduces
+  the same 8/8/272-byte differences, and reversed measurement order reverses
+  them. Five reset measurements and full allocation profiles agree for each
+  affected workload. This verifies measurement-order dependence; it does not
+  identify an internal Julia/MPFR allocation owner. No padding or looser byte
+  assertion was introduced.
+- [ ] Independently certify the exponent/error bounds for both hardware
+  completion adapters; random and structured passing tests alone are not proof.
+- [ ] Execute the frozen fixed-cost campaign: 72 legacy and 216 new-local
+  profiles on both runtimes, identical/doubled controls, zero measured
+  compilation, full outputs/RNG, strict ordinary bytes and recorded storage.
+  No timing run has started. Preserve any failed control without unchanged retry.
+- [ ] Review the final API, example, diff and documentation; promote the accepted
+  implementation separately to `main`, then verify every exact-SHA CI job.
+
+Evidence: `composition-v9b-permanent-source.json`,
+`completion-v9b-commands.json`, `neighbors-current-v1-commands.json`,
+`quality-current-v2-{112,1132}.log`, `package-jet-current-v2-*-review.json`,
+`legacy-other-same-state-v1-commands.json`,
+`legacy-allocation-boundary-review-v1.md`, `completion-certificate-review-v2.md`
+and `fixed-cost-v2-design.md`. CAP-003/004 parallel support and CAP-010 composed
+evolution/RNG restart remain dependent implementations, not completed features.
