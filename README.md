@@ -440,9 +440,9 @@ regression oracles are described in `CHANGELOG.md`.
 | budgets & boundaries | energy convergence and fixed-ion inertia balance, boundary seam/edge contracts, bitwise checkpoint/restart |
 | ray tracing | WKB dispersion roots vs the two-fluid oracle (~1e-11), stratified-medium invariants; Raycon pinned layer-by-layer against MATLAB reference data, amplitude transport vs symplectic tangent-map oracles |
 
-There is also a 32-study `validation/` suite (analytic benchmarks through
-published-physics reproductions — Leroy 1982, Hellinger 2002, NHDS dispersion,
-Hybrid-VPIC shock, firehose/ion-cyclotron/Weibel/reconnection growth rates):
+The `validation/` suite includes analytic benchmarks, published reference
+comparisons and instability/control checks. Its [case catalog](validation/README.md)
+describes the actual comparison in each case:
 
 ```bash
 julia --project=validation validation/run_validation.jl --quick   # or --all
@@ -455,6 +455,14 @@ verify source, input, tool and output identities before using cached results,
 retain failed build attempts, and copy a provenance manifest into their artifacts.
 The [reference implementation tracker](docs/EXTERNAL_REFERENCE_PROVENANCE_PLAN.md)
 records acceptance evidence and remaining production-dispersion/profile work.
+
+[Production wave-history validation](validation/34_production_parallel_dispersion/README.md)
+measures signed frequency and growth/damping from evolved cold parallel hybrid
+and Hall-MHD modes. It retains raw histories, residuals, half-window sensitivity,
+independent grid/time/particle refinements and source/environment hashes.
+Conditional fit errors do not establish statistical confidence for correlated
+PIC noise. Broader oblique, thermal, kinetic and EM comparisons remain in the
+[production dispersion plan](docs/PRODUCTION_DISPERSION_PLAN.md).
 
 ### Honest limits (not claimed)
 

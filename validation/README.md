@@ -64,10 +64,23 @@ so outputs correspond to the current case selection.
 | `22_shock_spacecraft_diagnostics` | shock-front, crossing, boundary-flux, frame-transform, and synthetic-spacecraft diagnostics | constructed shock/particle/spacecraft references | quick |
 | `23_shock_multidim_ramp_validation` | 2D/3D constructed shock surfaces, 3D `div B`, initial tanh ramp | constructed front positions/spectrum, uniform `div B`, analytic tanh field | quick |
 | `24_shock_driver_sweep_validation` | 1D shock sweep/convergence drivers and 3D campaign/dimension-comparison wrappers | flux-freezing, mass conservation, convergence threshold, and low-cost driver contract checks | all |
+| `25_leroy1982_perp_shock` | sustained two-state perpendicular shock | published overshoot, compression and reflected-fraction comparisons; pointwise limitations in case README | all |
+| `26_hellinger2002_resolution` | perpendicular-shock resolution sweep | published maximum-gradient resolution trends | all |
+| `27_nhds_dispersion_comparison` | independent Hall-MHD eigenvalue oracle | pinned NHDS kinetic dispersion; does not evolve the production solver | all |
+| `28_hybridvpic_perp_shock` | production hybrid shock | pinned Hybrid-VPIC scalar shock comparisons | all |
+| `29_firehose_instability` | anisotropic hybrid ions | unstable/stable threshold and mode-amplification controls | all |
+| `30_ion_cyclotron_instability` | anisotropic hybrid ions | ion-cyclotron threshold and amplification controls | all |
+| `31_weibel_instability` | counterstreaming electromagnetic PIC | field-energy growth versus a nonstreaming control | all |
+| `32_magnetic_reconnection` | hybrid Harris sheet | coherent-mode growth versus uniform-field control; mechanism/rate validation remains open | all |
+| `33_raycon_paper_validation` | ray propagation and mode conversion | exact Tracy identities and figure-derived Jaun targets | all |
+| `34_production_parallel_dispersion` | evolved cold parallel hybrid/Hall waves | independent continuum/discrete equations, signed frequency/rate fits and refinement | all |
 
-The quick cases are deterministic and fast. The dispersion cases use fixed
-loading/seeding and tolerances above the measured FFT-bin and particle-noise
-error. `validation/Project.toml` installs `HDF5`, `PencilArrays`, and
+The default cases use deterministic inputs. Each non-default case documents
+its own initialization, reference assumptions and fixed acceptance limits.
+Case 34 uses production complex histories, signed frequency/rate fits and
+independent refinement; conditional fit errors are separate from discretization
+and correlated-particle uncertainty. `validation/Project.toml` installs `HDF5`,
+`PencilArrays`, and
 `PencilFFTs`, so the extension validations are expected to run and pass when the
 suite is launched with `--project=validation`.
 
@@ -92,10 +105,14 @@ axis styling. The current verified default template is `plotly_white`.
 
 ## External Open-Source Cross-Checks
 
-The local suite does not vendor or launch heavyweight third-party solvers. The
-CSV outputs are designed so external adapters can compare the same observables
-against open-source tools when those tools are installed in a separate
-environment:
+Cases 27 and 28 build pinned NHDS and Hybrid-VPIC sources through the
+[shared provenance owner](../docs/EXTERNAL_REFERENCE_PROVENANCE_PLAN.md).
+Required toolchains must already be installed; missing/build-failed references
+produce failure metrics. Cache reuse checks source, tools, inputs and outputs,
+and failed build attempts remain available for inspection.
+
+Additional comparisons remain planned; CSV outputs can support matched setups
+in separately installed tools:
 
 - PlasmaPy: use its analytical plasma formula APIs as an independent Python-side
   check for simple dispersion/reference values.
@@ -104,6 +121,7 @@ environment:
 - Gkeyll: reproduce fluid or kinetic linear waves and compare frequency/growth
   observables against the corresponding CSV outputs.
 
-Until those external solvers are installed and run, the executed comparisons are
-the analytical references, FFTW serial reference, and the bundled published
-hybrid-code summary.
+These proposed adapters do not constitute executed cross-code validation.
+Case 27 compares eigenvalues; case 34 separately measures production solver
+histories. Full-profile and matched cost/accuracy comparisons remain open in
+the [completeness plan](../docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md).

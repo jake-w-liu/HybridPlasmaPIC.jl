@@ -95,6 +95,7 @@ const _CASE_LABELS = Dict(
     "31_weibel_instability" => "31_",
     "32_magnetic_reconnection" => "32_",
     "33_raycon_paper_validation" => "33_",
+    "34_production_parallel_dispersion" => "34_",
 )
 
 function _case_label(id::AbstractString)

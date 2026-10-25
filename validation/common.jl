@@ -8,6 +8,8 @@ using Printf
 using Random
 using Serialization
 
+include(joinpath(@__DIR__, "mode_history.jl"))
+
 const DEFAULT_ARTIFACT_DIR = joinpath(@__DIR__, "artifacts")
 
 Base.@kwdef struct ValidationCase

@@ -8,6 +8,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Production cold parallel-wave validation evolves both hybrid and Hall-MHD
+  branches across 40 profiles and six timestep-order histories. Signed frequency
+  and growth/damping fits retain raw data, residuals, conditional regression
+  errors, window sensitivity and hashed source/environment receipts. The
+  validation fitter handles long phase histories with compensated accumulation.
+
 - Pinned NHDS and Hybrid-VPIC reference builds share a provenance owner with
   tool/input/output checksums, verified cache reuse, retained failure logs and
   atomic receipt publication. External validation reports missing tools and

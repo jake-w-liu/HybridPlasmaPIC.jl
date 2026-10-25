@@ -216,7 +216,7 @@ collision acceptance, shared trackers, integration, pushes and exact-SHA CI.
 | 006A curvilinear solver | Agent unassigned; mesh/coupling/model/I/O | Compatible geometry operators, chosen physical model | Partial primitives; no production callers found | Specify coordinate/component/volume conventions and coupled manufactured problem |
 | 006B self-consistent gyrokinetics | Agent unassigned; gyrokinetics/coupling/field/I/O | Explicit model choice; 006A for toroidal claim | Partial primitives; no distribution/field integration found | Fix electrostatic model, marker/weight state and polarization equation |
 | 006C adaptive plasma hierarchy | Agent unassigned; AMR/coupling/model/I/O | Composite field method; 002/003/004 only where claimed | Partial scalar-level primitives | Design static ES hierarchy and crossing/self-force oracle before dynamic refinement |
-| 007A/B reference provenance + production dispersion | Root owns 007A; validation/reference owners | Source/network/toolchain; accepted production solver | Pinned reference builds, integrity/failure checks and all ten existing physics metrics pass both runtimes | Complete [provenance CI acceptance](EXTERNAL_REFERENCE_PROVENANCE_PLAN.md), then add production time-series comparisons with frozen fitting/refinement rules |
+| 007A/B reference provenance + production dispersion | Root owns 007A; validation/reference owners | Source/network/toolchain; accepted production solver | Pinned reference builds, integrity/failure checks and all ten existing physics metrics pass both runtimes | Complete [provenance CI acceptance](EXTERNAL_REFERENCE_PROVENANCE_PLAN.md) and [production wave-history integration](PRODUCTION_DISPERSION_PLAN.md); expand remaining angles, thermal/EM regimes and uncertainty studies |
 | 007C–E profiles, new physics, comparative costs | Agent unassigned; validation/benchmark owners | Accepted corresponding capability; datasets/hardware | Existing scalar comparisons inspected; campaigns unrun here | Freeze matched inputs/diagnostics/uncertainty and preserve raw reference outputs |
 | 008 ES/EM arbitrary species | `/root/electrostatic_species_implementation` owns first ES slice | Species charge/time-level design; existing Poisson owner | ES collection implementation active; arbitrary EM collections remain planned | Verify shared charge/field, neutrality, synchronized half levels, scalar compatibility, diagnostics and collection checkpoints |
 | 009 full-Hall multidimensional shocks | Scope proposal; root selects implementation agent | Full mixed-operator/field-boundary balance; 005 optional | Deliberate reduced induction verified | Derive full induction and SAT budget; build transverse-mode witness |
@@ -553,7 +553,11 @@ performance comparisons separate in reported results.
   The [existing frequency helper repair](VALIDATION_FREQUENCY_PLAN.md) is a
   prerequisite: 3,153 registered checks, compiler/resource review and actual
   case 20 pass per runtime; exact-SHA CI remains. This does not close the
-  broader campaign.
+  broader campaign. The [first production matrix](PRODUCTION_DISPERSION_PLAN.md)
+  now passes all 324 metrics on both runtimes across 40 cold parallel profiles
+  and six timestep-order histories. Corrected long-history fitting, actual test
+  sandboxes, independent raw-data replay and CLI/plot integration pass locally;
+  main promotion and exact-SHA CI remain. Oblique, thermal, kinetic and EM regimes remain planned.
 - [ ] **007C: nonlinear profiles.** Reproduce matched shock setups, including
   initialization, boundary conditions, closures and diagnostics. Compare full
   density/B/velocity/pressure profiles and time statistics, not just peak scalar

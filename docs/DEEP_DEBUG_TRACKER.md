@@ -21,10 +21,11 @@ completeness. Comparative leadership requires reproducible external benchmarks.
 | Shared BigFloat exact conversion | `245e73a` pushed after numerical, concurrency, resource, compiler and fixed-cost gates pass both runtimes | [All six exact-SHA jobs and full compiler review pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40026749996); [repair evidence](EXACT_BIGFLOAT_CONVERSION_PLAN.md) |
 | Reference-unit normalization | V7 local numerical, native Metal, resource/compiler and all 306 fixed-cost profiles pass both runtimes | `1097076` passes all six exact-SHA CI jobs and full compiler review. Measured latency regressions remain optimization work. [Evidence and next steps](NORMALIZATION_RANGE_PLAN.md) |
 | Local multispecies collisions | V10 passes 141,143 permanent assertions plus normalization subprocess checks per runtime; all 108 ordinary profiles allocate zero bytes; concrete/full compiler review passes | Arithmetic review complete; fixed costs and final promotion/CI remain; [detailed implementation tracker](LOCAL_MULTISPECIES_COULOMB_PLAN.md). Feature remains unaccepted |
-| Bounded Maxwell vacuum/cavity | Independent V7 review confirms scaled-curl and whole-face cancellation failures on both runtimes; V8 combined repair is active | Reverify all numerical/resource/compiler/cost gates before promotion. Bounded particle coupling remains a later slice |
-| Electrostatic species collections | V7 removes a duplicate position scan; final affected checks and expanded cost matrix remain active | A fresh zero-field test exposes inherited Boris coefficient overflow; a separate canonical repair is required before acceptance |
+| Bounded Maxwell vacuum/cavity | V8 still fails nonzero cancellation neighbors; V9 radius-based certification repairs the retained witnesses in focused checks | Reverify all numerical/resource/compiler/cost gates before promotion. Bounded particle coupling remains a later slice |
+| Electrostatic species collections | V7 removes a duplicate position scan; final affected checks and expanded cost matrix remain active | Canonical Boris V4 passes broad range checks but loses a finite component near quarter turns; V5 cancellation repair and adjacent-owner fixes remain |
 | External reference provenance | Pushed as `95c5678`: pinned builds, 50 offline + 4 independent + 44 real-cache + 16 caller checks, Aqua and all ten comparison metrics pass per runtime | [Exact-SHA CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40186481856) and complete compiler review remain; [implementation and evidence](EXTERNAL_REFERENCE_PROVENANCE_PLAN.md) |
 | Validation frequency extraction | `01a1b3c` fails CI test loading/formatting; the correction passes 3,153 frequency assertions and nine Aqua checks in each real test sandbox, plus whole-tree formatting | Corrected exact-SHA full CI and compiler review remain. [Failure and repair evidence](VALIDATION_FREQUENCY_PLAN.md) |
+| Production dispersion | Final 40-profile/six-order campaign passes 324 metrics per runtime; both sandboxes, independent replay and four plots pass | Main promotion and exact-SHA CI remain; [plan and retained failures](PRODUCTION_DISPERSION_PLAN.md) |
 | Full simulator scope | CAP-001–011 remain open in whole or part | [Staged implementation roadmap](PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md) |
 
 - [x] Reconfirmed the full implementation objective on 2026-10-25: CAP-001–011
@@ -106,6 +107,25 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   723,136 / 723,137 assertions. Its complete compiler trees are byte-identical
   to reviewed `1097076` (24 / 21 existing reports); no source-line normalization
   is needed. [CI run](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40174249763).
+- [x] Progress revision `a00429a` passes all six exact-SHA jobs and
+  723,136 / 723,137 assertions. Complete compiler trees are byte-identical to
+  accepted `1097076`, including all frames, signatures and messages (24 / 21
+  existing reports). [CI run](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40178897440).
+- [x] Progress revision `b6387b2` passes all six exact-SHA jobs and
+  723,136 / 723,137 assertions. Both complete compiler trees are byte-identical
+  to accepted `1097076` (24 / 21 reports), with unchanged package source/tests.
+  [CI run](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40181327407).
+- [ ] Finish the first [production dispersion slice](PRODUCTION_DISPERSION_PLAN.md).
+  Both runtimes pass the first frozen 324-metric campaign and 6,785 independent
+  initializer/configuration assertions. A separate long reversed history
+  exposes accumulated phase-rounding error; compensated accumulation passes
+  the unchanged accuracy checks and all 2,642 permanent fit assertions in both
+  actual test sandboxes. Independent raw-data replay checks all 46 histories and
+  rejects 200 modified records per runtime; all four plots export on both.
+  Corrected CSV metadata distinguishes run duration from fit duration. Resource
+  checks compare with measured bare-array storage after retaining the original
+  invalid payload-only estimate. Main push and exact-SHA CI remain. No global simulator
+  completeness or optimization claim follows from these passes.
 - [ ] Repair the inherited Boris coefficient range failure found during the
   ES collection audit. **VERIFIED:** finite q/m and dt with zero fields produce
   `(NaN, NaN, NaN)` because `src/particles/boris.jl:16` forms an overflowing
@@ -1054,7 +1074,7 @@ the expanded plan owns capability staging. Both remain active.
 | CAP-004 Complete GPU-resident stepping | Root auditing primitives; coupled solver planned | Gathered-push validation, remaining kernels, then one resident solver with measured transfers |
 | CAP-005 Coupled implicit advancement | Root; shock repair pushed; linear CN range defect confirmed | Finish exact-SHA CI, implement the linear reference repair, then derive coupled residuals |
 | CAP-006 Geometry, gyrokinetics and adaptive evolution | Unassigned; standalone primitives exist | Separate coupled model contracts and manufactured solutions for each branch |
-| CAP-007 External validation and comparisons | Root owns provenance and frequency-helper repair; broader comparisons remain planned | [Provenance acceptance](EXTERNAL_REFERENCE_PROVENANCE_PLAN.md), production time-series dispersion, full profiles and matched cost/accuracy |
+| CAP-007 External validation and comparisons | Root owns provenance and production wave-history implementation; broader comparisons remain planned | [Provenance acceptance](EXTERNAL_REFERENCE_PROVENANCE_PLAN.md), production time-series dispersion, full profiles and matched cost/accuracy |
 | CAP-008 Arbitrary ES/EM species | Electrostatic species agent owns first ES collection implementation | Complete ES integration/cost/CI gates; arbitrary EM collections remain planned |
 | CAP-009 Full-Hall multidimensional shocks | Expanded scope; planned | Full induction/boundary balance and transverse-mode oracle |
 | CAP-010 Composed sources and RNG restart | Expanded scope; required for restartable collision integration | Split phases, complete RNG persistence and transaction semantics |
