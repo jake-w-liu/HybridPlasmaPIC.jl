@@ -178,6 +178,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Exactly sampled identity rotations in prescribed-rate Coulomb collisions
+  preserve original velocities, including tiny components and signed zeros.
+  Angle validation and unequal-weight acceptance draws retain their order.
+  General nonzero small-angle range loss remains tracked separately.
+
 - Validation frequency extraction includes the first Fourier bin and both
   rotation directions, removes DC before peak interpolation, and rejects
   histories without usable oscillation evidence. Component centering and

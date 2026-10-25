@@ -276,6 +276,14 @@ latency regressions retained as optimization work. It is pushed as `1097076`;
 all six exact-SHA CI jobs and complete compiler review pass.
 Re-run all collision gates on the final repaired source before acceptance.
 
+The independent [legacy null-rotation repair](COULOMB_NULL_ROTATION_PLAN.md)
+passes both runtime sandboxes, exact ordinary output/RNG/allocation comparisons
+and full compiler-tree review. Its individual push/CI is separate from local
+multispecies acceptance. A further verified variance-underflow defect erases a
+representable nonzero kick; that repair must reuse the canonical sampler and
+compose the null fix before revalidating the local candidate. Neither finding
+is closed by the frozen V10 ordinary compatibility checks.
+
 - [ ] Cell-local self/cross pairing, empty/singleton/odd populations, arbitrary
   species counts/weights and validated staging before committing velocities.
 - [ ] Independent Landau-generator drift/diffusion and equilibration-rate tests,
@@ -557,7 +565,8 @@ performance comparisons separate in reported results.
   now passes all 324 metrics on both runtimes across 40 cold parallel profiles
   and six timestep-order histories. Corrected long-history fitting, actual test
   sandboxes, independent raw-data replay and CLI/plot integration pass locally;
-  main promotion and exact-SHA CI remain. Oblique, thermal, kinetic and EM regimes remain planned.
+  the slice is pushed as `839c109`, with exact-SHA CI still pending. Oblique,
+  thermal, kinetic and EM regimes remain open.
 - [ ] **007C: nonlinear profiles.** Reproduce matched shock setups, including
   initialization, boundary conditions, closures and diagnostics. Compare full
   density/B/velocity/pressure profiles and time statistics, not just peak scalar

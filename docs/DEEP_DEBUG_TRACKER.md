@@ -17,21 +17,36 @@ completeness. Comparative leadership requires reproducible external benchmarks.
 | Shock CN solve and memory-status constructors | `ce52836` has all six CI jobs green and full compiler review; `c810eb0` has five green jobs and one failed allocation assertion | Investigate the shock-total resource failure; source attribution remains open |
 | Complete energy-budget composition | V6 broader fixed costs fail at profile 192/324; numerical/resource passes retained | Optimize the implementation before a new frozen candidate; composition held |
 | Metal gathered push | V6 native correctness/resources/compiler gates pass both runtimes; minimum timing passes all 30 profiles | Latest-Julia doubled-work control failed; zero candidate timing profiles ran there. Held without retry |
-| Linear CN reference multiplier | Frozen V5c passes numerical/compiler gates, 307 workload preflights plus 18 controls and 199 exceptional resource profiles per runtime | Exclusive fixed costs remain; a separate optimization targets repeated invariant multipliers in cold packet evolution. [Acceptance plan](LINEAR_CN_RANGE_PLAN.md) |
+| Linear CN reference multiplier | Frozen V5c passes numerical/compiler gates, 307 workload preflights plus 18 controls and 199 exceptional resource profiles per runtime; packet V2 source/evidence review is complete | Fixed latency acceptance and integration remain. [Acceptance plan](LINEAR_CN_RANGE_PLAN.md) |
 | Shared BigFloat exact conversion | `245e73a` pushed after numerical, concurrency, resource, compiler and fixed-cost gates pass both runtimes | [All six exact-SHA jobs and full compiler review pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40026749996); [repair evidence](EXACT_BIGFLOAT_CONVERSION_PLAN.md) |
 | Reference-unit normalization | V7 local numerical, native Metal, resource/compiler and all 306 fixed-cost profiles pass both runtimes | `1097076` passes all six exact-SHA CI jobs and full compiler review. Measured latency regressions remain optimization work. [Evidence and next steps](NORMALIZATION_RANGE_PLAN.md) |
 | Local multispecies collisions | V10 passes 141,143 permanent assertions plus normalization subprocess checks per runtime; all 108 ordinary profiles allocate zero bytes; concrete/full compiler review passes | Arithmetic review complete; fixed costs and final promotion/CI remain; [detailed implementation tracker](LOCAL_MULTISPECIES_COULOMB_PLAN.md). Feature remains unaccepted |
-| Bounded Maxwell vacuum/cavity | V8 still fails nonzero cancellation neighbors; V9 radius-based certification repairs the retained witnesses in focused checks | Reverify all numerical/resource/compiler/cost gates before promotion. Bounded particle coupling remains a later slice |
-| Electrostatic species collections | V7 removes a duplicate position scan; final affected checks and expanded cost matrix remain active | Canonical Boris V4 passes broad range checks but loses a finite component near quarter turns; V5 cancellation repair and adjacent-owner fixes remain |
+| Bounded Maxwell vacuum/cavity | Final V11v2 candidate verification is active after cancellation, finite-endpoint and tuple-inference repairs; earlier failures remain retained | Root review and all final numerical/resource/compiler/cost gates before promotion. Bounded particle coupling remains a later slice |
+| Electrostatic species collections | V8 certified/compensated Boris candidate verification is active after finite-component and tuple-inference repairs | Root review, affected public/resource/compiler/cost gates and adjacent priming/kick owners remain |
 | External reference provenance | Pushed as `95c5678`: pinned builds, 50 offline + 4 independent + 44 real-cache + 16 caller checks, Aqua and all ten comparison metrics pass per runtime | [Exact-SHA CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40186481856) and complete compiler review remain; [implementation and evidence](EXTERNAL_REFERENCE_PROVENANCE_PLAN.md) |
-| Validation frequency extraction | `01a1b3c` fails CI test loading/formatting; the correction passes 3,153 frequency assertions and nine Aqua checks in each real test sandbox, plus whole-tree formatting | Corrected exact-SHA full CI and compiler review remain. [Failure and repair evidence](VALIDATION_FREQUENCY_PLAN.md) |
-| Production dispersion | Final 40-profile/six-order campaign passes 324 metrics per runtime; both sandboxes, independent replay and four plots pass | Main promotion and exact-SHA CI remain; [plan and retained failures](PRODUCTION_DISPERSION_PLAN.md) |
+| Validation frequency extraction | `01a1b3c` fails CI test loading/formatting; correction `27372b2` passes 3,153 frequency assertions and nine Aqua checks in each real test sandbox, plus whole-tree formatting | [Corrected exact-SHA full CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40189739840) and compiler review remain. [Failure and repair evidence](VALIDATION_FREQUENCY_PLAN.md) |
+| Production dispersion | Pushed `839c109`; final 40-profile/six-order campaign passes 324 metrics per runtime; both sandboxes, independent replay and four plots pass | [Exact-SHA CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40194825415) and full compiler review remain; [plan and retained failures](PRODUCTION_DISPERSION_PLAN.md) |
+| Legacy Coulomb null rotation | Both runtimes pass 10,925 sandbox assertions, 8,064 ordinary differential checks, eight concrete compiler signatures and three executed mutation controls; complete compiler trees match the parent | Individual push/CI; separate nonzero-small-angle repair remains. [Evidence and next implementation](COULOMB_NULL_ROTATION_PLAN.md) |
 | Full simulator scope | CAP-001–011 remain open in whole or part | [Staged implementation roadmap](PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md) |
 
 - [x] Reconfirmed the full implementation objective on 2026-10-25: CAP-001–011
   remain active, including missing coupled solvers, backend integration and
   restart. Passing a primitive or this collision slice closes none of those
   dependent capabilities.
+- [x] Repair exact sampled identity rotations in the canonical legacy Coulomb
+  pair update. Original velocities and draw order are preserved without a
+  tolerance cutoff; full ordinary outputs and warmed allocation counts match
+  frozen `839c109`. Final source/evidence review found no further confirmed
+  defect within this exact-identity change. Push/CI remains separate.
+- [ ] Repair the independently confirmed nonzero-angle variance underflow.
+  **VERIFIED:** `legacy-variance-underflow-v1.jl` fails four of eight assertions
+  on each runtime against both frozen main and the null repair. Float32
+  `g=1e12, gcoeff=1e-12` and Float64 `g=1e100, gcoeff=1e-100` lose finite
+  transverse kicks near -1e-12 and -1e-100 when variance rounds to zero before
+  its square root. `coulomb-null/variance-underflow-review-v1.json` records
+  complete commands, source hashes and independent BigFloat references.
+  Carry the complete angle and stable increment through the canonical sampler;
+  retain ordinary seeded compatibility and reverify local-collision composition.
 - [ ] Complete the combined Maxwell cancellation repair. **VERIFIED:** independent
   root witnesses fail on Julia 1.12.7 and 1.13.2 against frozen V7. A scaled
   curl returns zero instead of approximately 0.25 (six passes/two failures per
@@ -124,7 +139,7 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   rejects 200 modified records per runtime; all four plots export on both.
   Corrected CSV metadata distinguishes run duration from fit duration. Resource
   checks compare with measured bare-array storage after retaining the original
-  invalid payload-only estimate. Main push and exact-SHA CI remain. No global simulator
+  invalid payload-only estimate. Pushed as `839c109`; exact-SHA CI remains. No global simulator
   completeness or optimization claim follows from these passes.
 - [ ] Repair the inherited Boris coefficient range failure found during the
   ES collection audit. **VERIFIED:** finite q/m and dt with zero fields produce

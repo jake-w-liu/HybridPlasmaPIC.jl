@@ -1,8 +1,9 @@
 # Production wave-history validation
 
 Status: the first CAP-007B slice passes local correctness, resource, compiler,
-artifact-replay and CLI/plot checks on Julia 1.12.7 and 1.13.2. Main push and
-exact-SHA CI remain. The full [completeness roadmap](PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md)
+artifact-replay and CLI/plot checks on Julia 1.12.7 and 1.13.2. Pushed as
+`839c109`; [exact-SHA CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40194825415)
+and full compiler review remain. The full [completeness roadmap](PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md)
 remains open; this plan does not replace its other solver and parameter regimes.
 
 ## Pre-edit brief
@@ -75,8 +76,8 @@ statistic, not a plasma-noise model or numerical-discretization uncertainty.
   per-case plotter, raw CSVs and a source/environment/run receipt. Both Julia
   versions pass local checks. This first matrix is periodic CPU Float64;
   unsupported backend/model claims remain open.
-- [ ] Push the accepted slice individually to main and complete all six
-  exact-SHA CI jobs plus full compiler-tree review.
+- [x] Push the locally accepted slice individually to main as `839c109`.
+- [ ] Complete all six exact-SHA CI jobs plus full compiler-tree review.
 - [ ] **007B3:** extend to oblique fluid and cold hybrid modes, electron/ion
   temperature and mass-ratio scans, production EM branches and physical
   damping/growth with independent kinetic references. Freeze initialization,

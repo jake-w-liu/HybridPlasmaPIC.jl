@@ -515,6 +515,10 @@ end
         # weights short-circuit — no draw, both always accept).
         accept_i = wi == wj || rand(rng, T) < wj / wmax
         accept_j = wi == wj || rand(rng, T) < wi / wmax
+        # An exact identity rotation preserves the original velocity bits.
+        # Reconstructing midpoint ± g/2 can erase a tiny component. Keep the
+        # validation and rejection draws above even when no physical kick occurs.
+        cosθ == one(T) && iszero(sinθ) && return nothing
         vix = accept_i ? Mx + gpx / 2 : vx[i]
         viy = accept_i ? My + gpy / 2 : vy[i]
         viz = accept_i ? Mz + gpz / 2 : vz[i]
@@ -602,6 +606,8 @@ nonzero when normalized by the largest weight. Updates are staged transactionall
 in three temporary velocity vectors; repeated callers can pass non-aliasing
 particle-length vectors as `work`. A supplied particle-length
 `AbstractVector{Int}` in `index_work` also reuses the pairing permutation storage.
+An exactly sampled identity rotation leaves the original velocities unchanged;
+angle, azimuth and unequal-weight acceptance draws are still consumed.
 Returns `ps`.
 """
 function collide_coulomb!(

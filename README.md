@@ -236,6 +236,9 @@ unsupported. [Validation scope and evidence](docs/RELATIVISTIC_VALIDATION_PLAN.m
   distribution; conservation exact for equal weights, in expectation
   otherwise), an isotropic large-angle fallback when the sampled scattering
   variance exceeds unity, and the T&A triplet for odd particle counts.
+  Exact identity rotations preserve original velocity bits and RNG draw order.
+  A separate extreme small-angle underflow defect remains open in the
+  [collision repair tracker](docs/COULOMB_NULL_ROTATION_PLAN.md).
 - `collide_bgk!(ps, ν, dt)` — BGK relaxation toward the set's own drifting
   Maxwellian, conserving momentum and energy exactly.
 - `collide_neutral_mcc!` / `ionize_mcc!` — Monte-Carlo elastic scattering off
