@@ -29,6 +29,35 @@ include(joinpath(@__DIR__, "..", "validation", "mode_history.jl"))
     end
 end
 
+@testset "Constant mode histories have exactly zero rate and residual" begin
+    for n in (8, 9, 16, 31, 128, 255, 256, 257, 258, 511, 512, 513, 1024, 4096),
+        amplitude in (1e-280, 1e-20, 1.0, 1e20, 1e280)
+
+        fit = _fit_mode_history(fill(complex(amplitude), n), 0.05)
+        @test fit.gamma == 0
+        @test fit.logamp_rms == 0
+        @test fit.gamma_stderr == 0
+        @test fit.gamma_window_difference == 0
+    end
+end
+
+@testset "Mode regression statistics preserve representable observation offsets" begin
+    for n in (9, 16, 257, 1024), offset in (-512.0, -32.0, 32.0, 512.0)
+        # All observations and their translations are exactly representable.
+        # The periodic dyadic perturbation keeps the residual nonzero.
+        values = [i / 128 + mod(i, 7) / 64 for i = 1:n]
+        shifted = values .+ offset
+        for index in (1:n, n:-1:1)
+            baseline = _mode_line_fit(@view(values[index]), 0.125)
+            translated = _mode_line_fit(@view(shifted[index]), 0.125)
+            @test baseline.rms > 0
+            @test translated.rate == baseline.rate
+            @test translated.rms == baseline.rms
+            @test translated.stderr == baseline.stderr
+        end
+    end
+end
+
 @testset "Mode fit agrees with independent dense least squares" begin
     n, dt = 129, 0.125
     t = collect(0:(n-1)) .* dt

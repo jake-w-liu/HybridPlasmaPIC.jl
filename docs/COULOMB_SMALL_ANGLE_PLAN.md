@@ -1,6 +1,6 @@
 # Coulomb sampled-angle range repair
 
-Status: the numerical repair passes final local validation; main promotion,
+Status: the numerical repair is pushed as `2a5cc12` after final local validation;
 exact-SHA CI and fixed latency acceptance remain open. Baseline is `a18f09d`, including the exact-null
 repair. This slice does not accept the full local multispecies feature.
 
@@ -85,8 +85,8 @@ repair. This slice does not accept the full local multispecies feature.
 - [x] Verify numerical, ordinary, RNG/error, allocation and compiler contracts.
 - [x] Review exact final source for the bounded legacy numerical repair.
 - [ ] Reassemble and reverify the separate local-collision candidate.
-- [ ] Commit/push the bounded repair individually; all six exact-SHA CI jobs
-  and full compiler-tree review.
+- [x] Commit/push the bounded repair individually as `2a5cc12`.
+- [ ] Complete all six exact-SHA CI jobs and full compiler-tree review.
 - [ ] Complete fixed latency acceptance and remaining CAP-001 integration.
 
 The frozen local sampler reconstructs exceptional tangents from logarithms;

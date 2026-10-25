@@ -560,7 +560,8 @@ performance comparisons separate in reported results.
   outputs. The [shared provenance implementation](EXTERNAL_REFERENCE_PROVENANCE_PLAN.md)
   replaces moving clones and unchecked cache reuse. Real pinned builds and all
   ten unchanged physics metrics pass on Julia 1.12.7 and 1.13.2; pushed as
-  `95c5678`, with exact-SHA CI still open. Missing/build-failed references stay
+  `95c5678`, with all six exact-SHA CI jobs and full compiler review complete.
+  Missing/build-failed references stay
   failed/unavailable. This metadata does not establish a hermetic toolchain.
 - [ ] **007B: production dispersion.** Keep the independent eigenvalue comparison
   in case 27, but also measure frequencies/damping/growth from actual initialized
@@ -569,13 +570,17 @@ performance comparisons separate in reported results.
   fitting windows, uncertainty estimation and branch selection before results.
   The [existing frequency helper repair](VALIDATION_FREQUENCY_PLAN.md) is a
   prerequisite: 3,153 registered checks, compiler/resource review and actual
-  case 20 pass per runtime; exact-SHA CI remains. This does not close the
+  case 20 pass per runtime; correction `27372b2` has six green CI jobs and a
+  complete compiler-tree review. This does not close the
   broader campaign. The [first production matrix](PRODUCTION_DISPERSION_PLAN.md)
   now passes all 324 metrics on both runtimes across 40 cold parallel profiles
   and six timestep-order histories. Corrected long-history fitting, actual test
   sandboxes, independent raw-data replay and CLI/plot integration pass locally;
-  the slice is pushed as `839c109`, with exact-SHA CI still pending. Oblique,
-  thermal, kinetic and EM regimes remain open.
+  the slice is pushed as `839c109`. Minimum-Julia CI exposed twelve fitter
+  residual failures; its other five jobs passed. The
+  [observation-centering repair](MODE_HISTORY_CENTERING_PLAN.md) retains that
+  evidence and all original thresholds. Oblique, thermal, kinetic and EM
+  regimes remain open.
 - [ ] **007C: nonlinear profiles.** Reproduce matched shock setups, including
   initialization, boundary conditions, closures and diagnostics. Compare full
   density/B/velocity/pressure profiles and time statistics, not just peak scalar

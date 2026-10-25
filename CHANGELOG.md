@@ -178,6 +178,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Mode-history least squares centers observations before reducing their mean
+  and evaluates residuals in centered coordinates. Constant histories now
+  have zero rate and residual; large amplitude or phase offsets no longer
+  enter residual reconstruction. Existing validation tolerances are unchanged.
+
 - Exactly sampled identity rotations in prescribed-rate Coulomb collisions
   preserve original velocities, including tiny components and signed zeros.
   Angle validation and unequal-weight acceptance draws retain their order.

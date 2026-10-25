@@ -3,25 +3,29 @@
 
 function _mode_line_fit(values, dt)
     n = length(values)
-    center = sum(values) / n
+    # Center observations before reduction and keep residuals in these
+    # coordinates. Reconstructing the absolute fitted value would reintroduce
+    # rounding from a large constant log-amplitude or phase offset.
+    origin = first(values)
+    center = sum(value -> value - origin, values) / n
     xx = xy = 0.0
     for (i, value) in enumerate(values)
         x = (i - 1) / (n - 1) - 0.5
         xx += x * x
-        xy += x * (value - center)
+        xy += x * ((value - origin) - center)
     end
     slope = xy / xx
     residual2 = 0.0
     for (i, value) in enumerate(values)
         x = (i - 1) / (n - 1) - 0.5
-        residual2 += (value - (center + slope * x))^2
+        residual2 += ((value - origin) - center - slope * x)^2
     end
     duration = (n - 1) * dt
     rate = slope / duration
     stderr = sqrt(residual2 / ((n - 2) * xx)) / duration
     all(isfinite, (rate, stderr)) ||
         throw(ArgumentError("mode fit rate or standard error is outside Float64 range"))
-    return (; rate, center, rms = sqrt(residual2 / n), stderr)
+    return (; rate, center = origin + center, rms = sqrt(residual2 / n), stderr)
 end
 
 """

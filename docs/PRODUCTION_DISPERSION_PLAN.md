@@ -3,7 +3,10 @@
 Status: the first CAP-007B slice passes local correctness, resource, compiler,
 artifact-replay and CLI/plot checks on Julia 1.12.7 and 1.13.2. Pushed as
 `839c109`; [exact-SHA CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40194825415)
-and full compiler review remain. The full [completeness roadmap](PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md)
+passes five jobs but fails twelve Julia 1.12 log-amplitude residual assertions.
+The [centering repair](MODE_HISTORY_CENTERING_PLAN.md) preserves those failures
+and the unchanged tolerance. Corrected CI and full compiler review remain.
+The full [completeness roadmap](PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md)
 remains open; this plan does not replace its other solver and parameter regimes.
 
 ## Pre-edit brief
