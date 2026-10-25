@@ -1,7 +1,8 @@
 # Coulomb exact identity rotation repair
 
-Status: canonical repair passes local numerical, RNG, resource and compiler
-checks on Julia 1.12.7 and 1.13.2. Individual main push and exact-SHA CI remain.
+Status: canonical repair is pushed as `a18f09d` after local numerical, RNG,
+resource and compiler checks on Julia 1.12.7 and 1.13.2. Exact-SHA CI and full
+compiler-log review remain.
 The separate nonzero-small-angle defect below and broader CAP-001 remain open.
 
 ## Pre-edit brief
@@ -47,7 +48,8 @@ The separate nonzero-small-angle defect below and broader CAP-001 remain open.
 - [x] Implement the canonical identity repair with permanent regressions.
 - [x] Verify targeted, neighboring, error, RNG, resource and compiler contracts.
 - [x] Independent final source/evidence review for this bounded repair.
-- [ ] Individual main push and all six exact-SHA CI jobs with full compiler review.
+- [x] Individual main push as `a18f09d`.
+- [ ] All six exact-SHA CI jobs with full compiler review.
 - [ ] Separate nonzero-small-angle repair and remaining CAP-001 acceptance.
 
 The first current-main test run exposed a fixture dispatch ambiguity between

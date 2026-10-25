@@ -394,13 +394,12 @@ end
     i::Int,
     j::Int,
     gcdt::T,
-    log_gcdt::T,
     wbar::T,
-    log_wbar::T,
     weight_scale::T,
     uf::T,
     twoπ::T,
     rng,
+    rate_factors,
 ) where {T}
     @inbounds begin
         wi = w[i] / weight_scale
@@ -418,99 +417,19 @@ end
             throw(ArgumentError("collide_coulomb!: relative speed exceeds numeric range"))
         gmag > 0 || return nothing             # identical velocities: no relative motion
 
-        # Divide before adding so a representable same-mass midpoint does not
-        # overflow when both velocities are large and have the same sign.
-        Mx = vx[i] / 2 + vx[j] / 2
-        My = vy[i] / 2 + vy[j] / 2
-        Mz = vz[i] / 2 + vz[j] / 2
-
-        # Takizuka-Abe ⟨δ²⟩, weight-corrected: × max(wᵢ,wⱼ)/w̄ (Higginson 2020 eq. 31).
-        # The ordinary-range path avoids transcendental work in this hot loop.
-        # Fall back to logs only when an intermediate product over/underflows.
-        speed = max(gmag, uf)
-        numerator = gcdt * (wmax / wbar)
-        speed2 = speed * speed
-        denominator = speed2 * speed
-        use_fast =
-            isfinite(numerator) &&
-            numerator > zero(T) &&
-            isfinite(denominator) &&
-            denominator > zero(T)
-        if use_fast
-            var = numerator / denominator
-            large_angle = !isfinite(var) || var > one(T)
-        else
-            logvar = log_gcdt + log(wmax) - log_wbar - 3 * log(speed)
-            large_angle = logvar > zero(T)
-            var = large_angle ? one(T) : exp(logvar)
-        end
-        if large_angle                           # large-angle regime → isotropic scatter
-            cosθ = 2 * rand(rng, T) - one(T)
-            sinθ = sqrt(max(zero(T), one(T) - cosθ * cosθ))
-        else
-            δ = sqrt(var) * randn(rng, T)
-            isfinite(δ) ||
-                throw(ArgumentError("collide_coulomb!: sampled scattering angle must be finite"))
-            if abs(δ) <= one(T)
-                δ2 = δ * δ
-                denom = one(T) + δ2
-                cosθ = (one(T) - δ2) / denom
-                sinθ = 2δ / denom
-            else
-                invδ = one(T) / δ
-                invδ2 = invδ * invδ
-                denom = one(T) + invδ2
-                cosθ = (invδ2 - one(T)) / denom
-                sinθ = 2invδ / denom
-            end
-        end
-        φ = twoπ * rand(rng, T)
-        (isfinite(cosθ) && isfinite(sinθ) && isfinite(φ)) ||
-            throw(ArgumentError("collide_coulomb!: sampled scattering direction must be finite"))
-        sinφ, cosφ = sincos(φ)
-
-        # Rotate the unit relative-velocity vector, renormalize against roundoff,
-        # and only then restore its magnitude. Direct O(gmag) sums can overflow
-        # transiently even though every component of the result is bounded.
-        invgmag = inv(gmag)
-        if isfinite(invgmag)
-            ugx = gx * invgmag
-            ugy = gy * invgmag
-            ugz = gz * invgmag
-        else
-            ugx = gx / gmag
-            ugy = gy / gmag
-            ugz = gz / gmag
-        end
-        ugperp = hypot(ugx, ugy)
-        if ugperp > 0                           # Takizuka & Abe 1977 rotation
-            invugperp = inv(ugperp)
-            if isfinite(invugperp)
-                xperp = ugx * invugperp
-                yperp = ugy * invugperp
-            else
-                xperp = ugx / ugperp
-                yperp = ugy / ugperp
-            end
-            polar_term = ugz * sinθ * cosφ
-            azimuthal_term = sinθ * sinφ
-            ugpx = ugx * cosθ + xperp * polar_term - yperp * azimuthal_term
-            ugpy = ugy * cosθ + yperp * polar_term + xperp * azimuthal_term
-            ugpz = ugz * cosθ - ugperp * sinθ * cosφ
-        else                                    # g along ±z
-            ugpx = sinθ * cosφ
-            ugpy = sinθ * sinφ
-            ugpz = ugz * cosθ
-        end
-        ugpmag = hypot(ugpx, ugpy, ugpz)
-        (isfinite(ugpmag) && ugpmag > zero(T)) ||
-            throw(ArgumentError("collide_coulomb!: rotated relative direction must be finite"))
-        invugpmag = inv(ugpmag)
-        gpx = gmag * (ugpx * invugpmag)
-        gpy = gmag * (ugpy * invugpmag)
-        gpz = gmag * (ugpz * invugpmag)
-        (isfinite(gpx) && isfinite(gpy) && isfinite(gpz)) ||
-            throw(ArgumentError("collide_coulomb!: rotated relative velocity must be finite"))
+        sample = _coulomb_sample_increment(
+            gx,
+            gy,
+            gz,
+            gmag,
+            gcdt,
+            wmax,
+            wbar,
+            uf,
+            twoπ,
+            rng,
+            rate_factors,
+        )
         # Rejection step: the max-weight partner is probabilistically skipped (equal
         # weights short-circuit — no draw, both always accept).
         accept_i = wi == wj || rand(rng, T) < wj / wmax
@@ -518,27 +437,47 @@ end
         # An exact identity rotation preserves the original velocity bits.
         # Reconstructing midpoint ± g/2 can erase a tiny component. Keep the
         # validation and rejection draws above even when no physical kick occurs.
-        cosθ == one(T) && iszero(sinθ) && return nothing
-        vix = accept_i ? Mx + gpx / 2 : vx[i]
-        viy = accept_i ? My + gpy / 2 : vy[i]
-        viz = accept_i ? Mz + gpz / 2 : vz[i]
-        vjx = accept_j ? Mx - gpx / 2 : vx[j]
-        vjy = accept_j ? My - gpy / 2 : vy[j]
-        vjz = accept_j ? Mz - gpz / 2 : vz[j]
-        (
-            isfinite(vix) &&
-            isfinite(viy) &&
-            isfinite(viz) &&
-            isfinite(vjx) &&
-            isfinite(vjy) &&
-            isfinite(vjz)
-        ) || throw(ArgumentError("collide_coulomb!: scattered velocity must be finite"))
-        vx[i] = vix
-        vy[i] = viy
-        vz[i] = viz
-        vx[j] = vjx
-        vy[j] = vjy
-        vz[j] = vjz
+        sample.identity && return nothing
+        original_a = (vx[i], vy[i], vz[i])
+        original_b = (vx[j], vy[j], vz[j])
+        half = one(T) / 2
+        complete =
+            sample.complete || any(
+                c -> _coulomb_complete_needed(
+                    original_a[c],
+                    original_b[c],
+                    sample.increment[c],
+                    half,
+                    half,
+                ),
+                1:3,
+            )
+        if complete
+            newa, newb =
+                _coulomb_complete_update(original_a, original_b, one(T), one(T), gmag, sample)
+            ((!accept_i || all(isfinite, newa)) && (!accept_j || all(isfinite, newb))) ||
+                throw(ArgumentError("collide_coulomb!: scattered velocity must be finite"))
+            for c = 1:3
+                accept_i && ((vx, vy, vz)[c][i] = newa[c])
+                accept_j && ((vx, vy, vz)[c][j] = newb[c])
+            end
+            return nothing
+        end
+        for c = 1:3
+            newa, newb = _coulomb_mass_update(
+                original_a[c],
+                original_b[c],
+                one(T),
+                one(T),
+                half,
+                half,
+                sample.increment[c],
+            )
+            ((!accept_i || isfinite(newa)) && (!accept_j || isfinite(newb))) ||
+                throw(ArgumentError("collide_coulomb!: scattered velocity must be finite"))
+            accept_i && ((vx, vy, vz)[c][i] = newa)
+            accept_j && ((vx, vy, vz)[c][j] = newb)
+        end
     end
     return nothing
 end
@@ -577,10 +516,17 @@ it sets the collisionality. When `⟨δ²⟩ > 1` the small-angle Gaussian model
 scattering angle instead (`cosΘ` uniform on [−1,1] — the strong-collision limit, Nanbu
 1997 / Pérez et al. 2012): relaxation saturates with collisionality instead of stalling.
 
-All particles of a set share the one physical mass `ps.m`, so each partner is kicked
-**symmetrically about the true midpoint** `M = (vᵢ+vⱼ)/2`:
+All particles of a set share the one physical mass `ps.m`, so each partner receives
+half of the relative-velocity change with opposite signs:
 
-    v_i ← M + g'/2,   v_j ← M − g'/2,   g' = R(Θ,Φ) g
+    Δg = R(Θ,Φ) g − g,   v_i ← v_i + Δg/2,   v_j ← v_j − Δg/2
+
+The implementation evaluates the increment directly to retain small physical
+kicks. Original finite rate factors and a binary-scaled tangent preserve finite
+updates when intermediate products or variances leave the floating-point range.
+Cancellation-sensitive updates complete the same sampled expression with wider,
+compensated or exact arithmetic. Native sampled angles and geometric quantities
+still carry their own rounding error.
 
 For **unequal macro-particle weights** the update is applied via the corrected rejection
 scheme (Higginson, Holod & Link, JCP 413 (2020) 109450, fixing Nanbu & Yonemura 1998 /
@@ -636,7 +582,6 @@ function collide_coulomb!(
     (N < 2 || iszero(gc) || iszero(dtT) || iszero(weight_scale)) && return ps
     _require_nonaliasing_collision_scratch(index_work, "index_work", work, "collide_coulomb!")
     gcdt = gc * dtT
-    log_gcdt = log(gc) + log(dtT)
 
     # Mean macro-particle weight w̄ normalizes the per-pair variance factor max(wᵢ,wⱼ)/w̄
     # (Higginson 2020): the scheme is then invariant under re-partitioning the same
@@ -655,7 +600,6 @@ function collide_coulomb!(
     isfinite(Wtot) ||
         throw(ArgumentError("collide_coulomb!: normalized total weight exceeds numeric range"))
     wbar = Wtot / T(N)
-    log_wbar = log(wbar)
 
     vnew = _collision_velocity_work(ps, work, "collide_coulomb!")
     vx, vy, vz = vnew
@@ -671,7 +615,6 @@ function collide_coulomb!(
         i2 = idx[2]
         i3 = idx[3]
         halfgcdt = gcdt / 2
-        half_log_gcdt = log_gcdt - log(T(2))
         _coulomb_pair_scatter!(
             vx,
             vy,
@@ -680,13 +623,12 @@ function collide_coulomb!(
             i1,
             i2,
             halfgcdt,
-            half_log_gcdt,
             wbar,
-            log_wbar,
             weight_scale,
             uf,
             twoπ,
             rng,
+            (gc, dtT, T(0.5)),
         )
         _coulomb_pair_scatter!(
             vx,
@@ -696,13 +638,12 @@ function collide_coulomb!(
             i2,
             i3,
             halfgcdt,
-            half_log_gcdt,
             wbar,
-            log_wbar,
             weight_scale,
             uf,
             twoπ,
             rng,
+            (gc, dtT, T(0.5)),
         )
         _coulomb_pair_scatter!(
             vx,
@@ -712,13 +653,12 @@ function collide_coulomb!(
             i3,
             i1,
             halfgcdt,
-            half_log_gcdt,
             wbar,
-            log_wbar,
             weight_scale,
             uf,
             twoπ,
             rng,
+            (gc, dtT, T(0.5)),
         )
         base = 3
     end
@@ -732,13 +672,12 @@ function collide_coulomb!(
             idx[base+2k-1],
             idx[base+2k],
             gcdt,
-            log_gcdt,
             wbar,
-            log_wbar,
             weight_scale,
             uf,
             twoπ,
             rng,
+            (gc, dtT),
         )
     end
     for c = 1:3

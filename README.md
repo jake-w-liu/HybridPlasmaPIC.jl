@@ -237,8 +237,11 @@ unsupported. [Validation scope and evidence](docs/RELATIVISTIC_VALIDATION_PLAN.m
   otherwise), an isotropic large-angle fallback when the sampled scattering
   variance exceeds unity, and the T&A triplet for odd particle counts.
   Exact identity rotations preserve original velocity bits and RNG draw order.
-  A separate extreme small-angle underflow defect remains open in the
-  [collision repair tracker](docs/COULOMB_NULL_ROTATION_PLAN.md).
+  Binary-scaled rates and direct velocity increments retain small physical
+  kicks; cancellation-sensitive updates complete the sampled expression.
+  See the [arithmetic validation scope](docs/COULOMB_SMALL_ANGLE_PLAN.md).
+  A [population-mean defect](docs/COULOMB_WEIGHT_MEAN_PLAN.md) remains open for
+  large Float16 populations.
 - `collide_bgk!(ps, ν, dt)` — BGK relaxation toward the set's own drifting
   Maxwellian, conserving momentum and energy exactly.
 - `collide_neutral_mcc!` / `ionize_mcc!` — Monte-Carlo elastic scattering off

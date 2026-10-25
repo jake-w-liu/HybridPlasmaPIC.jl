@@ -602,7 +602,25 @@ end
     midpoint0 = map(copy, midpoint.v)
     collide_coulomb!(midpoint, 1.0, 1.0; rng = MersenneTwister(1))
     @test all(isfinite, Iterators.flatten(midpoint.v))
-    @test all(isapprox(midpoint.v[c], midpoint0[c]; rtol = 2eps()) for c = 1:3)
+    # The variance underflows in Float64, but its square root produces finite
+    # transverse kicks. Replay the random events and use independent high-
+    # precision trigonometry, rather than requiring those kicks to vanish.
+    reference_rng = MersenneTwister(1)
+    i, j = randperm(reference_rng, 2)
+    draw = randn(reference_rng, Float64)
+    phase = (2Float64(pi)) * rand(reference_rng, Float64)
+    sp, cp = sincos(phase)
+    transverse = setprecision(BigFloat, 4096) do
+        g = BigFloat(midpoint0[1][i]) - BigFloat(midpoint0[1][j])
+        theta = 2atan(BigFloat(draw) / sqrt(abs(g)^3))
+        (g * BigFloat(sp) * sin(theta) / 2, -abs(g) * BigFloat(cp) * sin(theta) / 2)
+    end
+    @test midpoint.v[1] == midpoint0[1]
+    for c = 2:3
+        @test !iszero(transverse[c-1])
+        @test isapprox(BigFloat(midpoint.v[c][i]), transverse[c-1]; rtol = 32eps(), atol = 0)
+        @test isapprox(BigFloat(midpoint.v[c][j]), -transverse[c-1]; rtol = 32eps(), atol = 0)
+    end
 
     near_range = ParticleSet{1,Float64}(2)
     for c = 1:3

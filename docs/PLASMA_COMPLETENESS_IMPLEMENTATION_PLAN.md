@@ -249,6 +249,15 @@ generators, cancellation boundaries and all 108 zero-allocation profiles.
 Normalization subprocesses pass 7,590 physical rounding checks and 100 compact
 MPFR checks, with settings restoration confirmed.
 
+The legacy [sampled-angle repair](COULOMB_SMALL_ANGLE_PLAN.md) now extracts the
+shared physical expression and retains original binary rate factors. It is
+under final validation. Its stable-increment arithmetic intentionally changes
+historical floating-point outputs; the frozen V10 legacy differential evidence
+must be regenerated after composition. A separate confirmed
+[population-mean repair](COULOMB_WEIGHT_MEAN_PLAN.md) is also required. Neither
+the local operator nor later collision-aware stepping may duplicate these
+canonical arithmetic owners to bypass integration.
+
 Fresh audits reproduced and repaired component-product underflow and Float32
 cancellation inside the widened rotation, followed by Float32 overflow-midpoint
 double rounding. The earlier failed witnesses remain recorded. V10 additionally

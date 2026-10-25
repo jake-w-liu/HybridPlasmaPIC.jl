@@ -181,7 +181,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Exactly sampled identity rotations in prescribed-rate Coulomb collisions
   preserve original velocities, including tiny components and signed zeros.
   Angle validation and unequal-weight acceptance draws retain their order.
-  General nonzero small-angle range loss remains tracked separately.
+
+- Prescribed-rate Coulomb scattering retains original rate factors through
+  intermediate overflow or underflow and applies physical velocity increments
+  directly. Small nonzero kicks, subnormal pair-weight ratios and cancellation
+  near a velocity exchange are checked against independent complete-expression
+  references. Historical floating-point trajectories change; same-version
+  seeded determinism and RNG event order remain covered. Population-weight
+  mean accuracy for large Float16 sets remains a separate open repair.
 
 - Validation frequency extraction includes the first Fourier bin and both
   rotation directions, removes DC before peak interpolation, and rejects

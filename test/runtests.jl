@@ -104,6 +104,8 @@ using Test
     include("test_repro.jl")
     include("test_collisions.jl")
     include("test_coulomb_null_rotation.jl")
+    include("test_coulomb_angle_range.jl")
+    include("test_coulomb_sampled_update.jl")
     include("test_ionization_arithmetic.jl")
     include("test_exact_square_root.jl")
     include("test_inject.jl")
