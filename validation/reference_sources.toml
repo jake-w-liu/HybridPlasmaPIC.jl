@@ -1,0 +1,21 @@
+schema = 1
+
+[nhds]
+url = "https://github.com/danielver02/NHDS.git"
+revision = "43e1b8bad58af757d77a5840dbe9949b9dcd281e"
+license = "BSD-2-Clause"
+license_path = "LICENSE"
+license_sha256 = "d09eba1c77128fda5b4a2c4e713dbe155084bd5a09ba8f940c00e5b54cf8d726"
+case_directory = "27_nhds_dispersion_comparison"
+output = "run/output_whistler.in_plasma.dat"
+units = "k*d_p; omega/Omega_p; beta_i=beta_e=1; theta=0.01 deg whistler"
+
+[hybridvpic]
+url = "https://github.com/lanl/vpic-kokkos.git"
+revision = "08f2a23c62679efd1bc9e11d000dd1c0afbc8c29"
+license = "BSD-3-Clause"
+license_path = "README.md"
+license_sha256 = "d7f399cd31146c590fd51b3097b21357284a8460f41d8a3785d8debbf0926964"
+case_directory = "28_hybridvpic_perp_shock"
+output = "run/bz_profile.txt"
+units = "x/d_i; B_z/B_0; time*Omega_ci=30; drift/v_A=4; beta=1"

@@ -21,6 +21,9 @@ if !isdefined(@__MODULE__, :ValidationCase)
     include(joinpath(@__DIR__, "..", "common.jl"))
 end
 using HybridPlasmaPIC, Printf
+if !isdefined(@__MODULE__, :ReferenceProvenance)
+    include(joinpath(@__DIR__, "..", "reference_provenance.jl"))
+end
 if !isdefined(@__MODULE__, :HybridDispersionOracle)
     include(joinpath(@__DIR__, "..", "..", "test", "oracles", "hybrid_dispersion_oracle.jl"))
 end
@@ -30,17 +33,11 @@ function case_27_nhds_dispersion_comparison(artifact_dir::AbstractString)
     id = "27_nhds_dispersion_comparison"
     cat = "external_plasma_code"
     refkind = "external_plasma_code"
-    ref = "NHDS (danielver02/NHDS, BSD-2) whistler.in: β=1 parallel Vlasov-Maxwell"
-    nhds_out = joinpath(@__DIR__, "nhds_build", "NHDS", "output_whistler.in_plasma.dat")
-
-    # regenerate the (gitignored) NHDS output if missing
-    if !isfile(nhds_out)
-        try
-            run(`bash $(joinpath(@__DIR__, "build_nhds.sh"))`)
-        catch
-        end
-    end
-    if !isfile(nhds_out)
+    ref = "NHDS (danielver02/NHDS, BSD-2) whistler.in: β=1, theta=0.01 degrees Vlasov-Maxwell"
+    reference = try
+        ReferenceProvenance.ensure_reference("nhds")
+    catch err
+        err isa ReferenceProvenance.ReferenceFailure || rethrow()
         artifact = joinpath(artifact_dir, "$(id).csv")
         rows = (("nhds_output_available_error", 1.0, 0.0, "absolute", 1.0, 0.0),)
         _write_metric_csv(artifact, rows)
@@ -51,9 +48,12 @@ function case_27_nhds_dispersion_comparison(artifact_dir::AbstractString)
             reference = ref,
             rows = rows,
             artifact = artifact,
-            notes = "NHDS not built (needs git+gfortran+make); run validation/27_nhds_dispersion_comparison/build_nhds.sh first.",
+            notes = sprint(showerror, err),
         )
     end
+    nhds_out = reference.output
+    mkpath(artifact_dir)
+    cp(reference.provenance, joinpath(artifact_dir, "$(id)_provenance.toml"); force = true)
 
     # parse NHDS whistler ω(k)  (cols: k, theta, omega, gamma, species, ...)
     ks = Float64[]

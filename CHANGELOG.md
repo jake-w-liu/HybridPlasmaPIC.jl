@@ -8,6 +8,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Pinned NHDS and Hybrid-VPIC reference builds share a provenance owner with
+  tool/input/output checksums, verified cache reuse, retained failure logs and
+  atomic receipt publication. External validation reports missing tools and
+  failed builds explicitly; builders no longer install global tools or delete
+  legacy caches.
+
 - A source-backed completeness plan and live implementation tracker separate
   existing solvers, partial building blocks and missing coupled capabilities.
   Each stage records owners, dependencies and correctness, restart, hardware,

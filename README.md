@@ -448,6 +448,14 @@ Hybrid-VPIC shock, firehose/ion-cyclotron/Weibel/reconnection growth rates):
 julia --project=validation validation/run_validation.jl --quick   # or --all
 ```
 
+The optional [NHDS dispersion](validation/27_nhds_dispersion_comparison/README.md)
+and [Hybrid-VPIC shock](validation/28_hybridvpic_perp_shock/README.md) cases build
+pinned external source revisions with explicitly installed toolchains. They
+verify source, input, tool and output identities before using cached results,
+retain failed build attempts, and copy a provenance manifest into their artifacts.
+The [reference implementation tracker](docs/EXTERNAL_REFERENCE_PROVENANCE_PLAN.md)
+records acceptance evidence and remaining production-dispersion/profile work.
+
 ### Honest limits (not claimed)
 
 - **Complete GPU-resident coupled stepping and multi-GPU scaling.** Metal

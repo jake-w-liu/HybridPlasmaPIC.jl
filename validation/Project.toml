@@ -6,6 +6,8 @@ MPI = "da04e1cc-30fd-572f-bb4f-1f8673147195"
 PencilArrays = "0e08944d-e94e-41b1-9406-dcf66b6a9d2e"
 PencilFFTs = "4a48f351-57a6-4416-9ec4-c37015456aae"
 SpectralOperators = "8acda80e-a78e-4bfe-a2a4-4b14f9bf88bd"
+SHA = "ea8e919c-243c-51af-8825-aaa63cd721ce"
+TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
 
 [sources]
 HybridPlasmaPIC = {path = ".."}
@@ -18,4 +20,6 @@ MPI = "0.20.26"
 PencilArrays = "0.19"
 PencilFFTs = "0.15"
 SpectralOperators = "0.1.2"
+SHA = "0.7, 1"
+TOML = "1"
 julia = "1.12"

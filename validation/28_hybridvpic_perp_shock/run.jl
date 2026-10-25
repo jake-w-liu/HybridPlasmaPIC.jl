@@ -17,6 +17,9 @@ if !isdefined(@__MODULE__, :ValidationCase)
     include(joinpath(@__DIR__, "..", "common.jl"))
 end
 using HybridPlasmaPIC, Printf
+if !isdefined(@__MODULE__, :ReferenceProvenance)
+    include(joinpath(@__DIR__, "..", "reference_provenance.jl"))
+end
 
 # compression, overshoot, shock-frame M_A from a wall-frame Bz(x) profile (cells, hx=1 d_i;
 # wall/downstream at low x, upstream at high x; taui = run time in Ω_ci⁻¹; Vd = drift Mach).
@@ -42,15 +45,10 @@ function case_28_hybridvpic_perp_shock(artifact_dir::AbstractString)
     cat = "external_plasma_code"
     refkind = "external_plasma_code"
     ref = "Hybrid-VPIC (lanl/vpic-kokkos@hybridVPIC): perpendicular shock, β=1, drift Mach 4"
-    prof = joinpath(@__DIR__, "vpic_build", "run", "bz_profile.txt")
-
-    if !isfile(prof)
-        try
-            run(`bash $(joinpath(@__DIR__, "build_vpic.sh"))`)
-        catch
-        end
-    end
-    if !isfile(prof)
+    reference = try
+        ReferenceProvenance.ensure_reference("hybridvpic")
+    catch err
+        err isa ReferenceProvenance.ReferenceFailure || rethrow()
         artifact = joinpath(artifact_dir, "$(id).csv")
         rows = (("hybridvpic_profile_available_error", 1.0, 0.0, "absolute", 1.0, 0.0),)
         _write_metric_csv(artifact, rows)
@@ -61,9 +59,12 @@ function case_28_hybridvpic_perp_shock(artifact_dir::AbstractString)
             reference = ref,
             rows = rows,
             artifact = artifact,
-            notes = "Hybrid-VPIC not built (needs git+cmake+MPI; macOS installs OpenMPI via brew); run validation/28_hybridvpic_perp_shock/build_vpic.sh first.",
+            notes = sprint(showerror, err),
         )
     end
+    prof = reference.output
+    mkpath(artifact_dir)
+    cp(reference.provenance, joinpath(artifact_dir, "$(id)_provenance.toml"); force = true)
 
     x = Float64[]
     bz = Float64[]

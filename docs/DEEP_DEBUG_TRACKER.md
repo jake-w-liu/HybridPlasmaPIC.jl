@@ -17,13 +17,14 @@ completeness. Comparative leadership requires reproducible external benchmarks.
 | Shock CN solve and memory-status constructors | `ce52836` has all six CI jobs green and full compiler review; `c810eb0` has five green jobs and one failed allocation assertion | Investigate the shock-total resource failure; source attribution remains open |
 | Complete energy-budget composition | V6 broader fixed costs fail at profile 192/324; numerical/resource passes retained | Optimize the implementation before a new frozen candidate; composition held |
 | Metal gathered push | V6 native correctness/resources/compiler gates pass both runtimes; minimum timing passes all 30 profiles | Latest-Julia doubled-work control failed; zero candidate timing profiles ran there. Held without retry |
-| Linear CN reference multiplier | Isolated V4 candidate passes 16,534 registered parent assertions and 115,600 BigFloat child assertions per runtime; concrete/Aqua and full compiler trees pass | Broader ordinary allocation preflight fails 21/24 profiles per runtime; optimize before frozen timing/promotion. [Acceptance plan](LINEAR_CN_RANGE_PLAN.md) |
+| Linear CN reference multiplier | V5c passes 16,762 registered assertions per runtime, expanded BigFloat child gates, compiler review and all 24 ordinary allocation profiles | Exceptional resources and complete fixed costs remain; V4 failures retained. [Acceptance plan](LINEAR_CN_RANGE_PLAN.md) |
 | Shared BigFloat exact conversion | `245e73a` pushed after numerical, concurrency, resource, compiler and fixed-cost gates pass both runtimes | [All six exact-SHA jobs and full compiler review pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40026749996); [repair evidence](EXACT_BIGFLOAT_CONVERSION_PLAN.md) |
 | Reference-unit normalization | V7 local numerical, native Metal, resource/compiler and all 306 fixed-cost profiles pass both runtimes | `1097076` passes all six exact-SHA CI jobs and full compiler review. Measured latency regressions remain optimization work. [Evidence and next steps](NORMALIZATION_RANGE_PLAN.md) |
 | Local multispecies collisions | V10 passes 141,143 permanent assertions plus normalization subprocess checks per runtime; all 108 ordinary profiles allocate zero bytes; concrete/full compiler review passes | Arithmetic review complete; fixed costs and final promotion/CI remain; [detailed implementation tracker](LOCAL_MULTISPECIES_COULOMB_PLAN.md). Feature remains unaccepted |
-| Bounded Maxwell vacuum/cavity | Separate CAP-002A implementation active: staggered fields and mixed periodic/PEC axes | Discrete conservation, convergence, boundary and failure tests; particle coupling remains a later slice |
-| Electrostatic species collections | Separate CAP-008 implementation active: shared field, explicit neutrality, synchronized populations | Collection checkpoint, dispersion, compatibility and rollback gates |
-| External reference provenance | Root owns CAP-007A; existing builders reuse moving source/cache without provenance verification | Pin source/build/output identities and retain failure causes in a separate worktree |
+| Bounded Maxwell vacuum/cavity | V6 has 28,659 functional assertions per runtime, ordinary zero-allocation checks and 240 cold-resource rows passing each runtime | A fresh interpolated-Poynting subnormal witness fails twice per runtime; V7 repair active. Bounded particle coupling remains a later slice |
+| Electrostatic species collections | V6 functional/compiler/checkpoint gates, 216 scalar and 720 collection resource checks pass both runtimes | V7 removes a duplicate position scan; final affected checks and expanded cost matrix remain active |
+| External reference provenance | Pinned builds, 50 offline + 4 independent + 44 real-cache + 16 caller checks, Aqua and all ten comparison metrics pass per runtime | Exact-SHA CI and complete compiler review; [implementation and evidence](EXTERNAL_REFERENCE_PROVENANCE_PLAN.md) |
+| Validation frequency extraction | Root's independent witness fails three checks per runtime: first Fourier bin is omitted and constant histories receive a frequency | Separate canonical helper repair and case-20 integration checks; retained evidence in `validation-frequency/` |
 | Full simulator scope | CAP-001–011 remain open in whole or part | [Staged implementation roadmap](PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md) |
 
 - [x] Reconfirmed the full implementation objective on 2026-10-25: CAP-001–011
@@ -89,6 +90,10 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   checked unchanged-line mappings (24 / 21 reports).
   [Normalization run](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40042288497),
   [documentation run](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40046655381).
+- [x] Progress revision `438b1c2` passes all six exact-SHA jobs, with
+  723,136 / 723,137 assertions. Complete compiler trees are byte-identical to
+  reviewed `1097076` (24 / 21 reports); source, tests and package manifest
+  declarations are unchanged. [CI run](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40171266893).
 - [x] Earlier documentation `0461c80` and `5f99e3d` also pass all six jobs,
   625,494 / 625,495 assertions and the same complete compiler comparison.
   [First run](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40031897947),
@@ -1024,13 +1029,13 @@ the expanded plan owns capability staging. Both remain active.
 | Capability | Owner / current state | Next acceptance milestone |
 | --- | --- | --- |
 | CAP-001 Local multispecies collisions | Current-main composition under repair; unaccepted | Complete angular/physical updates, ordinary allocation, legacy/compiler/fixed-cost gates; [progress checklist](LOCAL_MULTISPECIES_COULOMB_PLAN.md) |
-| CAP-002 Nonperiodic EM-PIC | Unassigned; planned | Compatible bounded Maxwell/current operators and vacuum/wall oracles |
+| CAP-002 Nonperiodic EM-PIC | Bounded Maxwell agent owns vacuum/cavity implementation and particle design | Close current diagnostic/resource/cost gates, then compatible particle/current/wall coupling |
 | CAP-003 Domain-owned distributed stepping | Unassigned; replicated reference exists | Local storage, halos and distributed operator equivalence on real ranks |
 | CAP-004 Complete GPU-resident stepping | Root auditing primitives; coupled solver planned | Gathered-push validation, remaining kernels, then one resident solver with measured transfers |
 | CAP-005 Coupled implicit advancement | Root; shock repair pushed; linear CN range defect confirmed | Finish exact-SHA CI, implement the linear reference repair, then derive coupled residuals |
 | CAP-006 Geometry, gyrokinetics and adaptive evolution | Unassigned; standalone primitives exist | Separate coupled model contracts and manufactured solutions for each branch |
-| CAP-007 External validation and comparisons | Unassigned; partial reference comparisons exist | Pinned provenance, production time-series dispersion, full profiles and matched cost/accuracy |
-| CAP-008 Arbitrary ES/EM species | Expanded scope; planned | Species/background/time-level contract and collection ES slice |
+| CAP-007 External validation and comparisons | Root owns provenance and frequency-helper repair; broader comparisons remain planned | [Provenance acceptance](EXTERNAL_REFERENCE_PROVENANCE_PLAN.md), production time-series dispersion, full profiles and matched cost/accuracy |
+| CAP-008 Arbitrary ES/EM species | Electrostatic species agent owns first ES collection implementation | Complete ES integration/cost/CI gates; arbitrary EM collections remain planned |
 | CAP-009 Full-Hall multidimensional shocks | Expanded scope; planned | Full induction/boundary balance and transverse-mode oracle |
 | CAP-010 Composed sources and RNG restart | Expanded scope; required for restartable collision integration | Split phases, complete RNG persistence and transaction semantics |
 | CAP-011 Electron transport and energy | Expanded scope; planned | Term-specific heating/loss balance and transport convergence |

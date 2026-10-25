@@ -25,3 +25,6 @@ validation/**/*.dat
 tmp
 validation/**/vpic_build/
 validation/**/*.txt
+
+# Verified external reference attempts, raw outputs and provenance records.
+validation/**/reference_cache/
