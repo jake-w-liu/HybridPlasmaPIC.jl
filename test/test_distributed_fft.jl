@@ -35,3 +35,5 @@ import PencilFFTs
 
     @test distributed_fft_roundtrip_error(plan, input) < 1e-12
 end
+
+include("test_distributed_fft_collective.jl")

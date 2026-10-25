@@ -1,7 +1,7 @@
 # Distributed FFT Evaluation
 
 Evaluation date: 2026-06-26.
-Implementation update: 2026-06-28.
+Implementation update: 2026-10-26.
 
 ## Decision
 
@@ -26,6 +26,13 @@ Verified locally on `MPI.COMM_SELF`: extension loading, input/output allocation,
 validation failures for non-3D/nonperiodic requests, forward-transform parity
 against `FFTW.fft` through `PencilArrays.gather`, inverse transform, and
 round-trip error reduction.
+
+The [collective-construction repair](DISTRIBUTED_FFT_COLLECTIVE_PLAN.md) adds
+rank agreement before topology creation and collective reporting of recoverable
+local validation/planning errors. Its complete first matrix passes on 1, 2, 4
+and 8 ranks with Julia 1.12.7 and 1.13.2, including serial references for eleven
+transform families. Final acceptance is tracked in that plan. Distributed field
+operators and coupled domain-owned evolution remain separate open stages.
 
 ## Evidence
 
@@ -59,9 +66,9 @@ Primary source:
 1. Keep `SpectralOperators.jl` as the single-rank operator API and oracle.
 2. Add an optional distributed FFT extension around `PencilFFTs.jl` instead of
    adding `PencilFFTs` as an unconditional core dependency. **Done.**
-3. Limit the first integration to fully periodic 3D Fourier operators. **Done.**
-   Shock
-   configurations with nonperiodic shock-normal physics should continue to use
+3. Limit the first integration to fully periodic 3D transforms. **Plans and
+   forward/inverse wrappers implemented; distributed field operators remain
+   open.** Shock configurations with nonperiodic shock-normal physics use
    slab/local finite-difference logic until a mixed distributed operator is
    designed and tested.
 4. Validate the extension with real `mpiexec` tests:

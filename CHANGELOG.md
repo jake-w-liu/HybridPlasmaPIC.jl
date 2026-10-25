@@ -178,6 +178,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Distributed FFT construction validates sizes, transform configuration and
+  periodicity collectively before creating topology. Mismatched ranks and empty
+  pencil partitions fail explicitly; a recoverable local planning error reaches
+  every rank. Mixed integer types in a valid size tuple no longer recurse into
+  a stack overflow. Serial-reference and injected-failure tests run on real
+  2-, 4-, and 8-rank MPI in the existing CI jobs.
+
 - Finite Gaussian Coulomb draws no longer reject when rounded variance just
   above one overflows the tangent after the exact regime test selects Gaussian
   scattering. The shared sampler retains the tangent's binary scale and

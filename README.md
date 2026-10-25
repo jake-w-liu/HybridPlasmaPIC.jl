@@ -415,6 +415,11 @@ guarantee. [Publication contract](docs/SERIAL_PUBLICATION_PLAN.md).
 Field dumps use a self-describing binary format with zero heavy dependencies;
 HDF5 output activates as a package extension when HDF5.jl is loaded, and
 distributed FFTs (PencilFFTs.jl) as another for fully periodic 3D domains.
+`distributed_fft_plan` is collective: all communicator ranks must provide equal
+grid sizes and transforms. It checks configuration agreement, rejects empty
+pencil partitions, and reports recoverable local validation or planning failures
+on every rank. Transform storage and transposes remain owned by PencilFFTs.
+[Contract and verification](docs/DISTRIBUTED_FFT_COLLECTIVE_PLAN.md).
 GPU backend storage is exposed through `particle_storage_backend`. The Metal
 extension includes particle gather, deposit and push kernels; the CUDA extension
 currently supplies storage and telemetry. Hybrid and EM field storage remains

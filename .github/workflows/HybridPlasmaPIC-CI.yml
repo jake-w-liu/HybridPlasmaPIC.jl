@@ -89,12 +89,38 @@ jobs:
             @info "running MPI smoke" ranks=n cmd=string(cmd)
             run(cmd)' > mpi-smoke.log 2>&1
           cat mpi-smoke.log
+      - name: Run distributed FFT collective regressions
+        timeout-minutes: 20
+        env:
+          MPI_RANKS: ${{ matrix.ranks }}
+        run: |
+          set -euo pipefail
+          julia --project=. -e '
+            using Pkg
+            repository = pwd()
+            Pkg.activate(mktempdir())
+            Pkg.develop(path = repository)
+            Pkg.add(["MPI", "FFTW", "PencilArrays", "PencilFFTs"])
+            import MPI
+            launcher = MPI.mpiexec()
+            launcher === nothing && error("MPI launcher unavailable")
+            ranks = parse(Int, ENV["MPI_RANKS"])
+            ranks in (2, 4, 8) || error("Unsupported MPI rank matrix size: $ranks")
+            environment = dirname(Base.active_project())
+            script = joinpath(repository, "test", "test_distributed_fft_collective.jl")
+            command = `$launcher -n $ranks $(Base.julia_cmd()) --project=$environment $script`
+            println("Distributed FFT MPI command: ", command.exec)
+            process = run(ignorestatus(command))
+            success(process) || exit(process.exitcode)' > distributed-fft.log 2>&1
+          cat distributed-fft.log
       - name: Upload mpi-smoke log
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: mpi-smoke-log-${{ matrix.ranks }}-ranks
-          path: mpi-smoke.log
+          path: |
+            mpi-smoke.log
+            distributed-fft.log
           if-no-files-found: warn
 
   format:
