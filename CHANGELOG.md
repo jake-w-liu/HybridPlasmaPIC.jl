@@ -178,6 +178,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Finite Gaussian Coulomb draws no longer reject when rounded variance just
+  above one overflows the tangent after the exact regime test selects Gaussian
+  scattering. The shared sampler retains the tangent's binary scale and
+  completes the physical velocity update. Nonfinite draws still reject before
+  publication, with the same RNG order and rollback contract.
+
 - Prescribed-rate Coulomb collisions accumulate normalized population weights
   with compensation in Float64 for hardware-float particles and retain that
   mean through variance construction. BigFloat accumulates with local

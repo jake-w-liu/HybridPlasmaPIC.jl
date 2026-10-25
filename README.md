@@ -239,6 +239,8 @@ unsupported. [Validation scope and evidence](docs/RELATIVISTIC_VALIDATION_PLAN.m
   Exact identity rotations preserve original velocity bits and RNG draw order.
   Binary-scaled rates and direct velocity increments retain small physical
   kicks; cancellation-sensitive updates complete the sampled expression.
+  Finite Gaussian draws use the scaled tangent when boundary roundoff would
+  overflow its intermediate value; nonfinite draws still reject the call.
   See the [arithmetic validation scope](docs/COULOMB_SMALL_ANGLE_PLAN.md).
   The [population mean](docs/COULOMB_WEIGHT_MEAN_PLAN.md) retains
   large counts and sparse weights for hardware-float populations; BigFloat

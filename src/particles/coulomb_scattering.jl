@@ -114,14 +114,18 @@ end
         identity = cosθ == one(T) && iszero(sinθ)
     else
         draw = randn(rng, T)
+        isfinite(draw) ||
+            throw(ArgumentError("collide_coulomb!: sampled scattering angle must be finite"))
         δ = sqrt(var) * draw
-        isfinite(δ) ||
+        isnan(δ) &&
             throw(ArgumentError("collide_coulomb!: sampled scattering angle must be finite"))
         identity = iszero(draw)
         tangent = δ
-        if !iszero(draw) && (!use_fast || var < floatmin(T) || abs(δ) < floatmin(T))
+        if !iszero(draw) && (!use_fast || var < floatmin(T) || !isfinite(δ) || abs(δ) < floatmin(T))
             # A rounded variance or tangent can vanish while the final
-            # physical kick remains representable. Retain its binary scale.
+            # physical kick remains representable. Near variance one, rounding
+            # can also overflow a finite draw's tangent after the exact branch
+            # selects Gaussian scattering. Retain either case's binary scale.
             if use_fast
                 ratio, rate_power = _coulomb_scaled_variance(rate_factors, wmax, wbar, speed)
             end
