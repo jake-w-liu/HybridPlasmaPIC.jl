@@ -17,10 +17,12 @@ completeness. Comparative leadership requires reproducible external benchmarks.
 | Shock CN solve and memory-status constructors | `ce52836` has all six CI jobs green and full compiler review; `c810eb0` has five green jobs and one failed allocation assertion | Investigate the shock-total resource failure; source attribution remains open |
 | Complete energy-budget composition | V6 broader fixed costs fail at profile 192/324; numerical/resource passes retained | Optimize the implementation before a new frozen candidate; composition held |
 | Metal gathered push | V6 native correctness/resources/compiler gates pass both runtimes; minimum timing passes all 30 profiles | Latest-Julia doubled-work control failed; zero candidate timing profiles ran there. Held without retry |
-| Linear CN reference multiplier | Expanded matrix: 2,571 passes / 237 failures per runtime, including complete frequencies | [Expanded repair and acceptance plan](LINEAR_CN_RANGE_PLAN.md) |
+| Linear CN reference multiplier | Isolated implementation active; baseline retains 2,571 passes / 237 failures per runtime | Complete range/integer/frequency repair and independent gates; [acceptance plan](LINEAR_CN_RANGE_PLAN.md) |
 | Shared BigFloat exact conversion | `245e73a` pushed after numerical, concurrency, resource, compiler and fixed-cost gates pass both runtimes | [All six exact-SHA jobs and full compiler review pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40026749996); [repair evidence](EXACT_BIGFLOAT_CONVERSION_PLAN.md) |
 | Reference-unit normalization | V7 local numerical, native Metal, resource/compiler and all 306 fixed-cost profiles pass both runtimes | `1097076` passes all six exact-SHA CI jobs and full compiler review. Measured latency regressions remain optimization work. [Evidence and next steps](NORMALIZATION_RANGE_PLAN.md) |
-| Local multispecies collisions | V9 passes 140,303 permanent assertions plus normalization subprocess checks per runtime; all 108 ordinary profiles allocate zero bytes; concrete/full compiler review passes | Complete arithmetic certificates, fixed costs and final promotion/CI; [detailed implementation tracker](LOCAL_MULTISPECIES_COULOMB_PLAN.md). Feature remains unaccepted |
+| Local multispecies collisions | V10 passes 141,143 permanent assertions plus normalization subprocess checks per runtime; all 108 ordinary profiles allocate zero bytes; concrete/full compiler review passes | Complete arithmetic certificates, fixed costs and final promotion/CI; [detailed implementation tracker](LOCAL_MULTISPECIES_COULOMB_PLAN.md). Feature remains unaccepted |
+| Bounded Maxwell vacuum/cavity | Separate CAP-002A implementation active: staggered fields and mixed periodic/PEC axes | Discrete conservation, convergence, boundary and failure tests; particle coupling remains a later slice |
+| Electrostatic species collections | Separate CAP-008 implementation active: shared field, explicit neutrality, synchronized populations | Collection checkpoint, dispersion, compatibility and rollback gates |
 | Full simulator scope | CAP-001–011 remain open in whole or part | [Staged implementation roadmap](PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md) |
 
 - [x] Reconfirmed the full implementation objective on 2026-10-25: CAP-001–011
@@ -44,6 +46,25 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   V8 after checked source-line mapping (29/27 reports). One generic sampler
   entry changed relative to the accepted parent; its complete callee chain,
   signature and diagnostic match, with concrete execution checked separately.
+- [x] V10 repairs a second Float32 widening defect: intermediate rounding can
+  cross the Float32 overflow midpoint even when the exact sampled result rounds
+  to a finite value. The retained witness fails six checks per runtime before
+  repair. V10 passes all 30, plus 810 neighboring/component and 30 public
+  acceptance/rollback checks. Its full registered suite passes 141,143 assertions
+  per runtime, with all 108 ordinary allocation profiles still at zero bytes.
+- [x] Final V10 concrete/Aqua checks pass; complete compiler trees match V9 after
+  checked unchanged-line mapping (29/27 reports). Strengthened preconversion
+  bounds pass 16,198 checks and adjacent limits pass 5,564 per runtime. The
+  source-level arithmetic argument remains under final review; tests alone do
+  not certify all input bit patterns.
+- [x] The fixed-cost harness passes 104 mutation-sensitivity checks and 56 tiny
+  replay/resource profiles per runtime. These are harness checks, not timing
+  acceptance. Exceptional completion costs and the final source freeze remain
+  part of the premeasurement work.
+- [x] Three fresh implementation agents started successfully on 2026-10-25:
+  linear CN, electrostatic species collections and bounded Maxwell vacuum/cavity.
+  Earlier agent quota errors are historical; they do not describe current service
+  availability. Root retains collision acceptance, integration and CI ownership.
 - [ ] CAP-001 arithmetic certification, fixed performance measurements, final
   review, code push and exact-SHA CI remain open. The fixed-cost design is
   recorded before measurement; no timing campaign has started.

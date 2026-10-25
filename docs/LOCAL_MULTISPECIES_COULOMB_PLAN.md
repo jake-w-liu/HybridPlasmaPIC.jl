@@ -566,3 +566,49 @@ Evidence: `composition-v9b-permanent-source.json`,
 `legacy-allocation-boundary-review-v1.md`, `completion-certificate-review-v2.md`
 and `fixed-cost-v2-design.md`. CAP-003/004 parallel support and CAP-010 composed
 evolution/RNG restart remain dependent implementations, not completed features.
+
+## Current V10 evidence and active implementation tracks
+
+V10 is composed on `c5e8472` and remains unaccepted. A fresh witness verifies
+Float32 overflow-midpoint double rounding: the widened intermediate reaches the
+midpoint while the exact stored-sample expression rounds to finite Float32.
+Both runtimes retain 24 passes / six failures before repair. The widened adapter
+now requests existing exact completion above Float32's finite maximum; it does
+not clamp outputs or change the sampled physics.
+
+- [x] Original witness: 30/30 checks per runtime.
+- [x] Permanent boundary coverage: 810 component/neighbor checks and 30 public
+  finite-acceptance/true-overflow rollback checks per runtime.
+- [x] Registered suite: **141,143 assertions per runtime**, plus 7,590 + 100
+  normalization subprocess checks and confirmed settings restoration. All 108
+  ordinary reused-workspace profiles record zero bytes.
+- [x] Strengthened 448-error-scale audit: 16,198 checks; adjacent exponent,
+  coefficient and conditioning boundaries: 5,564 checks per runtime. The latter
+  retains every input case; the stronger upper guard routes nine more profiles
+  through exact completion, removing 54 inapplicable hardware-component checks.
+- [x] Concrete quality checks: 55 local, 10 sampler/legacy, six complete
+  representations and nine Aqua checks per runtime. Full compiler trees match
+  V9 after checked unchanged-line mapping (29/27 reports).
+- [x] Formatter: 40 AST/idempotence checks across 20 owned Julia files.
+- [x] Performance harness preflight: 104 mutation-sensitivity assertions and
+  56 tiny replay/resource profiles per runtime. No timing acceptance run.
+- [ ] Finish the source-level error/range certificate review. Exact-fraction
+  propagation and structured tests support the argument but are not a
+  machine-checked proof over all inputs.
+- [ ] Complete exceptional-completion cost coverage, freeze the final harness
+  and execute the exclusive fixed-cost campaign. Retain every failed control.
+- [ ] Reconcile final example/neighbor/legacy/API/docs evidence, promote the
+  accepted implementation and require all six exact-SHA GitHub CI jobs green.
+
+Current evidence: `composition-v10-permanent-source.json`,
+`widened-overflow-midpoint-v1-commands.json`,
+`widened-overflow-midpoint-v2-commands.json`,
+`widened-overflow-regression-v1-commands.json`, `completion-v10-commands.json`,
+`package-jet-current-v3-*-review.json`,
+`completion-certificate-derivation-v4.md` and `fixed-cost-v2-design.md`.
+
+Three independent implementation agents are active for linear CN, ES species
+collections and bounded Maxwell vacuum/cavity. This collision slice does not
+complete CAP-001 composition/restart or any dependent parallel backend. The
+[full implementation roadmap](PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md)
+retains every CAP-001–011 acceptance gate.

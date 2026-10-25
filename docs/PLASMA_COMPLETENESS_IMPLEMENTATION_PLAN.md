@@ -194,14 +194,15 @@ mean code or runtime verification is complete. “Scope proposal” marks the
 additional CAP-008–011 model expansion. Root owns integration, tracker consistency,
 commit/push and CI. A named subsystem below is a code owner; an unassigned
 implementation agent is explicitly unassigned, not implicitly running.
-As of 2026-10-24, the three named implementation agents stopped on a service
-usage limit. Root is continuing from their retained worktrees and evidence;
-these agent names identify existing ownership, not running processes.
+On 2026-10-25, three fresh implementation agents started successfully in
+isolated worktrees: linear CN, electrostatic species collections and bounded
+Maxwell vacuum/cavity. Earlier agent quota errors are historical. Root owns
+collision acceptance, shared trackers, integration, pushes and exact-SHA CI.
 
 | Slice | Implementation owner / canonical code | Dependencies | State and checked evidence | Next concrete action |
 | --- | --- | --- | --- | --- |
-| 001 local self/cross collisions | Root continuing saved `/root/local_multispecies_collisions` work; `particles/collisions.jl`, `particles/sorting.jl` | Existing particle/moment arithmetic gates | Isolated candidate retained; final gates open | V9 passes 140,303 permanent assertions and all 108 ordinary zero-allocation profiles per runtime; concrete/full compiler and legacy differential checks pass. Complete arithmetic certification, fixed costs and promotion/CI. [Detailed tracker](LOCAL_MULTISPECIES_COULOMB_PLAN.md) |
-| 002A/B bounded Maxwell + particles | Agent unassigned; `models/full_pic.jl`, mesh/operator and coupling owners | Shared storage/layout decision; current periodic EM remains oracle | Planned; constructor and periodic calls checked | Derive staggered discrete operators and wall charge ledger; build vacuum/trajectory baseline before editing |
+| 001 local self/cross collisions | Root continuing saved `/root/local_multispecies_collisions` work; `particles/collisions.jl`, `particles/sorting.jl` | Existing particle/moment arithmetic gates | Isolated candidate retained; final gates open | V10 passes 141,143 permanent assertions and all 108 ordinary zero-allocation profiles per runtime; concrete/full compiler and legacy differential checks pass. Complete arithmetic certification, fixed costs and promotion/CI. [Detailed tracker](LOCAL_MULTISPECIES_COULOMB_PLAN.md) |
+| 002A/B bounded Maxwell + particles | `/root/bounded_maxwell_implementation` owns 002A; mesh/operator and model owners | Staggered storage/layout contract; current periodic EM remains oracle | Vacuum/cavity implementation active; particles remain planned | Verify Yee curl/divergence, PEC corners, energy/Poynting, CFL and rollback, then design particle/wall charge coupling |
 | 002C/D open boundaries + production integration | Agent unassigned; boundaries, EM, I/O | 002A/B; 003/004 for parallel/device claims | Planned; no coupled open Maxwell path | Pre-register pulse reflection/charge-flux suite and absorber state schema |
 | 003A/B local storage + distributed operators | Agent unassigned; MPI/domain/pencil owners, Pencil extension | Storage/layout contract; existing real-MPI infrastructure | Planned; replicated moments and FFT wrapper inspected | Specify index/halo ownership and implement analytic distributed-operator tests |
 | 003C/D distributed coupled solvers | Agent unassigned; MPI orchestration + canonical solver owners | 003A/B and accepted serial solver | Planned; full-grid allreduce reference inspected | Compose a periodic hybrid step without replicated grids and test 2/4/8 ranks |
@@ -209,7 +210,7 @@ these agent names identify existing ownership, not running processes.
 | 004A GPU primitive closure | Root; extensions and coupling | Current kernel gates and exact-SHA CI | Metal uniform push and NGP have green CI; gathered V1 fails allocation, V2–V5 fail fixed latency gates; V5 native correctness passes | V6 native/compiler/resource gates pass both; minimum fixed costs pass but latest doubled-work calibration fails. Hold without retry; latest candidate timing and primitive closure remain open |
 | 004B/C resident solver families | Agent unassigned; fields, integrators/models, extensions | 004A; storage/operator contract; actual device operators | Planned; concrete host arrays inspected | Implement one complete resident hybrid path and trace all transfers/scalar access |
 | 004D multi-GPU | Agent unassigned; MPI + device extensions | 003C/D, 004B/C; real devices/network | Hardware/integration pending | Establish buffer ownership/staging contract and matched device/rank oracle |
-| 005A existing CN-labelled paths | Root continuing saved architecture work; shock3d and integrator stability owners | Independent linear-system oracle | Shock CN repair pushed as ce52836; separate linear multiplier range/integer defects reproduced on both runtimes | Shock all-six CI and complete compiler review pass. Implement the [linear CN repair](LINEAR_CN_RANGE_PLAN.md), including frequency construction and near-quarter-turn phase components |
+| 005A existing CN-labelled paths | `/root/linear_cn_implementation`; shock3d and integrator stability owners | Independent linear-system oracle | Shock CN repair pushed as ce52836; separate linear multiplier range/integer defects reproduced on both runtimes | Shock all-six CI and complete compiler review pass. Implement the [linear CN repair](LINEAR_CN_RANGE_PLAN.md), including frequency construction and near-quarter-turn phase components |
 | 005B/C implicit hybrid | Agent unassigned; integrator + moment/Ohm owners | Derived discrete conservation and solve contract | Planned | Freeze unknowns/residual, independent small-system oracle and failed-solve transaction |
 | 005D implicit EM / parallel geometry | Agent unassigned; EM/parallel/geometry owners | 005B/C method evidence; accepted relevant operators | Planned | Derive EM-specific continuity/work residual before adding a public method |
 | 006A curvilinear solver | Agent unassigned; mesh/coupling/model/I/O | Compatible geometry operators, chosen physical model | Partial primitives; no production callers found | Specify coordinate/component/volume conventions and coupled manufactured problem |
@@ -217,7 +218,7 @@ these agent names identify existing ownership, not running processes.
 | 006C adaptive plasma hierarchy | Agent unassigned; AMR/coupling/model/I/O | Composite field method; 002/003/004 only where claimed | Partial scalar-level primitives | Design static ES hierarchy and crossing/self-force oracle before dynamic refinement |
 | 007A/B reference provenance + production dispersion | Agent unassigned; validation/reference owners | Source/network/toolchain; accepted production solver | Moving clones, unchecked cache reuse and eigenvalue-only comparison verified; READMEs reconciled | Pin references and define time-series fitting/refinement contract |
 | 007C–E profiles, new physics, comparative costs | Agent unassigned; validation/benchmark owners | Accepted corresponding capability; datasets/hardware | Existing scalar comparisons inspected; campaigns unrun here | Freeze matched inputs/diagnostics/uncertainty and preserve raw reference outputs |
-| 008 ES/EM arbitrary species | Scope proposal; root selects implementation agent | Species charge/time-level design; existing EM current owner | Current two-species restriction verified | Fix compatibility/background/multirate contract, then implement ES collection slice |
+| 008 ES/EM arbitrary species | `/root/electrostatic_species_implementation` owns first ES slice | Species charge/time-level design; existing Poisson owner | ES collection implementation active; arbitrary EM collections remain planned | Verify shared charge/field, neutrality, synchronized half levels, scalar compatibility, diagnostics and collection checkpoints |
 | 009 full-Hall multidimensional shocks | Scope proposal; root selects implementation agent | Full mixed-operator/field-boundary balance; 005 optional | Deliberate reduced induction verified | Derive full induction and SAT budget; build transverse-mode witness |
 | 010 composed sources and RNG restart | Scope proposal; dependency of restartable collision composition | 001 and phase/growth/checkpoint contracts | Standalone operators/deterministic checkpoint inspected | Specify split order, saved RNG/counters, commit and rollback semantics |
 | 011 electron transport/energy | Scope proposal; root selects implementation agent | Term-specific energy derivation and integrator contract | Ideal-only evolving-pressure restriction verified | Derive matched resistive heating/loss discrete balance |
@@ -241,16 +242,18 @@ backends is part of the contract. Equal macro weights conserve pair momentum and
 energy using physical species masses; unequal weights require the selected
 method's statistical conservation, rate and reuse-count proof.
 
-The current V9 candidate is unaccepted and composed on `438b1c2`, whose
-production baseline matches `1097076`. Both Julia versions pass 140,303
+The current V10 candidate is unaccepted and composed on `c5e8472`, whose
+production baseline matches `1097076`. Both Julia versions pass 141,143
 registered assertions, including sampled/physical-rate checks, four-species
 generators, cancellation boundaries and all 108 zero-allocation profiles.
 Normalization subprocesses pass 7,590 physical rounding checks and 100 compact
 MPFR checks, with settings restoration confirmed.
 
 Fresh audits reproduced and repaired component-product underflow and Float32
-cancellation inside the widened rotation. The earlier failed witnesses remain
-recorded. Concrete compiler/Aqua checks pass; full package trees match the
+cancellation inside the widened rotation, followed by Float32 overflow-midpoint
+double rounding. The earlier failed witnesses remain recorded. V10 additionally
+passes 810 neighboring/component and 30 public acceptance/rollback checks.
+Concrete compiler/Aqua checks pass; full package trees match the
 previous candidate after checked source-line mapping. Legacy tests retain exact
 outputs/RNG and exact warmed-byte equality, including an allocation-order control
 that reproduces the initial differences using identical parent code. The
