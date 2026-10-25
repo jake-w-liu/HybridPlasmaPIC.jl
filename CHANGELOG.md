@@ -178,6 +178,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Distributed FFT roundtrip diagnostics now support in-place complex, real and
+  real-to-real transforms. They compare the container's input view and reuse the
+  input as the default output, as required by PencilFFTs. An explicit separate
+  output still rejects. Real MPI regressions verify the global maximum error
+  and restored input for both transform storage modes.
+
 - Distributed FFT construction validates sizes, transform configuration and
   periodicity collectively before creating topology. Mismatched ranks and empty
   pencil partitions fail explicitly; a recoverable local planning error reaches

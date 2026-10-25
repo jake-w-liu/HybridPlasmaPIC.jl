@@ -137,10 +137,12 @@ returned. No constructor latency or multi-node scaling claim is made.
 A subsequent independent diagnostic pass found a separate inherited defect:
 `distributed_fft_roundtrip_error` calls `parent` on an in-place multi-view
 container. FFT!, RFFT! and R2R! each fail with MethodError on both parent runtimes.
-The source/logs remain in `roundtrip-inplace-baseline-v1-*`; its separate repair
-worktree and plan preserve this constructor candidate unchanged.
+The source/logs remain in `roundtrip-inplace-baseline-v1-*`; its separate
+[repair plan](DISTRIBUTED_FFT_DIAGNOSTIC_PLAN.md) preserves this constructor
+candidate unchanged.
 
-All local constructor acceptance gates are complete. Exact-revision GitHub CI
-and its full compiler-log review remain required after promotion. This repair
+All local constructor acceptance gates are complete, and the repair is pushed as
+`00f7922`. [Exact-revision GitHub CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40220039958)
+and its full compiler-log review remain active. This repair
 closes the constructor prerequisite only; every subsequent CAP-003 stage above
 remains open.

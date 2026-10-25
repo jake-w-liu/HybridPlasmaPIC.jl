@@ -34,6 +34,13 @@ and 8 ranks with Julia 1.12.7 and 1.13.2, including serial references for eleven
 transform families. Final acceptance is tracked in that plan. Distributed field
 operators and coupled domain-owned evolution remain separate open stages.
 
+The [roundtrip diagnostic repair](DISTRIBUTED_FFT_DIAGNOSTIC_PLAN.md) supports
+in-place FFT!, RFFT! and R2R! through their input view and shared output container.
+The combined constructor/diagnostic suite passes 8,955 assertions per runtime
+on 1/2/4/8 ranks. All 540 rank/profile resource comparisons per runtime match
+the complete reference; exact-revision CI status remains in that plan and the
+audit tracker.
+
 ## Evidence
 
 - `PencilFFTs.jl` is a Julia package for fast Fourier transforms on

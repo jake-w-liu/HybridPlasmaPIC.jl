@@ -89,7 +89,7 @@ jobs:
             @info "running MPI smoke" ranks=n cmd=string(cmd)
             run(cmd)' > mpi-smoke.log 2>&1
           cat mpi-smoke.log
-      - name: Run distributed FFT collective regressions
+      - name: Run distributed FFT regressions
         timeout-minutes: 20
         env:
           MPI_RANKS: ${{ matrix.ranks }}
@@ -107,7 +107,7 @@ jobs:
             ranks = parse(Int, ENV["MPI_RANKS"])
             ranks in (2, 4, 8) || error("Unsupported MPI rank matrix size: $ranks")
             environment = dirname(Base.active_project())
-            script = joinpath(repository, "test", "test_distributed_fft_collective.jl")
+            script = joinpath(repository, "test", "test_distributed_fft.jl")
             command = `$launcher -n $ranks $(Base.julia_cmd()) --project=$environment $script`
             println("Distributed FFT MPI command: ", command.exec)
             process = run(ignorestatus(command))

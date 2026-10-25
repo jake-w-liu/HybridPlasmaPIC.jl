@@ -420,6 +420,10 @@ grid sizes and transforms. It checks configuration agreement, rejects empty
 pencil partitions, and reports recoverable local validation or planning failures
 on every rank. Transform storage and transposes remain owned by PencilFFTs.
 [Contract and verification](docs/DISTRIBUTED_FFT_COLLECTIVE_PLAN.md).
+`distributed_fft_roundtrip_error` supports both in-place and out-of-place plans
+and returns the maximum absolute roundtrip error across the communicator. It
+allocates a snapshot of the input; in-place plans reuse that input as output.
+[Diagnostic contract](docs/DISTRIBUTED_FFT_DIAGNOSTIC_PLAN.md).
 GPU backend storage is exposed through `particle_storage_backend`. The Metal
 extension includes particle gather, deposit and push kernels; the CUDA extension
 currently supplies storage and telemetry. Hybrid and EM field storage remains

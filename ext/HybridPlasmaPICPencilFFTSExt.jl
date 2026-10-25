@@ -123,15 +123,25 @@ function HybridPlasmaPIC.distributed_fft_inverse!(input, plan::DistributedPencil
     return input
 end
 
+"""
+    distributed_fft_roundtrip_error(plan, input; output=...)
+
+Apply a forward and inverse transform and return the communicator-wide maximum
+absolute change in the input. This diagnostic allocates a copy of the input.
+All ranks must provide compatible storage for the plan. In-place transforms
+reuse `input` as the default output; an explicit output must be that same object.
+"""
 function HybridPlasmaPIC.distributed_fft_roundtrip_error(
     plan::DistributedPencilFFTPlan,
     input;
-    output = HybridPlasmaPIC.distributed_fft_output(plan),
+    output = PencilFFTs.is_inplace(plan.plan) ? input :
+             HybridPlasmaPIC.distributed_fft_output(plan),
 )
-    original = copy(parent(input))
+    input_view = PencilFFTs.is_inplace(plan.plan) ? first(input) : input
+    original = copy(parent(input_view))
     HybridPlasmaPIC.distributed_fft_forward!(output, plan, input)
     HybridPlasmaPIC.distributed_fft_inverse!(input, plan, output)
-    local_error = isempty(original) ? 0.0 : maximum(abs, parent(input) .- original)
+    local_error = isempty(original) ? 0.0 : maximum(abs, parent(input_view) .- original)
     return MPI.Allreduce(local_error, MPI.MAX, plan.comm)
 end
 
