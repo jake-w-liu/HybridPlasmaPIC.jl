@@ -103,6 +103,7 @@ using Test
     include("test_kinetic_energy_operations.jl")
     include("test_repro.jl")
     include("test_collisions.jl")
+    include("test_coulomb_weight_mean.jl")
     include("test_coulomb_null_rotation.jl")
     include("test_coulomb_angle_range.jl")
     include("test_coulomb_sampled_update.jl")

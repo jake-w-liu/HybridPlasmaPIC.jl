@@ -93,7 +93,7 @@ function reference(ps, row, phase, floor)
     radius = hypot(g[1], g[2])
     scale = maximum(ps.weight)
     normalized = ps.weight ./ scale
-    average = sum(normalized) / T(2)
+    average = sum(Rational{BigInt}, normalized) / 2
     maxweight = maximum(normalized)
     sine_phase, cosine_phase = sincos((2T(pi)) * phase)
     return setprecision(BigFloat, 2048) do
@@ -178,10 +178,10 @@ end
         weight = T(units) * nextfloat(zero(T))
         ps.weight[1:2] .= weight
         gc = floatmax(T) / T(64)
-        # The four unit-weight particles determine the native population mean.
+        # Include all six native normalized weights in the exact population mean.
         # The first pair's quotient is subnormal before its large rate restores
         # a normal variance; compute the independent reference from the factors.
-        average = T(4) / T(6)
+        average = (4 + 2Rational{BigInt}(weight)) / 6
         expected = setprecision(BigFloat, 4096) do
             variance = BigFloat(gc) * BigFloat(weight) / BigFloat(average)
             delta = sqrt(variance)

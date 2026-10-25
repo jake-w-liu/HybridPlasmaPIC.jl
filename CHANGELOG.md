@@ -178,6 +178,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Prescribed-rate Coulomb collisions accumulate normalized population weights
+  with compensation in Float64 for hardware-float particles and retain that
+  mean through variance construction. BigFloat accumulates with local
+  count-dependent guard bits and rounds the mean at its active precision.
+  Large or sparse Float16 and coarse-BigFloat populations no longer
+  select the wrong scattering regime from a stalled sum or overflowing count.
+  Zero weights remain included in the population count; validation, RNG ordering
+  and transactional velocity publication are preserved.
+
 - Mode-history least squares centers observations before reducing their mean
   and evaluates residuals in centered coordinates. Constant histories now
   have zero rate and residual; large amplitude or phase offsets no longer
@@ -192,8 +201,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   directly. Small nonzero kicks, subnormal pair-weight ratios and cancellation
   near a velocity exchange are checked against independent complete-expression
   references. Historical floating-point trajectories change; same-version
-  seeded determinism and RNG event order remain covered. Population-weight
-  mean accuracy for large Float16 sets remains a separate open repair.
+  seeded determinism and RNG event order remain covered.
 
 - Validation frequency extraction includes the first Fourier bin and both
   rotation directions, removes DC before peak interpolation, and rejects

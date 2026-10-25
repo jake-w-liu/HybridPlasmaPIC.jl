@@ -1,6 +1,6 @@
 # Plasma simulation audit and implementation tracker
 
-Updated: 2026-10-25 (Asia/Taipei). Goal remains **active**.
+Updated: 2026-10-26 (Asia/Taipei). Goal remains **active**.
 
 User objective: audit the full codebase until an independent pass finds no new
 confirmed defects; optimize measured bottlenecks; plan and implement missing
@@ -10,7 +10,7 @@ also pass GitHub CI; a confirmed billing block is recorded separately.
 Passing a subset of tests does not establish whole-project correctness or
 completeness. Comparative leadership requires reproducible external benchmarks.
 
-## Current progress (2026-10-25)
+## Current progress (2026-10-26)
 
 | Active work | Checked state | Remaining gate |
 | --- | --- | --- |
@@ -20,15 +20,17 @@ completeness. Comparative leadership requires reproducible external benchmarks.
 | Linear CN reference multiplier | Frozen V5c passes numerical/compiler gates, 307 workload preflights plus 18 controls and 199 exceptional resource profiles per runtime; packet V2 source/evidence review is complete | Fixed latency acceptance and integration remain. [Acceptance plan](LINEAR_CN_RANGE_PLAN.md) |
 | Shared BigFloat exact conversion | `245e73a` pushed after numerical, concurrency, resource, compiler and fixed-cost gates pass both runtimes | [All six exact-SHA jobs and full compiler review pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40026749996); [repair evidence](EXACT_BIGFLOAT_CONVERSION_PLAN.md) |
 | Reference-unit normalization | V7 local numerical, native Metal, resource/compiler and all 306 fixed-cost profiles pass both runtimes | `1097076` passes all six exact-SHA CI jobs and full compiler review. Measured latency regressions remain optimization work. [Evidence and next steps](NORMALIZATION_RANGE_PLAN.md) |
-| Local multispecies collisions | V10 passes 141,143 permanent assertions plus normalization subprocess checks per runtime; all 108 ordinary profiles allocate zero bytes; concrete/full compiler review passes | Arithmetic review complete; fixed costs and final promotion/CI remain; [detailed implementation tracker](LOCAL_MULTISPECIES_COULOMB_PLAN.md). Feature remains unaccepted |
+| Local multispecies collisions | V10 passes its 141,143 permanent assertions per runtime and all 108 ordinary profiles allocate zero bytes. A subsequent public rate-boundary witness fails on both runtimes | [Canonical rate integration](LOCAL_COULOMB_RATE_PLAN.md), regenerated differential/resource checks, fixed costs and promotion/CI remain; [detailed implementation tracker](LOCAL_MULTISPECIES_COULOMB_PLAN.md). Feature remains unaccepted |
 | Bounded Maxwell vacuum/cavity | V12 final handoff records both numerical suites, complete compiler review and all 306 step/144 diagnostic resource profiles passing; V11v2's growth failure is retained | Fixed latency acceptance, integration and CI remain. The first coupled absorbing-wall slice is under design |
 | Electrostatic species collections | V8 handoff is frozen; the separate phase-update candidate passes 6,039 focused checks per runtime, with broader public regressions active | Root integration review, fixed cost acceptance and relativistic-owner investigation remain |
 | External reference provenance | Pushed as `95c5678`: all six jobs green, 723,186 / 723,187 assertions and complete compiler trees identical to accepted `1097076` | [Exact-SHA CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40186481856); [implementation and evidence](EXTERNAL_REFERENCE_PROVENANCE_PLAN.md) |
 | Validation frequency extraction | `01a1b3c` fails CI test loading/formatting; correction `27372b2` passes all six jobs and 726,339 / 726,340 assertions; complete compiler trees match accepted `1097076` | [Corrected exact-SHA full CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40189739840); [failure and repair evidence](VALIDATION_FREQUENCY_PLAN.md) |
-| Production dispersion | Pushed `839c109`; all production metrics pass locally, but minimum-Julia CI fails twelve fitter residual assertions; the other five jobs pass | [Centering repair](MODE_HISTORY_CENTERING_PLAN.md), corrected [CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40194825415) and full compiler review remain |
-| Legacy Coulomb null rotation | Pushed `a18f09d`; both runtimes pass 10,925 sandbox assertions, 8,064 ordinary differential checks, eight concrete compiler signatures and three executed mutation controls; complete compiler trees match the parent | [Exact-SHA CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40197509625) and full compiler review remain. [Evidence](COULOMB_NULL_ROTATION_PLAN.md) |
+| Production dispersion | Pushed `839c109`; minimum-Julia CI failed twelve fitter residual assertions. The numerical centering repair is pushed as `4f26e1d`, after 12,997 sandbox assertions and independent retained-history replay on each runtime | [Centering repair](MODE_HISTORY_CENTERING_PLAN.md), [corrected-revision CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40206440280) and full compiler review remain |
+| Legacy Coulomb null rotation | Pushed `a18f09d`; both runtimes pass 10,925 sandbox assertions and 8,064 ordinary differential checks. Minimum-Julia CI subsequently failed the same twelve mode-fitter residual assertions; repair `4f26e1d` includes this change | [Historical CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40197509625); corrected-revision checks and full compiler review remain. [Evidence](COULOMB_NULL_ROTATION_PLAN.md) |
 | Nonzero Coulomb angles | Pushed `2a5cc12` after 54,955 sandbox assertions, 12,096 ordinary checks, 40 concrete signatures and 720 exceptional resource checks per runtime; complete compiler review retains one changed private-entry signature with the same diagnostic | [Exact-SHA CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40205148875), fixed latency and local-collision composition remain. [Repair plan](COULOMB_SMALL_ANGLE_PLAN.md) |
-| Coulomb population-weight mean | Public Float16 witnesses fail on both parent and candidate: narrow accumulation and count conversion choose the wrong scattering regime | Separate [normalization repair plan](COULOMB_WEIGHT_MEAN_PLAN.md); implementation and acceptance remain open |
+| Coulomb population-weight mean | V2 passes 60,697 sandbox, 12,096 ordinary, 48 concrete compiler, 64 mean-resource and 720 exceptional checks per runtime. All 576 ordinary profiles allocate zero bytes; complete compiler review passes | [Normalization repair plan](COULOMB_WEIGHT_MEAN_PLAN.md); separate push and exact-SHA CI remain. Unaccepted V1 and its coarse-BigFloat failures are retained |
+| Local Coulomb rate integration | Frozen V10 public boundary witness has eight passes/two failures per runtime; Float64 chooses Gaussian despite variance strictly above one using both native and physical π | [Original-factor integration plan](LOCAL_COULOMB_RATE_PLAN.md); local operator and collision-aware stepper remain unaccepted |
+| Collision-aware hybrid stepping and restart | Isolated CAP-010 candidate records 817 functional and 178 checkpoint checks per runtime; 180 complete-step profiles add no warmed allocations over the canonical component sequence | Original spatial-feedback mutation sensitivity fails 32 assertions per runtime; stronger separately frozen follow-up, final compiler/neighbor checks and accepted collision dependency remain |
 | Full simulator scope | CAP-001–011 remain open in whole or part | [Staged implementation roadmap](PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md) |
 
 - [x] Reconfirmed the full implementation objective on 2026-10-25: CAP-001–011
@@ -40,16 +42,17 @@ completeness. Comparative leadership requires reproducible external benchmarks.
   tolerance cutoff; full ordinary outputs and warmed allocation counts match
   frozen `839c109`. Final source/evidence review found no further confirmed
   defect within this exact-identity change. Pushed `a18f09d`; exact-SHA CI remains.
-- [ ] Repair the independently confirmed nonzero-angle variance underflow.
+- [x] Repair the independently confirmed nonzero-angle variance underflow in
+  `2a5cc12`; fixed latency and local-collision composition remain open.
   **VERIFIED:** `legacy-variance-underflow-v1.jl` fails four of eight assertions
   on each runtime against both frozen main and the null repair. Float32
   `g=1e12, gcoeff=1e-12` and Float64 `g=1e100, gcoeff=1e-100` lose finite
   transverse kicks near -1e-12 and -1e-100 when variance rounds to zero before
   its square root. `coulomb-null/variance-underflow-review-v1.json` records
   complete commands, source hashes and independent BigFloat references.
-  Carry the complete angle and stable increment through the canonical sampler;
-  preserve same-version seeded determinism and draw ordering, retain all
-  historical-output differences, and reverify local-collision composition.
+  The canonical sampler now carries the complete angle and stable increment;
+  same-version seeded determinism and draw ordering are retained. Historical
+  output differences are recorded; local-collision composition remains open.
   The [bounded repair plan](COULOMB_SMALL_ANGLE_PLAN.md) explicitly records
   the stable-increment arithmetic migration and independent physical gates.
 - [ ] Complete the combined Maxwell cancellation repair. **VERIFIED:** independent

@@ -240,8 +240,9 @@ unsupported. [Validation scope and evidence](docs/RELATIVISTIC_VALIDATION_PLAN.m
   Binary-scaled rates and direct velocity increments retain small physical
   kicks; cancellation-sensitive updates complete the sampled expression.
   See the [arithmetic validation scope](docs/COULOMB_SMALL_ANGLE_PLAN.md).
-  A [population-mean defect](docs/COULOMB_WEIGHT_MEAN_PLAN.md) remains open for
-  large Float16 populations.
+  The [population mean](docs/COULOMB_WEIGHT_MEAN_PLAN.md) retains
+  large counts and sparse weights for hardware-float populations; BigFloat
+  accumulation uses local guard bits without changing global precision.
 - `collide_bgk!(ps, ν, dt)` — BGK relaxation toward the set's own drifting
   Maxwellian, conserving momentum and energy exactly.
 - `collide_neutral_mcc!` / `ionize_mcc!` — Monte-Carlo elastic scattering off

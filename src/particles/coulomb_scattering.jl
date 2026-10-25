@@ -15,7 +15,7 @@ end
 # All inputs are finite positive rate factors from validated public inputs.
 # Their binary fractions stay near unity while integer exponents retain a rate
 # that would overflow or underflow if multiplied before taking its square root.
-function _coulomb_scaled_variance(rate_factors, wmax::T, wbar::T, speed::T) where {T}
+function _coulomb_scaled_variance(rate_factors, wmax::T, wbar, speed::T) where {T}
     numerator, power = frexp(wmax)
     for factor in rate_factors
         fraction, exponent = frexp(factor)
@@ -25,7 +25,7 @@ function _coulomb_scaled_variance(rate_factors, wmax::T, wbar::T, speed::T) wher
     average, average_power = frexp(wbar)
     velocity, velocity_power = frexp(speed)
     power -= average_power + 3velocity_power
-    ratio = numerator / (average * velocity * velocity * velocity)
+    ratio = T(numerator / (average * velocity * velocity * velocity))
     return ratio, power
 end
 
@@ -67,7 +67,7 @@ end
     gmag::T,
     gcdt::T,
     wmax::T,
-    wbar::T,
+    wbar,
     uf::T,
     twoπ::T,
     rng,
@@ -78,7 +78,7 @@ end
     # Binary scaling retains the original factors when a product leaves the
     # normal range. A narrow exact comparison resolves the model boundary.
     speed = max(gmag, uf)
-    weight_ratio = wmax / wbar
+    weight_ratio = T(wmax / wbar)
     numerator = gcdt * weight_ratio
     speed2 = speed * speed
     denominator = speed2 * speed

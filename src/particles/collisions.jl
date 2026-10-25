@@ -394,7 +394,7 @@ end
     i::Int,
     j::Int,
     gcdt::T,
-    wbar::T,
+    wbar,
     weight_scale::T,
     uf::T,
     twoπ::T,
@@ -501,6 +501,62 @@ function _collision_permutation(rng, ps::ParticleSet, index_work, context::Abstr
     return index_work
 end
 
+@inline function _coulomb_normalized_weight(weight::T, weight_scale::T, p) where {T}
+    normalized = weight / weight_scale
+    (weight > zero(T) && iszero(normalized)) && throw(
+        ArgumentError(
+            "collide_coulomb!: particle $p positive weight is below the normalized numeric range relative to the largest weight",
+        ),
+    )
+    return normalized
+end
+
+function _coulomb_normalized_mean(w, weight_scale::T) where {T}
+    # A hardware-float population has at most typemax(Int) entries in [0,1],
+    # including a unit entry. Float64 retains both its total and its mean
+    # without narrowing the particle count or underflowing a sparse mean.
+    A = promote_type(T, Float64)
+    total, correction = zero(A), zero(A)
+    @inbounds for p in eachindex(w)
+        normalized = _coulomb_normalized_weight(w[p], weight_scale, p)
+        value = A(normalized)
+        updated = total + value
+        correction +=
+            abs(total) >= abs(value) ? (total - updated) + value : (value - updated) + total
+        total = updated
+    end
+    combined = total + correction
+    isfinite(combined) ||
+        throw(ArgumentError("collide_coulomb!: normalized total weight exceeds numeric range"))
+    return combined / length(w)
+end
+
+function _coulomb_normalized_mean(w, weight_scale::BigFloat)
+    # Guard bits grow with the positive-term count so coarse caller precision
+    # cannot stall either a sum or its correction. Only this local accumulator
+    # has extra precision; global MPFR precision and rounding stay unchanged.
+    count_bits = ndigits(length(w); base = 2)
+    total = BigFloat(0; precision = precision(BigFloat) + count_bits + 2)
+    mode = Base.MPFR.rounding_raw(BigFloat)
+    @inbounds for p in eachindex(w)
+        value = _coulomb_normalized_weight(w[p], weight_scale, p)
+        ccall(
+            (:mpfr_add, Base.MPFR.libmpfr),
+            Cint,
+            (Ref{BigFloat}, Ref{BigFloat}, Ref{BigFloat}, Base.MPFR.MPFRRoundingMode),
+            total,
+            total,
+            value,
+            mode,
+        )
+    end
+    isfinite(total) ||
+        throw(ArgumentError("collide_coulomb!: normalized total weight exceeds numeric range"))
+    # MPFR divides by the exact integer without converting a large count into
+    # the caller's floating exponent range. Base rounds the result at active p.
+    return total / BigInt(length(w))
+end
+
 """
     collide_coulomb!(ps::ParticleSet{D,T}, gcoeff, dt; rng=Random.default_rng(),
                      u_floor=1e-3, work=nothing, index_work=nothing) -> ps
@@ -546,9 +602,13 @@ cell-local pairing is the spatially-resolved upgrade. Odd `N` uses the Takizuka-
 triplet: the first three particles of the permutation form the pairs (1,2),(2,3),(3,1),
 each scattered with **half** the variance (small-angle variances add linearly), so every
 particle collides every step at the nominal rate. `gcoeff ≥ 0`, `dt ≥ 0`; fewer than
-two particles or an all-zero-weight set is a no-op. Velocities and macro-particle
-weights must be finite and non-negative, and every positive weight must remain
-nonzero when normalized by the largest weight. Updates are staged transactionally
+two particles or an all-zero-weight set is a no-op. Velocities must be finite;
+macro-particle weights must be finite and non-negative, and every positive weight must remain
+nonzero when normalized by the largest weight. The normalized population mean
+includes zero-weight particles. Hardware floats accumulate with compensation in
+Float64; BigFloat uses local count-dependent guard bits and rounds the mean at
+the active precision. A narrow particle type does not narrow its population count.
+Updates are staged transactionally
 in three temporary velocity vectors; repeated callers can pass non-aliasing
 particle-length vectors as `work`. A supplied particle-length
 `AbstractVector{Int}` in `index_work` also reuses the pairing permutation storage.
@@ -587,19 +647,7 @@ function collide_coulomb!(
     # (Higginson 2020): the scheme is then invariant under re-partitioning the same
     # physical plasma into different macro-weights at fixed gcoeff, and reduces exactly
     # to plain Takizuka-Abe for uniform weights (factor ≡ 1).
-    Wtot = zero(T)
-    @inbounds for p = 1:N
-        normalized_weight = w[p] / weight_scale
-        (w[p] > zero(T) && iszero(normalized_weight)) && throw(
-            ArgumentError(
-                "collide_coulomb!: particle $p positive weight is below the normalized numeric range relative to the largest weight",
-            ),
-        )
-        Wtot += normalized_weight
-    end
-    isfinite(Wtot) ||
-        throw(ArgumentError("collide_coulomb!: normalized total weight exceeds numeric range"))
-    wbar = Wtot / T(N)
+    wbar = _coulomb_normalized_mean(w, weight_scale)
 
     vnew = _collision_velocity_work(ps, work, "collide_coulomb!")
     vx, vy, vz = vnew
