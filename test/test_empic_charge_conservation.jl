@@ -50,18 +50,18 @@ end
         for values in cases
             expected = sum(Q, values; init = Q(0))
             before = copy(values)
-            @test H._empic_exact_sum(values) == expected
-            @test H._empic_exact_sum(view(values, :)) == expected
+            @test H._exact_float_sum(values) == expected
+            @test H._exact_float_sum(view(values, :)) == expected
             @test isequal(values, before)
         end
         for bad in (T(NaN), T(Inf), -T(Inf))
-            @test_throws ArgumentError H._empic_exact_sum(T[bad])
-            @test_throws ArgumentError H._empic_exact_sum(T[1, bad, 1])
+            @test_throws ArgumentError H._exact_float_sum(T[bad])
+            @test_throws ArgumentError H._exact_float_sum(T[1, bad, 1])
         end
         for bits in (2, 53, 127, 1024)
             old = precision(BigFloat)
             setprecision(BigFloat, bits) do
-                @test H._empic_exact_sum(T[m, u, -m]) == Q(u)
+                @test H._exact_float_sum(T[m, u, -m]) == Q(u)
                 @test precision(BigFloat) == bits
             end
             @test precision(BigFloat) == old

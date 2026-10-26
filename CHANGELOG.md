@@ -40,6 +40,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   failed builds explicitly; builders no longer install global tools or delete
   legacy caches.
 
+- Periodic CPU `ElectrostaticPIC` accepts arbitrary kinetic species in 1D–3D
+  with explicit neutrality/background policy, one shared Poisson field and
+  synchronized leapfrog phase. Collection updates stage particles and fields
+  before publication; diagnostics count the shared field once. Checkpoints and
+  archives preserve species order, policy and phase, including writable views.
+  Scalar electron constructors retain their existing API and checkpoint schema.
+
 - A source-backed completeness plan and live implementation tracker separate
   existing solvers, partial building blocks and missing coupled capabilities.
   Each stage records owners, dependencies and correctness, restart, hardware,
@@ -204,6 +211,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+<<<<<<< ours
 - Distributed FFT roundtrip diagnostics now support in-place complex, real and
   real-to-real transforms. They compare the container's input view and reuse the
   input as the default output, as required by PencilFFTs. An explicit separate
@@ -267,6 +275,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Float64 range raise `ArgumentError` before packet construction. Narrow hardware
   coefficients use Float64 division, and unsigned grid counts retain negative
   band-limited modes.
+
+- Electrostatic field energy retains finite complete-expression results when
+  intermediate squares or cell-volume products overflow or underflow.
 
 - Unit conversion evaluates complete physical expressions when intermediate
   scales or final operations lose floating-point range. The shared exact-root

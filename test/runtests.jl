@@ -127,6 +127,8 @@ using Test
     include("test_multispecies_mpi.jl")
     include("test_evolving_pressure_mpi.jl")
     include("test_espic.jl")
+    include("test_electrostatic_species.jl")
+    include("test_electrostatic_species_diversity.jl")
     include("test_empic.jl")
     include("test_empic1d.jl")
     include("test_hybrid_field_energy_range.jl")

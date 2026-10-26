@@ -209,15 +209,22 @@ in the [implementation plan](docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md).
 | model | what it is | entry points |
 |---|---|---|
 | **Hall-MHD** | periodic single-fluid Hall-MHD with algebraic electron closures; ion pressure `p_i = Ti·n`; the electron pressure force acts in both Ohm's law and the bulk momentum equation; explicit RK4 with divergence-free projection | `HallMHDModel`, `HallMHDState`, `step_hall_mhd!` |
-| **Electrostatic PIC** | full-kinetic electrons over a neutralizing background; spectral Poisson solve; leapfrog with one-time velocity priming; 1D/2D/3D | `ElectrostaticPIC` (or `Electrostatic1D`), `init_espic!`, `step_espic!` |
+| **Electrostatic PIC** | arbitrary kinetic species on periodic CPU grids, explicit charge/background policy, shared spectral Poisson field and synchronized leapfrog in 1D/2D/3D; scalar electron compatibility | `ElectrostaticPIC` (or `Electrostatic1D`), `init_espic!`, `step_espic!` |
 | **Electromagnetic PIC** | full EM PIC with kinetic electrons, optional mobile ions (`mobile = true`), optional relativistic Boris push (`relativistic = true`), spectral current correction for charge continuity, Gauss-law initialization, electron/Maxwell subcycling (`n_sub`) in 1D–3D | `EMPIC`, `EMPIC1D`, `init_empic!`, `step_empic!`, `charge_conservation_residual` |
 | **Fusion geometry / gyrokinetics / AMR** | integrated tokamak-oriented building blocks: toroidal curvilinear metric operators, guiding-centre gyrokinetics, and finite-volume AMR primitives alongside the existing mesh/model subsystems | `ToroidalGrid`, `metric_gradient`, `GuidingCentre`, `push_guiding_centre!`, `AMRGrid`, `refine` |
 | **KdV reference** | integrating-factor pseudo-spectral KdV solver + analytic soliton, used as a nonlinear-wave verification target | `kdv_solve`, `kdv_soliton` |
 
 The PIC models share the grid, particle, and diagnostic infrastructure with
-the hybrid stepper, so moving a setup between them is mostly a constructor
-swap; Hall-MHD shares the grid and field machinery, and the KdV solver is a
-standalone verification tool.
+the hybrid stepper. Their species and time-level contracts differ;
+[the electrostatic collection example](examples/electrostatic_species.jl) shows a
+neutral pair plasma. Hall-MHD shares the grid and field machinery, and the KdV
+solver is a standalone verification tool.
+
+For an initialized ES collection, call `poisson_E!(state)` after manually changing
+positions, weights or charges, or adding particles, to refresh the self-field
+without resetting the velocity phase. New velocities must use the existing
+shared half level. Replacing or reordering populations instead requires
+`init_espic!` and physical full-time velocities.
 
 General ES/EM longitudinal projections preserve finite results when intermediate
 wavenumber squares or products lose range. The EM continuity diagnostic also
@@ -403,7 +410,8 @@ timestep history, including CAM-CL's persistent magnetic copies and subcycle pha
 Evolving-electron runs also preserve stored pressure through serial and MPI
 checkpoints and archives; missing or invalid saved pressure is rejected.
 Hybrid restores replace model/shape parameters with the saved values;
-electrostatic destinations require matching background density `n0`.
+electrostatic destinations require matching background density `n0`; ES
+collections also require the same neutrality policy and charge tolerance.
 Model/shape parameters must be independent of evolving solver and particle
 storage; capture and restore reject retained links to that storage. Custom
 configuration uses Julia Serialization. Preflight rejects native FFT plans,
@@ -412,9 +420,10 @@ Independent views and shared Array/Ref parameters remain supported. Custom
 serializers own their reconstruction semantics; already-detached saved graphs
 cannot recover their original links. See the
 [configuration contract and limits](docs/CHECKPOINT_CONFIGURATION_PLAN.md).
-Hybrid collections use `save_checkpoint(path, st, species)` and
+Hybrid and electrostatic collections use `save_checkpoint(path, st, species)` and
 `load_checkpoint!(st, species, path)`, preserving population order, charge, mass
-and storage. Every destination is checked before any population changes;
+and particle data. Destination storage is retained; resizable arrays may change
+length. Every destination is checked before any population changes;
 the population count must match, and scalar/collection layouts stay distinct.
 `archive_run(path, st, species; rng_seed=...)` captures the same collection state.
 EM checkpoints preserve both species, field/current diagnostics, configuration,

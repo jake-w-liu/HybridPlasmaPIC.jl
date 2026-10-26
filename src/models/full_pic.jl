@@ -254,114 +254,30 @@ function _empic_raw_charge_density!(
     ions::Union{Nothing,ParticleSet{D,T}},
 ) where {D,T}
     mobile = es.mobile && ions !== nothing
-    eligible = true
-    lost = false
     if mobile
-        fill!(rho, zero(T))
-        for species in (ions, e)
-            state = _density_with_range!(ne, species, es.g, es.shape)
-            eligible &= state.eligible && isfinite(species.q)
-            lost |= state.lost
-            @inbounds for I in eachindex(rho)
-                contribution = species.q * ne[I]
-                value = rho[I] + contribution
-                lost |=
-                    _deposition_product_lost(species.q, ne[I], contribution) ||
-                    _deposition_range_lost(value)
-                rho[I] = value
-            end
-        end
-    else
-        state = _density_with_range!(ne, e, es.g, es.shape)
-        eligible = state.eligible && isfinite(es.n0)
-        lost = state.lost
-        @inbounds for I in eachindex(rho)
-            value = es.n0 - ne[I]
-            lost |= _deposition_range_lost(value)
-            rho[I] = value
-        end
+        return _charge_density_sum!(rho, ne, (ions, e), es.g, es.shape)
+    end
+    state = _density_with_range!(ne, e, es.g, es.shape)
+    eligible = state.eligible && isfinite(es.n0)
+    lost = state.lost
+    @inbounds for I in eachindex(rho)
+        value = es.n0 - ne[I]
+        lost |= _deposition_range_lost(value)
+        rho[I] = value
     end
     if eligible && lost
         # Preserve the ordinary electron-density scratch. The complete charge
         # replay reads original particle operands and combines before conversion.
-        exact = _exact_moment(e, (e.weight,), es.g, es.shape, mobile ? e.q : one(T))
-        if mobile
-            ion_exact = _exact_moment(ions, (ions.weight,), es.g, es.shape, ions.q)
-            for I in eachindex(exact)
-                exact[I] += ion_exact[I]
-            end
-        else
-            background = _exact_rational(es.n0)
-            for I in eachindex(exact)
-                exact[I] = background - exact[I]
-            end
+        exact = _exact_moment(e, (e.weight,), es.g, es.shape, one(T))
+        background = _exact_rational(es.n0)
+        for I in eachindex(exact)
+            exact[I] = background - exact[I]
         end
         for I in eachindex(rho)
             rho[I] = _from_exact(T, exact[I])
         end
     end
     return (; eligible, lost)
-end
-
-# Exact totals use bounded integer accumulation when the represented exponents
-# permit it; the wider path retains every finite stored operand.
-function _empic_exact_sum(values::AbstractArray{T}) where {T<:Union{Float16,Float32,Float64}}
-    Q = Rational{BigInt}
-    isempty(values) && return Q(0)
-    reference = first(values)
-    isfinite(reference) || throw(ArgumentError("exact dyadic sum requires finite values"))
-    minimum_exponent = iszero(reference) ? typemax(Int) : last(frexp(reference))
-    maximum_exponent = iszero(reference) ? typemin(Int) : minimum_exponent
-    all_equal = true
-    for value in values
-        if value != reference
-            all_equal = false
-            isfinite(value) || throw(ArgumentError("exact dyadic sum requires finite values"))
-            if !iszero(value)
-                _, e = frexp(value)
-                minimum_exponent = min(minimum_exponent, e)
-                maximum_exponent = max(maximum_exponent, e)
-            end
-        end
-    end
-    if all_equal
-        return length(values) == 1 ? Q(reference) : Q(reference) * length(values)
-    end
-    minimum_exponent == typemax(Int) && return Q(0)
-    p = precision(T)
-    # n < 2^ndigits(n), so this bounds every absolute partial sum strictly
-    # below 2^127 in the selected quantum, including arbitrary sign order.
-    if p + maximum_exponent - minimum_exponent + ndigits(length(values); base = 2) > 127
-        return _empic_exact_repeated_sum(values)
-    end
-    total = zero(Int128)
-    for value in values
-        if !iszero(value)
-            fraction, e = frexp(value)
-            significand = Int128(ldexp(fraction, p))
-            total += significand << (e - minimum_exponent)
-        end
-    end
-    quantum = minimum_exponent - p
-    integer = BigInt(total)
-    return quantum >= 0 ? Q(integer << quantum) : integer // (BigInt(1) << -quantum)
-end
-
-function _empic_exact_repeated_sum(values)
-    Q = Rational{BigInt}
-    total = Q(0)
-    previous = zero(eltype(values))
-    count = 0
-    for value in values
-        if count > 0 && value != previous
-            total += count == 1 ? Q(previous) : Q(previous) * count
-            count = 0
-        end
-        previous = value
-        count += 1
-    end
-    count > 0 && (total += count == 1 ? Q(previous) : Q(previous) * count)
-    return total
 end
 
 function _empic_charge_shift_bounds(
@@ -405,13 +321,13 @@ function _empic_reconcile_charge!(rho, es, e, ions)
     volume = prod(_exact_rational.(es.g.dx))
     if es.mobile && ions !== nothing
         particles =
-            _exact_rational(e.q) * _empic_exact_sum(e.weight) +
-            _exact_rational(ions.q) * _empic_exact_sum(ions.weight)
+            _exact_rational(e.q) * _exact_float_sum(e.weight) +
+            _exact_rational(ions.q) * _exact_float_sum(ions.weight)
         target = particles / volume
     else
-        target = length(rho) * _exact_rational(es.n0) - _empic_exact_sum(e.weight) / volume
+        target = length(rho) * _exact_rational(es.n0) - _exact_float_sum(e.weight) / volume
     end
-    shift = (_empic_exact_sum(rho) - target) / length(rho)
+    shift = (_exact_float_sum(rho) - target) / length(rho)
     _empic_complete_charge_shift!(rho, shift)
     return rho
 end
@@ -637,7 +553,7 @@ function _zero_nyquist_mode!(f::Vector{T}) where {T}
         # each final cell is rounded. The two views are disjoint.
         odd = view(f, 1:2:n)
         even = view(f, 2:2:n)
-        mean = (_empic_exact_sum(odd) - _empic_exact_sum(even)) / n
+        mean = (_exact_float_sum(odd) - _exact_float_sum(even)) / n
         _empic_complete_charge_shift!(odd, mean)
         _empic_complete_charge_shift!(even, -mean)
         return f

@@ -236,7 +236,8 @@ export ToroidalGrid,
 export PerpShock,
     ShockInjector, init_shock!, step_shock!, deposit_moments!, compute_E!, shock_density_weight
 export LeroyBoundary, step_leroy_shock!
-export Electrostatic1D, ElectrostaticPIC, init_espic!, step_espic!, poisson_E!, field_energy
+export Electrostatic1D,
+    ElectrostaticPIC, init_espic!, step_espic!, poisson_E!, field_energy, electrostatic_diagnostics
 export flux_speed, flux_per_density, inject_face_1d!
 export total_momentum,
     electric_work,

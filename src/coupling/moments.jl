@@ -503,6 +503,49 @@ function density!(
     return nout
 end
 
+# Sum arbitrary species charge before rounding a range-sensitive total. The ES
+# electron-equivalent source uses sign=-1; EM uses sign=+1. Ordinary arithmetic
+# retains the established per-species deposition and accumulation order.
+function _charge_density_sum!(
+    rho::Array{T,D},
+    density::Array{T,D},
+    species,
+    g::FourierGrid{D,T},
+    shape;
+    sign::T = one(T),
+) where {D,T}
+    fill!(rho, zero(T))
+    eligible, lost = isfinite(sign), false
+    for ps in species
+        state = _density_with_range!(density, ps, g, shape)
+        eligible &= state.eligible && isfinite(ps.q)
+        lost |= state.lost
+        charge = sign * ps.q
+        @inbounds for I in eachindex(rho)
+            contribution = charge * density[I]
+            value = rho[I] + contribution
+            lost |=
+                _deposition_product_lost(charge, density[I], contribution) ||
+                _deposition_range_lost(value)
+            rho[I] = value
+        end
+    end
+    if eligible && lost
+        exact = fill(zero(Rational{BigInt}), size(rho))
+        for ps in species
+            iszero(ps.q) && continue
+            contribution = _exact_moment(ps, (ps.weight,), g, shape, sign * ps.q)
+            for I in eachindex(exact)
+                exact[I] += contribution[I]
+            end
+        end
+        for I in eachindex(rho)
+            rho[I] = _from_exact(T, exact[I])
+        end
+    end
+    return (; eligible, lost)
+end
+
 function _deposit_vector_moment!(out, ps, g, shape, coefficient, work)
     for c = 1:3
         # Preserve the existing scratch contents, even if the original

@@ -50,6 +50,8 @@ Hybrid species collections preserve the ordered per-population state alongside
 the common fields, configuration and integrator phase.
 Electrostatic archives instead contain their electric field, density, immutable
 background density, and priming/timestep state alongside the particles and grid.
+Electrostatic collections retain ordered species, neutrality policy and charge
+tolerance through the same collection checkpoint schema.
 Electromagnetic archives include both species for mobile runs, their physics
 configuration, electric/magnetic fields, continuity diagnostic snapshots, and
 full/fast timestep history. Supply ions exactly when `mobile=true`.
@@ -72,7 +74,7 @@ end
 
 function archive_run(
     path::AbstractString,
-    st::_HybridCheckpointStepper,
+    st::Union{_HybridCheckpointStepper,ElectrostaticPIC},
     species::AbstractVector{<:ParticleSet};
     kwargs...,
 )

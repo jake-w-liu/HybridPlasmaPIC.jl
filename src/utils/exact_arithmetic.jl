@@ -349,3 +349,64 @@ function _sqrt_from_exact(
     magnitude = ldexp(T(whole), Int(quantum))
     return negative ? -magnitude : magnitude
 end
+
+# Exact totals use bounded integer accumulation when the represented exponents
+# permit it; the wider path retains every finite stored operand.
+function _exact_float_sum(values::AbstractArray{T}) where {T<:Union{Float16,Float32,Float64}}
+    Q = Rational{BigInt}
+    isempty(values) && return Q(0)
+    reference = first(values)
+    isfinite(reference) || throw(ArgumentError("exact dyadic sum requires finite values"))
+    minimum_exponent = iszero(reference) ? typemax(Int) : last(frexp(reference))
+    maximum_exponent = iszero(reference) ? typemin(Int) : minimum_exponent
+    all_equal = true
+    for value in values
+        if value != reference
+            all_equal = false
+            isfinite(value) || throw(ArgumentError("exact dyadic sum requires finite values"))
+            if !iszero(value)
+                _, e = frexp(value)
+                minimum_exponent = min(minimum_exponent, e)
+                maximum_exponent = max(maximum_exponent, e)
+            end
+        end
+    end
+    if all_equal
+        return length(values) == 1 ? Q(reference) : Q(reference) * length(values)
+    end
+    minimum_exponent == typemax(Int) && return Q(0)
+    p = precision(T)
+    # n < 2^ndigits(n), so this bounds every absolute partial sum strictly
+    # below 2^127 in the selected quantum, including arbitrary sign order.
+    if p + maximum_exponent - minimum_exponent + ndigits(length(values); base = 2) > 127
+        return _exact_repeated_float_sum(values)
+    end
+    total = zero(Int128)
+    for value in values
+        if !iszero(value)
+            fraction, e = frexp(value)
+            significand = Int128(ldexp(fraction, p))
+            total += significand << (e - minimum_exponent)
+        end
+    end
+    quantum = minimum_exponent - p
+    integer = BigInt(total)
+    return quantum >= 0 ? Q(integer << quantum) : integer // (BigInt(1) << -quantum)
+end
+
+function _exact_repeated_float_sum(values)
+    Q = Rational{BigInt}
+    total = Q(0)
+    previous = zero(eltype(values))
+    count = 0
+    for value in values
+        if count > 0 && value != previous
+            total += count == 1 ? Q(previous) : Q(previous) * count
+            count = 0
+        end
+        previous = value
+        count += 1
+    end
+    count > 0 && (total += count == 1 ? Q(previous) : Q(previous) * count)
+    return total
+end

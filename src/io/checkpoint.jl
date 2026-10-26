@@ -621,9 +621,21 @@ function _validate_checkpoint_state(s, st::_HybridCheckpointStepper{D,T}) where 
 end
 
 _espic_checkpoint_integrator(::Electrostatic1D) = :espic1d
-_espic_checkpoint_integrator(::ElectrostaticPIC) = :espic
+_espic_checkpoint_integrator(st::ElectrostaticPIC) =
+    st.collection === nothing ? :espic : :espic_collection
 
 function _validate_checkpoint_state(s, st::_ElectrostaticCheckpointStepper)
+    if s isa NamedTuple && haskey(s, :particle_layout)
+        st isa ElectrostaticPIC && st.collection !== nothing || throw(
+            ArgumentError(
+                "collection checkpoint requires a collection ElectrostaticPIC destination",
+            ),
+        )
+        return _validate_espic_collection_checkpoint(s, st)
+    end
+    st isa ElectrostaticPIC &&
+        st.collection !== nothing &&
+        throw(ArgumentError("collection ElectrostaticPIC requires a collection checkpoint"))
     _validate_checkpoint_container(s, _ESPIC_CHECKPOINT_REQUIRED_FIELDS)
     _validate_checkpoint_grid(s, st.g)
     expected = _espic_checkpoint_integrator(st)
@@ -714,6 +726,7 @@ function _hybrid_checkpoint_state(
 end
 
 function _checkpoint_state(st::_ElectrostaticCheckpointStepper, ps::ParticleSet{D,T}) where {D,T}
+    st isa ElectrostaticPIC && _espic_require_scalar(st)
     return (;
         integrator = _espic_checkpoint_integrator(st),
         D = D,
@@ -1114,7 +1127,11 @@ mass, phase space, and provenance. Populations require independent storage and
 the positive-ion validation used by collection stepping.
 For [`Electrostatic1D`](@ref) and [`ElectrostaticPIC`](@ref), save the electron
 particles, electric field, number density, background density, and priming/timestep
-state. These electrostatic solvers use CIC and an immobile ion background.
+state. Collection `ElectrostaticPIC` checkpoints also store ordered arbitrary
+species, neutrality policy and charge tolerance. Scalar payloads retain their
+original schema; collection schema 1 is distinct. ES collections use CIC and one
+shared velocity half level. Background density, policy and tolerance must match
+the destination; saved physical species values replace the destination values.
 [`EMPIC1D`](@ref) and [`EMPIC`](@ref) preserve their physics configuration,
 electric/magnetic fields, current and charge snapshots, and full/fast timestep
 history. Supply the ion `ParticleSet` exactly when `mobile=true`; electron and
@@ -1149,7 +1166,7 @@ end
 
 function save_checkpoint(
     path::AbstractString,
-    st::_HybridCheckpointStepper,
+    st::Union{_HybridCheckpointStepper,ElectrostaticPIC},
     species::AbstractVector{<:ParticleSet},
 )
     return _save_checkpoint(path, st, _checkpoint_state(st, species))
@@ -1214,7 +1231,7 @@ function load_checkpoint!(st::HallMHDState, path::AbstractString)
 end
 
 function load_checkpoint!(
-    st::_HybridCheckpointStepper,
+    st::Union{_HybridCheckpointStepper,ElectrostaticPIC},
     species::AbstractVector{<:ParticleSet},
     path::AbstractString,
 )
@@ -1228,4 +1245,121 @@ function load_checkpoint!(
     path::AbstractString,
 )
     return _restore_checkpoint_state!(st, electrons, ions, deserialize(path))
+end
+
+
+const _ESPIC_COLLECTION_CHECKPOINT_FIELDS = (
+    :integrator,
+    :D,
+    :T,
+    :ncell,
+    :L,
+    :n0,
+    :particle_layout,
+    :schema_version,
+    :neutrality,
+    :charge_rtol,
+    :species,
+    :E,
+    :ne,
+    :primed,
+    :last_dt,
+    :initialized,
+)
+
+function _validate_espic_collection_checkpoint(s, st::ElectrostaticPIC{D,T}) where {D,T}
+    _validate_checkpoint_container(s, _ESPIC_COLLECTION_CHECKPOINT_FIELDS)
+    _validate_checkpoint_grid(s, st.g)
+    s.integrator === :espic_collection &&
+        s.particle_layout === :collection &&
+        s.schema_version === 1 ||
+        throw(ArgumentError("unsupported electrostatic collection checkpoint schema"))
+    work = _espic_collection(st)
+    s.n0 isa T && isequal(s.n0, st.n0) ||
+        throw(ArgumentError("checkpoint background_charge does not match destination"))
+    s.neutrality === work.neutrality ||
+        throw(ArgumentError("checkpoint neutrality policy does not match destination"))
+    s.charge_rtol isa T && isequal(s.charge_rtol, work.charge_rtol) ||
+        throw(ArgumentError("checkpoint charge_rtol does not match destination"))
+    s.primed isa Bool && s.initialized isa Bool ||
+        throw(ArgumentError("checkpoint phase flags must be Bool"))
+    s.last_dt isa T &&
+        isfinite(s.last_dt) &&
+        (s.primed ? s.last_dt > zero(T) : iszero(s.last_dt)) ||
+        throw(ArgumentError("checkpoint last_dt must be positive exactly when primed"))
+    s.primed && !s.initialized && throw(ArgumentError("primed checkpoint must be initialized"))
+    s.species isa AbstractVector ||
+        throw(ArgumentError("checkpoint species must be an ordered vector"))
+    populations = ParticleSet{D,T}[_checkpoint_species(record, Val(D), T) for record in s.species]
+    _espic_validate_species(st, populations)
+    _validate_checkpoint_array(:ne, s.ne, st.ne)
+    _validate_checkpoint_field_components(:E, s.E, st.E)
+    for a in (s.ne, s.E...)
+        all(isfinite, a) || throw(ArgumentError("checkpoint electrostatic fields must be finite"))
+        for ps in populations
+            _mightalias_particle_storage(a, ps) &&
+                throw(ArgumentError("checkpoint particles must not alias fields"))
+        end
+    end
+    return nothing
+end
+
+function _checkpoint_state(
+    st::ElectrostaticPIC{D,T},
+    species::AbstractVector{<:ParticleSet},
+) where {D,T}
+    work = _espic_collection(st)
+    _espic_validate_species(st, species)
+    if work.initialized[]
+        _espic_require_bound_species(work, species)
+    end
+    return (
+        integrator = :espic_collection,
+        D = D,
+        T = T,
+        ncell = st.g.n,
+        L = st.g.L,
+        n0 = st.n0,
+        particle_layout = :collection,
+        schema_version = 1,
+        neutrality = work.neutrality,
+        charge_rtol = work.charge_rtol,
+        species = [_checkpoint_particle_state(ps) for ps in species],
+        E = st.E,
+        ne = st.ne,
+        primed = st.primed[],
+        last_dt = st.last_dt[],
+        initialized = work.initialized[],
+    )
+end
+
+function _restore_checkpoint_state!(
+    st::ElectrostaticPIC{D,T},
+    species::AbstractVector{<:ParticleSet},
+    s,
+) where {D,T}
+    work = _espic_collection(st)
+    _validate_checkpoint_state(s, st)
+    species isa AbstractVector{<:ParticleSet{D,T}} ||
+        throw(ArgumentError("destination species must match grid dimension and precision"))
+    length(species) == length(s.species) ||
+        throw(ArgumentError("checkpoint population count does not match destination"))
+    # Destination particle values are replaced; validate storage without requiring
+    # the old destination charge or phase to match the saved physical state.
+    _espic_validate_owner_types(work, species)
+    _espic_validate_storage(st, species)
+    for (ps, record) in zip(species, s.species)
+        _validate_checkpoint_destination(ps, length(record.weight))
+    end
+    for (ps, record) in zip(species, s.species)
+        _restore_checkpoint_particles!(ps, record)
+    end
+    copyto!(st.ne, s.ne)
+    foreach(copyto!, st.E, s.E)
+    empty!(work.owners)
+    append!(work.owners, species)
+    work.initialized[] = s.initialized
+    st.primed[] = s.primed
+    st.last_dt[] = s.last_dt
+    return st
 end
