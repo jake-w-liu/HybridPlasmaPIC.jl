@@ -443,6 +443,7 @@ end
     i::Int,
     j::Int,
     rate::_CoulombLocalPairRate,
+    coefficient::Tuple{T,Int},
     uf::T,
     fa::T,
     fb::T,
@@ -459,7 +460,7 @@ end
         iszero(speed) && return nothing
         wi, wj = pa.weight[i], pb.weight[j]
         maximum_weight = max(wi, wj)
-        fraction, power = _coulomb_local_scaled_coefficient(rate)
+        fraction, power = coefficient
         sample = _coulomb_sample_increment(
             gx,
             gy,
@@ -518,9 +519,12 @@ function _coulomb_self_cell!(
     n < 2 && return nothing
     _shuffle_coulomb_cell!(work.index, first, last, rng)
     rate = _CoulombLocalPairRate(channel, n - 1, 1, false)
+    coefficient = _coulomb_local_scaled_coefficient(rate)
     start = first
     if isodd(n)
         i, j, k = work.index[first], work.index[first+1], work.index[first+2]
+        triplet = _CoulombLocalPairRate(channel, n - 1, 1, true)
+        triplet_coefficient = _coulomb_local_scaled_coefficient(triplet)
         for (a, b) in ((i, j), (j, k), (k, i))
             _coulomb_local_pair!(
                 work,
@@ -529,7 +533,8 @@ function _coulomb_self_cell!(
                 ps,
                 a,
                 b,
-                _CoulombLocalPairRate(channel, n - 1, 1, true),
+                triplet,
+                triplet_coefficient,
                 uf,
                 T(0.5),
                 T(0.5),
@@ -547,6 +552,7 @@ function _coulomb_self_cell!(
             work.index[k],
             work.index[k+1],
             rate,
+            coefficient,
             uf,
             T(0.5),
             T(0.5),
@@ -576,9 +582,13 @@ function _coulomb_cross_cell!(
     _shuffle_coulomb_cell!(wb.index, firstb, lastb, rng)
     larger, smaller = max(na, nb), min(na, nb)
     repeats, extra = divrem(larger, smaller)
+    rate_lo = _CoulombLocalPairRate(channel, larger, repeats, false)
+    coeff_lo = _coulomb_local_scaled_coefficient(rate_lo)
+    rate_hi = _CoulombLocalPairRate(channel, larger, repeats + 1, false)
+    coeff_hi = iszero(extra) ? coeff_lo : _coulomb_local_scaled_coefficient(rate_hi)
     @inbounds for k = 0:(larger-1)
         small = mod(k, smaller)
-        reuse = repeats + (small < extra)
+        high = small < extra
         i = wa.index[firsta+(na >= nb ? k : small)]
         j = wb.index[firstb+(nb >= na ? k : small)]
         _coulomb_local_pair!(
@@ -588,7 +598,8 @@ function _coulomb_cross_cell!(
             pb,
             i,
             j,
-            _CoulombLocalPairRate(channel, larger, reuse, false),
+            high ? rate_hi : rate_lo,
+            high ? coeff_hi : coeff_lo,
             uf,
             fa,
             fb,

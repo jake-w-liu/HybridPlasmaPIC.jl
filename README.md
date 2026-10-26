@@ -257,7 +257,9 @@ unsupported. [Validation scope and evidence](docs/RELATIVISTIC_VALIDATION_PLAN.m
   variance exceeds unity, and the T&A triplet for odd particle counts.
   Exact identity rotations preserve original velocity bits and RNG draw order.
   Binary-scaled rates and direct velocity increments retain small physical
-  kicks; cancellation-sensitive updates complete the sampled expression.
+  kicks; updates follow the normwise standard — widened arithmetic replays
+  only range loss, while near-cancelling components keep fast rounding within
+  a few ulps of the pair scale.
   Finite Gaussian draws use the scaled tangent when boundary roundoff would
   overflow its intermediate value; nonfinite draws still reject the call.
   See the [arithmetic validation scope](docs/COULOMB_SMALL_ANGLE_PLAN.md).

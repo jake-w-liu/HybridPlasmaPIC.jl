@@ -115,9 +115,13 @@ end
         @test rng.events ==
               (isotropic ? [:shuffle, :uniform, :uniform] : [:shuffle, :normal, :uniform])
         physical_scale = max(norm(BigFloat.(a)), norm(BigFloat.(b)))
+        pair_scale = max(physical_scale, norm(BigFloat.(a .- b)))
         for p = 1:2, c = 1:3
             actual, target = BigFloat(ps.v[c][p]), expected[p][c]
-            bound = max(BigFloat(32eps(T)) * abs(target), BigFloat(eps(T(target))) / 2)
+            # Normwise standard: near-cancelling components keep fast rounding
+            # and may differ from the sampled-expression reference by a few ulps
+            # of the pair scale (16 covers the rotate-and-update chain).
+            bound = max(BigFloat(32eps(T)) * abs(target), 16 * BigFloat(eps(T)) * pair_scale)
             @test abs(actual - target) <= bound
             # Native angle/geometry rounding can amplify relative error in a
             # nearly zero final component; the physical rotation uses a

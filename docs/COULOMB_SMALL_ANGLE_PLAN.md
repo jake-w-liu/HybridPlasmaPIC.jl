@@ -239,3 +239,17 @@ The numerical repair can be reviewed and pushed independently of that larger
 optimization gate, as with the preceding exact-identity repair; no latency or
 complete-Coulomb-correctness claim is made. Population-mean repair and local
 multispecies composition remain separately tracked work.
+
+## Normwise update (perf/coulomb)
+
+Under the project normwise standard the widened/complete update now replays
+only range loss — nonfinite intermediates or results, sampler-flagged
+variance/tangent underflow or overflow, subnormal mass fractions and
+subnormal-scale pairs. The earlier componentwise cancellation screen
+(`_coulomb_product_needs_complete`, `_coulomb_increment_needs_complete`, the
+oblique-normalization check and the `_coulomb_mass_update`/`_coulomb_complete_needed`
+cancellation branches) is removed: near-cancelling components keep the fast
+arithmetic and stay within a few ulps of the pair scale. RNG draw order and
+identity short-circuits are unchanged. The cell-local scheduler hoists the
+rate coefficient once per cell (self/triplet) and once per distinct reuse
+value (cross) — bitwise identical to per-pair evaluation.

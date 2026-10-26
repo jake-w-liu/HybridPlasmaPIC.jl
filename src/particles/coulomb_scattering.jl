@@ -2,15 +2,10 @@
 # Extracted from the local multispecies candidate so both public owners share
 # one scattering law; pairing, rejection and publication stay with each caller.
 
-@inline _coulomb_product_needs_complete(a::T, b::T) where {T} =
-    !iszero(a) && !iszero(b) && abs(a * b) < floatmin(T)
-
-@inline function _coulomb_increment_needs_complete(value::T, a::T, b::T, c::T) where {T}
-    scale = max(abs(a), abs(b), abs(c))
-    # Re-evaluate cancellation before it loses a leading bit. Waiting until
-    # half the significand is lost permits large relative component errors.
-    return !iszero(scale) && (abs(value) < floatmin(T) || abs(value) <= scale / 2)
-end
+# Normwise standard: the complete path is reserved for range loss (non-finite
+# intermediates/results, sampler-flagged tangent/variance underflow, subnormal
+# mass fractions and pair scales). Near-cancelling components keep the fast
+# arithmetic; their error stays within a few ulps of the pair scale.
 
 # All inputs are finite positive rate factors from validated public inputs.
 # Their binary fractions stay near unity while integer exponents retain a rate
@@ -187,39 +182,10 @@ end
         ax, ay = yperp * azimuthal_term, xperp * azimuthal_term
         pz = ugperp * sinθ * cosφ
         dugx, dugy, dugz = lx + px - ax, ly + py + ay, lz - pz
-        # Every factor can be normal while a unit-scale product vanishes.
-        # The later multiplication by physical speed can recover that term,
-        # so preserve the sampled expression before information is lost.
-        complete =
-            complete ||
-            _coulomb_product_needs_complete(ugx, cosθ_minus_one) ||
-            _coulomb_product_needs_complete(ugy, cosθ_minus_one) ||
-            _coulomb_product_needs_complete(ugz, cosθ_minus_one) ||
-            _coulomb_product_needs_complete(ugz, sinθ) ||
-            _coulomb_product_needs_complete(ugz * sinθ, cosφ) ||
-            _coulomb_product_needs_complete(sinθ, sinφ) ||
-            _coulomb_product_needs_complete(xperp, polar_term) ||
-            _coulomb_product_needs_complete(yperp, polar_term) ||
-            _coulomb_product_needs_complete(yperp, azimuthal_term) ||
-            _coulomb_product_needs_complete(xperp, azimuthal_term) ||
-            _coulomb_product_needs_complete(ugperp, sinθ) ||
-            _coulomb_product_needs_complete(ugperp * sinθ, cosφ) ||
-            _coulomb_increment_needs_complete(dugx, lx, px, ax) ||
-            _coulomb_increment_needs_complete(dugy, ly, py, ay) ||
-            _coulomb_increment_needs_complete(dugz, lz, pz, zero(T))
     else                                    # g along ±z
         dugx, dugy, dugz = sinθ * cosφ, sinθ * sinφ, ugz * cosθ_minus_one
-        complete =
-            complete ||
-            _coulomb_product_needs_complete(sinθ, cosφ) ||
-            _coulomb_product_needs_complete(sinθ, sinφ) ||
-            _coulomb_product_needs_complete(ugz, cosθ_minus_one)
     end
-    # Normalizing a very oblique vector can discard a physical component.
-    complete |=
-        (!iszero(gx) && abs(ugx) < floatmin(T)) ||
-        (!iszero(gy) && abs(ugy) < floatmin(T)) ||
-        (!iszero(gz) && abs(ugz) < floatmin(T))
+    complete |= !isfinite(dugx) || !isfinite(dugy) || !isfinite(dugz)
     increment = (gmag * dugx, gmag * dugy, gmag * dugz)
     return (;
         increment,
@@ -251,14 +217,7 @@ end
     iszero(change) && return va, vb
     kick_a, kick_b = fb * change, fa * change
     newa, newb = va + kick_a, vb - kick_b
-    if isfinite(newa) &&
-       isfinite(newb) &&
-       abs(kick_a) >= floatmin(T) &&
-       abs(kick_b) >= floatmin(T) &&
-       abs(newa) >= floatmin(T) &&
-       abs(newb) >= floatmin(T) &&
-       fa >= floatmin(T) &&
-       fb >= floatmin(T)
+    if isfinite(newa) && isfinite(newb) && fa >= floatmin(T) && fb >= floatmin(T)
         return newa, newb
     end
     return _coulomb_mass_update_exact(va, vb, ma, mb, change)
@@ -434,20 +393,17 @@ end
     return newa, newb
 end
 
+# Normwise: range-loss triggers only — non-finite intermediates or results,
+# subnormal mass fractions, and a pair whose whole scale is subnormal.
 @inline function _coulomb_complete_needed(va::T, vb::T, change::T, fa::T, fb::T) where {T}
     isfinite(change) || return true
     iszero(change) && return false
     kick_a, kick_b = fb * change, fa * change
     newa, newb = va + kick_a, vb - kick_b
-    # Preserve component accuracy when the final addition loses a leading bit,
-    # including the small near-backscatter remainder.
-    threshold = one(T) / 2
     return fa < floatmin(T) ||
            fb < floatmin(T) ||
            abs(kick_a) < floatmin(T) ||
            abs(kick_b) < floatmin(T) ||
            !isfinite(newa) ||
-           !isfinite(newb) ||
-           (signbit(va) != signbit(kick_a) && abs(newa) <= threshold * max(abs(va), abs(kick_a))) ||
-           (signbit(vb) == signbit(kick_b) && abs(newb) <= threshold * max(abs(vb), abs(kick_b)))
+           !isfinite(newb)
 end

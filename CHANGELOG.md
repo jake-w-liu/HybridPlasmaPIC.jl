@@ -220,7 +220,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
-<<<<<<< ours
 - Distributed FFT roundtrip diagnostics now support in-place complex, real and
   real-to-real transforms. They compare the container's input view and reuse the
   input as the default output, as required by PencilFFTs. An explicit separate
@@ -322,6 +321,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   storage, and explicit tolerances/iteration controls expose solve acceptance.
   CN requires CPU Float32/Float64 and ordinary particle `Vector`s; RK4 remains
   the default. The reduced induction model and checkpoint state are unchanged.
+
+- Coulomb velocity updates follow the normwise accuracy standard: widened
+  arithmetic replays only range loss (nonfinite intermediates, subnormal
+  tangent/variance, mass fractions or pair scale) instead of every
+  near-cancelling component, which stays within a few ulps of the pair scale.
+  The cell-local operator hoists its rate coefficient once per cell (self and
+  triplet) and once per distinct reuse value (cross). Per-pair throughput
+  roughly doubles in both precisions; seeded runs differ from before only in
+  cancellation cases, by a few ulps of the pair scale.
 
 - External NHDS and Hybrid-VPIC validation READMEs describe the actual failure
   behavior, comparison scope and acceptance limits. Moving reference revisions

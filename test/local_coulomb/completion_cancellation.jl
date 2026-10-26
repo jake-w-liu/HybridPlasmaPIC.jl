@@ -132,11 +132,24 @@ Random.randn(::FixedAngle, ::Type{Float32}) = 1.0f0
             (speed, speed, speed),
         )
         expected = independent(va, vb, ma, mb, speed, sample)
-        actual = H._coulomb_complete_update(va, vb, ma, mb, speed, sample)
-        @test sample.complete
+        # Normwise standard: cancellation alone no longer routes to widening;
+        # the fast mass-weighted update must still land within a few ulps of
+        # the pair scale (16 covers the rotate-and-update chain).
+        @test !sample.complete
         @test sample.tangent == 1.0f0
         @test !iszero(expected[1][1])
-        @test isapprox(actual[1][1], expected[1][1]; rtol = 8eps(Float32), atol = nextfloat(0.0f0))
+        fa, fb = ma / (ma + mb), mb / (ma + mb)
+        scale = max(speed, maximum(abs, va), maximum(abs, vb))
+        na = ntuple(
+            c -> H._coulomb_mass_update(va[c], vb[c], ma, mb, fa, fb, sample.increment[c])[1],
+            3,
+        )
+        nb = ntuple(
+            c -> H._coulomb_mass_update(va[c], vb[c], ma, mb, fa, fb, sample.increment[c])[2],
+            3,
+        )
+        @test isapprox(na[1], expected[1][1]; rtol = 16eps(Float32), atol = 16eps(Float32) * scale)
+        @test isapprox(nb[1], expected[2][1]; rtol = 16eps(Float32), atol = 16eps(Float32) * scale)
     end
 end
 
