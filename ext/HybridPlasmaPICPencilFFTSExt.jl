@@ -24,7 +24,9 @@ end
 
 _checked_fft_shape(n) = throw(ArgumentError("distributed FFT grid sizes must be a tuple"))
 
-function _checked_fft_configuration(n, transform, periodic, comm)
+function _checked_fft_configuration(n, transform, periodic, real_type, comm)
+    (real_type === Float32 || real_type === Float64) ||
+        throw(ArgumentError("distributed FFT real_type must be Float32 or Float64"))
     periodic isa NTuple{3,Bool} ||
         throw(ArgumentError("distributed FFT periodicity must be a three-tuple of Bool values"))
     all(periodic) || throw(
@@ -44,7 +46,7 @@ function _checked_fft_configuration(n, transform, periodic, comm)
         value = PencilFFTs.Transforms.length_output(transforms[d], BigInt(nn[d]))
         HybridPlasmaPIC._require_positive_intlike("transform output size[$d]", value)
     end
-    parameters = PencilFFTs.GlobalFFTParams(nn, transforms)
+    parameters = PencilFFTs.GlobalFFTParams(nn, transforms, real_type)
     data_type = PencilFFTs.input_data_type(parameters)
     for transform in transforms
         data_type = PencilFFTs.Transforms.eltype_output(transform, data_type)
@@ -55,15 +57,16 @@ function _checked_fft_configuration(n, transform, periodic, comm)
     ranks[1] <= min(nn[2], output_sizes[1]) && ranks[2] <= min(nn[3], output_sizes[2]) || throw(
         ArgumentError("distributed FFT process grid $ranks produces an empty pencil partition"),
     )
-    return nn, transforms
+    return nn, transforms, real_type
 end
 
 """
-    distributed_fft_plan(n; comm=MPI.COMM_WORLD, transform=Transforms.FFT(), periodic=(true,true,true))
+    distributed_fft_plan(n; comm=MPI.COMM_WORLD, transform=Transforms.FFT(), periodic=(true,true,true), real_type=Float64)
 
 Collectively construct a fully periodic three-dimensional distributed transform.
-All ranks in `comm` must call with equal grid sizes and equal transforms after
-expanding the single-transform shorthand. Transform configuration must support
+All ranks in `comm` must call with equal grid sizes, equal `real_type` (Float32 or
+Float64), and equal transforms after expanding the single-transform shorthand.
+Transform configuration must support
 serialization and value equality. Empty pencil partitions are rejected.
 
 Recoverable local validation and FFT-plan errors are reported collectively;
@@ -71,11 +74,12 @@ the originating rank retains its exception and peers receive an explicit error.
 Communicator or MPI transport failures are outside this contract. Plans and data
 remain owned by PencilFFTs/PencilArrays; this wrapper does not gather global fields.
 """
-function HybridPlasmaPIC.distributed_fft_plan(
+@inline function HybridPlasmaPIC.distributed_fft_plan(
     n;
     comm = MPI.COMM_WORLD,
     transform = PencilFFTs.Transforms.FFT(),
     periodic = (true, true, true),
+    real_type = Float64,
 )
     HybridPlasmaPIC.ensure_mpi_initialized!()
     configuration, encoded = HybridPlasmaPIC._mpi_collective_stage(
@@ -83,7 +87,7 @@ function HybridPlasmaPIC.distributed_fft_plan(
         "Distributed FFT",
         "configuration validation",
     ) do
-        value = _checked_fft_configuration(n, transform, periodic, comm)
+        value = _checked_fft_configuration(n, transform, periodic, real_type, comm)
         bytes = HybridPlasmaPIC._serialize_mpi_payload(value)
         length(bytes) <= typemax(Cint) || throw(
             ArgumentError("distributed FFT configuration exceeds the MPI message-size limit"),
@@ -99,10 +103,10 @@ function HybridPlasmaPIC.distributed_fft_plan(
         isequal(configuration, agreed) ||
             throw(ArgumentError("distributed FFT configuration differs between MPI ranks"))
     end
-    nn, transforms = configuration
+    nn, transforms, precision = configuration
     pencil = PencilFFTs.Pencil(nn, comm)
     plan = HybridPlasmaPIC._mpi_collective_stage(comm, "Distributed FFT", "plan construction") do
-        PencilFFTs.PencilFFTPlan(pencil, transforms)
+        PencilFFTs.PencilFFTPlan(pencil, transforms, precision)
     end
     return DistributedPencilFFTPlan{typeof(plan),typeof(comm)}(plan, nn, comm)
 end

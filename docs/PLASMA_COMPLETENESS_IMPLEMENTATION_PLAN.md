@@ -201,10 +201,10 @@ collision acceptance, shared trackers, integration, pushes and exact-SHA CI.
 
 | Slice | Implementation owner / canonical code | Dependencies | State and checked evidence | Next concrete action |
 | --- | --- | --- | --- | --- |
-| 001 local self/cross collisions | Root continuing saved `/root/local_multispecies_collisions` work; `particles/collisions.jl`, `particles/sorting.jl` | Existing particle/moment arithmetic gates | Isolated candidate retained; final gates open | V10 passes 141,143 permanent assertions and all 108 ordinary zero-allocation profiles per runtime; concrete/full compiler and legacy differential checks pass. Arithmetic review complete; fixed costs and promotion/CI remain. [Detailed tracker](LOCAL_MULTISPECIES_COULOMB_PLAN.md) |
+| 001 local self/cross collisions | Root integration; `/root/linear_cn_implementation` rate repair; canonical collision/sorting owners | Accepted sampler and particle arithmetic | Frozen V3 composes `85e75`; source, numerical, resource and compiler review complete | Complete the fixed latency campaign, integrate, push and verify exact-SHA CI; [live evidence](DEEP_DEBUG_TRACKER.md#current-progress-2026-10-26) |
 | 002A/B bounded Maxwell + particles | `/root/bounded_maxwell_implementation` owns 002A; mesh/operator and model owners | Staggered storage/layout contract; current periodic EM remains oracle | Vacuum/cavity implementation active; particles remain planned | Verify Yee curl/divergence, PEC corners, energy/Poynting, CFL and rollback, then design particle/wall charge coupling |
 | 002C/D open boundaries + production integration | Agent unassigned; boundaries, EM, I/O | 002A/B; 003/004 for parallel/device claims | Planned; no coupled open Maxwell path | Pre-register pulse reflection/charge-flux suite and absorber state schema |
-| 003A/B local storage + distributed operators | Root; MPI/domain/pencil owners, Pencil extension | Storage/layout contract; existing real-MPI infrastructure | Collective FFT constructor repair under verification; [plan](DISTRIBUTED_FFT_COLLECTIVE_PLAN.md) | Accept constructor, specify index/halo ownership and implement analytic distributed-operator tests |
+| 003A/B local storage + distributed operators | Root; MPI/Pencil owners; shared Fourier kernels in SpectralOperators | Collective precision, shared serial kernels and owned storage | Constructor, diagnostic and precision changes landed; shared serial kernels released as SpectralOperators 0.1.3 | Follow the [staged operator plan](DISTRIBUTED_OPERATOR_IMPLEMENTATION_PLAN.md); precision is landed and SpectralOperators 0.1.3 is registered; next, owned storage and derivatives |
 | 003C/D distributed coupled solvers | Agent unassigned; MPI orchestration + canonical solver owners | 003A/B and accepted serial solver | Planned; full-grid allreduce reference inspected | Compose a periodic hybrid step without replicated grids and test 2/4/8 ranks |
 | 003E cluster scale/restart | Agent unassigned; benchmark/MPI/I/O | 003C/D; real multi-node allocation | Hardware campaign pending | Freeze strong/weak scaling and changed-layout restart workloads before requesting/running resources |
 | 004A GPU primitive closure | Root; extensions and coupling | Current kernel gates and exact-SHA CI | Metal uniform push and NGP have green CI; gathered V1 fails allocation, V2–V5 fail fixed latency gates; V5 native correctness passes | V6 native/compiler/resource gates pass both; minimum fixed costs pass but latest doubled-work calibration fails. Hold without retry; latest candidate timing and primitive closure remain open |
@@ -360,6 +360,12 @@ not claims obtained from the first Cartesian wall implementation.
 partition/transport policy. Physics remains in existing moments, Ohm and
 integrator owners. Each rank stores owned cells plus required halos, not the full
 global field. The replicated reference remains a small-case oracle.
+
+The [operator implementation plan](DISTRIBUTED_OPERATOR_IMPLEMENTATION_PLAN.md)
+specifies precision, shared spectral kernels, physical storage and staged operator
+acceptance. It keeps distributed transport in HPIC and numerical Fourier policy
+in SpectralOperators. Kernel availability in a locally developed dependency does
+not close reproducible package resolution.
 
 The accepted dependency decision is PencilFFTs for periodic 3D transforms. Its
 [documented local/global index and permuted-output layouts](https://jipolanco.github.io/PencilFFTs.jl/dev/tutorial/)

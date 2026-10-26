@@ -416,10 +416,12 @@ Field dumps use a self-describing binary format with zero heavy dependencies;
 HDF5 output activates as a package extension when HDF5.jl is loaded, and
 distributed FFTs (PencilFFTs.jl) as another for fully periodic 3D domains.
 `distributed_fft_plan` is collective: all communicator ranks must provide equal
-grid sizes and transforms. It checks configuration agreement, rejects empty
+grid sizes, transforms and precision. Select `real_type=Float32` for single
+precision or retain the default `Float64`. It checks configuration agreement, rejects empty
 pencil partitions, and reports recoverable local validation or planning failures
 on every rank. Transform storage and transposes remain owned by PencilFFTs.
-[Contract and verification](docs/DISTRIBUTED_FFT_COLLECTIVE_PLAN.md).
+[Collective contract](docs/DISTRIBUTED_FFT_COLLECTIVE_PLAN.md) and
+[precision verification](docs/DISTRIBUTED_FFT_PRECISION_PLAN.md).
 `distributed_fft_roundtrip_error` supports both in-place and out-of-place plans
 and returns the maximum absolute roundtrip error across the communicator. It
 allocates a snapshot of the input; in-place plans reuse that input as output.

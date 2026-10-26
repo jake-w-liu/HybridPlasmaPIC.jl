@@ -41,7 +41,8 @@ function collective_failure(f, local_failure)
 end
 
 @testset "Distributed FFT collective validation and agreement" begin
-    defaults = (n = (8, 6, 4), transform = F.FFT(), periodic = (true, true, true))
+    defaults =
+        (n = (8, 6, 4), transform = F.FFT(), periodic = (true, true, true), real_type = Float64)
     invalid = (
         (n = (8, 6),),
         (n = [8, 6, 4],),
@@ -57,6 +58,13 @@ end
         (transform = (F.FFT(), F.RFFT(), F.FFT()),),
         (transform = (F.FFT!(), F.FFT(), F.FFT()),),
         (transform = SerializationFailure(),),
+        (real_type = Float16,),
+        (real_type = BigFloat,),
+        (real_type = Int,),
+        (real_type = ComplexF64,),
+        (real_type = 32,),
+        (real_type = nothing,),
+        (real_type = "Float32",),
     )
     for origin = 0:SIZE-1, bad in invalid
         settings = RANK == origin ? merge(defaults, bad) : defaults
@@ -66,11 +74,12 @@ end
                 comm = COMM,
                 transform = settings.transform,
                 periodic = settings.periodic,
+                real_type = settings.real_type,
             )
         end
     end
     if SIZE > 1
-        for scenario in (:size, :direction, :real_parity)
+        for scenario in (:size, :direction, :real_parity, :precision)
             n = scenario === :size && RANK == SIZE - 1 ? (10, 6, 4) : defaults.n
             transform = if scenario === :real_parity
                 F.BRFFT(RANK == SIZE - 1 ? 7 : 6)
@@ -80,7 +89,8 @@ end
                 F.FFT()
             end
             collective_failure(RANK == SIZE - 1) do
-                distributed_fft_plan(n; comm = COMM, transform)
+                real_type = scenario === :precision && RANK == SIZE - 1 ? Float32 : Float64
+                distributed_fft_plan(n; comm = COMM, transform, real_type)
             end
         end
         collective_failure(true) do
@@ -118,18 +128,25 @@ end
         (:rfft_inplace, F.RFFT!()),
         (:r2r_inplace, F.R2R!(FFTW.REDFT10)),
     )
-    for n in ((8, 6, 4), (9, 7, 5)), (kind, requested) in configurations
+    for T in (Float32, Float64), n in ((8, 6, 4), (9, 7, 5)), (kind, requested) in configurations
         # Single-transform and expanded forms must describe the same plan.
         transforms = requested isa Tuple ? requested : F.expand_dims(requested, Val(3))
         argument = isodd(RANK) ? transforms : requested
         shape = isodd(RANK) ? (BigInt(n[1]), Int32(n[2]), UInt8(n[3])) : n
-        plan = distributed_fft_plan(shape; comm = COMM, transform = argument)
+        # Explicit/default Float64 requests must also agree across ranks.
+        plan = if T === Float64 && isodd(RANK)
+            distributed_fft_plan(shape; comm = COMM, transform = argument)
+        else
+            distributed_fft_plan(shape; comm = COMM, transform = argument, real_type = T)
+        end
         @test plan.n == n
         inplace = F.is_inplace(transforms...)
         input = distributed_fft_input(plan)
         output = inplace ? input : distributed_fft_output(plan)
         input_view = inplace ? first(input) : input
         output_view = inplace ? last(output) : output
+        @test real(eltype(input_view)) === T
+        @test real(eltype(output_view)) === T
         global_input = PencilArrays.global_view(input_view)
         for I in CartesianIndices(global_input)
             value = if kind in (:brfft_even, :brfft_odd)
@@ -155,16 +172,16 @@ end
             @test isapprox(
                 transformed,
                 expected;
-                rtol = 256eps(Float64),
-                atol = 256eps(Float64) * length(original) * scale,
+                rtol = 256eps(T),
+                atol = 256eps(T) * length(original) * scale,
             )
         end
         @test distributed_fft_inverse!(input, plan, output) === input
         @test isapprox(
             parent(input_view),
             original_local;
-            rtol = 256eps(Float64),
-            atol = 256eps(Float64) * max(1.0, maximum(abs, original_local)),
+            rtol = 256eps(T),
+            atol = 256eps(T) * max(1.0, maximum(abs, original_local)),
         )
         @test MPI.Allreduce(1, +, COMM) == SIZE
     end

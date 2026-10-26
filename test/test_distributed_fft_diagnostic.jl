@@ -12,8 +12,8 @@ const SIZE = MPI.Comm_size(COMM)
     unequal_rank_errors = false
     configurations =
         (F.FFT(), F.RFFT(), F.R2R(FFTW.REDFT10), F.FFT!(), F.RFFT!(), F.R2R!(FFTW.REDFT10))
-    for n in ((8, 6, 4), (9, 7, 5)), transform in configurations
-        plan = distributed_fft_plan(n; comm = COMM, transform)
+    for T in (Float32, Float64), n in ((8, 6, 4), (9, 7, 5)), transform in configurations
+        plan = distributed_fft_plan(n; comm = COMM, transform, real_type = T)
         inplace = PencilFFTs.is_inplace(plan.plan)
         input = distributed_fft_input(plan)
         output = inplace ? input : distributed_fft_output(plan)
@@ -32,12 +32,13 @@ const SIZE = MPI.Comm_size(COMM)
         errors = MPI.Allgather(local_error, COMM)
         expected = maximum(errors)
         unequal_rank_errors |= minimum(errors) < expected
-        @test expected <= 256eps(Float64) * max(1.0, maximum(abs, original))
+        @test expected <= 256eps(T) * max(1.0, maximum(abs, original))
         for explicit in (false, true)
             copyto!(parent(input_view), original)
             measured =
                 explicit ? distributed_fft_roundtrip_error(plan, input; output) :
                 distributed_fft_roundtrip_error(plan, input)
+            @test typeof(measured) === T
             @test isequal(measured, expected)
             @test isequal(parent(input_view), restored)
         end

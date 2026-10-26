@@ -8,6 +8,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Distributed FFT plans accept `real_type=Float32` or `Float64` (the default).
+  Precision participates in collective configuration agreement before any plan
+  is created; unsupported values and rank mismatches fail explicitly.
+
 - Production cold parallel-wave validation evolves both hybrid and Hall-MHD
   branches across 40 profiles and six timestep-order histories. Signed frequency
   and growth/damping fits retain raw data, residuals, conditional regression

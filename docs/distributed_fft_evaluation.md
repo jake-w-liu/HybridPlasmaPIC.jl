@@ -16,11 +16,14 @@ Implemented as the optional `HybridPlasmaPICPencilFFTSExt` package extension.
 `PencilFFTs` and `PencilArrays` are weak dependencies, so the core package does
 not load them unless users explicitly import those packages. The exported API is:
 
-- `distributed_fft_plan((nx, ny, nz); comm, transform, periodic)`
+- `distributed_fft_plan((nx, ny, nz); comm, transform, periodic, real_type=Float64)`
 - `distributed_fft_input(plan)` / `distributed_fft_output(plan)`
 - `distributed_fft_forward!(output, plan, input)`
 - `distributed_fft_inverse!(input, plan, output)`
 - `distributed_fft_roundtrip_error(plan, input; output=...)`
+
+Plans support Float32 and Float64 storage through `real_type`; every rank must
+select the same precision. [Implementation contract](DISTRIBUTED_FFT_PRECISION_PLAN.md).
 
 Verified locally on `MPI.COMM_SELF`: extension loading, input/output allocation,
 validation failures for non-3D/nonperiodic requests, forward-transform parity
