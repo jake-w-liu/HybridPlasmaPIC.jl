@@ -198,7 +198,10 @@ extreme products, including near quadrature; the driver combines the complete
 frequency before exceptional rounding. Frequencies beyond finite Float64 range
 raise `ArgumentError`. Rational-only multiplier calls remain exact and widen
 the integer type when needed. See the [linear CN contract](docs/LINEAR_CN_RANGE_PLAN.md)
-for compatibility and validation; nonlinear coupled implicit evolution remains
+for compatibility and validation. Hardware floating timesteps with fixed-width
+step counts reuse each mode's multiplier while preserving its ordered history;
+the [packet allocation plan](docs/WHISTLER_PACKET_ALLOCATION_PLAN.md) records the
+optimization and acceptance gates. Nonlinear coupled implicit evolution remains
 in the [implementation plan](docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md).
 
 ## Beyond the hybrid model
