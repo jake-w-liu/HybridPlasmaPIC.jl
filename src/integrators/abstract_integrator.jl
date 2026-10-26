@@ -60,6 +60,25 @@ end
 # full leapfrog bound 2.0 applies.
 const _CL_DAMPED_WHISTLER_LIMIT = 0.3
 
+# Four positive-normal edges of an inscribed RK4 stability polygon, in
+# (a,b) = (decay*dt, abs(frequency)*dt). Downward closure bounds every rate
+# below the supplied maxima. The vertices and exact polynomial certificate
+# are recorded in RK4_MIXED_STABILITY_PLAN.md and test_rk4_mixed_stability.jl.
+# Normalize the rates before adding them so a representable timestep is not
+# lost to an overflowing rate or an underflowing intermediate reciprocal.
+@inline function _rk4_damped_log_limit(log_ν, log_ω)
+    scale = max(log_ν, log_ω)
+    ν = exp(log_ν - scale)
+    ω = exp(log_ω - scale)
+    limit = min(
+        oftype(ν, 2.8) / (oftype(ν, 0.3) * ν + ω),
+        oftype(ν, 2.775) / (oftype(ν, 0.65) * ν + oftype(ν, 0.85) * ω),
+        oftype(ν, 2.775) / (oftype(ν, 0.85) * ν + oftype(ν, 0.65) * ω),
+        oftype(ν, 2.785) / (ν + oftype(ν, 0.285) * ω),
+    )
+    return log(limit) - scale
+end
+
 """
     recommended_dt(g; NB=1, integrator=:rk4, safety=0.8, d_i=1.0, Ω_ci=1.0,
                    η=0.0, ηH=0.0) -> Float64
@@ -88,6 +107,12 @@ with the integrator's real-axis limit `C_real` (RK4 ≈ 2.785; CN unconditional;
 the leapfrog/CL family tolerates essentially no real-axis damping — it gets a
 conservative `ν·Δt_B ≤ 0.25` budget AND a reduced whistler constant `C = 0.3`,
 see `_integrator_real_axis_limit`; prefer `:rk4` or `:cn` when `η`/`ηH` matter).
+For damped RK4, separate axis caps are insufficient: the combined complex rate
+must also lie inside its stability region. The recommendation uses the
+downward-closed polygon with `(ν·Δt_B, |ω|·Δt_B)` vertices
+`(0,2.8), (1,2.5), (1.85,1.85), (2.5,1), (2.785,0)`, scaled by `safety`.
+It bounds the whole rectangle of rates below `ν(k_max)` and `ω_W(k_max)`;
+undamped recommendations retain their original arithmetic.
 This reduces to the commonly-cited Hybrid-VPIC estimate
 `Ω_ci Δt < (1/π)(Δx/d_i)²` at large `k_max·d_i` in 1-D. `integrator ∈ (:rk4,
 :leapfrog, :camcl, :cn)`; `:cn` is unconditionally stable on the whistler and the
@@ -154,7 +179,11 @@ function recommended_dt(
         log_hyper = iszero(ηH) ? -Inf : log(R(ηH)) + 4log_k
         lo, hi = minmax(log_resistive, log_hyper)
         log_ν = hi + log1p(exp(lo - hi))
-        log_dt = min(log_dt, log_subcycle + log(Creal) - log_ν)
+        if integrator === :rk4
+            log_dt = min(log_dt, log_subcycle + _rk4_damped_log_limit(log_ν, log_ω))
+        else
+            log_dt = min(log_dt, log_subcycle + log(Creal) - log_ν)
+        end
     end
     return float(exp(log_dt))
 end

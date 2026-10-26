@@ -96,7 +96,27 @@ end
     η0, ηH0 = 1e-3, 1e-2                               # grid-scale hyper-resistivity: ν(k_max)·Δt ≫ C_real at the whistler-only dt
     ν(k) = η0 * k^2 + ηH0 * k^4
     dtR = recommended_dt(g; NB = 1, integrator = :rk4, η = η0, ηH = ηH0)
-    @test isapprox(dtR, min(0.8 * 2.8 / ωw(kmax), 0.8 * 2.785 / ν(kmax)); rtol = 1e-12)
+    # Mixed rates require a joint stability bound, in addition to both axes.
+    vertices = (
+        (0 // 1, 14 // 5),
+        (1 // 1, 5 // 2),
+        (37 // 20, 37 // 20),
+        (5 // 2, 1 // 1),
+        (557 // 200, 0 // 1),
+    )
+    joint_limit = minimum(1:4) do edge
+        a, b = vertices[edge:edge+1]
+        nx, ny = a[2] - b[2], b[1] - a[1]
+        (nx * a[1] + ny * a[2]) / (nx * ν(kmax) + ny * ωw(kmax))
+    end
+    @test isapprox(dtR, 0.8 * joint_limit; rtol = 1e-12)
+    @test abs(
+        1 +
+        (-ν(kmax) + im * ωw(kmax)) * dtR +
+        ((-ν(kmax) + im * ωw(kmax)) * dtR)^2 / 2 +
+        ((-ν(kmax) + im * ωw(kmax)) * dtR)^3 / 6 +
+        ((-ν(kmax) + im * ωw(kmax)) * dtR)^4 / 24,
+    ) <= 1
     @test dtR < recommended_dt(g; integrator = :rk4)   # ηH k⁴ binds on this grid
     # η = ηH = 0 is exactly the undamped recommendation (backward compatible)
     @test recommended_dt(g; integrator = :rk4, η = 0.0, ηH = 0.0) ==
@@ -144,6 +164,24 @@ end
             real_limit = cl ? 0.25 : 2.785
             wave = s * BigFloat(NB) * BigFloat(oscillatory_limit) / omega
             damping = decay > 0 ? s * BigFloat(NB) * BigFloat(real_limit) / decay : big(Inf)
+            if !cl && decay > 0
+                # Derive each half-plane from independent exact polygon
+                # vertices instead of repeating the production coefficients.
+                vertices = (
+                    (0 // 1, 14 // 5),
+                    (1 // 1, 5 // 2),
+                    (37 // 20, 37 // 20),
+                    (5 // 2, 1 // 1),
+                    (557 // 200, 0 // 1),
+                )
+                damping = minimum(1:4) do edge
+                    a, b = vertices[edge:edge+1]
+                    nx, ny = a[2] - b[2], b[1] - a[1]
+                    intercept = nx * a[1] + ny * a[2]
+                    s * BigFloat(NB) * BigFloat(intercept) /
+                    (BigFloat(nx) * decay + BigFloat(ny) * omega)
+                end
+            end
             return Float64(min(gyro, wave, damping))
         end
     end

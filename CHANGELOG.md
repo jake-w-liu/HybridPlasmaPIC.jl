@@ -284,6 +284,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- `recommended_dt` bounds combined Hall-wave and resistive/hyperresistive
+  RK4 modes with a certified inner stability polygon. Separate axis limits
+  previously admitted a production Fourier mode that grew by 46.7% per step.
+  Undamped arithmetic and non-RK4 recommendations are unchanged.
+
 - Require SpectralOperators 0.1.5 for complete inverse-FFT headroom. A finite
   cutoff-kernel convolution can grow inside the unnormalized inverse even when
   every final output is representable; the dependency bounds that complete

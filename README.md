@@ -196,8 +196,9 @@ moments:
 evaluated at the spectral-corner wavenumber `kmax = √Σ_d (π/Δx_d)²` (the
 stiffest representable mode in 2D/3D — a single-axis Nyquist estimate is up to
 `D×` too optimistic), additionally capped by Boris gyro-accuracy
-(`Ω_ci·Δt ≤ 0.3`) and, when `η`/`ηH` are supplied, by the resistive real-axis
-stability of the chosen integrator. In 1D, in the fine-grid limit
+(`Ω_ci·Δt ≤ 0.3`) and, when `η`/`ηH` are supplied, by damping stability.
+Damped RK4 uses a [joint complex-rate bound](docs/RK4_MIXED_STABILITY_PLAN.md):
+separate wave and decay limits do not ensure stability together. In 1D, in the fine-grid limit
 `kmax·d_i ≫ 1`, it reduces to the familiar `Ω_ci Δt ≲ (1/π)(Δx/d_i)²`.
 These limits do not bound evolving-pressure advection/compression or
 ion-acoustic accuracy; choose and refine `dt` to resolve those dynamics too.
