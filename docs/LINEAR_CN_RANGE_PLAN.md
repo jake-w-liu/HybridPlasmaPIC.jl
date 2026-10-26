@@ -1,7 +1,15 @@
 # Linear Crank–Nicolson range repair
 
-Status: confirmed baseline defect; no implementation accepted. This is the
-remaining linear-reference part of CAP-005A. The accepted
+Status: V5c landed on `main` after `4fafe4a` (2026-10-26). On current main,
+`test_linear_cn_range.jl` (16,762 assertions), `test_phase_final.jl`,
+`test_exact_arithmetic.jl`, `test_shock_cn.jl`, `test_dispersion.jl`, Aqua, JET
+(24 / 21, parent signatures apart from line shifts) and validation case 19 pass
+on Julia 1.12.7 and 1.13.2. Ordinary Float64 `cn_multiplier` costs 15.9 / 13.9
+ns per call versus 12.9 / 11.9 ns on the parent (1.23× / 1.17×, measured on one
+shared Apple M5 core); this reference helper is not a solver hot path.
+Exact-commit CI is pending.
+This is the remaining linear-reference
+part of CAP-005A. The accepted
 [shock field solve](SHOCK_CN_SOLVE_PLAN.md) is a separate owner. Nonlinear
 particle–field coupling and general implicit solvers remain CAP-005B/C.
 
@@ -26,7 +34,7 @@ imaginary components independently from `Rational{BigInt}` inputs:
 | Four-mode packet, finite maximum Float64 step | NaN energy ratio | Unit modulus for each CN multiplier |
 
 The first three failures follow the intermediate product in the canonical
-helper at line 29: finite floating products overflow and fixed-width integer
+baseline helper at line 29: finite floating products overflow and fixed-width integer
 multiplication wraps before division. Source hashes, executed commands and all
 20 recorded profiles per runtime are retained under the persistent
 `HybridPlasmaPIC-audit-evidence/2026-10-23/linear-cn-range/` directory in
@@ -52,39 +60,96 @@ The subsequent rational/large-exponent matrix records 132 passes / 16 failures
 and 79 profiles per runtime. It retains 11 `OverflowError` and two `InexactError`
 observations for rational inputs rather than counting them as successful phase
 results. Large canceling BigFloat exponents pass; overflowing products lose
-16 checked components. The compatibility choice for narrow rational types
-remains open.
+16 checked components. The candidate computes rational-only results exactly,
+retaining the promoted legacy integer type when the result fits and otherwise
+widening to `BigInt`.
 
 An independent near-quarter-turn witness records another 12 passes / 12 failures
 per runtime. `nextfloat(one(T))*prevfloat(T(2))`, with both argument orders and
 signs for Float16/32/64, loses a nonzero real component when the intermediate
 product rounds to two. An overflow-only repair would miss this defect.
 
-## Compatibility decisions to verify before implementation
+## Implemented compatibility contract
 
 The completed V2 characterization records Float16/32/64 outputs, promoted
 mixed floating inputs, fixed-width integer outputs as ComplexF64, BigInt outputs
 as Complex{BigFloat}, and exact rational outputs with their rational element
 type. Positive and negative zero preserve the phase sign. Direct nonfinite
 inputs currently propagate NaN; the driver already rejects nonfinite inputs.
-Changing that direct-helper policy requires an explicit documented decision.
+The candidate preserves that direct-helper policy.
 The first characterization fixture had a metadata dictionary-type error; its
 records are retained as invalid evidence, separately from the corrected V2.
 
-The smallest positive Float64 phase currently becomes signed zero. The repair
-must retain representable phase components as well as unit modulus. Checking
+The baseline loses the smallest positive Float64 phase to signed zero. The
+candidate retains representable phase components as well as unit modulus. Checking
 only energy would also miss the integer witness, whose wrong result has norm
 one. Ordinary complete outputs and return types must be compared to the parent;
 any intentional correction beyond the original failures needs its own oracle.
 
 The existing exact conversion owner is
 [exact_arithmetic.jl](../src/utils/exact_arithmetic.jl); scaled product helpers
-also exist in [collisions.jl](../src/particles/collisions.jl). Reuse these where
-their contracts apply. Do not add unconditional multiprecision arithmetic to
-ordinary floating calls. Before selecting a fallback, check mixed signed and
-unsigned integers, rational overflow behavior, BigFloat stored precision and
-compact/large MPFR exponent ranges. A finite quotient must not require an
-unbounded rational expansion of canceling input exponents.
+also exist in [collisions.jl](../src/particles/collisions.jl). New scaled exact
+comparisons and materialization extend the shared conversion owner. Hardware
+hot paths retain native arithmetic; generic exact evaluation covers mixed
+signed/unsigned integers, rational overflow and stored BigFloat precision.
+Finite quotients do not expand canceling absolute binary exponents into integers.
+
+## Candidate implementation
+
+The canonical helper retains ordinary hardware arithmetic outside cancellation
+and range-loss regions. A product residual corrects the near-quadrature real
+component. Exact exceptional evaluation stores bounded significands and a
+separate binary exponent; shared exact comparisons round the complete component
+without allocating integers proportional to the absolute exponent. Production
+code changes no global MPFR precision, rounding mode or exponent limit.
+
+Ordinary BigFloat inputs form `x=ω*dt`, `x²`, and `4±x²` exactly in private
+MPFR values whose individual precision follows the stored input widths and
+product exponent. Only the two final component divisions round. A conservative
+guard proves that every intermediate fits the current exponent interval and
+bounds temporary precision by input width; remote exponents or insufficient
+range use the separate-significand path. Input values are never mutated.
+
+Pure rational calls retain exact results, widening only when needed. Mixed
+operands enter the hardware path only when conversion preserves both values.
+Direct nonfinite inputs retain their prior expression behavior and signed-zero
+phases retain their sign. The complete frequency builder now receives `B0` and
+`n0` separately; an unrepresentable finite Float64 frequency raises
+`ArgumentError` before random packet construction. Float16/32 coefficients
+are divided at the Float64 output precision. Validated grid counts use signed
+mode indexing so unsigned counts preserve negative band-limited modes. Integer
+and mixed physical parameters use the hardware frequency path when their
+conversion to Float64 is exact; this includes the three-argument frequency
+wrapper's unit density.
+
+The unchanged retained matrices pass on Julia 1.12.7 and 1.13.2: 2,808 expanded
+assertions, 24 near-quadrature assertions, 148 rational/huge-exponent assertions
+and the original 53 package assertions per runtime. The registered suite passes
+16,762 parent assertions on each version, including 550 complete-frequency and
+trajectory checks; its isolated child passes 115,300 compact rounding-cell and
+300 huge-exponent assertions, plus 15,570 admission-boundary, stored-input and
+rounding-cell checks, with settings restored. Existing exact-conversion
+checks pass 49,083 assertions and the original CN phase/caller testset passes 20.
+
+Both versions pass 20 concrete JET checks and nine Aqua checks. Complete compiler
+trees match the clean parent after checked unchanged-line mappings (29 reports
+on 1.12.7; 27 on 1.13.2), with no unmapped frames or suppressed findings.
+Twelve configured formatter/syntax checks pass. The external evidence
+directory `linear-cn-range/repair-v1` preserves the V4 source freeze, commands,
+logs, compiler comparisons and failed fixtures. V5 revalidation is retained
+separately in `linear-cn-range/repair-v5`.
+
+**VERIFIED resource failure and repair:** the unchanged ordinary allocation
+preflight failed 21 of 24 V4 profiles on each runtime. At precision 256,
+`cn_multiplier(BigFloat(3),BigFloat(2))` allocated 590,528 bytes versus 3,360
+parent bytes. Integer and mixed coefficient packets allocated about 2.5 MB
+versus 23,984/24,112 parent bytes. Allocation stacks identify per-bit exact
+comparison loops and per-mode rational frequency construction as the owners.
+V5 passes all 24 unchanged profiles on both versions: ordinary BigFloat
+precision 24/53/128/256 uses 464/528/672/928 bytes, and every ordinary packet
+matches the parent exactly. Hardware scalar calls remain allocation-free.
+The fixed latency contract and exceptional-path cost reports remain open;
+functional test durations do not establish latency acceptance.
 
 ## Implementation and acceptance tracker
 
@@ -95,26 +160,29 @@ unbounded rational expansion of canceling input exponents.
   precision/compact exponent boundaries and complete frequency construction.
 - [x] Characterize rational inputs and very large BigFloat exponents, including
   explicit exception records. Reproduce near-quarter-turn component loss.
-- [ ] Fix the rational compatibility contract before editing. The
+- [x] Fix the rational compatibility contract before editing. The
   [shared BigFloat materializer repair](EXACT_BIGFLOAT_CONVERSION_PLAN.md)
   now passes all six exact-SHA CI jobs and full compiler review. Its
-  bounded-rational contract does not yet cover arbitrary separate binary
-  exponents; the multiplier needs its own bounded representation.
-- [ ] Implement the repair at the canonical multiplier. Preserve ordinary
+  bounded-rational owner now also supports separately scaled conversion and
+  exact component comparisons for the multiplier.
+- [x] Implement the repair at the canonical multiplier. Preserve ordinary
   arithmetic, finite phase signs and representable subnormal components.
-- [ ] Audit `_whistler_omega` separately: coefficient division, `k²`, zero mode
+- [x] Audit `_whistler_omega` separately: coefficient division, `k²`, zero mode
   and finite output representability. A repaired multiplier alone does not
   establish range-correct frequency construction.
-- [ ] Add exact-rational and independent high-precision regression oracles,
+- [x] Add exact-rational and independent high-precision regression oracles,
   exponent boundaries, swapped inputs, sign/zero controls, complete trajectories
   and both public callers. Run original witnesses unchanged on both runtimes.
-- [ ] Freeze scalar and whole-packet cost profiles before measuring. Require
+- [ ] Run the frozen scalar and whole-packet cost contract. Require
   ordinary complete outputs/types and warmed allocations to match; retain
   all cold-path costs. Define slowdown controls and fixed latency gates before
   measurement, then run once per frozen candidate and preserve failures.
-- [ ] Review concrete/full compiler trees, neighboring integration, resource
+- [x] Preserve the V4 allocation-gate failure, profile its canonical owners,
+  implement the bounded V5 repair, and pass the unchanged 24-profile allocation
+  preflight on both runtimes. Keep the original latency ceilings unchanged.
+- [x] Review concrete/full compiler trees, neighboring integration, resource
   lifetimes and a fresh final source pass. No suppressed diagnostics.
-- [ ] Correct the mathematical description: the numerator and denominator are
+- [x] Correct the mathematical description: the numerator and denominator are
   degree one, so this is the [1/1] Padé approximant; its expansion agrees with
   `exp(-z)` through `z²`, with local error `O(z³)`.
 - [ ] Synchronize README, changelog and capability/audit trackers; commit and

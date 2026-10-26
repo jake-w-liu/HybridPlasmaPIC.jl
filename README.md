@@ -192,6 +192,15 @@ stability of the chosen integrator. In 1D, in the fine-grid limit
 These limits do not bound evolving-pressure advection/compression or
 ion-acoustic accuracy; choose and refine `dt` to resolve those dynamics too.
 
+`run_whistler` is a separate linear Fourier reference for Crank–Nicolson versus
+forward Euler. Its `cn_multiplier` preserves finite phase components across
+extreme products, including near quadrature; the driver combines the complete
+frequency before exceptional rounding. Frequencies beyond finite Float64 range
+raise `ArgumentError`. Rational-only multiplier calls remain exact and widen
+the integer type when needed. See the [linear CN contract](docs/LINEAR_CN_RANGE_PLAN.md)
+for compatibility and validation; nonlinear coupled implicit evolution remains
+in the [implementation plan](docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md).
+
 ## Beyond the hybrid model
 
 | model | what it is | entry points |
@@ -516,9 +525,7 @@ PIC noise. Broader oblique, thermal, kinetic and EM comparisons remain in the
 - Cell-local Coulomb collisions are a standalone CPU operator. Automatic
   collision/field splitting with saved RNG state, MPI cell ownership and device
   kernels are separate open stages ([CAP-010](docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md)).
-- Extreme-range arithmetic remains under repair. The confirmed
-  [linear CN](docs/LINEAR_CN_RANGE_PLAN.md) plan records failing cases and
-  remaining gates. The [normalization repair](docs/NORMALIZATION_RANGE_PLAN.md)
+- The [normalization repair](docs/NORMALIZATION_RANGE_PLAN.md)
   does not establish range correctness of every compound RayCon expression.
   The shared BigFloat exact-conversion repair has passed its
   [local acceptance and exact-revision CI checks](docs/EXACT_BIGFLOAT_CONVERSION_PLAN.md).

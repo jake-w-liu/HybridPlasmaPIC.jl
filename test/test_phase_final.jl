@@ -10,7 +10,7 @@ using Random, LinearAlgebra, Serialization
     for (ω, dt) in ((0.3, 0.05), (5.0, 0.7), (40.0, 1.3))
         @test abs(abs(cn_multiplier(ω, dt)) - 1) < 1e-12
     end
-    # phase is the (2,2)-Padé of e^{-iωdt}: error O((ωdt)³).
+    # phase is the [1/1] Padé of e^{-iωdt}: error O((ωdt)³).
     ω, dt = 0.7, 0.1
     @test abs(angle(cn_multiplier(ω, dt)) - (-ω * dt)) < (ω * dt)^3
     # Nyquist bin (m = n/2): b is complex and ω = c k² is even in k, so the mode

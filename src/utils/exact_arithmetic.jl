@@ -2,6 +2,105 @@
 # floating-point operands and finite Rational{BigInt} results.
 
 _exact_rational(value) = Rational{BigInt}(value)
+
+# Compare positive integer dyadics without shifting by their absolute scale.
+# Equal effective bit lengths imply the alignment is bounded by operand widths.
+function _compare_scaled(a::BigInt, ea::Int128, b::BigInt, eb::Int128)
+    iszero(a) && return iszero(b) ? 0 : -1
+    iszero(b) && return 1
+    ba, bb = Int128(ndigits(a; base = 2)) + ea, Int128(ndigits(b; base = 2)) + eb
+    ba != bb && return cmp(ba, bb)
+    return ea >= eb ? cmp(a << Int(ea - eb), b) : cmp(a, b << Int(eb - ea))
+end
+
+# Compare one positive dyadic against a sum of two. Only overlapping binades
+# need subtraction; a remote small term is compared to the exact remainder.
+function _compare_scaled_sum(a::BigInt, ea::Int128, b::BigInt, eb::Int128, c::BigInt, ec::Int128)
+    iszero(b) && return _compare_scaled(a, ea, c, ec)
+    iszero(c) && return _compare_scaled(a, ea, b, eb)
+    iszero(a) && return -1
+    if _compare_scaled(b, eb, c, ec) < 0
+        b, eb, c, ec = c, ec, b, eb
+    end
+    ba, bb = Int128(ndigits(a; base = 2)) + ea, Int128(ndigits(b; base = 2)) + eb
+    ba < bb && return -1
+    ba > bb + 1 && return 1
+    scale = min(ea, eb)
+    remainder = (a << Int(ea - scale)) - (b << Int(eb - scale))
+    remainder <= 0 && return -1
+    return _compare_scaled(remainder, scale, c, ec)
+end
+
+# Round a positive exact value whose binade and comparisons with q*2^e are
+# supplied by its owner. The binary search uses p-bit integers, not absolute
+# input exponents. This also handles MPFR's abrupt underflow (no subnormals).
+function _round_exact_comparison(
+    ::Type{T},
+    binade::Int128,
+    compare,
+    negative::Bool,
+) where {T<:AbstractFloat}
+    mode = T === BigFloat ? rounding(BigFloat) : RoundNearest
+    nearest = mode === RoundNearest
+    away = mode === RoundFromZero || (negative ? mode === RoundDown : mode === RoundUp)
+    p = precision(T)
+    minimum = nextfloat(zero(T))
+    minimum_exponent = exponent(minimum)
+    maximum_exponent = exponent(floatmax(T))
+    if binade < minimum_exponent
+        above_half = nearest && compare(BigInt(1), Int128(minimum_exponent) - 1) > 0
+        magnitude = away || above_half ? minimum : zero(T)
+        return negative ? -magnitude : magnitude
+    elseif binade > maximum_exponent
+        magnitude = nearest || away ? T(Inf) : floatmax(T)
+        return negative ? -magnitude : magnitude
+    end
+    quantum = binade - p + 1
+    if T !== BigFloat
+        quantum = max(quantum, Int128(minimum_exponent))
+    end
+    lower, upper = BigInt(0), BigInt(1) << p
+    while upper - lower > 1
+        middle = (lower + upper) >> 1
+        if compare(middle, quantum) >= 0
+            lower = middle
+        else
+            upper = middle
+        end
+    end
+    if nearest
+        side = compare(2lower + 1, quantum - 1)
+        (side > 0 || (side == 0 && isodd(lower))) && (lower += 1)
+    elseif away && compare(lower, quantum) > 0
+        lower += 1
+    end
+    negative && (lower = -lower)
+    if T === BigFloat
+        result = zero(BigFloat)
+        ccall(
+            (:mpfr_set_z_2exp, Base.MPFR.libmpfr),
+            Cint,
+            (Ref{BigFloat}, Ref{BigInt}, Clong, Base.MPFR.MPFRRoundingMode),
+            result,
+            lower,
+            Clong(quantum),
+            Base.MPFR.rounding_raw(BigFloat),
+        )
+        return result
+    end
+    return ldexp(T(lower), Int(quantum))
+end
+
+function _from_exact(::Type{T}, value::Rational{BigInt}, power::Int128) where {T<:AbstractFloat}
+    n, d = numerator(value), denominator(value)
+    iszero(n) && return zero(T)
+    negative = n < 0
+    n = abs(n)
+    binade = Int128(ndigits(n; base = 2) - ndigits(d; base = 2)) + power
+    _compare_scaled(n, power, d, binade) < 0 && (binade -= 1)
+    compare = (q, e) -> _compare_scaled(n, power, d * q, e)
+    return _round_exact_comparison(T, binade, compare, negative)
+end
 function _exact_rational(value::BigFloat)
     isfinite(value) || return Rational{BigInt}(value)
     # Read stored bits directly. Floating scaling can overflow under a compact

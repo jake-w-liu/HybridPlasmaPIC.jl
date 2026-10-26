@@ -249,6 +249,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Invalid sampling intervals raise `ArgumentError`; case 20 retains its
   original physical acceptance thresholds.
 
+- Linear Crank–Nicolson multipliers retain finite phase components across
+  overflowing/underflowing products, integer inputs and near-quadrature
+  cancellation. Ordinary BigFloat evaluation forms exact private intermediates;
+  extreme exponents remain separate from significands. Both preserve caller
+  rounding settings. Exact rational results
+  widen to `Rational{BigInt}` when the former integer type is insufficient.
+
+- Whistler reference frequencies combine the guide field, density and squared
+  wavenumber before exceptional rounding. Complete frequencies outside finite
+  Float64 range raise `ArgumentError` before packet construction. Narrow hardware
+  coefficients use Float64 division, and unsigned grid counts retain negative
+  band-limited modes.
+
 - Unit conversion evaluates complete physical expressions when intermediate
   scales or final operations lose floating-point range. The shared exact-root
   owner separates significands from exponents, preserving signed endpoints and
