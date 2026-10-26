@@ -134,7 +134,10 @@ packet_bytes(n, nsteps, dt, B0, n0, L) = @allocated run_whistler(; n, nsteps, dt
             packet_bytes(4, 1, dt, B0, n0, L)
             packet_bytes(4, 100, dt, B0, n0, L)
         end
-        @test packet_bytes(4, 100, dt, B0, n0, L) == packet_bytes(4, 1, dt, B0, n0, L)
+        # Coverage instrumentation (CI) can add a few hundred fixed bytes per call;
+        # the regression guarded here allocates per step and mode (megabytes).
+        extra = packet_bytes(4, 100, dt, B0, n0, L) - packet_bytes(4, 1, dt, B0, n0, L)
+        @test abs(extra) <= 4096
     end
 end
 
@@ -151,7 +154,8 @@ end
             fixed_bytes = packet_bytes(n, steps, 1e-6, 1.0, 1.0, Float64(2π))
             push!(extras, big_bytes - fixed_bytes)
         end
-        @test extras[1] == extras[2]
+        # Same tolerance: a per-mode BigInt iteration cost would differ by megabytes.
+        @test abs(extras[1] - extras[2]) <= 4096
     end
 end
 end
