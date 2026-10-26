@@ -475,6 +475,12 @@ workspace whose Float32/Float64 precision follows the domain lengths, and
 without gathering the global field; input and output may alias, and local
 validation failures are reported on every rank before any output is written.
 [Derivative contract](docs/DISTRIBUTED_DERIVATIVE_PLAN.md).
+The same grid supports `gradient!`, `divergence!`, `curl!`, `laplacian!`,
+`project_divfree!`, `exp_filter!` and `dealias_two_thirds!`, with vector fields
+as three-tuples of rank-owned fields and the serial alias rules (curl outputs
+distinct from inputs; vector outputs and projection components pairwise
+distinct). All outputs are published together after the last collective check.
+[Operator plan](docs/DISTRIBUTED_OPERATOR_IMPLEMENTATION_PLAN.md).
 GPU backend storage is exposed through `particle_storage_backend`. The Metal
 extension includes particle gather, deposit and push kernels; the CUDA extension
 currently supplies storage and telemetry. Hybrid and EM field storage remains

@@ -135,7 +135,9 @@ real hybrid/ES/EM evolution, collision composition, checkpoint and restart tests
 - [x] Stage P (precision) landed as `3a9c85d`; stage A (shared kernels) released
   as SpectralOperators 0.1.3; stage B (owned storage and derivative) landed
   after `1b7b8b7`.
-- [ ] Implement and verify stages C/D/E separately; push each accepted slice.
+- [x] Stages C (gradient/divergence/curl/Laplacian) and D (projection and
+  filters) implemented and verified as one slice; see the record below.
+- [ ] Stage E (resource and integration closure); push each accepted slice.
 - [ ] Integrate local field ownership with 003C and existing solver workspaces.
 
 ## Stage B concrete implementation boundary
@@ -190,3 +192,62 @@ ordinary allocation and complete compiler trees. No field gather is allowed in
 production; test-only gathered serial comparisons are explicitly outside the
 operator. This stage supplies no particle halo, current deposition, coupled
 stepper or checkpoint compatibility claim.
+
+## Stages C/D record (gradient, divergence, curl, Laplacian, projection, filters)
+
+Methods of the existing SpectralOperators functions on `DistributedFourierGrid`:
+`gradient!(out::NTuple{3}, f, grid)`, `divergence!(out, v, grid)` (first three
+components of a tuple, as in the serial method), `curl!(out::NTuple{3},
+A::NTuple{3}, grid)`, `laplacian!(out, f, grid)`, `project_divfree!(B::NTuple{3},
+grid)`, `exp_filter!(field, grid; α=36, p=8)` and `dealias_two_thirds!(field,
+grid)`. Each follows the stage B contract: one collective validation stage
+(types, exact pencil, CPU storage, workspace disjointness, serial alias rules,
+finite inputs, multiplier bounds and filter parameters), a communicator-wide
+input maximum over all components, the shared scale with the global transform
+length and the serial gain (largest axis gain for the gradient, summed gains for
+divergence/curl, `_laplacian_gain`, unit gain for projection and filters), an
+agreed stage after every local step before the next transpose, and publication
+of all outputs only after the last agreement. `exp_filter!` also broadcasts and
+agrees the converted `α` and `p`. Numerical work is done only by the
+SpectralOperators 0.1.3 kernels on global logical views.
+
+Workspace: the grid now owns three complex spectral buffers and three real
+publication buffers (plus the complex physical buffer), allocated once at
+construction. The curl transforms `A_y`, `A_z`, forms the x component, then
+reuses its buffer for `A_x` and stores the y and z components over modes that
+are no longer needed (kernel exact-identity aliasing), so three spectral buffers
+suffice. Transform counts (forward/inverse): gradient 1/3, divergence 3/1,
+curl 3/3, Laplacian 1/1, projection 3/3, filters 1/1. Operand validation is
+allocation-free; this also removes 5.3 KB per warmed `deriv!` call. Remaining
+warmed allocation is inside PencilFFTs transforms (about 8 KB each at one and
+two ranks) plus 32-byte scalar collectives (at most 320 bytes per operator).
+
+Public methods validate operands of any type, then call numerical cores typed
+with the grid's exact field type behind type assertions; rejected argument
+types therefore compile no core, and targeted `JET.report_call` analysis of
+every new method (concrete and abstract operand types) reports only the
+upstream PencilArrays transpose report that `deriv!` also has.
+
+Verification (2026-10-26, Apple M5 shared with other jobs, base `cda63f1`):
+`test/test_distributed_operators.jl` (included by `test_distributed_fft.jl`)
+checks analytic gradient/divergence/curl/Laplacian modes on odd/even unequal
+shapes in both precisions, bitwise equality of unscaled gradient components with
+`deriv!`, div(curl)=0, curl(grad)=0, integration by parts and Laplacian =
+div(grad) on band-limited data, Nyquist retention (Laplacian) and mixed-Nyquist
+odd derivatives, projection of solenoidal/potential/DC/derivative-null modes,
+idempotence, divergence removal, scale invariance under extreme domain lengths
+and near-overflow amplitudes, the strict 2/3 boundary and independent mode-ratio
+filter transfer, serial `FourierGrid` agreement (including singleton axes where
+the process grid allows them), huge constants, lost-nonzero rejection,
+Laplacian and summed-gain overflow, squared-wavenumber underflow, rank-local
+invalid operands (NaN, foreign pencil, precision, workspace alias, serial alias
+rules, tuple shape, filter parameters and their cross-rank agreement) with
+unchanged outputs and later liveness, and warmed allocation beyond transforms
+(at most 1 KB; measured 128–320 bytes). The whole file passes under
+`MPI.mpiexec()` at 1/2/4/8 ranks on Julia 1.12.7 and 1.13.2 (CI's environment
+recipe); `test_operators.jl`, `test_spectral_extra.jl` and Aqua pass on both, and
+JET package counts equal the parent's (29/27 plain, 24/21 with the extension
+loaded, Julia 1.12/1.13). The suite is compile-dominated: it adds 0.6–1.5 times
+the previous distributed-FFT test work locally, so the eight-rank CI step timeout
+is raised to 30 minutes. Timing of the operators themselves is not yet measured
+under controlled conditions (stage E).

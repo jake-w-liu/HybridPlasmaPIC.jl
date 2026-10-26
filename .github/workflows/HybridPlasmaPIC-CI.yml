@@ -90,7 +90,9 @@ jobs:
             run(cmd)' > mpi-smoke.log 2>&1
           cat mpi-smoke.log
       - name: Run distributed FFT regressions
-        timeout-minutes: 20
+        # Eight ranks took 8.5 minutes before the distributed vector-operator
+        # suite, which adds 0.6-1.5 times that work in local 1-8 rank runs.
+        timeout-minutes: ${{ matrix.ranks == 8 && 30 || 20 }}
         env:
           MPI_RANKS: ${{ matrix.ranks }}
         run: |

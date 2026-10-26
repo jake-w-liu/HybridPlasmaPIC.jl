@@ -8,6 +8,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Rank-owned periodic vector operators and filters: `gradient!`, `divergence!`,
+  `curl!`, `laplacian!`, `project_divfree!`, `exp_filter!` and
+  `dealias_two_thirds!` methods on `DistributedFourierGrid` reuse the
+  SpectralOperators 0.1.3 multiplier, Laplacian, projection and filter kernels
+  with no global gather. Vector fields are three-tuples of rank-owned fields;
+  the serial signatures, alias rules, Nyquist handling and range scaling are
+  kept. Validation, filter parameters and every local step are agreed
+  collectively, and all outputs are published together after the last
+  agreement. The grid now allocates two more spectral and two more real
+  publication buffers at construction. Operand validation no longer
+  allocates, which also removes 5.3 KB from each warmed `deriv!` call.
+
 - Bounded Maxwell vacuum/cavity fields (CAP-002A): `YeeGrid`, `YeeFields`,
   `MaxwellVacuum` and `step_maxwell!` evolve staggered Yee E/B in 1D–3D with
   periodic or homogeneous perfectly conducting axes, synchronized
