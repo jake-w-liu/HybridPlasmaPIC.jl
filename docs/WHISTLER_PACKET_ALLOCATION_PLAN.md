@@ -1,5 +1,14 @@
 # Whistler packet allocation plan
 
+Current follow-up (2026-10-27): [bounded BigInt counters](WHISTLER_BIGINT_COUNTER_PLAN.md)
+extend multiplier reuse to positive BigInt counts fitting Int. Generic
+arithmetic and other counters retain the original path. The sections below
+preserve the earlier V2 campaign and its then-current compatibility decision;
+its blanket BigInt exclusion is superseded only within that exact boundary.
+Original integration is included in green `f830b2a`. Subsequent packet-allocation
+CI failures and raw Ubuntu observations remain in the
+[CI investigation](WHISTLER_ALLOCATION_CI_DIAGNOSIS.md).
+
 This is a separate optimization of the frozen linear-CN V5c candidate. It does
 not alter scalar CN arithmetic, frequency construction, physical tolerances or
 the original pending latency gates. Evidence lives in

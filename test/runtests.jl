@@ -4,6 +4,7 @@ using Test
     include("test_exact_arithmetic.jl")
     include("test_linear_cn_range.jl")
     include("test_whistler_packet_allocation.jl")
+    include("test_whistler_bigint_count.jl")
     include("test_operators.jl")
     include("test_spectral_extra.jl")
     include("test_particles.jl")

@@ -219,9 +219,10 @@ frequency before exceptional rounding. Frequencies beyond finite Float64 range
 raise `ArgumentError`. Rational-only multiplier calls remain exact and widen
 the integer type when needed. See the [linear CN contract](docs/LINEAR_CN_RANGE_PLAN.md)
 for compatibility and validation. Hardware floating timesteps with fixed-width
-step counts reuse each mode's multiplier while preserving its ordered history;
-the [packet allocation plan](docs/WHISTLER_PACKET_ALLOCATION_PLAN.md) records the
-optimization and acceptance gates. Nonlinear coupled implicit evolution remains
+counts or positive BigInt counts fitting Int reuse each mode's multiplier while
+preserving its ordered history. The [packet allocation plan](docs/WHISTLER_PACKET_ALLOCATION_PLAN.md)
+and [bounded-counter follow-up](docs/WHISTLER_BIGINT_COUNTER_PLAN.md) record the
+compatibility and measured allocation gates. Nonlinear coupled implicit evolution remains
 in the [implementation plan](docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md).
 
 ## Beyond the hybrid model

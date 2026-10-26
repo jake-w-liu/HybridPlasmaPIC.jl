@@ -281,6 +281,13 @@ function _whistler_omega(n::Integer, L::Real, B0::Real, n0::Real)
     return ω
 end
 
+@inline function _whistler_fixed_count(nsteps::Integer)
+    if nsteps isa BigInt && 0 < nsteps <= typemax(Int)
+        return Int(nsteps)
+    end
+    return nsteps
+end
+
 """
     run_whistler(; method=:cn, n=128, L=2π, B0=1.0, n0=1.0, dt=0.05, nsteps=400,
                    seed=1) -> (; energy0, energyN, energy_ratio, bhat, ω)
@@ -290,9 +297,9 @@ Evolve a random transverse whistler packet on a periodic grid with the
 explicit) integrator and report the field energy `Σ|b_k|²` before/after.
 Frequencies combine `B0/n0 * (2π*m/L)^2` before exceptional rounding; a complete
 frequency outside finite Float64 range raises `ArgumentError`.
-Hardware floating timesteps and fixed-width step counts reuse one multiplier per
-mode while retaining every ordered multiplication. Other inputs keep step-major
-evaluation.
+Hardware floating timesteps with fixed-width step counts or positive BigInt
+counts fitting Int reuse one multiplier per mode while retaining every ordered
+multiplication. Other inputs keep step-major evaluation.
 """
 function run_whistler(;
     method::Symbol = :cn,
@@ -332,18 +339,21 @@ function run_whistler(;
         method === :cn ? (m -> cn_multiplier(ω[m], dt)) :
         method === :euler ? (m -> euler_multiplier(ω[m], dt)) :
         throw(ArgumentError("method must be :cn or :euler"))
-    if dt isa Union{Float16,Float32,Float64} && nsteps isa Union{Base.BitInteger,Bool} && nsteps > 0
+    # A representable BigInt bound can use the same fixed-width iterator. Leave
+    # generic timesteps and other counters in their original evaluation order.
+    steps = dt isa Union{Float16,Float32,Float64} ? _whistler_fixed_count(nsteps) : nsteps
+    if dt isa Union{Float16,Float32,Float64} && steps isa Union{Base.BitInteger,Bool} && steps > 0
         # Modes are independent and the hardware timestep is fixed. Retain
         # each mode's rounded multiplication sequence without a cache array.
         @inbounds for m = 1:n
             multiplier = step!(m)
-            for _ = 1:nsteps
+            for _ = 1:steps
                 bhat[m] *= multiplier
             end
         end
     else
         # Generic arithmetic may observe precision or custom method state, and
-        # arbitrary-precision counters must not allocate once per mode/step.
+        # remaining arbitrary-precision counters must not iterate once per mode.
         # Zero steps must not evaluate a multiplier at all.
         @inbounds for _ = 1:nsteps, m = 1:n
             bhat[m] *= step!(m)

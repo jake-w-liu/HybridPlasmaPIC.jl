@@ -246,9 +246,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Linear whistler packets with Float16/32/64 timesteps and fixed-width step
   counts reuse one CN or Euler multiplier per mode, preserving each multiplication
-  and avoiding a multiplier cache allocation. Generic real timesteps retain their
-  original step-major evaluation, as do arbitrary-precision step counts. Zero
-  steps perform no multiplier calls.
+  and avoiding a multiplier cache allocation. Positive BigInt counts that fit
+  Int now use that same iterator, removing repeated arbitrary-precision counter
+  allocation. Generic real timesteps and other counters retain the original
+  step-major evaluation; zero steps perform no multiplier calls. Existing
+  allocation gates remain unchanged, with a new bounded-BigInt cost regression.
 
 - Shock boundary totals reuse exact nodal particle sums already computed in
   the same call. The checked 256-/4,096-particle exceptional cases allocate
