@@ -1,7 +1,8 @@
 # Particle kinematics normwise range repair
 
-Status: candidate on branch `fix/kinematics-normwise` (from `6d9b0b7`). It
-replaces the componentwise certified Boris/phase/coordinate chain with the
+Status: the normwise Boris/phase/coordinate range chain landed in `cd55831`.
+Fresh near-light correctness work remains in the [audit tracker](DEEP_DEBUG_TRACKER.md).
+The implemented chain uses the
 [normwise standard](DEEP_DEBUG_TRACKER.md#numerical-accuracy-standard-user-decision-2026-10-26).
 
 ## Defects repaired
@@ -34,6 +35,11 @@ erasing half-step kicks and midpoints.
 5. Public steppers and pushers reject `0 < |dt| < 2*floatmin(T)` (and EM
    substeps `dt/n_sub` below that bound) with an `ArgumentError` before any
    mutation; `dt == 0` is unchanged.
+
+The optional gathered-push midpoint buffers have a separate
+[storage admission contract](GATHERED_MIDPOINT_STORAGE_PLAN.md): they must
+not overlap particle arrays, gathered fields or each other. CPU and Metal use
+the same preflight check before any particle update.
 
 ## Implementation
 

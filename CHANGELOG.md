@@ -284,6 +284,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- `push_gathered!` rejects midpoint outputs that overlap particle arrays,
+  gathered fields or other midpoint components before mutation on CPU and
+  Metal. Disjoint buffers and shared read-only E/B inputs retain their behavior.
+
 - Distributed Fourier operators reject operands overlapping read-only
   wavenumber, derivative, integer-mode or Nyquist metadata through the shared
   collective admission check, before changing public or private arrays.

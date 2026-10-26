@@ -674,7 +674,7 @@ function HybridPlasmaPIC.push_gathered!(
     G<:Metal.MtlArray{UInt32,1},
 }
     HybridPlasmaPIC.validate_particle_backend_eltype(Val(:metal), T)
-    HybridPlasmaPIC._check_gathered_field_lengths(ps, E, B, xmid)
+    HybridPlasmaPIC._check_gathered_field_storage(ps, E, B, xmid)
     if xmid !== nothing
         length(xmid) == D ||
             throw(DimensionMismatch("xmid must have one component per spatial dimension"))

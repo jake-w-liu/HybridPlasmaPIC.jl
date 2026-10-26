@@ -295,7 +295,7 @@ function _uniform_drifts!(ps::ParticleSet{D}, dtT, guard::Val) where {D}
     return ps
 end
 
-function _check_gathered_field_lengths(ps::ParticleSet{D}, E, B, xmid) where {D}
+function _check_gathered_field_storage(ps::ParticleSet{D}, E, B, xmid) where {D}
     N = nparticles(ps)
     all(length(E[c]) == N for c = 1:3) ||
         throw(DimensionMismatch("E component length must match particle count"))
@@ -304,8 +304,25 @@ function _check_gathered_field_lengths(ps::ParticleSet{D}, E, B, xmid) where {D}
     if xmid !== nothing
         length(xmid) == D ||
             throw(DimensionMismatch("xmid must have one component per spatial dimension"))
+        all(xmid[d] isa AbstractVector for d = 1:D) ||
+            throw(ArgumentError("xmid components must be vectors"))
         all(length(xmid[d]) == N for d = 1:D) ||
             throw(DimensionMismatch("xmid component length must match particle count"))
+        for d = 1:D
+            midpoint = xmid[d]
+            _mightalias_particle_storage(midpoint, ps) &&
+                throw(ArgumentError("xmid[$d] must not alias particle storage"))
+            for c = 1:3
+                (
+                    _particle_arrays_mightalias(midpoint, E[c]) ||
+                    _particle_arrays_mightalias(midpoint, B[c])
+                ) && throw(ArgumentError("xmid[$d] must not alias gathered E or B storage"))
+            end
+            for k = 1:(d-1)
+                _particle_arrays_mightalias(midpoint, xmid[k]) &&
+                    throw(ArgumentError("xmid[$d] must not alias xmid[$k]"))
+            end
+        end
     end
     return nothing
 end
@@ -317,7 +334,11 @@ Advance particles one Boris leapfrog step using per-particle gathered electric
 and magnetic fields. `E` and `B` are 3-tuples of particle-length vectors. If
 `xmid` is provided, it receives `x^n + (dt/2) v^{n+1/2}` before positions are
 advanced to `x^{n+1}`. The `dt` validation and range contract are those of
-[`push_uniform!`](@ref).
+[`push_uniform!`](@ref). Midpoint components must be writable vectors whose
+storage does not alias any particle array, gathered field or other midpoint
+component. Conflicts detected by the particle-storage alias predicate raise
+`ArgumentError` before mutation on CPU and Metal. Read-only `E` and `B`
+components may share storage with one another.
 """
 function push_gathered!(
     ps::ParticleSet{D,T},
@@ -326,7 +347,7 @@ function push_gathered!(
     dt::Real;
     xmid = nothing,
 ) where {D,T}
-    _check_gathered_field_lengths(ps, E, B, xmid)
+    _check_gathered_field_storage(ps, E, B, xmid)
     qm = _validated_qm(ps)
     dtT = _require_resolved_dt("push_gathered!", _require_finite_real("dt", dt, T))
     indices = eachindex(ps.weight)

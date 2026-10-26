@@ -363,6 +363,9 @@ cannot close the cluster scaling gate.
 
 ## CAP-004 — complete GPU-resident solvers
 
+The shared gathered-push [midpoint storage repair](GATHERED_MIDPOINT_STORAGE_PLAN.md)
+is a separate correctness gate from GPU latency measurements and solver residency.
+
 **Contract and owner.** Extend concrete storage parameters in `HybridFields`,
 stepper/model workspaces and operator plans only as required by a real backend.
 Reuse canonical physics and input validation; device methods belong in CUDA/Metal

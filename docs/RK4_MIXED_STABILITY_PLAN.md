@@ -84,7 +84,8 @@ gyro-limit semantics remain in the public helper.
   allocation profiles; no diagnostic suppressions or timing claim.
 - [x] Root registry-only integration on Julia 1.12.7 and 1.13.3: all six
   focused/resource/compiler commands pass; executable files match frozen V2.
-- [ ] Separate main push and all six exact-SHA CI jobs.
+- [x] Separate main push as `a7fb3c8`.
+- [ ] [All six exact-SHA CI jobs](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40393658443).
 
 Adversarial checks distinguish separate-axis minima, a damping-only cap,
 omitted ηH or NB, a blanket smaller timestep and a repair confined to one

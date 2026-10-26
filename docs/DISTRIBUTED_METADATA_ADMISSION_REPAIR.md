@@ -18,7 +18,8 @@
 - [x] Preserve canonical admission and make the fixture portable without an architecture skip.
 - [x] Complete minimum/latest Julia MPI alias gates and unchanged-production compiler/resource controls.
 - [x] Root registry-only MPI1/2 and compiler/Aqua integration on both runtimes.
-- [ ] Separate main push and all six exact-SHA CI jobs.
+- [x] Separate main push as `494faab`.
+- [ ] [All six exact-SHA CI jobs](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40398004888).
 
 All 38 required local commands terminated successfully on Julia 1.12.7 and 1.13.3: eight full operator/convolution jobs, four compiler/Aqua jobs, sixteen ordinary resource jobs, two paired resource follow-ups, and eight final portable-alias jobs. Both numerical and alias suites exercised actual MPI processes at 1, 2, 4 and 8 ranks. The final eight-rank alias suite passed 11,016 assertions per rank, plus 80 portable-span assertions per rank. The fixture explicitly checks Int32/Float64 storage bounds; actual 32-bit Julia execution remains unverified.
 
