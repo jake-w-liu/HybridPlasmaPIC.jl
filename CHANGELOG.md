@@ -28,6 +28,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Precision participates in collective configuration agreement before any plan
   is created; unsupported values and rank mismatches fail explicitly.
 
+- Oblique Hall-MHD production validation (case 35) evolves oblique modes from
+  the unchanged Hall-MHD solver across angles, temperatures, branch signs and
+  grid/time refinements, fitting frequency and damping from production
+  histories against the independent dispersion relation. Its history fitter
+  has permanent tests; the 60-profile campaign is a manual validation run.
+
 - Production cold parallel-wave validation evolves both hybrid and Hall-MHD
   branches across 40 profiles and six timestep-order histories. Signed frequency
   and growth/damping fits retain raw data, residuals, conditional regression
