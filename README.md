@@ -289,8 +289,11 @@ unsupported. [Validation scope and evidence](docs/RELATIVISTIC_VALIDATION_PLAN.m
   energy-threshold bookkeeping and unique newborn particle ids.
 - `apply_radiation_reaction!(ps, E, B, dt; K, c)` — the dominant `γ²` term of
   the reduced Landau–Lifshitz drag, using an exponential substep with the initial
-  drag rate held fixed. Inputs must remain finite in particle precision;
-  [extreme-range arithmetic repairs](docs/RADIATION_REACTION_PLAN.md) remain open.
+  drag rate held fixed. Float16/32/64 particles are scaled by a factor in [0, 1],
+  so no stored speed increases, and stay normwise accurate across extreme finite
+  light speeds, fields and coefficient–timestep products through guarded wider
+  evaluation. Inputs must remain finite in particle precision;
+  [arithmetic and accuracy record](docs/RADIATION_REACTION_PLAN.md).
 
 ## Shocks
 

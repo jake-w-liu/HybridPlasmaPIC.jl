@@ -526,6 +526,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   retaining allocation-free ordinary calls. Extreme-range radiation arithmetic
   remains under repair; the documentation now states its limitation.
 
+- Radiation reaction no longer returns an unchanged or zero velocity where the
+  frozen-rate substep is finite but an intermediate overflows or underflows at
+  extreme light speeds, fields or coefficient–timestep products (RR-002), and
+  weak positive drag no longer increases a stored speed through the momentum
+  round trip (RR-003). Float16/32/64 particles are scaled by
+  `1/√(1 + (1 − |v|²/c²)(e^{2α} − 1)) ∈ [0, 1]`, evaluated natively with a
+  compensated `1 − |v|²/c²` and an a-posteriori rounding bound; flagged
+  particles are re-evaluated in Float64 or exponent-scaled double-double
+  arithmetic, without BigFloat and without allocation. Results are normwise
+  accurate to a few ulps of `|v|`, so ordinary outputs differ from the previous
+  arithmetic at the rounding level. BigFloat particles keep the ambient-precision
+  momentum update.
+
 - MPI checkpoint saves validate all ranks and publish a new manifest only after
   all new rank files close. Recoverable failures before publication preserve the
   previous checkpoint. Cleanup removes only owned files, rejects generation

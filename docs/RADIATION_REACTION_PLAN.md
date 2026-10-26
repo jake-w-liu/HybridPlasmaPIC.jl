@@ -1,9 +1,10 @@
 # Radiation reaction validation and arithmetic
 
-Status: input validation repair verified on Julia 1.12.7 and 1.13.1 and pushed
-as `fdca823`. The arithmetic candidate passes serial numerical gates on both
-versions, but a reproduced concurrent BigFloat failure remains unresolved.
-The candidate is uncommitted and the radiation audit remains open.
+Status: input validation (RR-001) is pushed as `fdca823`. The normwise
+arithmetic repair of RR-002 and RR-003 [below](#normwise-arithmetic-repair-rr-002-rr-003)
+replaces the held BigFloat candidate and passes the forcing, particle,
+relativistic-boundary, Aqua and JET gates on Julia 1.12.7 and 1.13.2.
+Exact-SHA CI is pending.
 
 ## Verified gaps
 
@@ -75,7 +76,101 @@ convergence remains an acceptance test for the arithmetic repair. The wider clas
 model distinction is described in the primary
 [Smilei radiation documentation](https://smileipic.github.io/Smilei/Understand/radiation_loss.html).
 
-## Arithmetic candidate under verification
+## Normwise arithmetic repair (RR-002, RR-003)
+
+Float16/32/64 particles apply the frozen-rate substep as `v ← F·v`,
+`F = 1/√(1 + r(e^{2α} − 1)) ∈ [0, 1]`, `r = 1 − |v|²/c²`, `α = K dt γ χ²`
+(algebraically the momentum update), so no stored speed component increases.
+The contract is the project's normwise standard: results agree with the exact
+substep for the stored inputs to a few ulps of `|v|`
+(`src/particles/radiation_reaction.jl`).
+
+1. **Native evaluation** (Float16 particles in Float32): `r` from `c² − |v|²`,
+   adding the exact rounding residuals of the squares, their sum and `c²` when
+   `β² > 1/2`; `P = (v·E/c)²` squared at the force scale; `χ² = |w|² − P`;
+   `X = r(e^{2α} − 1)` (`exp − 1` costs at most 2.7u of `F` in absolute terms,
+   so `expm1` is not needed). The guard is an a-posteriori bound
+   `errα ≤ G·u·(16|w|² + 8P + 12.1|E|² + 18.2|v|²|B|² + 8 floatmin)`,
+   `G = K dt/√r`, accepted when `r ≥ 64u`, `errα ≤ 1/64` and
+   `1.09·|dF/dα|·errα ≤ 8 eps(T)`. Non-finite intermediates fail the
+   comparison; loop invariants require a normal `K·dt` and
+   `4 floatmin/eps ≤ c² ≤ floatmax/4`.
+2. **Fallbacks.** Float16 and Float32 particles re-run the same evaluation in
+   Float64 (inputs convert exactly and no Float32 input can over- or underflow
+   there). Float64 particles retry with a tight bound built from the computed
+   products. Remaining particles use exponent-scaled double-double arithmetic:
+   power-of-two scaling of `c`, `v` and the fields, `r` from an exact expansion
+   near the light cone, `χ² = |w⊥|² + r|E∥|²` as nonnegative terms, and `α`
+   as a double-double times `2^e`. `F = 0` for `α ≥ 4096`, `F = 1` for
+   `α < 2^-60`, and a logarithmic form once `1 + X > 2^50` underflows to a
+   subnormal or zero. No BigFloat, no global state and no allocation.
+3. **Other element types** (BigFloat) keep the previous momentum update at the
+   ambient precision and rounding mode, bit for bit.
+
+A native result is within `(8 + 4)·eps(T)·|v|` a priori (the bounds
+over-estimate the observed error several-fold), and the double-double factor
+has error at most `4u·F`. Documented limits: a true `r < 2^-1000` is bounded,
+which is exact whenever `K dt χ² ≥ 2^-488` (`F = 0` either way); cancellation
+of `E + v×B` below double-double resolution (about 2^-104 of the force scale)
+amplified by `K dt` is not resolved.
+
+**Measured design inputs.** The brief's guard (native `r`, fallback below
+`r < √eps(T)`) was rejected by measurement: against a 1024-bit reference the
+native formula reached 28–38 ulps of `|v|` for `r ∈ [0.01, 1]` and 1,175
+(Float32) / 6.5×10⁷ (Float64) ulps inside the accepted range. Budgets of 4, 16
+and 64 eps were measured before choosing 8 (64 reached 8.8 ulps). A first
+version squared `v·E` before dividing by `c²`, so `(v·E)²` underflowed for
+`c = 2^-300`; all 78 resulting matrix failures were repaired by squaring at the
+force scale.
+
+**Tests.** `test/test_radiation_arithmetic.jl`, included from
+`test_forcing.jl` (39,948 assertions per version): an extreme-scale matrix
+with `c`, `|E|`, `|B|` at 2^±5 / 2^±40 / 2^±300 (Float16/32/64), `K dt` scaled
+to the force and at independent extremes, both field orientations, all axes
+and signs, D = 1–3; light-cone, three-component near-null and field-along-`v`
+cases at optical depths around `ln γ`; random ordinary, relativistic and
+near-E×B-drift draws; weak drag never heating; exact zero force; the held
+cancellation witnesses; BigFloat identity with the previous update; frozen-rate
+convergence; zero allocation and task independence. Every case is compared
+with an independent 8192-bit momentum expression, normwise at 8 ulps of `|v|`.
+The same file asserts per type that the previous arithmetic fails part of the
+matrix (RR-002) and heats part of the weak-drag draws (RR-003).
+
+**Results** (Julia 1.12.7 and 1.13.2, identical counts). `test_forcing.jl`
+passes 41,607 assertions, `test_particles.jl` 147,
+`test_relativistic_validation.jl` 12,801 and Aqua 9. Package JET reports
+are 29 / 27 with report sets identical to the parent `d46029e`. Concrete JET over
+31 entry-point and tier signatures reports nothing (`report_call`, and
+`report_opt` for hardware floats). The largest observed error over the test
+cases is 0.50 / 1.28 / 1.80 ulps of `|v|` (Float16/32/64). The previous
+arithmetic exceeds 8 ulps or is nonfinite in 204 / 264 / 312 of 2,160 matrix
+entries and heats 137 / 115 / 126 of 1,000 weak-drag draws. Every line of
+`radiation_reaction.jl` executes under the new test file.
+
+**Performance** (Apple M5, shared machine at load 23–55; warmed calls on
+10⁵ particles; minimum ns per particle, alternating new and parent processes;
+0 B allocated in every case). Ratios are medians of per-round ratios over three
+rounds (Julia 1.12) and five rounds (1.13.2). A faster core state seen by only
+one process of a round skewed a few rounds, with per-round extremes of 1.10 and
+1.68; no round is excluded.
+
+| Case | Float32 1.12 / 1.13.2 | Float64 1.12 / 1.13.2 |
+| --- | --- | --- |
+| E, B generic, weak drag (acceptance) | 1.05 / 1.02 | 1.03 / 1.00 |
+| pure B, weak drag (acceptance) | 1.04 / 1.02 | 1.04 / 1.01 |
+| relativistic, speeds 0.8–0.999 c (all compensated) | 1.19 / 1.17 | 1.19 / 1.15 |
+| strong drag, `α ≈ 1` per step (5.9% tier 1) | 1.35 / 1.32 | 1.38 / 1.34 |
+
+In-process, the native kernel costs the same for strong and weak drag, so the
+strong-drag excess comes from the 5.9% of particles routed to tier 1. A
+64-particle blocked loop that defers those particles was measured and not
+adopted (weak drag slower, strong drag about 1 ns faster under load).
+
+## Superseded BigFloat candidate
+
+The held candidate below was never committed; the normwise repair above
+replaces it, uses no BigFloat for hardware floats and is therefore unaffected
+by NUM-001. Its record is retained.
 
 The candidate evaluates a velocity factor in [0,1], avoiding the momentum
 round trip that can heat weakly damped particles. Range-sensitive force
