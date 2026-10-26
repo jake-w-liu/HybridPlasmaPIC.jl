@@ -113,6 +113,17 @@ function _aliases_workspace(a, g::DistributedFourierGrid)
     for workspace in (g.staging, g.staging_work...)
         Base.mightalias(a, workspace) && return true
     end
+    # Thin-pencil fields can share read-only metadata storage, including
+    # detectable Array views with a different element type.
+    for metadata in (g.kfull..., g.kvec...)
+        Base.mightalias(a, metadata) && return true
+    end
+    for metadata in g.ik
+        Base.mightalias(a, metadata) && return true
+    end
+    for metadata in g.midx
+        Base.mightalias(a, metadata) && return true
+    end
     return false
 end
 

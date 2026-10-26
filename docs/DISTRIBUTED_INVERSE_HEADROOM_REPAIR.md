@@ -39,10 +39,9 @@ match the frozen parent after exact HPIC-root replacement only. Root evidence:
 Exact-SHA HPIC CI remains an acceptance gate.
 No controlled timing, process-RSS or multi-node scaling result is claimed.
 
-A separate invalid-alias robustness probe found that a same-pencil output can
-be reshaped over a read-only real metadata vector on thin pencils and admitted
-by the existing workspace validator. It has a separate planned validation slice;
-this shared numerical headroom fix does not modify that admission behavior.
+A separate [metadata admission repair](DISTRIBUTED_METADATA_ADMISSION_REPAIR.md)
+rejects detectable same-pencil operands overlapping read-only geometry. The
+shared numerical headroom owner and this admission owner remain distinct.
 
 The full-operation bound applies when the common input scale is representable.
 The existing `floatmax(T)` scale cap and rejection of nonzero inputs lost during

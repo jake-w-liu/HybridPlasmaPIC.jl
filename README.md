@@ -501,8 +501,10 @@ as three-tuples of rank-owned fields and the serial alias rules (curl outputs
 distinct from inputs; vector outputs and projection components pairwise
 distinct). All outputs are published together after the last collective check.
 Infinite exponential-filter strength keeps the DC mean and removes every nonzero
-mode for all accepted positive powers.
-[Operator plan](docs/DISTRIBUTED_OPERATOR_IMPLEMENTATION_PLAN.md).
+mode for all accepted positive powers. Operands must not alias the grid's private
+work arrays or read-only metadata; detectable overlap is rejected collectively.
+[Operator plan](docs/DISTRIBUTED_OPERATOR_IMPLEMENTATION_PLAN.md) and
+[metadata admission checks](docs/DISTRIBUTED_METADATA_ADMISSION_REPAIR.md).
 The shared range guard also protects growth inside the unnormalized inverse
 before its final normalization; an independent finite-output convolution case
 is covered by the [inverse-range regression](docs/DISTRIBUTED_INVERSE_HEADROOM_REPAIR.md).

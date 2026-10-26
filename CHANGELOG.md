@@ -284,6 +284,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Distributed Fourier operators reject operands overlapping read-only
+  wavenumber, derivative, integer-mode or Nyquist metadata through the shared
+  collective admission check, before changing public or private arrays.
+
 - `recommended_dt` bounds combined Hall-wave and resistive/hyperresistive
   RK4 modes with a certified inner stability polygon. Separate axis limits
   previously admitted a production Fourier mode that grew by 46.7% per step.
