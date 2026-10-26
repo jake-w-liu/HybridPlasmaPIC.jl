@@ -280,6 +280,7 @@ for `HybridStepper`: Boris kick centred at n, CAM half-step ion current, CL
 magnetic subcycle, then recompute the carried E at n+1.
 Changed timesteps retain the correct particle half-time levels; the magnetic
 subcycle reinitializes its persistent copies when its substep size changes.
+The `dt` validation and particle range contract are those of [`step!`](@ref).
 """
 function step_camcl!(
     st::CAMCLStepper{D,T},

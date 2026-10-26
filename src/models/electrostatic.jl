@@ -342,10 +342,14 @@ Advance one leapfrog step: gather E → Boris kick (B=0) → drift → periodic 
 deposit density → solve Poisson. When `dt` changes, the velocity kick spans
 `(last_dt + dt)/2` between the preceding and next half levels; positions advance
 by `dt`. A zero timestep leaves both the state and its time staggering unchanged.
+A nonzero `dt` below `2*floatmin(T)` throws an `ArgumentError` before any state
+changes. Priming, kicks and drifts follow the normwise range contract of
+[`boris_kick`](@ref); a primed velocity that exceeds `T` throws an `ArgumentError`.
 """
 function step_espic!(es::Electrostatic1D{T}, e::ParticleSet{1,T}, dt::Real) where {T}
     _require_espic_electrons(e)
-    dtT = _validated_nonnegative_dt(T, dt; name = "step_espic!")
+    dtT =
+        _require_resolved_dt("step_espic!", _validated_nonnegative_dt(T, dt; name = "step_espic!"))
     iszero(dtT) && return es            # dt=0 no-op: do not consume the one-time priming
     _resize_espic_particle_workspaces!(es, nparticles(e))
     g = es.g
@@ -361,7 +365,8 @@ end
 function step_espic!(es::ElectrostaticPIC{D,T}, e::ParticleSet{D,T}, dt::Real) where {D,T}
     _espic_require_scalar(es)
     _require_espic_electrons(e)
-    dtT = _validated_nonnegative_dt(T, dt; name = "step_espic!")
+    dtT =
+        _require_resolved_dt("step_espic!", _validated_nonnegative_dt(T, dt; name = "step_espic!"))
     iszero(dtT) && return es            # dt=0 no-op: do not consume the one-time priming
     _resize_espic_particle_workspaces!(es, nparticles(e))
     g = es.g
@@ -401,30 +406,79 @@ end
 
 # The scalar electron and arbitrary-population paths share exactly this kick,
 # priming and drift. The 1D compatibility state carries only longitudinal E.
+# Priming, kick and drift keep their native order for ordinary inputs and follow
+# the normwise range contract of kinematics_range.jl; a primed velocity that
+# exceeds T throws an ArgumentError.
 function _espic_push!(ps::ParticleSet{D,T}, Ep::NTuple{C}, g, dt::T, primed, last_dt) where {D,T,C}
     qm = ps.q / ps.m
     kick_dt = primed ? last_dt / 2 + dt / 2 : dt
+    indices = eachindex(ps.weight)
     if !primed
         h = dt / 2
-        @inbounds for c = 1:C, p in eachindex(ps.weight)
-            ps.v[c][p] -= h * qm * Ep[c][p]
+        hq = h * qm
+        if _es_prime_batch_certificate(ps.v, Ep, h, qm, hq, C, indices)
+            _espic_prime!(ps, Ep, h, qm, hq, Val(false))
+        else
+            _espic_prime!(ps, Ep, h, qm, hq, Val(true))
         end
     end
-    @inbounds for p in eachindex(ps.weight)
-        # Boris with B=0 retains the established two-half-kick rounding order.
-        v = ntuple(c -> c <= C ? ps.v[c][p] : zero(T), 3)
-        E = _espic_particle_field(Ep, p, T)
-        moved = boris_kick(v..., E..., zero(T), zero(T), zero(T), qm, kick_dt)
-        for c = 1:C
-            ps.v[c][p] = moved[c]
-        end
-        for d = 1:D
-            ps.x[d][p] += dt * ps.v[d][p]
-        end
+    z = zero(T)
+    hk = qm * kick_dt / 2
+    velocities = ntuple(c -> c <= C ? ps.v[c] : z, Val(3))
+    scales = _boris_batch_scales(velocities, _espic_kick_fields(Ep, z), (z, z, z), hk, indices)
+    kick, vbound = _boris_batch_certificate(hk, qm, kick_dt, scales...)
+    if kick && _coordinate_batch_certified(_coordinate_batch_max(ps.x, T), dt, vbound)
+        _espic_kick_drift!(ps, Ep, qm, dt, kick_dt, Val(false))
+    else
+        _espic_kick_drift!(ps, Ep, qm, dt, kick_dt, Val(true))
     end
     _require_finite_particle_velocities(ps, "electrostatic stepping")
     # The boundary owner validates all proposed positions before wrapping any.
     apply_periodic!(ps, ntuple(_ -> zero(T), D), g.L)
+    return ps
+end
+
+# Field components of the kick as a three-vector of arrays (absent longitudinal-
+# compatibility components are zero, as in the kick loop).
+@inline _espic_kick_fields(Ep::Tuple{V}, z) where {V} = (Ep[1], z, z)
+@inline _espic_kick_fields(Ep::NTuple{3}, z) = Ep
+
+function _espic_prime!(
+    ps::ParticleSet{D,T},
+    Ep::NTuple{C},
+    h,
+    qm,
+    hq,
+    ::Val{guard},
+) where {D,T,C,guard}
+    @inbounds for c = 1:C, p in eachindex(ps.weight)
+        ps.v[c][p] =
+            guard ? _es_prime_component(ps.v[c][p], Ep[c][p], h, qm, hq) :
+            ps.v[c][p] - hq * Ep[c][p]
+    end
+    return ps
+end
+
+function _espic_kick_drift!(
+    ps::ParticleSet{D,T},
+    Ep::NTuple{C},
+    qm,
+    dt,
+    kick_dt,
+    guard::Val,
+) where {D,T,C}
+    @inbounds for p in eachindex(ps.weight)
+        # Boris with B=0 retains the established two-half-kick rounding order.
+        v = ntuple(c -> c <= C ? ps.v[c][p] : zero(T), 3)
+        E = _espic_particle_field(Ep, p, T)
+        moved = _kick_eval(guard, v..., E..., zero(T), zero(T), zero(T), qm, kick_dt)
+        for c = 1:C
+            ps.v[c][p] = moved[c]
+        end
+        for d = 1:D
+            ps.x[d][p] = _coordinate_eval(guard, ps.x[d][p], ps.v[d][p], dt)
+        end
+    end
     return ps
 end
 
@@ -667,7 +721,8 @@ function init_espic!(es::ElectrostaticPIC{D,T}, species::AbstractVector) where {
 end
 
 function step_espic!(es::ElectrostaticPIC{D,T}, species::AbstractVector, dt::Real) where {D,T}
-    dtT = _validated_nonnegative_dt(T, dt; name = "step_espic!")
+    dtT =
+        _require_resolved_dt("step_espic!", _validated_nonnegative_dt(T, dt; name = "step_espic!"))
     _espic_validate_species(es, species)
     work = _espic_collection(es)
     work.initialized[] ||

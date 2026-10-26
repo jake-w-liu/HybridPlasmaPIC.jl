@@ -275,6 +275,10 @@ end
 
 Advance the 2D perpendicular shock one step: Boris push (gathered E,B) →
 reflect at x=0 / wrap y / absorb past x=Lx → deposit moments → subcycle Bz.
+Nonzero `dt` below `2*floatmin(T)` throws an `ArgumentError` before any state
+changes. Pushes and drifts follow the normwise range contract of
+[`boris_kick`](@ref): a drift whose rounded `x + dt*v` overflows although the
+exact coordinate is finite is evaluated wider instead of absorbing the particle.
 """
 function step_shock2d!(
     sh::PerpShock2D{T},
@@ -291,17 +295,24 @@ function step_shock2d!(
     vx = ps.v[1]
     vy = ps.v[2]
     vz = ps.v[3]
+    guard = !_shock_batch_certified(ps, (sh.Ex, sh.Ey), (sh.Bz,), dtT)
     @inbounds for p in eachindex(ps.weight)
         Exp = _gather2d(sh.Ex, xp[p], yp[p], dx, sh.dy, sh.nx, sh.ny)
         Eyp = _gather2d(sh.Ey, xp[p], yp[p], dx, sh.dy, sh.nx, sh.ny)
         Bzp = _gather2d(sh.Bz, xp[p], yp[p], dx, sh.dy, sh.nx, sh.ny)
+        fields = (Exp, Eyp, zero(T), zero(T), zero(T), Bzp, one(T), dtT)
         nvx, nvy, nvz =
-            boris_kick(vx[p], vy[p], vz[p], Exp, Eyp, zero(T), zero(T), zero(T), Bzp, one(T), dtT)
+            guard ? boris_kick(vx[p], vy[p], vz[p], fields...) :
+            _boris_kick_native(vx[p], vy[p], vz[p], fields...)
         vx[p] = nvx
         vy[p] = nvy
         vz[p] = nvz
-        xp[p] += dtT * nvx
-        yp[p] += dtT * nvy
+        xp[p] =
+            guard ? _particle_coordinate(xp[p], nvx, dtT) :
+            _particle_coordinate_native(xp[p], nvx, dtT)
+        yp[p] =
+            guard ? _particle_coordinate(yp[p], nvy, dtT) :
+            _particle_coordinate_native(yp[p], nvy, dtT)
     end
     # boundaries: reflect wall x=0, wrap y, absorb x>Lx
     @inbounds for p in eachindex(ps.weight)

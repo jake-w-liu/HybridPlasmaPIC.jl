@@ -705,7 +705,7 @@ function _validated_step_dt(
 ) where {T}
     NB >= min_NB ||
         throw(ArgumentError("$name requires NB >= $min_NB magnetic subcycles (got $NB)"))
-    return _validated_nonnegative_dt(T, dt; name)
+    return _require_resolved_dt(name, _validated_nonnegative_dt(T, dt; name))
 end
 
 # One-time leapfrog priming. The loaded velocity is the physical v^0, but the leapfrog Boris push
@@ -715,7 +715,30 @@ end
 # documented 2nd-order accuracy for a real init!+step! run (verified: end-to-end rate 1 → 2).
 # `rel=true` (relativistic push, works in momentum u=γv) backs up MOMENTUM: u^{-1/2}=γ^0 v^0 − h·a^0,
 # v^{-1/2}=u^{-1/2}/γ(u); the default non-relativistic path is byte-identical for the hybrid callers.
+# Ordinary inputs keep this native order; range-flagged Float16/32/64 back-ups are evaluated wider
+# and rounded once, and a backed-up velocity that exceeds the type throws an ArgumentError
+# (kinematics_range.jl).
 @inline function _prime_leapfrog!(v, Ep, Bp, qm, h, np, rel::Bool = false, c = one(eltype(v[1])))
+    T = eltype(v[1])
+    if rel
+        scales = _euler_batch_scales(v, Ep, Bp, (h, qm), 1:np, T)
+        if _rel_prime_batch_certificate(h, qm, c, scales...)
+            _prime_leapfrog_loop!(v, Ep, Bp, qm, h, np, c, Val(true), Val(false))
+        else
+            _prime_leapfrog_loop!(v, Ep, Bp, qm, h, np, c, Val(true), Val(true))
+        end
+    else
+        scales = _euler_batch_scales(v, Ep, Bp, h * qm, 1:np, T)
+        if _euler_batch_certificate(h, qm, h * qm, scales...)
+            _prime_leapfrog_loop!(v, Ep, Bp, qm, h, np, c, Val(false), Val(false))
+        else
+            _prime_leapfrog_loop!(v, Ep, Bp, qm, h, np, c, Val(false), Val(true))
+        end
+    end
+    return v
+end
+
+function _prime_leapfrog_loop!(v, Ep, Bp, qm, h, np, c, ::Val{rel}, ::Val{guard}) where {rel,guard}
     vx, vy, vz = v
     ex, ey, ez = Ep
     bx, by, bz = Bp
@@ -734,23 +757,32 @@ end
                 ),
             )
             g0 = o / sqrt(o - β2)
-            ax = qm * (ex[p] + (v0y * bz[p] - v0z * by[p]))
-            ay = qm * (ey[p] + (v0z * bx[p] - v0x * bz[p]))
-            az = qm * (ez[p] + (v0x * by[p] - v0y * bx[p]))
-            umx = g0 * v0x - h * ax
-            umy = g0 * v0y - h * ay
-            umz = g0 * v0z - h * az
+            e = (ex[p], ey[p], ez[p])
+            b = (bx[p], by[p], bz[p])
+            ax = qm * (e[1] + (v0y * b[3] - v0z * b[2]))
+            ay = qm * (e[2] + (v0z * b[1] - v0x * b[3]))
+            az = qm * (e[3] + (v0x * b[2] - v0y * b[1]))
+            g = (g0 * v0x, g0 * v0y, g0 * v0z)
+            k = (h * ax, h * ay, h * az)
+            umx = g[1] - k[1]
+            umy = g[2] - k[2]
+            umz = g[3] - k[3]
             gm = sqrt(o + (umx * umx + umy * umy + umz * umz) / c2)
-            vx[p] = umx / gm
-            vy[p] = umy / gm
-            vz[p] = umz / gm
+            primed = (umx / gm, umy / gm, umz / gm)
+            if guard && !_rel_prime_in_range(primed, g, (ax, ay, az), k, gm, h, qm, c2)
+                primed = _rel_prime_repair(primed, (v0x, v0y, v0z), e, b, qm, h, c)
+            end
+            vx[p], vy[p], vz[p] = primed
         end
     else
+        hq = h * qm
         @inbounds for p = 1:np
-            ux, uy, uz = vx[p], vy[p], vz[p]
-            vx[p] = ux - h * qm * (ex[p] + (uy * bz[p] - uz * by[p]))
-            vy[p] = uy - h * qm * (ey[p] + (uz * bx[p] - ux * bz[p]))
-            vz[p] = uz - h * qm * (ez[p] + (ux * by[p] - uy * bx[p]))
+            u = (vx[p], vy[p], vz[p])
+            e = (ex[p], ey[p], ez[p])
+            b = (bx[p], by[p], bz[p])
+            vx[p], vy[p], vz[p] =
+                guard ? _euler_kick(u, e, b, h, qm, hq, Val(:prime)) :
+                first(_euler_kick_parts(u..., e..., b..., hq, Val(:prime)))
         end
     end
     return v
@@ -773,16 +805,31 @@ _carried_ohms_law!(st::HybridStepper, ::TransportElectrons) =
 _carried_transport_ohms_law!(f, w, model, g) = _transport_ohms_law!(f, w.Eforce, model, g)
 
 # Forward half-kick predictor v^{n+1/2} → v^{n+1} into `vp`, from particle-gathered E, B.
+# Range handling as in _prime_leapfrog!; a predicted velocity that exceeds the type stays ±Inf.
 @inline function _predict_half_kick!(vp, v, Ep, Bp, qm, h, np)
+    hq = h * qm
+    scales = _euler_batch_scales(v, Ep, Bp, hq, 1:np, typeof(hq))
+    if _euler_batch_certificate(h, qm, hq, scales...)
+        _predict_half_kick_loop!(vp, v, Ep, Bp, qm, h, np, Val(false))
+    else
+        _predict_half_kick_loop!(vp, v, Ep, Bp, qm, h, np, Val(true))
+    end
+    return vp
+end
+
+function _predict_half_kick_loop!(vp, v, Ep, Bp, qm, h, np, ::Val{guard}) where {guard}
     vx, vy, vz = v
     vpx, vpy, vpz = vp
     ex, ey, ez = Ep
     bx, by, bz = Bp
+    hq = h * qm
     @inbounds for p = 1:np
-        ux, uy, uz = vx[p], vy[p], vz[p]
-        vpx[p] = ux + h * qm * (ex[p] + (uy * bz[p] - uz * by[p]))
-        vpy[p] = uy + h * qm * (ey[p] + (uz * bx[p] - ux * bz[p]))
-        vpz[p] = uz + h * qm * (ez[p] + (ux * by[p] - uy * bx[p]))
+        u = (vx[p], vy[p], vz[p])
+        e = (ex[p], ey[p], ez[p])
+        b = (bx[p], by[p], bz[p])
+        vpx[p], vpy[p], vpz[p] =
+            guard ? _euler_kick(u, e, b, h, qm, hq, Val(:predict)) :
+            first(_euler_kick_parts(u..., e..., b..., hq, Val(:predict)))
     end
     return vp
 end
@@ -833,16 +880,14 @@ function _recenter_carried_E!(st, ps, dtT)
     return st
 end
 
-# Shared gather/prime/kick/drift kernel. Fields stay fixed across populations.
-function _push_hybrid_population!(st, ws, ps::ParticleSet{D,T}, dtT::T, kick_dt::T) where {D,T}
-    qm = _validated_qm(ps)
+# Kick and drift of one population; `guard` selects the guarded (true) or the
+# native historical (false) evaluation.
+function _hybrid_kick_drift!(ps::ParticleSet{D,T}, ws, qm, dtT, kick_dt, guard::Val) where {D,T}
     h = dtT / 2
-    gather_vector!(ws.Ep, _particle_electric_field(st), ps, st.g, st.shape)
-    gather_vector!(ws.Bp, st.fields.B, ps, st.g, st.shape)
-    st.step[] == 0 && _prime_leapfrog!(ps.v, ws.Ep, ws.Bp, qm, h, length(ps.weight))
     vx, vy, vz = ps.v
     @inbounds for p in eachindex(ps.weight)
-        nx, ny, nz = boris_kick(
+        nx, ny, nz = _kick_eval(
+            guard,
             vx[p],
             vy[p],
             vz[p],
@@ -859,9 +904,27 @@ function _push_hybrid_population!(st, ws, ps::ParticleSet{D,T}, dtT::T, kick_dt:
         vy[p] = ny
         vz[p] = nz
         for d = 1:D
-            ws.xmid[d][p] = ps.x[d][p] + h * ps.v[d][p]
-            ps.x[d][p] += dtT * ps.v[d][p]
+            ws.xmid[d][p] = _coordinate_eval(guard, ps.x[d][p], ps.v[d][p], h)
+            ps.x[d][p] = _coordinate_eval(guard, ps.x[d][p], ps.v[d][p], dtT)
         end
+    end
+    return ps
+end
+
+# Shared gather/prime/kick/drift kernel. Fields stay fixed across populations.
+function _push_hybrid_population!(st, ws, ps::ParticleSet{D,T}, dtT::T, kick_dt::T) where {D,T}
+    qm = _validated_qm(ps)
+    h = dtT / 2
+    gather_vector!(ws.Ep, _particle_electric_field(st), ps, st.g, st.shape)
+    gather_vector!(ws.Bp, st.fields.B, ps, st.g, st.shape)
+    st.step[] == 0 && _prime_leapfrog!(ps.v, ws.Ep, ws.Bp, qm, h, length(ps.weight))
+    hk = qm * kick_dt / 2
+    scales = _boris_batch_scales(ps.v, ws.Ep, ws.Bp, hk, eachindex(ps.weight))
+    kick, vbound = _boris_batch_certificate(hk, qm, kick_dt, scales...)
+    if kick && _coordinate_batch_certified(_coordinate_batch_max(ps.x, T), dtT, vbound)
+        _hybrid_kick_drift!(ps, ws, qm, dtT, kick_dt, Val(false))
+    else
+        _hybrid_kick_drift!(ps, ws, qm, dtT, kick_dt, Val(true))
     end
     lo = ntuple(_ -> zero(T), D)
     apply_periodic!(ps, lo, st.g.L)
@@ -938,6 +1001,10 @@ field and `(γ−1)η|J|²` to the stage pressure rate; ions are pushed by the
 carried force `E_force`. The midpoint, endpoint and predictor densities must
 stay finite and at least `nfloor`, and the transaction also restores the
 carried force.
+
+A nonzero `dt` below `2*floatmin(T)` throws an `ArgumentError` before any state
+changes. Particle kicks, priming, predictor and drifts follow the normwise range
+contract of [`boris_kick`](@ref).
 """
 function step!(
     st::HybridStepper{D,T},

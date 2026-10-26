@@ -605,12 +605,14 @@ function _push_uniform_kernel!(
     thread > N && return nothing
     p = Int32(thread)
     @inbounds begin
-        nx, ny, nz = HybridPlasmaPIC.boris_kick(v[1][p], v[2][p], v[3][p], E..., B..., qm, dt)
+        # Native-only shared formulas: the device has no range fallback.
+        nx, ny, nz =
+            HybridPlasmaPIC._boris_kick_native(v[1][p], v[2][p], v[3][p], E..., B..., qm, dt)
         v[1][p] = nx
         v[2][p] = ny
         v[3][p] = nz
         for d = 1:D
-            x[d][p] += dt * v[d][p]
+            x[d][p] = HybridPlasmaPIC._particle_coordinate_native(x[d][p], v[d][p], dt)
         end
     end
     return nothing
@@ -632,9 +634,13 @@ function HybridPlasmaPIC.push_uniform!(
 }
     HybridPlasmaPIC.validate_particle_backend_eltype(Val(:metal), T)
     qm = HybridPlasmaPIC._validated_qm(ps)
-    dtT = HybridPlasmaPIC._require_finite_real("dt", dt, T)
+    dtT = HybridPlasmaPIC._require_resolved_dt(
+        "push_uniform!",
+        HybridPlasmaPIC._require_finite_real("dt", dt, T),
+    )
     electric = HybridPlasmaPIC._validated_uniform_field("E", E, T)
     magnetic = HybridPlasmaPIC._validated_uniform_field("B", B, T)
+    HybridPlasmaPIC._require_native_uniform_boris(qm, dtT, electric, magnetic)
     N = HybridPlasmaPIC.nparticles(ps)
     N <= typemax(Int32) ||
         throw(ArgumentError("Metal uniform push supports at most $(typemax(Int32)) particles"))
@@ -677,37 +683,26 @@ function HybridPlasmaPIC.push_gathered!(
     end
 
     qm = ps.q / ps.m
-    dtT = T(dt)
-    hq = qm * dtT / T(2)
+    dtT = HybridPlasmaPIC._require_resolved_dt(
+        "push_gathered!",
+        HybridPlasmaPIC._require_finite_real("dt", dt, T),
+    )
     hx = dtT / T(2)
     Ex, Ey, Ez = E
     Bx, By, Bz = B
     vx, vy, vz = ps.v
 
-    vmx = vx .+ hq .* Ex
-    vmy = vy .+ hq .* Ey
-    vmz = vz .+ hq .* Ez
-    tx = hq .* Bx
-    ty = hq .* By
-    tz = hq .* Bz
-    t2 = tx .* tx .+ ty .* ty .+ tz .* tz
-    f = T(2) ./ (one(T) .+ t2)
-    sx = f .* tx
-    sy = f .* ty
-    sz = f .* tz
-    vpx = vmx .+ (vmy .* tz .- vmz .* ty)
-    vpy = vmy .+ (vmz .* tx .- vmx .* tz)
-    vpz = vmz .+ (vmx .* ty .- vmy .* tx)
-    vnx = vmx .+ (vpy .* sz .- vpz .* sy)
-    vny = vmy .+ (vpz .* sx .- vpx .* sz)
-    vnz = vmz .+ (vpx .* sy .- vpy .* sx)
-    vx .= vnx .+ hq .* Ex
-    vy .= vny .+ hq .* Ey
-    vz .= vnz .+ hq .* Ez
+    # Native-only shared formulas: per-particle device fields have no host
+    # range admission or fallback (see the native device contract in boris.jl).
+    kicked = HybridPlasmaPIC._boris_kick_native.(vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, qm, dtT)
+    vx .= getindex.(kicked, 1)
+    vy .= getindex.(kicked, 2)
+    vz .= getindex.(kicked, 3)
 
     for d = 1:D
-        xmid !== nothing && (xmid[d] .= ps.x[d] .+ hx .* ps.v[d])
-        ps.x[d] .+= dtT .* ps.v[d]
+        xmid !== nothing &&
+            (xmid[d] .= HybridPlasmaPIC._particle_coordinate_native.(ps.x[d], ps.v[d], hx))
+        ps.x[d] .= HybridPlasmaPIC._particle_coordinate_native.(ps.x[d], ps.v[d], dtT)
     end
     return ps
 end

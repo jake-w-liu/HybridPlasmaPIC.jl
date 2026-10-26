@@ -114,6 +114,15 @@ if Sys.isapple() && Base.find_package("Metal") !== nothing
                 (1.0f0, 1.0f0, (0.0f0, NaN32, 0.0f0), zero_field, 0.25f0),
                 (1.0f0, 1.0f0, zero_field, (0.0f0, 0.0f0, Inf32), 0.25f0),
                 (1.0f0, 1.0f0, (0.0, 0.0, 1.0e40), zero_field, 0.25f0),
+                # Unresolved timesteps and the velocity-independent part of the
+                # CPU range guard: the device has no wide fallback.
+                (1.0f0, 1.0f0, zero_field, zero_field, nextfloat(0.0f0)),
+                (1.0f0, 1.0f0, zero_field, zero_field, -floatmin(Float32)),
+                (1.0f30, 1.0f0, zero_field, zero_field, 1.0f10),
+                (1.0f-30, 1.0f0, zero_field, zero_field, 1.0f-10),
+                (1.0f0, 1.0f0, (3.0f38, 0.0f0, 0.0f0), zero_field, 4.0f0),
+                (1.0f0, 1.0f0, zero_field, (0.0f0, 0.0f0, 1.0f25), 1.0f0),
+                (1.0f0, 1.0f0, zero_field, (0.0f0, 0.0f0, sqrt(floatmax(Float32)) / 1.25f0), 2.0f0),
             )
             for count in (0, 2), (q, m, E, B, dt) in invalid
                 cpu = population(2, count; q, m)
@@ -122,6 +131,30 @@ if Sys.isapple() && Base.find_package("Metal") !== nothing
                 @test_throws ArgumentError push_uniform!(gpu, E, B, dt)
                 Metal.synchronize()
                 @test isequal(snapshot(copy_particles_to_host(gpu)), before)
+            end
+            # The smallest resolved timestep with a normal q/m*dt/2 (q/m = 1 here)
+            # and legitimate zero kicks launch.
+            for (q, dt) in ((2.0f0, 2floatmin(Float32)), (0.0f0, 0.25f0), (1.0f0, 0.0f0))
+                cpu = population(2, 3; q)
+                gpu = copy_particles_to_backend(Val(:metal), cpu)
+                @test push_uniform!(gpu, zero_field, (0.0f0, 0.0f0, 1.0f0), dt) === gpu
+                Metal.synchronize()
+                actual = copy_particles_to_host(gpu)
+                @test all(a -> all(isfinite, a), (actual.x..., actual.v...))
+            end
+        end
+
+        @testset "Metal gathered push rejects unresolved timesteps before mutation" begin
+            for dt in (nextfloat(0.0f0), floatmin(Float32), -prevfloat(2floatmin(Float32)), NaN32)
+                cpu = population(2, 4)
+                gpu = copy_particles_to_backend(Val(:metal), cpu)
+                fields = ntuple(_ -> Metal.MtlArray(fill(0.125f0, 4)), 3)
+                midpoint = ntuple(_ -> Metal.MtlArray(zeros(Float32, 4)), 2)
+                before = snapshot(cpu)
+                @test_throws ArgumentError push_gathered!(gpu, fields, fields, dt; xmid = midpoint)
+                Metal.synchronize()
+                @test isequal(snapshot(copy_particles_to_host(gpu)), before)
+                @test all(a -> all(iszero, collect(a)), midpoint)
             end
         end
     else

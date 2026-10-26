@@ -407,6 +407,10 @@ Failure leaves the entire caller state unchanged. CN requires ordinary CPU
 `Vector` particle storage; reuse a [`ShockCNWorkspace`](@ref) to amortize trial
 and solver storage. Nondefault CN controls or a CN workspace with RK4 are rejected. Magnetic
 implicitness does not remove particle/coupling time-resolution requirements.
+Nonzero `dt` below `2*floatmin(T)` throws an `ArgumentError` before any state
+changes. Pushes and drifts follow the normwise range contract of
+[`boris_kick`](@ref): a drift whose rounded `x + dt*v` overflows although the
+exact coordinate is finite is evaluated wider instead of absorbing the particle.
 """
 function step_shock3d!(
     sh::PerpShock3D{T},
@@ -468,6 +472,7 @@ function _step_shock3d!(
     vx = ps.v[1]
     vy = ps.v[2]
     vz = ps.v[3]
+    guard = !_shock_batch_certified(ps, sh.E, sh.B, dtT)
     @inbounds for p in eachindex(ps.weight)
         Exp = _gather3d(sh.E[1], xp[p], yp[p], zp[p], dx, dy, dz, nx, ny, nz)
         Eyp = _gather3d(sh.E[2], xp[p], yp[p], zp[p], dx, dy, dz, nx, ny, nz)
@@ -475,13 +480,22 @@ function _step_shock3d!(
         Bxp = _gather3d(sh.B[1], xp[p], yp[p], zp[p], dx, dy, dz, nx, ny, nz)
         Byp = _gather3d(sh.B[2], xp[p], yp[p], zp[p], dx, dy, dz, nx, ny, nz)
         Bzp = _gather3d(sh.B[3], xp[p], yp[p], zp[p], dx, dy, dz, nx, ny, nz)
-        nvx, nvy, nvz = boris_kick(vx[p], vy[p], vz[p], Exp, Eyp, Ezp, Bxp, Byp, Bzp, one(T), dtT)
+        fields = (Exp, Eyp, Ezp, Bxp, Byp, Bzp, one(T), dtT)
+        nvx, nvy, nvz =
+            guard ? boris_kick(vx[p], vy[p], vz[p], fields...) :
+            _boris_kick_native(vx[p], vy[p], vz[p], fields...)
         vx[p] = nvx
         vy[p] = nvy
         vz[p] = nvz
-        xp[p] += dtT * nvx
-        yp[p] += dtT * nvy
-        zp[p] += dtT * nvz
+        xp[p] =
+            guard ? _particle_coordinate(xp[p], nvx, dtT) :
+            _particle_coordinate_native(xp[p], nvx, dtT)
+        yp[p] =
+            guard ? _particle_coordinate(yp[p], nvy, dtT) :
+            _particle_coordinate_native(yp[p], nvy, dtT)
+        zp[p] =
+            guard ? _particle_coordinate(zp[p], nvz, dtT) :
+            _particle_coordinate_native(zp[p], nvz, dtT)
         if cn_workspace !== nothing
             all(isfinite, (xp[p], yp[p], zp[p], nvx, nvy, nvz)) ||
                 throw(DomainError(:cn, "nonfinite trial particle advance"))

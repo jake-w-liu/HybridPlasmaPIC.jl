@@ -317,9 +317,14 @@ checked for finite values and positive density, projected when requested, and
 used to compute a finite final electric field before it replaces the current state.
 `project_b=true` projects the final magnetic field onto its divergence-free
 subspace. A failed step leaves the current fields, time, and step count unchanged.
+A nonzero `dt` below `2*floatmin(T)` (subnormal, or with subnormal RK half
+stages) throws an `ArgumentError` before any state changes.
 """
 function step_hall_mhd!(st::HallMHDState{D,T}, dt::Real; project_b::Bool = true) where {D,T}
-    dtT = _validated_nonnegative_dt(T, dt; name = "step_hall_mhd!")
+    dtT = _require_resolved_dt(
+        "step_hall_mhd!",
+        _validated_nonnegative_dt(T, dt; name = "step_hall_mhd!"),
+    )
     iszero(dtT) && return st
     next_time, next_step = _validated_step_clock(st.time[], st.step[], dtT)
 

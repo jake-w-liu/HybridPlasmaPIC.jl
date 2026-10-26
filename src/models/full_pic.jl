@@ -568,10 +568,80 @@ end
 
 # ---------------------------------------------------------------- relativistic push
 
+# Momentum part of the relativistic Boris push, u = γv → v⁺, in the historical
+# operation order. Shared by the native push and its wide repair.
+@inline function _boris_rel_momentum(
+    ux::T,
+    uy::T,
+    uz::T,
+    Ex::T,
+    Ey::T,
+    Ez::T,
+    Bx::T,
+    By::T,
+    Bz::T,
+    qm::T,
+    dt::T,
+    c2::T,
+) where {T}
+    h = qm * dt / 2
+    hEx = h * Ex
+    hEy = h * Ey
+    hEz = h * Ez
+    umx = ux + hEx
+    umy = uy + hEy
+    umz = uz + hEz
+    γm = sqrt(one(T) + (umx * umx + umy * umy + umz * umz) / c2)
+    tx = h * Bx / γm
+    ty = h * By / γm
+    tz = h * Bz / γm
+    t2 = tx * tx + ty * ty + tz * tz
+    f = 2 / (1 + t2)
+    sx = f * tx
+    sy = f * ty
+    sz = f * tz
+    upx = umx + (umy * tz - umz * ty)
+    upy = umy + (umz * tx - umx * tz)
+    upz = umz + (umx * ty - umy * tx)
+    unx = umx + (upy * sz - upz * sy)
+    uny = umy + (upz * sx - upx * sz)
+    unz = umz + (upx * sy - upy * sx)
+    ux2 = unx + hEx
+    uy2 = uny + hEy
+    uz2 = unz + hEz
+    γf = sqrt(one(T) + (ux2 * ux2 + uy2 * uy2 + uz2 * uz2) / c2)
+    out = (ux2 / γf, uy2 / γf, uz2 / γf)
+    return out, (h, hEx, hEy, hEz, γm, tx, ty, tz, t2, f, γf)
+end
+
+# The nonrelativistic guard on momentum, plus c² normal and finite Lorentz
+# factors: an overflowing |u|²/c² would make γ infinite and silently drop the
+# rotation and the velocity. Underflow of |u|²/c² only moves γ within floatmin
+# of one. S uses the momentum scale max(|γv|, |h E|); dividing by γf >= 1 does
+# not amplify the absolute error.
+@inline function _boris_rel_in_range(out::NTuple{3,T}, parts, u, qm::T, dt::T, c2::T) where {T}
+    h, hEx, hEy, hEz, γm, tx, ty, tz, t2, f, γf = parts
+    S = max(abs(u[1]), abs(u[2]), abs(u[3]), abs(hEx), abs(hEy), abs(hEz))
+    tau = max(abs(tx), abs(ty), abs(tz))
+    return isfinite(c2) &
+           (c2 >= floatmin(T)) &
+           _kinematics_product_in_range(h, qm, dt) &
+           isfinite(γm) &
+           isfinite(t2) &
+           (f >= floatmin(T)) &
+           isfinite(γf) &
+           isfinite(out[1]) &
+           isfinite(out[2]) &
+           isfinite(out[3]) &
+           (iszero(S) | (S >= floatmin(T) * T(256) * (one(T) + tau)))
+end
+
 # Relativistic Boris push for a single particle (Birdsall & Langdon / Vay-free
 # classic Boris): works in momentum u = γv. Returns updated (vx,vy,vz). c is the
-# speed of light. Reduces to the non-relativistic boris_kick as c→∞.
-@inline function _boris_rel(
+# speed of light. Reduces to the non-relativistic boris_kick as c→∞. Ordinary
+# inputs keep the native operation order; Float16/32/64 evaluations flagged by
+# the range guard are repeated in 256-bit BigFloat (see _boris_rel_repair).
+@inline function _boris_rel_parts(
     vx::T,
     vy::T,
     vz::T,
@@ -597,30 +667,66 @@ end
     ux = ginit * vx
     uy = ginit * vy
     uz = ginit * vz
-    h = qm * dt / 2
-    umx = ux + h * Ex
-    umy = uy + h * Ey
-    umz = uz + h * Ez
-    γm = sqrt(one(T) + (umx * umx + umy * umy + umz * umz) / c2)
-    tx = h * Bx / γm
-    ty = h * By / γm
-    tz = h * Bz / γm
-    t2 = tx * tx + ty * ty + tz * tz
-    f = 2 / (1 + t2)
-    sx = f * tx
-    sy = f * ty
-    sz = f * tz
-    upx = umx + (umy * tz - umz * ty)
-    upy = umy + (umz * tx - umx * tz)
-    upz = umz + (umx * ty - umy * tx)
-    unx = umx + (upy * sz - upz * sy)
-    uny = umy + (upz * sx - upx * sz)
-    unz = umz + (upx * sy - upy * sx)
-    ux2 = unx + h * Ex
-    uy2 = uny + h * Ey
-    uz2 = unz + h * Ez
-    γf = sqrt(one(T) + (ux2 * ux2 + uy2 * uy2 + uz2 * uz2) / c2)
-    return (ux2 / γf, uy2 / γf, uz2 / γf)
+    out, parts = _boris_rel_momentum(ux, uy, uz, Ex, Ey, Ez, Bx, By, Bz, qm, dt, c2)
+    return out, parts, (ux, uy, uz), c2
+end
+
+# Native-only relativistic push: the historical operation order, input
+# validation included (certified batch loops).
+@inline _boris_rel_native(vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, qm, dt, c) =
+    first(_boris_rel_parts(vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, qm, dt, c))
+
+@inline function _boris_rel(
+    vx::T,
+    vy::T,
+    vz::T,
+    Ex::T,
+    Ey::T,
+    Ez::T,
+    Bx::T,
+    By::T,
+    Bz::T,
+    qm::T,
+    dt::T,
+    c::T,
+) where {T}
+    out, parts, u, c2 = _boris_rel_parts(vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, qm, dt, c)
+    T <: _RangeGuardedFloat || return out
+    _boris_rel_in_range(out, parts, u, qm, dt, c2) && return out
+    return _boris_rel_repair(out, vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, qm, dt, c)
+end
+
+# The same push in 256-bit BigFloat, rounded once to T. (|u|/c)² can exceed the
+# next IEEE format for extreme c (for Float32 inputs up to 2^1068), so all
+# flagged types use BigFloat. The Lorentz gap 1 - |v|²/c² is formed exactly, so
+# its cancellation cannot vanish or change sign; an exactly superluminal input
+# that the rounded test accepted is rejected.
+@noinline function _boris_rel_repair(
+    out::NTuple{3,T},
+    vx::T,
+    vy::T,
+    vz::T,
+    Ex::T,
+    Ey::T,
+    Ez::T,
+    Bx::T,
+    By::T,
+    Bz::T,
+    qm::T,
+    dt::T,
+    c::T,
+) where {T}
+    all(isfinite, (vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, qm, dt, c)) || return out
+    gap = _exact_lorentz_gap(vx, vy, vz, c)
+    gap > 0 || throw(ArgumentError("_boris_rel: input velocity must be finite and satisfy |v| < c"))
+    wide = _kinematics_bigfloat() do
+        W = BigFloat
+        ginit = inv(sqrt(W(gap)))
+        fields = map(W, (Ex, Ey, Ez, Bx, By, Bz))
+        u = (ginit * W(vx), ginit * W(vy), ginit * W(vz))
+        first(_boris_rel_momentum(u..., fields..., W(qm), W(dt), W(c)^2))
+    end
+    return map(x -> _kinematics_round(T, x), wide)
 end
 
 # Push one species' velocities (in place) given per-particle gathered fields.
@@ -634,41 +740,77 @@ end
     dt::T,
 ) where {T}
     qm = s.q / s.m
-    vx = s.v[1]
-    vy = s.v[2]
-    vz = s.v[3]
     z = zero(T)
-    if es.relativistic
-        cc = es.c
-        @inbounds for p in eachindex(s.weight)
-            nx, ny, nz =
-                _boris_rel(vx[p], vy[p], vz[p], Exp[p], Eyp[p], z, z, z, Bzp[p], qm, dt, cc)
-            vx[p] = nx
-            vy[p] = ny
-            vz[p] = nz
-        end
+    h = qm * dt / 2
+    scales = _boris_batch_scales(s.v, (Exp, Eyp, z), (z, z, Bzp), h, eachindex(s.weight))
+    rel = es.relativistic
+    certified =
+        rel ? _boris_rel_batch_certificate(h, qm, dt, es.c, scales...) :
+        first(_boris_batch_certificate(h, qm, dt, scales...))
+    E, B = (Exp, Eyp, nothing), (nothing, nothing, Bzp)
+    if rel
+        certified ? _empic_kicks!(s, E, B, qm, dt, es.c, Val(true), Val(false)) :
+        _empic_kicks!(s, E, B, qm, dt, es.c, Val(true), Val(true))
     else
-        @inbounds for p in eachindex(s.weight)
-            nx, ny, nz = boris_kick(vx[p], vy[p], vz[p], Exp[p], Eyp[p], z, z, z, Bzp[p], qm, dt)
-            vx[p] = nx
-            vy[p] = ny
-            vz[p] = nz
-        end
+        certified ? _empic_kicks!(s, E, B, qm, dt, es.c, Val(false), Val(false)) :
+        _empic_kicks!(s, E, B, qm, dt, es.c, Val(false), Val(true))
+    end
+    return s
+end
+
+# Field sample of an EMPIC kick: `nothing` marks a component that is identically
+# zero in the 1D polarization split.
+@inline _empic_sample(a::AbstractVector, p, ::Type{T}) where {T} = @inbounds a[p]
+@inline _empic_sample(::Nothing, p, ::Type{T}) where {T} = zero(T)
+
+# One species' kicks: `rel` selects the relativistic push and `guard` the
+# guarded (true) or native (false) evaluation.
+function _empic_kicks!(
+    s::ParticleSet{D,T},
+    E,
+    B,
+    qm::T,
+    dt::T,
+    c::T,
+    ::Val{rel},
+    guard::Val,
+) where {D,T,rel}
+    vx, vy, vz = s.v
+    @inbounds for p in eachindex(s.weight)
+        ex, ey, ez = _empic_sample(E[1], p, T), _empic_sample(E[2], p, T), _empic_sample(E[3], p, T)
+        bx, by, bz = _empic_sample(B[1], p, T), _empic_sample(B[2], p, T), _empic_sample(B[3], p, T)
+        nx, ny, nz =
+            rel ? _rel_kick_eval(guard, vx[p], vy[p], vz[p], ex, ey, ez, bx, by, bz, qm, dt, c) :
+            _kick_eval(guard, vx[p], vy[p], vz[p], ex, ey, ez, bx, by, bz, qm, dt)
+        vx[p] = nx
+        vy[p] = ny
+        vz[p] = nz
     end
     return s
 end
 
 # Drift one species x^n → x^{n+1}; record the wrapped midpoint x^{n+1/2} into
-# `mid`. Caller wraps x afterwards with apply_periodic!.
+# `mid`. Caller wraps x afterwards with apply_periodic!. Coordinates follow the
+# normwise range contract of _particle_coordinate.
 @inline function _drift_record_mid!(s::ParticleSet{1,T}, mid::Vector{T}, dt::T, L::T) where {T}
-    xx = s.x[1]
-    vx = s.v[1]
-    @inbounds for p in eachindex(xx)
-        xmid = xx[p] + (dt / 2) * vx[p]
-        xx[p] += dt * vx[p]
-        mid[p] = mod(xmid, L)
+    indices = eachindex(s.x[1])
+    xmax = _coordinate_batch_max(s.x, T)
+    vmax = _coordinate_batch_max((s.v[1],), T)
+    if _coordinate_batch_certified(xmax, dt, vmax)
+        _drift_record_mid_loop!(s.x[1], s.v[1], mid, dt, L, Val(false))
+    else
+        _drift_record_mid_loop!(s.x[1], s.v[1], mid, dt, L, Val(true))
     end
     return s
+end
+
+@inline function _drift_record_mid_loop!(xx, vx, mid, dt, L, guard::Val)
+    @inbounds for p in eachindex(xx)
+        xmid = _coordinate_eval(guard, xx[p], vx[p], dt / 2)
+        xx[p] = _coordinate_eval(guard, xx[p], vx[p], dt)
+        mid[p] = mod(xmid, L)
+    end
+    return xx
 end
 
 # ---------------------------------------------------------------- init
@@ -1247,8 +1389,44 @@ end
 # One-time leapfrog priming for EMPIC1D. The loaded velocity is the physical v^0, but the Boris
 # push expects v^{-1/2}; back it up a half step v^{-1/2} = v^0 − h·a^0, a^0 = qm(E + v×B) with
 # B = (0,0,Bz). `h` is the species' half-step (dt_e/2 for electrons, dt_ion/2 for ions). Restores
-# 2nd-order temporal accuracy (verified: rate 1 → 2 for both species).
+# 2nd-order temporal accuracy (verified: rate 1 → 2 for both species). Ordinary inputs keep the
+# native order; range-flagged Float16/32/64 back-ups are evaluated wider and rounded once, and a
+# backed-up velocity that exceeds the type throws an ArgumentError (kinematics_range.jl).
 @inline function _prime_empic1d!(v, Exp, Eyp, Bzp, qm, h, np, rel::Bool, c)
+    T = typeof(h)
+    z = zero(T)
+    if rel
+        scales = _euler_batch_scales(v, (Exp, Eyp, z), (z, z, Bzp), (h, qm), 1:np, T)
+        if _rel_prime_batch_certificate(h, qm, c, scales...)
+            _prime_empic1d_loop!(v, Exp, Eyp, Bzp, qm, h, np, c, Val(true), Val(false))
+        else
+            _prime_empic1d_loop!(v, Exp, Eyp, Bzp, qm, h, np, c, Val(true), Val(true))
+        end
+    else
+        hq = h * qm
+        # The planar back-up reads and writes only u_x and u_y.
+        scales = _euler_batch_scales((v[1], v[2], z), (Exp, Eyp, z), (z, z, Bzp), hq, 1:np, T)
+        if _euler_batch_certificate(h, qm, hq, scales...)
+            _prime_empic1d_loop!(v, Exp, Eyp, Bzp, qm, h, np, c, Val(false), Val(false))
+        else
+            _prime_empic1d_loop!(v, Exp, Eyp, Bzp, qm, h, np, c, Val(false), Val(true))
+        end
+    end
+    return v
+end
+
+function _prime_empic1d_loop!(
+    v,
+    Exp,
+    Eyp,
+    Bzp,
+    qm,
+    h,
+    np,
+    c,
+    ::Val{rel},
+    ::Val{guard},
+) where {rel,guard}
     vx, vy, vz = v
     if rel
         # the relativistic Boris push works in momentum u=γv, so back up MOMENTUM:
@@ -1256,8 +1434,10 @@ end
         # directly (below) leaves an O(dt) momentum error ∝ the bulk drift → 1st order.
         c2 = c * c
         o = one(c)
+        z = zero(c)
         @inbounds for p = 1:np
             bz = Bzp[p]
+            ex, ey = Exp[p], Eyp[p]
             v0x = vx[p]
             v0y = vy[p]
             v0z = vz[p]
@@ -1269,27 +1449,55 @@ end
                 ArgumentError("_prime_empic1d!: input velocity must be finite and satisfy |v| < c"),
             )
             g0 = o / sqrt(o - β2)
-            ax = qm * (Exp[p] + v0y * bz)                 # a = qm(E + v×B), B=(0,0,B_z)
-            ay = qm * (Eyp[p] - v0x * bz)
-            umx = g0 * v0x - h * ax
-            umy = g0 * v0y - h * ay
+            ax = qm * (ex + v0y * bz)                     # a = qm(E + v×B), B=(0,0,B_z)
+            ay = qm * (ey - v0x * bz)
+            gx = g0 * v0x
+            gy = g0 * v0y
+            kx = h * ax
+            ky = h * ay
+            umx = gx - kx
+            umy = gy - ky
             umz = g0 * v0z
             gm = sqrt(o + (umx * umx + umy * umy + umz * umz) / c2)
-            vx[p] = umx / gm
-            vy[p] = umy / gm
-            vz[p] = umz / gm
+            primed = (umx / gm, umy / gm, umz / gm)
+            if guard &&
+               !_rel_prime_in_range(primed, (gx, gy, umz), (ax, ay, z), (kx, ky, z), gm, h, qm, c2)
+                primed =
+                    _rel_prime_repair(primed, (v0x, v0y, v0z), (ex, ey, z), (z, z, bz), qm, h, c)
+            end
+            vx[p], vy[p], vz[p] = primed
         end
     else
+        hq = h * qm
+        z = zero(hq)
         @inbounds for p = 1:np
             bz = Bzp[p]
+            ex, ey = Exp[p], Eyp[p]
             ux, uy = vx[p], vy[p]
-            vx[p] = ux - h * qm * (Exp[p] + uy * bz)      # a_x = qm(Ex + v_y B_z)
-            vy[p] = uy - h * qm * (Eyp[p] - ux * bz)      # a_y = qm(Ey − v_x B_z)
+            ax = ex + uy * bz                             # a_x = qm(Ex + v_y B_z)/qm
+            ay = ey - ux * bz                             # a_y = qm(Ey − v_x B_z)/qm
+            kx = hq * ax
+            ky = hq * ay
+            primed = (ux - kx, uy - ky, z)
+            if guard &&
+               !_euler_kick_in_range(primed, (ax, ay, z, kx, ky, z), (ux, uy, z), h, qm, hq)
+                # The planar back-up is the 3-D one with u_z = E_z = B_x = B_y = 0.
+                primed = _euler_kick_repair(
+                    primed,
+                    (ux, uy, z),
+                    (ex, ey, z),
+                    (z, z, bz),
+                    h,
+                    qm,
+                    Val(:prime),
+                )
+            end
+            vx[p] = primed[1]
+            vy[p] = primed[2]
         end
     end
     return v
 end
-
 """
     step_empic!(es, electrons[, ions], dt)
 
@@ -1299,6 +1507,10 @@ the electrons and fields are advanced in `n_sub` substeps of `dt/n_sub`; the ion
 header of `full_pic.jl`. Changes in `dt` or `n_sub` retain the electron, ion,
 and magnetic-field half levels from the preceding step; zero timesteps leave
 this staggering unchanged. Returns `es`.
+
+A nonzero `dt` or substep `dt/n_sub` below `2*floatmin(T)` throws an
+`ArgumentError` before any state changes. Particle kicks, priming and drifts
+follow the normwise range contract of [`boris_kick`](@ref).
 """
 function step_empic!(
     es::EMPIC1D{T},
@@ -1312,12 +1524,14 @@ function step_empic!(
             throw(ArgumentError("mobile=true requires an ion ParticleSet in step_empic!"))
         _require_empic_ions(ions, es.mi)
     end
-    dtT = _validated_nonnegative_dt(T, dt; name = "step_empic!")
+    dtT =
+        _require_resolved_dt("step_empic!", _validated_nonnegative_dt(T, dt; name = "step_empic!"))
     ns = es.n_sub
     ns >= 1 || throw(ArgumentError("n_sub must be ≥ 1"))
     iszero(dtT) && return es            # dt=0 no-op: do not consume the one-time priming
     dt_e = dtT / ns
     dt_e > zero(T) || throw(ArgumentError("dt/n_sub must be representable and positive"))
+    _require_resolved_dt("step_empic! substep dt/n_sub", dt_e)
     next_time, next_step = _validated_step_clock(es.time[], es.step[], dt_e, ns)
     if es.relativistic
         _require_subluminal_velocities(e, es.c, "step_empic!")
@@ -1981,47 +2195,16 @@ end
     dt::T,
 ) where {D,T}
     qm = s.q / s.m
-    vx, vy, vz = s.v
+    h = qm * dt / 2
+    scales = _boris_batch_scales(s.v, Ep, Bp, h, eachindex(s.weight))
     if es.relativistic
-        cc = es.c
-        @inbounds for p in eachindex(s.weight)
-            nx, ny, nz = _boris_rel(
-                vx[p],
-                vy[p],
-                vz[p],
-                Ep[1][p],
-                Ep[2][p],
-                Ep[3][p],
-                Bp[1][p],
-                Bp[2][p],
-                Bp[3][p],
-                qm,
-                dt,
-                cc,
-            )
-            vx[p] = nx
-            vy[p] = ny
-            vz[p] = nz
-        end
+        certified = _boris_rel_batch_certificate(h, qm, dt, es.c, scales...)
+        certified ? _empic_kicks!(s, Ep, Bp, qm, dt, es.c, Val(true), Val(false)) :
+        _empic_kicks!(s, Ep, Bp, qm, dt, es.c, Val(true), Val(true))
     else
-        @inbounds for p in eachindex(s.weight)
-            nx, ny, nz = boris_kick(
-                vx[p],
-                vy[p],
-                vz[p],
-                Ep[1][p],
-                Ep[2][p],
-                Ep[3][p],
-                Bp[1][p],
-                Bp[2][p],
-                Bp[3][p],
-                qm,
-                dt,
-            )
-            vx[p] = nx
-            vy[p] = ny
-            vz[p] = nz
-        end
+        certified = first(_boris_batch_certificate(h, qm, dt, scales...))
+        certified ? _empic_kicks!(s, Ep, Bp, qm, dt, es.c, Val(false), Val(false)) :
+        _empic_kicks!(s, Ep, Bp, qm, dt, es.c, Val(false), Val(true))
     end
     return s
 end
@@ -2032,6 +2215,24 @@ end
     dt::T,
     L::NTuple{D,T},
 ) where {D,T}
+    indices = eachindex(s.weight)
+    xmax = _coordinate_batch_max(s.x, T)
+    vmax = _coordinate_batch_max(ntuple(d -> s.v[d], Val(D)), T)
+    if _coordinate_batch_certified(xmax, dt, vmax)
+        _drift_record_mid_loops!(s, mid, dt, L, Val(false))
+    else
+        _drift_record_mid_loops!(s, mid, dt, L, Val(true))
+    end
+    return s
+end
+
+@inline function _drift_record_mid_loops!(
+    s::ParticleSet{D,T},
+    mid::NTuple{D,Vector{T}},
+    dt::T,
+    L::NTuple{D,T},
+    guard::Val,
+) where {D,T}
     @inbounds for d = 1:D
         x = s.x[d]
         v = s.v[d]
@@ -2039,8 +2240,8 @@ end
         length(xm) == length(x) ||
             throw(DimensionMismatch("midpoint buffer length must equal particle count"))
         for p in eachindex(x)
-            xmid = x[p] + (dt / 2) * v[p]
-            x[p] += dt * v[p]
+            xmid = _coordinate_eval(guard, x[p], v[p], dt / 2)
+            x[p] = _coordinate_eval(guard, x[p], v[p], dt)
             xm[p] = mod(xmid, L[d])
         end
     end
@@ -2161,6 +2362,10 @@ species is required when `mobile=true` and ignored otherwise. Ions receive one
 velocity kick per full step and drift during every substep. Changes in `dt` or
 `n_sub` retain the electron, ion, and magnetic-field half levels from the
 preceding step; zero timesteps leave this staggering unchanged.
+
+A nonzero `dt` or substep `dt/n_sub` below `2*floatmin(T)` throws an
+`ArgumentError` before any state changes. Particle kicks, priming and drifts
+follow the normwise range contract of [`boris_kick`](@ref).
 """
 function step_empic!(
     es::EMPIC{D,T},
@@ -2174,12 +2379,14 @@ function step_empic!(
             throw(ArgumentError("mobile=true requires an ion ParticleSet in step_empic!"))
         _require_empic_ions(ions, es.mi)
     end
-    dtT = _validated_nonnegative_dt(T, dt; name = "step_empic!")
+    dtT =
+        _require_resolved_dt("step_empic!", _validated_nonnegative_dt(T, dt; name = "step_empic!"))
     ns = es.n_sub
     ns >= 1 || throw(ArgumentError("n_sub must be ≥ 1"))
     iszero(dtT) && return es            # dt=0 no-op: do not consume the one-time priming
     dt_e = dtT / ns
     dt_e > zero(T) || throw(ArgumentError("dt/n_sub must be representable and positive"))
+    _require_resolved_dt("step_empic! substep dt/n_sub", dt_e)
     next_time, next_step = _validated_step_clock(es.time[], es.step[], dt_e, ns)
     if es.relativistic
         _require_subluminal_velocities(e, es.c, "step_empic!")

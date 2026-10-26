@@ -1034,6 +1034,7 @@ is collective for either population form. A pressure/numerical rejection restore
 public fields, particle positions/velocities, and clocks before returning an error.
 MPI transport and particle-migration failures are outside that rollback contract.
 `TransportElectrons` is serial-only and rejected collectively, even for zero `dt`.
+The `dt` validation and particle range contract are those of [`step!`](@ref).
 """
 function mpi_step!(
     st::HybridStepper{D,T},

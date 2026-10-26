@@ -68,3 +68,18 @@ function _validated_nonnegative_dt(
     dtT >= zero(T) || throw(ArgumentError("$name requires nonnegative dt (got $dt)"))
     return dtT
 end
+
+# Particle pushers and steppers form dt/2 for leapfrog priming, midpoints and
+# staggered kicks. A nonzero |dt| < 2*floatmin(T) is subnormal or has a
+# subnormal half step, which silently erases or truncates those terms, so it is
+# rejected before any state changes. dt = 0 keeps each caller's own semantics.
+function _require_resolved_dt(name::AbstractString, dt::T) where {T<:AbstractFloat}
+    iszero(dt) ||
+        abs(dt) >= 2 * floatmin(T) ||
+        throw(
+            ArgumentError(
+                "$name requires dt = 0 or |dt| >= 2*floatmin($T) (got $dt): subnormal timesteps and half steps are not resolved",
+            ),
+        )
+    return dt
+end

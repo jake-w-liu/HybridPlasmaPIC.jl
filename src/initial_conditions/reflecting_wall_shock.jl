@@ -313,6 +313,10 @@ end
 Advance the perpendicular shock one timestep: Boris push (E^n,B^n) → reflect at
 the wall (x=0, lo-only) / absorb past the inflow (x=Lx) → deposit n,u_x →
 subcycle Bz (SBP + SAT + η) → recompute E.
+Nonzero `dt` below `2*floatmin(T)` throws an `ArgumentError` before any state
+changes. Pushes and drifts follow the normwise range contract of
+[`boris_kick`](@ref): a drift whose rounded `x + dt*v` overflows although the
+exact coordinate is finite is evaluated wider instead of absorbing the particle.
 """
 function step_shock!(
     sh::PerpShock{T},
@@ -329,17 +333,22 @@ function step_shock!(
     vx = ps.v[1]
     vy = ps.v[2]
     vz = ps.v[3]
-    # 1. push with carried E^n, B^n
+    # 1. push with carried E^n, B^n (native loop when the batch is certified)
+    guard = !_shock_batch_certified(ps, (sh.Ex, sh.Ey), (sh.Bz,), dtT)
     @inbounds for p in eachindex(ps.weight)
         Exp = _gather_sbp(sh.Ex, xp[p], dx, N)
         Eyp = _gather_sbp(sh.Ey, xp[p], dx, N)
         Bzp = _gather_sbp(sh.Bz, xp[p], dx, N)
+        fields = (Exp, Eyp, zero(T), zero(T), zero(T), Bzp, one(T), dtT)
         nx, ny, nz =
-            boris_kick(vx[p], vy[p], vz[p], Exp, Eyp, zero(T), zero(T), zero(T), Bzp, one(T), dtT)
+            guard ? boris_kick(vx[p], vy[p], vz[p], fields...) :
+            _boris_kick_native(vx[p], vy[p], vz[p], fields...)
         vx[p] = nx
         vy[p] = ny
         vz[p] = nz
-        xp[p] += dtT * nx
+        xp[p] =
+            guard ? _particle_coordinate(xp[p], nx, dtT) :
+            _particle_coordinate_native(xp[p], nx, dtT)
     end
     # 2. reflecting wall at x=0 (lo only — DO NOT reflect the inflow at x=Lx)
     @inbounds for p in eachindex(ps.weight)
@@ -524,6 +533,10 @@ end
 One step of the §11.3 wall-less shock-rest-frame perpendicular shock: Boris push →
 two-ended particle recycle (no wall) → deposit → two-ended-BC Bz subcycle →
 recompute E. Particle count is exactly conserved (recycle is in place).
+Nonzero `dt` below `2*floatmin(T)` throws an `ArgumentError` before any state
+changes. Pushes and drifts follow the normwise range contract of
+[`boris_kick`](@ref): a drift whose rounded `x + dt*v` overflows although the
+exact coordinate is finite is evaluated wider instead of recycling the particle.
 """
 function step_leroy_shock!(
     sh::PerpShock{T},
@@ -541,17 +554,22 @@ function step_leroy_shock!(
     vy = ps.v[2]
     vz = ps.v[3]
     rng = bc.rng
-    # 1. push with carried E^n, B^n
+    # 1. push with carried E^n, B^n (native loop when the batch is certified)
+    guard = !_shock_batch_certified(ps, (sh.Ex, sh.Ey), (sh.Bz,), dtT)
     @inbounds for p in eachindex(ps.weight)
         Exp = _gather_sbp(sh.Ex, xp[p], dx, N)
         Eyp = _gather_sbp(sh.Ey, xp[p], dx, N)
         Bzp = _gather_sbp(sh.Bz, xp[p], dx, N)
+        fields = (Exp, Eyp, zero(T), zero(T), zero(T), Bzp, one(T), dtT)
         nx, ny, nz =
-            boris_kick(vx[p], vy[p], vz[p], Exp, Eyp, zero(T), zero(T), zero(T), Bzp, one(T), dtT)
+            guard ? boris_kick(vx[p], vy[p], vz[p], fields...) :
+            _boris_kick_native(vx[p], vy[p], vz[p], fields...)
         vx[p] = nx
         vy[p] = ny
         vz[p] = nz
-        xp[p] += dtT * nx
+        xp[p] =
+            guard ? _particle_coordinate(xp[p], nx, dtT) :
+            _particle_coordinate_native(xp[p], nx, dtT)
     end
     # 2. two-ended recycle (NO wall): each exiting ion is reinserted in place, as
     #    fresh upstream inflow (prob p_up) or a downstream-reservoir ion (else).

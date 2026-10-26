@@ -1871,7 +1871,10 @@ end
     setprecision(BigFloat, 4096) do
         for T in (Float32, Float64), State in (EMPIC1D, EMPIC)
             scale = ldexp(one(T), T === Float32 ? -100 : -700)
-            dt = nextfloat(zero(T))
+            # Subnormal timesteps (or subnormal half steps) are rejected before
+            # any state changes; the smallest resolved timestep keeps the
+            # original-operand half intervals.
+            dt = 2floatmin(T)
             g = FourierGrid((4,), (T(2pi) * scale,))
             e = ParticleSet{1,T}(0; q = -one(T), m = one(T))
             es = State(g, 0; n0 = zero(T), c = one(T))
@@ -1879,6 +1882,11 @@ end
             B = es isa EMPIC1D ? (zeros(T, g.n), zeros(T, g.n), es.Bz) : es.B
             E[2] .= T[0, 1, 0, -1]
             init_empic!(es, e)
+            before = deepcopy((E, B, es.time[], es.step[], es.last_dt[], es.last_sub_dt[]))
+            for unresolved in (nextfloat(zero(T)), floatmin(T), prevfloat(dt))
+                @test_throws ArgumentError step_empic!(es, e, unresolved)
+                @test (E, B, es.time[], es.step[], es.last_dt[], es.last_sub_dt[]) == before
+            end
             expected_E, expected_B = map(copy, E), map(copy, B)
             matrices = _empic_dft_matrices(g)
             previous = zero(T)
