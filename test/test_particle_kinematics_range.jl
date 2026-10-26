@@ -1,8 +1,9 @@
 module ParticleKinematicsRangeTests
 # Normwise range contract of the particle kinematics (kinematics_range.jl):
-# ordinary inputs are bitwise those of the historical formulas, range-flagged
-# inputs agree with independent exact references to a few ulps of the
-# operation scale, and public steppers reject unresolved timesteps.
+# certified native inputs retain historical bits; repaired IEEE priming uses
+# rounding-cell certification before wider replay. Range-flagged results agree
+# with independent exact references to a few ulps of the operation scale, and
+# public steppers reject unresolved timesteps.
 using HybridPlasmaPIC, Test, Random, LinearAlgebra, Serialization
 import MPI
 const H = HybridPlasmaPIC
@@ -256,7 +257,36 @@ spans(::Type{Float32}) = 8
 spans(::Type{Float64}) = 16
 const NORDINARY = 100_000
 
-@testset "Ordinary kinematics are bitwise the historical formulas" begin
+# This classification uses only the physical reference and the documented
+# output-conditioning threshold. It does not inspect candidate flags/differences.
+function check_rel_prime_compatibility(actual, historical, start, Ep, Bp, qm, h, c)
+    certified = repaired = unchanged_failures = rounding_failures = 0
+    for p in eachindex(start[1])
+        v, E, B = map(arrays -> ntuple(i -> arrays[i][p], 3), (start, Ep, Bp))
+        reference, _ = rel_prime_reference(v, E, B, qm, h, c)
+        setprecision(BigFloat, 4096) do
+            beta2 = sum(abs2, reference) / BigFloat(c)^2
+            # This fixture's classification must be far from the uncertainty
+            # of its independent reference arithmetic. Boundary cases belong
+            # to dedicated interval/rounding controls instead of guesswork.
+            @assert abs(beta2 - BigFloat(0.5)) > 64eps(BigFloat)
+            observed = ntuple(i -> actual[i][p], 3)
+            if beta2 <= BigFloat(0.5)
+                certified += 1
+                unchanged_failures += !isequal(observed, ntuple(i -> historical[i][p], 3))
+            else
+                repaired += 1
+                rounding_failures += !isequal(observed, eltype(actual[1]).(reference))
+            end
+        end
+    end
+    @test certified + repaired == length(start[1])
+    @test unchanged_failures == 0
+    @test rounding_failures == 0
+    @info "Priming physical conditioning coverage" type = eltype(actual[1]) certified repaired
+end
+
+@testset "Kinematics preserve native bits or correctly round conditioned priming" begin
     for T in (Float16, Float32, Float64)
         rng = Xoshiro(0x6b696e)
         s = spans(T)
@@ -300,11 +330,21 @@ const NORDINARY = 100_000
             new, old = map(copy, start), map(copy, start)
             H._prime_leapfrog!(new, Ep, Bp, qm, h, n, rel_branch, c)
             old_prime!(old, Ep, Bp, qm, h, n, rel_branch, c)
-            @test isequal(new, old)
+            if rel_branch
+                check_rel_prime_compatibility(new, old, start, Ep, Bp, qm, h, c)
+            else
+                @test isequal(new, old)
+            end
             new, old = map(copy, start), map(copy, start)
             H._prime_empic1d!(new, Ep[1], Ep[2], Bp[3], qm, h, n, rel_branch, c)
             old_prime_empic1d!(old, Ep[1], Ep[2], Bp[3], qm, h, n, rel_branch, c)
-            @test isequal(new, old)
+            if rel_branch
+                z = fill(zero(T), n)
+                planar_E, planar_B = (Ep[1], Ep[2], z), (z, z, Bp[3])
+                check_rel_prime_compatibility(new, old, start, planar_E, planar_B, qm, h, c)
+            else
+                @test isequal(new, old)
+            end
         end
         new, old = map(similar, v), map(similar, v)
         H._predict_half_kick!(new, v, Ep, Bp, qm, h, n)
@@ -1345,4 +1385,7 @@ euler_certified(v, E, B, qm, h, n) = H._euler_batch_certificate(
         end
     end
 end
+
+include("particle_kinematics/lorentz_gap.jl")
+include("particle_kinematics/priming_publication.jl")
 end

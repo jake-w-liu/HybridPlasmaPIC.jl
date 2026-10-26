@@ -17,18 +17,23 @@ erasing half-step kicks and midpoints.
 
 ## Contract
 
-1. Ordinary inputs keep the native operation order: results are bitwise those
+1. Well-conditioned ordinary inputs keep the native operation order: results are bitwise those
    of the previous formulas.
 2. A guard over the native intermediates flags range loss; only flagged
    Float16/Float32/Float64 evaluations repeat the same expression wider and
    round once to `T`: Float16 → Float32, Float32 → Float64, Float64 → exact
    `Rational{BigInt}`. Relativistic expressions (square roots) use 256-bit
-   BigFloat for every flagged type with the exact Lorentz gap `1 - |v|²/c²`,
-   because `(|u|/c)²` can exceed the next IEEE format for extreme `c`.
+   BigFloat for unresolved flagged inputs with the exact Lorentz gap
+   `1 - |v|²/c²`, because `(|u|/c)²` can exceed the next IEEE format for
+   extreme `c`. Bounded IEEE priming first attempts a residual-certified
+   double-word evaluation of that same expression.
    Other number types keep native semantics; non-finite inputs propagate.
 3. Accuracy is a few ulps of the operation scale (`|v|`, `|h E|` for kicks,
    `|x| + |dt v|` for drifts); componentwise accuracy under cancellation is
-   not certified.
+   not certified in general. Relativistic priming whose native output has rounded normalized squared
+   speed `>1/2` uses the repair/publication tier: a normwise one-ulp stage
+   error there can amplify the next Lorentz gap. Every admitted fast repair
+   is certified to lie in one rounding cell; unresolved cells use BigFloat.
 4. A wide result that does not fit `T` is returned as `±Inf` for the caller's
    existing policy; a leapfrog/ES priming back-up that does not fit throws an
    `ArgumentError`.
@@ -46,9 +51,9 @@ the same preflight check before any particle update.
 | Expression | Owner | Guard (beyond finite outputs) |
 | --- | --- | --- |
 | Boris kick | `boris_kick`, `src/particles/boris.jl` | `h` normal or legitimately zero, `|t|²` finite, `f ≥ floatmin`, `S = max(|v|,|hE|)` zero or `≥ 256 floatmin (1+τ)` |
-| Relativistic Boris | `_boris_rel`, `src/models/full_pic.jl` | as above on momentum, plus `c²` normal, finite `γ⁻`, `γ⁺` |
+| Relativistic Boris | `_boris_rel`, `src/models/full_pic.jl` | as above on momentum, plus `c²` normal, finite `γ⁻`, `γ⁺`, and a resolved Lorentz factor |
 | Euler priming/predictor | `_euler_kick`, `src/particles/kinematics_range.jl` (used by `_prime_leapfrog!`, `_predict_half_kick!`, `_prime_empic1d!`) | `h*qm` normal or legitimately zero, finite `E + u×B`, scale `≥ 256 floatmin (1+|h qm|)` |
-| Relativistic priming | `_rel_prime_in_range`/`_rel_prime_repair` | `c²` normal, `h` normal or zero, finite acceleration and `γ`, scale `≥ 256 floatmin (1+|h|)(1+|qm|)` |
+| Relativistic priming | `_rel_prime_in_range`/`_rel_prime_repair` | `c²` normal, `h` normal or zero, finite acceleration and `γ`, resolved Lorentz factor and output squared speed `≤ c²/2`, scale `≥ 256 floatmin (1+|h|)(1+|qm|)` |
 | ES priming | `_es_prime_component` | `h*qm` normal or zero, scale `≥ 256 floatmin` |
 | Drift/midpoint | `_particle_coordinate` (push_uniform!/push_gathered!, hybrid, EMPIC1D/EMPIC, ES, 7 shock updates) | finite result only (subnormal sums are exact) |
 
@@ -70,7 +75,7 @@ reduction without calls or writes: max |v|, |E|, |B| (|x| for drifts) and the
 smallest nonzero guard scale. A global certificate derived from these bounds
 (comments at `_boris_batch_certificate` and siblings in `kinematics_range.jl`)
 proves that every particle passes its guard; the batch then runs the native
-historical loop (bitwise unchanged, vectorized as before). Otherwise the guarded
+historical loop with the same arithmetic order. Otherwise the guarded
 loop runs on the untouched inputs. The scalar `boris_kick` keeps its per-call
 guard. Shock loops gather per particle, so their certificate uses grid maxima
 (nonnegative interpolation weights) and conservatively rejects particles at rest
@@ -85,9 +90,14 @@ unsupported.
 
 ## Verification
 
-`test/test_particle_kinematics_range.jl`: 10⁵ ordinary inputs per type are
-bitwise equal to copies of the previous formulas (Boris, relativistic Boris,
-priming both branches, planar priming, predictor, ES priming, drift); range
+`test/test_particle_kinematics_range.jl` retains 10⁵ ordinary inputs per type.
+Boris, relativistic Boris, nonrelativistic priming, predictor, ES priming and
+drift compare bitwise against copies of the previous formulas. For both
+relativistic priming owners, an independent 4096-bit reference classifies the
+physical output: squared speed/c² ≤1/2 must retain historical bits; the faster
+slice must equal the independently rounded stage. This is an explicit change
+from the original blanket priming bit-equality contract; those original
+failures are retained in the takeover evidence. Range
 witnesses from the certified chain agree with exact Rational (Cayley) or
 4096-bit BigFloat references within 4 ulps of the operation scale (Float64
 exact fallbacks equal the correctly rounded result); unresolved `dt` is
@@ -98,10 +108,34 @@ overflows.
 
 ## Performance (Apple M5, Julia 1.12.7, shared machine at load 27–70)
 
-The certified native loops have the parent's vector IR (120 `push_uniform!`,
+The original pre-takeover measurement recorded the parent's vector IR (120 `push_uniform!`,
 62 EMPIC kicks, 34 priming, 34 predictor operations); the pre-passes vectorize.
 The scalar `boris_kick` keeps its per-call guard, so a loop over it stays scalar
 (`boris_bench.jl`: 14.2–14.7 against 3.6–3.8 / 7.7–7.9 ns per push, about
 3.9× / 1.9×). `push_uniform!` costs about 1.3× the parent (one extra fused
 read of velocities and positions against a very cheap native kernel);
 `push_gathered!`, hybrid 2D and ES 2D steps are within the load noise.
+
+## Lorentz-gap conditioning follow-up
+
+The [takeover audit](KINEMATICS_AUDIT_20261027.md) records a reproduced error
+in accepted near-light-speed states: finite native intermediates did not bound
+the cancellation in `1-β²`. Relativistic Boris and both priming paths now
+resolve the stored Lorentz gap with shared scaled error-free arithmetic when
+rounded `β² > 1/2`; unresolved gaps and other range failures retain the
+existing exact-gap replay. Their batch
+certificates require every velocity component to be at most `c/4` before
+bypassing scalar guards; other batches retain per-particle admission. The
+accepted input domain and well-conditioned ordinary operation order are
+unchanged. The scaled factor rejects gaps below its resolved arithmetic range; it never
+clips a gap or velocity. Priming also checks the output conditioning: a
+native published stage with rounded normalized squared speed `>1/2` enters
+a bounded residual-certified DD tier.
+Exact expansion residuals and outward interval propagation certify each
+component's rounding cell, including the uncertainty of the final gamma.
+Failed arithmetic/cell admission retains the existing BigFloat replay.
+The old blanket ordinary-bit fixture is not claimed passed: high-output-speed
+Float32/64 priming changes ordinary results by a few ulps. The revised test
+keeps every original input and unchanged whole-step tolerances.
+High-speed allocations and cost are measured
+separately; no performance acceptance is claimed while the machine is shared.

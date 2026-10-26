@@ -35,13 +35,63 @@ _kinematics_round(::Type{T}, x::BigFloat) where {T} = _from_exact(T, _exact_rati
 # Relativistic expressions contain square roots, so their flagged evaluations
 # use 256-bit BigFloat. The setprecision/setrounding do-block scopes are
 # task-local on the supported Julia versions (ScopedValue based, checked on
-# 1.12.7 and 1.13.2); the global MPFR state is never changed. Only arithmetic
+# 1.12.7 and 1.13.3); the global MPFR state is never changed. Only arithmetic
 # and sqrt are used, which do not touch MPFR's shared constant caches.
 const _KINEMATICS_BIGFLOAT_BITS = 256
 _kinematics_bigfloat(f) =
     setprecision(BigFloat, _KINEMATICS_BIGFLOAT_BITS) do
         setrounding(f, BigFloat, RoundNearest)
     end
+
+# A rounded gap 1 - β² is well conditioned when β² <= 1/2: the gap
+# is at least 1/2, so errors in the positive norm sum are not magnified by
+# cancellation. Faster particles resolve a scaled gap or retain exact-gap replay.
+@inline _lorentz_gap_in_range(β2) = β2 <= oftype(β2, 0.5)
+
+# The historical Lorentz factor is retained when its subtraction is well
+# conditioned. Faster IEEE particles first resolve the scaled gap with the
+# shared error-free/double-word arithmetic; an unresolved gap retains the
+# existing exact-gap replay. The flag belongs to the factor, not the input
+# speed, so a corrected factor may pass the ordinary momentum range guard.
+@inline _native_lorentz_factor(β2) = one(β2) / sqrt(one(β2) - β2)
+
+@inline function _conditioned_lorentz_factor(v::NTuple{3,T}, c::T, β2::T) where {T}
+    native = _native_lorentz_factor(β2)
+    (!(T <: _RangeGuardedFloat) || _lorentz_gap_in_range(β2)) && return native, true
+    return _scaled_lorentz_factor(native, v, c)
+end
+
+@inline function _lorentz_gap_words(v::NTuple{3,T}, c::T) where {T}
+    cf = abs(Float64(c))
+    kc = exponent(cf)
+    ĉ = ldexp(cf, -kc)
+    v̂ = map(x -> ldexp(Float64(x), -kc), v)
+    all(isfinite, v̂) || return ĉ, (0.0, 0.0), ntuple(_ -> 0.0, 8)
+    c2 = _eft_two_product(ĉ, ĉ)
+    p1 = _eft_two_product(v̂[1], v̂[1])
+    p2 = _eft_two_product(v̂[2], v̂[2])
+    p3 = _eft_two_product(v̂[3], v̂[3])
+    squares = (c2[2], c2[1], -p1[2], -p1[1], -p2[2], -p2[1], -p3[2], -p3[1])
+    return ĉ, _eft_sum_dd(squares), squares
+end
+
+@inline function _lorentz_factor_words(v::NTuple{3,T}, c::T) where {T}
+    ĉ, gap, _ = _lorentz_gap_words(v, c)
+    # At most a few minimum-subnormal quanta can be lost by scaled products
+    # and their low parts. Above 2^-900 this is far below double-word relative
+    # precision; sqrt corrections down to roughly 2^-1006 remain normal and
+    # gamma is below roughly 2^450. Reject unresolved gaps instead of clipping.
+    gap[1] >= 0x1p-900 || return (0.0, 0.0), false
+    gamma = _dd_div((ĉ, 0.0), _dd_sqrt(gap))
+    return gamma, all(isfinite, gamma)
+end
+
+@noinline function _scaled_lorentz_factor(native::T, v::NTuple{3,T}, c::T) where {T}
+    words, resolved = _lorentz_factor_words(v, c)
+    resolved || return native, false
+    gamma = T(words[1] + words[2])
+    return gamma, isfinite(gamma)
+end
 
 # 1 - |v|²/c² from the stored operands. The rounded test β² < 1 accepts speeds
 # within rounding of c, where any rounded gap can vanish or change sign.
@@ -197,11 +247,25 @@ end
 # Underflowing products inside E + v0×B are amplified by |qm| and then |h|; the
 # total stays below floatmin*eps*(1 + |h|)*(1 + |qm|), which the scale
 # threshold keeps under eps*S/256 for S = max(|γ0 v0|, |h a|).
-@inline function _rel_prime_in_range(out::NTuple{3,T}, g, a, k, gm, h::T, qm::T, c2::T) where {T}
+@inline function _rel_prime_in_range(
+    out::NTuple{3,T},
+    g,
+    a,
+    k,
+    gm,
+    h::T,
+    qm::T,
+    c2::T,
+    gap_resolved::Bool,
+) where {T}
     T <: _RangeGuardedFloat || return true
     tiny = floatmin(T)
     S = max(abs(g[1]), abs(g[2]), abs(g[3]), abs(k[1]), abs(k[2]), abs(k[3]))
-    return isfinite(c2) &
+    βout = map(x -> x / sqrt(c2), out)
+    publication_resolved = _lorentz_gap_in_range(sum(abs2, βout))
+    return gap_resolved &
+           publication_resolved &
+           isfinite(c2) &
            (c2 >= tiny) &
            isfinite(h) &
            ((abs(h) >= tiny) | iszero(h)) &
@@ -221,6 +285,10 @@ end
 # components. The result |v| < c always fits T.
 @noinline function _rel_prime_repair(out::NTuple{3,T}, v0, e, b, qm::T, h::T, c::T) where {T}
     all(isfinite, (v0..., e..., b..., qm, h, c)) || return out
+    if T <: _RangeGuardedFloat
+        candidate, resolved = _rel_prime_dd_attempt(out, v0, e, b, qm, h, c)
+        resolved && return candidate
+    end
     gap = _exact_lorentz_gap(v0..., c)
     gap > 0 || throw(ArgumentError("leapfrog priming: input velocity must satisfy |v| < c"))
     wide = _kinematics_bigfloat() do
@@ -342,7 +410,9 @@ end
 # so the nonrelativistic bounds hold with w = G max|v| + k. |u⁻|²/c² and
 # |u⁺|²/c² are below 3(2.5 bound)²/c² <= floatmax when bound²/c² <= floatmax/32,
 # so γ⁻ and γ⁺ are finite and |v⁺| < c. γ0 >= 1 makes |u_p| >= |v_p|, so the
-# velocity-based smin bounds the momentum scale from below.
+# velocity-based smin bounds the momentum scale from below. The additional
+# vmax <= c/4 condition gives β² <= 3/16, so no native batch bypasses the
+# Lorentz-gap conditioning guard.
 @inline function _boris_rel_batch_certificate(
     h::T,
     qm::T,
@@ -358,7 +428,8 @@ end
     k = 2 * (abs(h) * emax)
     tau = 2 * (abs(h) * bmax)
     bound = 4 * (2 * sqrt(2 / eps(T)) * vmax + k) * (1 + 2tau)^2
-    return isfinite(c2) &
+    return (vmax <= c / 4) &
+           isfinite(c2) &
            (c2 >= floatmin(T)) &
            _kinematics_product_in_range(h, qm, dt) &
            (tau <= sqrt(floatmax(T)) / 4) &
@@ -408,17 +479,19 @@ end
 # Relativistic back-up (guard _rel_prime_in_range): |a| <= A = 2|qm|(max|E| +
 # 2 max|u| max|B|), |γ0 v0| <= G max|u| with G as above, |um| <= w/4 and
 # |um|²/c² <= w²/c² <= floatmax/32, so a, γ and the result (|v| < c) are finite;
-# γ0 >= 1 makes σ_p a lower bound of max(|γ0 v0|, |h a|).
+# γ0 >= 1 makes σ_p a lower bound of max(|γ0 v0|, |h a|). Requiring
+# umax <= c/4 also proves the Lorentz gap is well conditioned for every row.
 @inline function _rel_prime_batch_certificate(h::T, qm::T, c::T, umax, emax, bmax, smin) where {T}
     T <: _RangeGuardedFloat || return true
     c2 = c * c
     A = 2 * (abs(qm) * (emax + 2 * (umax * bmax)))
     w = 4 * (2 * sqrt(2 / eps(T)) * umax + abs(h) * A)
-    return isfinite(c2) &
+    return (umax <= c / 4) &
+           isfinite(c2) &
            (c2 >= floatmin(T)) &
            isfinite(h) &
            ((abs(h) >= floatmin(T)) | iszero(h)) &
-           (w <= floatmax(T) / 4) &
+           (w <= min(c, floatmax(T) / 4)) &
            ((w * w) / c2 <= floatmax(T) / 32) &
            (smin >= floatmin(T) * T(256) * (one(T) + abs(h)) * (one(T) + abs(qm)))
 end

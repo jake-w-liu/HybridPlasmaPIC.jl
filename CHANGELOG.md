@@ -293,6 +293,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   unchanged. The separate concurrent MPFR shared-cache runtime gap remains open;
   directed enclosure assumes correctly rounded primitives.
 
+- Relativistic Boris and leapfrog priming resolve the Lorentz gap from stored
+  velocity components near the light cone. Priming uses residual intervals to
+  certify a rounded result before high-precision replay. Well-conditioned
+  certified inputs retain historical bits; other priming results can change.
+  The guarantee is local normwise accuracy, with near-light trajectory and
+  representable output-cone limits described in `docs/PARTICLE_PRIMING_INTERVALS.md`.
+
 - `push_gathered!` rejects midpoint outputs that overlap particle arrays,
   gathered fields or other midpoint components before mutation on CPU and
   Metal. Disjoint buffers and shared read-only E/B inputs retain their behavior.

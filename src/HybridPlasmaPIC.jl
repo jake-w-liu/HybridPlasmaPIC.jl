@@ -39,6 +39,7 @@ using SpectralOperators:
 include("extensions.jl")
 include("utils/validation.jl")
 include("utils/exact_arithmetic.jl")
+include("utils/error_free_arithmetic.jl")
 
 # §5.3 source tree. Grouped by subsystem directory; include order is the original
 # verified dependency order. Spectral and mixed SBP/Fourier operators live in the
@@ -56,6 +57,7 @@ include("models/abstract_model.jl")
 include("particles/particle_set.jl")
 include("particles/loading.jl")
 include("particles/kinematics_range.jl")
+include("particles/relativistic_priming_dd.jl")
 include("particles/boris.jl")
 include("particles/radiation_reaction.jl")
 include("particles/sorting.jl")

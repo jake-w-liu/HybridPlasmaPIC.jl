@@ -47,6 +47,27 @@ The independent hand derivation below is tied to frozen numerical source
 It is not a machine-checked theorem. The unchanged executable expression tree
 connects that derivation to the integrated source.
 
+## Shared arithmetic integration
+
+The V5 particle repair moves the pure error-free and double-word routines to
+`src/utils/error_free_arithmetic.jl`, under `_eft_*`, `_dd_*` and
+`_DoubleFloat64` private names. Radiation retains its complete physical and
+admission policy, including the exact-invariant completion and amplification
+guard. No compatibility wrappers or duplicated arithmetic bodies are added.
+
+The integration source proof reconstructs all 35 top-level expressions from
+radiation commit `07792ab5b7ac5854948fe85fcb6ab196d43a3366` using the 16 moved
+definitions and 19 retained policy expressions. After the sealed bijective
+symbol mapping and line-node removal, the complete tree is equal. Guard,
+product and dropped-expression mutants are rejected. This proof changes no
+executable expression or documentation string in radiation. Fresh integrated
+checks with registered SpectralOperators 0.1.6 pass the same 54,877 affected,
+108 cold resource/task and 11,447 independent assertions on each runtime.
+All 2,432 raw independent cases match bitwise and all 21 cold allocation
+profiles match the original repair. Remaining integration gates are listed in
+[the tracker](KINEMATICS_V5_INTEGRATION_20261027.md); the historical receipts
+above retain their original source and dependency scope.
+
 ## Conservative arithmetic inventory
 
 This is a hand error derivation tied to the literal frozen operation order,

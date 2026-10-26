@@ -619,11 +619,20 @@ end
 # rotation and the velocity. Underflow of |u|²/c² only moves γ within floatmin
 # of one. S uses the momentum scale max(|γv|, |h E|); dividing by γf >= 1 does
 # not amplify the absolute error.
-@inline function _boris_rel_in_range(out::NTuple{3,T}, parts, u, qm::T, dt::T, c2::T) where {T}
+@inline function _boris_rel_in_range(
+    out::NTuple{3,T},
+    parts,
+    u,
+    qm::T,
+    dt::T,
+    c2::T,
+    gap_resolved::Bool,
+) where {T}
     h, hEx, hEy, hEz, γm, tx, ty, tz, t2, f, γf = parts
     S = max(abs(u[1]), abs(u[2]), abs(u[3]), abs(hEx), abs(hEy), abs(hEz))
     tau = max(abs(tx), abs(ty), abs(tz))
-    return isfinite(c2) &
+    return gap_resolved &
+           isfinite(c2) &
            (c2 >= floatmin(T)) &
            _kinematics_product_in_range(h, qm, dt) &
            isfinite(γm) &
@@ -654,7 +663,8 @@ end
     qm::T,
     dt::T,
     c::T,
-) where {T}
+    ::Val{guard},
+) where {T,guard}
     c2 = c * c
     βx = vx / c
     βy = vy / c
@@ -662,19 +672,21 @@ end
     β2 = βx * βx + βy * βy + βz * βz
     (isfinite(β2) && β2 < one(T)) ||
         throw(ArgumentError("_boris_rel: input velocity must be finite and satisfy |v| < c"))
-    ginit = one(T) / sqrt(one(T) - β2)
+    ginit, gap_resolved =
+        guard ? _conditioned_lorentz_factor((vx, vy, vz), c, β2) :
+        (_native_lorentz_factor(β2), true)
     # to momentum u = γ v
     ux = ginit * vx
     uy = ginit * vy
     uz = ginit * vz
     out, parts = _boris_rel_momentum(ux, uy, uz, Ex, Ey, Ez, Bx, By, Bz, qm, dt, c2)
-    return out, parts, (ux, uy, uz), c2
+    return out, parts, (ux, uy, uz), c2, gap_resolved
 end
 
 # Native-only relativistic push: the historical operation order, input
 # validation included (certified batch loops).
 @inline _boris_rel_native(vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, qm, dt, c) =
-    first(_boris_rel_parts(vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, qm, dt, c))
+    first(_boris_rel_parts(vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, qm, dt, c, Val(false)))
 
 @inline function _boris_rel(
     vx::T,
@@ -690,9 +702,10 @@ end
     dt::T,
     c::T,
 ) where {T}
-    out, parts, u, c2 = _boris_rel_parts(vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, qm, dt, c)
+    out, parts, u, c2, gap_resolved =
+        _boris_rel_parts(vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, qm, dt, c, Val(true))
     T <: _RangeGuardedFloat || return out
-    _boris_rel_in_range(out, parts, u, qm, dt, c2) && return out
+    _boris_rel_in_range(out, parts, u, qm, dt, c2, gap_resolved) && return out
     return _boris_rel_repair(out, vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, qm, dt, c)
 end
 
@@ -1448,7 +1461,9 @@ function _prime_empic1d_loop!(
             (isfinite(β2) && β2 < o) || throw(
                 ArgumentError("_prime_empic1d!: input velocity must be finite and satisfy |v| < c"),
             )
-            g0 = o / sqrt(o - β2)
+            g0, gap_resolved =
+                guard ? _conditioned_lorentz_factor((v0x, v0y, v0z), c, β2) :
+                (_native_lorentz_factor(β2), true)
             ax = qm * (ex + v0y * bz)                     # a = qm(E + v×B), B=(0,0,B_z)
             ay = qm * (ey - v0x * bz)
             gx = g0 * v0x
@@ -1461,7 +1476,17 @@ function _prime_empic1d_loop!(
             gm = sqrt(o + (umx * umx + umy * umy + umz * umz) / c2)
             primed = (umx / gm, umy / gm, umz / gm)
             if guard &&
-               !_rel_prime_in_range(primed, (gx, gy, umz), (ax, ay, z), (kx, ky, z), gm, h, qm, c2)
+               !_rel_prime_in_range(
+                primed,
+                (gx, gy, umz),
+                (ax, ay, z),
+                (kx, ky, z),
+                gm,
+                h,
+                qm,
+                c2,
+                gap_resolved,
+            )
                 primed =
                     _rel_prime_repair(primed, (v0x, v0y, v0z), (ex, ey, z), (z, z, bz), qm, h, c)
             end

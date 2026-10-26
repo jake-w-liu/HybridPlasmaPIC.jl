@@ -260,6 +260,11 @@ still apply, particularly when large terms nearly cancel. See the
 [diagnostic scope](docs/CONTINUITY_DIAGNOSTIC_RANGE_PLAN.md) and remaining
 [current-correction and ES/Gauss range limits](docs/EMPIC_RANGE_PLAN.md).
 
+Relativistic particle updates resolve the near-light Lorentz gap from stored
+velocity components. Priming has a residual-certified rounding tier before
+high-precision replay; [particle arithmetic notes](docs/PARTICLE_PRIMING_INTERVALS.md)
+describe its compatibility slices and remaining near-light limits.
+
 For finite inputs and charge snapshots, EM PIC with built-in NGP/CIC/TSC shapes
 applies a uniform correction based on actual signed particle weights, background
 charge and the complete product of stored cell widths. The final total differs

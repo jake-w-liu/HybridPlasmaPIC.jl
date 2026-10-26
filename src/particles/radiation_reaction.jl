@@ -27,25 +27,8 @@
 const _RADIATION_BUDGET_EPS = 8
 
 # ----------------------------------------------------------------------------------------
-# Error-free transformations (no overflow; exact by Knuth/Dekker)
+# Error-free transformations and double-word arithmetic live in utils/error_free_arithmetic.jl.
 # ----------------------------------------------------------------------------------------
-
-@inline function _radiation_two_sum(a::W, b::W) where {W<:AbstractFloat}
-    s = a + b
-    t = s - a
-    return s, (a - (s - t)) + (b - t)
-end
-
-# Requires |a| ≥ |b| or a == 0.
-@inline function _radiation_fast_two_sum(a::W, b::W) where {W<:AbstractFloat}
-    s = a + b
-    return s, b - (s - a)
-end
-
-@inline function _radiation_two_product(a::W, b::W) where {W<:AbstractFloat}
-    p = a * b
-    return p, fma(a, b, -p)
-end
 
 # ----------------------------------------------------------------------------------------
 # Native evaluation with an a-posteriori rounding bound
@@ -196,66 +179,6 @@ end
 # Exponent-scaled double-double evaluation (Float64)
 # ----------------------------------------------------------------------------------------
 
-const _RadiationDD = NTuple{2,Float64}
-
-@inline function _radiation_dd_add(a::_RadiationDD, b::Float64)
-    s, e = _radiation_two_sum(a[1], b)
-    return _radiation_fast_two_sum(s, e + a[2])
-end
-
-# Accurate double-word addition (relative error ≤ 3u² of the exact sum).
-@inline function _radiation_dd_add(a::_RadiationDD, b::_RadiationDD)
-    s, e = _radiation_two_sum(a[1], b[1])
-    t, f = _radiation_two_sum(a[2], b[2])
-    s, e = _radiation_fast_two_sum(s, e + t)
-    return _radiation_fast_two_sum(s, e + f)
-end
-
-@inline _radiation_dd_sub(a::_RadiationDD, b::_RadiationDD) = _radiation_dd_add(a, (-b[1], -b[2]))
-
-@inline function _radiation_dd_mul(a::_RadiationDD, b::_RadiationDD)
-    p, e = _radiation_two_product(a[1], b[1])
-    return _radiation_fast_two_sum(p, fma(a[1], b[2], fma(a[2], b[1], e)))
-end
-
-@inline function _radiation_dd_mul(a::_RadiationDD, b::Float64)
-    p, e = _radiation_two_product(a[1], b)
-    return _radiation_fast_two_sum(p, fma(a[2], b, e))
-end
-
-@inline function _radiation_dd_div(a::_RadiationDD, b::_RadiationDD)
-    q1 = a[1] / b[1]
-    rem = _radiation_dd_sub(a, _radiation_dd_mul(b, q1))
-    q2 = rem[1] / b[1]
-    rem = _radiation_dd_sub(rem, _radiation_dd_mul(b, q2))
-    q3 = rem[1] / b[1]
-    return _radiation_dd_add(_radiation_fast_two_sum(q1, q2), q3)
-end
-
-@inline function _radiation_dd_sqrt(a::_RadiationDD)   # a[1] > 0
-    x = sqrt(a[1])
-    p, e = _radiation_two_product(x, x)
-    return _radiation_fast_two_sum(x, (((a[1] - p) - e) + a[2]) / (2x))
-end
-
-# Exact sum of Float64 values as a nonoverlapping expansion (Shewchuk's grow-expansion),
-# then rounded to a double-double by accumulating from the smallest component.
-@inline _radiation_grow(::Tuple{}, b::Float64) = (b,)
-@inline function _radiation_grow(e::Tuple, b::Float64)
-    q, h = _radiation_two_sum(b, first(e))
-    return (h, _radiation_grow(Base.tail(e), q)...)
-end
-@inline _radiation_expansion(t::Tuple{Float64}) = t
-@inline _radiation_expansion(t::Tuple) =
-    _radiation_grow(_radiation_expansion(Base.front(t)), last(t))
-@inline function _radiation_exact_sum(t::Tuple)
-    acc = (0.0, 0.0)
-    for x in _radiation_expansion(t)
-        acc = _radiation_dd_add(acc, x)
-    end
-    return acc
-end
-
 struct _RadiationScaled
     E::NTuple{3,Float64}
     B::NTuple{3,Float64}
@@ -264,9 +187,9 @@ struct _RadiationScaled
     eE::Int              # binary exponents of max|E_i| and max|B_i|
     eB::Int
     kc::Int              # c = ĉ·2^kc, ĉ ∈ [1, 2)
-    c2::_RadiationDD     # ĉ² exactly
-    invc2::_RadiationDD
-    Kdt::_RadiationDD    # K·dt = Kdt·2^eKdt exactly (frexp mantissas)
+    c2::_DoubleFloat64     # ĉ² exactly
+    invc2::_DoubleFloat64
+    Kdt::_DoubleFloat64    # K·dt = Kdt·2^eKdt exactly (frexp mantissas)
     eKdt::Int
     # Concrete fields only: no implicit converting constructor.
     function _RadiationScaled(
@@ -277,9 +200,9 @@ struct _RadiationScaled
         eE::Int,
         eB::Int,
         kc::Int,
-        c2::_RadiationDD,
-        invc2::_RadiationDD,
-        Kdt::_RadiationDD,
+        c2::_DoubleFloat64,
+        invc2::_DoubleFloat64,
+        Kdt::_DoubleFloat64,
         eKdt::Int,
     )
         return new(E, B, hasE, hasB, eE, eB, kc, c2, invc2, Kdt, eKdt)
@@ -294,7 +217,7 @@ function _radiation_scaled(E, B, K, dt, c)
     cf = Float64(c)
     kc = exponent(cf)
     ĉ = ldexp(cf, -kc)
-    c2 = _radiation_two_product(ĉ, ĉ)
+    c2 = _eft_two_product(ĉ, ĉ)
     mK, eK = frexp(Float64(K))
     md, ed = frexp(Float64(dt))
     return _RadiationScaled(
@@ -306,8 +229,8 @@ function _radiation_scaled(E, B, K, dt, c)
         iszero(Bmax) ? 0 : exponent(Bmax),
         kc,
         c2,
-        _radiation_dd_div((1.0, 0.0), c2),
-        _radiation_two_product(mK, md),
+        _dd_div((1.0, 0.0), c2),
+        _eft_two_product(mK, md),
         eK + ed,
     )
 end
@@ -362,9 +285,9 @@ const _RADIATION_LOG2 = (0x1.62e42fefa39efp-1, 0x1.abc9e3b39803fp-56)
     mantissa = _radiation_scale_exact(r, -power)
     mh = _from_exact(Float64, mantissa)
     ml = _from_exact(Float64, mantissa - _exact_rational(mh))
-    lnr = _radiation_dd_add(_radiation_dd_mul(_RADIATION_LOG2, Float64(power)), log(mh))
-    lnr = _radiation_dd_add(lnr, ml / mh)
-    argument = _radiation_dd_add(lnr, (2alpha, 2low))
+    lnr = _dd_add(_dd_mul(_RADIATION_LOG2, Float64(power)), log(mh))
+    lnr = _dd_add(lnr, ml / mh)
+    argument = _dd_add(lnr, (2alpha, 2low))
     argument[1] < -60 * _RADIATION_LOG2[1] && return 1.0
     if argument[1] <= 50 * _RADIATION_LOG2[1]
         exponential = exp(argument[1]) * (1 + argument[2])
@@ -385,16 +308,16 @@ function _radiation_scaled_factor(v::NTuple{3,Float64}, s::_RadiationScaled)
     vmax = max(abs(v[1]), abs(v[2]), abs(v[3]))
     (iszero(vmax) || !(s.hasE || s.hasB)) && return 1.0
     v̂ = map(x -> ldexp(x, -s.kc), v)
-    p1 = _radiation_two_product(v̂[1], v̂[1])
-    p2 = _radiation_two_product(v̂[2], v̂[2])
-    p3 = _radiation_two_product(v̂[3], v̂[3])
-    N = _radiation_dd_sub(_radiation_dd_sub(_radiation_dd_sub(s.c2, p1), p2), p3)
+    p1 = _eft_two_product(v̂[1], v̂[1])
+    p2 = _eft_two_product(v̂[2], v̂[2])
+    p3 = _eft_two_product(v̂[3], v̂[3])
+    N = _dd_sub(_dd_sub(_dd_sub(s.c2, p1), p2), p3)
     if !(N[1] > ldexp(s.c2[1], -40))
         # Partial sums can exceed N by 2^40; recover N exactly (the preflight guarantees
         # |v| < c exactly) up to the underflow noted below.
-        N = _radiation_exact_sum((s.c2[2], s.c2[1], -p1[2], -p1[1], -p2[2], -p2[1], -p3[2], -p3[1]))
+        N = _eft_sum_dd((s.c2[2], s.c2[1], -p1[2], -p1[1], -p2[2], -p2[1], -p3[2], -p3[1]))
     end
-    r = _radiation_dd_mul(N, s.invc2)
+    r = _dd_mul(N, s.invc2)
     # Below this range the discarded low square parts need not be small
     # relative to the Lorentz gap. Complete it from the stored operands.
     r[1] >= 0x1p-800 || return _radiation_exact_factor(v, s)
@@ -421,29 +344,23 @@ function _radiation_scaled_factor(v::NTuple{3,Float64}, s::_RadiationScaled)
     B̃ = map(x -> ldexp(x, ev - kF), s.B)
     w = ntuple(3) do i
         j, k = i % 3 + 1, (i + 1) % 3 + 1
-        a1, a2 = _radiation_two_product(ṽ[j], B̃[k])
-        b1, b2 = _radiation_two_product(ṽ[k], B̃[j])
-        acc = _radiation_dd_add(_radiation_dd_add((Ẽ[i], 0.0), a1), -b1)
-        _radiation_dd_add(_radiation_dd_add(acc, a2), -b2)
+        a1, a2 = _eft_two_product(ṽ[j], B̃[k])
+        b1, b2 = _eft_two_product(ṽ[k], B̃[j])
+        acc = _dd_add(_dd_add((Ẽ[i], 0.0), a1), -b1)
+        _dd_add(_dd_add(acc, a2), -b2)
     end
-    q = ntuple(i -> _radiation_two_product(ṽ[i], Ẽ[i]), 3)
-    D = _radiation_dd_add(_radiation_dd_add(q[1], q[2]), q[3])          # ṽ·Ẽ
-    m = ntuple(i -> _radiation_two_product(ṽ[i], ṽ[i]), 3)
-    V2 = _radiation_dd_add(_radiation_dd_add(m[1], m[2]), m[3])         # |ṽ|² ∈ [1, 12)
+    q = ntuple(i -> _eft_two_product(ṽ[i], Ẽ[i]), 3)
+    D = _dd_add(_dd_add(q[1], q[2]), q[3])          # ṽ·Ẽ
+    m = ntuple(i -> _eft_two_product(ṽ[i], ṽ[i]), 3)
+    V2 = _dd_add(_dd_add(m[1], m[2]), m[3])         # |ṽ|² ∈ [1, 12)
     # χ̃²·V2² = |V2·w̃ - D·ṽ|² + r·D²·V2: V2·w̃ - D·ṽ is V2 times w⊥ (w normal to v).
-    n = ntuple(i -> _radiation_dd_sub(_radiation_dd_mul(V2, w[i]), _radiation_dd_mul(D, ṽ[i])), 3)
-    χ2V4 = _radiation_dd_add(
-        _radiation_dd_add(
-            _radiation_dd_add(_radiation_dd_mul(n[1], n[1]), _radiation_dd_mul(n[2], n[2])),
-            _radiation_dd_mul(n[3], n[3]),
-        ),
-        _radiation_dd_mul(r, _radiation_dd_mul(_radiation_dd_mul(D, D), V2)),
+    n = ntuple(i -> _dd_sub(_dd_mul(V2, w[i]), _dd_mul(D, ṽ[i])), 3)
+    χ2V4 = _dd_add(
+        _dd_add(_dd_add(_dd_mul(n[1], n[1]), _dd_mul(n[2], n[2])), _dd_mul(n[3], n[3])),
+        _dd_mul(r, _dd_mul(_dd_mul(D, D), V2)),
     )
     χ2V4[1] > 0 || return 1.0
-    A = _radiation_dd_div(
-        _radiation_dd_mul(s.Kdt, χ2V4),
-        _radiation_dd_mul(_radiation_dd_mul(V2, V2), _radiation_dd_sqrt(r)),
-    )
+    A = _dd_div(_dd_mul(s.Kdt, χ2V4), _dd_mul(_dd_mul(V2, V2), _dd_sqrt(r)))
     A[1] > 0 || return 1.0  # underflow is below the certified absolute budget
     e = s.eKdt + 2kF
     ea = exponent(A[1]) + e

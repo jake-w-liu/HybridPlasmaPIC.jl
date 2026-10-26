@@ -715,8 +715,8 @@ end
 # documented 2nd-order accuracy for a real init!+step! run (verified: end-to-end rate 1 → 2).
 # `rel=true` (relativistic push, works in momentum u=γv) backs up MOMENTUM: u^{-1/2}=γ^0 v^0 − h·a^0,
 # v^{-1/2}=u^{-1/2}/γ(u); the default non-relativistic path is byte-identical for the hybrid callers.
-# Ordinary inputs keep this native order; range-flagged Float16/32/64 back-ups are evaluated wider
-# and rounded once, and a backed-up velocity that exceeds the type throws an ArgumentError
+# Well-conditioned outputs keep this native order; ill-conditioned or range-flagged IEEE back-ups
+# use the repair/publication tier, and a backed-up velocity that exceeds the type throws an ArgumentError
 # (kinematics_range.jl).
 @inline function _prime_leapfrog!(v, Ep, Bp, qm, h, np, rel::Bool = false, c = one(eltype(v[1])))
     T = eltype(v[1])
@@ -756,7 +756,9 @@ function _prime_leapfrog_loop!(v, Ep, Bp, qm, h, np, c, ::Val{rel}, ::Val{guard}
                     "_prime_leapfrog!: input velocity must be finite and satisfy |v| < c",
                 ),
             )
-            g0 = o / sqrt(o - β2)
+            g0, gap_resolved =
+                guard ? _conditioned_lorentz_factor((v0x, v0y, v0z), c, β2) :
+                (_native_lorentz_factor(β2), true)
             e = (ex[p], ey[p], ez[p])
             b = (bx[p], by[p], bz[p])
             ax = qm * (e[1] + (v0y * b[3] - v0z * b[2]))
@@ -769,7 +771,8 @@ function _prime_leapfrog_loop!(v, Ep, Bp, qm, h, np, c, ::Val{rel}, ::Val{guard}
             umz = g[3] - k[3]
             gm = sqrt(o + (umx * umx + umy * umy + umz * umz) / c2)
             primed = (umx / gm, umy / gm, umz / gm)
-            if guard && !_rel_prime_in_range(primed, g, (ax, ay, az), k, gm, h, qm, c2)
+            if guard &&
+               !_rel_prime_in_range(primed, g, (ax, ay, az), k, gm, h, qm, c2, gap_resolved)
                 primed = _rel_prime_repair(primed, (v0x, v0y, v0z), e, b, qm, h, c)
             end
             vx[p], vy[p], vz[p] = primed
@@ -1454,9 +1457,9 @@ Total relativistic kinetic energy `Σ_p w m (γ_p − 1) c²` with
 stores the velocity `v`; the relativistic pusher works in `u = γv` internally).
 In the Newtonian limit `|v| ≪ c` this reduces to [`kinetic_energy`](@ref)`(ps)`
 — the per-particle difference is `O(w m |v|⁴/c²)`, i.e. a relative `O(v²/c²)`.
-Throws `ArgumentError` if any particle has `|v| ≥ c`: the relativistic pusher
-keeps `|v| < c`, so such a particle is corrupted state, not a valid energy.
-Uncertain speed comparisons use the exact stored components. For finite mass
+Throws `ArgumentError` if any stored particle has `|v| ≥ c`, which cannot
+represent a finite Lorentz factor. Uncertain comparisons use the exact stored
+components; the pusher has a separate, narrower supported range. For finite mass
 and weights, intermediate overflow or underflow triggers evaluation of the
 complete weighted expression before final rounding. Ordinary inputs retain
 their original arithmetic order; signed and nonfinite factors remain visible.

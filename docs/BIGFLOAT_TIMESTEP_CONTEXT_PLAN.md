@@ -39,7 +39,8 @@ The positive binary64 polygon coefficients differ from their exact decimal value
   Aqua and 29 clean concrete analyses. Complete compiler records match the
   isolated candidate after exact root and seven generated-label occurrences
   in byte-identical owning files; eighteen reviewer mutants reject.
-- [ ] Separate main push and all exact-SHA GitHub CI jobs.
+- [x] Separate main push as `36d1794`.
+- [ ] [All six exact-SHA GitHub CI jobs](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40402702024).
 
 Evidence: sibling `HybridPlasmaPIC-audit-evidence/2026-10-27/bigfloat-timestep-context/`, final `bigfloat-timestep-context-v2/`, independent `distributed-timestep-context-bound-review/` and root `takeover/bigfloat-context-integration/campaign-v2/`. Final candidate 2 has eight serialized terminal-zero command receipts; root integration has nine. The first root wrapper omitted its formatter output argument and failed after eight successful formatting/AST checks; that failed receipt is retained separately. Initial source-owner runs use a dx-only grid adapter; final package gates separately establish package loading and the measured production-stage integration. Exact-SHA GitHub CI remains open. No timing, multi-node or whole-simulator completeness claim follows from this bounded repair.
 

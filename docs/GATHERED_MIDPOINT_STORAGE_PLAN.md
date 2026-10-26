@@ -27,12 +27,13 @@ public methods and their tests; coupled solvers use their own canonical
 push/gather paths.
 
 `Base.mightalias` detects overlapping CPU views, including distinct view
-objects. The existing particle predicate also handles empty wrappers and
-shared backing storage. GPUArrays identifies shared device storage through its
-`DataRef` record. Actual device behavior is an acceptance gate; these source
-facts alone do not certify every custom array or unsafe independently wrapped
-pointer. Read-only midpoint storage remains outside the writable-output
-contract.
+objects. The particle predicate follows parent-linked CPU wrappers, including
+empty ones. Actual device behavior is a separate acceptance gate: a measured
+nonempty contiguous Metal wrapper is detected, while a distinct empty native
+Metal wrapper sharing the same device allocation is not. An empty wrapper has
+no particle elements to overwrite. Detection does not cover every custom array
+or unsafe independently wrapped pointer. Read-only midpoint storage remains
+outside the writable-output contract.
 
 ## Acceptance tracker
 
