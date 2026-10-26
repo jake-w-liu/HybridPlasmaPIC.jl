@@ -1,6 +1,8 @@
 # Spatially local multispecies Coulomb collisions
 
-Status: isolated implementation under verification; not committed or accepted.
+Status: landed on `main` as the standalone CPU operator (2026-10-26); see the
+[allocation repair record](LOCAL_COULOMB_RATE_ALLOCATION_PLAN.md) for landing
+verification. CAP-010 composition, MPI ownership and device kernels remain open.
 Original base: `bf2a8bc615f514f8d2868934849bf44814140bbb`.
 Current V10 composition: `c5e8472084dff861ae92d8ff6466edfaaeeebe44`; production baseline is unchanged from `1097076` and its accepted normalization prefix is retained.
 Evidence directory: `../HybridPlasmaPIC-audit-evidence/2026-10-23/local-multispecies-coulomb`.

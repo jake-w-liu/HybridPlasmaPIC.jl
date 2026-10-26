@@ -8,6 +8,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Cell-local multispecies Coulomb collisions: `collide_coulomb!(species, grid,
+  dt; coulomb_log, epsilon0, weight_to_number, u_floor, rng, workspace)` pairs
+  self and cross-species particles within each periodic cell using physical
+  charges, masses, macro-weights and cell volume, with the shared Takizuka–Abe
+  angle law and Higginson–Holod–Link weight rejection. `CoulombCollisionWorkspace`
+  makes repeated calls allocation-free; `coulomb_normalization(units)` returns
+  the permittivity and weight-to-count factor for normalized hybrid units.
+  Velocities publish only after the whole call succeeds. The homogeneous
+  `collide_coulomb!(ps, gcoeff, dt)` operator is unchanged.
+
 - Distributed FFT plans accept `real_type=Float32` or `Float64` (the default).
   Precision participates in collective configuration agreement before any plan
   is created; unsupported values and rank mismatches fail explicitly.

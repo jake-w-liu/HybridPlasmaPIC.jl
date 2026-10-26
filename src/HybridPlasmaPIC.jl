@@ -59,6 +59,7 @@ include("particles/radiation_reaction.jl")
 include("particles/sorting.jl")
 include("particles/coulomb_scattering.jl")
 include("particles/collisions.jl")
+include("particles/coulomb_local.jl")
 include("parallel/domain_decomposition.jl")
 include("parallel/pencil_decomposition.jl")
 include("particles/provenance.jl")
@@ -334,6 +335,7 @@ export gather_at,
     reflected_flux_fraction
 export RunMetadata, capture_metadata, CHECKPOINT_SCHEMA_VERSION, save_run, load_run
 export PlasmaUnits, alfven_speed, gyrofrequency, inertial_length, to_SI, to_normalized
+export coulomb_normalization
 export rh_branches
 export SpectralOperators, exp_filter!, dealias_two_thirds!, fft_friendly_size, with_fftw_wisdom
 export GuidingCentre,
@@ -344,6 +346,7 @@ export HallMHDModel, HallMHDState, hall_mhd_ohms_law!, hall_mhd_rhs!, step_hall_
 export run_perp_shock, run_perp_shock_rh, run_perp_shock_leroy, perp_shock_sweep
 export firehose_growth, ion_cyclotron_growth, weibel_growth, reconnection_growth
 export collide_bgk!, collide_coulomb!, collide_neutral_mcc!, ionize_mcc!
+export CoulombCollisionWorkspace
 export deposit_scalar_threaded!, density_threaded!
 export energy_budget, momentum_budget, jdotE_density, resistive_dissipation
 export archive_run, load_archive, sample_particles, operators_match

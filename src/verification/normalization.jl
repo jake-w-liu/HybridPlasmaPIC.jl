@@ -349,3 +349,45 @@ and device-staging rules as [`to_SI`](@ref). Floating-point rounding can prevent
 an exact round trip.
 """
 to_normalized(value, kind::Symbol, u::PlasmaUnits) = _convert_normalization(value, kind, u, true)
+
+"""
+    coulomb_normalization(u::PlasmaUnits) -> (; epsilon0, weight_to_number)
+
+Explicit collision parameters for Ω_ci-normalized positions, velocities, time,
+charge `q/e`, mass `m/mi`, and weights from [`set_density_weight!`](@ref) with
+density in units `u.n0`. Pass the result as keywords to cell-local
+[`collide_coulomb!`](@ref).
+The collision velocity floor is specified separately in normalized velocity
+units; its SI counterpart is `to_SI(u_floor, :velocity, u)`.
+
+With physical reference scales `L0 = d_i` and `T0 = 1/Ω_ci`, the returned
+permittivity is `epsilon0_SI*mi*L0^3/(e^2*T0^2)`, with
+`epsilon0_SI = 1/(mu0*c^2)`, and `weight_to_number = n0*L0^3`. For D<3,
+the normalized bin has unit extent in each omitted dimension: its physical
+volume is `prod(grid.dx)*L0^3`. A stored weight thus counts particles in that
+reference transverse area/length, not an unspecified physical cross section.
+
+Both parameters are evaluated from the complete stored-reference expressions,
+without materializing an intermediate reference volume. BigFloat outputs use
+the caller's working precision and rounding mode. The results must be finite
+and positive to configure the collision operator.
+
+These parameters require the same reference plasma as the field and particle
+normalization. Neither a default EM permittivity nor a Coulomb logarithm alone
+determines the physical binary collision rate.
+"""
+function coulomb_normalization(u::PlasmaUnits{T}) where {T}
+    # Squared physical scales, with powers of (n0, B0, mi, e, mu0).
+    count_squared, count_power = _normalization_squared_scale((-1, 0, 3, -6, -3), u)
+    epsilon_squared, epsilon_power = _normalization_squared_scale((-3, 4, 1, -6, -5), u)
+    # The squared permittivity also contains c^-4. Keep its binary scale
+    # separate, including when reference lengths/volumes are unrepresentable.
+    n, e, d = Base.decompose(u.c)
+    epsilon_squared *= (BigInt(n) // BigInt(d))^-4
+    epsilon_power -= 4 * Int128(e)
+    epsilon0 = _normalization_materialize(T, epsilon_squared, epsilon_power, false)
+    weight_to_number = _normalization_materialize(T, count_squared, count_power, false)
+    _require_finite_positive_real("normalized collision permittivity", epsilon0, T)
+    _require_finite_positive_real("normalized collision particle count", weight_to_number, T)
+    return (; epsilon0, weight_to_number)
+end

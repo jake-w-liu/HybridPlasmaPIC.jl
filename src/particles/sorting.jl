@@ -25,26 +25,35 @@ function _require_finite_particle_positions(ps::ParticleSet{D}) where {D}
     return nothing
 end
 
+@inline function _particle_cell_strides(g::FourierGrid{D}) where {D}
+    return ntuple(Val(D)) do d
+        stride = 1
+        for k = 1:(d-1)
+            stride *= g.n[k]
+        end
+        stride
+    end
+end
+
+@inline function _particle_linear_cell(ps::ParticleSet{D}, g, p::Int, strides) where {D}
+    lin = 1
+    @inbounds for d = 1:D
+        # A wrapped position can round to L (for example just below zero).
+        # The deposition mesh folds that image onto cell zero as well.
+        c = floor(Int, mod(ps.x[d][p], g.L[d]) / g.dx[d])
+        c >= g.n[d] && (c = 0)
+        lin += c * strides[d]
+    end
+    return lin
+end
+
 function cell_index(ps::ParticleSet{D,T}, g::FourierGrid{D,T}) where {D,T}
     N = nparticles(ps)
-    n = g.n
-    L = g.L
-    dx = g.dx
     _require_finite_particle_positions(ps)
-    # column-major strides: stride[1]=1, stride[d]=prod(n[1:d-1])
-    strides = ntuple(d -> d == 1 ? 1 : prod(ntuple(k -> n[k], d - 1)), D)
+    strides = _particle_cell_strides(g)
     out = Vector{Int}(undef, N)
     @inbounds for p = 1:N
-        lin = 1
-        for d = 1:D
-            # periodic wrap, matching _particle_cell_position (deposition):
-            # mod can round up to exactly L_d (e.g. x just below 0), which the
-            # deposition stencil wraps onto node 0 — fold that image to cell 0.
-            c = floor(Int, mod(ps.x[d][p], L[d]) / dx[d])
-            c >= n[d] && (c = 0)
-            lin += c * strides[d]
-        end
-        out[p] = lin
+        out[p] = _particle_linear_cell(ps, g, p, strides)
     end
     return out
 end

@@ -245,6 +245,16 @@ unsupported. [Validation scope and evidence](docs/RELATIVISTIC_VALIDATION_PLAN.m
   The [population mean](docs/COULOMB_WEIGHT_MEAN_PLAN.md) retains
   large counts and sparse weights for hardware-float populations; BigFloat
   accumulation uses local guard bits without changing global precision.
+- `collide_coulomb!(species, grid, dt; coulomb_log, epsilon0, weight_to_number)`
+  — cell-local self and interspecies Coulomb scattering for ordered CPU
+  populations on a periodic `FourierGrid` (Float32/Float64, 1D–3D). Pairs form
+  within each cell from the physical charges, masses, macro-weights and cell
+  volume; unequal cross counts correct each reused particle's rate, and odd
+  counts use the half-strength triplet. Reuse a `CoulombCollisionWorkspace` to
+  stay allocation-free. `coulomb_normalization(units)` supplies `epsilon0` and
+  `weight_to_number` for the package's normalized units. Velocities stage until
+  the whole call succeeds. [User guide](docs/LOCAL_COULOMB.md) and
+  [two-species example](examples/local_coulomb.jl).
 - `collide_bgk!(ps, ν, dt)` — BGK relaxation toward the set's own drifting
   Maxwellian, conserving momentum and energy exactly.
 - `collide_neutral_mcc!` / `ionize_mcc!` — Monte-Carlo elastic scattering off
@@ -496,10 +506,9 @@ PIC noise. Broader oblique, thermal, kinetic and EM comparisons remain in the
   summary with checksums is bundled; the full HDF5 requires downloading the
   upstream data).
 - Non-periodic EM-PIC boundaries (`EMPIC` and `EMPIC1D` use periodic geometry).
-- Spatially local multispecies Coulomb collisions remain an unaccepted
-  implementation. The published operator takes one homogeneous population;
-  [the implementation tracker](docs/LOCAL_MULTISPECIES_COULOMB_PLAN.md) records
-  remaining numerical, resource and integration gates.
+- Cell-local Coulomb collisions are a standalone CPU operator. Automatic
+  collision/field splitting with saved RNG state, MPI cell ownership and device
+  kernels are separate open stages ([CAP-010](docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md)).
 - Extreme-range arithmetic remains under repair. The confirmed
   [linear CN](docs/LINEAR_CN_RANGE_PLAN.md) plan records failing cases and
   remaining gates. The [normalization repair](docs/NORMALIZATION_RANGE_PLAN.md)
