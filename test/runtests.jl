@@ -132,6 +132,7 @@ using Test
     include("test_electrostatic_species_diversity.jl")
     include("test_empic.jl")
     include("test_empic1d.jl")
+    include("test_bounded_maxwell.jl")
     include("test_hybrid_field_energy_range.jl")
     include("test_field_energy_accuracy.jl")
     include("test_quadratic_energy_integration.jl")

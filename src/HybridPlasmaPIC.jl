@@ -49,6 +49,7 @@ include("meshes/cartesian_mesh.jl")
 include("meshes/local_finite_difference.jl")
 include("meshes/curvilinear_mesh.jl")
 include("meshes/adaptive_mesh_refinement.jl")
+include("fields/yee_fields.jl")
 
 # --- Particles ---
 include("models/abstract_model.jl")
@@ -70,6 +71,7 @@ include("boundaries/periodic.jl")
 include("boundaries/reflecting_wall.jl")
 include("boundaries/open_field_boundary.jl")
 include("boundaries/sponge_layer.jl")
+include("boundaries/yee_conductor.jl")
 
 # --- Coupling: deposition / gather / moments ---
 include("coupling/shapes.jl")
@@ -109,6 +111,7 @@ include("initial_conditions/instabilities.jl")
 # --- Models: full PIC ---
 include("models/electrostatic.jl")
 include("models/full_pic.jl")
+include("models/maxwell_vacuum.jl")
 include("models/hall_mhd.jl")
 include("models/gyrokinetics.jl")
 
@@ -121,6 +124,7 @@ include("diagnostics/shock_surface.jl")       # shock diag (needs PerpShock2D/3D
 include("diagnostics/synthetic_spacecraft.jl")
 include("diagnostics/ray_tracing.jl")         # WKB ray tracing (needs _require_finite_point3)
 include("diagnostics/particle_history.jl")
+include("diagnostics/yee_diagnostics.jl")
 
 # --- Parallel ---
 include("parallel/threads.jl")
@@ -345,6 +349,17 @@ export GuidingCentre,
     exb_drift, gradb_drift, curvature_drift, drift_velocity, push_guiding_centre!, gyroaverage
 export CAMCLStepper, init_camcl!, step_camcl!
 export EMPIC, EMPIC1D, init_empic!, step_empic!, em_field_energy, charge_conservation_residual
+export YeeGrid,
+    YeeFields,
+    yee_coordinates,
+    yee_curl!,
+    yee_divergence!,
+    apply_yee_pec!,
+    MaxwellVacuum,
+    maxwell_cfl,
+    step_maxwell!,
+    yee_poynting,
+    yee_poynting_flux
 export HallMHDModel, HallMHDState, hall_mhd_ohms_law!, hall_mhd_rhs!, step_hall_mhd!
 export run_perp_shock, run_perp_shock_rh, run_perp_shock_leroy, perp_shock_sweep
 export firehose_growth, ion_cyclotron_growth, weibel_growth, reconnection_growth

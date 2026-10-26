@@ -44,7 +44,7 @@ rewritten as normwise bounds.
 | Shared BigFloat exact conversion | `245e73a` pushed after numerical, concurrency, resource, compiler and fixed-cost gates pass both runtimes | [All six exact-SHA jobs and full compiler review pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40026749996); [repair evidence](EXACT_BIGFLOAT_CONVERSION_PLAN.md) |
 | Reference-unit normalization | V7 local numerical, native Metal, resource/compiler and all 306 fixed-cost profiles pass both runtimes | `1097076` passes all six exact-SHA CI jobs and full compiler review. Measured latency regressions remain optimization work. [Evidence and next steps](NORMALIZATION_RANGE_PLAN.md) |
 | Local multispecies collisions | Landed on `main` after `3a9c85d`: 7 new test files (≈153,000 assertions), 10 neighboring files, Aqua, JET (24 / 21, parent-identical) and the example pass on Julia 1.12.7 and 1.13.2. Warmed calls allocate zero bytes; measured 109 / 206 ns per pair (Float32 / Float64) vs 73 / 121 ns for the homogeneous operator | [Landing record](LOCAL_COULOMB_RATE_ALLOCATION_PLAN.md); exact-SHA CI pending. Scheduling and compensated-update optimization follow |
-| Bounded Maxwell vacuum/cavity | V12 final handoff records both numerical suites, complete compiler review and all 306 step/144 diagnostic resource profiles passing; V11v2's growth failure is retained | Fixed latency acceptance, integration and CI remain. The first coupled absorbing-wall slice is under design |
+| Bounded Maxwell vacuum/cavity | Normwise redesign of V12: native per-stage-multiplier stencils with wide/scaled/exact range completion; bounded-Maxwell suite and EM/fusion/AMR/exact-arithmetic/quality/JET neighbors pass on Julia 1.12.7 and 1.13.2; 48³ steps cost about 6 / 11 ns per cell (Float32 / Float64) with zero allocations, versus about 1,200 ns for V12 on the same loaded machine | [Implementation record](BOUNDED_MAXWELL_IMPLEMENTATION.md); integration and exact-SHA CI pending. The first coupled absorbing-wall slice is under design |
 | Prescribed-current 1D Maxwell | Frozen sourced candidate passes local numerical/resource/compiler gates; root rechecked all 1,313 packet hashes and reproduced the 44-command/six-resource-matrix auditor receipt exactly | Fixed latency, source integration, main push and CI remain. Coupled particle self-force/event-order failures are separate open method work |
 | Electrostatic species collections | Landed after `cf2c4c5`: species, ES/EM, charge, I/O, restart, clock, dimension, moment, MPI-collection-checkpoint, Aqua and JET suites pass on Julia 1.12.7 and 1.13.2; scalar ES step at parent speed | [Implementation record](ELECTROSTATIC_SPECIES_IMPLEMENTATION.md); exact-SHA CI pending. The shared Boris/priming range defect is repaired separately (normwise kinematics) |
 | External reference provenance | Pushed as `95c5678`: all six jobs green, 723,186 / 723,187 assertions and complete compiler trees identical to accepted `1097076` | [Exact-SHA CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40186481856); [implementation and evidence](EXTERNAL_REFERENCE_PROVENANCE_PLAN.md) |
@@ -90,7 +90,11 @@ rewritten as normwise bounds.
   output differences are recorded; local-collision composition remains open.
   The [bounded repair plan](COULOMB_SMALL_ANGLE_PLAN.md) explicitly records
   the stable-increment arithmetic migration and independent physical gates.
-- [ ] Complete the combined Maxwell cancellation repair. **VERIFIED:** independent
+- [x] Superseded by the normwise standard: the two V7 witnesses below are
+  componentwise cancellations whose errors (0.25 against a stage scale near
+  1/(2e²); 1 against a face scale near 4/e²) lie far inside the normwise
+  bounds now asserted by the bounded-Maxwell suite. Original record:
+  Complete the combined Maxwell cancellation repair. **VERIFIED:** independent
   root witnesses fail on Julia 1.12.7 and 1.13.2 against frozen V7. A scaled
   curl returns zero instead of approximately 0.25 (six passes/two failures per
   runtime); a face integral returns `(0,0)` instead of `(1,-1)` (four passes/two
@@ -1127,7 +1131,7 @@ the expanded plan owns capability staging. Both remain active.
 | Capability | Owner / current state | Next acceptance milestone |
 | --- | --- | --- |
 | CAP-001 Local multispecies collisions | Standalone CPU operator landed | Optimization pass; CAP-010 composition, MPI cell ownership and device pairing; [progress checklist](LOCAL_MULTISPECIES_COULOMB_PLAN.md) |
-| CAP-002 Nonperiodic EM-PIC | Bounded Maxwell agent owns vacuum/cavity implementation and particle design | Close current diagnostic/resource/cost gates, then compatible particle/current/wall coupling |
+| CAP-002 Nonperiodic EM-PIC | Bounded vacuum/cavity fields (002A) implemented under the normwise contract | Compatible particle/current/wall coupling (002B), absorbing layers (002C), restart/backends (002D) |
 | CAP-003 Domain-owned distributed stepping | FFT constructor/diagnostic fixes pushed; precision and shared-kernel work active | [Staged operator plan](DISTRIBUTED_OPERATOR_IMPLEMENTATION_PLAN.md); owned fields, halos and coupled evolution remain |
 | CAP-004 Complete GPU-resident stepping | Root auditing primitives; coupled solver planned | Gathered-push validation, remaining kernels, then one resident solver with measured transfers |
 | CAP-005 Coupled implicit advancement | Shock CN solve and linear CN reference repair landed | Derive the coupled nonlinear residual, transaction and solve (005B/C) |

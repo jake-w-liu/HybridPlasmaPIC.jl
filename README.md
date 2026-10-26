@@ -211,8 +211,13 @@ in the [implementation plan](docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md).
 | **Hall-MHD** | periodic single-fluid Hall-MHD with algebraic electron closures; ion pressure `p_i = Ti·n`; the electron pressure force acts in both Ohm's law and the bulk momentum equation; explicit RK4 with divergence-free projection | `HallMHDModel`, `HallMHDState`, `step_hall_mhd!` |
 | **Electrostatic PIC** | arbitrary kinetic species on periodic CPU grids, explicit charge/background policy, shared spectral Poisson field and synchronized leapfrog in 1D/2D/3D; scalar electron compatibility | `ElectrostaticPIC` (or `Electrostatic1D`), `init_espic!`, `step_espic!` |
 | **Electromagnetic PIC** | full EM PIC with kinetic electrons, optional mobile ions (`mobile = true`), optional relativistic Boris push (`relativistic = true`), spectral current correction for charge continuity, Gauss-law initialization, electron/Maxwell subcycling (`n_sub`) in 1D–3D | `EMPIC`, `EMPIC1D`, `init_empic!`, `step_empic!`, `charge_conservation_residual` |
+| **Bounded Maxwell vacuum** | staggered Yee fields in 1D–3D with periodic or homogeneous conducting axes, synchronized second-order stepping, CFL rejection, compatible divergence and energy/Poynting diagnostics; native stencils under the normwise accuracy contract; no particle coupling or absorbing layer | `YeeGrid`, `MaxwellVacuum`, `step_maxwell!`, `yee_divergence!`, `yee_poynting_flux` |
 | **Fusion geometry / gyrokinetics / AMR** | integrated tokamak-oriented building blocks: toroidal curvilinear metric operators, guiding-centre gyrokinetics, and finite-volume AMR primitives alongside the existing mesh/model subsystems | `ToroidalGrid`, `metric_gradient`, `GuidingCentre`, `push_guiding_centre!`, `AMRGrid`, `refine` |
 | **KdV reference** | integrating-factor pseudo-spectral KdV solver + analytic soliton, used as a nonlinear-wave verification target | `kdv_solve`, `kdv_soliton` |
+
+The bounded vacuum model uses a constant-step Maxwell stability bound.
+Individually sub-CFL steps do not guarantee stability for an arbitrary variable
+step sequence; see its [centering and stability contract](docs/BOUNDED_MAXWELL_IMPLEMENTATION.md#discrete-contract-and-derivation).
 
 The PIC models share the grid, particle, and diagnostic infrastructure with
 the hybrid stepper. Their species and time-level contracts differ;
@@ -535,7 +540,10 @@ PIC noise. Broader oblique, thermal, kinetic and EM comparisons remain in the
 - **Full-profile replay** of the Preisser 2020 dataset (the compact scalar
   summary with checksums is bundled; the full HDF5 requires downloading the
   upstream data).
-- Non-periodic EM-PIC boundaries (`EMPIC` and `EMPIC1D` use periodic geometry).
+- Non-periodic EM-PIC particle coupling (`EMPIC` and `EMPIC1D` use periodic geometry).
+  The separate [bounded Maxwell vacuum solver](docs/BOUNDED_MAXWELL_IMPLEMENTATION.md)
+  supplies conducting cavities and mixed periodic/conducting fields; charge-conserving
+  particle coupling, absorbing layers and restart integration remain open.
 - Cell-local Coulomb collisions are a standalone CPU operator. Automatic
   collision/field splitting with saved RNG state, MPI cell ownership and device
   kernels are separate open stages ([CAP-010](docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md)).

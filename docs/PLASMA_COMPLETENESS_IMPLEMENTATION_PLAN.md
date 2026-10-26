@@ -202,7 +202,7 @@ collision acceptance, shared trackers, integration, pushes and exact-SHA CI.
 | Slice | Implementation owner / canonical code | Dependencies | State and checked evidence | Next concrete action |
 | --- | --- | --- | --- | --- |
 | 001 local self/cross collisions | Canonical collision/sorting owners | Accepted sampler and particle arithmetic | Standalone CPU operator landed on `main` (2026-10-26) with numerical, resource and compiler gates on both runtimes | Optimize scheduling/compensated updates; compose under CAP-010; [live evidence](DEEP_DEBUG_TRACKER.md#current-progress-2026-10-26) |
-| 002A/B bounded Maxwell + particles | `/root/bounded_maxwell_implementation` owns 002A; mesh/operator and model owners | Staggered storage/layout contract; current periodic EM remains oracle | Vacuum/cavity implementation active; particles remain planned | Verify Yee curl/divergence, PEC corners, energy/Poynting, CFL and rollback, then design particle/wall charge coupling |
+| 002A/B bounded Maxwell + particles | Mesh/operator, field, boundary, model and diagnostic owners ([record](BOUNDED_MAXWELL_IMPLEMENTATION.md)) | Staggered storage/layout contract; current periodic EM remains oracle | 002A vacuum/cavity implemented with native normwise stages; particles remain planned | Design particle/wall charge coupling (002B) |
 | 002C/D open boundaries + production integration | Agent unassigned; boundaries, EM, I/O | 002A/B; 003/004 for parallel/device claims | Planned; no coupled open Maxwell path | Pre-register pulse reflection/charge-flux suite and absorber state schema |
 | 003A/B local storage + distributed operators | Root; MPI/Pencil owners; shared Fourier kernels in SpectralOperators | Collective precision, shared serial kernels and owned storage | Constructor, diagnostic and precision changes landed; shared serial kernels released as SpectralOperators 0.1.3 | Follow the [staged operator plan](DISTRIBUTED_OPERATOR_IMPLEMENTATION_PLAN.md); precision is landed and SpectralOperators 0.1.3 is registered; next, owned storage and derivatives |
 | 003C/D distributed coupled solvers | Agent unassigned; MPI orchestration + canonical solver owners | 003A/B and accepted serial solver | Planned; full-grid allreduce reference inspected | Compose a periodic hybrid step without replicated grids and test 2/4/8 ranks |
@@ -326,7 +326,7 @@ field evolution and has finite discretization reflection; this follows from the
 Use existing boundary particle utilities only when their ownership and charge
 ledger satisfy the coupled method.
 
-- [ ] **002A: Maxwell vacuum/cavity.** Dimension-parametric staggered state,
+- [x] **002A: Maxwell vacuum/cavity.** Dimension-parametric staggered state,
   periodic cross-check and conducting walls; explicit centering/CFL contract;
   compatible curl/divergence and field-energy/Poynting diagnostics. Gate cavity
   frequencies, analytic pulse transport, reflection phase and spatial/time order

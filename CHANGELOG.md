@@ -8,6 +8,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Bounded Maxwell vacuum/cavity fields (CAP-002A): `YeeGrid`, `YeeFields`,
+  `MaxwellVacuum` and `step_maxwell!` evolve staggered Yee E/B in 1D–3D with
+  periodic or homogeneous perfectly conducting axes, synchronized
+  B-half/E-full/B-half steps, a downward-rounded CFL bound and transactional
+  rejection that leaves physical fields and the clock unchanged. Stages are
+  native stencils with per-axis multipliers computed once per stage (about
+  6 / 11 ns per cell and step for Float32 / Float64 on 48³, zero allocations);
+  out-of-range multipliers use Float64 or exact power-of-two scaling and
+  overflowing entries are completed exactly, under the normwise accuracy
+  contract. `yee_curl!`, `yee_divergence!`, `apply_yee_pec!`,
+  `em_field_energy`, `yee_poynting` and `yee_poynting_flux` complete the API;
+  see `examples/maxwell_cavity.jl`.
+
 - Rank-owned periodic Fourier derivatives: `distributed_fourier_grid(n, L;
   comm)`, `distributed_field(grid)` and `deriv!`/`deriv` methods on the
   distributed grid reuse SpectralOperators 0.1.3 kernels on PencilFFTs pencils
