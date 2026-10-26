@@ -554,7 +554,9 @@ measures signed frequency and growth/damping from evolved cold parallel hybrid
 and Hall-MHD modes. It retains raw histories, residuals, half-window sensitivity,
 independent grid/time/particle refinements and source/environment hashes.
 Conditional fit errors do not establish statistical confidence for correlated
-PIC noise. Broader oblique, thermal, kinetic and EM comparisons remain in the
+PIC noise. [Case 35](validation/35_production_oblique_hall/README.md) adds oblique
+Hall-MHD histories within its documented fluid scope. Broader thermal, kinetic,
+EM and comparative campaigns remain in the
 [production dispersion plan](docs/PRODUCTION_DISPERSION_PLAN.md).
 
 ### Honest limits (not claimed)
@@ -572,11 +574,6 @@ PIC noise. Broader oblique, thermal, kinetic and EM comparisons remain in the
   The separate [bounded Maxwell vacuum solver](docs/BOUNDED_MAXWELL_IMPLEMENTATION.md)
   supplies conducting cavities and mixed periodic/conducting fields; charge-conserving
   particle coupling, absorbing layers and restart integration remain open.
-- Cell-local Coulomb collisions are a standalone CPU operator. Automatic
-  collision/field splitting with saved RNG state, MPI cell ownership and device
-  kernels are separate open stages ([CAP-010](docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md)).
-
-- Non-periodic EM-PIC boundaries (`EMPIC` and `EMPIC1D` use periodic geometry).
 - Collision/field composition covers fixed-step, first-order `HybridStepper`
   runs with ideal isothermal electrons on the CPU. Variable steps, higher-order
   splitting, other closures and models, other sources, MPI cell ownership and

@@ -1,6 +1,6 @@
 # Plasma simulation audit and implementation tracker
 
-Updated: 2026-10-26 (Asia/Taipei). Goal remains **active**.
+Updated: 2026-10-27 (Asia/Taipei). Goal remains **active**.
 
 User objective: audit the full codebase until an independent pass finds no new
 confirmed defects; optimize measured bottlenecks; plan and implement missing
@@ -33,44 +33,75 @@ in compensated updates. Work under the old contract is being migrated to this
 standard; tests that asserted componentwise tolerances for cancellation are
 rewritten as normwise bounds.
 
-## Current progress (2026-10-26)
+<a id="current-progress-2026-10-26"></a>
 
-The [2026-10-27 Ohmic diagnostic audit](RESISTIVE_DIAGNOSTIC_RANGE_AUDIT.md)
-tracks the verified intermediate-range defect and its minimum/latest Julia checks.
-Its branch still requires root integration and exact-SHA CI acceptance.
+## Current progress (2026-10-27)
 
-| Active work | Checked state | Remaining gate |
+Root resumed integration after Devin stopped. This dated status reconciles the
+19 commits after `563888f` through `cd55831` and the subsequent Ohmic repair
+`a356c6b`. The historical primary checkout and its uncommitted radiation work
+are preserved; integration and fresh audits use isolated worktrees. The full
+CAP-001–011 objective remains active and incomplete.
+
+The [official downloads page](https://julialang.org/downloads/) identifies
+Julia **1.13.3** as stable (checked 2026-10-27 Asia/Taipei). New campaigns run
+actual 1.12.7 and 1.13.3; a stale local `release` alias is not version evidence.
+The existing CI matrix selects minimum `1.12` and latest stable `1`.
+
+| Work | Verified integration state | Remaining work |
 | --- | --- | --- |
-| Shock CN solve and memory-status constructors | `ce52836` has all six CI jobs green and full compiler review; `c810eb0` has five green jobs and one failed allocation assertion | Investigate the shock-total resource failure; source attribution remains open |
-| Complete energy-budget composition | V6 broader fixed costs fail at profile 192/324; numerical/resource passes retained | Optimize the implementation before a new frozen candidate; composition held |
-| Metal gathered push | V6 native correctness/resources/compiler gates pass both runtimes; minimum timing passes all 30 profiles | Latest-Julia doubled-work control failed; zero candidate timing profiles ran there. Held without retry |
-| Linear CN reference multiplier | V5c landed after `4fafe4a`: range, phase, exact-arithmetic, shock-CN, dispersion, Aqua, JET and case 19 pass on Julia 1.12.7 and 1.13.2; ordinary calls cost 1.17–1.23× the parent | [Landing record](LINEAR_CN_RANGE_PLAN.md); exact-SHA CI pending. Packet allocation hoist lands separately |
-| Shared BigFloat exact conversion | `245e73a` pushed after numerical, concurrency, resource, compiler and fixed-cost gates pass both runtimes | [All six exact-SHA jobs and full compiler review pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40026749996); [repair evidence](EXACT_BIGFLOAT_CONVERSION_PLAN.md) |
-| Reference-unit normalization | V7 local numerical, native Metal, resource/compiler and all 306 fixed-cost profiles pass both runtimes | `1097076` passes all six exact-SHA CI jobs and full compiler review. Measured latency regressions remain optimization work. [Evidence and next steps](NORMALIZATION_RANGE_PLAN.md) |
-| Local multispecies collisions | Landed on `main` after `3a9c85d`: 7 new test files (≈153,000 assertions), 10 neighboring files, Aqua, JET (24 / 21, parent-identical) and the example pass on Julia 1.12.7 and 1.13.2. Warmed calls allocate zero bytes; measured 109 / 206 ns per pair (Float32 / Float64) vs 73 / 121 ns for the homogeneous operator | [Landing record](LOCAL_COULOMB_RATE_ALLOCATION_PLAN.md); exact-SHA CI pending. Scheduling and compensated-update optimization follow |
-| Bounded Maxwell vacuum/cavity | Normwise redesign of V12: native per-stage-multiplier stencils with wide/scaled/exact range completion; bounded-Maxwell suite and EM/fusion/AMR/exact-arithmetic/quality/JET neighbors pass on Julia 1.12.7 and 1.13.2; 48³ steps cost about 6 / 11 ns per cell (Float32 / Float64) with zero allocations, versus about 1,200 ns for V12 on the same loaded machine | [Implementation record](BOUNDED_MAXWELL_IMPLEMENTATION.md); integration and exact-SHA CI pending. The first coupled absorbing-wall slice is under design |
-| Prescribed-current 1D Maxwell | Normwise port on top of the bounded vacuum slice: sourced stage, charge, work and modified-energy suites pass on Julia 1.12.7 and 1.13.2 with per-stage/scalar normwise bounds | [Scope](SOURCED_YEE_FIELDS.md); integration and exact-SHA CI pending. Coupled particle self-force/event-order failures are separate open method work |
-| Electrostatic species collections | Landed after `cf2c4c5`: species, ES/EM, charge, I/O, restart, clock, dimension, moment, MPI-collection-checkpoint, Aqua and JET suites pass on Julia 1.12.7 and 1.13.2; scalar ES step at parent speed | [Implementation record](ELECTROSTATIC_SPECIES_IMPLEMENTATION.md); exact-SHA CI pending. The shared Boris/priming range defect is repaired separately (normwise kinematics) |
-| External reference provenance | Pushed as `95c5678`: all six jobs green, 723,186 / 723,187 assertions and complete compiler trees identical to accepted `1097076` | [Exact-SHA CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40186481856); [implementation and evidence](EXTERNAL_REFERENCE_PROVENANCE_PLAN.md) |
-| Validation frequency extraction | `01a1b3c` fails CI test loading/formatting; correction `27372b2` passes all six jobs and 726,339 / 726,340 assertions; complete compiler trees match accepted `1097076` | [Corrected exact-SHA full CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40189739840); [failure and repair evidence](VALIDATION_FREQUENCY_PLAN.md) |
-| Production dispersion | Historical `839c109` failed twelve minimum-Julia fitter assertions; repair `4f26e1d` passes all six CI jobs and 790,608 / 790,609 assertions. Complete compiler trees match accepted `1097076` after checked unchanged-source-line maps | [Centering repair](MODE_HISTORY_CENTERING_PLAN.md); [corrected exact-SHA CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40206440280) and compiler gate closed |
-| Legacy Coulomb null rotation | Pushed `a18f09d`; historical CI retains the twelve mode-fitter failures. The containing repair revision `4f26e1d` now passes all six jobs and complete compiler review | [Historical CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40197509625); [corrected revision](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40206440280). [Evidence](COULOMB_NULL_ROTATION_PLAN.md) |
-| Nonzero Coulomb angles | Pushed `2a5cc12`; historical minimum-Julia CI has 790,188 passes and the same twelve fitter-residual failures. Corrected descendant `4f26e1d` passes all six jobs and full compiler review | [Historical CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40205148875); fixed latency and local-collision composition remain. [Repair plan](COULOMB_SMALL_ANGLE_PLAN.md) |
-| Coulomb population-weight mean | Pushed `861e562`; all six CI jobs pass with 796,350 / 796,351 assertions. Complete compiler trees match accepted `1097076` after checked source-line maps. All 576 local ordinary profiles allocate zero bytes | [Normalization repair plan](COULOMB_WEIGHT_MEAN_PLAN.md); [exact-SHA CI and compiler review closed](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40211340659). Unaccepted V1 and its coarse-BigFloat failures remain retained |
-| Finite Gaussian Coulomb draws | Pushed as `85e75f2` after 62,035 sandbox, 16,704 ordinary, 48 concrete, 576 new resource and 720 prior exceptional assertions per runtime; full compiler trees match the parent | [Repair plan](COULOMB_FINITE_DRAW_PLAN.md); [exact-SHA CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40216316999): all six jobs green |
-| Coulomb kernel normwise + per-cell scheduling | Staged on `perf/coulomb`: widened update replays range loss only; componentwise cancellation triggers removed under the normwise standard; rate coefficient hoisted once per cell (self/triplet) and per distinct reuse value (cross). ~2× per-pair throughput; seeded runs differ only in cancellation cases within ulps of pair scale | [Brief](/tmp/hpic-lead/BRIEF_COULOMB_NORMWISE.md); componentwise assertions converted to normwise bounds in `test_coulomb_sampled_update.jl` and `test/local_coulomb/completion_cancellation.jl` |
-| Local Coulomb rate integration | Included in the landed local operator; the original-factor, wider-factor, range, state/RNG and prescribed-path suites are part of the permanent tests | [Original-factor integration plan](LOCAL_COULOMB_RATE_PLAN.md) |
-| Collision-aware hybrid stepping and restart | Ported onto `cda63f1` as a staged patch: `CollisionalHybridStepper` collides inside the `HybridStepper` step before the carried E is formed, bitwise equal to step, collision and E recomputation; RNG-complete checkpoints and whole-step rollback including the RNG. Both recorded findings reproduce and are test-expectation errors: the stale-E signal is the physical `h(q/m)dE` (2.1e-6–2.3e-5, below `128 eps(Float32)`), and per-call output bytes follow `IdDict` identity hashing, as in plain checkpoints, with at most 1,856 B retained growth. [Port record](COLLISION_COMPOSITION_RESTART_PLAN.md#port-onto-main-2026-10-26) | Lead review, landing and exact-SHA CI; variable-step scheduling and further sources remain |
-| Distributed FFT collective construction | Pushed `00f7922` after all 1/2/4/8-rank matrices, 135 exact resource/output profile comparisons per runtime, 47,105 neighbor assertions per runtime and complete compiler review | [Implementation plan](DISTRIBUTED_FFT_COLLECTIVE_PLAN.md); [exact-SHA CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40220039958): all six jobs green. Distributed operators and coupled evolution remain open |
-| Distributed FFT roundtrip diagnostic | Pushed `563888f` after 8,955 complete-extension and 288 boundary assertions per runtime. All 540 rank/profile comparisons and 2,700 allocation/error/state samples per runtime match the reference; full compiler review and actual CI launcher pass | [Repair plan](DISTRIBUTED_FFT_DIAGNOSTIC_PLAN.md); [exact-SHA CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40222940837): all six jobs green |
-| Distributed FFT precision | Landed V7: `test_distributed_fft.jl` passes at 1/2/4/8 real ranks on Julia 1.12.7 and 1.13.2; full `Pkg.test()` passes 798,477 / 798,478 assertions with registered SpectralOperators 0.1.3; JET reports (24 / 21) are identical to parent `563888f`. V7 removes 95.5% of the added setup allocation | [Precision plan](DISTRIBUTED_FFT_PRECISION_PLAN.md); exact-SHA CI pending |
-| Distributed field operators | Stage B landed after `1b7b8b7`. Stages C/D add `gradient!`, `divergence!`, `curl!`, `laplacian!`, `project_divfree!`, `exp_filter!` and `dealias_two_thirds!` on the rank-owned grid, reusing SpectralOperators 0.1.3 kernels with collective validation and all-or-nothing publication; `test_distributed_fft.jl` passes at 1/2/4/8 MPI ranks on Julia 1.12.7 and 1.13.2; Aqua passes and JET counts equal the parent's | [Staged plan and C/D record](DISTRIBUTED_OPERATOR_IMPLEMENTATION_PLAN.md), [derivative record](DISTRIBUTED_DERIVATIVE_PLAN.md); push and exact-SHA CI pending. Stage E (resources, integration) remains; PencilFFTs transforms still allocate about 8 KB each |
-| Boris Metal compatibility | Actual-device candidate compilation fails on both runtimes while the frozen parent passes; raw device probes confirm flush-to-zero behavior | Separate shared-expression adapter under design; CPU phase candidates remain unaccepted until backend compatibility is verified |
-| Coupled absorbing-wall event order | Original absorption convergence passes, but a distinct near-tie witness is incorrectly merged by the current prototype. Exact single-anchor enclosures are under verification | Certified event ordering, true ties, signed self-force and production resources remain open |
-| Electron transport S1 (CAP-011) | `TransportElectrons` on `feat/cap011-s1` (parent `68891ef`): constant-η Ohmic heating paired with ion recoil through the carried `E_force`. New transport suites (2,279 + 718 assertions), evolving-pressure, hybrid, CAM-CL, budget and I/O neighbors, Aqua and JET pass on Julia 1.12.7 and 1.13.2; JET report trees equal the parent (29 / 27). η = 0 is bitwise `EvolvingElectrons`; energy closes at fourth order with fixed ions and second order coupled; seven wrong-source mutations are rejected | Review, exact-SHA CI, phase/coordinate composition; S2–S8 (hyperresistivity, conduction, backends) remain unimplemented |
-| Oblique Hall production validation (CAP-007B) | Landed after `cda63f1`: oblique history fitter tests and neighboring wave/frequency suites pass on Julia 1.12.7 and 1.13.2; the earlier memory-limit failure does not reproduce | [Plan and evidence](OBLIQUE_HALL_VALIDATION_PLAN.md); case 35 is a long manual campaign; exact-SHA CI pending |
-| PERF-002 fused moment deposition | Landed after `d46029e`: bitwise-identical 68-scenario multi-step differential (hybrid, collections, CAM-CL, ES, EMPIC, EMPIC1D; D=1–3; NGP/CIC/TSC; F32/F64) on both runtimes; deposit/moment/charge/current/threaded/hybrid/CAM-CL/MPI suites, Aqua and JET (24 / 21) pass; warmed calls allocate zero bytes. 2D hybrid step 2.3–2.8× faster | Exact-SHA CI pending. Profile showed deposition at 73% of the hybrid step before this change |
-| Full simulator scope | CAP-001–011 remain open in whole or part | [Staged implementation roadmap](PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md) |
+| Ohmic dissipation diagnostic | `a356c6b` pushed; 4,218 new assertions per runtime also pass after root integration; ordinary array/view profiles retain 0 B and complete local compiler trees match the parent | [Exact-SHA CI running](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40369103017); [repair evidence](RESISTIVE_DIAGNOSTIC_RANGE_AUDIT.md) |
+| Near-light relativistic kicks | Fresh stored-velocity witnesses show a large rotation error in the native Lorentz factor on both runtimes; compensated-gap candidates pass scalar checks but fail the unchanged init/prime/step oracle gates and remain held | Repair accurately rounded priming/composition and output-domain closure, then rerun full frozen gates; no candidate is accepted |
+| Radiation force-span completion | A fresh exact-cancellation witness loses finite damping after a small squared force underflows; both baseline runtimes fail six of seven exponent cases. The frozen candidate passes 54,863 affected plus 108 new exact-tier task/resource assertions per runtime; complete local compiler trees match the parent | Independent error-bound review, integration, push and CI; [canonical model](RADIATION_REACTION_PLAN.md) |
+| Infinite-strength Fourier filter | Shared SpectralOperators repair pushed as `bf90307`, followed by verification docs `0e17596`; all local MPI 1/2/4/8 campaigns and both runtime suites pass | [All four dependency CI jobs pass](https://github.com/jake-w-liu/SpectralOperators.jl/actions/runs/40370364916); registry publication/resolution, then separate HPIC consumer regression and CI |
+| Inverse FFT intermediate range | A second finite-input witness overflows in the unnormalized inverse despite finite mathematical output; a separate shared-headroom repair is under verification | Full serial/MPI/compiler/resource gates and independent proof review; no CAP-003 completion claim |
+| Distributed FFT precision | `3a9c85d`: all six exact-SHA jobs and full compiler review pass | [Precision record](DISTRIBUTED_FFT_PRECISION_PLAN.md); resources/scaling and coupled distributed evolution remain |
+| Distributed field operators | `4fafe4a` derivative and `4724947` gradient/divergence/curl/Laplacian/projection/filters landed; exact-SHA CI and full compiler review pass | [Operator stages](DISTRIBUTED_OPERATOR_IMPLEMENTATION_PLAN.md); coupled domain-owned solver, restart and cluster scaling remain |
+| Local multispecies Coulomb | `1b7b8b7` standalone CPU operator has all six jobs and full compiler review; `cda63f1` normwise update/rate scheduling is included in green descendant `4724947` | MPI cell-complete ownership, device pairing, broader cost campaigns; [local contract](LOCAL_MULTISPECIES_COULOMB_PLAN.md) |
+| Collision-aware hybrid/restart (CAP-010) | `2b2420b`: all six jobs and full compiler review. Fixed-step first-order CPU isothermal composition includes RNG-complete restart and whole-step rollback | Other closures/models, variable/higher-order splitting, additional sources, MPI/device RNG; [guide](COLLISIONAL_HYBRID.md) |
+| Electron transport S1 (CAP-011) | `a6d20d3`: all six jobs and full compiler review. Serial constant-η `TransportElectrons` carries the matched force and heating | S2–S8, including hyperresistivity, conduction, backends, anisotropy and inertia. Composition with `CollisionalHybridStepper` is unsupported; [contract](EVOLVING_ELECTRONS.md#constant-ohmic-transport) |
+| Bounded Maxwell / prescribed current | `2f94e27` vacuum/cavity and `68891ef` prescribed 1D current are landed and included in green descendant `4724947` | Coupled particle/current/wall method, absorbers, restart and backends; [field scope](BOUNDED_MAXWELL_IMPLEMENTATION.md) |
+| Electrostatic species collections | `d46029e` landed and included in green descendant `4724947` | Arbitrary EM species and parallel/device integration; [ES scope](ELECTROSTATIC_SPECIES_IMPLEMENTATION.md) |
+| Linear CN and moment deposition | `03e4eb3` CN range repair is exact-SHA green; packet hoist `cf2c4c5` and fused deposition `a9b7d7c` are included in green descendant `4724947` | Broader coupled implicit solve; preserve historical failed allocation gates and their corrections |
+| Production dispersion | Parallel production histories and oblique Hall case 35 are landed; containing `4724947` passes the package/CI gates | Complete long manual campaigns and broader thermal, kinetic, EM, profile and matched-cost comparisons; [oblique record](OBLIQUE_HALL_VALIDATION_PLAN.md) |
+| GPU gathered push / resident solver | Primitive and actual-Metal audits continue; earlier fixed-latency failures and flush-to-zero evidence remain retained | Reject gathered midpoint aliases before mutation, finish primitive gates, then implement a complete resident solver |
+| Complete energy-budget costs | The earlier V6 324-profile campaign is held after a failed fixed-cost profile | Optimize against the retained baseline before freezing a new candidate; no global optimization claim |
+| Full simulator scope | CAP-001–011 each remain open in whole or part | [Capability stages, owners and acceptance gates](PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md) |
+
+The takeover CI archive retains every completed run, including failures. Green
+containing revisions do not retroactively turn an earlier failed run green.
+Packet-allocation failures, Julia 1.13.3 configuration-ownership errors and the
+shock allocation failure remain recorded with their later corrections.
+
+| Exact revision | All six jobs / complete compiler review | Assertions, minimum / then-latest Julia |
+| --- | --- | --- |
+| `3a9c85d` | [Pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40272482296) | 798,477 / 798,478 (1.12.7 / 1.13.2) |
+| `1b7b8b7` | [Pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40272777081) | 943,734 / 943,735 (1.12.7 / 1.13.2) |
+| `4fafe4a` | [Pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40275193467) | 947,424 / 947,425 (1.12.7 / 1.13.2) |
+| `03e4eb3` | [Pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40275287900) | 964,186 / 964,187 (1.12.7 / 1.13.2) |
+| `4724947` | [Pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40325153253) | 1,120,137 / 1,120,138 (1.12.7 / 1.13.3) |
+| `2b2420b` | [Pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40326554556) | 1,122,494 / 1,122,495 (1.12.7 / 1.13.3) |
+| `a6d20d3` | [Pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40328070085) | 1,125,567 / 1,125,568 (1.12.7 / 1.13.3) |
+
+Complete CI compiler trees match accepted `1097076` after line mappings proven
+from unchanged source text. For 1.13.3, the only further difference is the exact
+Julia build-directory prefix; all five referenced stdlib files are byte-identical
+between installed official 1.13.2 and 1.13.3 distributions. All diagnostic frames,
+signatures and messages are retained. Evidence: takeover
+`ci/complete-review-ledger.json`, `ci/stdlib-build-prefix-proof-v1.json` and
+`review-ci-trees-v3.py` under `HybridPlasmaPIC-audit-evidence/2026-10-27`.
+Fresh confirmed defects retain their raw reproduction commands and outputs:
+kinematics `probe-nearlight-v2.jl` / `probe-nearlight-v2.log` and
+`probe-alias-v1.log`; radiation `takeover/radiation-span-before.jl` and both
+runtime logs; distributed filtering `distributed-takeover/filter-repro-v2-*.log`.
+These are VERIFIED bounded findings; they are not a whole-project audit result.
+Runs for `e2e8690`, `cd55831` and `a356c6b` are still pending at this snapshot;
+no billing block has been observed.
+
+## Earlier evidence and retained gates
+
+The entries below retain the history of earlier frozen candidates. Current
+integration state and remaining work are recorded above.
 
 - [x] Reconfirmed the full implementation objective on 2026-10-25: CAP-001–011
   remain active, including missing coupled solvers, backend integration and
@@ -1134,19 +1165,17 @@ the expanded plan owns capability staging. Both remain active.
 
 | Capability | Owner / current state | Next acceptance milestone |
 | --- | --- | --- |
-| CAP-001 Local multispecies collisions | Standalone CPU operator landed | Optimization pass; CAP-010 composition, MPI cell ownership and device pairing; [progress checklist](LOCAL_MULTISPECIES_COULOMB_PLAN.md) |
+| CAP-001 Local multispecies collisions | CPU operator and normwise rate scheduling landed; fixed-step isothermal composition landed | MPI cell ownership, device pairing and broader costs; [local progress](LOCAL_MULTISPECIES_COULOMB_PLAN.md) |
 | CAP-002 Nonperiodic EM-PIC | Bounded vacuum/cavity fields (002A) implemented under the normwise contract | Compatible particle/current/wall coupling (002B), absorbing layers (002C), restart/backends (002D) |
-| CAP-003 Domain-owned distributed stepping | FFT constructor/diagnostic fixes pushed; precision and shared-kernel work active | [Staged operator plan](DISTRIBUTED_OPERATOR_IMPLEMENTATION_PLAN.md); owned fields, halos and coupled evolution remain |
+| CAP-003 Domain-owned distributed stepping | Rank-owned Fourier storage and derivative/vector/filter operators landed | [Operator plan](DISTRIBUTED_OPERATOR_IMPLEMENTATION_PLAN.md); shared inverse-range repair, coupled owned solver, restart and scaling |
 | CAP-004 Complete GPU-resident stepping | Root auditing primitives; coupled solver planned | Gathered-push validation, remaining kernels, then one resident solver with measured transfers |
 | CAP-005 Coupled implicit advancement | Shock CN solve and linear CN reference repair landed | Derive the coupled nonlinear residual, transaction and solve (005B/C) |
 | CAP-006 Geometry, gyrokinetics and adaptive evolution | Unassigned; standalone primitives exist | Separate coupled model contracts and manufactured solutions for each branch |
 | CAP-007 External validation and comparisons | Root owns provenance and production wave-history implementation; broader comparisons remain planned | [Provenance acceptance](EXTERNAL_REFERENCE_PROVENANCE_PLAN.md), production time-series dispersion, full profiles and matched cost/accuracy |
 | CAP-008 Arbitrary ES/EM species | ES collections landed | Arbitrary EM collections, collisions/boundaries/partitions/device integration |
 | CAP-009 Full-Hall multidimensional shocks | Expanded scope; planned | Full induction/boundary balance and transverse-mode oracle |
-| CAP-010 Composed sources and RNG restart | Fixed-step CPU collision/field split for `HybridStepper` with RNG-complete restart and whole-step rollback staged for landing ([guide](COLLISIONAL_HYBRID.md)) | Variable-step collision scheduling, other closures/models and sources, MPI cell ownership and device RNG |
-| CAP-011 Electron transport and energy | Scientific reference packet and S1–S8 plan reviewed; production implementation pending | Transport closure, term-specific heating/loss balance, phase composition and convergence |
-| CAP-010 Composed sources and RNG restart | Expanded scope; required for restartable collision integration | Split phases, complete RNG persistence and transaction semantics |
-| CAP-011 Electron transport and energy | S1 constant Ohmic `TransportElectrons` implemented on `feat/cap011-s1` (serial CPU, paired E_force recoil/heat, rollback, restart); S2–S8 pending | S1 review, exact-SHA CI and phase/coordinate composition; then S2 hyperresistive heating ([plan](EVOLVING_ELECTRONS.md#constant-ohmic-transport)) |
+| CAP-010 Composed sources and RNG restart | Fixed-step first-order isothermal CPU `CollisionalHybridStepper` landed with full RNG restart and rollback ([guide](COLLISIONAL_HYBRID.md)) | Variable/higher-order splitting, other closures/models/sources and MPI/device ownership |
+| CAP-011 Electron transport and energy | S1 constant Ohmic `TransportElectrons` landed; all six exact-SHA CI jobs and full compiler review pass | S2–S8 and collision/transport composition; [transport plan](EVOLVING_ELECTRONS.md#constant-ohmic-transport) |
 
 Every slice requires physics/conservation, convergence, failure/rollback,
 restart, compiler/quality, applicable hardware/parallel and fixed performance

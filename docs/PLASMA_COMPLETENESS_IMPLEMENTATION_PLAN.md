@@ -1,8 +1,10 @@
 # Plasma simulator completeness and implementation plan
 
-Source assessment: **2026-10-23**, revision
+Initial source assessment: **2026-10-23**, revision
 `bf2a8bc615f514f8d2868934849bf44814140bbb`. This document plans work; it does not
-certify the proposed implementations. The [audit tracker](DEEP_DEBUG_TRACKER.md)
+certify the proposed implementations. Implementation status was reconciled on
+**2026-10-27** against `a356c6b`; earlier line references remain pinned to the
+initial assessment. The [audit tracker](DEEP_DEBUG_TRACKER.md)
 owns accepted fixes, measured results and exact-revision CI status.
 
 **The package is not yet a complete implementation of the expanded simulator
@@ -71,20 +73,20 @@ Source names below resolve to these canonical files:
 | Capability | Existing implementation and checked evidence | Completion state |
 | --- | --- | --- |
 | Periodic hybrid, positive ion collections | `HybridStepper` / `CAMCLStepper`; README:78–93,156–169; `extrapolated_leapfrog.jl:67–120,359,766`; collection and pressure tests | Implemented within documented closure, geometry and time-centering restrictions; inherited audit findings remain open |
-| ES/EM PIC | `electrostatic.jl:14–64`; `full_pic.jl:1747–1813`; `test_espic.jl`, `test_empic.jl`, `test_empic1d.jl` | Periodic CPU evolution exists; arbitrary kinetic species, nonperiodic Maxwell and resident GPU/MPI solvers are missing |
+| ES/EM PIC | Periodic `ElectrostaticPIC`, `EMPIC` and `EMPIC1D`; ES collection implementation `d46029e` | Periodic CPU evolution and arbitrary ES species exist; arbitrary EM collections, coupled nonperiodic PIC and resident GPU/MPI solvers remain missing |
 | Hall-MHD | `HallMHDModel`, `HallMHDState`, `step_hall_mhd!`; `test_hall_mhd.jl`, `test_io_hall_mhd.jl` | A periodic solver exists; it is not a general geometry/closure solver |
-| Coulomb collisions | `collide_coulomb!` in `particles/collisions.jl`; single-population public contract | Local interspecies operator under CAP-001 implementation; composition/restart and parallel support are later gates |
-| Nonperiodic EM | `EMPIC` constructor requires `FourierGrid`; `full_pic.jl:2199` wraps ions, electron path likewise periodic | Missing coupled field/particle boundary implementation, CAP-002 |
-| Distributed evolution | `mpi.jl:934–960,1008–1027` explicitly deposits/reduces full grids and steps replicated fields; Pencil extension:31–60 wraps FFTs | Infrastructure and reference evolution exist; domain-owned solver missing, CAP-003 |
+| Coulomb collisions | Canonical homogeneous and local collection `collide_coulomb!`; `CollisionalHybridStepper` | Local self/cross CPU operator and fixed-step isothermal hybrid/RNG restart exist; additional compositions and parallel/device support remain |
+| Nonperiodic EM | Periodic `EMPIC`; separate `MaxwellVacuum` on `YeeGrid` with prescribed 1D integrated current | Vacuum/cavity and prescribed-current fields exist; coupled particles/walls, absorbers and restart remain CAP-002 work |
+| Distributed evolution | Replicated-field MPI reference plus rank-owned Fourier storage and derivative/vector/filter operators (`4724947`) | Distributed operator primitives exist; coupled domain-owned solver, restart and cluster-scale acceptance remain CAP-003 work |
 | GPU | Metal extension has deposit/gather/push methods; CUDA extension:1–68 has storage/telemetry hooks; `HybridFields` uses `Array` at field_state:12–29 | Partial kernels, not complete resident solvers, CAP-004; device availability is not numerical acceptance |
 | Implicit evolution | Linear Fourier amplitudes in `semi_implicit.jl`; subsequent `ce52836` adds a residual-checked `ShockCNWorkspace` solve and full-step rollback ([contract](SHOCK_CN_SOLVE_PLAN.md)) | Limited field-only paths exist; nonlinear coupled particle/field solve remains missing, CAP-005 |
 | Geometry | `ToroidalGrid`, metric gradient/divergence in curvilinear_mesh:20–49,90–235 | Geometry operators exist; no coupled toroidal plasma stepper, CAP-006A |
 | Gyrokinetics | `GuidingCentre`, local-field push and `gyroaverage` in gyrokinetics:559–645,823–876 | Single-particle/local sampling utilities; no self-consistent gyrokinetic distribution/field solve, CAP-006B |
 | AMR | `AMRGrid` is a single 1D scalar level, adaptive_mesh_refinement:8–23; prolong/restrict/refine:322–366 | Transfer primitives; no adaptive plasma hierarchy, particle crossing or coupled timestep, CAP-006C |
-| External validation | Case 27's runner evaluates a test eigenvalue oracle; case 28's runner executes the shock solver and compares scalars | Useful partial comparisons; production-solver dispersion, full profile replay and fair cost/accuracy comparisons required, CAP-007 |
-| Kinetic species diversity | EMPIC docs fix electrons to `q=-1,m=1` and at most one `q=+1` mobile ion, full_pic:1751–1759 | Broader ES/EM collection evolution missing, CAP-008 |
+| External validation | Pinned external references plus case 34 parallel and case 35 oblique Hall production histories | Bounded production validation exists; complete manual campaigns, broader regimes, full profile replay and matched cost/accuracy comparisons remain CAP-007 work |
+| Kinetic species diversity | Arbitrary ES charge/mass collections landed; current EMPIC electron/ion model remains restricted | Arbitrary EM collection evolution and backend composition remain CAP-008 work |
 | Multidimensional shocks | shock3d:9–19,337–359 and shock2d:230–236 intentionally exclude Hall induction while retaining Hall particle forces | Documented reduced shock model; full-Hall multidimensional branch required for broader claims, CAP-009 |
-| Coupled sources and collisions | Core hybrid/CAM-CL/EMPIC steppers have no calls to collision, ionization or radiation operators; checkpoint:1 names deterministic state | Standalone operators exist; reproducible composed evolution missing, CAP-010 |
+| Coupled sources and collisions | `CollisionalHybridStepper` and full RNG checkpoint/archive state (`2b2420b`) | Fixed-step first-order isothermal CPU composition exists; other models/closures/sources, schedules and backends remain CAP-010 work |
 | Electron transport | `EVOLVING_ELECTRONS.md` restricts `EvolvingElectrons` to ideal massless parameters; `TransportElectrons` adds constant Ohmic transport (S1) | Ideal pressure and serial constant-η Ohmic transport exist; hyperresistive, conductive, anisotropic, inertial and backend extensions missing, CAP-011 S2–S8 |
 
 The geometry integration finding also follows from a repository-wide symbol
@@ -194,34 +196,35 @@ mean code or runtime verification is complete. “Scope proposal” marks the
 additional CAP-008–011 model expansion. Root owns integration, tracker consistency,
 commit/push and CI. A named subsystem below is a code owner; an unassigned
 implementation agent is explicitly unassigned, not implicitly running.
-On 2026-10-25, three fresh implementation agents started successfully in
-isolated worktrees: linear CN, electrostatic species collections and bounded
-Maxwell vacuum/cavity. Earlier agent quota errors are historical. Root owns
-collision acceptance, shared trackers, integration, pushes and exact-SHA CI.
+On 2026-10-27, root owns integration, radiation force-span completion, tracker
+consistency and exact-SHA CI. Three independent audit tracks own relativistic
+kinematics/Metal, distributed operators/shared dependencies, and transport/
+collision correctness plus the independent radiation review. Earlier agent names
+and quota failures describe historical work, not current ownership.
 
 | Slice | Implementation owner / canonical code | Dependencies | State and checked evidence | Next concrete action |
 | --- | --- | --- | --- | --- |
-| 001 local self/cross collisions | Canonical collision/sorting owners | Accepted sampler and particle arithmetic | Standalone CPU operator landed on `main` (2026-10-26) with numerical, resource and compiler gates on both runtimes | Optimize scheduling/compensated updates; compose under CAP-010; [live evidence](DEEP_DEBUG_TRACKER.md#current-progress-2026-10-26) |
+| 001 local self/cross collisions | Canonical collision/sorting owners | Accepted sampler and particle arithmetic | CPU self/cross operator, normwise scheduling and fixed-step isothermal composition landed | MPI/device pairing and broader cost campaign; [live evidence](DEEP_DEBUG_TRACKER.md#current-progress-2026-10-27) |
 | 002A/B bounded Maxwell + particles | Mesh/operator, field, boundary, model and diagnostic owners ([record](BOUNDED_MAXWELL_IMPLEMENTATION.md)) | Staggered storage/layout contract; current periodic EM remains oracle | 002A vacuum/cavity implemented with native normwise stages; particles remain planned | Design particle/wall charge coupling (002B) |
 | 002C/D open boundaries + production integration | Agent unassigned; boundaries, EM, I/O | 002A/B; 003/004 for parallel/device claims | Planned; no coupled open Maxwell path | Pre-register pulse reflection/charge-flux suite and absorber state schema |
-| 003A/B local storage + distributed operators | Root; MPI/Pencil owners; shared Fourier kernels in SpectralOperators | Collective precision, shared serial kernels and owned storage | Constructor, diagnostic and precision changes landed; shared serial kernels released as SpectralOperators 0.1.3 | Follow the [staged operator plan](DISTRIBUTED_OPERATOR_IMPLEMENTATION_PLAN.md); precision is landed and SpectralOperators 0.1.3 is registered; next, owned storage and derivatives |
+| 003A/B local storage + distributed operators | Distributed audit track; MPI/Pencil/SpectralOperators owners | Collective precision, shared kernels and owned storage | Rank-owned storage and derivative/vector/filter operators landed; `4724947` exact-SHA CI/compiler gates pass | Complete separate shared filter/inverse-range repairs, then [resources and integration](DISTRIBUTED_OPERATOR_IMPLEMENTATION_PLAN.md) |
 | 003C/D distributed coupled solvers | Agent unassigned; MPI orchestration + canonical solver owners | 003A/B and accepted serial solver | Planned; full-grid allreduce reference inspected | Compose a periodic hybrid step without replicated grids and test 2/4/8 ranks |
 | 003E cluster scale/restart | Agent unassigned; benchmark/MPI/I/O | 003C/D; real multi-node allocation | Hardware campaign pending | Freeze strong/weak scaling and changed-layout restart workloads before requesting/running resources |
 | 004A GPU primitive closure | Root; extensions and coupling | Current kernel gates and exact-SHA CI | Metal uniform push and NGP have green CI; gathered V1 fails allocation, V2–V5 fail fixed latency gates; V5 native correctness passes | V6 native/compiler/resource gates pass both; minimum fixed costs pass but latest doubled-work calibration fails. Hold without retry; latest candidate timing and primitive closure remain open |
 | 004B/C resident solver families | Agent unassigned; fields, integrators/models, extensions | 004A; storage/operator contract; actual device operators | Planned; concrete host arrays inspected | Implement one complete resident hybrid path and trace all transfers/scalar access |
 | 004D multi-GPU | Agent unassigned; MPI + device extensions | 003C/D, 004B/C; real devices/network | Hardware/integration pending | Establish buffer ownership/staging contract and matched device/rank oracle |
-| 005A existing CN-labelled paths | `/root/linear_cn_implementation`; shock3d and integrator stability owners | Independent linear-system oracle | Shock CN repair pushed as ce52836; [linear CN](LINEAR_CN_RANGE_PLAN.md) V5c landed (2026-10-26) | Closed for the existing paths; continue with 005B/C |
+| 005A existing CN-labelled paths | Shock3d and integrator stability owners | Independent linear-system oracle | Shock CN `ce52836` and [linear CN](LINEAR_CN_RANGE_PLAN.md) `03e4eb3` have green exact-SHA CI | Continue with 005B/C; preserve separate resource regressions and corrections |
 | 005B/C implicit hybrid | Agent unassigned; integrator + moment/Ohm owners | Derived discrete conservation and solve contract | Planned | Freeze unknowns/residual, independent small-system oracle and failed-solve transaction |
 | 005D implicit EM / parallel geometry | Agent unassigned; EM/parallel/geometry owners | 005B/C method evidence; accepted relevant operators | Planned | Derive EM-specific continuity/work residual before adding a public method |
 | 006A curvilinear solver | Agent unassigned; mesh/coupling/model/I/O | Compatible geometry operators, chosen physical model | Partial primitives; no production callers found | Specify coordinate/component/volume conventions and coupled manufactured problem |
 | 006B self-consistent gyrokinetics | Agent unassigned; gyrokinetics/coupling/field/I/O | Explicit model choice; 006A for toroidal claim | Partial primitives; no distribution/field integration found | Fix electrostatic model, marker/weight state and polarization equation |
 | 006C adaptive plasma hierarchy | Agent unassigned; AMR/coupling/model/I/O | Composite field method; 002/003/004 only where claimed | Partial scalar-level primitives | Design static ES hierarchy and crossing/self-force oracle before dynamic refinement |
-| 007A/B reference provenance + production dispersion | Root owns 007A; validation/reference owners | Source/network/toolchain; accepted production solver | Pinned reference builds, integrity/failure checks and all ten existing physics metrics pass both runtimes | Complete [provenance CI acceptance](EXTERNAL_REFERENCE_PROVENANCE_PLAN.md) and [production wave-history integration](PRODUCTION_DISPERSION_PLAN.md); expand remaining angles, thermal/EM regimes and uncertainty studies |
+| 007A/B reference provenance + production dispersion | Canonical validation/reference owners; next campaign agent unassigned | Source/network/toolchain; accepted production solver | Pinned provenance, parallel production histories and oblique Hall case 35 landed; CI state is in the audit tracker | Complete manual campaigns and broaden thermal/kinetic/EM regimes, uncertainty and matched-cost comparisons; [production plan](PRODUCTION_DISPERSION_PLAN.md) |
 | 007C–E profiles, new physics, comparative costs | Agent unassigned; validation/benchmark owners | Accepted corresponding capability; datasets/hardware | Existing scalar comparisons inspected; campaigns unrun here | Freeze matched inputs/diagnostics/uncertainty and preserve raw reference outputs |
-| 008 ES/EM arbitrary species | `/root/electrostatic_species_implementation` owns first ES slice | Species charge/time-level design; existing Poisson owner | ES collections landed (2026-10-26); arbitrary EM collections remain planned | Design EM collections: charge-conserving summed currents, mobile/immobile species and multirate schedule |
+| 008 ES/EM arbitrary species | Canonical electrostatic/EM owners; next implementation agent unassigned | Species charge/time-level design; existing Poisson owner | ES collections landed; containing `4724947` passes all six jobs and full compiler review; arbitrary EM collections remain planned | Design EM collections: charge-conserving summed currents, mobile/immobile species and multirate schedule |
 | 009 full-Hall multidimensional shocks | Scope proposal; root selects implementation agent | Full mixed-operator/field-boundary balance; 005 optional | Deliberate reduced induction verified | Derive full induction and SAT budget; build transverse-mode witness |
-| 010 composed sources and RNG restart | Scope proposal; dependency of restartable collision composition | 001 and phase/growth/checkpoint contracts | Standalone operators/deterministic checkpoint inspected | Specify split order, saved RNG/counters, commit and rollback semantics |
-| 011 electron transport/energy | Scope proposal; root selects implementation agent | Term-specific energy derivation and integrator contract | Ideal-only evolving-pressure restriction verified | Derive matched resistive heating/loss discrete balance |
+| 010 composed sources and RNG restart | Integrator/checkpoint owners; independent collision audit track | 001 and phase/growth/checkpoint contracts | Fixed-step first-order isothermal CPU `CollisionalHybridStepper` landed; `2b2420b` exact-SHA CI/compiler gates pass | Extend schedules, closures/models/sources and backends; preserve full RNG/phase/rollback contract |
+| 011 electron transport/energy | Electron/integrator owners; independent transport audit track | Term-specific balance and carried force contract | S1 constant Ohmic `TransportElectrons` landed; `a6d20d3` exact-SHA CI/compiler gates pass | S2 hyperresistive heating, then S3–S8; collision/transport composition remains unsupported |
 
 For every row, its detailed section below supplies the required conservation,
 accuracy/convergence, error/rollback, restart, parallel, hardware, performance and
@@ -242,72 +245,27 @@ backends is part of the contract. Equal macro weights conserve pair momentum and
 energy using physical species masses; unequal weights require the selected
 method's statistical conservation, rate and reuse-count proof.
 
-The current V10 candidate is unaccepted and composed on `c5e8472`, whose
-production baseline matches `1097076`. Both Julia versions pass 141,143
-registered assertions, including sampled/physical-rate checks, four-species
-generators, cancellation boundaries and all 108 zero-allocation profiles.
-Normalization subprocesses pass 7,590 physical rounding checks and 100 compact
-MPFR checks, with settings restoration confirmed.
+The standalone CPU slice landed as `1b7b8b7` and passed all six exact-SHA CI
+jobs and full compiler-tree review. The canonical rate/rotation owners include
+the earlier null-angle, small-angle, population-mean and finite-draw repairs;
+`cda63f1` subsequently adds normwise updates and hoists per-cell/reuse rate
+coefficients. Its historical CI failure is retained; containing revision
+`4724947` passes all six jobs and complete compiler review. The
+[detailed local tracker](LOCAL_MULTISPECIES_COULOMB_PLAN.md) retains rejected
+candidates and numerical/resource evidence. No global cost optimum follows.
 
-The legacy [sampled-angle repair](COULOMB_SMALL_ANGLE_PLAN.md) now extracts the
-shared physical expression and retains original binary rate factors. It is
-pushed as `2a5cc12`, with exact-SHA CI review pending. Its stable-increment arithmetic intentionally changes
-historical floating-point outputs; the frozen V10 legacy differential evidence
-must be regenerated after composition. A separate confirmed
-[population-mean repair](COULOMB_WEIGHT_MEAN_PLAN.md) passes final local collision,
-compiler and resource verification on both supported runtimes; exact-SHA CI
-review remains. Neither
-the local operator nor later collision-aware stepping may duplicate these
-canonical arithmetic owners to bypass integration. A fresh public V10 witness
-also confirms a [physical-rate boundary discrepancy](LOCAL_COULOMB_RATE_PLAN.md)
-on both runtime targets; preserve original local physical factors during
-that integration.
-
-Fresh audits reproduced and repaired component-product underflow and Float32
-cancellation inside the widened rotation, followed by Float32 overflow-midpoint
-double rounding. The earlier failed witnesses remain recorded. V10 additionally
-passes 810 neighboring/component and 30 public acceptance/rollback checks.
-Concrete compiler/Aqua checks pass; full package trees match the
-previous candidate after checked source-line mapping. Legacy tests retain exact
-outputs/RNG and exact warmed-byte equality, including an allocation-order control
-that reproduces the initial differences using identical parent code. The
-underlying runtime allocation owner remains unclassified.
-
-The manual arithmetic certificate is reviewed against the frozen source and
-installed runtime operations. The frozen 304-profile cost campaign (72 legacy,
-216 local, four exceptional and 12 controls), final review, promotion and
-exact-SHA CI remain open. No fixed timing run has started. The [detailed tracker](LOCAL_MULTISPECIES_COULOMB_PLAN.md)
-records the retained failures, current evidence and dependent integration work.
-The [shared BigFloat materializer](EXACT_BIGFLOAT_CONVERSION_PLAN.md) has a
-compact-range repair with all six exact-SHA CI jobs and full compiler review
-passed. It is a numerical dependency, not a new simulator capability.
-[NORM-001](NORMALIZATION_RANGE_PLAN.md) additionally reproduces range loss in the
-existing reference-scale owner and complete value conversion on both runtimes.
-The V7 normalization repair passes permanent CPU/Metal/MPFR,
-threaded, exceptional-resource and compiler checks on both Julia versions.
-All 306 frozen ordinary profiles and six controls pass per runtime, with measured
-latency regressions retained as optimization work. It is pushed as `1097076`;
-all six exact-SHA CI jobs and complete compiler review pass.
-Re-run all collision gates on the final repaired source before acceptance.
-
-The independent [legacy null-rotation repair](COULOMB_NULL_ROTATION_PLAN.md)
-passes both runtime sandboxes, exact ordinary output/RNG/allocation comparisons
-and full compiler-tree review. Its individual push/CI is separate from local
-multispecies acceptance. A further verified variance-underflow defect erases a
-representable nonzero kick; that repair must reuse the canonical sampler and
-compose the null fix before revalidating the local candidate. Neither finding
-is closed by the frozen V10 ordinary compatibility checks.
-
-- [ ] Cell-local self/cross pairing, empty/singleton/odd populations, arbitrary
-  species counts/weights and validated staging before committing velocities.
-- [ ] Independent Landau-generator drift/diffusion and equilibration-rate tests,
-  density/charge/mass/timestep scaling, no cross-cell interaction, alias/error
-  rollback, fixed-RNG replay and legacy differential checks.
-- [ ] Reused-workspace allocation and complete-call cost matrix; cells with extreme
-  occupancy and species imbalance must be measured, not excluded from pairing.
-- [ ] CAP-010 owns automatic splitting and saved RNG/phase. CAP-003 must supply
-  cell-complete local populations after migration; CAP-004 supplies real device
-  pairing/streams. The local CPU slice alone closes none of these integration gates.
+- [x] Cell-local self/cross pairing with empty/singleton/odd populations,
+  arbitrary species counts/weights, shared physical-rate arithmetic, alias
+  rejection and staging before velocity publication.
+- [x] Independent drift/diffusion, equilibration-rate, conservation, scaling,
+  cross-cell isolation, fixed-RNG replay and legacy regression suites are part
+  of the accepted CPU tests. Ordinary reusable-workspace calls are allocation-free.
+- [ ] Broader complete-call cost campaign, extreme occupancy/species imbalance,
+  production workload and independently controlled timing acceptance.
+- [x] CAP-010 supplies fixed-step first-order isothermal CPU composition and full
+  advanced-RNG/phase restart. This does not add transport-closure composition.
+- [ ] CAP-003 must supply cell-complete populations after migration; CAP-004 must
+  supply real device pairing/streams. The CPU slice closes neither backend gate.
 
 ## CAP-002 — nonperiodic electromagnetic PIC
 
@@ -676,7 +634,7 @@ charge/energy/momentum exchange, particle growth, ID allocation and recomputatio
 of fields. First implement the accepted CPU collision/field split, then add other
 sources one by one with their own conservation/accuracy contracts.
 
-- [x] First slice (2026-10-26, staged for landing): `CollisionalHybridStepper`
+- [x] First slice (landed as `2b2420b`, exact-SHA CI/compiler review passed): `CollisionalHybridStepper`
   composes fixed-step CPU `HybridStepper` runs (ideal isothermal electrons) with
   cell-local collisions between the field advance and the carried-E formation,
   persists the advanced RNG and source ledger in checkpoints/archives and rolls
@@ -736,7 +694,11 @@ common-time energy, bitwise `η = 0` reduction, admissibility/rollback,
 range-safe heating and restart ([guide](EVOLVING_ELECTRONS.md#constant-ohmic-transport)).
 MPI, CAM-CL and Hall-MHD reject the closure. Thermal equilibration,
 hyperresistive heating (S2), conduction (S3–S5), backends (S6), anisotropy (S7)
-and inertia (S8) remain open; S1 still needs review and exact-SHA CI.
+and inertia (S8) remain open. S1 landed as `a6d20d3` with all six exact-SHA
+CI jobs and complete compiler review passed. `CollisionalHybridStepper` currently
+requires `IsothermalElectrons`; composing collisions with transport remains an
+explicit unimplemented extension. The subsequent [Ohmic diagnostic range repair](RESISTIVE_DIAGNOSTIC_RANGE_AUDIT.md)
+is pushed as `a356c6b` and has its own pending exact-SHA CI gate.
 
 ## Additional risks requiring tests, not assertions
 
