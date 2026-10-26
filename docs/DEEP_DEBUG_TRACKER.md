@@ -52,7 +52,7 @@ The existing CI matrix selects minimum `1.12` and latest stable `1`.
 | --- | --- | --- |
 | Ohmic dissipation diagnostic | `a356c6b` pushed; 4,218 new assertions per runtime also pass after root integration; ordinary array/view profiles retain 0 B and complete local compiler trees match the parent | [Exact-SHA CI running](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40369103017); [repair evidence](RESISTIVE_DIAGNOSTIC_RANGE_AUDIT.md) |
 | Near-light relativistic kicks | Fresh stored-velocity witnesses show a large rotation error in the native Lorentz factor on both runtimes; compensated-gap candidates pass scalar checks but fail the unchanged init/prime/step oracle gates and remain held | Repair accurately rounded priming/composition and output-domain closure, then rerun full frozen gates; no candidate is accepted |
-| Radiation force-span completion | A fresh exact-cancellation witness loses finite damping after a small squared force underflows; both baseline runtimes fail six of seven exponent cases. The frozen candidate passes 54,863 affected plus 108 new exact-tier task/resource assertions per runtime; complete local compiler trees match the parent | Independent error-bound review, integration, push and CI; [canonical model](RADIATION_REACTION_PLAN.md) |
+| Radiation force-span completion | A fresh exact-cancellation witness loses finite damping after a small squared force underflows; both baseline runtimes fail six of seven exponent cases. Frozen numerical source passes 54,863 affected, 108 task/resource and 11,447 independent numerical/public checks per runtime; full local compiler trees match the parent and the hand error derivation is reviewed | Post-integration checks pass (54,877 affected assertions per runtime); separate main push and exact-SHA CI remain; [force-span proof and costs](RADIATION_FORCE_SPAN_PLAN.md); [canonical model](RADIATION_REACTION_PLAN.md) |
 | Infinite-strength Fourier filter | Shared SpectralOperators repair pushed as `bf90307`, followed by verification docs `0e17596`; all local MPI 1/2/4/8 campaigns and both runtime suites pass | [All four dependency CI jobs pass](https://github.com/jake-w-liu/SpectralOperators.jl/actions/runs/40370364916); registry publication/resolution, then separate HPIC consumer regression and CI |
 | Inverse FFT intermediate range | A second finite-input witness overflows in the unnormalized inverse despite finite mathematical output; a separate shared-headroom repair is under verification | Full serial/MPI/compiler/resource gates and independent proof review; no CAP-003 completion claim |
 | Distributed FFT precision | `3a9c85d`: all six exact-SHA jobs and full compiler review pass | [Precision record](DISTRIBUTED_FFT_PRECISION_PLAN.md); resources/scaling and coupled distributed evolution remain |
@@ -82,6 +82,7 @@ shock allocation failure remain recorded with their later corrections.
 | `4724947` | [Pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40325153253) | 1,120,137 / 1,120,138 (1.12.7 / 1.13.3) |
 | `2b2420b` | [Pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40326554556) | 1,122,494 / 1,122,495 (1.12.7 / 1.13.3) |
 | `a6d20d3` | [Pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40328070085) | 1,125,567 / 1,125,568 (1.12.7 / 1.13.3) |
+| `e2e8690` | [Pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40351097909) | 1,125,567 / 1,125,568 (1.12.7 / 1.13.3) |
 
 Complete CI compiler trees match accepted `1097076` after line mappings proven
 from unchanged source text. For 1.13.3, the only further difference is the exact
@@ -95,7 +96,7 @@ kinematics `probe-nearlight-v2.jl` / `probe-nearlight-v2.log` and
 `probe-alias-v1.log`; radiation `takeover/radiation-span-before.jl` and both
 runtime logs; distributed filtering `distributed-takeover/filter-repro-v2-*.log`.
 These are VERIFIED bounded findings; they are not a whole-project audit result.
-Runs for `e2e8690`, `cd55831` and `a356c6b` are still pending at this snapshot;
+Runs for `cd55831`, `a356c6b` and documentation `3ecad23` are still pending at this snapshot;
 no billing block has been observed.
 
 ## Earlier evidence and retained gates

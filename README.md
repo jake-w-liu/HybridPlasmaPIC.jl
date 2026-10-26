@@ -309,7 +309,8 @@ unsupported. [Validation scope and evidence](docs/RELATIVISTIC_VALIDATION_PLAN.m
   drag rate held fixed. Float16/32/64 particles are scaled by a factor in [0, 1],
   so no stored speed increases, and stay normwise accurate across extreme finite
   light speeds, fields and coefficient–timestep products through guarded wider
-  evaluation. Inputs must remain finite in particle precision;
+  evaluation and exact-invariant completion when amplification requires it.
+  Inputs must remain finite in particle precision;
   [arithmetic and accuracy record](docs/RADIATION_REACTION_PLAN.md).
 
 ## Shocks

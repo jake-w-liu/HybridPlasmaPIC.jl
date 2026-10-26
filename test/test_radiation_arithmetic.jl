@@ -427,3 +427,70 @@ end
         end
     end
 end
+
+@testset "Radiation retains small amplified forces beside cancelling large fields" begin
+    for exponent in (250, 260, 270, 300, 520, 600, 900),
+        axis = 1:3,
+        sign in (-1.0, 1.0),
+        transverse in (false, true)
+
+        small, large = ldexp(1.0, -exponent), ldexp(1.0, exponent)
+        velocity = (sign * 0.5, 0.0, 0.0)
+        electric = transverse ? (0.0, sign * large / 2, small) : (small, sign * large / 2, 0.0)
+        magnetic = (0.0, 0.0, large)
+        rotate(t) = ntuple(d -> t[mod1(d + axis - 1, 3)], 3)
+        v, E, B = rotate(velocity), rotate(electric), rotate(magnetic)
+        expected = radiation_momentum_oracle(v, E, B, large, large, 1.0)
+        actual, unchanged = radiation_apply(v, E, B, large, large, 1.0)
+        @test unchanged
+        @test radiation_error_ulps(actual, expected, v) <= 8
+        @test all(abs(actual[d]) <= abs(v[d]) for d = 1:3)
+    end
+    for exponent in (300, 600, 900), cpower in (-100, 0, 100), coefficient_shift in (-100, 0, 20)
+        c = ldexp(1.0, cpower)
+        v = (c / 2, 0.0, 0.0)
+        E = (ldexp(1.0, -exponent), ldexp(1.0, exponent + cpower - 1), 0.0)
+        B = (0.0, 0.0, ldexp(1.0, exponent))
+        K, dt = ldexp(1.0, exponent + coefficient_shift), ldexp(1.0, exponent)
+        expected = radiation_momentum_oracle(v, E, B, dt, K, c)
+        actual, unchanged = radiation_apply(v, E, B, dt, K, c)
+        @test unchanged
+        @test radiation_error_ulps(actual, expected, v) <= 8
+    end
+    setprecision(BigFloat, 8192) do
+        high, low = HybridPlasmaPIC._RADIATION_LOG2
+        exact = log(BigFloat(2))
+        @test high == Float64(exact)
+        @test low == Float64(exact - BigFloat(high))
+    end
+end
+
+@testset "Amplified radiation completion is independent across tasks" begin
+    initial_precision, initial_rounding = precision(BigFloat), rounding(BigFloat)
+    for (T, power) in ((Float16, 12), (Float32, 80), (Float64, 900))
+        z, c = zero(T), one(T)
+        large, small = ldexp(c, power), ldexp(c, -power)
+        v, E, B = (T(0.5), z, z), (small, large / 2, z), (z, z, large)
+        expected = radiation_momentum_oracle(v, E, B, large, large, c)
+        initial = ParticleSet{3,T}(16)
+        for d = 1:3
+            fill!(initial.x[d], T(0.2))
+            fill!(initial.v[d], v[d])
+        end
+        serial = deepcopy(initial)
+        apply_radiation_reaction!(serial, E, B, large; K = large, c)
+        @test radiation_error_ulps(ntuple(d -> serial.v[d][1], 3), expected, v) <= 8
+        copies = [deepcopy(initial) for _ = 1:4]
+        tasks =
+            [Threads.@spawn apply_radiation_reaction!(q, E, B, large; K = large, c) for q in copies]
+        @test all(fetch(task) === q for (task, q) in zip(tasks, copies))
+        @test all(q.v == serial.v for q in copies)
+        @test all(
+            (q.x, q.weight, q.id, q.tag, q.q, q.m) ==
+            (initial.x, initial.weight, initial.id, initial.tag, initial.q, initial.m) for
+            q in copies
+        )
+    end
+    @test precision(BigFloat) == initial_precision
+    @test rounding(BigFloat) == initial_rounding
+end

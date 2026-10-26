@@ -284,6 +284,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Radiation drag retains finite damping when a small force beside a cancelling
+  large field is amplified by the coefficient/timestep product. Scaled
+  evaluation includes that amplification in its error certificate; unresolved
+  cases use exact original operands and task-local integer arithmetic. Ordinary
+  calls retain their arithmetic and zero allocation; see
+  `docs/RADIATION_FORCE_SPAN_PLAN.md` for the error derivation and cold costs.
+
 - `resistive_dissipation` preserves finite Float32/Float64 Ohmic integrals when
   current squares, coefficient products or the cell volume overflow or underflow
   before the complete result is formed. Zero resistivity with large finite

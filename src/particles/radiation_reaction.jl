@@ -14,8 +14,10 @@
 # Every particle is first evaluated natively (Float16 particles in Float32) with an
 # a-posteriori bound on its rounding error; a particle whose bound exceeds the budget, or
 # whose intermediates leave the floating-point range, is re-evaluated in Float64 (Float16 and
-# Float32 particles) and finally in exponent-scaled double-double arithmetic (RR-002). No
-# BigFloat is used and every path is allocation-free and task-safe.
+# Float32 particles), then in exponent-scaled double-double arithmetic (RR-002). An
+# amplified invariant uncertainty or unresolved Lorentz gap is completed from the original
+# stored operands with task-local exact integers. Hardware particles use no BigFloat;
+# native/double-double paths allocate nothing.
 
 # Absolute budget for the propagated rounding error of a native factor F, in eps(T). A native
 # result is within (budget + 4)·eps(T)·|v| a priori (the rest covers evaluating F, v·F and a
@@ -310,18 +312,75 @@ function _radiation_scaled(E, B, K, dt, c)
     )
 end
 
-# Velocity factor F ∈ [0, 1] for finite subluminal v and K, dt > 0. The inputs are scaled by
-# powers of two (exact unless a component is below 2^-1022 of its scale, which changes the
-# result by less than that fraction of the force scale), r = 1 - |v|²/c² is formed from an
-# exact expansion near the light cone, and χ² = |w⊥|² + r|E∥|² (w⊥ = w - E∥, the components
-# of w = E + v×B normal to v) is a sum of nonnegative terms, so double-double rounding
-# (≈ 2^-104 of the field scale, plus 2^-104/sqrt(r) for fields nearly parallel to v) is the
-# only error before F. α = K·dt·γ·χ² is kept as a double-double times 2^e: F = 0 for
-# α ≥ 4096 (below every positive Float64 even after multiplying by floatmax), F = 1 for
-# α < 2^-60, expm1 of the double-double argument otherwise, and the logarithmic form
-# -α + ln γ - log1p(q)/2 once 1 + X exceeds 2^50, which underflows gracefully to a subnormal
-# or zero. F then has error ≤ 4u·F (u = 2^-53) up to the logarithmic branch, where F < 2^-24
-# and its absolute error stays below 2^-60.
+@inline function _radiation_scale_exact(value::Rational{BigInt}, power::Int)
+    return power >= 0 ? value * (BigInt(1) << power) : value / (BigInt(1) << -power)
+end
+
+# The high word is the nearest Float64 to log(2); the low word is its rounded
+# residual. Keeping both prevents a large binary exponent from magnifying the
+# high word's rounding error near the cooling transition.
+const _RADIATION_LOG2 = (0x1.62e42fefa39efp-1, 0x1.abc9e3b39803fp-56)
+
+# Complete the invariant from the original stored operands when its field-scale
+# double-double error could be amplified into a material velocity error. Integer
+# arithmetic and the shared exact converters use no ambient MPFR state.
+@noinline function _radiation_exact_factor(v::NTuple{3,Float64}, s::_RadiationScaled)
+    velocity = map(_exact_rational, v)
+    electric = map(_exact_rational, s.E)
+    magnetic = map(_exact_rational, s.B)
+    c2 = _radiation_scale_exact(_exact_rational(s.c2[1]) + _exact_rational(s.c2[2]), 2s.kc)
+    r = (c2 - sum(abs2, velocity)) / c2
+    force = ntuple(3) do i
+        j, k = i % 3 + 1, (i + 1) % 3 + 1
+        electric[i] + velocity[j] * magnetic[k] - velocity[k] * magnetic[j]
+    end
+    chi2 = sum(abs2, force) - sum(velocity .* electric)^2 / c2
+    iszero(chi2) && return 1.0
+    kdt = _radiation_scale_exact(_exact_rational(s.Kdt[1]) + _exact_rational(s.Kdt[2]), s.eKdt)
+    alpha2 = (kdt * chi2)^2 / r
+    # For finite binary64 operands, r > 2^-4196. At alpha >= 4096,
+    # floatmax(Float64)*gamma*exp(-alpha) is below the minimum subnormal.
+    alpha2 >= 4096^2 && return 0.0
+    # |dF/dalpha| <= 1: this endpoint is below a Float64 normwise ulp.
+    alpha2 < _exact_rational(0x1p-120) && return 1.0
+    alpha = _sqrt_from_exact(Float64, alpha2)
+    residual = alpha2 - _exact_rational(alpha)^2
+    low = _from_exact(Float64, residual / (2 * _exact_rational(alpha)))
+    rh = _from_exact(Float64, r)
+    rl = _from_exact(Float64, r - _exact_rational(rh))
+    if 2alpha <= 708
+        em1 = expm1(2alpha)
+        exponential = em1 + (1 + em1) * (2low)
+        x = fma(rh, exponential, rl * exponential)
+        return inv(sqrt(1 + x))
+    end
+    # Normalize the exact ratio before taking its logarithm, including ratios
+    # too small for a Float64. Only the normalized mantissa enters libm.
+    n, d = numerator(r), denominator(r)
+    power = ndigits(n; base = 2) - ndigits(d; base = 2)
+    (power >= 0 ? n < d << power : n << -power < d) && (power -= 1)
+    mantissa = _radiation_scale_exact(r, -power)
+    mh = _from_exact(Float64, mantissa)
+    ml = _from_exact(Float64, mantissa - _exact_rational(mh))
+    lnr = _radiation_dd_add(_radiation_dd_mul(_RADIATION_LOG2, Float64(power)), log(mh))
+    lnr = _radiation_dd_add(lnr, ml / mh)
+    argument = _radiation_dd_add(lnr, (2alpha, 2low))
+    argument[1] < -60 * _RADIATION_LOG2[1] && return 1.0
+    if argument[1] <= 50 * _RADIATION_LOG2[1]
+        exponential = exp(argument[1]) * (1 + argument[2])
+        return inv(sqrt(1 + (exponential - rh)))
+    end
+    # Here F < 2^-25. Omitting log1p((1-r)*exp(-argument)) changes
+    # F by less than 2^-75, below the normwise velocity budget.
+    return exp(-(argument[1] + argument[2]) / 2)
+end
+
+# Velocity factor for finite subluminal v and positive K, dt. Powers of two keep
+# the ordinary invariant operations bounded. The DD certificate includes the
+# coefficient/timestep and Lorentz amplification before discarding a small force;
+# unresolved cases reconstruct the invariant exactly. The gap denominator has a
+# separate sensitivity bound. The normalized-DD/IEEE assumptions, operation
+# inventory and libm limits are recorded in docs/RADIATION_FORCE_SPAN_PLAN.md.
 function _radiation_scaled_factor(v::NTuple{3,Float64}, s::_RadiationScaled)
     vmax = max(abs(v[1]), abs(v[2]), abs(v[3]))
     (iszero(vmax) || !(s.hasE || s.hasB)) && return 1.0
@@ -336,11 +395,9 @@ function _radiation_scaled_factor(v::NTuple{3,Float64}, s::_RadiationScaled)
         N = _radiation_exact_sum((s.c2[2], s.c2[1], -p1[2], -p1[1], -p2[2], -p2[1], -p3[2], -p3[1]))
     end
     r = _radiation_dd_mul(N, s.invc2)
-    # Products below 2^-969 lose their exact low parts (squares of components below 2^-484
-    # of c, and r itself), so a true r < 2^-1000 (γ > 2^500) is not resolved. Bounding r
-    # there is exact whenever K·dt·χ² ≥ 2^-488: the bounded and the true α both exceed
-    # 4096, so F = 0.
-    r[1] >= 0x1p-1000 || (r = (0x1p-1000, 0.0))
+    # Below this range the discarded low square parts need not be small
+    # relative to the Lorentz gap. Complete it from the stored operands.
+    r[1] >= 0x1p-800 || return _radiation_exact_factor(v, s)
     ev = exponent(vmax)
     kF = if !s.hasB
         s.eE + 1
@@ -349,6 +406,15 @@ function _radiation_scaled_factor(v::NTuple{3,Float64}, s::_RadiationScaled)
     else
         max(s.eE + 1, ev + s.eB + 2)
     end
+    # With |vtilde_i| < 2, |Etilde_i| < 1, |Btilde_i| < 1/2 and
+    # 1 <= V2 < 12, the bounded double-double operations below have a
+    # conservative 2^-80 invariant error in units of 2^(2kF). This allows
+    # over 2^24 elementary error coefficients at 106-bit precision. Include
+    # gamma and K*dt before accepting that error: an exponent <= 24 keeps
+    # its optical-depth contribution below 2^-56. Large amplification must
+    # retain even a small force component whose scaled square underflows.
+    gain_exponent = s.eKdt + 2kF + cld(-exponent(r[1]), 2)
+    gain_exponent <= 24 || return _radiation_exact_factor(v, s)
     # |ṽ_i| < 2, |Ẽ_i| < 1 and |B̃_i| < 1/2, so every scaled product is below 1.
     ṽ = map(x -> ldexp(x, -ev), v)
     Ẽ = map(x -> ldexp(x, -kF), s.E)
@@ -378,6 +444,7 @@ function _radiation_scaled_factor(v::NTuple{3,Float64}, s::_RadiationScaled)
         _radiation_dd_mul(s.Kdt, χ2V4),
         _radiation_dd_mul(_radiation_dd_mul(V2, V2), _radiation_dd_sqrt(r)),
     )
+    A[1] > 0 || return 1.0  # underflow is below the certified absolute budget
     e = s.eKdt + 2kF
     ea = exponent(A[1]) + e
     ea >= 12 && return 0.0
@@ -401,7 +468,8 @@ end
 
 # Float16 particles evaluate natively in Float32, then in Float64; Float32 particles natively,
 # then in Float64; Float64 particles natively, then with the tight bound. All finish in the
-# scaled double-double evaluation. Inputs convert exactly into each wider format.
+# scaled double-double or exact-invariant evaluation. Inputs convert exactly into each
+# wider format.
 _radiation_native_format(::Type{Float16}) = Float32
 _radiation_native_format(::Type{T}) where {T<:Union{Float32,Float64}} = T
 
@@ -515,7 +583,8 @@ rate. For `Float16`/`Float32`/`Float64` particles it is applied as `v ← F v` w
 `F = 1/√(1 + (1 − |v|²/c²)(e^{2α} − 1)) ∈ [0, 1]`, so no stored speed component
 increases. Results are normwise accurate: within a few ulps of `|v|` of the exact
 substep for the stored inputs. Particles whose native rounding bound or range fails
-are re-evaluated in a wider format or exponent-scaled double-double arithmetic. Other
+are re-evaluated in a wider format or exponent-scaled double-double arithmetic; amplified
+invariant uncertainty is completed from the original operands with exact integers. Other
 element types such as `BigFloat` use the native momentum update at the ambient
 precision. `K ≥ 0`, `dt ≥ 0`, `c > 0`; these parameters and `E, B` must remain finite in
 the particle precision. Inputs are validated before a `K=0` or `dt=0` no-op. Returns `ps`.

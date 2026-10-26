@@ -103,16 +103,20 @@ substep for the stored inputs to a few ulps of `|v|`
    near the light cone, `χ² = |w⊥|² + r|E∥|²` as nonnegative terms, and `α`
    as a double-double times `2^e`. `F = 0` for `α ≥ 4096`, `F = 1` for
    `α < 2^-60`, and a logarithmic form once `1 + X > 2^50` underflows to a
-   subnormal or zero. No BigFloat, no global state and no allocation.
+   subnormal or zero. Unresolved Lorentz gaps or invariant errors amplified
+   beyond the certified budget reconstruct the expression from original stored
+   operands with task-local exact integers. Native/DD paths retain zero
+   allocation; this cold completion allocates. Hardware particles use no BigFloat.
 3. **Other element types** (BigFloat) keep the previous momentum update at the
    ambient precision and rounding mode, bit for bit.
 
 A native result is within `(8 + 4)·eps(T)·|v|` a priori (the bounds
-over-estimate the observed error several-fold), and the double-double factor
-has error at most `4u·F`. Documented limits: a true `r < 2^-1000` is bounded,
-which is exact whenever `K dt χ² ≥ 2^-488` (`F = 0` either way); cancellation
-of `E + v×B` below double-double resolution (about 2^-104 of the force scale)
-amplified by `K dt` is not resolved.
+over-estimate the observed error several-fold). The scaled certificate must
+include the amplification by `K dt γ`; a small normalized force alone is not
+negligible. The [force-span repair and error derivation](RADIATION_FORCE_SPAN_PLAN.md)
+replace the earlier Lorentz-gap clamp and complete amplified cancellation from
+exact original operands. The derivation states its normalized-DD, IEEE and libm
+assumptions; it is not a machine-checked proof.
 
 **Measured design inputs.** The brief's guard (native `r`, fallback below
 `r < √eps(T)`) was rejected by measurement: against a 1024-bit reference the
