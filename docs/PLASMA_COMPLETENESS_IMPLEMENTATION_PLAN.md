@@ -3,7 +3,7 @@
 Initial source assessment: **2026-10-23**, revision
 `bf2a8bc615f514f8d2868934849bf44814140bbb`. This document plans work; it does not
 certify the proposed implementations. Implementation status was reconciled on
-**2026-10-27** against `a356c6b`; earlier line references remain pinned to the
+**2026-10-27** against pushed `fd0a168`; earlier line references remain pinned to the
 initial assessment. The [audit tracker](DEEP_DEBUG_TRACKER.md)
 owns accepted fixes, measured results and exact-revision CI status.
 
@@ -207,15 +207,16 @@ and quota failures describe historical work, not current ownership.
 | 001 local self/cross collisions | Canonical collision/sorting owners | Accepted sampler and particle arithmetic | CPU self/cross operator, normwise scheduling and fixed-step isothermal composition landed | MPI/device pairing and broader cost campaign; [live evidence](DEEP_DEBUG_TRACKER.md#current-progress-2026-10-27) |
 | 002A/B bounded Maxwell + particles | Mesh/operator, field, boundary, model and diagnostic owners ([record](BOUNDED_MAXWELL_IMPLEMENTATION.md)) | Staggered storage/layout contract; current periodic EM remains oracle | 002A vacuum/cavity implemented with native normwise stages; particles remain planned | Design particle/wall charge coupling (002B) |
 | 002C/D open boundaries + production integration | Agent unassigned; boundaries, EM, I/O | 002A/B; 003/004 for parallel/device claims | Planned; no coupled open Maxwell path | Pre-register pulse reflection/charge-flux suite and absorber state schema |
-| 003A/B local storage + distributed operators | Distributed audit track; MPI/Pencil/SpectralOperators owners | Collective precision, shared kernels and owned storage | Rank-owned storage and derivative/vector/filter operators landed; `4724947` exact-SHA CI/compiler gates pass | Shared filter/inverse repairs are registered as 0.1.4/0.1.5 with green dependency CI; complete their separate HPIC consumer integrations and metadata alias repair, then [resources and integration](DISTRIBUTED_OPERATOR_IMPLEMENTATION_PLAN.md) |
+| 003A/B local storage + distributed operators | Distributed audit track; MPI/Pencil/SpectralOperators owners | Collective precision, shared kernels and owned storage | Rank-owned storage and derivative/vector/filter operators landed; `4724947` exact-SHA CI/compiler gates pass | Shared filter/inverse repairs are registered as 0.1.4/0.1.5; consumer and metadata repairs are pushed with local integration gates passed. Their exact-SHA CI is tracked separately; next complete [resources and integration](DISTRIBUTED_OPERATOR_IMPLEMENTATION_PLAN.md) |
 | 003C/D distributed coupled solvers | Agent unassigned; MPI orchestration + canonical solver owners | 003A/B and accepted serial solver | Planned; full-grid allreduce reference inspected | Compose a periodic hybrid step without replicated grids and test 2/4/8 ranks |
 | 003E cluster scale/restart | Agent unassigned; benchmark/MPI/I/O | 003C/D; real multi-node allocation | Hardware campaign pending | Freeze strong/weak scaling and changed-layout restart workloads before requesting/running resources |
 | 004A GPU primitive closure | Root; extensions and coupling | Current kernel gates and exact-SHA CI | Metal uniform push and NGP have green CI; gathered V1 fails allocation, V2–V5 fail fixed latency gates; V5 native correctness passes | V6 native/compiler/resource gates pass both; minimum fixed costs pass but latest doubled-work calibration fails. Hold without retry; latest candidate timing and primitive closure remain open |
 | 004B/C resident solver families | Agent unassigned; fields, integrators/models, extensions | 004A; storage/operator contract; actual device operators | Planned; concrete host arrays inspected | Implement one complete resident hybrid path and trace all transfers/scalar access |
 | 004D multi-GPU | Agent unassigned; MPI + device extensions | 003C/D, 004B/C; real devices/network | Hardware/integration pending | Establish buffer ownership/staging contract and matched device/rank oracle |
 | 005A existing CN-labelled paths | Shock3d and integrator stability owners | Independent linear-system oracle | Shock CN `ce52836` and [linear CN](LINEAR_CN_RANGE_PLAN.md) `03e4eb3` have green exact-SHA CI | Continue with 005B/C; preserve separate resource regressions and corrections |
-| Magnetic timestep correctness | Root; `recommended_dt` and both RK4 stage owners | Independent frozen Hall/damping mode and exact stability polynomial | [Certified polygon repair](RK4_MIXED_STABILITY_PLAN.md) passes both runtime campaigns and full compiler/resource gates | Root integration passes; main push and exact-SHA CI remain. Separate BigFloat caller-context defect remains open |
-| BigFloat timestep contexts | Root; canonical recommendation core | Independent positive-rate geometry, exact endpoint controls and production-mode witness | [Directed context repair](BIGFLOAT_TIMESTEP_CONTEXT_PLAN.md) passes isolated minimum/latest package, native bit/allocation, complete compiler/Aqua and formatting gates | Root integration, push and exact-SHA CI; NUM-001 concurrent MPFR runtime integration remains open |
+| Magnetic timestep correctness | Root; `recommended_dt` and both RK4 stage owners | Independent frozen Hall/damping mode and exact stability polynomial | [Certified polygon repair](RK4_MIXED_STABILITY_PLAN.md) passes both runtime campaigns and full compiler/resource gates | `a7fb3c8` is pushed after root integration; exact-SHA CI remains. The separate BigFloat caller-context repair is also pushed |
+| Relativistic stored-output closure | Particle, priming, EMPIC, radiation and persistence owners | Explicit supported cone; independently rounded stage references; whole public-step undo inventory | V5 factor/priming repair is pushed as `fd0a168`; a bounded source-equivalent reproduction verifies native batch output closure and partial-publication defects | C1 canonical output admission and bounded transaction implementation is active in isolation. Exact-cone expansion and authoritative momentum representation require separate designs and gates |
+| BigFloat timestep contexts | Root; canonical recommendation core | Independent positive-rate geometry, exact endpoint controls and production-mode witness | [Directed context repair](BIGFLOAT_TIMESTEP_CONTEXT_PLAN.md) passes isolated minimum/latest package, native bit/allocation, complete compiler/Aqua and formatting gates | `36d1794` is pushed after all root gates; exact-SHA CI remains. NUM-001 concurrent MPFR runtime integration remains open |
 | 005B/C implicit hybrid | Agent unassigned; integrator + moment/Ohm owners | Derived discrete conservation and solve contract | Planned | Freeze unknowns/residual, independent small-system oracle and failed-solve transaction |
 | 005D implicit EM / parallel geometry | Agent unassigned; EM/parallel/geometry owners | 005B/C method evidence; accepted relevant operators | Planned | Derive EM-specific continuity/work residual before adding a public method |
 | 006A curvilinear solver | Agent unassigned; mesh/coupling/model/I/O | Compatible geometry operators, chosen physical model | Partial primitives; no production callers found | Specify coordinate/component/volume conventions and coupled manufactured problem |
@@ -226,7 +227,7 @@ and quota failures describe historical work, not current ownership.
 | 008 ES/EM arbitrary species | Canonical electrostatic/EM owners; next implementation agent unassigned | Species charge/time-level design; existing Poisson owner | ES collections landed; containing `4724947` passes all six jobs and full compiler review; arbitrary EM collections remain planned | Design EM collections: charge-conserving summed currents, mobile/immobile species and multirate schedule |
 | 009 full-Hall multidimensional shocks | Scope proposal; root selects implementation agent | Full mixed-operator/field-boundary balance; 005 optional | Deliberate reduced induction verified | Derive full induction and SAT budget; build transverse-mode witness |
 | 010 composed sources and RNG restart | Integrator/checkpoint owners; independent collision audit track | 001 and phase/growth/checkpoint contracts | Fixed-step first-order isothermal CPU `CollisionalHybridStepper` landed; `2b2420b` exact-SHA CI/compiler gates pass | Extend schedules, closures/models/sources and backends; preserve full RNG/phase/rollback contract |
-| 011 electron transport/energy | Electron/integrator owners; independent transport audit track | Term-specific balance and carried force contract | S1 constant Ohmic `TransportElectrons` landed; `a6d20d3` exact-SHA CI/compiler gates pass | S2 hyperresistive heating is under isolated implementation with a shared Nyquist energy channel; complete its compiler/restart/integration gates and the separately reproduced mixed-rate RK4 timestep repair, then S3–S8; collision/transport composition remains unsupported |
+| 011 electron transport/energy | Electron/integrator owners; independent transport audit track | Term-specific balance and carried force contract | S1 constant Ohmic `TransportElectrons` landed; `a6d20d3` exact-SHA CI/compiler gates pass | Sealed S2 passes local stage/energy/restart/compiler/resource gates but is held on a fresh public hyper-field range defect. Repair finite lapJ/E admission, repeat current-main integration and CI, then S3–S8; collision/transport composition remains unsupported |
 
 For every row, its detailed section below supplies the required conservation,
 accuracy/convergence, error/rollback, restart, parallel, hardware, performance and
@@ -365,7 +366,9 @@ cannot close the cluster scaling gate.
 ## CAP-004 — complete GPU-resident solvers
 
 The shared gathered-push [midpoint storage repair](GATHERED_MIDPOINT_STORAGE_PLAN.md)
-is a separate correctness gate from GPU latency measurements and solver residency.
+is pushed after root integration; exact-SHA CI remains. The separate
+[field-input storage repair](GATHERED_FIELD_STORAGE_PLAN.md) is in current-main
+integration. Both are correctness gates separate from GPU latency and residency.
 
 **Contract and owner.** Extend concrete storage parameters in `HybridFields`,
 stepper/model workspaces and operator plans only as required by a real backend.
@@ -703,7 +706,18 @@ and inertia (S8) remain open. S1 landed as `a6d20d3` with all six exact-SHA
 CI jobs and complete compiler review passed. `CollisionalHybridStepper` currently
 requires `IsothermalElectrons`; composing collisions with transport remains an
 explicit unimplemented extension. The subsequent [Ohmic diagnostic range repair](RESISTIVE_DIAGNOSTIC_RANGE_AUDIT.md)
-is pushed as `a356c6b` and has its own pending exact-SHA CI gate.
+is pushed as `a356c6b` and passes all six exact-SHA CI jobs and complete compiler review.
+
+**S2 integration hold.** Registered SpectralOperators 0.1.6 supplies the Nyquist
+energy channel. The sealed HPIC feature passes its original local analytic,
+SBP, restart, rollback, resource and compiler gates. A fresh eight-cell finite-input
+probe, bounded using full `kfull` metadata, returns nonfinite public E/lapJ
+without an error even though physical field/heating/rate bounds are finite.
+The canonical unscaled lapJ scratch contract requires explicit admission; the
+planned repair must also cover finite-lapJ product/subtraction overflow and
+representable cancellation. Current-main promotion is held until those range and existing
+feature gates pass together. Raw Ohm partial-work and public init/step rollback
+are separate contracts, not an implicit universal transaction.
 
 ## Additional risks requiring tests, not assertions
 

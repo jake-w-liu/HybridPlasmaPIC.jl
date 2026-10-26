@@ -212,3 +212,44 @@ under `HybridPlasmaPIC-audit-evidence/2026-10-27/takeover/mpfr-latest-refresh/`.
 No retry or runtime-library replacement was used. This reproduces the existing
 wrong-result behavior on the latest tested runtime; it does not re-prove the
 native cause independently of the earlier instrumented controls.
+
+## Fresh native build and integration tracker (2026-10-27)
+
+Earlier temporary paths above record historical experiments. The three named
+temporary build/handoff directories are absent in this takeover environment;
+those runs are not reused as fresh acceptance gates. A new isolated build uses
+official Julia 1.13.3 source `67ac47b9` and unmodified MPFR 4.2.2 source/tests.
+Its sole tracked recipe change selects `--disable-shared-cache` while retaining
+thread-local state and the canonical default GMP 6.3.0+2 dependency.
+
+**VERIFIED native results:** `make -C <isolated-source>/deps -j1 check-mpfr`
+exits zero: 195 programs pass, three disabled-format tests skip, and none fail
+or error. The 572 original source/test files remain unchanged. Sixteen
+predeclared serial C processes, eight per variant with no retries, retain all
+logs: stock fails in five processes with 21 incorrect pi values out of 512;
+the private-cache build returns 512 correct values across eight processes.
+Every process records the expected MPFR and GMP loader paths. Identity probes
+verify version, TLS/cache mode and public layout, not complete semantic ABI
+equivalence. Root independently checks all raw control logs and 1,974 preserved
+source/evidence pins.
+
+Evidence: `mpfr-runtime-build-r1-r2-v1/` and
+`takeover/mpfr-native-root-review-v2.json` in the dated external audit archive.
+The first configure run's unresolved native GMP rpath and a root pin-checker
+format error remain retained; neither is numerical acceptance. The successful
+build uses a native CPU target and absolute isolated GMP rpath. It is a native
+experiment, not a portable artifact or a corrected Julia runtime. Installed
+Julia libraries remain unchanged.
+
+| Stage | State | Acceptance still needed |
+| --- | --- | --- |
+| R1 source/recipe | Native build and source pins checked | Portable target and relocatable dependency configuration |
+| R2 native suite/controls | Complete upstream suite and fixed native sample pass | Recheck against the exact GMP selected for any new runtime artifact |
+| R3 runtime selection | Reviewed task-local copied-prefix implementation is starting | Select the corrected library before Base initialization; retain one matched GMP |
+| R4 ABI/GC | Native layout and symbol owners checked | Actual Julia allocation, finalization, GC callbacks and loaded-library ownership |
+| R5 concurrency | Stock Julia still fails; corrected native sample passes | Fresh-thread Julia constants, precision/rounding/exponent contexts and all declared processes |
+| R6 consumers/resources | Pending corrected Julia runtime | Timestep and remaining BigFloat consumers; bounded storage/cost gates |
+| R7 artifact/launcher | Unimplemented | Provenance, relocatability, signing, clean caches and immutable selection |
+| R8 child/MPI | Unimplemented | Every child/rank uses the same verified artifact |
+| R9 platforms/CI | Unimplemented | Minimum/latest Julia and every claimed target/platform |
+| R10 closure | Open | Fresh independent audit; no claim that ordinary stock launches are repaired |

@@ -129,6 +129,7 @@ end
         metal_functional = !isdefined(Metal, :functional) || getproperty(Metal, :functional)()
         if metal_functional
             include("test_gathered_midpoint_metal.jl")
+            include("test_gathered_field_metal.jl")
             ps = _fill_backend_test_particles!(Float32)
             dev = copy_particles_to_backend(Val(:metal), ps)
             @test extension_loaded(Val(:metal))

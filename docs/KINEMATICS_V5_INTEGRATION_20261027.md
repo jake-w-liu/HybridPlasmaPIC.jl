@@ -67,7 +67,8 @@
   report trees unchanged after checked source/root/private-symbol mapping.
 - [x] Review task-owned source, documentation, validation and complete diff;
   prepare the reviewable handoff and apply-check it against clean b583e41.
-- [ ] Root: merge into current main, push and verify exact-SHA GitHub CI.
+- [x] Root: merge into current main and push as `fd0a168`.
+- [ ] [All six exact-SHA GitHub CI jobs](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40407584532).
 
 Frozen V5 evidence and its limitations remain in
 `KINEMATICS_AUDIT_20261027.md` and `PARTICLE_PRIMING_INTERVALS.md`.
@@ -104,4 +105,4 @@ The root campaign passes all 23 commands on Julia 1.12.7 and 1.13.3:
 The strict compiler comparison was held before that path proof, and its diff
 is retained. Twenty-five changed-message/frame/path/signature controls reject.
 The root evidence is in `takeover/kinematics-root-integration/` in the dated
-external audit archive. Main promotion and exact-SHA CI remain.
+external audit archive. `fd0a168` is pushed to main; exact-SHA CI remains.

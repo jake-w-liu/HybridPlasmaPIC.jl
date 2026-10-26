@@ -284,6 +284,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- `push_gathered!` rejects gathered fields overlapping particle positions or
+  velocities before publication on CPU and Metal. Read-only E/B and weight
+  sharing remain supported; reversed field views can no longer observe
+  velocities changed earlier in the same CPU push.
+
 - BigFloat-backed `recommended_dt` calls enclose the complete logarithmic
   recommendation with directed bounds and round a positive lower result at the
   caller's precision. Low ambient precision no longer enlarges the bound;

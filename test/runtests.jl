@@ -8,6 +8,7 @@ using Test
     include("test_spectral_extra.jl")
     include("test_particles.jl")
     include("test_gathered_midpoint_storage.jl")
+    include("test_gathered_field_storage.jl")
     include("test_particle_kinematics_range.jl")
     include("test_relativistic_validation.jl")
     include("test_boundary_edges.jl")

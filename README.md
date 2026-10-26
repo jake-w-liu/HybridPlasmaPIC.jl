@@ -265,6 +265,11 @@ velocity components. Priming has a residual-certified rounding tier before
 high-precision replay; [particle arithmetic notes](docs/PARTICLE_PRIMING_INTERVALS.md)
 describe its compatibility slices and remaining near-light limits.
 
+Gathered particle fields must remain fixed during a push. `push_gathered!` rejects
+detectable overlap with particle positions or velocities before mutation on CPU
+and Metal; shared read-only fields and metadata remain supported. See the
+[field-storage contract](docs/GATHERED_FIELD_STORAGE_PLAN.md).
+
 For finite inputs and charge snapshots, EM PIC with built-in NGP/CIC/TSC shapes
 applies a uniform correction based on actual signed particle weights, background
 charge and the complete product of stored cell widths. The final total differs

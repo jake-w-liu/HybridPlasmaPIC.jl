@@ -295,12 +295,32 @@ function _uniform_drifts!(ps::ParticleSet{D}, dtT, guard::Val) where {D}
     return ps
 end
 
+function _check_gathered_motion_component(component, ps, name, c)
+    for d = 1:length(ps.x)
+        _particle_arrays_mightalias(component, ps.x[d]) &&
+            throw(ArgumentError("$name[$c] must not alias particle position or velocity storage"))
+    end
+    for k = 1:3
+        _particle_arrays_mightalias(component, ps.v[k]) &&
+            throw(ArgumentError("$name[$c] must not alias particle position or velocity storage"))
+    end
+    return nothing
+end
 function _check_gathered_field_storage(ps::ParticleSet{D}, E, B, xmid) where {D}
     N = nparticles(ps)
     all(length(E[c]) == N for c = 1:3) ||
         throw(DimensionMismatch("E component length must match particle count"))
     all(length(B[c]) == N for c = 1:3) ||
         throw(DimensionMismatch("B component length must match particle count"))
+    # Gathered inputs must stay fixed while positions and velocities publish.
+    # Read-only weights/metadata and shared E/B inputs need no extra copies.
+    # Literal component calls preserve specialization for mixed vector/view tuples.
+    _check_gathered_motion_component(E[1], ps, "E", 1)
+    _check_gathered_motion_component(E[2], ps, "E", 2)
+    _check_gathered_motion_component(E[3], ps, "E", 3)
+    _check_gathered_motion_component(B[1], ps, "B", 1)
+    _check_gathered_motion_component(B[2], ps, "B", 2)
+    _check_gathered_motion_component(B[3], ps, "B", 3)
     if xmid !== nothing
         length(xmid) == D ||
             throw(DimensionMismatch("xmid must have one component per spatial dimension"))
@@ -339,6 +359,8 @@ storage does not alias any particle array, gathered field or other midpoint
 component. Conflicts detected by the particle-storage alias predicate raise
 `ArgumentError` before mutation on CPU and Metal. Read-only `E` and `B`
 components may share storage with one another.
+Gathered inputs must not overlap particle positions or velocities, which this
+operation writes. Inputs may share unchanged particle weight or metadata storage.
 """
 function push_gathered!(
     ps::ParticleSet{D,T},

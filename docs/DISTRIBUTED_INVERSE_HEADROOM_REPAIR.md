@@ -36,7 +36,7 @@ pass all 28 new convolution assertions. Aqua and 24 concrete analyses pass per
 runtime. Complete compiler aggregates and all 252/203 virtual-frame records
 match the frozen parent after exact HPIC-root replacement only. Root evidence:
 `takeover/inverse-consumer-integration/compiler-provenance-review-v1.json`.
-Exact-SHA HPIC CI remains an acceptance gate.
+HPIC consumer `f830b2a` passes [all six exact-SHA CI jobs](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40390380009) and complete compiler-tree review: 1,131,431 / 1,131,432 assertions on Julia 1.12.7 / 1.13.3.
 No controlled timing, process-RSS or multi-node scaling result is claimed.
 
 A separate [metadata admission repair](DISTRIBUTED_METADATA_ADMISSION_REPAIR.md)
