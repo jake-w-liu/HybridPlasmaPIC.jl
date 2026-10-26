@@ -63,7 +63,7 @@ function _deposit_scalar_threaded_kernel!(
         acc = partials[t]
         for I in eachindex(out)
             out[I] += acc[I]
-            check && (lost |= _deposition_range_lost(out[I]))
+            check && (lost |= !isfinite(out[I]))
         end
     end
     return (; eligible, lost)

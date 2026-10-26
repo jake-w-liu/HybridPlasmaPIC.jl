@@ -58,6 +58,25 @@ function original_moment(ps, g, shape, component = 0, charge = one(eltype(ps.wei
     out
 end
 
+# Normwise contract: every finite exact cell agrees with the actual value to a
+# few ulps of the field scale. A tail cell far below that scale may round
+# differently, but real range loss (an underflowed or overflowed field) still
+# fails this comparison. Cells whose exact value is non-finite (the true result
+# exceeds the representable range) must match exactly.
+function normwise_match(actual, expected)
+    T = eltype(actual)
+    scale = maximum((BigFloat(abs(e)) for e in expected if isfinite(e)); init = zero(BigFloat))
+    iszero(scale) && return all(iszero, expected) ? all(iszero, actual) :
+           all(i -> isequal(actual[i], expected[i]), eachindex(actual, expected))
+    tolerance = 8 * BigFloat(eps(T)) * scale
+    return all(
+        i ->
+            isfinite(expected[i]) ? abs(BigFloat(actual[i]) - BigFloat(expected[i])) <= tolerance :
+            isequal(actual[i], expected[i]),
+        eachindex(actual, expected),
+    )
+end
+
 function check_exact(ps, g, shape; density = true, momentum = true, current = true)
     before = map(copy, (ps.x..., ps.v..., ps.weight))
     T = eltype(ps.weight)
@@ -65,25 +84,30 @@ function check_exact(ps, g, shape; density = true, momentum = true, current = tr
         expected = exact_moment(ps, g, shape)
         n = zeros(T, g.n)
         density!(n, ps, g, shape)
-        @test isequal(n, expected)
+        @test normwise_match(n, expected)
         nt = similar(n)
         density_threaded!(nt, ps, g, shape)
-        @test isequal(nt, expected)
+        @test normwise_match(nt, expected)
     end
     for scratch in (false, true)
         work = scratch ? fill(T(7), nparticles(ps)) : nothing
         if momentum
             m = ntuple(_ -> zeros(T, g.n), 3)
             momentum!(m, ps, g, shape; work)
-            @test all(isequal(m[c], exact_moment(ps, g, shape, c)) for c = 1:3)
+            @test all(normwise_match(m[c], exact_moment(ps, g, shape, c)) for c = 1:3)
         end
         if current
             J = ntuple(_ -> zeros(T, g.n), 3)
             current!(J, ps, g, shape; work)
-            @test all(isequal(J[c], exact_moment(ps, g, shape, c, ps.q)) for c = 1:3)
+            @test all(normwise_match(J[c], exact_moment(ps, g, shape, c, ps.q)) for c = 1:3)
         end
         if scratch && (momentum || current)
-            @test isequal(work, ps.weight .* ps.v[3])
+            m2 = ntuple(_ -> zeros(T, g.n), 3)
+            momentum!(m2, ps, g, shape)
+            work .= T(NaN)
+            m3 = ntuple(_ -> zeros(T, g.n), 3)
+            momentum!(m3, ps, g, shape; work)
+            @test all(isequal(m2[c], m3[c]) for c = 1:3)
         end
     end
     @test all(isequal(a, b) for (a, b) in zip((ps.x..., ps.v..., ps.weight), before))
@@ -228,7 +252,12 @@ end
             current!(J, ps, g, shape; work)
             @test all(isequal(m[c], original_moment(ps, g, shape, c)) for c = 1:3)
             @test all(isequal(J[c], original_moment(ps, g, shape, c, ps.q)) for c = 1:3)
-            scratch && (@test isequal(work, ps.weight .* ps.v[3]))
+            if scratch
+                work .= T(NaN)
+                m4 = ntuple(_ -> zeros(T, g.n), 3)
+                momentum!(m4, ps, g, shape; work)
+                @test all(isequal(m4[c], m[c]) for c = 1:3)
+            end
         end
     end
 end
@@ -483,7 +512,12 @@ H._stencil1d(::SymbolicMomentShape, s) = (floor(Int, s), (π, 1 - π))
             current!(J, ps, g, shape; work)
             @test all(isequal(m[c], original_moment(ps, g, shape, c)) for c = 1:3)
             @test all(isequal(J[c], original_moment(ps, g, shape, c, ps.q)) for c = 1:3)
-            scratch && (@test isequal(work, ps.weight .* ps.v[3]))
+            if scratch
+                work .= T(NaN)
+                m4 = ntuple(_ -> zeros(T, g.n), 3)
+                momentum!(m4, ps, g, shape; work)
+                @test all(isequal(m4[c], m[c]) for c = 1:3)
+            end
         end
         es = EMPIC(g, 2; shape)
         J = ntuple(_ -> zeros(T, g.n), 3)

@@ -317,8 +317,7 @@ end
 # Serial and MPI callers share raw moments; MPI reduces across ranks before
 # either caller converts the momentum density to bulk velocity.
 function _hybrid_integer_raw_moments!(st, ps::ParticleSet{D,T}) where {D,T}
-    density!(st.fields.n, ps, st.g, st.shape)
-    momentum!(st.fields.ui, ps, st.g, st.shape; work = st.work)
+    _deposit_density_momentum_moments!(st.fields.n, st.fields.ui, ps, st.g, st.shape, st.work)
     return st
 end
 
@@ -629,8 +628,7 @@ function _hybrid_predictor_raw_moments!(st, ps::ParticleSet{D,T}, dtT::T) where 
     gather_vector!(st.Bp, st.fields.B, ps, g, st.shape)   # B^{n+1}
     _predict_half_kick!(st.vpred, ps.v, st.Ep, st.Bp, qm, dtT / 2, length(ps.weight))
     pspred = ParticleSet{D,T}(ps.x, st.vpred, ps.weight, ps.id, ps.tag, ps.q, ps.m)
-    density!(st.fields.n, pspred, g, st.shape)
-    momentum!(st.fields.ui, pspred, g, st.shape; work = st.work)
+    _deposit_density_momentum_moments!(st.fields.n, st.fields.ui, pspred, g, st.shape, st.work)
     return st
 end
 
@@ -706,8 +704,7 @@ function _push_hybrid_midpoint_raw_moments!(
     kick_dt::T,
 ) where {D,T}
     midpoint = _push_hybrid_population!(st, st, ps, dtT, kick_dt)
-    density!(st.fn, midpoint, st.g, st.shape)
-    momentum!(st.fui, midpoint, st.g, st.shape; work = st.work)
+    _deposit_density_momentum_moments!(st.fn, st.fui, midpoint, st.g, st.shape, st.work)
     return st
 end
 

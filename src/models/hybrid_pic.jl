@@ -64,9 +64,7 @@ function compute_moments!(
     work::Union{Nothing,AbstractVector{T}} = nothing,
 ) where {D,T}
     nf = _require_finite_positive_real("nfloor", nfloor, T)
-    _validate_moment_storage((f.n, f.ui...), ps, g, work)
-    density!(f.n, ps, g, shape)
-    momentum!(f.ui, ps, g, shape; work)
+    _deposit_density_momentum_moments!(f.n, f.ui, ps, g, shape, work)
     _normalize_ion_moments!(f.n, f.ui, nf)
     return f
 end
@@ -89,8 +87,7 @@ end
 
 # Accumulate raw charge moments; normalize only after every species contributes.
 function _accumulate_charge_moments!(n, u, ps, g, shape, ntmp, mtmp, work)
-    density!(ntmp, ps, g, shape)
-    momentum!(mtmp, ps, g, shape; work)
+    _deposit_density_momentum_moments!(ntmp, mtmp, ps, g, shape, work)
     @. n += ps.q * ntmp
     for c = 1:3
         @. u[c] += ps.q * mtmp[c]

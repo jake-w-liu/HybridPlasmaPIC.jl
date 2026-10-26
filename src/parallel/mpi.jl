@@ -885,8 +885,7 @@ function _mpi_moments!(
         floor_value
     end
     _mpi_require_equal(T[nf], ctx, "density floors")
-    density!(nout, ps, g, shape)
-    momentum!(uout, ps, g, shape; work)
+    _deposit_density_momentum_moments!(nout, uout, ps, g, shape, work)
 
     return _mpi_reduce_moments!(nout, uout, nf, ctx; gpu_status)
 end

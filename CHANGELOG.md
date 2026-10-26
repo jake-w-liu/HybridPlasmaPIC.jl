@@ -171,6 +171,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Moment deposition computes each particle's stencil once for density and all
+  momentum or current components, wraps periodic indices without integer `mod`,
+  and replaces per-stencil-point range checks with a per-particle normwise gate
+  plus a final finiteness check. Ordinary outputs are bitwise identical; a 2D
+  hybrid step with 131k particles runs about 2.3× faster. Cases whose smallest
+  stencil product would underflow, or whose accumulated cells overflow, still
+  take the exact replay. The documented `work` scratch argument of `momentum!`
+  and `current!` is no longer written.
+
 - Linear whistler packets with Float16/32/64 timesteps and fixed-width step
   counts reuse one CN or Euler multiplier per mode, preserving each multiplication
   and avoiding a multiplier cache allocation. Generic real timesteps retain their

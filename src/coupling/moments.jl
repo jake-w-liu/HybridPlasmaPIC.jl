@@ -546,16 +546,39 @@ function _charge_density_sum!(
     return (; eligible, lost)
 end
 
-function _deposit_vector_moment!(out, ps, g, shape, coefficient, work)
-    for c = 1:3
-        # Preserve the existing scratch contents, even if the original
-        # product overflows. The exact replay reads particle operands instead.
-        work === nothing || (@. work = ps.weight * ps.v[c])
-        factors = (ps.weight, ps.v[c])
-        state = _deposit_scalar_kernel!(out[c], ps, factors, g, shape, Val(true))
-        _finish_moment!(out[c], out[c], ps, factors, g, shape, coefficient, state)
-    end
+# The scratch `work` argument is validation-only: the kernel deposits the
+# product factors (weight, v_c) directly and the exact replay reads particle
+# operands, so the buffer is never filled or read here.
+function _deposit_vector_moment!(out, ps::ParticleSet{D,T}, g, shape, coefficient, work) where {D,T}
+    factorss = ((ps.weight, ps.v[1]), (ps.weight, ps.v[2]), (ps.weight, ps.v[3]))
+    outs = (out[1]::Array{T,D}, out[2]::Array{T,D}, out[3]::Array{T,D})
+    masks = _deposit_moments_kernel!(outs, ps, factorss, g, shape, Val(true))
+    _finish_moment!(out[1], out[1], ps, factorss[1], g, shape, coefficient, _moment_state(masks, 1))
+    _finish_moment!(out[2], out[2], ps, factorss[2], g, shape, coefficient, _moment_state(masks, 2))
+    _finish_moment!(out[3], out[3], ps, factorss[3], g, shape, coefficient, _moment_state(masks, 3))
     return out
+end
+
+# Shared stencil pass for the density + momentum pair: number density uses
+# factors (weight,), momentum components (weight, v_c). Each output's arithmetic
+# order matches its separate kernel pass, so results are bitwise identical.
+function _deposit_density_momentum_moments!(
+    nout::Array{T,D},
+    uout::NTuple{3,<:Array{T,D}},
+    ps::ParticleSet{D,T},
+    g::FourierGrid{D,T},
+    shape::ShapeFunction,
+    work = nothing,
+) where {D,T}
+    _validate_moment_storage((nout, uout...), ps, g, work)
+    factorss = ((ps.weight,), (ps.weight, ps.v[1]), (ps.weight, ps.v[2]), (ps.weight, ps.v[3]))
+    outs = (nout, uout[1]::Array{T,D}, uout[2]::Array{T,D}, uout[3]::Array{T,D})
+    masks = _deposit_moments_kernel!(outs, ps, factorss, g, shape, Val(true))
+    _finish_moment!(nout, nout, ps, factorss[1], g, shape, one(T), _moment_state(masks, 1))
+    _finish_moment!(uout[1], uout[1], ps, factorss[2], g, shape, one(T), _moment_state(masks, 2))
+    _finish_moment!(uout[2], uout[2], ps, factorss[3], g, shape, one(T), _moment_state(masks, 3))
+    _finish_moment!(uout[3], uout[3], ps, factorss[4], g, shape, one(T), _moment_state(masks, 4))
+    return nout
 end
 
 """
