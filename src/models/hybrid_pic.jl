@@ -14,6 +14,8 @@ frequency at `ω_pe` scales and enables collisionless reconnection at the `d_e` 
 
 [`EvolvingElectrons`](@ref) requires `η = ηH = de2 = 0`; its independent
 pressure is initialized in `HybridStepper.fields.pe` before calling `init!`.
+[`TransportElectrons`](@ref) accepts constant `η ≥ 0` with `ηH = de2 = 0`; a
+nonzero `η` must stay finite and nonzero after conversion to grid precision.
 """
 struct HybridModel{C<:ElectronClosure}
     closure::C
@@ -40,9 +42,37 @@ function _validate_evolving_model(model::HybridModel, ::Type{T}) where {T}
         γ = _require_finite_real("γ", model.closure.γ, T)
         γ > one(T) ||
             throw(ArgumentError("evolving electron γ must be greater than one at grid precision"))
-        (iszero(model.η) && iszero(model.ηH) && iszero(model.de2)) ||
-            throw(ArgumentError("EvolvingElectrons requires η = ηH = de2 = 0"))
+        if _transports_electrons(model.closure)
+            _validate_transport_resistivity(model, T)
+        else
+            (iszero(model.η) && iszero(model.ηH) && iszero(model.de2)) ||
+                throw(ArgumentError("EvolvingElectrons requires η = ηH = de2 = 0"))
+        end
         _require_finite_positive_real("nfloor", model.nfloor, T)
+    end
+    return nothing
+end
+
+# Constant Ohmic transport only. A nonzero coefficient must survive conversion:
+# overflow or disappearance to zero would silently change the model.
+function _validate_transport_resistivity(model::HybridModel, ::Type{T}) where {T}
+    (iszero(model.ηH) && iszero(model.de2)) ||
+        throw(ArgumentError("TransportElectrons supports constant η only; requires ηH = de2 = 0"))
+    η = _require_finite_nonnegative_real("η", model.η, T)
+    (iszero(model.η) || !iszero(η)) ||
+        throw(ArgumentError("TransportElectrons η underflows to zero at grid precision"))
+    return η
+end
+
+# Transport requires the actual deposited density, never its floor: a floor
+# would hide a missing population and break the paired force/heat balance.
+function _validate_transport_density(n, nfloor::T, context) where {T}
+    for value in n
+        isfinite(value) && value >= nfloor || throw(
+            ArgumentError(
+                "TransportElectrons $context density must be finite and at least nfloor = $nfloor",
+            ),
+        )
     end
     return nothing
 end

@@ -55,6 +55,43 @@ function _electron_pressure_rhs!(out, pe, ue, gradpe, divu, γ, ::Val{D}) where 
     return out
 end
 
+# (γ−1)η|J|² from the exact power-of-two factors of the coefficient: the
+# largest current component is scaled to [1, 2), so only the final ldexp can
+# underflow (within one subnormal ulp) or overflow (rejected as non-finite).
+@inline function _scaled_ohmic_heating(mantissa::T, exponent::Int, jx::T, jy::T, jz::T) where {T}
+    s = max(abs(jx), abs(jy), abs(jz))
+    iszero(s) && return zero(T)
+    e = Base.exponent(s)
+    x, y, z = ldexp(jx, -e), ldexp(jy, -e), ldexp(jz, -e)
+    return ldexp(mantissa * (x * x + y * y + z * z), exponent + 2e)
+end
+
+# Add the Ohmic pressure source (γ−1)η|J|² of the same RK stage current `J`.
+# The ordinary product is used when the coefficient and squared current are
+# normal and finite: then underflowed component squares or a subnormal result
+# cost at most a few ulps of the operation scale. Other cells take the scaled
+# evaluation of the same expression; a non-finite result is left for the
+# caller's finite-rate rejection.
+function _add_ohmic_pressure_heating!(out, J, γ::T, η::T) where {T}
+    γm1 = γ - one(T)
+    coefficient = γm1 * η
+    fγ, eγ = frexp(γm1)
+    fη, eη = frexp(η)
+    mantissa = fγ * fη
+    exponent = eγ + eη
+    ordinary = isfinite(coefficient) && coefficient >= floatmin(T)
+    Jx, Jy, Jz = J
+    @inbounds for I in eachindex(out, Jx, Jy, Jz)
+        jx, jy, jz = Jx[I], Jy[I], Jz[I]
+        square = jx * jx + jy * jy + jz * jz
+        heating =
+            ordinary && isfinite(square) && square >= floatmin(T) ? coefficient * square :
+            _scaled_ohmic_heating(mantissa, exponent, jx, jy, jz)
+        out[I] += heating
+    end
+    return out
+end
+
 function _validate_evolving_pressure(pe, g; context = "electron pressure", subcycle = 0, stage = 0)
     _require_grid_array(:pe, pe, g)
     for value in pe

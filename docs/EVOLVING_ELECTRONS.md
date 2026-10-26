@@ -9,8 +9,9 @@ to obtain charge-weighted moments; the scalar interface retains proton normaliza
 
 The closure requires finite `γ > 1` and `η = ηH = de2 = 0`, including after
 conversion to the grid precision. CAM-CL and Hall-MHD reject this closure.
-Heating, heat flux, and anisotropic pressure evolution are separate model
-extensions.
+Constant Ohmic heating is provided by
+[`TransportElectrons`](#constant-ohmic-transport); hyperresistive heating, heat
+flux, and anisotropic pressure evolution are separate model extensions.
 
 ## Initialize and advance
 
@@ -114,3 +115,79 @@ storage is `(27 + D)*Ncell + (D + 3)*Nparticle` grid-precision values, plus
 array headers and bookkeeping. Particle buffers resize with local particle
 counts. Successful steps copy public state into the saved buffers; rejected
 steps also copy it back. Algebraic closures do not allocate these buffers.
+
+## Constant Ohmic transport
+
+`TransportElectrons(γ = 5/3)` (CAP-011 stage S1) keeps this stored pressure
+and adds constant Ohmic transport for serial periodic CPU `HybridStepper` runs,
+Float32/64, D = 1–3, with one unit-charge population or an ordered positive-ion
+collection. Use `HybridModel(TransportElectrons(γ); η)` with constant finite
+`η ≥ 0` and `ηH = de2 = 0`; a nonzero `η` that overflows or becomes zero at
+grid precision is rejected. Ohm's law is split as
+
+```
+E_force = −u_i×B + (J×B)/n − ∇p_e/n,       E = E_force + ηJ,
+∂B/∂t = −∇×E,
+∂p_e/∂t = −u_e·∇p_e − γ p_e ∇·u_e + (γ−1) η|J|²,     u_e = u_i − J/n.
+```
+
+Faraday's law and `fields.E` use the full field. Ions are pushed by `E_force`
+in the first-step priming, every Boris kick and the endpoint predictor, so each
+species receives the recoil `−q_s n_s ηJ` while the electrons gain the heat
+`η|J|²`. This is a prescribed reduced friction model, not a Coulomb collision
+or electron–ion equilibration model. `E_force` is computed by the ideal Ohm
+kernel before `ηJ` is added; with `η = 0`, on states whose density stays at or
+above `nfloor`, every field, particle and clock value equals
+`EvolvingElectrons` bitwise. Each RK4 stage heats with its own current. The
+heat avoids intermediate overflow and underflow by power-of-two scaling when
+the ordinary product is not certified; a non-finite heat or rate rejects the step.
+
+```julia
+using HybridPlasmaPIC
+
+g = FourierGrid((32,), (2pi,))
+ions = ParticleSet{1,Float64}(128)
+load_lattice_1d!(ions, 0.0, g.L[1])
+set_density_weight!(ions, 1.0, g)
+
+closure = TransportElectrons(5 / 3)
+st = HybridStepper(g, HybridModel(closure; η = 0.01), CIC(), nparticles(ions))
+x = (0:g.n[1]-1) .* g.dx[1]
+st.fields.B[2] .= 0.1 .* cos.(x)
+st.fields.B[3] .= 0.1 .* sin.(x)
+st.fields.pe .= 0.5
+init!(st, ions)
+step!(st, ions, 0.001; NB = 2)
+
+budget = energy_budget(ions, st.fields.B, st.fields.n, closure, g;
+                       pe = st.fields.pe)
+```
+
+Pass the same `η` to `recommended_dt` for its resistive limit; it still does
+not bound pressure advection, compression or heating.
+
+**Density.** The deposited density must be finite and at least `nfloor` in
+every cell at initialization and at each midpoint, endpoint and predictor
+deposition. Floor activation, empty populations and missing particles are
+rejected with rollback; the floor never supplies an untracked source. A scalar
+`ParticleSet` must have `q = 1`; use a one-element collection otherwise.
+
+**Energy.** Kinetic, magnetic and `∫p_e/(γ−1) dV` energies form the only
+reservoirs; with periodic boundaries the continuum total is conserved. The
+semidiscrete Ohmic exchange matches to roundoff. With fixed ions the RK4
+field/pressure update closes this total at fourth order, and coupled particle
+runs close the common-time total at second order (both measured by
+`test/test_transport_electrons.jl`). This is not exact discrete conservation.
+
+**State, rollback and restart.** The stepper owns the carried force and its
+rollback copy: six additional `Ncell` arrays and no particle buffers.
+Rejected `init!`/`step!` calls also restore the carried force; zero `dt` is a
+true no-op. Checkpoints and archives require `transport_policy_version = 1` and
+the force `Eforce`, validated and restored verbatim without `init!` or
+reconstruction from half-time moments. The archive schema remains 4; its
+checksum covers the new fields. Earlier checkpoints contain no carried force.
+
+MPI, CAM-CL and Hall-MHD reject this closure, and the hybrid stepper has no
+device path. MPI ranks agree on the rejection collectively before mutation when
+every rank uses an evolving-pressure model; other model mismatches remain
+outside the existing MPI contract.

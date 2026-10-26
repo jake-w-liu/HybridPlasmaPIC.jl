@@ -8,10 +8,14 @@ Fill `f.E` from generalized Ohm's law using `f.n`, `f.ui`, `f.B`. Also updates
 closures recompute `f.pe`; [`EvolvingElectrons`](@ref) validates and reads its
 stored pressure without changing it. Stored pressure must have independent
 storage, and scalar CGL scratch must retain its empty layout.
+[`TransportElectrons`](@ref) returns the full field `E_force + ηJ`; it rejects
+a density below `nfloor` before writing any output.
 """
 function ohms_law!(f::HybridFields{D,T}, model::HybridModel, g::FourierGrid{D,T}) where {D,T}
     _validate_evolving_model(model, T)
     _evolves_pressure(model.closure) && _validate_evolving_pressure_storage(f, g)
+    # Direct calls keep only the full field, so the ion force is formed in place.
+    _transports_electrons(model.closure) && return _transport_ohms_law!(f, f.E, model, g)
     if is_anisotropic(model.closure)
         # gyrotropic (CGL) path: pressure force is the tensor divergence ∇·P_e(n,B),
         # applied on all three E components. The `is_anisotropic` test is resolved at
@@ -193,6 +197,54 @@ function _ohm_E!(
     _ohm_prep!(pe, gradp, ninv, n, closure, nfloor, fc, g)
     _ohm_Efield!(E, ui, B, J, lapJ, gradp, ninv, η, ηH, g)
     return E
+end
+
+# Full transport field E = E_force + ηJ from the ion force produced by the
+# ideal kernel. The force is never recovered by subtracting rounded fields, and
+# η = 0 publishes the ideal field bitwise. `E` may be `Eforce` (in place).
+function _add_ohmic_field!(E, Eforce, J, η::T) where {T}
+    for c = 1:3
+        Ec, Fc, Jc = E[c], Eforce[c], J[c]
+        if iszero(η)
+            Ec === Fc || copyto!(Ec, Fc)
+        else
+            @inbounds for I in eachindex(Ec, Fc, Jc)
+                Ec[I] = Fc[I] + η * Jc[I]
+            end
+        end
+    end
+    return E
+end
+
+# Carried transport Ohm law: the ion force `Eforce` uses the ideal arithmetic
+# and order of the canonical kernel; `f.E` receives the full field. The actual
+# density is checked before any output is written.
+function _transport_ohms_law!(
+    f::HybridFields{D,T},
+    Eforce::NTuple{3,<:Array{T,D}},
+    model::HybridModel,
+    g::FourierGrid{D,T},
+) where {D,T}
+    nfloor = T(model.nfloor)
+    _validate_transport_density(f.n, nfloor, "Ohm-law")
+    _ohm_E!(
+        Eforce,
+        f.n,
+        f.ui,
+        f.B,
+        f.J,
+        f.lapJ,
+        f.pe,
+        f.gradp,
+        f.ninv,
+        model.closure,
+        zero(T),
+        zero(T),
+        nfloor,
+        f.floor_count,
+        g,
+    )
+    return _add_ohmic_field!(f.E, Eforce, f.J, T(model.η))
 end
 
 # ---------------------------------------------------------------- anisotropic (CGL) pressure

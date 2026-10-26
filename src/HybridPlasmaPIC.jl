@@ -192,6 +192,7 @@ export ShapeFunction,
     temperature_components
 export ElectronClosure,
     EvolvingElectrons,
+    TransportElectrons,
     IsothermalElectrons,
     PolytropicElectrons,
     CGLElectrons,

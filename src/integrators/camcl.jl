@@ -75,8 +75,11 @@ function CAMCLStepper(
 ) where {D,T,M<:HybridModel,SH<:ShapeFunction}
     # the CL subcycle freezes the scalar ∇p_e (f.gradp), which is incompatible with the
     # B-dependent gyrotropic force — use HybridStepper for anisotropic (CGL) closures.
-    _evolves_pressure(model.closure) &&
-        throw(ArgumentError("CAMCLStepper does not evolve EvolvingElectrons; use HybridStepper"))
+    _evolves_pressure(model.closure) && throw(
+        ArgumentError(
+            "CAMCLStepper does not evolve $(nameof(typeof(model.closure))); use HybridStepper",
+        ),
+    )
     is_anisotropic(model.closure) && throw(
         ArgumentError(
             "CAMCLStepper does not support anisotropic (CGL) closures; use HybridStepper",

@@ -6,6 +6,7 @@
 #   magnetic field   B         : integer n          (→ n+1)
 #   evolving electron pe        : integer n          (→ n+1, optional closure)
 #   electric field   E (carried): integer n         (recomputed → n+1)
+#   transport ion force E_force : integer n         (recomputed with E, TransportElectrons)
 #   moments for the B-subcycle : n+1/2 (midpoint positions x^{n+1/2}, v^{n+1/2})
 #
 # The loaded velocity is the physical v^0, so the FIRST step primes the leapfrog once
@@ -27,7 +28,9 @@
 
 # Evolving pressure alone owns these grids and rollback buffers. Algebraic
 # closures use `nothing`, so their hot path carries no extra array storage.
-mutable struct _PressureEvolutionWorkspace{D,T}
+# `Eforce` is the transport-owned carried ion force and `saved_Eforce` its
+# rollback copy; both are `nothing` (zero storage) for EvolvingElectrons.
+mutable struct _PressureEvolutionWorkspace{D,T,F}
     ue::NTuple{3,Array{T,D}}
     divue::Array{T,D}
     kp::NTuple{4,Array{T,D}}
@@ -36,11 +39,18 @@ mutable struct _PressureEvolutionWorkspace{D,T}
     x0::NTuple{D,Vector{T}}
     v0::NTuple{3,Vector{T}}
     clock::Tuple{T,Int,T}
+    Eforce::F
+    saved_Eforce::F
 end
+
+_transport_force_storage(::FourierGrid, ::ElectronClosure) = nothing
+_transport_force_storage(g::FourierGrid{D,T}, ::TransportElectrons) where {D,T} =
+    ntuple(_ -> zeros(T, g.n), 3)
 
 function _pressure_workspace(g::FourierGrid{D,T}, closure, count) where {D,T}
     _evolves_pressure(closure) || return nothing
-    return _PressureEvolutionWorkspace{D,T}(
+    force = _transport_force_storage(g, closure)
+    return _PressureEvolutionWorkspace{D,T,typeof(force)}(
         ntuple(_ -> zeros(T, g.n), 3),
         zeros(T, g.n),
         ntuple(_ -> zeros(T, g.n), 4),
@@ -49,6 +59,8 @@ function _pressure_workspace(g::FourierGrid{D,T}, closure, count) where {D,T}
         ntuple(_ -> zeros(T, count), D),
         ntuple(_ -> zeros(T, count), 3),
         (zero(T), 0, zero(T)),
+        force,
+        _transport_force_storage(g, closure),
     )
 end
 
@@ -63,6 +75,8 @@ ion populations to [`init!`](@ref) and [`step!`](@ref), after setting the initia
 field in `stepper.fields.B`. With [`EvolvingElectrons`](@ref), also set the
 finite, nonnegative initial pressure in `stepper.fields.pe`; initialization
 preserves that pressure. Other closures compute pressure from their algebraic law.
+[`TransportElectrons`](@ref) uses the same pressure state and additionally
+allocates the carried ion force and its rollback copy (six grid arrays).
 """
 mutable struct HybridStepper{D,T,SH<:ShapeFunction,M<:HybridModel,W}
     g::FourierGrid{D,T}
@@ -172,6 +186,88 @@ function _validate_pressure_storage(st::HybridStepper, ps)
         _particle_arrays_mightalias(f.pe, a) &&
             throw(ArgumentError("evolving pressure must not alias particle storage"))
     end
+    _validate_transport_force_storage(st, ps, w.Eforce)
+    return nothing
+end
+
+_validate_transport_force_storage(st, ps, ::Nothing) = nothing
+
+# The carried force and its rollback copy must be independent grid arrays, as
+# for stored pressure: aliasing would corrupt the paired field or rollback.
+# Grid and particle-length storage are scanned as separate homogeneous tuples,
+# so the per-step check stays type-stable and allocation-free in every D.
+function _validate_transport_force_storage(
+    st::HybridStepper{D,T},
+    ps,
+    force::NTuple{3,Array{T,D}},
+) where {D,T}
+    w, f = st.pressure_work, st.fields
+    carried = (force..., w.saved_Eforce...)
+    # The field type fixes Array{T,D} with one-based axes, so matching the
+    # already grid-validated pressure size is the complete layout check.
+    for a in carried
+        size(a) == size(f.pe) || throw(
+            DimensionMismatch(
+                "transport force size $(size(a)) does not match grid size $(size(f.pe))",
+            ),
+        )
+    end
+    for (i, a) in enumerate(carried), j = 1:(i-1)
+        _particle_arrays_mightalias(a, carried[j]) &&
+            throw(ArgumentError("transport force arrays must have independent storage"))
+    end
+    grids = (
+        f.n,
+        f.ui...,
+        f.B...,
+        f.E...,
+        f.J...,
+        f.pe,
+        f.gradp...,
+        f.ninv,
+        f.lapJ...,
+        f.pforce...,
+        f.cgl_dp,
+        st.fn,
+        st.fui...,
+        st.Escr...,
+        st.k1...,
+        st.k2...,
+        st.k3...,
+        st.k4...,
+        st.Btmp...,
+        w.ue...,
+        w.divue,
+        w.kp...,
+        w.ptmp,
+        w.saved.n,
+        w.saved.ui...,
+        w.saved.B...,
+        w.saved.E...,
+        w.saved.J...,
+        w.saved.pe,
+        w.saved.gradp...,
+        w.saved.ninv,
+        w.saved.lapJ...,
+    )
+    scratch = (st.Ep..., st.Bp..., st.vpred..., st.xmid..., st.work, w.x0..., w.v0...)
+    for b in grids, a in carried
+        _particle_arrays_mightalias(a, b) &&
+            throw(ArgumentError("transport force must have independent storage"))
+    end
+    for b in scratch, a in carried
+        _particle_arrays_mightalias(a, b) &&
+            throw(ArgumentError("transport force must have independent storage"))
+    end
+    for population in _pressure_populations(ps), a in carried
+        aliased =
+            any(b -> _particle_arrays_mightalias(a, b), population.x) ||
+            any(b -> _particle_arrays_mightalias(a, b), population.v) ||
+            _particle_arrays_mightalias(a, population.weight) ||
+            _particle_arrays_mightalias(a, population.id) ||
+            _particle_arrays_mightalias(a, population.tag)
+        aliased && throw(ArgumentError("transport force must not alias particle storage"))
+    end
     return nothing
 end
 
@@ -188,6 +284,31 @@ function _validate_pressure_step_state(st::HybridStepper{D,T}, ps) where {D,T}
     for a in (st.fields.B..., st.fields.E...)
         _validate_pressure_finite(a, "evolving-pressure field input")
     end
+    _validate_transport_step_inputs(st, ps, st.pressure_work.Eforce)
+    return nothing
+end
+
+_validate_transport_step_inputs(st, ps, ::Nothing) = nothing
+
+function _validate_transport_step_inputs(st, ps, force::NTuple{3})
+    # The scalar interface deposits proton-normalized number density; only a
+    # unit charge makes it the charge density the paired energy balance needs.
+    ps isa ParticleSet &&
+        !isone(ps.q) &&
+        throw(
+            ArgumentError(
+                "TransportElectrons scalar populations require q = 1; use a one-element collection",
+            ),
+        )
+    for a in force
+        _validate_pressure_finite(a, "transport carried ion force")
+    end
+    return nothing
+end
+
+_copy_transport_force!(::Nothing, ::Nothing) = nothing
+function _copy_transport_force!(destination::NTuple{3}, source::NTuple{3})
+    foreach(copyto!, destination, source)
     return nothing
 end
 
@@ -200,6 +321,7 @@ function _save_pressure_transaction!(st::HybridStepper{D,T}, ps) where {D,T}
         w.v0 = ntuple(_ -> Vector{T}(undef, total_count), 3)
     end
     _copy_hybrid_fields!(w.saved, st.fields)
+    _copy_transport_force!(w.saved_Eforce, w.Eforce)
     offset = 0
     for population in _pressure_populations(ps)
         population_count = nparticles(population)
@@ -219,6 +341,7 @@ function _restore_pressure_transaction!(st::HybridStepper{D,T}, ps) where {D,T}
     w = st.pressure_work
     w === nothing && return nothing
     _copy_hybrid_fields!(st.fields, w.saved)
+    _copy_transport_force!(w.Eforce, w.saved_Eforce)
     offset = 0
     for population in _pressure_populations(ps)
         count = nparticles(population)
@@ -238,6 +361,15 @@ function _validate_pressure_electric!(st::HybridStepper)
     st.pressure_work === nothing && return nothing
     for a in st.fields.E
         _validate_pressure_finite(a, "evolving-pressure carried electric field")
+    end
+    _validate_transport_force_finite(st.pressure_work.Eforce)
+    return nothing
+end
+
+_validate_transport_force_finite(::Nothing) = nothing
+function _validate_transport_force_finite(force::NTuple{3})
+    for a in force
+        _validate_pressure_finite(a, "transport carried ion force")
     end
     return nothing
 end
@@ -354,6 +486,8 @@ Collection calls combine positive ion populations with their own charge and mass
 using charge-weighted moments. Populations require independent storage and a
 common time level. Reinitialize when adding populations loaded at a new physical
 velocity time level. Empty populations contribute zero moments.
+[`TransportElectrons`](@ref) also computes the carried ion force and requires
+the initial density to be finite and at least `nfloor` in every cell.
 """
 function init!(st::HybridStepper{D,T}, ps::_HybridPopulations{D,T}) where {D,T}
     count = ps isa ParticleSet ? nparticles(ps) : _validate_hybrid_species(ps)
@@ -363,7 +497,7 @@ function init!(st::HybridStepper{D,T}, ps::_HybridPopulations{D,T}) where {D,T}
     try
         _resize_hybrid_particle_workspaces!(st, count)
         _hybrid_integer_moments!(st, ps)
-        ohms_law!(st.fields, st.model, st.g)
+        _carried_ohms_law!(st)
         _validate_pressure_electric!(st)
         st.time[] = zero(T)                 # (re)start at t=0; step==0 triggers leapfrog priming
         st.step[] = 0
@@ -445,6 +579,26 @@ function _rk4_B!(st::HybridStepper{D,T}, h::T) where {D,T}
     return B
 end
 
+# Constant Ohmic transport adds ηJ to the stage field that drives Faraday and
+# its heat (γ−1)η|J|² to the pressure rate, both from this stage's current.
+# The ideal closure and η = 0 leave the stage arithmetic untouched.
+_add_transport_stage_sources!(E, rate, J, model::HybridModel) =
+    _add_transport_stage_sources!(E, rate, J, model, model.closure)
+_add_transport_stage_sources!(E, rate, J, model, ::ElectronClosure) = nothing
+function _add_transport_stage_sources!(
+    E,
+    rate::Array{T},
+    J,
+    model,
+    closure::TransportElectrons,
+) where {T}
+    η = T(model.η)
+    iszero(η) && return nothing
+    _add_ohmic_field!(E, E, J, η)
+    _add_ohmic_pressure_heating!(rate, J, T(closure.γ), η)
+    return nothing
+end
+
 # One coupled field RHS: E/J and pressure transport use the same B/p stage.
 function _bpressure_rhs!(
     outB,
@@ -465,6 +619,7 @@ function _bpressure_rhs!(
     electron_velocity!(w.ue, st.fui, f.J, st.fn; nfloor = T(st.model.nfloor))
     divergence!(w.divue, w.ue, g)
     _electron_pressure_rhs!(outp, ptrial, w.ue, f.gradp, w.divue, T(st.model.closure.γ), Val(D))
+    _add_transport_stage_sources!(st.Escr, outp, f.J, st.model)
     faraday_rhs!(outB, st.Escr, g)
     _validate_pressure_finite(outp, "evolving-pressure rate")
     for a in outB
@@ -513,6 +668,8 @@ function _advance_hybrid_fields!(st::HybridStepper{D,T}, dtT::T, NB::Integer) wh
         for u in st.fui
             _validate_pressure_finite(u, "evolving-pressure midpoint ion velocity")
         end
+        _transports_electrons(st.model.closure) &&
+            _validate_transport_density(st.fn, T(st.model.nfloor), "midpoint")
         _ohm_ninv!(f.ninv, st.fn, T(st.model.nfloor), f.floor_count)
     elseif is_anisotropic(st.model.closure)
         _ohm_ninv!(f.ninv, st.fn, T(st.model.nfloor), f.floor_count)
@@ -599,6 +756,22 @@ end
     return v
 end
 
+# Carried fields. The full E drives Faraday's law and diagnostics. With
+# TransportElectrons the ions are pushed by the carried force E_force instead:
+# the first-step priming, every Boris kick and the endpoint predictor gather it.
+# Only HybridStepper owns that force; CAM-CL rejects the closure on construction.
+_particle_electric_field(st) = _particle_electric_field(st, st.model.closure)
+_particle_electric_field(st, ::ElectronClosure) = st.fields.E
+_particle_electric_field(st::HybridStepper, ::TransportElectrons) = st.pressure_work.Eforce
+
+_carried_ohms_law!(st) = _carried_ohms_law!(st, st.model.closure)
+_carried_ohms_law!(st, ::ElectronClosure) = ohms_law!(st.fields, st.model, st.g)
+_carried_ohms_law!(st::HybridStepper, ::TransportElectrons) =
+    _carried_transport_ohms_law!(st.fields, st.pressure_work, st.model, st.g)
+# The grid field is abstractly typed; passing the mutable workspace instead of
+# its force tuple keeps that dynamic call boundary free of a boxed argument.
+_carried_transport_ohms_law!(f, w, model, g) = _transport_ohms_law!(f, w.Eforce, model, g)
+
 # Forward half-kick predictor v^{n+1/2} → v^{n+1} into `vp`, from particle-gathered E, B.
 @inline function _predict_half_kick!(vp, v, Ep, Bp, qm, h, np)
     vx, vy, vz = v
@@ -624,7 +797,7 @@ end
 function _hybrid_predictor_raw_moments!(st, ps::ParticleSet{D,T}, dtT::T) where {D,T}
     qm = _validated_qm(ps)
     g = st.g
-    gather_vector!(st.Ep, st.fields.E, ps, g, st.shape)   # E^{n+1}
+    gather_vector!(st.Ep, _particle_electric_field(st), ps, g, st.shape)   # E^{n+1}
     gather_vector!(st.Bp, st.fields.B, ps, g, st.shape)   # B^{n+1}
     _predict_half_kick!(st.vpred, ps.v, st.Ep, st.Bp, qm, dtT / 2, length(ps.weight))
     pspred = ParticleSet{D,T}(ps.x, st.vpred, ps.weight, ps.id, ps.tag, ps.q, ps.m)
@@ -643,7 +816,7 @@ function _hybrid_predictor_raw_moments!(
     for ps in species
         n = nparticles(ps)
         ws = _hybrid_particle_workspace(st, (offset+1):(offset+n))
-        gather_vector!(ws.Ep, f.E, ps, st.g, st.shape)
+        gather_vector!(ws.Ep, _particle_electric_field(st), ps, st.g, st.shape)
         gather_vector!(ws.Bp, f.B, ps, st.g, st.shape)
         _predict_half_kick!(ws.vpred, ps.v, ws.Ep, ws.Bp, _validated_qm(ps), dtT / 2, n)
         predicted = ParticleSet{D,T}(ps.x, ws.vpred, ps.weight, ps.id, ps.tag, ps.q, ps.m)
@@ -656,7 +829,7 @@ end
 function _recenter_carried_E!(st, ps, dtT)
     _hybrid_predictor_raw_moments!(st, ps, dtT)
     _normalize_ion_moments!(st.fields.n, st.fields.ui, eltype(st.fields.n)(st.model.nfloor))
-    ohms_law!(st.fields, st.model, st.g)
+    _carried_ohms_law!(st)
     return st
 end
 
@@ -664,7 +837,7 @@ end
 function _push_hybrid_population!(st, ws, ps::ParticleSet{D,T}, dtT::T, kick_dt::T) where {D,T}
     qm = _validated_qm(ps)
     h = dtT / 2
-    gather_vector!(ws.Ep, st.fields.E, ps, st.g, st.shape)
+    gather_vector!(ws.Ep, _particle_electric_field(st), ps, st.g, st.shape)
     gather_vector!(ws.Bp, st.fields.B, ps, st.g, st.shape)
     st.step[] == 0 && _prime_leapfrog!(ps.v, ws.Ep, ws.Bp, qm, h, length(ps.weight))
     vx, vy, vz = ps.v
@@ -759,6 +932,12 @@ step restores particles, public fields and clocks, preserving their array
 identities. There is no pressure clipping. Choose a smaller timestep or improve
 spatial resolution when a pressure stage is rejected. A zero timestep changes
 nothing, including invalid input pressure. Private work arrays are scratch.
+
+[`TransportElectrons`](@ref) shares these stages and adds `ηJ` to the stage
+field and `(γ−1)η|J|²` to the stage pressure rate; ions are pushed by the
+carried force `E_force`. The midpoint, endpoint and predictor densities must
+stay finite and at least `nfloor`, and the transaction also restores the
+carried force.
 """
 function step!(
     st::HybridStepper{D,T},
@@ -803,7 +982,7 @@ function _step_hybrid!(
         # 4. recompute carried E = E^{n+1} (n^{n+1}, u_i^{n+1/2}, B^{n+1}), then re-center u_i to n+1
         #    via a predictor half-kick so the carried E is 2nd-order accurate (see _recenter_carried_E!).
         _hybrid_integer_moments!(st, ps)
-        ohms_law!(st.fields, st.model, st.g)
+        _carried_ohms_law!(st)
         _recenter_carried_E!(st, ps, dtT)
         _validate_pressure_electric!(st)
 
@@ -1417,7 +1596,9 @@ function electron_internal_energy(
     _require_grid_array(:n, n, g)
     if _evolves_pressure(closure)
         pe === nothing && throw(
-            ArgumentError("EvolvingElectrons energy requires explicit stored pressure via pe="),
+            ArgumentError(
+                "$(nameof(typeof(closure))) energy requires explicit stored pressure via pe=",
+            ),
         )
         pe isa AbstractArray{T,D} ||
             throw(ArgumentError("stored pressure must match grid precision and dimension"))

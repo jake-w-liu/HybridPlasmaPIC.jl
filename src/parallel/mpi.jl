@@ -342,6 +342,7 @@ function _mpi_checkpoint_state(
     ps::Union{ParticleSet{D,T},AbstractVector{<:ParticleSet{D,T}}},
     ctx::MPICartesianCommunicator{D},
 ) where {D,T}
+    _mpi_reject_transport(st)
     base = _checkpoint_state(st, ps)
     _validate_checkpoint_state(base, st)
     return merge(
@@ -523,6 +524,7 @@ function load_mpi_checkpoint!(
 ) where {D,T}
     ensure_mpi_initialized!()
     state, count, manifest = _mpi_checkpoint_stage(ctx, "restore preflight") do
+        _mpi_reject_transport(st)
         manifest = Serialization.deserialize(_mpi_checkpoint_manifest_path(dir))
         _validate_mpi_checkpoint_manifest(manifest, st, ctx)
         rank_file = _validate_mpi_checkpoint_filename(manifest.rank_files[ctx.logical_rank])
@@ -752,9 +754,18 @@ function _mpi_require_same_species(ps::ParticleSet{D,T}, ctx) where {D,T}
     return nothing
 end
 
+# TransportElectrons has no replicated-field transport, force agreement or
+# distributed checkpoint support yet. Callers place this inside the first
+# collective validation, so ranks agree on the rejection before mutation.
+_mpi_reject_transport(st) =
+    _transports_electrons(st.model.closure) && throw(
+        ArgumentError("TransportElectrons supports serial HybridStepper only; MPI is unsupported"),
+    )
+
 function _mpi_hybrid_init_count(st, ps::ParticleSet, ctx)
     if _evolves_pressure(st.model.closure)
         count = _mpi_collective_validate(ctx) do
+            _mpi_reject_transport(st)
             _validate_pressure_step_state(st, ps)
             _validate_hybrid_species(ps)
         end
@@ -767,6 +778,7 @@ end
 
 function _mpi_hybrid_init_count(st, species::AbstractVector{<:ParticleSet}, ctx)
     count = _mpi_collective_validate(ctx) do
+        _mpi_reject_transport(st)
         _require_finite_positive_real("nfloor", st.model.nfloor, eltype(st.fields.n))
         _evolves_pressure(st.model.closure) && _validate_pressure_step_state(st, species)
         _validate_hybrid_species(species)
@@ -828,6 +840,7 @@ function _mpi_hybrid_collective_step_inputs(
     migrate,
 ) where {D,T}
     dtT, cycles = _mpi_collective_validate(ctx) do
+        _mpi_reject_transport(st)
         (
             _validated_step_dt(T, dt, NB; min_NB = 1, name = "mpi_step!"),
             _require_positive_intlike("NB", NB),
@@ -969,6 +982,7 @@ ion collection; collection validation completes collectively before mutation.
 For `EvolvingElectrons`, supplied pressure is preserved, and input/numerical
 validation is collective for either population form. A numerical rejection
 restores the public fields, particle positions/velocities, and clocks on every rank.
+`TransportElectrons` is serial-only; ranks reject it collectively before mutation.
 """
 function mpi_init!(
     st::HybridStepper{D,T},
@@ -1019,6 +1033,7 @@ uses the serial joint field/pressure subcycles; its input and numerical validati
 is collective for either population form. A pressure/numerical rejection restores
 public fields, particle positions/velocities, and clocks before returning an error.
 MPI transport and particle-migration failures are outside that rollback contract.
+`TransportElectrons` is serial-only and rejected collectively, even for zero `dt`.
 """
 function mpi_step!(
     st::HybridStepper{D,T},

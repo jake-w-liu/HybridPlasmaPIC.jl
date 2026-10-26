@@ -6,8 +6,10 @@ implemented for the ideal massless case and passes both native Julia acceptance
 gates. Implementation commit `013a70b` passes all six jobs in
 [its exact-revision GitHub run](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39097756477):
 374,060/374,061 assertions on actual Julia 1.12.7/1.13.2, formatting and all
-MPI ranks. Dissipative recoil/heating and complete electron inertia remain
-separate model extensions.
+MPI ranks. Constant Ohmic recoil and heating are provided separately by
+`TransportElectrons` (CAP-011 S1, [guide](EVOLVING_ELECTRONS.md#constant-ohmic-transport));
+hyperresistive heating and complete electron inertia remain separate model
+extensions.
 
 ## Verified balance and scope
 
@@ -61,7 +63,9 @@ The balance above is derived from this repository's equations.
   `η=ηH=de2=0`. Define positivity, rollback, MPI, restart and explicit pressure
   input to diagnostics before implementing the new closure.
 - Design dissipative recoil and heat partition together before enabling
-  resistive/hyperresistive evolution with a closed-energy claim.
+  resistive/hyperresistive evolution with a closed-energy claim. Constant
+  resistivity is implemented as `TransportElectrons`: the ion force omits `ηJ`
+  and `Q = η|J|²`, which removes the `J_i·R` term; hyperresistivity remains open.
 - Treat full finite-electron-inertia dynamics as a separate extension;
   relabeling the quadratic diagnostic cannot supply omitted momentum terms.
 

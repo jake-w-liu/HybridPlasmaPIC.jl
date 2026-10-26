@@ -2,7 +2,8 @@
 #
 # The deterministic steppers use no RNG, so their restart state contains model
 # and shape, particle phase space + provenance, canonical B,
-# carried E, evolving electron pressure when present, time/step counters, and
+# carried E, evolving electron pressure when present, the TransportElectrons
+# carried ion force with its policy version, time/step counters, and
 # the previous particle timestep. The frozen n+1/2 moments are scratch
 # recomputed every step, so they are not stored.
 # CAM-CL also retains its two magnetic copies, prior output, and subcycle phase.
@@ -264,6 +265,39 @@ function _validate_checkpoint_field_state(s, st::_HybridCheckpointStepper{D,T}) 
         _validate_checkpoint_container(s, (:pe,))
         s.pe isa Array{T,D} || throw(ArgumentError("checkpoint pe must be stored as Array{$T,$D}"))
         _validate_evolving_pressure(s.pe, st.g; context = "checkpoint electron pressure")
+    end
+    _transports_electrons(s.model.closure) && _validate_checkpoint_transport_state(s, st)
+    return nothing
+end
+
+# Version of the TransportElectrons payload meaning (carried ion force E_force
+# with constant Ohmic transport). It is required; old payloads carry no force.
+const _TRANSPORT_POLICY_VERSION = 1
+
+function _validate_checkpoint_transport_state(s, st::_HybridCheckpointStepper{D,T}) where {D,T}
+    _validate_checkpoint_container(s, (:transport_policy_version, :Eforce))
+    s.transport_policy_version === _TRANSPORT_POLICY_VERSION || throw(
+        ArgumentError(
+            "checkpoint transport_policy_version $(repr(s.transport_policy_version)) ≠ $_TRANSPORT_POLICY_VERSION",
+        ),
+    )
+    s.Eforce isa NTuple{3,Array{T,D}} ||
+        throw(ArgumentError("checkpoint Eforce must be stored as three Array{$T,$D}"))
+    for c = 1:3
+        force = s.Eforce[c]
+        _require_grid_array(:Eforce, c, force, st.g)
+        _validate_pressure_finite(force, "checkpoint transport ion force")
+        # A valid writer stores independent arrays; shared payload storage
+        # indicates a malformed or hand-edited state.
+        aliased = any(k -> _particle_arrays_mightalias(force, s.Eforce[k]), 1:(c-1))
+        for other in (s.E..., s.B..., s.pe)
+            aliased |= _particle_arrays_mightalias(force, other)
+        end
+        aliased && throw(ArgumentError("checkpoint Eforce must not alias other saved fields"))
+    end
+    if !haskey(s, :particle_layout)
+        isone(s.q) ||
+            throw(ArgumentError("TransportElectrons scalar checkpoint populations require q = 1"))
     end
     return nothing
 end
@@ -715,6 +749,23 @@ function _checkpoint_state(
     return _hybrid_checkpoint_state(st, particles)
 end
 
+# Stored pressure for both evolving closures; transport also stores its policy
+# version and the carried ion force, which cannot be rebuilt from half-time
+# particle moments.
+# Only HybridStepper owns the force; other steppers reject the closure.
+_pressure_checkpoint_state(st, ::ElectronClosure) = (pe = st.fields.pe,)
+_pressure_checkpoint_state(st::HybridStepper, ::TransportElectrons) = (
+    pe = st.fields.pe,
+    transport_policy_version = _TRANSPORT_POLICY_VERSION,
+    Eforce = st.pressure_work.Eforce,
+)
+
+_restore_transport_checkpoint_force!(st, s, ::ElectronClosure) = nothing
+function _restore_transport_checkpoint_force!(st::HybridStepper, s, ::TransportElectrons)
+    foreach(copyto!, st.pressure_work.Eforce, s.Eforce)
+    return nothing
+end
+
 function _hybrid_checkpoint_state(
     st::_HybridCheckpointStepper{D,T},
     particles::NamedTuple,
@@ -735,7 +786,7 @@ function _hybrid_checkpoint_state(
         last_dt = st.last_dt[],
     )
     if _evolves_pressure(st.model.closure)
-        return merge(common, (pe = st.fields.pe,))
+        return merge(common, _pressure_checkpoint_state(st, st.model.closure))
     end
     if st isa CAMCLStepper
         return merge(
@@ -1023,6 +1074,7 @@ function _restore_hybrid_checkpoint_fields!(st::_HybridCheckpointStepper, s)
         copyto!(st.fields.E[c], s.E[c])
     end
     _evolves_pressure(st.model.closure) && copyto!(st.fields.pe, s.pe)
+    _restore_transport_checkpoint_force!(st, s, st.model.closure)
     st.time[] = s.time
     st.step[] = s.step
     st.last_dt[] = s.last_dt
@@ -1224,6 +1276,9 @@ evolution uses the saved physics.
 For `EvolvingElectrons`, stored pressure is required and restored verbatim. Its
 shape, precision, finite nonnegative values, and ideal model parameters are
 validated before mutation. Algebraic closures retain pressure-free payloads.
+`TransportElectrons` payloads also require `transport_policy_version = 1` and
+the carried ion force `Eforce` (three independent finite grid `Array`s); the
+force is restored verbatim, never rebuilt from half-time particle moments.
 Collection destinations require the same number of ordered populations and
 matching dimension/precision. Each population keeps its existing storage while
 saved charge, mass, provenance and phase space replace its values. Every

@@ -20,6 +20,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   publication buffers at construction. Operand validation no longer
   allocates, which also removes 5.3 KB from each warmed `deriv!` call.
 
+- `TransportElectrons(γ = 5/3)` (CAP-011 S1) adds constant Ohmic transport to
+  the stored electron pressure of serial periodic `HybridStepper` runs. Ohm's
+  law is split into the ion force `E_force` and `E = E_force + ηJ`: Faraday
+  uses `E`, the first-step priming, Boris kicks and endpoint predictor use the
+  carried `E_force`, and each RK4 stage heats the pressure by `(γ−1)η|J|²` from
+  its own current, so the periodic continuum energy total closes (fourth order
+  with fixed ions, second order coupled). `η = 0` reproduces `EvolvingElectrons`
+  bitwise. Density below `nfloor`, unsupported `ηH`/`de2`, scalar `q ≠ 1`,
+  non-finite heat and invalid force storage are rejected with full rollback.
+  Checkpoints and archives store `Eforce` with `transport_policy_version = 1`
+  (archive schema unchanged). MPI, CAM-CL and Hall-MHD reject the closure.
+
 - Bounded Maxwell vacuum/cavity fields (CAP-002A): `YeeGrid`, `YeeFields`,
   `MaxwellVacuum` and `step_maxwell!` evolve staggered Yee E/B in 1D–3D with
   periodic or homogeneous perfectly conducting axes, synchronized

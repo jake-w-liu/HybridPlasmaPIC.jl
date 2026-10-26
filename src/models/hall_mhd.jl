@@ -28,8 +28,9 @@ struct HallMHDModel{C<:ElectronClosure}
 end
 
 function HallMHDModel(closure::ElectronClosure; Ti = 0.0, η = 0.0, ηH = 0.0, nfloor = 1e-6)
-    _evolves_pressure(closure) &&
-        throw(ArgumentError("HallMHDModel does not evolve EvolvingElectrons; use HybridStepper"))
+    _evolves_pressure(closure) && throw(
+        ArgumentError("HallMHDModel does not evolve $(nameof(typeof(closure))); use HybridStepper"),
+    )
     TiT = _require_finite_nonnegative_real("Ti", Ti, Float64)
     ηT = _require_finite_nonnegative_real("η", η, Float64)
     ηHT = _require_finite_nonnegative_real("ηH", ηH, Float64)
@@ -70,8 +71,11 @@ mutable struct HallMHDState{D,T,M<:HallMHDModel}
 end
 
 function HallMHDState(g::FourierGrid{D,T}, model::M) where {D,T,M<:HallMHDModel}
-    _evolves_pressure(model.closure) &&
-        throw(ArgumentError("HallMHDState does not evolve EvolvingElectrons; use HybridStepper"))
+    _evolves_pressure(model.closure) && throw(
+        ArgumentError(
+            "HallMHDState does not evolve $(nameof(typeof(model.closure))); use HybridStepper",
+        ),
+    )
     nc = g.n
     z() = zeros(T, nc)
     vec3() = ntuple(_ -> z(), 3)

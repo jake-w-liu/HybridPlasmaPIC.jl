@@ -137,6 +137,56 @@ end
     end
 end
 
+@testset "transport closure MPI rejection is collective" begin
+    ensure_mpi_initialized!()
+    world = MPI.Comm_size(MPI.COMM_WORLD)
+    ctx = create_cartesian_communicator(LogicalRankLayout((world,)); reorder = false)
+    try
+        for T in (Float32, Float64), collection in (false, true), mixed in (false, true)
+            st, particles, _ = evolving_mpi_fixture(T, collection, ctx)
+            # Mixed-model negative control: only the last rank selects transport.
+            if !mixed || ctx.mpi_rank == world - 1
+                ideal = st
+                st = HybridStepper(
+                    ideal.g,
+                    HybridModel(TransportElectrons(T(5 / 3)); η = 0.02),
+                    CIC(),
+                    0,
+                )
+                foreach(copyto!, st.fields.B, ideal.fields.B)
+                copyto!(st.fields.pe, ideal.fields.pe)
+            end
+            before = evolving_mpi_public_state(st, particles)
+            @test_throws ArgumentError mpi_init!(st, particles, ctx)
+            @test isequal(evolving_mpi_public_state(st, particles), before)
+            for dt in (T(0.001), zero(T))
+                @test_throws ArgumentError mpi_step!(st, particles, ctx, dt)
+                @test isequal(evolving_mpi_public_state(st, particles), before)
+            end
+            dir = MPI.bcast(ctx.mpi_rank == 0 ? mktempdir() : "", 0, ctx.comm)
+            try
+                @test_throws Union{ArgumentError,ErrorException} save_mpi_checkpoint(
+                    dir,
+                    st,
+                    particles,
+                    ctx,
+                )
+                @test !isfile(joinpath(dir, "mpi_checkpoint_manifest.ser"))
+                # Without a manifest, ideal ranks fail on I/O instead; the
+                # transport rejection precedes every read on transport ranks.
+                mixed || @test_throws ArgumentError load_mpi_checkpoint!(st, particles, dir, ctx)
+                @test isequal(evolving_mpi_public_state(st, particles), before)
+            finally
+                MPI.Barrier(ctx.comm)
+                ctx.mpi_rank == 0 && rm(dir; recursive = true)
+                MPI.Barrier(ctx.comm)
+            end
+        end
+    finally
+        free_mpi_communicator!(ctx)
+    end
+end
+
 @testset "evolving pressure MPI collective rejection and rollback" begin
     ensure_mpi_initialized!()
     world = MPI.Comm_size(MPI.COMM_WORLD)

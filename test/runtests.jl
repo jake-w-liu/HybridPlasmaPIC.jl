@@ -40,6 +40,8 @@ using Test
     include("test_evolving_pressure_accuracy.jl")
     include("test_evolving_pressure_energy.jl")
     include("test_evolving_pressure_io.jl")
+    include("test_transport_electrons.jl")
+    include("test_transport_electrons_io.jl")
     include("test_cgl.jl")
     include("test_cgl_energy_range.jl")
     include("test_cgl_energy_boundaries.jl")

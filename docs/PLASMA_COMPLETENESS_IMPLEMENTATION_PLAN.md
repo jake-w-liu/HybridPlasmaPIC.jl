@@ -85,7 +85,7 @@ Source names below resolve to these canonical files:
 | Kinetic species diversity | EMPIC docs fix electrons to `q=-1,m=1` and at most one `q=+1` mobile ion, full_pic:1751–1759 | Broader ES/EM collection evolution missing, CAP-008 |
 | Multidimensional shocks | shock3d:9–19,337–359 and shock2d:230–236 intentionally exclude Hall induction while retaining Hall particle forces | Documented reduced shock model; full-Hall multidimensional branch required for broader claims, CAP-009 |
 | Coupled sources and collisions | Core hybrid/CAM-CL/EMPIC steppers have no calls to collision, ionization or radiation operators; checkpoint:1 names deterministic state | Standalone operators exist; reproducible composed evolution missing, CAP-010 |
-| Electron transport | `EVOLVING_ELECTRONS.md:3–10` restricts evolving scalar pressure to ideal massless parameters | Ideal scalar pressure exists; dissipative/transport-consistent energy extension missing, CAP-011 |
+| Electron transport | `EVOLVING_ELECTRONS.md` restricts `EvolvingElectrons` to ideal massless parameters; `TransportElectrons` adds constant Ohmic transport (S1) | Ideal pressure and serial constant-η Ohmic transport exist; hyperresistive, conductive, anisotropic, inertial and backend extensions missing, CAP-011 S2–S8 |
 
 The geometry integration finding also follows from a repository-wide symbol
 search: outside their defining files, `ToroidalGrid`, `AMRGrid`, `GuidingCentre`,
@@ -723,6 +723,20 @@ versus refinement/solve tolerance and restart. Do not repair negative pressure b
 undocumented clipping. Measure operator/stage/solver costs and transport scaling
 against the frozen ideal baseline. A fully kinetic electron distribution remains
 the ES/EM/GK model's responsibility, not an implicit property of a fluid closure.
+
+**S1 status (constant Ohmic, serial CPU).** `TransportElectrons` splits Ohm's
+law into the carried ion force `E_force` and `E = E_force + ηJ`, heats the
+stored pressure by `(γ−1)η|J|²` from each RK4 stage current, rejects density
+below `nfloor` and unsupported `ηH`/`de2`/scalar charge, rolls back the carried
+force with the pressure transaction and persists it as
+`transport_policy_version = 1` (archive schema 4 unchanged). Tests cover
+direct-DFT stage rates, the semidiscrete Ohmic exchange, analytic Beltrami
+heating (fourth-order energy closure with fixed ions), second-order coupled
+common-time energy, bitwise `η = 0` reduction, admissibility/rollback,
+range-safe heating and restart ([guide](EVOLVING_ELECTRONS.md#constant-ohmic-transport)).
+MPI, CAM-CL and Hall-MHD reject the closure. Thermal equilibration,
+hyperresistive heating (S2), conduction (S3–S5), backends (S6), anisotropy (S7)
+and inertia (S8) remain open; S1 still needs review and exact-SHA CI.
 
 ## Additional risks requiring tests, not assertions
 

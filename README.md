@@ -139,6 +139,10 @@ unverified. See
 - `EvolvingElectrons(γ = 5/3)` — independent adiabatic scalar pressure,
   advanced with B by `HybridStepper`. Initialize `fields.pe` before `init!`;
   requires `γ > 1` and `η = ηH = de2 = 0`. Supports ion collections and MPI.
+- `TransportElectrons(γ = 5/3)` — the same stored pressure with constant Ohmic
+  transport (`η ≥ 0`, `ηH = de2 = 0`): Faraday uses `E = E_force + ηJ`, ions
+  are pushed by `E_force` and the pressure gains `(γ−1)η|J|²`, so the periodic
+  continuum energy total closes. Serial CPU only; density must stay ≥ `nfloor`.
 - `CGLElectrons(p⊥0, p∥0, n0, B0)` — anisotropic double-adiabatic
   (Chew–Goldberger–Low): `p_⊥ ∝ n·B`, `p_∥ ∝ n³/B²`, entering Ohm's law
   through the full gyrotropic pressure-tensor force `−(∇·P_e)/n`. (Note the
@@ -352,7 +356,7 @@ A self-contained perpendicular collisionless-shock laboratory:
   additional anisotropic battery term. The reduced inertia reservoir closes
   the uniform-density fixed-ion field balance; moving-ion and dissipative energy accounting
   have further terms described in the [model balance](docs/HYBRID_ENERGY_MODEL_PLAN.md).
-  For `EvolvingElectrons`, supply `pe = st.fields.pe` explicitly. Budgets use
+  For `EvolvingElectrons` and `TransportElectrons`, supply `pe = st.fields.pe` explicitly. Budgets use
   the supplied particle velocities, which are staggered in hybrid runs;
   energy-convergence comparisons need reservoirs at a common time.
   `kinetic_energy_relativistic(ps, c)` covers relativistic EMPIC runs.

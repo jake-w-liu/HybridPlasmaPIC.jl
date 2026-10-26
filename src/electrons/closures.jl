@@ -28,7 +28,8 @@ at integer time; particle velocity retains its half-time level. Pressure must
 be finite and nonnegative at every explicit stage. Rejected numerical steps
 roll back public state and never clip pressure. Checkpoints preserve
 `pe`, and electron-energy diagnostics require it explicitly through `pe=`.
-No heating, heat flux, or discrete total-energy conservation is implied.
+No heating, heat flux, or discrete total-energy conservation is implied;
+[`TransportElectrons`](@ref) adds paired constant Ohmic heating.
 The magnetic [`recommended_dt`](@ref) does not bound pressure advection or
 compression. The explicit spectral pressure scheme is not positivity preserving.
 """
@@ -49,6 +50,56 @@ _evolves_pressure(::EvolvingElectrons) = true
 electron_pressure!(::Any, ::Any, ::EvolvingElectrons) = throw(
     ArgumentError(
         "EvolvingElectrons requires stored pressure; initialize fields.pe and use ohms_law!",
+    ),
+)
+
+"""
+    TransportElectrons(γ = 5/3)
+
+Stored scalar electron pressure with constant Ohmic transport for a serial,
+periodic CPU `HybridStepper`. Use `HybridModel(TransportElectrons(γ); η)` with
+finite constant `η ≥ 0` and `ηH = de2 = 0`; `γ > 1`. Generalized Ohm's law is
+split into the ion force and the resistive field,
+
+    E_force = −ui×B + (J×B)/n − ∇pe/n,      E = E_force + ηJ,
+    ∂B/∂t = −∇×E,   ∂pe/∂t = −ue⋅∇pe − γ*pe*∇⋅ue + (γ−1)*η*|J|²,
+
+with `ue = ui − J/n`. Faraday's law uses the full `E`, while the first-step
+priming, every Boris kick and the endpoint predictor use `E_force`. The
+resistive friction is thus paired with its ion recoil, and its heat `η|J|²` enters
+the single electron reservoir `∫pe/(γ−1) dV`. This is a prescribed reduced
+friction model, not a species-resolved Coulomb collision or electron–ion
+temperature-equilibration model.
+
+Heating uses the current of the same RK4 stage as the magnetic field. Density
+must be finite and at least `nfloor` at initialization and at every midpoint,
+endpoint and predictor deposition; floor activation is rejected rather than
+used as an untracked source. Scalar populations need unit charge; use a
+one-element collection otherwise. Pressure validation, rollback and the absence
+of clipping follow [`EvolvingElectrons`](@ref). The stepper owns the carried
+`E_force`, which checkpoints and archives restore verbatim. With `η = 0` the
+closure reproduces `EvolvingElectrons` bitwise. MPI, CAM-CL and Hall-MHD reject
+this closure.
+"""
+struct TransportElectrons{T<:AbstractFloat} <: ElectronClosure
+    γ::T
+    function TransportElectrons{T}(γ::Real) where {T<:AbstractFloat}
+        value = _require_finite_real("γ", γ, T)
+        value > one(T) || throw(ArgumentError("transport electron γ must be greater than one"))
+        return new{T}(value)
+    end
+end
+
+TransportElectrons(γ::Real = 5 / 3) = TransportElectrons{float(typeof(γ))}(γ)
+closure_gamma(c::TransportElectrons) = c.γ
+_evolves_pressure(::TransportElectrons) = true
+# Only this closure splits the ion force from the full electric field.
+_transports_electrons(::ElectronClosure) = false
+_transports_electrons(::TransportElectrons) = true
+
+electron_pressure!(::Any, ::Any, ::TransportElectrons) = throw(
+    ArgumentError(
+        "TransportElectrons requires stored pressure; initialize fields.pe and use ohms_law!",
     ),
 )
 

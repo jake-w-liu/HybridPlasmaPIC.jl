@@ -102,6 +102,9 @@ The ion pusher receives the full electric field, including R, while the
 algebraic electron pressure has no independently evolving heat reservoir.
 Consequently [`resistive_dissipation`](@ref) alone is not the net tracked-energy
 loss. See `docs/HYBRID_ENERGY_MODEL_PLAN.md` for the balance and witnesses.
+[`TransportElectrons`](@ref) removes `ηJ` from the ion force and heats the
+stored pressure by `η|J|²`, so its periodic continuum total is conserved; pass
+`pe = stepper.fields.pe`. The explicit integrator closes it only to its order.
 
 `B` is the 3-tuple of magnetic-field arrays (e.g. `stepper.fields.B`), `n` the
 electron/ion density array, `closure` the `ElectronClosure`, and `g` the
@@ -126,7 +129,7 @@ function energy_budget(
     de2T = _require_finite_nonnegative_real("de2", de2, T)
     _evolves_pressure(closure) &&
         !iszero(de2T) &&
-        throw(ArgumentError("EvolvingElectrons energy requires de2 = 0"))
+        throw(ArgumentError("$(nameof(typeof(closure))) energy requires de2 = 0"))
     ek = kinetic_energy(ps)
     em = magnetic_energy(B, g)
     ei = electron_internal_energy(n, B, closure, g; pe)
@@ -168,7 +171,8 @@ With resistivity `η > 0` the total ion momentum is **not** conserved:
 nonzero — second order but secular — whenever density and current
 fluctuations correlate. A steady drift of `particle` in a resistive run is
 un-budgeted model physics, not a pusher bug; only `η = 0` runs conserve
-`particle` to particle noise.
+`particle` to particle noise. [`TransportElectrons`](@ref) pushes ions with
+the force field without `ηJ`, so this resistive drift term is absent there.
 """
 function momentum_budget(
     ps::_HybridPopulations{D,T},
@@ -221,6 +225,8 @@ continuum Ohmic contribution to that total is
 The algebraic closures have no separate heat reservoir. Adding this quadratic
 form as electron heating alone would leave the ion-work term; a conservative
 heating extension also needs a consistent ion recoil model.
+[`TransportElectrons`](@ref) provides that pairing: its ions omit `ηJ` and its
+stored pressure gains this heat, so the quadratic form is its Ohmic exchange.
 
 `J` is the 3-tuple of current-density arrays, `η` the scalar resistivity, and
 `g` the `FourierGrid`. The returned numerical quantity is unchanged by these

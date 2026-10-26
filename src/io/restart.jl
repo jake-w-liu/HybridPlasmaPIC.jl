@@ -47,7 +47,9 @@ CAM-CL — the same state [`save_checkpoint`](@ref) restarts from) together with
 through [`save_run`](@ref), so the file carries the schema tag and an integrity
 checksum over the state.
 Hybrid species collections preserve the ordered per-population state alongside
-the common fields, configuration and integrator phase.
+the common fields, configuration and integrator phase. Evolving electron
+pressure is included; `TransportElectrons` also stores its carried ion force
+and `transport_policy_version`, both covered by the unchanged schema-4 checksum.
 Electrostatic archives instead contain their electric field, density, immutable
 background density, and priming/timestep state alongside the particles and grid.
 Electrostatic collections retain ordered species, neutrality policy and charge
