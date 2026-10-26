@@ -35,7 +35,7 @@
 Write a provenance-stamped, checksum-verified archive of the run state at `path`.
 Supports [`HybridStepper`](@ref), [`CAMCLStepper`](@ref),
 [`Electrostatic1D`](@ref), [`ElectrostaticPIC`](@ref), [`EMPIC1D`](@ref), [`EMPIC`](@ref),
-and [`HallMHDState`](@ref).
+[`HallMHDState`](@ref), and [`CollisionalHybridStepper`](@ref).
 
 The archive captures the deterministic simulation state (model and shape
 configuration, particle phase space + provenance, the canonical magnetic field
@@ -57,8 +57,11 @@ configuration, electric/magnetic fields, continuity diagnostic snapshots, and
 full/fast timestep history. Supply ions exactly when `mobile=true`.
 Hall-MHD archives contain the model, fluid and public derived fields, retained
 stage `lapJ`, and clock; no particle argument or timestep history is needed.
+Collisional archives add the complete advanced RNG state and completed source
+ledger through the same versioned state owner as stochastic checkpoints.
 
-`rng_seed` is the seed that makes the run reproducible (stored in the metadata).
+`rng_seed` records the initialization seed as provenance in the metadata. A seed
+does not replace the advanced RNG state needed for stochastic continuation.
 The remaining keyword arguments describe the units convention and the
 filter/boundary/diagnostic configuration for the audit trail. Returns `path`.
 `rank_layout` records the serial/MPI rank topology in the same metadata record;
@@ -91,9 +94,23 @@ function archive_run(
     return _archive_run(path, st, _checkpoint_state(st, electrons, ions); kwargs...)
 end
 
+function archive_run(
+    path::AbstractString,
+    st::CollisionalHybridStepper,
+    species::AbstractVector{<:ParticleSet};
+    kwargs...,
+)
+    _acquire_collisional!(st)
+    try
+        return _archive_run(path, st, _checkpoint_state(st, species); kwargs...)
+    finally
+        st.busy[] = false
+    end
+end
+
 function _archive_run(
     path::AbstractString,
-    st::Union{_CheckpointStepper,HallMHDState},
+    st::Union{_CheckpointStepper,HallMHDState,CollisionalHybridStepper},
     state;
     rng_seed::Integer,
     normalization::AbstractString = "Omega_ci",

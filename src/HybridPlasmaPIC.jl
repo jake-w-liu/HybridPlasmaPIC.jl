@@ -93,6 +93,7 @@ include("electrons/energy_equation.jl")
 # --- Integrators ---
 include("integrators/abstract_integrator.jl")
 include("integrators/extrapolated_leapfrog.jl")
+include("integrators/collisional_hybrid.jl")
 include("integrators/camcl.jl")
 include("integrators/field_subcycling.jl")
 include("integrators/semi_implicit.jl")
@@ -134,6 +135,7 @@ include("parallel/mpi.jl")
 # --- IO ---
 include("io/publication.jl")
 include("io/checkpoint.jl")
+include("io/collisional_checkpoint.jl")
 include("io/metadata.jl")
 include("io/hdf5_output.jl")
 include("io/restart.jl")
@@ -210,6 +212,7 @@ export ElectronClosure,
     advance_electron_pressure!,
     electron_velocity!
 export HybridStepper,
+    CollisionalHybridStepper,
     init!,
     step!,
     kinetic_energy,

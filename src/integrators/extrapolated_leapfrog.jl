@@ -769,6 +769,22 @@ function step!(
     dtT = _validated_step_dt(T, dt, NB; min_NB = 1, name = "step!")
     iszero(dtT) && return st        # dt=0 is a true no-op: advance nothing, and (critically) do
     #                                 NOT consume the step==0 one-time leapfrog-priming guard.
+    return _step_hybrid!(st, ps, dtT, NB, nothing)
+end
+
+# A velocity source between the field advance and the integer-time moments.
+# Plain stepping passes `nothing`; collisional_hybrid.jl owns the only source.
+@inline _apply_hybrid_source!(::Nothing, ps, dtT) = nothing
+
+# Body of `step!` for a validated nonzero `dtT`. A source sees positions and B at
+# n+1 and velocities at n+1/2; the carried E^{n+1} is then formed from its result.
+function _step_hybrid!(
+    st::HybridStepper{D,T},
+    ps::_HybridPopulations{D,T},
+    dtT::T,
+    NB::Integer,
+    source,
+) where {D,T}
     next_time, next_step = _validated_step_clock(st.time[], st.step[], dtT)
     count = _validate_hybrid_species(ps)
     _validate_pressure_step_state(st, ps)
@@ -782,6 +798,7 @@ function step!(
         # 1–2. Push populations and combine all frozen n+1/2 charge moments.
         _push_hybrid_midpoint_moments!(st, ps, dtT, kick_dt)
         _advance_hybrid_fields!(st, dtT, NB)
+        _apply_hybrid_source!(source, ps, dtT)
 
         # 4. recompute carried E = E^{n+1} (n^{n+1}, u_i^{n+1/2}, B^{n+1}), then re-center u_i to n+1
         #    via a predictor half-kick so the carried E is 2nd-order accurate (see _recenter_carried_E!).

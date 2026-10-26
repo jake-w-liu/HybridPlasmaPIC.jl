@@ -41,6 +41,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   balance `Hnew - Hold = -work`; see `examples/sourced_maxwell_cavity.jl` and
   `docs/SOURCED_YEE_FIELDS.md`.
 
+- `CollisionalHybridStepper(inner, species; dt, rng, coulomb_log, epsilon0,
+  weight_to_number, u_floor)` composes `HybridStepper` with cell-local
+  `collide_coulomb!` at a fixed step: after the push and magnetic advance, the
+  half-level velocities scatter for the full step at the new positions, and the
+  carried E is then formed from the scattered velocities (first order; bitwise
+  equal to step, collision and E recomputation). A failed step restores
+  particles, all public fields, clock, source ledger and the owned RNG.
+  `save_checkpoint`, `load_checkpoint!` and `archive_run` persist the advanced
+  RNG, so restarted runs continue bitwise in the same environment. Zero `dt` is
+  a no-op, other changed steps are rejected, and zero logarithms reproduce
+  `HybridStepper` exactly. CPU, D=1–3, Float32/64, NGP/CIC/TSC, ideal massless
+  isothermal electrons.
+
 - Rank-owned periodic Fourier derivatives: `distributed_fourier_grid(n, L;
   comm)`, `distributed_field(grid)` and `deriv!`/`deriv` methods on the
   distributed grid reuse SpectralOperators 0.1.3 kernels on PencilFFTs pencils

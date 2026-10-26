@@ -1,7 +1,7 @@
 # checkpoint.jl — checkpoint/restart of the deterministic simulation state.
 #
-# Stepping (step!) uses no RNG, so the state needed for a bitwise-identical
-# restart is: model and shape, particle phase space + provenance, canonical B,
+# The deterministic steppers use no RNG, so their restart state contains model
+# and shape, particle phase space + provenance, canonical B,
 # carried E, evolving electron pressure when present, time/step counters, and
 # the previous particle timestep. The frozen n+1/2 moments are scratch
 # recomputed every step, so they are not stored.
@@ -13,6 +13,8 @@
 # Hall-MHD retains the fluid fields, their public derived values, model, and
 # clock. Inactive stage lapJ can be carried into the public fields; the other RK
 # stage values are scratch. Hall-MHD carries no staggered timestep history.
+# CollisionalHybridStepper extends these owners in collisional_checkpoint.jl
+# with full RNG state, a fixed-step source ledger and every public hybrid field.
 # ponytail: stdlib Serialization (no extra dep). Swap for HDF5 when cross-version
 # or cross-language portability is needed.
 
@@ -859,22 +861,7 @@ function _validate_checkpoint_state(s, st::_ElectromagneticCheckpointStepper)
     return nothing
 end
 
-function _hall_checkpoint_fields(st::HallMHDState)
-    f = st.fields
-    return (
-        n = f.n,
-        ui = f.ui,
-        B = f.B,
-        E = f.E,
-        J = f.J,
-        pe = f.pe,
-        gradp = f.gradp,
-        ninv = f.ninv,
-        lapJ = f.lapJ,
-        pforce = f.pforce,
-        cgl_dp = f.cgl_dp,
-    )
-end
+_hall_checkpoint_fields(st::HallMHDState) = _hybrid_field_state(st.fields)
 
 function _checkpoint_state(st::HallMHDState{D,T}) where {D,T}
     return (
@@ -1150,6 +1137,10 @@ also preserve the persistent cyclic-leapfrog field copies and subcycle phase.
 Hybrid species collections are stored in order, with each population's charge,
 mass, phase space, and provenance. Populations require independent storage and
 the positive-ion validation used by collection stepping.
+[`CollisionalHybridStepper`](@ref) saves only initialized completed boundaries,
+including its full advanced RNG, source ledger, fixed configuration and all
+public hybrid fields. Its versioned payload requires the same Julia runtime and
+platform; the RNG seed alone does not describe a stochastic continuation.
 For [`Electrostatic1D`](@ref) and [`ElectrostaticPIC`](@ref), save the electron
 particles, electric field, number density, background density, and priming/timestep
 state. Collection `ElectrostaticPIC` checkpoints also store ordered arbitrary
@@ -1206,7 +1197,11 @@ function save_checkpoint(
     return _save_checkpoint(path, st, _checkpoint_state(st, electrons, ions))
 end
 
-function _save_checkpoint(path::AbstractString, st::Union{_CheckpointStepper,HallMHDState}, state)
+function _save_checkpoint(
+    path::AbstractString,
+    st::Union{_CheckpointStepper,HallMHDState,CollisionalHybridStepper},
+    state,
+)
     _validate_checkpoint_state(state, st)
     _atomic_serialize(path, state)
     return path
@@ -1234,6 +1229,11 @@ matching dimension/precision. Each population keeps its existing storage while
 saved charge, mass, provenance and phase space replace its values. Every
 population is validated before any is changed; scalar and collection layouts
 are distinct and cannot be interchanged on restore.
+Collisional destinations additionally require identical fixed timestep, model,
+shape, collision normalization, RNG algorithm, per-population counts, charges
+and masses. They restore the saved full RNG and public state in place without
+resizing particles. Construct a fresh matching wrapper before loading; do not
+call `init!` after loading, since that resets the physical clock.
 Electrostatic destinations must have the same background density `n0`, which
 is immutable; their saved fields, density, and leapfrog phase are restored directly.
 Electromagnetic destinations require the same ion mobility and concrete shape

@@ -676,6 +676,11 @@ charge/energy/momentum exchange, particle growth, ID allocation and recomputatio
 of fields. First implement the accepted CPU collision/field split, then add other
 sources one by one with their own conservation/accuracy contracts.
 
+- [x] First slice (2026-10-26, staged for landing): `CollisionalHybridStepper`
+  composes fixed-step CPU `HybridStepper` runs (ideal isothermal electrons) with
+  cell-local collisions between the field advance and the carried-E formation,
+  persists the advanced RNG and source ledger in checkpoints/archives and rolls
+  back the whole step including the RNG. [Guide and verified state](COLLISIONAL_HYBRID.md).
 - [ ] Persist complete RNG state/stream assignment, split phase, source clocks,
   ionization ID counters and external reservoir state. A saved initial seed alone
   does not specify continuation after random draws.

@@ -180,6 +180,12 @@ moments:
   across particle steps (neutrally stable, non-dissipative, for whistler
   `ω·h < 2` per substep; two Ohm evaluations per substep instead of RK4's
   four). Algebraic scalar closures only.
+- **`CollisionalHybridStepper`** (`init!`, `step!(st, species, dt; NB)`) —
+  `HybridStepper` composed with cell-local Coulomb collisions: each fixed step
+  scatters the half-level velocities at the new positions for the full step,
+  then forms the carried `E` from the scattered velocities. First order, CPU,
+  ideal massless isothermal electrons; checkpoints carry the advanced RNG so a
+  restarted run continues bitwise. [User guide](docs/COLLISIONAL_HYBRID.md).
 
 **Choosing dt.** `recommended_dt(g; NB = 1, integrator = :rk4, safety = 0.8,
 η = 0.0, ηH = 0.0)` returns a conservative particle step from the whistler CFL
@@ -282,6 +288,13 @@ unsupported. [Validation scope and evidence](docs/RELATIVISTIC_VALIDATION_PLAN.m
   `weight_to_number` for the package's normalized units. Velocities stage until
   the whole call succeeds. [User guide](docs/LOCAL_COULOMB.md) and
   [two-species example](examples/local_coulomb.jl).
+- `CollisionalHybridStepper(inner, species; dt, rng, coulomb_log, epsilon0,
+  weight_to_number)` — runs these collisions inside each fixed `HybridStepper`
+  step (after the push and field advance, before the carried `E` is formed) with
+  an owned `Xoshiro`/`MersenneTwister`. A failed step restores particles, fields,
+  clock and RNG; `save_checkpoint`/`load_checkpoint!`/`archive_run` persist the
+  advanced RNG; zero logarithms reproduce `HybridStepper` exactly.
+  [Composition guide](docs/COLLISIONAL_HYBRID.md).
 - `collide_bgk!(ps, ν, dt)` — BGK relaxation toward the set's own drifting
   Maxwellian, conserving momentum and energy exactly.
 - `collide_neutral_mcc!` / `ionize_mcc!` — Monte-Carlo elastic scattering off
@@ -510,7 +523,7 @@ regression oracles are described in `CHANGELOG.md`.
 | integrators | energy convergence, subcycling invariance (NB = 1..8), 2D corner-mode and CAM-CL stability at `recommended_dt` |
 | Hall-MHD | Ohm/RHS oracles, mass conservation, warm-electron ion-acoustic dispersion ω = k√(Ti+Te) |
 | ES/EM PIC | Langmuir & two-stream, spectral Poisson in 2D/3D, charge-conservation residual at roundoff, EMPIC ↔ EMPIC1D equivalence, relativistic beam energetics |
-| collisions | conservation (exact / in-expectation), weight-independent relaxation rates, monotonicity in collisionality, odd-N handling |
+| collisions | conservation (exact / in-expectation), weight-independent relaxation rates, monotonicity in collisionality, odd-N handling; composed hybrid steps equal the component sequence bitwise, roll back completely and restart bitwise |
 | shocks | Rankine–Hugoniot residuals < 1e-10 incl. the switch-on branch, Leroy 1982 reflected-ion fraction and overshoot, published Preisser 2020 reference summary (DOI 10.5281/zenodo.3697360), 1D ≡ 3D cross-checks |
 | budgets & boundaries | energy convergence and fixed-ion inertia balance, boundary seam/edge contracts, bitwise checkpoint/restart |
 | ray tracing | WKB dispersion roots vs the two-fluid oracle (~1e-11), stratified-medium invariants; Raycon pinned layer-by-layer against MATLAB reference data, amplitude transport vs symplectic tangent-map oracles |
@@ -557,6 +570,12 @@ PIC noise. Broader oblique, thermal, kinetic and EM comparisons remain in the
 - Cell-local Coulomb collisions are a standalone CPU operator. Automatic
   collision/field splitting with saved RNG state, MPI cell ownership and device
   kernels are separate open stages ([CAP-010](docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md)).
+
+- Non-periodic EM-PIC boundaries (`EMPIC` and `EMPIC1D` use periodic geometry).
+- Collision/field composition covers fixed-step, first-order `HybridStepper`
+  runs with ideal isothermal electrons on the CPU. Variable steps, higher-order
+  splitting, other closures and models, other sources, MPI cell ownership and
+  device kernels are separate open stages ([CAP-010](docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md)).
 - The [normalization repair](docs/NORMALIZATION_RANGE_PLAN.md)
   does not establish range correctness of every compound RayCon expression.
   The shared BigFloat exact-conversion repair has passed its

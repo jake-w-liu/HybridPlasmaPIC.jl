@@ -90,3 +90,20 @@ function _copy_hybrid_fields!(destination::HybridFields, candidate::HybridFields
     destination.floor_count[] = candidate.floor_count[]
     return nothing
 end
+
+# One descriptor for complete public-field persistence and transaction validation.
+function _hybrid_field_state(f::HybridFields)
+    return (
+        n = f.n,
+        ui = f.ui,
+        B = f.B,
+        E = f.E,
+        J = f.J,
+        pe = f.pe,
+        gradp = f.gradp,
+        ninv = f.ninv,
+        lapJ = f.lapJ,
+        pforce = f.pforce,
+        cgl_dp = f.cgl_dp,
+    )
+end
