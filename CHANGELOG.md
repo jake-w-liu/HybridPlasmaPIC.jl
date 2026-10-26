@@ -284,6 +284,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Require SpectralOperators 0.1.5 for complete inverse-FFT headroom. A finite
+  cutoff-kernel convolution can grow inside the unnormalized inverse even when
+  every final output is representable; the dependency bounds that complete
+  operation before transforming. Independent shifted and anisotropic MPI
+  regressions cover Float32 and Float64.
+
 - Infinite-strength exponential filtering preserves the DC mean and removes
   every other mode even when a large accepted power underflows. The shared
   repair is required through registered SpectralOperators 0.1.4, with real MPI
