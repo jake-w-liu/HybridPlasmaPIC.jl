@@ -58,6 +58,7 @@ using Test
     include("test_raycon.jl")
     include("test_phase_helpers.jl")
     include("test_rk4_mixed_stability.jl")
+    include("test_timestep_bigfloat_context.jl")
     include("test_provenance_log.jl")
     include("test_camcl.jl")
     include("test_variable_steps.jl")

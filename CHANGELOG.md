@@ -284,6 +284,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- BigFloat-backed `recommended_dt` calls enclose the complete logarithmic
+  recommendation with directed bounds and round a positive lower result at the
+  caller's precision. Low ambient precision no longer enlarges the bound;
+  stored input precision and task settings are retained. BigInt subcycles and
+  Rational{BigInt} parameters use the same core. Uncertifiable MPFR exponent
+  contexts raise ArgumentError; native arithmetic and CN's unused NB remain
+  unchanged. The separate concurrent MPFR shared-cache runtime gap remains open;
+  directed enclosure assumes correctly rounded primitives.
+
 - `push_gathered!` rejects midpoint outputs that overlap particle arrays,
   gathered fields or other midpoint components before mutation on CPU and
   Metal. Disjoint buffers and shared read-only E/B inputs retain their behavior.
@@ -295,7 +304,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `recommended_dt` bounds combined Hall-wave and resistive/hyperresistive
   RK4 modes with a certified inner stability polygon. Separate axis limits
   previously admitted a production Fourier mode that grew by 46.7% per step.
-  Undamped arithmetic and non-RK4 recommendations are unchanged.
+  Native undamped arithmetic and native non-RK4 recommendations are unchanged.
 
 - Require SpectralOperators 0.1.5 for complete inverse-FFT headroom. A finite
   cutoff-kernel convolution can grow inside the unnormalized inverse even when

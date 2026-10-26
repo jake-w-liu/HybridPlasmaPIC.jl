@@ -203,6 +203,15 @@ separate wave and decay limits do not ensure stability together. In 1D, in the f
 These limits do not bound evolving-pressure advection/compression or
 ion-acoustic accuracy; choose and refine `dt` to resolve those dynamics too.
 
+BigFloat-backed timestep parameters use [directed lower bounds](docs/BIGFLOAT_TIMESTEP_CONTEXT_PLAN.md)
+at private precision and return at the caller's BigFloat precision. The helper
+preserves numerical settings and rejects an exponent context that cannot
+certify a finite positive step. Native fixed-width recommendations retain their
+arithmetic; a CN call with otherwise native parameters ignores a BigInt
+subcycle count and keeps its native result.
+The enclosure assumes correct MPFR primitives; the separate
+[concurrent MPFR runtime gap](docs/MPFR_CONCURRENCY_PLAN.md) remains open.
+
 `run_whistler` is a separate linear Fourier reference for Crank–Nicolson versus
 forward Euler. Its `cn_multiplier` preserves finite phase components across
 extreme products, including near quadrature; the driver combines the complete

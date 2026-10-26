@@ -19,6 +19,8 @@ function _validated_step_clock(time::T, step::Int, dt::T, substeps::Int = 1) whe
     return next_time, step + 1
 end
 
+include("timestep_bounds.jl")
+
 # Imaginary-axis stability limit |ω·Δt| of each magnetic mover (the largest ω·Δt
 # that keeps the oscillatory whistler update non-growing): RK4 ≈ 2.83, leapfrog/CL
 # ≈ 2, Crank–Nicolson unconditionally stable (∞). The :camcl bound is that of the
@@ -81,7 +83,7 @@ end
 
 """
     recommended_dt(g; NB=1, integrator=:rk4, safety=0.8, d_i=1.0, Ω_ci=1.0,
-                   η=0.0, ηH=0.0) -> Float64
+                   η=0.0, ηH=0.0) -> floating-point timestep
 
 Conservative recommended particle timestep from the whistler CFL (§10.3). The Hall
 whistler branch `ω_W(k) = ½[√((k d_i)⁴+4(k d_i)²)+(k d_i)²]·Ω_ci` is stiffest at the
@@ -112,11 +114,18 @@ must also lie inside its stability region. The recommendation uses the
 downward-closed polygon with `(ν·Δt_B, |ω|·Δt_B)` vertices
 `(0,2.8), (1,2.5), (1.85,1.85), (2.5,1), (2.785,0)`, scaled by `safety`.
 It bounds the whole rectangle of rates below `ν(k_max)` and `ω_W(k_max)`;
-undamped recommendations retain their original arithmetic.
+native undamped recommendations retain their original arithmetic.
 This reduces to the commonly-cited Hybrid-VPIC estimate
 `Ω_ci Δt < (1/π)(Δx/d_i)²` at large `k_max·d_i` in 1-D. `integrator ∈ (:rk4,
 :leapfrog, :camcl, :cn)`; `:cn` is unconditionally stable on the whistler and the
 resistive decay, so only the gyro limit applies.
+
+BigFloat-backed parameters use directed lower bounds at private working
+precision, then return a BigFloat rounded toward zero at the caller's precision.
+This includes BigInt subcycle counts when the magnetic limit is used; a native
+CN call keeps its native result because NB is unused. Precision, rounding and
+inputs are preserved. The MPFR exponent range is never changed: a context that
+cannot certify a finite positive recommendation raises ArgumentError.
 
 These limits do not bound evolving-electron pressure advection/compression or
 ion-acoustic accuracy. For [`EvolvingElectrons`](@ref), select a timestep that
@@ -133,6 +142,14 @@ function recommended_dt(
     η::Real = 0.0,
     ηH::Real = 0.0,
 ) where {D,T}
+    for dx in g.dx
+        _timestep_check_exponent(dx)
+    end
+    _timestep_check_exponent(safety)
+    _timestep_check_exponent(d_i)
+    _timestep_check_exponent(Ω_ci)
+    _timestep_check_exponent(η)
+    _timestep_check_exponent(ηH)
     NB >= 1 || throw(ArgumentError("NB must be ≥ 1, got $NB"))
     (isfinite(safety) && 0 < safety <= 1) ||
         throw(ArgumentError("safety must be in (0, 1], got $safety"))
@@ -151,10 +168,30 @@ function recommended_dt(
         typeof(float(η)),
         typeof(float(ηH)),
     )
+    bounded = R === BigFloat || (!(isinf(C) && isinf(Creal)) && typeof(float(NB)) === BigFloat)
+    if bounded
+        return _recommended_dt_bigfloat(g, NB, integrator, safety, d_i, Ω_ci, η, ηH, C, Creal)
+    end
+    return _recommended_dt_core(g, NB, integrator, safety, d_i, Ω_ci, η, ηH, C, Creal, R)
+end
+
+function _recommended_dt_core(
+    g,
+    NB,
+    integrator,
+    safety,
+    d_i,
+    Ω_ci,
+    η,
+    ηH,
+    C,
+    Creal,
+    ::Type{R},
+) where {R}
     log_safety = log(R(safety))
     log_Ω = log(R(Ω_ci))
     log_gyro = log_safety + log(R(0.3)) - log_Ω
-    isinf(C) && isinf(Creal) && return float(exp(log_gyro))
+    isinf(C) && isinf(Creal) && return exp(log_gyro)
 
     # Evaluate the documented limits in log space: k^4, K^2*Ω_ci, or NB*C
     # can overflow/underflow while the final timestep remains representable.
@@ -162,7 +199,7 @@ function recommended_dt(
     dxmin = R(minimum(g.dx))
     log_k = log(R(π)) - log(dxmin) + log(sum(dx -> abs2(dxmin / dx), g.dx)) / 2
     log_K = log_k + log(R(d_i))
-    log_ω = if log_K >= 0
+    log_ω = if _timestep_nonnegative(log_K)
         log_Ω + 2log_K + log((hypot(one(log_K), 2exp(-log_K)) + 1) / 2)
     else
         half_K = exp(log_K) / 2
@@ -172,8 +209,8 @@ function recommended_dt(
     if damped && (integrator === :leapfrog || integrator === :camcl)
         C = _CL_DAMPED_WHISTLER_LIMIT                   # damped CL: re-syncs inject restart error
     end
-    log_subcycle = log_safety + log(NB)
-    log_dt = min(log_subcycle + log(C) - log_ω, log_gyro)
+    log_subcycle = log_safety + _timestep_log(R, NB)
+    log_dt = min(log_subcycle + _timestep_log(R, C) - log_ω, log_gyro)
     if damped
         log_resistive = iszero(η) ? -Inf : log(R(η)) + 2log_k
         log_hyper = iszero(ηH) ? -Inf : log(R(ηH)) + 4log_k
@@ -182,8 +219,8 @@ function recommended_dt(
         if integrator === :rk4
             log_dt = min(log_dt, log_subcycle + _rk4_damped_log_limit(log_ν, log_ω))
         else
-            log_dt = min(log_dt, log_subcycle + log(Creal) - log_ν)
+            log_dt = min(log_dt, log_subcycle + _timestep_log(R, Creal) - log_ν)
         end
     end
-    return float(exp(log_dt))
+    return exp(log_dt)
 end

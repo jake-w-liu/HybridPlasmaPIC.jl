@@ -1,9 +1,16 @@
 # Concurrent BigFloat runtime investigation
 
-Status: a native MPFR shared-cache defect is reproduced on the installed
-Julia 1.12.7 and 1.13.1 runtimes. A temporary native repair passes the focused
-C reproducer. Installed Julia libraries are unchanged. The radiation arithmetic
-candidate remains uncommitted while its concurrent-runtime contract is resolved.
+Status: the native MPFR shared-cache defect is reproduced on Julia 1.12.7,
+1.13.1, 1.13.2 and, in the refresh below, 1.13.3. A temporary native repair passes the
+focused C reproducer. Installed Julia libraries are unchanged; runtime
+integration remains open.
+
+The radiation-candidate references below describe historical experiments.
+The landed fixed-width particle radiation path uses native/scaled arithmetic
+and exact rational invariants without BigFloat. That change does not close
+the runtime defect. The [BigFloat timestep repair](BIGFLOAT_TIMESTEP_CONTEXT_PLAN.md)
+assumes correctly rounded MPFR primitives; task-scoped numerical settings do
+not repair shared native caches.
 
 ## Reproduction and cause
 
@@ -190,4 +197,18 @@ reported library is the installed 1.13.2 `libmpfr.6.dylib`, MPFR 4.2.2, TLS=1,
 shared=1, with an empty patch string. For example, a pi request at 6,912 bits
 returns about 2.72846. Full values, precision, library path and exit evidence:
 `/tmp/hybrid-mpfr-repo-probe1132-1.log`. No retry, runtime-library replacement or
-package-local masking was performed. The held radiation candidate remains open.
+package-local masking was performed. Runtime integration remains open.
+
+## Julia 1.13.3 refresh
+
+**VERIFIED:** one predeclared fresh four-thread invocation of
+`julia +1.13.3 --startup-file=no --threads=4 tools/audit_mpfr_cache.jl`
+exits 1 with two incorrect constants among 128 checks. The pi request at
+5,760 bits returns approximately 3.768553263367864; log(2) at 6,656 bits
+returns approximately 0.7999924657811566. The loaded stock Julia 1.13.3
+`libmpfr.6.dylib` reports MPFR 4.2.2, TLS=1, shared=1 and an empty patch string.
+The source, command, exit status, loaded path and complete log are retained
+under `HybridPlasmaPIC-audit-evidence/2026-10-27/takeover/mpfr-latest-refresh/`.
+No retry or runtime-library replacement was used. This reproduces the existing
+wrong-result behavior on the latest tested runtime; it does not re-prove the
+native cause independently of the earlier instrumented controls.
