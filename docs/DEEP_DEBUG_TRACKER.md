@@ -10,6 +10,29 @@ also pass GitHub CI; a confirmed billing block is recorded separately.
 Passing a subset of tests does not establish whole-project correctness or
 completeness. Comparative leadership requires reproducible external benchmarks.
 
+## Numerical accuracy standard (user decision, 2026-10-26)
+
+The audit uses a **normwise** floating-point contract:
+
+- Finite inputs never produce NaN, Inf or a silently wrong value through
+  intermediate overflow or underflow. Such cases take an exact (or wide-precision)
+  evaluation of the same expression, or raise an explicit error before state is
+  published, as documented per API.
+- Conservation identities hold to roundoff where the method conserves exactly.
+- Results agree with the exact expression to a few ulps of the operation's
+  scale, for example `max(|v|, |h E|)` for a particle kick, `|x| + |dt v|` for a
+  drift and `Σ|contribution|` for a deposited moment.
+- Componentwise relative accuracy of a component that nearly cancels is **not**
+  certified; absolute error at that scale is the requirement.
+
+The previous componentwise contract made the hot loops prohibitively expensive
+(measured on Apple M5, Julia 1.12.7): an unlanded certified Boris pusher ran at
+about 520 ns/push against 4–7 ns/push on `main`, an unlanded bounded Yee step at
+about 780 ns per cell, and the landed Coulomb kernel spends about half its time
+in compensated updates. Work under the old contract is being migrated to this
+standard; tests that asserted componentwise tolerances for cancellation are
+rewritten as normwise bounds.
+
 ## Current progress (2026-10-26)
 
 | Active work | Checked state | Remaining gate |
@@ -36,7 +59,7 @@ completeness. Comparative leadership requires reproducible external benchmarks.
 | Distributed FFT collective construction | Pushed `00f7922` after all 1/2/4/8-rank matrices, 135 exact resource/output profile comparisons per runtime, 47,105 neighbor assertions per runtime and complete compiler review | [Implementation plan](DISTRIBUTED_FFT_COLLECTIVE_PLAN.md); [exact-SHA CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40220039958): all six jobs green. Distributed operators and coupled evolution remain open |
 | Distributed FFT roundtrip diagnostic | Pushed `563888f` after 8,955 complete-extension and 288 boundary assertions per runtime. All 540 rank/profile comparisons and 2,700 allocation/error/state samples per runtime match the reference; full compiler review and actual CI launcher pass | [Repair plan](DISTRIBUTED_FFT_DIAGNOSTIC_PLAN.md); [exact-SHA CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40222940837): all six jobs green |
 | Distributed FFT precision | Landed V7: `test_distributed_fft.jl` passes at 1/2/4/8 real ranks on Julia 1.12.7 and 1.13.2; full `Pkg.test()` passes 798,477 / 798,478 assertions with registered SpectralOperators 0.1.3; JET reports (24 / 21) are identical to parent `563888f`. V7 removes 95.5% of the added setup allocation | [Precision plan](DISTRIBUTED_FFT_PRECISION_PLAN.md); exact-SHA CI pending |
-| Distributed field operators | Shared serial kernels pushed to SpectralOperators as `5877955`; root rechecked 17 source/1,431 evidence hashes and reproduced the 1,309-check audit. Owned-field/derivative candidate passes minimum-Julia 1/2-rank preflight | [Staged plan](DISTRIBUTED_OPERATOR_IMPLEMENTATION_PLAN.md); [dependency CI](https://github.com/jake-w-liu/SpectralOperators.jl/actions/runs/40226925826) green; SpectralOperators 0.1.3 is registered with a tree identical to `5877955`. Complete derivative acceptance remains |
+| Distributed field operators | Stage B landed after `1b7b8b7`: rank-owned fields and first derivatives pass at 1/2/4/8 MPI ranks on Julia 1.12.7 and 1.13.2; JET is parent-identical (24 / 21). Shared kernels come from registered SpectralOperators 0.1.3 | [Staged plan](DISTRIBUTED_OPERATOR_IMPLEMENTATION_PLAN.md), [derivative record](DISTRIBUTED_DERIVATIVE_PLAN.md); exact-SHA CI pending. Gradient/divergence/curl/Laplacian, projection and filters remain |
 | Boris Metal compatibility | Actual-device candidate compilation fails on both runtimes while the frozen parent passes; raw device probes confirm flush-to-zero behavior | Separate shared-expression adapter under design; CPU phase candidates remain unaccepted until backend compatibility is verified |
 | Coupled absorbing-wall event order | Original absorption convergence passes, but a distinct near-tie witness is incorrectly merged by the current prototype. Exact single-anchor enclosures are under verification | Certified event ordering, true ties, signed self-force and production resources remain open |
 | Electron transport preparation | Root rechecked the sealed seven-file packet and reproduced its 783-invariant audit. Scientific references and staged S1–S8 plan are retained | Production transport closure and phase/coordinate composition remain unimplemented |

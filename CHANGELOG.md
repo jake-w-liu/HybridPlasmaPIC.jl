@@ -8,6 +8,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Rank-owned periodic Fourier derivatives: `distributed_fourier_grid(n, L;
+  comm)`, `distributed_field(grid)` and `deriv!`/`deriv` methods on the
+  distributed grid reuse SpectralOperators 0.1.3 kernels on PencilFFTs pencils
+  with no global gather. Configuration, axis and local validation are agreed
+  collectively, and output is published only after every rank succeeds.
+
 - Cell-local multispecies Coulomb collisions: `collide_coulomb!(species, grid,
   dt; coulomb_log, epsilon0, weight_to_number, u_floor, rng, workspace)` pairs
   self and cross-species particles within each periodic cell using physical

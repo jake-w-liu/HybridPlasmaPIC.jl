@@ -324,7 +324,9 @@ export supported_extensions,
     distributed_fft_output,
     distributed_fft_forward!,
     distributed_fft_inverse!,
-    distributed_fft_roundtrip_error
+    distributed_fft_roundtrip_error,
+    distributed_fourier_grid,
+    distributed_field
 export gather_at,
     SyntheticProbe,
     sample!,

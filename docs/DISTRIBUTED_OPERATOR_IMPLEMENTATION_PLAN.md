@@ -132,10 +132,10 @@ real hybrid/ES/EM evolution, collision composition, checkpoint and restart tests
 - [x] Inspect current owners, public signatures and dependency layouts.
 - [x] Specify shared numerical ownership and staged integration contract.
 - [x] Pin/review precision prerequisite and serial kernel extraction briefs.
-  Precision V2 is integrated with `563888f`; its full resource/rank campaign is
-  running. Shared serial kernels are being implemented separately. Neither
-  candidate is an accepted distributed operator.
-- [ ] Implement and verify P/A/B/C/D/E separately; push each accepted slice.
+- [x] Stage P (precision) landed as `3a9c85d`; stage A (shared kernels) released
+  as SpectralOperators 0.1.3; stage B (owned storage and derivative) landed
+  after `1b7b8b7`.
+- [ ] Implement and verify stages C/D/E separately; push each accepted slice.
 - [ ] Integrate local field ownership with 003C and existing solver workspaces.
 
 ## Stage B concrete implementation boundary

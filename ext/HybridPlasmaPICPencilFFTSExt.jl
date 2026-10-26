@@ -60,6 +60,29 @@ function _checked_fft_configuration(n, transform, periodic, real_type, comm)
     return nn, transforms, real_type
 end
 
+@inline function _agree_configuration(f, comm, context)
+    configuration, encoded =
+        HybridPlasmaPIC._mpi_collective_stage(comm, context, "configuration validation") do
+            value = f()
+            bytes = HybridPlasmaPIC._serialize_mpi_payload(value)
+            length(bytes) <= typemax(Cint) || throw(
+                ArgumentError(
+                    "$(lowercase(context)) configuration exceeds the MPI message-size limit",
+                ),
+            )
+            value, bytes
+        end
+    count = MPI.Bcast(Cint(length(encoded)), 0, comm)
+    reference = MPI.Comm_rank(comm) == 0 ? encoded : Vector{UInt8}(undef, count)
+    MPI.Bcast!(reference, 0, comm)
+    HybridPlasmaPIC._mpi_collective_stage(comm, context, "configuration agreement") do
+        agreed = HybridPlasmaPIC._deserialize_mpi_payload(Tuple, reference)
+        isequal(configuration, agreed) ||
+            throw(ArgumentError("$(lowercase(context)) configuration differs between MPI ranks"))
+    end
+    return configuration
+end
+
 """
     distributed_fft_plan(n; comm=MPI.COMM_WORLD, transform=Transforms.FFT(), periodic=(true,true,true), real_type=Float64)
 
@@ -82,26 +105,8 @@ remain owned by PencilFFTs/PencilArrays; this wrapper does not gather global fie
     real_type = Float64,
 )
     HybridPlasmaPIC.ensure_mpi_initialized!()
-    configuration, encoded = HybridPlasmaPIC._mpi_collective_stage(
-        comm,
-        "Distributed FFT",
-        "configuration validation",
-    ) do
-        value = _checked_fft_configuration(n, transform, periodic, real_type, comm)
-        bytes = HybridPlasmaPIC._serialize_mpi_payload(value)
-        length(bytes) <= typemax(Cint) || throw(
-            ArgumentError("distributed FFT configuration exceeds the MPI message-size limit"),
-        )
-        value, bytes
-    end
-    # The payload has already been serialized and validated collectively.
-    count = MPI.Bcast(Cint(length(encoded)), 0, comm)
-    reference = MPI.Comm_rank(comm) == 0 ? encoded : Vector{UInt8}(undef, count)
-    MPI.Bcast!(reference, 0, comm)
-    HybridPlasmaPIC._mpi_collective_stage(comm, "Distributed FFT", "configuration agreement") do
-        agreed = HybridPlasmaPIC._deserialize_mpi_payload(Tuple, reference)
-        isequal(configuration, agreed) ||
-            throw(ArgumentError("distributed FFT configuration differs between MPI ranks"))
+    configuration = _agree_configuration(comm, "Distributed FFT") do
+        _checked_fft_configuration(n, transform, periodic, real_type, comm)
     end
     nn, transforms, precision = configuration
     pencil = PencilFFTs.Pencil(nn, comm)
@@ -148,5 +153,7 @@ function HybridPlasmaPIC.distributed_fft_roundtrip_error(
     local_error = isempty(original) ? 0.0 : maximum(abs, parent(input_view) .- original)
     return MPI.Allreduce(local_error, MPI.MAX, plan.comm)
 end
+
+include("pencil_fourier.jl")
 
 end # module

@@ -39,3 +39,5 @@ end
 include("test_distributed_fft_collective.jl")
 
 include("test_distributed_fft_diagnostic.jl")
+
+include("test_distributed_derivative.jl")

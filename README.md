@@ -436,6 +436,13 @@ on every rank. Transform storage and transposes remain owned by PencilFFTs.
 and returns the maximum absolute roundtrip error across the communicator. It
 allocates a snapshot of the input; in-place plans reuse that input as output.
 [Diagnostic contract](docs/DISTRIBUTED_FFT_DIAGNOSTIC_PLAN.md).
+`distributed_fourier_grid(n, L; comm)` collectively builds a periodic 3D Fourier
+workspace whose Float32/Float64 precision follows the domain lengths, and
+`distributed_field(grid)` allocates a rank-owned real field on its pencil.
+`deriv!(out, field, grid, axis)` and `deriv(field, grid, axis)` differentiate
+without gathering the global field; input and output may alias, and local
+validation failures are reported on every rank before any output is written.
+[Derivative contract](docs/DISTRIBUTED_DERIVATIVE_PLAN.md).
 GPU backend storage is exposed through `particle_storage_backend`. The Metal
 extension includes particle gather, deposit and push kernels; the CUDA extension
 currently supplies storage and telemetry. Hybrid and EM field storage remains

@@ -89,3 +89,6 @@ distributed_fft_inverse!(args...; kwargs...) =
     _extension_missing(:pencilfft, :distributed_fft_inverse!)
 distributed_fft_roundtrip_error(args...; kwargs...) =
     _extension_missing(:pencilfft, :distributed_fft_roundtrip_error)
+distributed_fourier_grid(args...; kwargs...) =
+    _extension_missing(:pencilfft, :distributed_fourier_grid)
+distributed_field(args...; kwargs...) = _extension_missing(:pencilfft, :distributed_field)
