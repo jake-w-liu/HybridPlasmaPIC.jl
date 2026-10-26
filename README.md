@@ -499,6 +499,8 @@ The same grid supports `gradient!`, `divergence!`, `curl!`, `laplacian!`,
 as three-tuples of rank-owned fields and the serial alias rules (curl outputs
 distinct from inputs; vector outputs and projection components pairwise
 distinct). All outputs are published together after the last collective check.
+Infinite exponential-filter strength keeps the DC mean and removes every nonzero
+mode for all accepted positive powers.
 [Operator plan](docs/DISTRIBUTED_OPERATOR_IMPLEMENTATION_PLAN.md).
 GPU backend storage is exposed through `particle_storage_backend`. The Metal
 extension includes particle gather, deposit and push kernels; the CUDA extension

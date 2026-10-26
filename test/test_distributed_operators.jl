@@ -380,6 +380,14 @@ end
         h = field(signal)
         exp_filter!(h, g; α = Inf, p = 8)
         @test _global_error(h, i -> 0.75, comm) <= tolerance(8)
+        # A positive mode power may underflow at large p; infinite converted
+        # strength still removes it, without creating Inf*0 and NaN.
+        for p in (10000, typemax(Int)), α in (Inf, big(2)^2048)
+            h = field(signal)
+            @test exp_filter!(h, g; α, p) === h
+            @test all(isfinite, parent(h))
+            @test _global_error(h, i -> 0.75, comm) <= tolerance(8)
+        end
         h = field(signal)
         exp_filter!(h, g; α = 0, p = 8)
         @test _global_error(h, signal, comm) <= tolerance(8)

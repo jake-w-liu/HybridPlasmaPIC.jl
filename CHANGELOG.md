@@ -284,6 +284,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Infinite-strength exponential filtering preserves the DC mean and removes
+  every other mode even when a large accepted power underflows. The shared
+  repair is required through registered SpectralOperators 0.1.4, with real MPI
+  consumer regressions for Float32/64 and both infinite and overflowing strength.
+
 - Radiation drag retains finite damping when a small force beside a cancelling
   large field is amplified by the coefficient/timestep product. Scaled
   evaluation includes that amplification in its error certificate; unresolved
