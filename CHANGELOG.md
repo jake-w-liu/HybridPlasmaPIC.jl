@@ -247,6 +247,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Checkpoint configuration ownership no longer rejects a BitArray view disjoint
+  from state-owned bit views on Julia 1.13.3, where `Base.dataids` reports every
+  view as sharing the packed chunks; overlapping views, the whole array and raw
+  chunk references remain rejected on every Julia version.
+
 - Distributed FFT roundtrip diagnostics now support in-place complex, real and
   real-to-real transforms. They compare the container's input view and reuse the
   input as the default output, as required by PencilFFTs. An explicit separate

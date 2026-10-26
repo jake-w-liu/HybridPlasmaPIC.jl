@@ -428,6 +428,20 @@ function _checkpoint_serialization_owner(array::AbstractArray)
     end
 end
 
+# The packed chunks holding the elements a parent chain reads, if a BitArray
+# stores them. A parent cycle reports none, keeping the generic alias check.
+function _checkpoint_packed_chunks(array::AbstractArray)
+    seen = IdSet{Any}()
+    while !(array in seen)
+        array isa BitArray && return array.chunks
+        push!(seen, array)
+        next = parent(array)
+        next === array && return nothing
+        array = next
+    end
+    return nothing
+end
+
 function _validate_checkpoint_configuration_graph(configuration, graph, require_independent)
     # Logical iteration can expose a raw pointer that lives in a wrapper's data.
     # Built-in value codecs reconstruct their private native resources instead.
@@ -529,36 +543,41 @@ end
 
 function _validate_checkpoint_configuration(s, st, configuration)
     _checkpoint_pointer_free_bits(typeof(configuration)) && return nothing
-    owned = IdDict{Any,Nothing}()
+    # Whether any visit reached an object logically, not only as backing storage.
+    owned = IdDict{Any,Bool}()
     arrays = AbstractArray[]
-    function remember(value)
+    function remember(value, logical = true)
         # Equal immutable metadata can be shared by value without owning state.
         # Its mutable children are still visited and registered independently.
         (ismutable(value) || value isa AbstractArray) || return nothing
-        haskey(owned, value) && return nothing
-        owned[value] = nothing
-        value isa AbstractArray && push!(arrays, value)
+        if haskey(owned, value)
+            owned[value] |= logical
+        else
+            owned[value] = logical
+            value isa AbstractArray && push!(arrays, value)
+        end
         return nothing
     end
+    remember_backing(buffer) = remember(buffer, false)
     # Configuration is replaced on restore, whereas these arrays are copied into
     # destination storage. Include the payload to reject retained incoming links.
     for name in keys(s)
         name in (:model, :shape) && continue
-        _visit_checkpoint_objects(remember, getproperty(s, name); backing = remember)
+        _visit_checkpoint_objects(remember, getproperty(s, name); backing = remember_backing)
     end
     # Capture must also reject links to scratch and Refs omitted from the payload.
     # Read-only grid geometry is independent configuration; FFT plans and scratch
     # belong to the solver and cannot be restored as detached configuration.
-    owned[st] = nothing
+    owned[st] = true
     for name in fieldnames(typeof(st))
         name in (:g, :model, :shape) && continue
-        _visit_checkpoint_objects(remember, getfield(st, name); backing = remember)
+        _visit_checkpoint_objects(remember, getfield(st, name); backing = remember_backing)
     end
     g = st.g
     _visit_checkpoint_objects(
         remember,
         (g.plan, g.iplan, g.cbuf, g.tbuf, g.abuf, g.sbuf);
-        backing = remember,
+        backing = remember_backing,
     )
     graph = IdDict{Any,NamedTuple{(:logical, :edges),Tuple{Bool,Vector{Tuple{Any,Bool}}}}}()
     function record(value, logical, edges)
@@ -575,8 +594,14 @@ function _validate_checkpoint_configuration(s, st, configuration)
             ),
         )
         if value isa AbstractArray
+            # A value read through a BitArray shares that array's chunks. They link
+            # it to state only if state reached them logically; packed backing
+            # alone defers to the owned views' logical extents (Julia >= 1.13.3
+            # reports every view of a BitArray as sharing its chunks).
+            chunks = _checkpoint_packed_chunks(value)
             for array in arrays
-                _particle_arrays_mightalias(value, array) && throw(
+                linked = array === chunks ? owned[array] : _particle_arrays_mightalias(value, array)
+                linked && throw(
                     ArgumentError(
                         "checkpoint configuration must not alias evolving simulation storage",
                     ),

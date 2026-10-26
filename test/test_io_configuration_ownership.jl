@@ -759,6 +759,17 @@ end
             io_ownership_state(source, (particles, Base.tail(original_args)...)),
             source,
         )
+        # Raw chunks reached logically link every bit view, whichever visit
+        # registers them first, regardless of Base.dataids(::BitArray).
+        for extra in ((view(bits, 1:3), bits.chunks), (bits.chunks, view(bits, 1:3)))
+            x = IOOwnershipArray(copy(ps.x[1]), Ref(zero(T)), extra)
+            particles = ParticleSet{1,T}((x,), ps.v, ps.weight, ps.id, ps.tag, ps.q, ps.m)
+            config.extra = view(bits, 4:6)
+            @test_throws ArgumentError HybridPlasmaPIC._validate_checkpoint_state(
+                io_ownership_state(source, (particles, Base.tail(original_args)...)),
+                source,
+            )
+        end
     end
     bits = trues(6)
     slice = view(bits, 1:3)
