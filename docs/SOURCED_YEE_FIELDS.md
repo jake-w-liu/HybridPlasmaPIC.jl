@@ -37,8 +37,9 @@ The diagnostics expose three different quantities:
 
 All-node charge is distinct from the existing interior-only electric
 `yee_divergence!`. Its PEC entries are `[Ex[1], diff(Ex)..., -Ex[end]]` with unit
-transverse area; each entry is one correctly rounded difference and their exact
-sum, including both surfaces, is zero. The exact update is
+transverse area. Each entry is a correctly rounded difference or boundary term.
+The unrounded incidence sums to zero, including both surfaces; summing the stored
+entries can retain rounding residuals. In exact arithmetic the source update is
 `Qnew-Qold = -incidence(impulse)`. No initial Gauss projection, particle charge
 deposition or automatic wall charge model is supplied.
 
