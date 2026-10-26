@@ -230,7 +230,9 @@ stored pressure gains this heat, so the quadratic form is its Ohmic exchange.
 
 `J` is the 3-tuple of current-density arrays, `η` the scalar resistivity, and
 `g` the `FourierGrid`. The returned numerical quantity is unchanged by these
-energy-accounting qualifications.
+energy-accounting qualifications. Finite Float32/Float64 inputs retain the
+complete integral through final rounding when an intermediate loses range;
+ordinary inputs retain the existing summation order.
 """
 function resistive_dissipation(
     J::NTuple{3,<:AbstractArray{T}},
@@ -240,10 +242,45 @@ function resistive_dissipation(
     _require_grid_tuple(:J, J, g)
     ηT = _require_finite_nonnegative_real("η", η, T)
     s = zero(T)
+    minimum_j2 = T(Inf)
     @inbounds for I in eachindex(J[1], J[2], J[3])
-        s += J[1][I] * J[1][I] + J[2][I] * J[2][I] + J[3][I] * J[3][I]
+        x, y, z = J[1][I], J[2][I], J[3][I]
+        x2, y2, z2 = x * x, y * y, z * z
+        s += x2 + y2 + z2
+        minimum_j2 = min(
+            minimum_j2,
+            ifelse(iszero(x), T(Inf), x2),
+            ifelse(iszero(y), T(Inf), y2),
+            ifelse(iszero(z), T(Inf), z2),
+        )
     end
-    return ηT * s * prod(g.dx)
+    weighted = ηT * s
+    volume = prod(g.dx)
+    result = weighted * volume
+    (T === Float32 || T === Float64) || return result
+    lost =
+        minimum_j2 < floatmin(T) ||
+        _spectral_product_lost_range(ηT, s, weighted) ||
+        _spectral_product_lost_range(weighted, volume, result)
+    # A spacing product may lose range before a later factor restores it.
+    # Contiguous subproducts cover either product association in D <= 3.
+    for first = 1:length(g.dx)
+        partial = one(T)
+        for last = first:length(g.dx)
+            product = partial * g.dx[last]
+            lost |= _spectral_product_lost_range(partial, g.dx[last], product)
+            partial = product
+        end
+    end
+    if !lost && !iszero(s) && !iszero(ηT) && !iszero(volume)
+        upper = _field_energy_upper_exponent(J, (), s, g.dx) + exponent(ηT) + 1
+        lost = upper > exponent(floatmax(T))
+    end
+    if lost && all(isfinite, g.dx) && all(a -> all(isfinite, a), J)
+        integral = _field_square_sum_exact(J) * _exact_rational(ηT) * prod(_exact_rational, g.dx)
+        return _from_exact(T, integral)
+    end
+    return result
 end
 
 # --- particle momentum / electric work (from diagnostics.jl) ---

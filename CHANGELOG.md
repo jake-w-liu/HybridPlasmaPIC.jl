@@ -284,6 +284,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- `resistive_dissipation` preserves finite Float32/Float64 Ohmic integrals when
+  current squares, coefficient products or the cell volume overflow or underflow
+  before the complete result is formed. Zero resistivity with large finite
+  currents returns zero; ordinary inputs keep their summation order.
+
 - Checkpoint configuration ownership no longer rejects a BitArray view disjoint
   from state-owned bit views on Julia 1.13.3, where `Base.dataids` reports every
   view as sharing the packed chunks; overlapping views, the whole array and raw

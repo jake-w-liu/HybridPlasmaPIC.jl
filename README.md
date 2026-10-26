@@ -360,7 +360,8 @@ A self-contained perpendicular collisionless-shock laboratory:
   the supplied particle velocities, which are staggered in hybrid runs;
   energy-convergence comparisons need reservoirs at a common time.
   `kinetic_energy_relativistic(ps, c)` covers relativistic EMPIC runs.
-  `resistive_dissipation` reports the Ohmic quadratic form;
+  `resistive_dissipation` reports the Ohmic quadratic form, retaining representable
+  finite Float32/Float64 results across intermediate range loss;
   `jdotE_density`, `electric_work`, and `momentum_budget` report work and momentum.
 - **Velocity space**: `pressure_tensor!` + `temperatures_par_perp` (T∥/T⊥
   relative to the local field), `pressure_strain` (the −P:∇u interaction),

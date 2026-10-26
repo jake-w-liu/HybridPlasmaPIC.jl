@@ -35,6 +35,10 @@ rewritten as normwise bounds.
 
 ## Current progress (2026-10-26)
 
+The [2026-10-27 Ohmic diagnostic audit](RESISTIVE_DIAGNOSTIC_RANGE_AUDIT.md)
+tracks the verified intermediate-range defect and its minimum/latest Julia checks.
+Its branch still requires root integration and exact-SHA CI acceptance.
+
 | Active work | Checked state | Remaining gate |
 | --- | --- | --- |
 | Shock CN solve and memory-status constructors | `ce52836` has all six CI jobs green and full compiler review; `c810eb0` has five green jobs and one failed allocation assertion | Investigate the shock-total resource failure; source attribution remains open |

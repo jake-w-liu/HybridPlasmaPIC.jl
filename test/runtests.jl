@@ -106,6 +106,7 @@ using Test
     include("test_shock_converge.jl")
     include("test_threaded.jl")
     include("test_budgets.jl")
+    include("test_resistive_dissipation_range.jl")
     include("test_relativistic_energy_range.jl")
     include("test_kinetic_energy_range.jl")
     include("test_kinetic_energy_certificate.jl")
