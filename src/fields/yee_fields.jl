@@ -27,6 +27,27 @@ function _yee_all_finite(a::AbstractArray{T}) where {T<:AbstractFloat}
     return isfinite(flag)
 end
 
+function _yee_validate_impulse(impulse, g::YeeGrid{1,T}) where {T}
+    impulse isa Tuple && length(impulse) == 3 ||
+        throw(ArgumentError("impulse must be a tuple of three current arrays"))
+    all(a -> a isa Vector{T}, impulse) || throw(
+        ArgumentError(
+            "Yee current arrays must be ordinary CPU vectors matching the grid precision",
+        ),
+    )
+    _yee_validate_electric_data(impulse, g)
+    return nothing
+end
+
+function _yee_validate_electric_data(components, g::YeeGrid)
+    _yee_check_shape(components, g, true)
+    for a in components
+        _yee_all_finite(a) || throw(ArgumentError("Yee electric data must be finite"))
+    end
+    _yee_validate_electric_pec(components, g)
+    return nothing
+end
+
 function _yee_validate_fields(fields::YeeFields, g::YeeGrid)
     _yee_check_shape(fields.E, g, true)
     _yee_check_shape(fields.B, g, false)

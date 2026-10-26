@@ -512,3 +512,44 @@ function yee_divergence!(out, fields, g::YeeGrid{D,T}; field::Symbol = :magnetic
     end
     return out
 end
+
+"""
+    yee_electric_charge!(out, E, g::YeeGrid{1})
+
+Write extensive electric charge on every 1D node, including PEC surface charge,
+in epsilon0=1 units with unit transverse area. For PEC the result is
+`[Ex[1], diff(Ex)..., -Ex[end]]` (length `n+1`); periodic nodes have
+`Ex[i]-Ex[prev(i)]` (length `n`). This is an incidence, without division by dx.
+The sum telescopes to zero in exact arithmetic, including the two PEC surfaces.
+
+Inputs must have valid electric shapes, finite data and homogeneous tangential
+PEC values; output must be a matching CPU strided vector and must not alias any
+input. Checks precede writes. Each entry is one correctly rounded difference or
+negation, with signed infinity if it is outside the target range. The existing
+`yee_divergence!` retains its bulk-only meaning. For a prescribed current step
+the exact charge update is the negative of this same incidence applied to the
+current impulse.
+"""
+function yee_electric_charge!(out, E, g::YeeGrid{1,T}) where {T}
+    _yee_validate_electric_data(E, g)
+    out isa StridedVector{T} ||
+        throw(ArgumentError("Yee charge output must match the grid precision and CPU storage"))
+    length(out) == g.n[1] + Int(!g.periodic[1]) ||
+        throw(DimensionMismatch("Yee charge output has the wrong shape"))
+    Base.require_one_based_indexing(out)
+    any(a -> Base.mightalias(out, a), E) &&
+        throw(ArgumentError("Yee charge input and output must not alias"))
+    x = E[1]
+    if g.periodic[1]
+        for i in eachindex(out)
+            out[i] = x[i] - x[i == 1 ? length(x) : i - 1]
+        end
+    else
+        out[1] = x[1]
+        for i = 2:length(x)
+            out[i] = x[i] - x[i-1]
+        end
+        out[end] = -x[end]
+    end
+    return out
+end

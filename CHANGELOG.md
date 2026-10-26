@@ -21,6 +21,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `em_field_energy`, `yee_poynting` and `yee_poynting_flux` complete the API;
   see `examples/maxwell_cavity.jl`.
 
+- Prescribed-current 1D Yee fields: `step_maxwell!(model, dt, impulse)` advances a
+  1D `MaxwellVacuum` with a caller-supplied integrated current on the electric
+  lattices (validated before staging; a zero impulse reproduces the vacuum step
+  bitwise). `yee_electric_charge!` reports all-node charge including PEC surface
+  charge, and `yee_source_work`/`yee_modified_energy` give the fixed-step work
+  balance `Hnew - Hold = -work`; see `examples/sourced_maxwell_cavity.jl` and
+  `docs/SOURCED_YEE_FIELDS.md`.
+
 - Rank-owned periodic Fourier derivatives: `distributed_fourier_grid(n, L;
   comm)`, `distributed_field(grid)` and `deriv!`/`deriv` methods on the
   distributed grid reuse SpectralOperators 0.1.3 kernels on PencilFFTs pencils

@@ -354,12 +354,15 @@ export YeeGrid,
     yee_coordinates,
     yee_curl!,
     yee_divergence!,
+    yee_electric_charge!,
     apply_yee_pec!,
     MaxwellVacuum,
     maxwell_cfl,
     step_maxwell!,
     yee_poynting,
-    yee_poynting_flux
+    yee_poynting_flux,
+    yee_source_work,
+    yee_modified_energy
 export HallMHDModel, HallMHDState, hall_mhd_ohms_law!, hall_mhd_rhs!, step_hall_mhd!
 export run_perp_shock, run_perp_shock_rh, run_perp_shock_leroy, perp_shock_sweep
 export firehose_growth, ion_cyclotron_growth, weibel_growth, reconnection_growth

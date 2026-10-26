@@ -4,10 +4,11 @@
 @inline _yee_constrained_axis(g::YeeGrid, electric::Bool, c::Int, d::Int) =
     !g.periodic[d] && _yee_node(electric, c, d)
 
+# Concrete ranges also for callers whose array types are inferred abstractly.
 @inline function _yee_wall_planes(a::AbstractArray{T,D}, g::YeeGrid{D}, d::Int) where {T,D}
     return ntuple(2) do side
         index = side == 1 ? 1 : g.n[d] + 1
-        CartesianIndices(ntuple(e -> e == d ? (index:index) : (1:size(a, e)), D))
+        CartesianIndices(ntuple(e -> e == d ? (index:index) : UnitRange{Int}(1, size(a, e)), D))
     end
 end
 
@@ -43,6 +44,14 @@ function apply_yee_pec!(fields::YeeFields, g::YeeGrid{D}) where {D}
         end
     end
     return fields
+end
+
+function _yee_validate_electric_pec(components, g::YeeGrid)
+    for c = 1:3
+        _yee_walls_zero(components[c], g, true, c) ||
+            throw(ArgumentError("conducting walls require zero tangential electric data"))
+    end
+    return nothing
 end
 
 function _yee_validate_pec(fields::YeeFields, g::YeeGrid)

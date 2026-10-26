@@ -1,8 +1,10 @@
 # Bounded Maxwell implementation record
 
-Scope: CAP-002A, source-free Cartesian vacuum/cavity fields. This slice does not
-implement bounded particle coupling (002B), absorbing layers (002C), or restart,
-GPU/MPI and full production integration (002D). CAP-002 remains open.
+Scope: CAP-002A, source-free Cartesian vacuum/cavity fields, plus the 1D
+[prescribed-current prerequisite](SOURCED_YEE_FIELDS.md) of 002B (see
+[below](#prescribed-current-slice)). This does not implement bounded particle
+coupling (002B), absorbing layers (002C), or restart, GPU/MPI and full
+production integration (002D). CAP-002 remains open.
 
 ## Discrete contract and derivation
 
@@ -141,6 +143,27 @@ componentwise V12 candidate. Each stage costs about as much as a minimal
 unit-stride kernel with the same three updates per cell timed on the same
 machine. Energy costs about 0.2–0.4 steps,
 cell Poynting 2–3.3 steps, face flux at most 0.75 steps and `yee_curl!` 0.3 steps.
+
+## Prescribed-current slice
+
+`step_maxwell!(model::MaxwellVacuum{1}, dt, impulse)` adds a caller-supplied
+current impulse to the electric stage, `(old + κΔ) − impulse`, through the same
+row engine: impulse entries travel with the original entries and the stage is
+evaluated in the stage's arithmetic type (Float64 for out-of-range Float32
+multipliers) before one rounding; exact completion includes the impulse. A zero
+impulse entry, including `-0.0`, keeps the vacuum value bitwise. Impulses are
+validated (shape, precision, ordinary vectors, finiteness, zero tangential PEC
+nodes, independence from all twelve model arrays) before any staging write.
+`yee_electric_charge!` is the all-node 1D incidence (one correctly rounded
+difference per entry); `yee_source_work` and `yee_modified_energy` follow the
+diagnostic rules above with scales `dx/2·Σ|J|(|Eold|+|Enew|)` and the sum of the
+three nonnegative modified-energy contributions; the modified-energy curl term is
+summed as `((dt c/(2dx))ΔE)²`, which is dominated by the E² sum because
+`dt c < dx`. `test/test_sourced_yee*.jl` keep the V12 sourced gates (independent
+stages, charge identity, work and modified-energy balance, vacuum equality,
+complete-expression range witnesses, transactional final-stage failure, discrete
+forced modes, modal time/space order, validation and rollback) with per-stage and
+scalar normwise bounds in place of the componentwise ones.
 
 ## Remaining CAP-002 work
 

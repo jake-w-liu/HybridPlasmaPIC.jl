@@ -318,3 +318,130 @@ function yee_poynting_flux(model::MaxwellVacuum{D,T}) where {D,T}
         ntuple(side -> _yee_face_flux(model, normal, side == 2), 2)
     end
 end
+
+# ------------------------------------------------ prescribed-current diagnostics
+
+function _yee_source_work_exact(old, new, impulse, dx::T) where {T}
+    total = zero(Rational{BigInt})
+    for c = 1:3, i in eachindex(old[c])
+        total +=
+            _exact_rational(impulse[c][i]) *
+            (_exact_rational(old[c][i]) + _exact_rational(new[c][i]))
+    end
+    return _from_exact(T, _exact_rational(dx) * total / 2)
+end
+
+# Whether some product impulse*(old+new) has two nonzero factors.
+_yee_any_source_product(impulse, old, new) =
+    any(c -> any(i -> !iszero(impulse[c][i]) && old[c][i] != -new[c][i], eachindex(old[c])), 1:3)
+
+"""
+    yee_source_work(Eold, Enew, impulse, g::YeeGrid{1})
+
+Return `dx/2 * sum(impulse*(Eold+Enew))` in epsilon0=1 units with unit transverse
+area. Positive work transfers energy out of the fields. Supply the electric
+arrays immediately before and after the sourced step and its integrated current;
+no history is retained by the model. Inputs are read-only, finite, correctly
+shaped and consistent with homogeneous tangential PEC constraints.
+
+The sum is pairwise (Float64 for Float32 data). Normwise contract: the result
+agrees with the exact value to a few `eps(T)` per summed term times
+`dx/2 * sum(|impulse|*(|Eold|+|Enew|))`; overflow, or underflow that is not
+negligible at that scale, is evaluated exactly, and an exact value outside the
+range is signed infinity. Exact-arithmetic B-half/E-full/B-half evolution obeys
+`Hnew-Hold = -work` for `yee_modified_energy` at the same fixed dt;
+floating-point staging introduces roundoff in that identity.
+"""
+function yee_source_work(old, new, impulse, g::YeeGrid{1,T}) where {T}
+    _yee_validate_electric_data(old, g)
+    _yee_validate_electric_data(new, g)
+    _yee_validate_impulse(impulse, g)
+    W = _yee_wide(T)
+    total = zero(W)
+    magnitude = zero(W)
+    count = 0
+    for c = 1:3
+        p, a, b = impulse[c], old[c], new[c]
+        total += sum(i -> W(p[i]) * (W(a[i]) + W(b[i])), eachindex(p))
+        magnitude += sum(i -> abs(W(p[i])) * (abs(W(a[i])) + abs(W(b[i]))), eachindex(p))
+        count += length(p)
+    end
+    value = (total * W(g.dx[1])) * W(0.5)
+    T === Float32 && return T(value)
+    # n underflowed products contribute at most n*2^-1075 < u*magnitude once
+    # magnitude >= n*floatmin, independent of the later spacing scale.
+    lost = !isfinite(value) | !isfinite(magnitude)
+    lost = lost || (magnitude < count * floatmin(W) && _yee_any_source_product(impulse, old, new))
+    lost || return value
+    return _yee_source_work_exact(old, new, impulse, g.dx[1])
+end
+
+function _yee_modified_energy_exact(model::MaxwellVacuum{1,T}, dt::T) where {T}
+    e2 = sum(_exact_rational(x)^2 for a in model.fields.E for x in a)
+    b2 = sum(_exact_rational(x)^2 for a in model.fields.B for x in a)
+    curl2 = zero(Rational{BigInt})
+    for c = 1:3, I in CartesianIndices(model.fields.B[c])
+        curl2 += _yee_curl_exact(model.fields.E, I, c, model.g, true)^2
+    end
+    result = e2 + _exact_rational(model.c)^2 * (b2 - _exact_rational(dt)^2 * curl2 / 4)
+    return _from_exact(T, _exact_rational(model.g.dx[1]) * result / 2)
+end
+
+# Σ((dt*c/(2dx)) * ΔE)² over the 1D curl(E) faces. Since dt*c < dx, each scaled
+# sample is below |ΔE|/2, so its square is dominated by the E² sum.
+function _yee_scaled_curl_square_sum(factor::W, E, g::YeeGrid{1}) where {W}
+    total = zero(W)
+    count = 0
+    for c = 2:3
+        a = E[c]
+        n = length(a)
+        faces = g.periodic[1] ? n : n - 1
+        total += sum(i -> (factor * (W(a[i == n ? 1 : i + 1]) - W(a[i])))^2, 1:faces)
+        count += faces
+    end
+    return total, count
+end
+
+"""
+    yee_modified_energy(model::MaxwellVacuum{1}, dt)
+
+Return the fixed-step Yee quadratic invariant
+`dx/2 * (sum(E²) + c²*sum(B²) - dt²*c²/4*sum(curl(E)²))`.
+The supplied dt must be positive and strictly below this model's CFL bound.
+The form is positive definite at that bound's strict interior and is conserved
+by exact-arithmetic vacuum stepping at this fixed dt; prescribed current changes
+it by `-yee_source_work(...)`. Changing dt changes the quadratic form itself.
+
+This is distinct from synchronized physical `em_field_energy` and physical
+Poynting flux. Sums are pairwise (Float64 for Float32 fields). Normwise contract:
+the result agrees with the exact value to a few `eps(T)` per summed term times
+the sum of the three nonnegative contributions; overflow or non-negligible
+underflow is evaluated exactly, and an exact value outside the range is `Inf`.
+Inputs are read-only and validated, and no prior state is retained.
+"""
+function yee_modified_energy(model::MaxwellVacuum{1,T}, dt::Real) where {T}
+    dtT = _require_finite_positive_real("dt", dt, T)
+    dtT < maxwell_cfl(model) ||
+        throw(ArgumentError("dt must be strictly below the Maxwell CFL limit"))
+    _yee_validate_fields(model.fields, model.g)
+    _yee_validate_pec(model.fields, model.g)
+    E, B, g = model.fields.E, model.fields.B, model.g
+    W = _yee_wide(T)
+    electric, electric_count = _yee_square_sum(W, E)
+    magnetic, magnetic_count = _yee_square_sum(W, B)
+    speed = W(model.c)
+    squared = speed * speed
+    weighted = squared * magnetic
+    # An underflowed factor or scaled sample is negligible against the E² sum.
+    factor = ((W(dtT) * speed) * W(0.5)) / W(g.dx[1])
+    curl, _ = _yee_scaled_curl_square_sum(factor, E, g)
+    value = (electric + weighted) - curl
+    lost = !iszero(value) & !_yee_normal(value)
+    value = (value * W(g.dx[1])) * W(0.5)
+    T === Float32 && return T(value)
+    lost |= !isfinite(value)
+    lost |= !iszero(magnetic) & (!_yee_normal(squared) | !_yee_normal(weighted))
+    lost |= _yee_tiny_sum(electric, electric_count, E) || _yee_tiny_sum(magnetic, magnetic_count, B)
+    lost || return value
+    return _yee_modified_energy_exact(model, dtT)
+end

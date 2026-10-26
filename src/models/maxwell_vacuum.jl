@@ -7,8 +7,9 @@ are synchronized at `time[]`; `step_maxwell!` uses magnetic half-kick, electric
 drift, magnetic half-kick. Constant steps have the usual Yee dispersion relation;
 changing the step preserves second-order centering. Neither the constant-step
 energy invariant nor stability for arbitrary sub-CFL step sequences extends to
-variable steps. CPU Float32/Float64 only. No particles, currents, absorbing layer,
-restart adapter or external forcing are supplied by this vacuum model.
+variable steps. CPU Float32/Float64 only. In 1D, `step_maxwell!` also accepts
+prescribed integrated current arrays. No particle coupling, absorbing layer or
+restart adapter is supplied by this field model.
 
 The model owns reusable staging arrays. Concurrent mutation/stepping of one
 instance is unsupported. Physical E/B arrays retain their identities on commit.
@@ -81,14 +82,32 @@ _YeeStageOp{W,scaled}(κa, κb) where {W,scaled} = _YeeStageOp{W,scaled}(κa, κ
 @inline _yee_stage_difference(κ, ::Nothing, ::Type) = nothing
 @inline _yee_stage_difference(κ, pair::Tuple, ::Type{W}) where {W} = κ * (W(pair[1]) - W(pair[2]))
 
-@inline function (op::_YeeStageOp{W,scaled})(old::T, a, b) where {W,scaled,T}
+@inline function _yee_stage_value(op::_YeeStageOp{W,scaled}, old, a, b) where {W,scaled}
     curl = _yee_curl_combination(
         _yee_stage_difference(op.κa, a, W),
         _yee_stage_difference(op.κb, b, W),
     )
-    curl === nothing && return old
-    return T(W(old) + (scaled ? (curl * op.σ1) * op.σ2 : curl))
+    curl === nothing && return W(old)
+    return W(old) + (scaled ? (curl * op.σ1) * op.σ2 : curl)
 end
+
+@inline (op::_YeeStageOp)(old::T, a, b) where {T<:AbstractFloat} =
+    T(_yee_stage_value(op, old, a, b))
+
+# Prescribed impulse: `(old + curl) - impulse`, rounded once. A zero impulse
+# entry keeps the vacuum value bitwise, including a signed zero.
+@inline function (op::_YeeStageOp{W})(entry::Tuple{T,T}, a, b) where {W,T}
+    old, impulse = entry
+    value = _yee_stage_value(op, old, a, b)
+    return T(ifelse(iszero(impulse), value, value - W(impulse)))
+end
+
+# Original entries paired with the impulse entries of the same lattice.
+struct _YeeSourcedEntries{A}
+    old::A
+    impulse::A
+end
+@inline _yee_load(a::_YeeSourcedEntries, k) = @inbounds (a.old[k], a.impulse[k])
 
 # No representable multiplier: every entry takes the exact expression.
 struct _YeeExactStageOp{T} end
@@ -129,10 +148,11 @@ function _yee_scaled_multipliers(g::YeeGrid{D,T}, electric::Bool, dt::T, speed::
     return mantissas, ldexp(one(T), first_shift), ldexp(one(T), second_shift)
 end
 
-function _yee_stage_exact(old, source, I, c, g, electric, dt::T, speed::T) where {T}
+function _yee_stage_exact(old, source, p, I, c, g, electric, dt::T, speed::T) where {T}
     coefficient =
         electric ? -_exact_rational(dt) / 2 : _exact_rational(dt) * _exact_rational(speed)^2
     exact = _exact_rational(old[I]) + coefficient * _yee_curl_exact(source, I, c, g, electric)
+    p === nothing || (exact -= _exact_rational(p[I]))
     value = _from_exact(T, exact)
     isfinite(value) || throw(ArgumentError("Maxwell stage produces a nonfinite field"))
     return value
@@ -143,6 +163,7 @@ end
     destination,
     original,
     source,
+    impulse,
     g::YeeGrid{D,T},
     direction::Val{electric},
     ::Val{c},
@@ -152,10 +173,11 @@ end
 ) where {F,D,T,electric,c}
     ja, jb = mod1(c + 1, 3), mod1(c + 2, 3)
     op = make_op(ja, jb)
-    old = original[c]
+    p = impulse === nothing ? nothing : impulse[c]
+    old = p === nothing ? original[c] : _YeeSourcedEntries(original[c], p)
     sa, sb = source[jb], source[ja]
     if careful
-        exact = I -> _yee_stage_exact(old, source, I, c, g, electric, dt, speed)
+        exact = I -> _yee_stage_exact(original[c], source, p, I, c, g, electric, dt, speed)
         return _yee_rows!(op, exact, destination[c], old, sa, sb, g, Val(ja), Val(jb), direction)
     end
     return _yee_rows!(op, nothing, destination[c], old, sa, sb, g, Val(ja), Val(jb), direction)
@@ -166,13 +188,14 @@ end
     destination,
     original,
     source,
+    impulse,
     g,
     direction,
     careful,
     dt,
     speed,
 ) where {F}
-    arguments = (destination, original, source, g, direction)
+    arguments = (destination, original, source, impulse, g, direction)
     ok = _yee_stage_component!(make_op, arguments..., Val(1), careful, dt, speed)
     ok &= _yee_stage_component!(make_op, arguments..., Val(2), careful, dt, speed)
     ok &= _yee_stage_component!(make_op, arguments..., Val(3), careful, dt, speed)
@@ -191,6 +214,7 @@ function _yee_stage!(
     dt::T,
     speed::T,
     careful::Bool,
+    impulse = nothing,
 ) where {D,T,electric}
     native = ntuple(d -> _yee_multiplier(dt, speed, g.dx[d], electric), D)
     if all(last, native)
@@ -202,6 +226,7 @@ function _yee_stage!(
             destination,
             original,
             source,
+            impulse,
             g,
             direction,
             careful,
@@ -221,6 +246,7 @@ function _yee_stage!(
                 destination,
                 original,
                 source,
+                impulse,
                 g,
                 direction,
                 careful,
@@ -244,6 +270,7 @@ function _yee_stage!(
                 destination,
                 original,
                 source,
+                impulse,
                 g,
                 direction,
                 careful,
@@ -258,6 +285,7 @@ function _yee_stage!(
         destination,
         original,
         source,
+        impulse,
         g,
         direction,
         careful,
@@ -278,16 +306,17 @@ function _yee_advance!(
     electric::Bool,
     dt::T,
     speed::T,
+    impulse = nothing,
 ) where {D,T}
     direction = electric ? Val(true) : Val(false)
     in_place = any(c -> Base.mightalias(destination[c], original[c]), 1:3)
     !in_place &&
-        _yee_stage!(destination, original, source, g, direction, dt, speed, false) &&
+        _yee_stage!(destination, original, source, g, direction, dt, speed, false, impulse) &&
         return destination
     for a in (original..., source...)
         _yee_all_finite(a) || throw(ArgumentError("Yee fields must be finite"))
     end
-    _yee_stage!(destination, original, source, g, direction, dt, speed, true)
+    _yee_stage!(destination, original, source, g, direction, dt, speed, true, impulse)
     return destination
 end
 
@@ -316,16 +345,59 @@ No Gauss projection is applied: the compatible curls propagate initial bulk
 electric and magnetic divergence, including a nonzero initial residual.
 """
 function step_maxwell!(model::MaxwellVacuum{D,T}, dt::Real) where {D,T}
+    return _yee_step_maxwell!(model, dt, nothing)
+end
+
+"""
+    step_maxwell!(model, dt, impulse)
+
+Advance a 1D Yee field with prescribed integrated current `impulse = integral(J dt)`
+in normalized epsilon0=1 units. Supply a tuple of three ordinary CPU vectors with
+the electric lattice shapes and precision. The electric stage is
+`Enew = (Eold + dt*c^2*curl(Bhalf)) - impulse`, evaluated natively (Float64 for
+out-of-range Float32 multipliers) and rounded once; overflowing entries are
+completed exactly with the impulse included. The normwise stage contract of the
+vacuum step applies with `|impulse|` added to the scale, as do its CFL, clock and
+physical-state rollback contracts.
+
+Sources must be finite, independent of one another and of all physical/staging
+arrays, and zero on constrained tangential PEC nodes; they are validated before
+any staging write and never modified. A zero impulse entry reproduces the vacuum
+value bitwise. This is prescribed forcing, not particle coupling or an automatic
+charge/Gauss projection. See [`yee_electric_charge!`](@ref),
+[`yee_source_work`](@ref) and [`yee_modified_energy`](@ref) for the associated
+diagnostics.
+"""
+function step_maxwell!(model::MaxwellVacuum{1}, dt::Real, impulse)
+    impulse === nothing && throw(ArgumentError("impulse must be a tuple of three current arrays"))
+    return _yee_step_maxwell!(model, dt, impulse)
+end
+
+function step_maxwell!(model::MaxwellVacuum, dt::Real, impulse)
+    throw(ArgumentError("prescribed Yee currents support one spatial dimension"))
+end
+
+function _yee_step_maxwell!(model::MaxwellVacuum{D,T}, dt::Real, impulse) where {D,T}
     dtT = _require_finite_positive_real("dt", dt, T)
     dtT < maxwell_cfl(model) ||
         throw(ArgumentError("dt must be strictly below the Maxwell CFL limit"))
     next_time, next_step = _validated_step_clock(model.time[], model.step[], dtT)
     next_time > model.time[] || throw(ArgumentError("Maxwell time must advance finitely"))
     _yee_validate_storage(model)
+    if impulse !== nothing
+        _yee_validate_impulse(impulse, model.g)
+        _yee_check_independent_arrays((
+            model.fields.E...,
+            model.fields.B...,
+            model._candidate.E...,
+            model._candidate.B...,
+            impulse...,
+        ))
+    end
     candidate, original = model._candidate, model.fields
     g, speed = model.g, model.c
     _yee_advance!(candidate.B, original.B, original.E, g, true, dtT, speed)
-    _yee_advance!(candidate.E, original.E, candidate.B, g, false, dtT, speed)
+    _yee_advance!(candidate.E, original.E, candidate.B, g, false, dtT, speed, impulse)
     if !_yee_stage!(candidate.B, candidate.B, candidate.E, g, Val(true), dtT, speed, false)
         # The in-place native half-kick overwrote its inputs. Rebuild the
         # deterministic first half-kick from the unchanged physical fields and
@@ -335,7 +407,8 @@ function step_maxwell!(model::MaxwellVacuum{D,T}, dt::Real) where {D,T}
     end
     # Homogeneous PEC data stay exactly zero: every constrained entry is
     # `0 + κ*(0 - 0)` (or its exact replay) because each difference it uses is
-    # of constrained samples or is absent; no clamp or re-validation is needed.
+    # of constrained samples or is absent, and constrained impulses are zero;
+    # no clamp or re-validation is needed.
     for c = 1:3
         copyto!(original.E[c], candidate.E[c])
         copyto!(original.B[c], candidate.B[c])
