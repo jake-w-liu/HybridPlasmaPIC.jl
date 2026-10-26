@@ -1,5 +1,8 @@
 # CI reliability and current Julia compatibility
 
+Current investigation (2026-10-27): `a7fb3c8` [run 40393658443](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40393658443) fails the unchanged BigInt packet allocation gate on both Julia versions. All MPI and formatting jobs pass; no billing block was observed. The [focused Ubuntu diagnosis](WHISTLER_ALLOCATION_CI_DIAGNOSIS.md) retains the original tests, coverage and allocation limit. All eight local packet-only observations and both local original-prefix runs pass, so the CI cause remains unresolved. This manual diagnostic supplements the unchanged six-job acceptance workflow.
+
+
 GitHub CI must pass for each pushed change. Billing blocks are reported only
 when supported by the run's diagnostics; they do not excuse code failures.
 

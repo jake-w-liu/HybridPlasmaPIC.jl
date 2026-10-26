@@ -1,0 +1,59 @@
+name: Whistler allocation diagnosis
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    name: ${{ matrix.revision.name }} Julia ${{ matrix.julia-version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        julia-version: ['1.12.7', '1.13.3']
+        revision:
+          - name: prior-green
+            sha: f830b2afec521eb082e052a2dd6f3ae7b4e7aafa
+          - name: current
+            sha: 0f7853659e611774af010fcb4f068d255bbe3510
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.revision.sha }}
+          path: comparison-source
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: ${{ matrix.julia-version }}
+      - uses: julia-actions/cache@v2
+      - name: Instantiate declared test environment
+        run: julia --startup-file=no .github/diagnostics/setup_whistler.jl "$GITHUB_WORKSPACE/comparison-source" "$RUNNER_TEMP/whistler-env"
+      - name: Original prefix, raw samples and full allocation traces
+        shell: bash
+        env:
+          HPIC_DIAGNOSTIC_SOURCE_SHA: ${{ matrix.revision.sha }}
+          HPIC_DIAGNOSTIC_RUNTIME: ${{ matrix.julia-version }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/whistler-evidence"
+          bounds=()
+          if [[ "$HPIC_DIAGNOSTIC_RUNTIME" == 1.12.7 ]]; then
+            bounds=(--check-bounds=yes)
+          fi
+          julia --startup-file=no --threads=1 \
+            --code-coverage="@$GITHUB_WORKSPACE/comparison-source" \
+            --warn-overwrite=yes --depwarn=yes --inline=yes --track-allocation=none \
+            "${bounds[@]}" --project="$RUNNER_TEMP/whistler-env" \
+            .github/diagnostics/whistler_allocations.jl \
+            "$GITHUB_WORKSPACE/comparison-source" "$RUNNER_TEMP/whistler-evidence" \
+            2>&1 | tee "$RUNNER_TEMP/whistler-evidence/diagnostic.log"
+      - name: Preserve all diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: whistler-${{ matrix.revision.name }}-${{ matrix.julia-version }}
+          path: ${{ runner.temp }}/whistler-evidence
+          if-no-files-found: error
