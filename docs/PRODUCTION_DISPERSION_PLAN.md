@@ -1,6 +1,10 @@
 # Production wave-history validation
 
-Status: the first CAP-007B slice passes local correctness, resource, compiler,
+Revision-scoped implementation record. The pre-edit findings and candidate
+acceptance states below are historical; see the [audit tracker](DEEP_DEBUG_TRACKER.md)
+for current integration and remaining work.
+
+Recorded status: the first CAP-007B slice passes local correctness, resource, compiler,
 artifact-replay and CLI/plot checks on Julia 1.12.7 and 1.13.2. Pushed as
 `839c109`; [exact-SHA CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40194825415)
 passes five jobs but fails twelve Julia 1.12 log-amplitude residual assertions.

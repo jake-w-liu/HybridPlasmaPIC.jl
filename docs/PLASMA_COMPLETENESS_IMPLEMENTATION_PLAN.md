@@ -2,10 +2,10 @@
 
 Initial source assessment: **2026-10-23**, revision
 `bf2a8bc615f514f8d2868934849bf44814140bbb`. This document plans work; it does not
-certify the proposed implementations. Implementation status was reconciled on
-**2026-10-27** against pushed `fd0a168`; earlier line references remain pinned to the
-initial assessment. The [audit tracker](DEEP_DEBUG_TRACKER.md)
-owns accepted fixes, measured results and exact-revision CI status.
+certify the proposed implementations. Implementation status and CI were reconciled on
+**2026-10-27** against `cd8b94d` and the archived complete-review ledger;
+earlier line references remain pinned to the initial assessment. The
+[audit tracker](DEEP_DEBUG_TRACKER.md) owns accepted fixes, measured results and exact-revision CI status.
 
 **The package is not yet a complete implementation of the expanded simulator
 goal.** It contains implemented solver families and an extensive test suite,
@@ -214,9 +214,10 @@ and quota failures describe historical work, not current ownership.
 | 004B/C resident solver families | Agent unassigned; fields, integrators/models, extensions | 004A; storage/operator contract; actual device operators | Planned; concrete host arrays inspected | Implement one complete resident hybrid path and trace all transfers/scalar access |
 | 004D multi-GPU | Agent unassigned; MPI + device extensions | 003C/D, 004B/C; real devices/network | Hardware/integration pending | Establish buffer ownership/staging contract and matched device/rank oracle |
 | 005A existing CN-labelled paths | Shock3d and integrator stability owners | Independent linear-system oracle | Shock CN `ce52836` and [linear CN](LINEAR_CN_RANGE_PLAN.md) `03e4eb3` have green exact-SHA CI | Continue with 005B/C; preserve separate resource regressions and corrections |
-| Magnetic timestep correctness | Root; `recommended_dt` and both RK4 stage owners | Independent frozen Hall/damping mode and exact stability polynomial | [Certified polygon repair](RK4_MIXED_STABILITY_PLAN.md) passes both runtime campaigns and full compiler/resource gates | `a7fb3c8` is pushed after root integration; exact-SHA CI remains. The separate BigFloat caller-context repair is also pushed |
-| Relativistic stored-output closure | Particle, priming, EMPIC, radiation and persistence owners | Explicit supported cone; independently rounded stage references; whole public-step undo inventory | V5 factor/priming repair is pushed as `fd0a168`; a bounded source-equivalent reproduction verifies native batch output closure and partial-publication defects | C1 canonical output admission and bounded transaction implementation is active in isolation. Exact-cone expansion and authoritative momentum representation require separate designs and gates |
-| BigFloat timestep contexts | Root; canonical recommendation core | Independent positive-rate geometry, exact endpoint controls and production-mode witness | [Directed context repair](BIGFLOAT_TIMESTEP_CONTEXT_PLAN.md) passes isolated minimum/latest package, native bit/allocation, complete compiler/Aqua and formatting gates | `36d1794` is pushed after all root gates; exact-SHA CI remains. NUM-001 concurrent MPFR runtime integration remains open |
+| Magnetic timestep correctness | Root; `recommended_dt` and both RK4 stage owners | Independent frozen Hall/damping mode and exact stability polynomial | [Certified polygon repair](RK4_MIXED_STABILITY_PLAN.md) passes both runtime campaigns and full compiler/resource gates | `a7fb3c8` retains its failed packet-allocation CI; the later containing `fd0a168` is green. The separate BigFloat repair has the revision-specific outcome below |
+| Relativistic stored-output closure | Particle, priming, EMPIC, radiation and persistence owners | Explicit supported cone; independently rounded stage references; whole public-step undo inventory | V5 repair fd0a168 passes exact-SHA CI; isolated C1 retains its stopped V3 failure and checked harness-only continuation | [C1 publication/rollback](RELATIVISTIC_OUTPUT_PUBLICATION_PLAN.md) remains unaccepted; current-main root numerical/resource/compiler/Metal/CI gates follow. [C2/C3](RELATIVISTIC_VALIDATION_PLAN.md#planned-domain-and-state-extensions) remain separate unimplemented domain/state work orders |
+| Original species charge/mass factors | Particle validation, kick/prime/model/backend owners | Original q,m,dt and complete stored-input references | Both actual runtimes reproduce silent uniform/gathered ratio underflow; latest-Julia EMPIC ratio overflow has checked C1 rollback | [Staged canonical repair](PARTICLE_CHARGE_MASS_RANGE_PLAN.md); no repaired implementation or widened C1 guarantee |
+| BigFloat timestep contexts | Root; canonical recommendation core | Independent positive-rate geometry, exact endpoint controls and production-mode witness | [Directed context repair](BIGFLOAT_TIMESTEP_CONTEXT_PLAN.md) passes isolated minimum/latest package, native bit/allocation, complete compiler/Aqua and formatting gates | `36d1794` CI completed: minimum Julia/formatting/MPI pass, latest Julia fails the separate packet allocation gate. Containing `fd0a168` is green with complete compiler review. NUM-001 runtime integration remains open |
 | 005B/C implicit hybrid | Agent unassigned; integrator + moment/Ohm owners | Derived discrete conservation and solve contract | Planned | Freeze unknowns/residual, independent small-system oracle and failed-solve transaction |
 | 005D implicit EM / parallel geometry | Agent unassigned; EM/parallel/geometry owners | 005B/C method evidence; accepted relevant operators | Planned | Derive EM-specific continuity/work residual before adding a public method |
 | 006A curvilinear solver | Agent unassigned; mesh/coupling/model/I/O | Compatible geometry operators, chosen physical model | Partial primitives; no production callers found | Specify coordinate/component/volume conventions and coupled manufactured problem |
@@ -227,7 +228,7 @@ and quota failures describe historical work, not current ownership.
 | 008 ES/EM arbitrary species | Canonical electrostatic/EM owners; next implementation agent unassigned | Species charge/time-level design; existing Poisson owner | ES collections landed; containing `4724947` passes all six jobs and full compiler review; arbitrary EM collections remain planned | Design EM collections: charge-conserving summed currents, mobile/immobile species and multirate schedule |
 | 009 full-Hall multidimensional shocks | Scope proposal; root selects implementation agent | Full mixed-operator/field-boundary balance; 005 optional | Deliberate reduced induction verified | Derive full induction and SAT budget; build transverse-mode witness |
 | 010 composed sources and RNG restart | Integrator/checkpoint owners; independent collision audit track | 001 and phase/growth/checkpoint contracts | Fixed-step first-order isothermal CPU `CollisionalHybridStepper` landed; `2b2420b` exact-SHA CI/compiler gates pass | Extend schedules, closures/models/sources and backends; preserve full RNG/phase/rollback contract |
-| 011 electron transport/energy | Electron/integrator owners; independent transport audit track | Term-specific balance and carried force contract | S1 constant Ohmic `TransportElectrons` landed; `a6d20d3` exact-SHA CI/compiler gates pass | Sealed S2 passes local stage/energy/restart/compiler/resource gates but is held on a fresh public hyper-field range defect. Repair finite lapJ/E admission, repeat current-main integration and CI, then S3–S8; collision/transport composition remains unsupported |
+| 011 electron transport/energy | Electron/integrator owners; independent transport audit track | Term-specific balance and carried force contract | S1 constant Ohmic `TransportElectrons` landed; `a6d20d3` exact-SHA CI/compiler gates pass | Sealed S2 passes local stage/energy/restart/compiler/resource gates but is held on a fresh public hyper-field range defect. A reviewed source-aware design now covers complete field/pressure/Faraday composition and four shared scaled-data owners; isolated dependency implementation has started but remains unaccepted. Repeat current-main gates/CI, then S3–S8; collision/transport composition remains unsupported |
 
 For every row, its detailed section below supplies the required conservation,
 accuracy/convergence, error/rollback, restart, parallel, hardware, performance and
@@ -366,9 +367,10 @@ cannot close the cluster scaling gate.
 ## CAP-004 — complete GPU-resident solvers
 
 The shared gathered-push [midpoint storage repair](GATHERED_MIDPOINT_STORAGE_PLAN.md)
-is pushed after root integration; exact-SHA CI remains. The separate
-[field-input storage repair](GATHERED_FIELD_STORAGE_PLAN.md) is in current-main
-integration. Both are correctness gates separate from GPU latency and residency.
+passes all six exact-SHA CI jobs and complete compiler review at `a79a07b`. The
+separate [field-input storage repair](GATHERED_FIELD_STORAGE_PLAN.md) is pushed
+as `0f78536` with package CI still running at this review. These correctness
+gates do not establish GPU latency or complete device residency.
 
 **Contract and owner.** Extend concrete storage parameters in `HybridFields`,
 stepper/model workspaces and operator plans only as required by a real backend.

@@ -1,6 +1,10 @@
 # Coulomb sampled-angle range repair
 
-Status: the numerical repair is pushed as `2a5cc12` after final local validation;
+Revision-scoped implementation record. The pre-edit findings and candidate
+acceptance states below are historical; see the [audit tracker](DEEP_DEBUG_TRACKER.md)
+for current integration and remaining work.
+
+Recorded status: the numerical repair is pushed as `2a5cc12` after final local validation;
 exact-SHA CI and fixed latency acceptance remain open. Baseline is `a18f09d`, including the exact-null
 repair. This slice does not accept the full local multispecies feature.
 

@@ -1,5 +1,9 @@
 # Particle migration storage integrity
 
+Revision-scoped implementation record. The baseline failures and candidate
+acceptance states below are historical; see the [audit tracker](DEEP_DEBUG_TRACKER.md)
+for current integration and remaining work.
+
 Status (2026-10-23): **GROWTH-002 final V3 passes all local acceptance gates**
 on Julia 1.12.7 and 1.13.2 and is pushed separately as `7c6e1e4`.
 [Exact-commit CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39892881923)

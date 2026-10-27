@@ -1,6 +1,10 @@
 # Radiation reaction validation and arithmetic
 
-Status: input validation (RR-001) is pushed as `fdca823`. The normwise
+Revision-scoped implementation record. The pre-edit findings and candidate
+acceptance states below are historical; see the [audit tracker](DEEP_DEBUG_TRACKER.md)
+for current integration and remaining work.
+
+Recorded status: input validation (RR-001) is pushed as `fdca823`. The normwise
 arithmetic repair of RR-002 and RR-003 [below](#normwise-arithmetic-repair-rr-002-rr-003)
 replaces the held BigFloat candidate and passes the forcing, particle,
 relativistic-boundary, Aqua and JET gates on Julia 1.12.7 and 1.13.2.

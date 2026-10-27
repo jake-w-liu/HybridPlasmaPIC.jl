@@ -1,6 +1,10 @@
 # Mode-history regression centering repair
 
-Status: correction passes focused and package-sandbox validation on both Julia
+Revision-scoped implementation record. The pre-edit findings and candidate
+acceptance states below are historical; see the [audit tracker](DEEP_DEBUG_TRACKER.md)
+for current integration and remaining work.
+
+Recorded status: correction passes focused and package-sandbox validation on both Julia
 versions; individual push and exact-SHA CI remain.
 
 ## Pre-edit brief

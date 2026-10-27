@@ -42,9 +42,8 @@ Pkg.add(url = "https://github.com/jake-w-liu/HybridPlasmaPIC.jl.git")
 ## Quickstart
 
 An ion-acoustic wave in the hybrid model — load a quiet lattice of ions, seed a
-small velocity perturbation, and step (runs in ~20–25 s including compilation;
-`examples/ion_acoustic.jl` is the full version that also measures ω against
-k·c_s):
+small velocity perturbation, and step. `examples/ion_acoustic.jl` is the full
+version that also measures ω against k·c_s:
 
 ```julia
 using HybridPlasmaPIC, Random
@@ -170,9 +169,9 @@ block; it does not provide the coupled stepper's validation or rollback.
 
 ## Time integration
 
-Two production steppers advance the hybrid model, both explicit and 2nd-order,
-both subcycling `B` through the stiff whistler branch with frozen midpoint ion
-moments:
+The two collision-free hybrid steppers are explicit and second order. They
+subcycle `B` through the stiff whistler branch with frozen midpoint ion moments;
+the separately composed collisional stepper has the first-order contract below:
 
 - **`HybridStepper`** (`init!`, `step!(st, ps, dt; NB)`) — the default.
   Boris leapfrog for particles; `B` advanced `n → n+1` by `NB` RK4 substeps;
@@ -234,7 +233,7 @@ in the [implementation plan](docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md).
 | **Electromagnetic PIC** | full EM PIC with kinetic electrons, optional mobile ions (`mobile = true`), optional relativistic Boris push (`relativistic = true`), spectral current correction for charge continuity, Gauss-law initialization, electron/Maxwell subcycling (`n_sub`) in 1D–3D | `EMPIC`, `EMPIC1D`, `init_empic!`, `step_empic!`, `charge_conservation_residual` |
 | **Bounded Maxwell vacuum** | staggered Yee fields in 1D–3D with periodic or homogeneous conducting axes, synchronized second-order stepping, CFL rejection, compatible divergence and energy/Poynting diagnostics; native stencils under the normwise accuracy contract; no particle coupling or absorbing layer | `YeeGrid`, `MaxwellVacuum`, `step_maxwell!`, `yee_divergence!`, `yee_poynting_flux` |
 | **Prescribed-current Yee fields** | 1D current impulses on electric lattices, all-node charge including conducting surfaces, source work and fixed-step modified energy; [scope and example](docs/SOURCED_YEE_FIELDS.md); particle coupling remains open | `step_maxwell!(model, dt, impulse)`, `yee_electric_charge!`, `yee_source_work`, `yee_modified_energy` |
-| **Fusion geometry / gyrokinetics / AMR** | integrated tokamak-oriented building blocks: toroidal curvilinear metric operators, guiding-centre gyrokinetics, and finite-volume AMR primitives alongside the existing mesh/model subsystems | `ToroidalGrid`, `metric_gradient`, `GuidingCentre`, `push_guiding_centre!`, `AMRGrid`, `refine` |
+| **Fusion geometry / gyrokinetics / AMR** | toroidal metric operators, guiding-centre particle updates and finite-volume AMR primitives; a coupled gyrokinetic or adaptive plasma solver remains [planned](docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md#cap-006--geometry-gyrokinetics-and-adaptive-plasma-evolution) | `ToroidalGrid`, `metric_gradient`, `GuidingCentre`, `push_guiding_centre!`, `AMRGrid`, `refine` |
 | **KdV reference** | integrating-factor pseudo-spectral KdV solver + analytic soliton, used as a nonlinear-wave verification target | `kdv_solve`, `kdv_soliton` |
 
 The bounded vacuum model uses a constant-step Maxwell stability bound.
@@ -545,6 +544,8 @@ stable Julia release. The [audit tracker](docs/DEEP_DEBUG_TRACKER.md) records te
 revisions, version-specific results, and outstanding coverage. The
 [implementation plan](docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md) tracks
 missing end-to-end capabilities, owners, dependencies and acceptance gates.
+The [documentation map](docs/DOCUMENTATION_MAP.md) distinguishes user guides,
+active trackers and revision-scoped implementation records.
 The expanded simulator goal remains incomplete; current solver support and
 standalone building blocks are distinguished in that plan. Fixes and their
 regression oracles are described in `CHANGELOG.md`.
@@ -594,8 +595,8 @@ EM and comparative campaigns remain in the
   uniform-field particle pushing has passed actual-device checks on supported
   Julia versions; that does not establish full GPU solver support. See the
   [implementation and evidence](docs/METAL_UNIFORM_PUSH_PLAN.md).
-- **MPI cluster scaling data**: all building blocks pass real-MPI tests at
-  2–8 ranks locally/CI; production runs need a cluster.
+- **MPI cluster scaling data**: CI exercises the documented building blocks at
+  2/4/8 ranks; multi-node scaling requires a separate measured campaign.
 - **Full-profile replay** of the Preisser 2020 dataset (the compact scalar
   summary with checksums is bundled; the full HDF5 requires downloading the
   upstream data).
@@ -628,7 +629,7 @@ julia --project=. -e 'import MPI; run(`$(MPI.mpiexec()) -n 4 $(Base.julia_cmd())
 
 ## Examples
 
-Each runs standalone in a few seconds to ~30 s (including compilation):
+Run the examples from the repository environment:
 
 ```bash
 julia --project=. examples/ion_acoustic.jl   # hybrid run; measures ω against k·c_s (0.05%)

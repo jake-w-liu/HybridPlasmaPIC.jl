@@ -1,6 +1,10 @@
 # External reference provenance — CAP-007A
 
-Status: pushed as `95c5678`; local implementation and validation gates passed.
+Revision-scoped implementation record. The pre-edit findings and candidate
+acceptance states below are historical; see the [audit tracker](DEEP_DEBUG_TRACKER.md)
+for current integration and remaining work.
+
+Recorded status: pushed as `95c5678`; local implementation and validation gates passed.
 [Exact-SHA GitHub CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40186481856)
 remains pending. Production dispersion and full shock-profile comparisons remain
 CAP-007B/C.

@@ -1,6 +1,13 @@
+# Historical MATLAB reference-generation shadow
+
+This directory records the MATLAB setup used for the pinned reference fixture.
+The current Julia port uses [analytic magnetic derivatives](../../src/raycon/raycon_magnetic.jl);
+this shadow is reference-generation history, not its production derivative
+algorithm. Later repairs and open work are in the [audit tracker](../../docs/DEEP_DEBUG_TRACKER.md).
+
 MATLAB path-shadow used when generating `test/reference/raycon_reference.json`:
 `dmagnetic.m` is the upstream file with the finite-difference step changed from
-1e-8 to 1e-5, matching the Julia port. The upstream 1e-8 step puts
+1e-8 to 1e-5, matching the Julia port at that time. The upstream 1e-8 step puts
 ~4·eps·|b|/h² ≈ 10–20% roundoff noise on the second derivatives of |B|, which
 propagates into the mode-conversion Hessian and shifts η²/τ by ~15% at the
 C-Mod reference point (measured 2026-07-05: η² = 0.2435 noisy vs 0.2804

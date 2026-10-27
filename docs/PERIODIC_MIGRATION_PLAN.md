@@ -1,6 +1,10 @@
 # Periodic seam consistency
 
-Status: pushed separately as `e8925e8` after local acceptance on Julia 1.12.7
+Revision-scoped implementation record. The pre-edit findings and candidate
+acceptance states below are historical; see the [audit tracker](DEEP_DEBUG_TRACKER.md)
+for current integration and remaining work.
+
+Recorded status: pushed separately as `e8925e8` after local acceptance on Julia 1.12.7
 and 1.13.2. [Exact-commit CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39893248890)
 has passed formatting and 2/4-rank MPI; the other three jobs remain running.
 Updated 2026-10-23.

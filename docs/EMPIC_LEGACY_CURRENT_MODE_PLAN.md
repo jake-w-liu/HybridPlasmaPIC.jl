@@ -1,6 +1,10 @@
 # Legacy longitudinal current modal range
 
-Status: 2026-10-23; fresh defect reproduced on Julia 1.12.7 and 1.13.2.
+Revision-scoped implementation record. The baseline failures and candidate
+acceptance states below are historical; see the [audit tracker](DEEP_DEBUG_TRACKER.md)
+for current integration and remaining work.
+
+Recorded status: 2026-10-23; fresh defect reproduced on Julia 1.12.7 and 1.13.2.
 This bounded repair is separate from the open forward/inverse transform and
 arbitrary-grid conditioning work in `CONTINUITY_DIAGNOSTIC_RANGE_PLAN.md`.
 

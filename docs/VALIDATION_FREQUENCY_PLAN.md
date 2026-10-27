@@ -1,6 +1,10 @@
 # Validation frequency extraction repair
 
-Status: numerical repair pushed as `01a1b3c`. Its CI run fails test loading and
+Revision-scoped implementation record. The pre-edit findings and candidate
+acceptance states below are historical; see the [audit tracker](DEEP_DEBUG_TRACKER.md)
+for current integration and remaining work.
+
+Recorded status: numerical repair pushed as `01a1b3c`. Its CI run fails test loading and
 formatting. The dependency/format correction passes both local test sandboxes
 and whole-tree formatting; corrected exact-SHA CI remains required.
 

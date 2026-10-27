@@ -1,8 +1,13 @@
 # Distributed storage and derivative: Stage B pre-edit brief
 
+Implementation record: the factories and derivative are implemented in
+`ext/pencil_fourier.jl`; [current acceptance](DEEP_DEBUG_TRACKER.md) and
+[operator stages](DISTRIBUTED_OPERATOR_IMPLEMENTATION_PLAN.md) track later work.
+The pre-edit findings and candidate states below describe their named baselines.
+
 - Mode: implement the bounded Stage B contract in DISTRIBUTED_OPERATOR_IMPLEMENTATION_PLAN.md.
 - Requirement: collective Float32/Float64 real fields and first derivatives on owned periodic 3D pencils, with no production gather. Preserve serial mode arithmetic, global scaling, collective recoverable failure and delayed output publication.
-- VERIFIED gap: current Pencil extension contains only DistributedPencilFFTPlan and transform/diagnostic methods; src/extensions.jl exports no distributed grid/field factory. SpectralOperators shared-kernel candidate owns the required metadata, scale, copy/store and derivative multiplier; its publication gate remains open.
+- VERIFIED baseline gap: the pre-edit Pencil extension contains only DistributedPencilFFTPlan and transform/diagnostic methods; src/extensions.jl exports no distributed grid/field factory. SpectralOperators shared-kernel candidate owns the required metadata, scale, copy/store and derivative multiplier; its publication gate remains open.
 - Canonical owners: factor the existing serialized configuration agreement inside the Pencil extension and use it from both factories. Existing distributed_fft_plan still owns all FFT construction. Shared SpectralOperators helpers own all Fourier arithmetic. The new HPIC grid owns its plan and three local work arrays.
 - Contract: all ranks agree positive 3D integer shape and one common Float32/64 length type and value before topology. Checked global volume; exact physical pencil identity and Array-backed fields; common precision and logical axes. Each workspace belongs to one caller. Metadata vectors are read-only. Derivative axis is validated/agreed collectively; input/output may alias, but neither may overlap workspace storage. No communicator ownership transfer or field gather.
 - Failures: local validation, metadata, scaling and multiplication errors use the existing collective stage; input nonfinite and lost-nonzero scaling reject before transposes. Stage complete real output in private scratch and publish only after global success. Fatal allocation, MPI process/transport failure remain existing exclusions. Unrepresentable mathematical outputs retain the serial floating-point behavior.
@@ -27,4 +32,6 @@ untyped where `deriv!` is analyzed with abstract arguments; declaring
 `test_distributed_fft.jl`, including this suite, passes at 1, 2, 4 and 8 MPI
 ranks on Julia 1.12.7 and 1.13.2 with registered SpectralOperators 0.1.3;
 `test_operators.jl`, `test_spectral_extra.jl`, Aqua and JET (24 / 21) pass.
-Exact-commit CI is pending. Timing has not been measured.
+The derivative-containing `4fafe4a` later passes all six exact-SHA CI jobs and
+complete compiler review; see the [audit tracker](DEEP_DEBUG_TRACKER.md).
+Timing has not been measured.

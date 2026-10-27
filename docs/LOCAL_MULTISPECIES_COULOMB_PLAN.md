@@ -1,13 +1,18 @@
 # Spatially local multispecies Coulomb collisions
 
+Revision-scoped implementation record. The pre-edit findings and candidate
+acceptance states below are historical; see the [audit tracker](DEEP_DEBUG_TRACKER.md)
+and [local collision guide](LOCAL_COULOMB.md) for current scope.
+
 Status: landed on `main` as the standalone CPU operator (2026-10-26); see the
 [allocation repair record](LOCAL_COULOMB_RATE_ALLOCATION_PLAN.md) for landing
-verification. CAP-010 composition, MPI ownership and device kernels remain open.
+verification. The fixed-step CPU isothermal [CAP-010 composition](COLLISIONAL_HYBRID.md)
+has also landed; broader closures/models, MPI ownership and device kernels remain open.
 Original base: `bf2a8bc615f514f8d2868934849bf44814140bbb`.
-Current V10 composition: `c5e8472084dff861ae92d8ff6466edfaaeeebe44`; production baseline is unchanged from `1097076` and its accepted normalization prefix is retained.
+Historical V10 candidate assembly: `c5e8472084dff861ae92d8ff6466edfaaeeebe44`; production baseline is unchanged from `1097076` and its accepted normalization prefix is retained.
 Evidence directory: `../HybridPlasmaPIC-audit-evidence/2026-10-23/local-multispecies-coulomb`.
 
-## Verified starting point
+## Verified starting point (original baseline)
 
 `src/particles/collisions.jl:607` exposes one-population, whole-set collisions;
 the permutation at line 656 does not use positions. Its pair scatter at line 389
@@ -423,7 +428,7 @@ replace those final-source checks.
   with explicit SI rescaling. These replacement checks remain untested during
   the native timing hold; prior green results are not their acceptance.
 
-## Current composition and confirmed follow-up findings
+## Historical candidate composition and confirmed follow-up findings
 
 - [x] Compose on accepted normalization without replacing its prefix.
 - [x] Existing 1,716 correctness checks pass on Julia 1.12.7 and 1.13.2.
@@ -515,7 +520,7 @@ Evidence: `complete-angle-v7-commands.json`,
 `complete-update-allocation-v3-commands.json`, and
 `mixed-component-angle-v1-commands.json` in the retained evidence directory.
 
-## Current V9 evidence and acceptance gates
+## Recorded V9 evidence and acceptance gates
 
 The V8 product/sum guards pass the previously failing 144-check component
 matrix and all 108 ordinary allocation profiles on both runtimes. Its registered
@@ -569,7 +574,7 @@ Evidence: `composition-v9b-permanent-source.json`,
 and `fixed-cost-v2-design.md`. CAP-003/004 parallel support and CAP-010 composed
 evolution/RNG restart remain dependent implementations, not completed features.
 
-## Current V10 evidence and active implementation tracks
+## Recorded V10 evidence and then-active implementation tracks
 
 V10 is composed on `c5e8472` and remains unaccepted. A fresh witness verifies
 Float32 overflow-midpoint double rounding: the widened intermediate reaches the

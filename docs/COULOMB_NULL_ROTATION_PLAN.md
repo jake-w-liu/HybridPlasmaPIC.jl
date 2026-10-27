@@ -1,6 +1,10 @@
 # Coulomb exact identity rotation repair
 
-Status: canonical repair is pushed as `a18f09d` after local numerical, RNG,
+Revision-scoped implementation record. The pre-edit findings and candidate
+acceptance states below are historical; see the [audit tracker](DEEP_DEBUG_TRACKER.md)
+for current integration and remaining work.
+
+Recorded status: canonical repair is pushed as `a18f09d` after local numerical, RNG,
 resource and compiler checks on Julia 1.12.7 and 1.13.2. Exact-SHA CI and full
 compiler-log review remain.
 The separate nonzero-small-angle defect below and broader CAP-001 remain open.

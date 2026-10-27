@@ -42,8 +42,8 @@ not a replacement numerical integrator.
 Inputs whose rounded norm is already at least one remain rejected. Admitting
 additional exactly subluminal states requires a separate repair of downstream
 Lorentz-factor arithmetic, which still uses rounded squared norms. This slice
-does not claim to solve those downstream range limitations or the open
-[radiation arithmetic defect](RADIATION_REACTION_PLAN.md).
+does not claim to solve those downstream range limitations or establish the separate
+[radiation arithmetic contract](RADIATION_REACTION_PLAN.md).
 
 ## Acceptance checks
 
@@ -97,3 +97,67 @@ run passes 57 assertions. Logs:
 `/tmp/hybrid-relativistic-baseline-resources112.log` and
 `/tmp/hybrid-relativistic-v1-resources112.log`.
 No optimization or whole-project completion claim follows from these checks.
+
+## Output publication and public rollback (C1)
+
+The isolated, unaccepted [C1 implementation](RELATIVISTIC_OUTPUT_PUBLICATION_PLAN.md)
+factors this unchanged input predicate for scalar output admission. In that
+candidate, Boris and priming retain a supported native result or use their
+existing accurate cold stage; an unsupported rounded result raises
+`ArgumentError`. Its initialization validates both required relativistic species
+before changing gathers, deposition or clocks, and its public relativistic
+EMPIC steps use a reusable undo workspace. Current-main source integration and
+acceptance remain pending. These are a separate compatibility and storage change
+from `43881de` above; the linked tracker owns C1 verification.
+
+## Planned domain and state extensions
+
+These are unimplemented follow-ons. C1 must first pass its isolated and
+current-main acceptance gates. Root owns sequencing and integration; the
+kinematics track owns the numerical contract. Neither follow-on may reinterpret
+a velocity already stored by the existing API as hidden authoritative momentum.
+
+| Stage | Canonical change | Required acceptance |
+| --- | --- | --- |
+| C2.1 exact stored domain | Inventory every gamma, velocity validator, diagnostic, prime, push, radiation and persistence caller; specify exact stored `sum(vᵢ²) < c²` admission, including vectors whose rounded beta² is at least one | Independent exact classification over all retained C1 inputs, both boundary sides, signed zeros, subnormals, nonunit c and mixed stored BigFloat precisions/modes; no caller left on a conflicting predicate |
+| C2.2 conditioned arithmetic | Extend the existing original-component Lorentz-gap owner and exponent-safe stage arithmetic before changing public admission | Independent stage references at successively increased precision with stable target rounding; few-ulp normwise bounds fixed before measurement; supported C1 histories retain their original bits; explicitly reject an unrepresentable required result without mutation |
+| C2.3 complete integration | Apply the agreed domain to initialization, every required species, radiation, energy/momentum diagnostics, checkpoint/archive validation and restart | First and established public steps, changed dt/subcycles, mobile/ignored ions, failure rollback, task precision/rounding restoration and restart continuation; no clipping or beta² tolerance |
+| C3.1 state decision | Choose one explicit authoritative state and public mutation contract after comparing a dedicated momentum species type with a versioned extension of existing storage | Document which API owns x, momentum, charge/mass and any derived velocity; no two writable authoritative representations or silently stale cache; determine compatibility and migration before production edits |
+| C3.2 momentum evolution | Integrate prime, Boris/field coupling, radiation and drift with that authority; derive velocity for consumers without reconstructing gamma from a rounded near-light velocity | Electric acceleration and magnetic rotation with independent momentum/energy references, radiation balance, extreme finite scale/cancellation and timestep convergence; define supported momentum/exponent bounds and distinguish physical growth from arithmetic range failure |
+| C3.3 persistence and backends | Version the authoritative payload and staggered phase; route diagnostics, checkpoints, archives and accepted backend kernels through it | Fresh and changed-population restart, malformed/old payload migration or explicit rejection, corruption atomicity, actual CPU/device/MPI intersection gates; no resident/distributed capability claim from host-only coverage |
+
+C2 expands which stored vectors can be evaluated. It cannot require every
+physical interior velocity to have an admissible independently rounded tuple.
+An axial tuple rounded to exactly c still requires rejection under a
+velocity-authoritative contract. C3 addresses that representation limitation;
+its domain and migration are decisions to settle before implementation.
+
+Initial source inventory for C2 in the isolated C1 candidate (the full
+cross-backend caller graph is still pending):
+
+| Owner | C1 candidate contract to preserve or migrate |
+| --- | --- |
+| `kinematics_range.jl`: `_subluminal_velocity_supported`, `_conditioned_lorentz_factor`, `_exact_lorentz_gap` | Shared narrow admission and conditioned original-component gap; widening admission before extending its consumers is insufficient |
+| `boris.jl`: `_require_subluminal_velocities` | Public particle/species validation delegates to the shared domain |
+| `full_pic.jl`: `_boris_rel_parts`, `_boris_rel_native`, both prime/init/step owners | Native and repaired stages, batch bypass, publication and complete public-step rollback |
+| `extrapolated_leapfrog.jl`: `_prime_leapfrog_loop!` | General priming uses the shared input/output policy |
+| `radiation_reaction.jl`: `_radiation_reaction_generic!` | Generic native gamma currently forms a squared norm directly; IEEE factor arithmetic has its own exact-completion contract and must retain its validated bits |
+| `extrapolated_leapfrog.jl`: `kinetic_energy_relativistic`, `_kinetic_energy_relativistic_exact` | Energy already resolves both uncertain sides from exact stored components and explicitly documents a broader domain than the pusher; C2 must not narrow this existing diagnostic |
+| `checkpoint.jl`: `_validate_checkpoint_state` for electromagnetic steppers | Both required saved species use the shared validation; preserve validation-before-publication and restart phase |
+
+Freeze resource budgets before either implementation. Measure ordinary,
+boundary and rejected complete calls separately on the minimum and latest
+Julia. For C3, record persistent bytes per particle, any derived-vector traffic,
+per-step allocation, retained storage after population changes and exact
+synchronization/transfer ownership. Require matched complete compiler trees,
+actual frame fields and source-backed review of every difference; report counts
+alone cannot accept either stage. Add latency/scaling acceptance only with a
+fixed workload and a valid paired calibration. Push each accepted stage
+separately and require all six exact-SHA normal CI jobs.
+
+- [ ] C2 caller inventory and supported-range/rounding contract.
+- [ ] C2 original-component numerical implementation and independent oracles.
+- [ ] C2 end-to-end, resource, compiler, persistence and CI acceptance.
+- [ ] C3 authoritative state/mutation/schema decision and pre-edit budget.
+- [ ] C3 canonical evolution and diagnostics with independent trajectory tests.
+- [ ] C3 migration/restart/backend integration, resource and exact-SHA CI gates.

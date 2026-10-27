@@ -1,6 +1,10 @@
 # Metal uniform-field particle push
 
-Status: 2026-10-23; parent stack overflow reproduced on an actual Metal device.
+Revision-scoped implementation record. The baseline failures and candidate
+acceptance states below are historical; see the [audit tracker](DEEP_DEBUG_TRACKER.md)
+for current integration and remaining work.
+
+Recorded status: 2026-10-23; parent stack overflow reproduced on an actual Metal device.
 
 ## Pre-edit brief
 

@@ -13,7 +13,7 @@ the repository root:
 # Instantiate the package environment once
 julia --project=. -e 'using Pkg; Pkg.instantiate()'
 
-# Run the whole suite (this is exactly what CI runs)
+# Run the whole suite (CI also enables coverage)
 julia --project=. -e 'using Pkg; Pkg.test()'
 ```
 

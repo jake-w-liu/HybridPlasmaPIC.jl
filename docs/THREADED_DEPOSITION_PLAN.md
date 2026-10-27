@@ -1,6 +1,10 @@
 # Threaded deposition storage checks
 
-## Confirmed failure
+Revision-scoped implementation record. The baseline failures and candidate
+acceptance states below are historical; see the [audit tracker](DEEP_DEBUG_TRACKER.md)
+for current integration and remaining work.
+
+## Confirmed baseline failure
 
 **VERIFIED:** `deposit_scalar_threaded!(vals, ps, vals, g, NGP())` clears
 `[1,2,3,4]` to zeros instead of rejecting the overlapping output and values.

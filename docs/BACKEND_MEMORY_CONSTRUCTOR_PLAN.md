@@ -1,6 +1,10 @@
 # Backend memory-status constructor consistency
 
-Status: pushed as `c810eb0`; both native correctness/compiler and fixed cost
+Revision-scoped implementation record. The pre-edit findings and candidate
+acceptance states below are historical; see the [audit tracker](DEEP_DEBUG_TRACKER.md)
+for current integration and remaining work.
+
+Recorded status: pushed as `c810eb0`; both native correctness/compiler and fixed cost
 lanes pass. [Exact-SHA CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40005434857)
 remains required. Parent:
 `ba3694c` (production GPU owner unchanged from `61356f1`). Evidence: `../HybridPlasmaPIC-audit-evidence/2026-10-23/backend-constructor`.

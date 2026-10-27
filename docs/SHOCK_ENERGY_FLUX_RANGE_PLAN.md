@@ -1,6 +1,10 @@
 # Shock boundary energy-flux range
 
-Status: ENERGY-008 is repaired in the isolated canonical V2 integration.
+Revision-scoped implementation record. The pre-edit findings and candidate
+acceptance states below are historical; see the [audit tracker](DEEP_DEBUG_TRACKER.md)
+for current integration and remaining work.
+
+Recorded status: ENERGY-008 is repaired in the isolated canonical V2 integration.
 Native focused, concurrency, resource, shock-regression and full compiler
 comparison gates pass on both runtimes. Exact-SHA CI acceptance remains open.
 

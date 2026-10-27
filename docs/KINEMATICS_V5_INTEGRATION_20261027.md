@@ -68,7 +68,7 @@
 - [x] Review task-owned source, documentation, validation and complete diff;
   prepare the reviewable handoff and apply-check it against clean b583e41.
 - [x] Root: merge into current main and push as `fd0a168`.
-- [ ] [All six exact-SHA GitHub CI jobs](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40407584532).
+- [x] [All six exact-SHA GitHub CI jobs](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40407584532).
 
 Frozen V5 evidence and its limitations remain in
 `KINEMATICS_AUDIT_20261027.md` and `PARTICLE_PRIMING_INTERVALS.md`.

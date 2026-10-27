@@ -1,6 +1,14 @@
 # Isothermal energy accuracy — ENERGY-006
 
-Status: defects confirmed on Julia 1.12.7 and 1.13.2. Public v2 is frozen and
+Revision-scoped implementation record. The baseline failures and candidate
+acceptance states below are historical; see the [audit tracker](DEEP_DEBUG_TRACKER.md)
+for current integration and remaining work.
+
+The numerical repair landed as `6e7fb01`, followed by traversal optimization
+`5323c4d`. The pre-promotion status below is retained as history; it does not
+claim that the public repair is still unpushed.
+
+Recorded pre-promotion status: defects confirmed on Julia 1.12.7 and 1.13.2. Public v2 is frozen and
 under verification. Public v3 separately integrates verified traversal optimizations;
 no public isothermal repair has been pushed. Public v1
 remains unaccepted because a fresh resource witness found excessive allocation.

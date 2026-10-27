@@ -1,6 +1,11 @@
 # MPFR 4.2.2 shared-cache precision race
 
-Prepared report, not submitted. The reproducer uses C and pthreads; it does not
+Historical prepared report, not submitted. Its fixed-sample counts refer to the
+recorded builds; some temporary paths are no longer available. Use the
+[current investigation and sealed design](MPFR_CONCURRENCY_PLAN.md) for fresh
+evidence and remaining runtime work.
+
+Prepared report scope: The reproducer uses C and pthreads; it does not
 load Julia or HybridPlasmaPIC. The source inspected is the official MPFR 4.2.2
 release, not current development HEAD.
 

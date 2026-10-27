@@ -1,5 +1,9 @@
 # Local Coulomb physical-rate integration
 
+Revision-scoped implementation record. The pre-edit findings and candidate
+acceptance states below are historical; see the [audit tracker](DEEP_DEBUG_TRACKER.md)
+and [local collision guide](LOCAL_COULOMB.md) for current scope.
+
 Status: the integrated candidate repairs the confirmed V10 branch discrepancy
 on both Julia targets. Numerical boundary and range checks pass; minimum-runtime statistics and thermal checks pass. The broader factor matrix
 confirms finite-draw rejection, and ordinary allocation/private-caller gates

@@ -1,6 +1,10 @@
 # PIC005 first slice — normalized continuity diagnostic
 
-Status: diagnostic range repair verified on Julia 1.12.7 and 1.13.1. Current correction, Poisson/Gauss transform range and severe FFT cancellation accuracy remain open.
+Revision-scoped implementation record. The pre-edit findings and candidate
+acceptance states below are historical; see the [audit tracker](DEEP_DEBUG_TRACKER.md)
+for current integration and remaining work.
+
+Recorded status: diagnostic range repair verified on Julia 1.12.7 and 1.13.1. Current correction, Poisson/Gauss transform range and severe FFT cancellation accuracy remain open.
 
 - **Mode:** Repair. Complete the existing public `charge_conservation_residual` expression on selected range-sensitive finite inputs, retaining its ordinary implementation and FFTW accuracy model.
 - **Requirement and acceptance criteria:** Both EMPIC1D and general EMPIC D1–3 must evaluate the represented-mode `max(abs(Δrho + dt*div(J)))/max(abs(Δrho))` (or denominator1 when represented Δrho is zero) without first requiring the density difference, intermediate Fourier coefficients, inverse butterflies, standalone divergence, timestep product, or numerator/denominator maxima to fit in T. All original finite rho/J/dt operands survive until composition. True DC charge drift stays visible; only non-DC all-null effective wavevectors are excluded. Exact integer-root DFT witnesses cover both signs, finite and zero residuals, M±tiny bands, cancellation, all axes, coupled components, and finite ratios of unrepresentable maxima. Existing ordinary return values and allocations must remain measured-equivalent; exceptional costs and limits must be recorded. No claim of an exact arbitrary-grid DFT or complete PIC005 closure.

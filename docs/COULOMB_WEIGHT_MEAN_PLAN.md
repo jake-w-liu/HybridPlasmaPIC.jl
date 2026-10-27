@@ -1,6 +1,10 @@
 # Coulomb population-weight normalization repair
 
-Status: V2 passes final local verification on Julia 1.12.7 and 1.13.2;
+Revision-scoped implementation record. The pre-edit findings and candidate
+acceptance states below are historical; see the [audit tracker](DEEP_DEBUG_TRACKER.md)
+for current integration and remaining work.
+
+Recorded status: V2 passes final local verification on Julia 1.12.7 and 1.13.2;
 promotion and exact-SHA CI review remain. V1 is retained unaccepted after the
 coarse-BigFloat follow-up.
 This is a separate repair after the sampled-angle/update slice.

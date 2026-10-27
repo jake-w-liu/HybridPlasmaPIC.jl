@@ -1,5 +1,9 @@
 # Ray Tracing (Geometric Optics) for Hybrid Wave Branches — Design
 
+Historical design/port record. Implementation and later repairs supersede
+its planning state; use the [README](../../../README.md#ray-tracing) for the
+current interface and the [audit tracker](../../DEEP_DEBUG_TRACKER.md) for open work.
+
 Date: 2026-07-05
 Status: approved for implementation (autonomous session; assumptions stated inline)
 

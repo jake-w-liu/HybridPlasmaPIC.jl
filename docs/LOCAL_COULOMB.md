@@ -71,13 +71,16 @@ sampling failures leave particle state unchanged; RNG and scratch may have
 advanced. Positions, weights, identifiers, tags, charges and masses are unchanged. The result is the
 same species collection supplied by the caller.
 
-This is a stand-alone operator. A coupled field integrator must choose an
-explicit collision splitting and apply it at consistent particle time levels.
-The package does not yet provide that composed integrator or store this external
-RNG in simulation checkpoints. For exact continuation, retain the evolved RNG
-alongside the ordered particle state and preserve the execution environment;
-recreate the derived workspace. GPU and distributed collision execution remain
-separate implementation work.
+This call is a stand-alone operator. For coupled evolution, the package provides
+[`CollisionalHybridStepper`](COLLISIONAL_HYBRID.md) with fixed-step, first-order
+CPU isothermal splitting and RNG-complete checkpoint/archive continuation.
+Its supported models, time levels and failure semantics are narrower than this
+stand-alone collision API; use that guide when choosing the composed run.
+
+A stand-alone call's external RNG is not automatically captured by particle
+checkpoints. Retain that evolved RNG alongside the ordered particle state and
+preserve the execution environment; recreate the derived workspace. GPU and
+distributed collision execution remain separate implementation work.
 
 The [implementation tracker](LOCAL_MULTISPECIES_COULOMB_PLAN.md) records the
-verification evidence and remaining composed-evolution/backend/restart gates.
+verification history and remaining composition/backend scope.

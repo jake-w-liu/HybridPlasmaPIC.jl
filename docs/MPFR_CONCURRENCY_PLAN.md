@@ -1,9 +1,18 @@
 # Concurrent BigFloat runtime investigation
 
 Status: the native MPFR shared-cache defect is reproduced on Julia 1.12.7,
-1.13.1, 1.13.2 and, in the refresh below, 1.13.3. A temporary native repair passes the
-focused C reproducer. Installed Julia libraries are unchanged; runtime
-integration remains open.
+1.13.1, 1.13.2 and 1.13.3. Fresh private-cache native controls pass their bounded
+suite, but the copied-runtime experiment stops at its fresh-worker exponent
+range gate. The canonical Julia integration design is sealed and source-reviewed;
+the runtime correction is not accepted. Implementation, build, lifecycle and
+platform gates remain open. Installed Julia libraries are unchanged and NUM-001
+remains open.
+
+The earlier experiments below are historical records. Their temporary build
+paths are absent in the takeover environment and are not fresh acceptance
+evidence. The [fresh native/runtime tracker](#fresh-native-build-and-integration-tracker-2026-10-27)
+and [sealed integration design](#sealed-canonical-julia-integration-design) distinguish
+retained native results, failed runtime gates and unimplemented work.
 
 The radiation-candidate references below describe historical experiments.
 The landed fixed-width particle radiation path uses native/scaled arithmetic
@@ -245,11 +254,49 @@ Julia libraries remain unchanged.
 | --- | --- | --- |
 | R1 source/recipe | Native build and source pins checked | Portable target and relocatable dependency configuration |
 | R2 native suite/controls | Complete upstream suite and fixed native sample pass | Recheck against the exact GMP selected for any new runtime artifact |
-| R3 runtime selection | Reviewed task-local copied-prefix implementation is starting | Select the corrected library before Base initialization; retain one matched GMP |
-| R4 ABI/GC | Native layout and symbol owners checked | Actual Julia allocation, finalization, GC callbacks and loaded-library ownership |
+| R3 runtime selection | Copied official prefix selects the exact corrected MPFR/GMP pair; H stops at fresh-worker range gate (exit 3) | Canonical Julia-owned thread initialization and input admission; no numerical consumers after H |
+| R4 ABI/GC | Bounded loaded Julia/native layout, symbol owners and allocator identities checked before the H stop | Actual allocation/finalization/GC and thread-exit behavior of a newly implemented canonical runtime |
 | R5 concurrency | Stock Julia still fails; corrected native sample passes | Fresh-thread Julia constants, precision/rounding/exponent contexts and all declared processes |
 | R6 consumers/resources | Pending corrected Julia runtime | Timestep and remaining BigFloat consumers; bounded storage/cost gates |
-| R7 artifact/launcher | Unimplemented | Provenance, relocatability, signing, clean caches and immutable selection |
+| R7 artifact/launcher | Copied-prefix provenance/signing and scoped MPFR/GMP relocation measured; full-prefix G remains unmet | Broad dependency closure and SuiteSparse operations, clean caches and distributable immutable selection |
 | R8 child/MPI | Unimplemented | Every child/rank uses the same verified artifact |
 | R9 platforms/CI | Unimplemented | Minimum/latest Julia and every claimed target/platform |
 | R10 closure | Open | Fresh independent audit; no claim that ordinary stock launches are repaired |
+
+## Sealed canonical Julia integration design
+
+The source/contract phase is frozen in the dated external evidence directory
+`mpfr-runtime-julia-integration-contract-v1/`. Root independently checked the
+1,983 evidence pins, 1,818 unchanged Julia source pins, 43 source files / 85 cited
+spans and the review hashes. The whole-evidence manifest SHA-256 is
+`9b7330865a6c001ce1dc9e92fd8a937acdbd6e2da2acd6b9d65845f8fc24389e`.
+This accepts the sealed design; it does not accept an implemented or loaded
+runtime correction.
+
+The checked call inventory covers 132 public MPFR symbols at 114 owned Julia
+sites. It proposes 111 typed same-native-frame forwarders, one operand-role
+owner, intrinsic TLS/private-cache mode rejection during initialization, and
+Julia-owned initial-thread/worker context setup. Adopted and existing foreign
+callback contexts remain caller-owned. Sign-only copysign donors, metadata
+queries, raw limb/IEEE/identity paths and arbitrary-format internal helpers keep
+their explicit exceptions. No arithmetic lock, warmup, retry or per-call context
+reset is proposed.
+
+Bounded native probes establish zero GMP allocation for the measured scalar
+getter/setter hook phase, nonempty local-cache cleanup without new allocation,
+and valid sign-donor/alias/format-role behavior. They do not establish Julia GC,
+foreign destructor ordering, permanent-worker lifetime bounds, other platforms
+or concurrent numerical safety. Cache cleanup belongs at actual registered
+thread exit while allocator accounting is live; suspended workers and
+`jl_atexit_hook` do not imply thread exit or zero retained caches. Pre-init host
+GMP allocator ownership remains an explicit external-client contract.
+
+Implementation proceeds in a new isolated source candidate, with canonical matched GMP and
+native MPFR, a separately recorded private-depot build-isolation diff, and
+native signature/link/initializer/exit-hook checks before coordinated heavy
+builds. Direct GC-thread snapshots require a separately reviewed diagnostic
+core variant, not user tasks scheduled onto GC workers. Fresh raw thread state
+must pass before numerical consumers. The P0–P10 implementation/loader/context/
+resource/consumer/platform gates are preserved in that sealed handoff; R3–R10
+above remain open. No package runtime-distribution API, installed/default
+runtime replacement, upstream submission or public artifact is supplied.

@@ -74,11 +74,12 @@ so outputs correspond to the current case selection.
 | `32_magnetic_reconnection` | hybrid Harris sheet | coherent-mode growth versus uniform-field control; mechanism/rate validation remains open | all |
 | `33_raycon_paper_validation` | ray propagation and mode conversion | exact Tracy identities and figure-derived Jaun targets | all |
 | `34_production_parallel_dispersion` | evolved cold parallel hybrid/Hall waves | independent continuum/discrete equations, signed frequency/rate fits and refinement | all |
+| `35_production_oblique_hall` | evolved oblique periodic Hall-MHD waves | independent fluid branches, signed complex-history frequency/rate fits and fourth-order time refinement | all |
 
 The default cases use deterministic inputs. Each non-default case documents
 its own initialization, reference assumptions and fixed acceptance limits.
-Case 34 uses production complex histories, signed frequency/rate fits and
-independent refinement; conditional fit errors are separate from discretization
+Cases 34 and 35 use production complex histories, signed frequency/rate fits
+and independent refinement; conditional fit errors are separate from discretization
 and correlated-particle uncertainty. `validation/Project.toml` installs `HDF5`,
 `PencilArrays`, and
 `PencilFFTs`, so the extension validations are expected to run and pass when the

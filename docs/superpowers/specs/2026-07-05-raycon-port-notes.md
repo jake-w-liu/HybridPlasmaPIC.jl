@@ -1,5 +1,9 @@
 # RAYCON → HybridPlasmaPIC.jl Porting Notes (working reference)
 
+Historical design/port record. Implementation and later repairs supersede
+its planning state; use the [README](../../../README.md#ray-tracing) for the
+current interface and the [audit tracker](../../DEEP_DEBUG_TRACKER.md) for open work.
+
 Source: `/Users/jake/PlasmaWorkspace/raycon` (MATLAB, Jaun–Kaufman–Tracy, v7.0 2006,
 plus Steve Richardson's modifications). All 20 `.m` files read end-to-end on
 2026-07-05. This file is the durable extraction of every algorithm needed for the
@@ -196,7 +200,7 @@ dDijdq = eq·gDij, dDijdp = ep·gDij with gDij = [dDijdr, dDijdz, dDijdkr, dDijd
 H11 = 2dD11dq·dD22dq − 2dD12dq·conj(dD12dq); H22 same with p;
 H12 = dD11dq·dD22dp + dD11dp·dD22dq − 2Re(dD12dq·conj(dD12dp));
 dUdq = dD11dq·D22 + D11·dD22dq − 2Re(D12·conj(dD12dq)); dUdp analogous.
-Conversion estimates: detH=H11·H22−H12²; Hm = inv; 
+Conversion estimates: detH=H11·H22−H12²; Hm = inv;
 eta2 = 0.5/√|detH| · |Hm11·dUdq² + 2Hm12·dUdq·dUdp + Hm22·dUdp²| (Tracy eq 26);
 qst = Hm11·dUdq + Hm12·dUdp; pst = Hm21·dUdq + Hm22·dUdp;
 zinzst = −(qst·eq + pst·ep) (4-vector); saddle guess z* = z + zinzst ('Sdl'),

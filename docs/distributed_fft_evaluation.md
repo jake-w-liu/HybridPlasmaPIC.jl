@@ -35,7 +35,8 @@ rank agreement before topology creation and collective reporting of recoverable
 local validation/planning errors. Its complete first matrix passes on 1, 2, 4
 and 8 ranks with Julia 1.12.7 and 1.13.2, including serial references for eleven
 transform families. Final acceptance is tracked in that plan. Distributed field
-operators and coupled domain-owned evolution remain separate open stages.
+operators are now implemented under the [operator contract](DISTRIBUTED_OPERATOR_IMPLEMENTATION_PLAN.md);
+coupled domain-owned evolution remains open.
 
 The [roundtrip diagnostic repair](DISTRIBUTED_FFT_DIAGNOSTIC_PLAN.md) supports
 in-place FFT!, RFFT! and R2R! through their input view and shared output container.

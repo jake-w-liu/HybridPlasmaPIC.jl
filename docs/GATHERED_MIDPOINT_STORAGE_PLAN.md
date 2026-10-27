@@ -48,7 +48,7 @@ outside the writable-output contract.
   on Julia 1.12.7 and 1.13.3; actual Metal parity and preflight rejection.
 - [x] Root integration repeats CPU, actual-Metal, resource and compiler gates.
 - [x] Separate main push as `a79a07b`.
-- [ ] [All six exact-SHA CI jobs](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40400955427).
+- [x] [All six exact-SHA CI jobs](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40400955427).
 
 Each runtime passes 5,230 CPU and 416 actual-Metal assertions. All 54 matched
 public state/allocation profiles retain their parent results; measured byte

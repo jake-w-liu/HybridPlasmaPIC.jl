@@ -1,6 +1,10 @@
 # Interval validation allocation
 
-Status: final local acceptance passes on Julia 1.12.7 and 1.13.2;
+Revision-scoped implementation record. The baseline failures and candidate
+acceptance states below are historical; see the [audit tracker](DEEP_DEBUG_TRACKER.md)
+for current integration and remaining work.
+
+Recorded status: final local acceptance passes on Julia 1.12.7 and 1.13.2;
 separate promotion and exact-commit CI remain required.
 Parent: `e8925e8663883832b6ffe453a559ac7be1903ae3`.
 

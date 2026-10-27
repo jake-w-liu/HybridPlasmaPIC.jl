@@ -61,7 +61,8 @@ to the parent.
   and actual frame field equal under repository-root substitution only.
 - [x] Complete independent final source/evidence review and docs; preserve all
   generated coverage files and verify the primary worktree files unchanged.
-- [ ] Push this optimization separately to main and pass all six exact-SHA jobs.
+- [x] Push this optimization separately to main as `cd8b94d`.
+- [ ] Complete all six exact-SHA jobs; see the [current audit tracker](DEEP_DEBUG_TRACKER.md).
 
 The old resource fixture's 95% reduction target compared against the pre-hoist
 implementation. This follow-up retains its complete fixture inventory and

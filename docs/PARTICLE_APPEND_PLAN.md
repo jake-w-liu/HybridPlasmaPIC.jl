@@ -1,6 +1,10 @@
 # Particle-growth audit
 
-Status: revised repair passes local correctness, integration, compiler and
+Revision-scoped implementation record. The pre-edit findings and candidate
+acceptance states below are historical; see the [audit tracker](DEEP_DEBUG_TRACKER.md)
+for current integration and remaining work.
+
+Recorded status: revised repair passes local correctness, integration, compiler and
 resource gates on both supported runtimes. Exact-commit GitHub acceptance
 remains required. The cross-species backing-storage witness rejects V3 and
 the first rank-integration snapshot; neither is the promoted source.

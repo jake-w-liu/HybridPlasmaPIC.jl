@@ -1,5 +1,9 @@
 # Local physical-rate allocation repair
 
+Revision-scoped implementation record. The pre-edit findings and candidate
+acceptance states below are historical; see the [audit tracker](DEEP_DEBUG_TRACKER.md)
+and [local collision guide](LOCAL_COULOMB.md) for current scope.
+
 The held V3 candidate passes the numerical, allocation, state/RNG and compiler
 checks listed below on Julia 1.12.7 and 1.13.2, including neighboring tests and
 executable examples. The final audit checks 9,017 source/evidence invariants.

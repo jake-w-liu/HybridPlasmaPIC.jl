@@ -1,8 +1,10 @@
 # Domain-owned periodic operators: CAP-003A/B
 
 Design source review: 2026-10-26. HPIC `00f7922`; sibling SpectralOperators
-`cc515cf`, version 0.1.2. This is an implementation contract, not an accepted
-operator or solver. The main completeness plan remains the scope owner.
+`cc515cf`, version 0.1.2. These identify the initial design baseline. Stages
+P–D later landed; the [audit tracker](DEEP_DEBUG_TRACKER.md) owns their accepted
+revisions and CI. Resource/scaling closure and coupled distributed solvers remain
+open under the [completeness plan](PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md).
 
 ## Checked architecture and pre-edit brief
 
@@ -11,7 +13,7 @@ operator or solver. The main completeness plan remains the scope owner.
   gradient, divergence, curl, Laplacian, solenoidal projection and existing filters
   use owned cells and planned transposes. No full-field gather in these operations.
   Serial FourierGrid remains the numerical and compatibility reference.
-- VERIFIED source gap: HPIC's Pencil extension exposes transforms and a diagnostic,
+- VERIFIED pre-edit source gap: HPIC's Pencil extension exposed transforms and a diagnostic,
   but no distributed field operator. `HybridFields` and existing stepper workspaces
   retain global Array storage; this stage does not imply a distributed stepper.
 - Canonical owners: SpectralOperators owns signed modes, odd-derivative Nyquist
@@ -47,10 +49,10 @@ layouts. Multipliers must therefore consume the output's logical global indices.
 
 ## Public storage and lifecycle contract
 
-Proposed entry: `distributed_fourier_grid(n, L; comm=MPI.COMM_WORLD)` with matching
-Float32 or Float64 domain lengths, plus a constructor helper that allocates a
-real field on the workspace's physical input layout. Final names are fixed before
-production edits and recorded in the next pre-edit brief.
+Implemented entries: `distributed_fourier_grid(n, L; comm=MPI.COMM_WORLD)`
+with matching Float32 or Float64 domain lengths, and `distributed_field(grid)`
+for a real field on the workspace's physical input layout. Their detailed
+[Stage B contract](DISTRIBUTED_DERIVATIVE_PLAN.md) retains the original design history.
 
 Use an out-of-place full-complex FFT first, matching the serial mode convention.
 Keep one reusable physical complex input, reusable spectral component buffers and

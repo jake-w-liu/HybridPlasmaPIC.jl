@@ -1,6 +1,10 @@
 # Archive payload inference repair
 
-Status: JET-002 implemented and focused gates passed on both native versions;
+Revision-scoped implementation record. The pre-edit findings and candidate
+acceptance states below are historical; see the [audit tracker](DEEP_DEBUG_TRACKER.md)
+for current integration and remaining work.
+
+Recorded status: JET-002 implemented and focused gates passed on both native versions;
 pushed as `6341c4b`. Full-package integration runs are in progress.
 
 ## Pre-edit brief
