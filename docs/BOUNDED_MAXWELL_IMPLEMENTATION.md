@@ -12,8 +12,12 @@ checks the complete executable AST under an explicit source-line metadata
 contract, idempotence and 12 checker controls. The immutable postformat source
 has 616 files. All seven environment/provider commands exit zero on actual
 Julia 1.12.7/1.13.3; full package/selected-provider records match per runtime.
-Complete loaded-image provenance review and numerical/resource/compiler
-acceptance remain open. It does not
+Root accepts the exact cache/native/header/embedded-source metadata proof on
+both runtimes (248/245 assertions). Both syntax parsers pass. The first normal
+minimum-runtime focused run retains 119,470 passes and 12 allocation failures:
+192 B against the unchanged 0 B gate. Its numerical/neighbor assertions pass;
+allocation ownership is under investigation. Latest focused and later
+CRC/compiler/resource/full-package gates remain held. It does not
 implement a coupled force, particle pusher, wall event or restart. The
 [audit tracker](DEEP_DEBUG_TRACKER.md) owns current acceptance.
 

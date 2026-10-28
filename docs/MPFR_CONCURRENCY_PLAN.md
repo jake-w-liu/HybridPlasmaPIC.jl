@@ -17,9 +17,16 @@ GCChecker diagnostics for external calls from helpers annotated NOTSAFEPOINT.
 The reviewed repair retains the early initializer's contract with eight local
 constant/TLS metadata declarations and removes the cleanup annotation because
 cleanup calls the current GMP free callback. Its existing caller enters a live
-GC-unsafe region before teardown. This two-file repair is being prepared in a
-new isolated source copy; the failed analysis and original source are preserved.
-No checker exemption or runtime-safety conclusion follows. Threading
+GC-unsafe region before teardown. The two-file correction is written in a new
+isolated copy. Four matched 119-type checks and eight complete JSON/text AST
+captures are collected; the positive metadata/cleanup GCChecker control exits
+zero, while both intended invalid cleanup/math controls exit nonzero at their
+exact call sites. Six ordinary strict checks/captures and the separate parent
+type collection are carried unchanged. Earlier include-order and extra blanket
+Werror harness failures remain failed. The final analyzer collection follows the
+original target warning policy and retains all header warnings. Complete
+source-backed warning/AST acceptance and the original Make targets remain open;
+no checker exemption or runtime-safety conclusion follows. Threading
 analysis, Julia bootstrap, numerical consumers, GC/lifecycle, P4 child/depot and
 platform gates remain unaccepted.
 Installed Julia libraries are unchanged and NUM-001

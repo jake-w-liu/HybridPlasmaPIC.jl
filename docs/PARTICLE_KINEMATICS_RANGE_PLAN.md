@@ -106,8 +106,8 @@ the overflow midpoint. The represented product rounds to 32768 and the native
 sum returns 65504. This is within the absolute normwise tolerance but violates
 the separate nearest-overflow contract already enforced by `normwise_ok`.
 The canonical drift admission/repair and all scalar/batch/public/backend callers
-need a separate range-classification repair. No tolerance change or repaired
-implementation is claimed.
+need a separate range-classification repair. Current main retains this gap;
+no tolerance change is proposed.
 
 A second independent 18-input replay now confirms the cold-endpoint failure on
 both runtimes. Set dt*v exactly to O=M+ulp(M)/2 and x=-D, where D is the minimum
@@ -120,6 +120,25 @@ recorded. Root checks all 18 inputs / 90 observations per runtime in
 `takeover/p1-coordinate-wide-endpoint-actual-root-review-v1.json`.
 The scalar repair must use exact overflow classification in both directions;
 replaying only native nonfinite results in a wider hardware type is insufficient.
+
+An isolated root repair now preserves the raw expression, certifies inner-half
+finite results and uses exact rational classification for unresolved finite
+inputs. A separate actual Float16 shifted-view witness invalidates the old
+pre-pass bound: stored velocity grows from an initial maximum 600 to 21,840,
+exceeding the recorded bound 9,600; the final exact coordinate is the overflow
+tie minus one minsubnormal. The candidate guards overlapping particle storage
+and shock field/particle storage instead of rejecting it. Both runtimes pass
+2,620 new endpoint/bit/alias assertions and 108 paired scalar/public allocation
+profiles each; all 36 ordinary profiles per runtime retain 0 B. Independent
+IEEE dyadic decoding checks the 216 recorded first outputs per runtime against
+the original range/four-ulp rule. Cold exact costs are retained and disclosed.
+Both runtimes also pass all 46,725 existing kinematics assertions. Complete
+compiler/Aqua collections finish on both parents and candidates; all 87 candidate
+concrete analyses are empty, while full-package diagnostic comparison remains
+under review. Caller/rollback/device/format/integration/CI gates remain open. The first compiler harness failed
+by requesting the new candidate-only method on the parent; that failed capture
+is preserved and its explicit parent/candidate comparison is corrected. This
+is unmerged implementation progress, not current-main acceptance.
 
 ## Verification
 
