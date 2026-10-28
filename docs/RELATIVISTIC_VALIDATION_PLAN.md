@@ -108,8 +108,8 @@ both required relativistic species before changing gathers, deposition or
 clocks. Public relativistic EMPIC steps use a reusable undo workspace.
 Current-main local numerical, source, resource, device and formatting gates are
 accepted, including an explicit complete matched compiler disposition that
-retains the inherited failed zero-report assertions. Separate main publication
-and exact-SHA CI remain pending in the linked tracker. This is a separate
+retains the inherited failed zero-report assertions. C1 is pushed as `1bc618b`;
+exact-SHA CI acceptance belongs in the linked tracker. This is a separate
 compatibility and storage change from `43881de` above.
 
 ## Planned domain and state extensions

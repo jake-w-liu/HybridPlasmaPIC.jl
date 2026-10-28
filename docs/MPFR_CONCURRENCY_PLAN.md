@@ -3,12 +3,18 @@
 Status: the native MPFR shared-cache defect is reproduced on Julia 1.12.7,
 1.13.1, 1.13.2 and 1.13.3. Fresh private-cache native controls pass their bounded
 suite, but the copied-runtime experiment stops at its fresh-worker exponent
-range gate. The canonical Julia integration source is sealed and reviewed. Actual task-only
-copy/configuration, canonical GMP/signature, source attestation, MPFR compilation
-and native test build gates pass. The new 198-program native suite fails in the
-uninstalled test loader because it cannot resolve staged GMP; the raw failures
-are retained and provider fixture correction is pending. Install/core build,
-Julia loading, lifecycle and platform gates remain unaccepted. Installed Julia libraries are unchanged and NUM-001
+range gate. The canonical Julia integration source is sealed and reviewed.
+The unchanged 198-program native suite passes 195 tests plus three original
+format skips against its exact private GMP. Private MPFR installation, default
+dependencies, release/debug core compilation and strict link/signature checks
+pass. Corrected prebootstrap fixtures pass the stock negative control and both
+actual cores: 12 serial thread contexts, 36 state snapshots and 517 exact symbol
+owner records. The helper widens only the positive controls' exponent ranges,
+preserves flags/precision/rounding and makes zero measured GMP allocations.
+Original loader and test-fixture failures remain retained. Static-analysis
+dependency installation passes; analyzer gates remain. Julia bootstrap, numerical consumers,
+GC/lifecycle, P4 child/depot and platform gates remain unaccepted.
+Installed Julia libraries are unchanged and NUM-001
 remains open.
 
 The earlier experiments below are historical records. Their temporary build
@@ -273,12 +279,12 @@ The source/contract phase is frozen in the dated external evidence directory
 1,983 evidence pins, 1,818 unchanged Julia source pins, 43 source files / 85 cited
 spans and the review hashes. The whole-evidence manifest SHA-256 is
 `9b7330865a6c001ce1dc9e92fd8a937acdbd6e2da2acd6b9d65845f8fc24389e`.
-This accepts the sealed design; it does not accept an implemented or loaded
-runtime correction.
+This records the design review. The subsequent static implementation and
+native build gates below do not establish a loaded runtime correction.
 
 The checked call inventory covers 132 public MPFR symbols at 114 owned Julia
-sites. It proposes 111 typed same-native-frame forwarders, one operand-role
-owner, intrinsic TLS/private-cache mode rejection during initialization, and
+sites. The static candidate implements 111 typed same-native-frame forwarders, one
+operand-role owner, intrinsic TLS/private-cache mode rejection during initialization, and
 Julia-owned initial-thread/worker context setup. Adopted and existing foreign
 callback contexts remain caller-owned. Sign-only copysign donors, metadata
 queries, raw limb/IEEE/identity paths and arbitrary-format internal helpers keep
@@ -294,10 +300,16 @@ thread exit while allocator accounting is live; suspended workers and
 `jl_atexit_hook` do not imply thread exit or zero retained caches. Pre-init host
 GMP allocator ownership remains an explicit external-client contract.
 
-Implementation proceeds in a new isolated source candidate, with canonical matched GMP and
-native MPFR, a separately recorded private-depot build-isolation diff, and
-native signature/link/initializer/exit-hook checks before coordinated heavy
-builds. Direct GC-thread snapshots require a separately reviewed diagnostic
+The isolated static candidate is sealed in `mpfr-runtime-julia-candidate-v1/`;
+root checks 4,107 evidence pins and all 1,796 source entries. Its actual native
+preparation/suite/install/dependency and release/debug core gates pass with
+canonical matched GMP/native MPFR and an isolated depot. Root independently
+checks all 755 continuation pins and the complete three-process prebootstrap
+state/symbol evidence in `takeover/mpfr-prebootstrap-v2-actual-root-review-v1.json`.
+The stock negative helper rejects shared caches; both actual cores accept the
+private-cache configuration. These probes create no MPFR numerical objects and
+do not initialize Julia. Actual Julia GC/lifecycle and numerical behavior remain
+unaccepted. Direct GC-thread snapshots require a separately reviewed diagnostic
 core variant, not user tasks scheduled onto GC workers. Fresh raw thread state
 must pass before numerical consumers. The P0–P10 implementation/loader/context/
 resource/consumer/platform gates are preserved in that sealed handoff; R3–R10

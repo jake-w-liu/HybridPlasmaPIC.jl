@@ -1,7 +1,7 @@
 # Relativistic output publication and rollback (C1)
 
-Status: implemented and locally accepted on current main's `430bf48` base.
-Separate publication and all six exact-SHA GitHub CI jobs remain pending.
+Status: implemented and locally accepted, pushed separately as `1bc618b`.
+The exact-SHA CI acceptance is recorded in the audit tracker.
 This page owns the C1 contract and local gate status; the
 [audit tracker](DEEP_DEBUG_TRACKER.md) owns main/CI acceptance.
 
@@ -113,6 +113,16 @@ an intentional separate per-call cost. Complete warmed allocations are measured
 against the actual parent; logical copy counts do not measure bus traffic.
 No timing acceptance is inferred under shared-machine contention.
 
+The additive near-cone corpus records extra candidate costs: scalar calls
+allocate 16–6,384 bytes, forced-native controls 16–9,120 bytes, and prime/batch
+calls 16–108,528 bytes; corresponding parent calls allocate 0–16 bytes. Both
+native batch certificates are false throughout this corpus. The failure-call
+fixtures allocate up to 1,017,624 warmed bytes, with retained undo storage
+2,080–39,168 bytes. These actual Julia 1.12.7/1.13.3 observations are retained in
+`relativistic-output-cone-c1-v7-capture/C1_E7_RESOURCE_HANDOFF_V1.md`; they do not
+attribute allocation causes or establish universal heap/native-memory/latency
+bounds. Near-cone cost reduction is a separate open optimization.
+
 ## Verification tracker
 
 | Gate | Status |
@@ -126,7 +136,7 @@ No timing acceptance is inferred under shared-machine contention.
 | C1.7 warm retained/copy budget, ordinary allocations, complete compiler/Aqua | All eight root resource calls pass: 32 matched complete-step profiles add zero bytes and 12 ordinary profiles retain three zero-byte samples per runtime. Four complete quality collections retain eight inherited zero-report failures each; root reconstructs every frame/source/render difference and accepts the bounded comparison, including all 30 empty concrete captures |
 | C1.8 min/latest regressions, task contexts and actual Metal | Actual Julia 1.12.7/1.13.3 numerical/neighbor/resource gates pass. Both actual functional Metal calls pass 3,543 assertions per runtime; this does not establish a resident relativistic Metal solver |
 | C1.9 additive failure/near-cone observations | Independent replay checks 128 failure configurations, 664 stage rows, 52 complete profiles, 2,649 input pins and 196 terminal artifacts. Original physical/domain/bit/copy/retained gates pass; full raw observations retained |
-| C1.10 main push and exact-SHA GitHub CI | Pending; local acceptance does not establish remote CI |
+| C1.10 main push and exact-SHA GitHub CI | `1bc618b` pushed; [six-job run](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40694351554) pending at this review. Local acceptance does not establish remote CI |
 
 Wrong fixes rejected by these gates include scalar-only checks that miss batch
 bypasses; inward clipping that conceals representability; particle-only rollback
@@ -156,7 +166,8 @@ a separate state/schema and method design. Their [C2/C3 work orders](RELATIVISTI
   binaries retain path, size, full streamed SHA and magic; text retains its full
   contents. Every exposed allocation/frame field remains present.
 - [x] Pass whole tracked-file CI-compatible formatting with no source changes.
-- [ ] Finish publication, push separately and pass all six exact-SHA CI jobs.
+- [x] Finish source/docs review and push separately as `1bc618b`.
+- [ ] Pass all six exact-SHA CI jobs and review both complete compiler reports.
 
 A separate inherited nonrelativistic Float16 arithmetic gap remains open:
 four normal-ratio native/scalar/public witnesses on both runtimes exceed the

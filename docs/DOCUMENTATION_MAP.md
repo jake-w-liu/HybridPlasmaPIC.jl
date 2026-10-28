@@ -9,8 +9,8 @@ test and an end-to-end simulator are separate milestones.
 The inventory below covers all 128 Markdown files tracked at audit baseline
 `cd8b94d8a9737f68ed63fe0a64cb4c8d3196d70b`; this map is the additional audit entry
 point. It is a dated inventory, not a claim that every historical experiment
-was rerun. Root additionally adds the explicitly unaccepted C1 publication and
-original charge/mass factor work orders; the resulting inventory has 131 files.
+was rerun. Root additionally adds the C1 publication contract and
+original charge/mass factor work order; the resulting inventory has 131 files.
 Versioned plans retain baseline failures, candidate checklists and
 older runtime results as evidence history. Read their named revision and current
 tracker before treating a pending or completed gate as present-day acceptance.

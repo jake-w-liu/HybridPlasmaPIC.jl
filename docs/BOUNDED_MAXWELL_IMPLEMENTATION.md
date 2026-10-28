@@ -7,8 +7,10 @@ coupling (002B), absorbing layers (002C), or restart, GPU/MPI and full
 production integration (002D). CAP-002 remains open.
 
 The isolated B2a prerequisite now has extensive nodal charge and longitudinal
-endpoint-impulse source, tests and documentation. It is unaccepted: final source
-review and every Julia numerical/resource/compiler gate remain. It does not
+endpoint-impulse source, tests and documentation. Its six-file formatter pass
+checks the complete executable AST under an explicit source-line metadata
+contract, idempotence and 12 checker controls. The immutable postformat source
+has 616 files. Numerical/provider/resource/compiler acceptance remains open. It does not
 implement a coupled force, particle pusher, wall event or restart. The
 [audit tracker](DEEP_DEBUG_TRACKER.md) owns current acceptance.
 

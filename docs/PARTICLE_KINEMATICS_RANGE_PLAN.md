@@ -1,7 +1,9 @@
 # Particle kinematics normwise range repair
 
 Status: the normwise Boris/phase/coordinate range chain landed in `cd55831`.
-Fresh near-light correctness work remains in the [audit tracker](DEEP_DEBUG_TRACKER.md).
+The [audit tracker](DEEP_DEBUG_TRACKER.md) records subsequent near-light fixes
+and the open normal-accuracy, original-factor and coordinate-overflow findings.
+The historical range repair does not certify those later-discovered boundaries.
 The implemented chain uses the
 [normwise standard](DEEP_DEBUG_TRACKER.md#numerical-accuracy-standard-user-decision-2026-10-26).
 
@@ -87,6 +89,26 @@ uniform launch the host checks the velocity-independent part of the guard
 (`h` normal or zero, finite `h E`, finite `|t|²`, `f ≥ floatmin`); velocity
 dependent range loss on the device (which also flushes subnormals) is
 unsupported.
+
+## Coordinate overflow follow-on
+
+VERIFIED on actual Julia 1.12.7 and 1.13.3: an exact coordinate at the
+nearest-even overflow boundary can return finite signed `floatmax` through the
+native finite-result shortcut. The bounded replay retains 18 signed/type/neighbor
+rows and 90 owner observations per runtime; 30 observations violate the existing
+infinity rule in the private native/guarded and public uniform/gathered position
+and midpoint owners. Adjacent finite/overflow controls and doubled final-position
+controls remain. Root independently checks the exact dyadics and all output bits
+in takeover `p1-coordinate-overflow-root-review-v1.json`.
+
+For example, stored Float16 x=32736, v=21856 and dt=1.5 have exact sum 65520,
+the overflow midpoint. The represented product rounds to 32768 and the native
+sum returns 65504. This is within the absolute normwise tolerance but violates
+the separate nearest-overflow contract already enforced by `normwise_ok`.
+The canonical drift admission/repair and all scalar/batch/public/backend callers
+need a separate range-classification repair. No tolerance change or repaired
+implementation is claimed. Float64's existing cold owner is exact rational;
+Float16/32 hardware-wide double-rounding questions remain separate hypotheses.
 
 ## Verification
 

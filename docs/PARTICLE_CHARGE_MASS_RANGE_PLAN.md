@@ -67,6 +67,24 @@ gates are unaccepted. The quotient-range adapter does not repair this gap. Prese
 explicit scalar result-range semantics separately from public original-factor
 publication; define any changed error/staging policy before implementation.
 
+The separately frozen 96-row native-node observation corpus adds three
+exact-overflow failures on both actual runtimes, one each for Float16/32/64.
+Let M=floatmax(T), U=ulp(T,M), q=m=1, dt=2, v=(M,0,0),
+E=(U/4,0,0), B=0. The exact Boris target is (M+U/2,0,0), whose first
+component nearest-rounds to infinity. The actual raw/native output remains
+(M,0,0), and the old scalar range guard returns true. This new three-row
+observation exercised the raw/native owner and actual guard only; public
+scalar/uniform/gathered calls were not run for these three inputs. The earlier
+four Float16 witnesses retain their separately verified public-call coverage.
+Complete source/48-node/compiler captures and the independent exact references
+are retained under dated `original-factor-p1-20261028/normal-accuracy-prototype-v1/`:
+`prototype-nodes-112.toml`, `prototype-nodes-11333.toml`,
+`prototype-observations-terminal-review-v1.json` and
+`prototype-observations-terminal-receipt-v1.json`. Independent root review is
+`takeover/p1-prototype-observations-root-review-v1.json`. All six observation
+commands exit zero; that records collection integrity, not repaired numerical
+acceptance. Both normal-accuracy and exact-output range closure remain open.
+
 The original hardware widening proof does not extend automatically: Float16
 q/m can reach about 2^40 from finite q,m, so its downstream squared products can
 exceed the old Float32 repair envelope. Derive the complete factor expression
@@ -86,8 +104,11 @@ losing the coordinate or midpoint contribution.
 - [x] Freeze the original P1 adapter source/caller contract and cold budget;
   preserve its seven source/test snapshots and 475 pins.
 - [x] Pass the bounded 964-assertion source/AST preflight.
+- [x] Retain the bounded three-type raw/native exact-overflow observations
+  and independent root review; no public-call coverage is inferred for them.
 - [ ] Prove and prototype the canonical normal-accuracy certificate; retain
-  all four confirmed witnesses and the original four-ulp contract.
+  all four confirmed witnesses, the three raw overflow rows and the original
+  four-ulp/nearest-infinity contract.
 - [ ] Implement and CRC-verify P1, then P2–P4 as separate coherent slices.
 - [ ] Current-main integration, docs, separate pushes and exact-SHA CI.
 
