@@ -52,8 +52,15 @@ offline provider stages pass, with all 160/161 package and 440/444 loaded-librar
 records reviewed. Both metadata decoders pass 248/245 assertions and match all
 203 embedded/live/frozen source records per runtime. Only the exact four fields
 of the observed package-image row differ per runtime; every other loaded row
-is equal. Fresh normal numerical/compiler/resource validation runs separately;
-acceptance remains open and the previous compiler gate remains failed. Later quality/resource/full-package gates remain open. It does not
+is equal. The fresh normal campaign passes 126,925 focused assertions, 87 ordinary
+allocation checks and 1,806 CRC assertions per runtime. Every one of the 288
+ordinary byte measurements per runtime is zero; all 48 production traces per
+runtime are empty. The minimum compiler stage then stops at 58 passes and 26
+failed zero-report assertions. All 82 full captures remain: the original 34
+roots have four failures, and the 48 added roots have 22. Latest compiler and
+later vector/quality/resource/full-package stages are unrun. This candidate
+remains unaccepted; all previous failures remain recorded. Diagnose the full
+reports and owning source before another repair or campaign. It does not
 implement a coupled force, particle pusher, wall event or restart. The
 [audit tracker](DEEP_DEBUG_TRACKER.md) owns current acceptance.
 

@@ -93,16 +93,37 @@ finite parent bits are retained under the unchanged physical tolerance and
 nearest-overflow rule. Required measurements include complete public uniform
 and gathered calls, Array/strided midpoint storage, zero warmed ordinary heap
 allocation and zero added retained storage. The new isolated candidate
-implements this flow in source; its source proofs, numerical, compiler, resource
-and integration gates remain open. A separate unchanged-converter hardware-mode
+implements this flow in source, with source/formatter proofs passing. Its first
+minimum-runtime bounded run retains 615 passes, 43 failed position/midpoint
+assertions and one gathered-field container error. The log classifies 32
+position and 11 midpoint failures; it lacks initial-position/route labels, so
+it does not establish the cause of every failure. The test used undefined
+position storage while expecting zero origins, and a vector where the gathered
+API requires a three-tuple. An isolated V2 changes exactly these fixtures:
+three permanent-test edits and two external-harness zero initializations.
+Complete inverses preserve production code, assertions, references and
+tolerances. All 489 V1/V2 content pins and 468 Julia files/modes were checked.
+The V1 test was edited and restored from immutable formatter bytes; its
+timestamp changed and is not claimed untouched. The four-call V2 bounded run
+is active; compiler, resource, backend and integration gates remain open.
+
+A separate unchanged-converter hardware-mode
 probe first fails on an unavailable public method, then terminates with SIGSEGV
 without result data. Both failures are retained; no mode/converter cause is
 established for that crash. The revised typed probe completes 2,976 conversions
 per runtime and restores raw rounding/flush state after every call. Independent
 root replay finds 76 converter mismatches per runtime under changed hardware
 modes; every nearest/gradual row is correct. IEEE packing of the already-rounded
-integer is a separately planned fix; its implementation and broader caller
-acceptance remain open. This is separate from the normal-mode production campaign.
+integer is a separate canonical repair in progress. A second typed probe
+checks stored-input extraction: 1,680 rows per runtime retain the input bits
+and restore mode state; independent integer-field replay finds 144 wrong
+rationals per runtime, 48 per IEEE type, all with flush-to-zero enabled. All
+non-flush rows are correct. The repair will extend the existing BigFloat
+`Base.decompose` extraction body to IEEE types and pack already-rounded output
+integers without floating scaling. The generic/nonfinite behavior and BigFloat
+body remain compatibility gates. Neither this probe nor the output probe
+accepts the complete cold Boris pipeline under changed hardware modes.
+This is separate from the normal-mode production campaign.
 
 The separately frozen 96-row native-node observation corpus adds three
 exact-overflow failures on both actual runtimes, one each for Float16/32/64.
