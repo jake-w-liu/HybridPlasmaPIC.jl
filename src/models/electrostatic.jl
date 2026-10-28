@@ -427,7 +427,7 @@ function _espic_push!(ps::ParticleSet{D,T}, Ep::NTuple{C}, g, dt::T, primed, las
     velocities = ntuple(c -> c <= C ? ps.v[c] : z, Val(3))
     scales = _boris_batch_scales(velocities, _espic_kick_fields(Ep, z), (z, z, z), hk, indices)
     kick, vbound = _boris_batch_certificate(hk, qm, kick_dt, scales...)
-    if kick && _coordinate_batch_certified(_coordinate_batch_max(ps.x, T), dt, vbound)
+    if kick && _coordinate_batch_certified(ps, _coordinate_batch_max(ps.x, T), dt, vbound)
         _espic_kick_drift!(ps, Ep, qm, dt, kick_dt, Val(false))
     else
         _espic_kick_drift!(ps, Ep, qm, dt, kick_dt, Val(true))

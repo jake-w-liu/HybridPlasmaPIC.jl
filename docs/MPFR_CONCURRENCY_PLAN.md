@@ -25,8 +25,26 @@ exact call sites. Six ordinary strict checks/captures and the separate parent
 type collection are carried unchanged. Earlier include-order and extra blanket
 Werror harness failures remain failed. The final analyzer collection follows the
 original target warning policy and retains all header warnings. Complete
-source-backed warning/AST acceptance and the original Make targets remain open;
-no checker exemption or runtime-safety conclusion follows. Threading
+warning-stream comparison is accepted after complete source/mode checks; all
+matched streams agree after explicit literal path relocations. Independent full
+AST review is accepted for the bounded standalone source change,
+including all eight complete captures and every retained warning. This is not
+runtime-safety acceptance. The next private build copy exits nonzero during
+post-copy verification: only six `.DS_Store` files differ; all other 19,880 regular
+files match their required bytes, modes and timestamps. The failed receipt is
+preserved. The writer is unclassified. A separately reviewed continuation passes
+all before/after ownership checks: four internal links and two frozen source
+files are published in the private copy, with all 1,796 source entries checked.
+The six exact metadata paths retain full observations; every other file and
+directory remains protected. No original Make target has run. The first native-query
+preflight stops before launching LLVM-config because an original-tree source
+ctime differs from its accepted preparation snapshot. A complete observation
+finds exactly two old-source ctime changes, with bytes and identities unchanged
+and every copied-tree field exact. The writer remains unknown. A separately
+reviewed fresh observation baseline keeps all future fields strict; all ten serial
+read-only LLVM-config collections exit zero with all 20 complete before/after
+guards passing. Every actual output and loader owner is under review; no
+native owner or Make target is accepted from collection alone. Threading
 analysis, Julia bootstrap, numerical consumers, GC/lifecycle, P4 child/depot and
 platform gates remain unaccepted.
 Installed Julia libraries are unchanged and NUM-001

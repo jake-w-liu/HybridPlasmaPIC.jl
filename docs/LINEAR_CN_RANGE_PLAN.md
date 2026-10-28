@@ -1,14 +1,14 @@
 # Linear Crank–Nicolson range repair
 
-Status: V5c landed on `main` after `4fafe4a` (2026-10-26). On current main,
+Status: V5c landed on `main` after `4fafe4a` (2026-10-26). In its landing verification,
 `test_linear_cn_range.jl` (16,762 assertions), `test_phase_final.jl`,
 `test_exact_arithmetic.jl`, `test_shock_cn.jl`, `test_dispersion.jl`, Aqua, JET
 (24 / 21, parent signatures apart from line shifts) and validation case 19 pass
 on Julia 1.12.7 and 1.13.2. Ordinary Float64 `cn_multiplier` costs 15.9 / 13.9
 ns per call versus 12.9 / 11.9 ns on the parent (1.23× / 1.17×, measured on one
 shared Apple M5 core); this reference helper is not a solver hot path.
-Exact-commit CI is pending.
-This is the remaining linear-reference
+`03e4eb3` passes all six [exact-SHA CI jobs](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40275287900); complete compiler review is recorded in the [audit tracker](DEEP_DEBUG_TRACKER.md#current-progress).
+This is the linear-reference
 part of CAP-005A. The accepted
 [shock field solve](SHOCK_CN_SOLVE_PLAN.md) is a separate owner. Nonlinear
 particle–field coupling and general implicit solvers remain CAP-005B/C.

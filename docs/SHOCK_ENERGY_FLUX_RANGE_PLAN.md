@@ -6,7 +6,8 @@ for current integration and remaining work.
 
 Recorded status: ENERGY-008 is repaired in the isolated canonical V2 integration.
 Native focused, concurrency, resource, shock-regression and full compiler
-comparison gates pass on both runtimes. Exact-SHA CI acceptance remains open.
+comparison gates pass on both runtimes. This recorded snapshot predates the
+[completed component and total CI acceptance](#component-and-complete-total-ci-acceptance).
 
 ## Evidence and owning path
 
@@ -270,6 +271,8 @@ existing ion-vector interface delegates to the same accumulator. No public
 API, component-output contract, validation order or physics equations change.
 Further cold-storage and ordinary-latency optimization remains open. Exact-SHA
 GitHub acceptance is required after this repair is pushed.
+
+<a id="component-and-complete-total-ci-acceptance"></a>
 
 The component repair is pushed as `daea194035e85cd39c5a497e781f758844881ec4`. [Run 39144368129](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39144368129) passes all six jobs: 491,943/491,944 assertions on Julia 1.12.7/1.13.2, formatting and all MPI ranks. Full compiler trees remain unchanged at 23/22. The exact 14-path promotion and remote SHA were verified in `committed-evidence.json`; held radiation files retain their hashes. Exact-SHA logs and full-report comparisons are in `/tmp/hybrid-ci-daea194-20261019` and `/tmp/hybrid-ci-daea194-report-review-20261019`. No billing exception is used.
 

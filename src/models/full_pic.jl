@@ -828,7 +828,7 @@ end
     indices = eachindex(s.x[1])
     xmax = _coordinate_batch_max(s.x, T)
     vmax = _coordinate_batch_max((s.v[1],), T)
-    if _coordinate_batch_certified(xmax, dt, vmax)
+    if _coordinate_batch_certified(s, xmax, dt, vmax)
         _drift_record_mid_loop!(s.x[1], s.v[1], mid, dt, L, Val(false))
     else
         _drift_record_mid_loop!(s.x[1], s.v[1], mid, dt, L, Val(true))
@@ -2310,7 +2310,7 @@ end
     indices = eachindex(s.weight)
     xmax = _coordinate_batch_max(s.x, T)
     vmax = _coordinate_batch_max(ntuple(d -> s.v[d], Val(D)), T)
-    if _coordinate_batch_certified(xmax, dt, vmax)
+    if _coordinate_batch_certified(s, xmax, dt, vmax)
         _drift_record_mid_loops!(s, mid, dt, L, Val(false))
     else
         _drift_record_mid_loops!(s, mid, dt, L, Val(true))

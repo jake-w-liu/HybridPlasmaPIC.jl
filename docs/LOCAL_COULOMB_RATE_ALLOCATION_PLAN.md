@@ -20,7 +20,9 @@ pair for the homogeneous operator on the same particles, and stays
 allocation-free (the homogeneous operator allocates per call). Most of the
 time is spent in the shared compensated velocity update; per-pair coefficient
 evaluation and binning are the scheduling overhead. Optimization is tracked
-as follow-up work; exact-commit CI is pending.
+as follow-up work. This recorded snapshot predates final CI; the
+[audit tracker](DEEP_DEBUG_TRACKER.md#current-progress) owns current integration
+and exact-revision acceptance.
 
 ## Scope and frozen sources
 

@@ -97,7 +97,8 @@ each nonempty call.
 Evidence files: `final-verification-v1.json`, `device-commands-v1.json`,
 `commands-112.json`, `commands-1132.json`, `resource-commands-v1.json`, raw
 resource TOML, and `compiler-comparison.json` under the evidence path above.
-GitHub CI remains required after the separate push; its Ubuntu jobs do not
+At this candidate snapshot GitHub CI was still required after the separate
+push; its Ubuntu jobs do not
 replace the local actual-Metal execution.
 
 Pushed as `bf2a8bc`; all 359 committed Julia files match the validated candidate.

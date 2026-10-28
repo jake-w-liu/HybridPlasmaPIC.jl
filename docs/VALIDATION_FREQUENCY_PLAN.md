@@ -4,9 +4,10 @@ Revision-scoped implementation record. The pre-edit findings and candidate
 acceptance states below are historical; see the [audit tracker](DEEP_DEBUG_TRACKER.md)
 for current integration and remaining work.
 
-Recorded status: numerical repair pushed as `01a1b3c`. Its CI run fails test loading and
-formatting. The dependency/format correction passes both local test sandboxes
-and whole-tree formatting; corrected exact-SHA CI remains required.
+Recorded status: numerical repair `01a1b3c` retains its failed test-loading/
+formatting CI. The dependency/format correction `27372b2` passes both local test
+sandboxes, whole-tree formatting and all six exact-SHA CI jobs. Broader external
+validation remains open.
 
 ## Pre-edit brief
 
@@ -56,7 +57,7 @@ separation. Those remain separate CAP-007B requirements.
 - [x] Repair the owning helper and register independent regression tests.
 - [x] Run actual production case, final source review and both runtime gates.
 - [x] Commit/push the numerical repair separately as `01a1b3c`.
-- [ ] Correct test integration and review all six jobs on the corrected exact SHA.
+- [x] Correct test integration as `27372b2` and verify all six exact-SHA CI jobs.
 
 Evidence: `../HybridPlasmaPIC-audit-evidence/2026-10-23/validation-frequency`,
 including `first-bin-v1-commands.json` and complete logs.
@@ -67,8 +68,10 @@ and log remain retained and are not counted as a test result. The corrected
 driver checks the source path before launch.
 
 The signed-bin mapping follows the [FFTW transform definition](https://www.fftw.org/fftw3_doc/The-1d-Discrete-Fourier-Transform-_0028DFT_0029.html).
-Julia's [official download page](https://julialang.org/downloads/) was checked
-on 2026-10-25: latest stable is 1.13.2.
+That campaign recorded Julia 1.13.2 in its 2026-10-25
+[official download check](https://julialang.org/downloads/). The
+[audit tracker](DEEP_DEBUG_TRACKER.md#current-progress) owns current runtime
+evidence; current campaigns use actual Julia 1.12.7 and 1.13.3.
 
 The amplitude-range baseline passes four and fails two checks on each runtime:
 a separately represented tiny quadrature oscillation beside a maximum finite
@@ -98,9 +101,11 @@ all six terminal commands and log hashes:
   BigFloat retain the parent's unsupported-type exception. No compatibility
   patch was made for that discarded hypothesis (`input-types-v2-commands.json`).
 
-The canonical helper is the only behavior change; case 20 and its thresholds
-are unchanged. Full package tests and complete compiler-tree review remain
-required on the pushed exact revision. The broader CAP-007B campaign stays open.
+The canonical helper is the only estimator behavior change; case 20 and its
+thresholds are unchanged. The original failed CI and subsequent integration
+correction are distinguished below. Current containing revisions have complete
+compiler review in the [audit tracker](DEEP_DEBUG_TRACKER.md#current-progress);
+the broader CAP-007B campaign stays open.
 
 ## CI integration correction
 
@@ -127,4 +132,7 @@ The corrected sandbox commands exit zero on Julia 1.12.7 and 1.13.2, each with
 Five formatter checks pass: exact formatter version, both Julia syntax trees
 unchanged from `01a1b3c`, and two successful complete-tree formatting passes
 (`ci-format-final-v1.log`). No test was skipped or weakened. The original failed
-CI revision remains failed; these local results await the correction's full CI.
+CI revision remains failed. The correction `27372b2` passes all six
+[exact-SHA CI jobs](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40189739840),
+rechecked through the complete run/jobs API on 2026-10-29 Asia/Taipei. This
+exact-revision result does not imply that the broader validation campaign is complete.

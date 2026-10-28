@@ -8,7 +8,7 @@ Recorded status: input validation (RR-001) is pushed as `fdca823`. The normwise
 arithmetic repair of RR-002 and RR-003 [below](#normwise-arithmetic-repair-rr-002-rr-003)
 replaces the held BigFloat candidate and passes the forcing, particle,
 relativistic-boundary, Aqua and JET gates on Julia 1.12.7 and 1.13.2.
-Exact-SHA CI is pending.
+This recorded snapshot predates final CI. The [audit tracker](DEEP_DEBUG_TRACKER.md#current-progress) records accepted containing revisions and later force-span/publication work.
 
 ## Verified gaps
 

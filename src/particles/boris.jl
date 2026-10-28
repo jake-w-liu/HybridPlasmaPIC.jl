@@ -224,9 +224,10 @@ spatial coordinates move). Returns `ps`.
 
 `dt` must be finite and either zero or at least `2*floatmin(T)` in magnitude;
 other values throw an `ArgumentError` before any particle changes. Kicks and
-drifts follow the normwise range contract of [`boris_kick`](@ref): a drift
-whose rounded `x + dt*v` overflows although the exact coordinate is finite is
-evaluated wider and rounded once. A fused reduction over the batch certifies the
+drifts follow the normwise range contract of [`boris_kick`](@ref). The drift
+classifies nearest-even overflow from the exact stored operands, retaining
+valid finite native bits and repairing nonfinite native results with one exact
+rounding. A fused reduction over the batch certifies the
 common case, which then runs the native vectorized loops (bitwise unchanged);
 otherwise every particle takes the guarded evaluation.
 """
@@ -247,7 +248,7 @@ function push_uniform!(ps::ParticleSet{D,T}, E::NTuple{3}, B::NTuple{3}, dt::Rea
         _uniform_batch_scales(ps.v, x, K, indices, Val(true))
     x === () && (xmax = _coordinate_batch_max(ps.x, T))
     kick, vbound = _boris_batch_certificate(h, qm, dtT, vmax, emax, bmax, smin)
-    drift = kick && _coordinate_batch_certified(xmax, dtT, vbound)
+    drift = kick && _coordinate_batch_certified(ps, xmax, dtT, vbound)
     if kick
         _uniform_kicks!(ps, electric, magnetic, qm, dtT, Val(false))
     else
@@ -366,7 +367,7 @@ function push_gathered!(
     isfinite(scales[2]) & isfinite(scales[3]) || _require_finite_gathered_fields(E, B, indices, T)
     kick, vbound = _boris_batch_certificate(hk, qm, dtT, scales...)
     xmax = _coordinate_batch_max(ps.x, T)
-    if kick && _coordinate_batch_certified(xmax, dtT, vbound)
+    if kick && _coordinate_batch_certified(ps, xmax, dtT, vbound)
         _gathered_push!(ps, E, B, qm, dtT, xmid, Val(false))
     else
         _gathered_push!(ps, E, B, qm, dtT, xmid, Val(true))

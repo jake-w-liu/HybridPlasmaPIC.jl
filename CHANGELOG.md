@@ -8,6 +8,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- CPU particle drifts and gathered midpoints classify nearest-even overflow from
+  the complete stored expression `x + dt*v`. This repairs both finite native
+  results whose exact result overflows and nonfinite native results whose exact
+  result is finite. Overlapping particle storage uses per-particle guards when a
+  batch bound can become stale. Ordinary finite bits and nonfinite-input
+  propagation are retained; unresolved finite inputs use exact arithmetic with
+  documented cold-path costs. See the [coordinate contract](docs/PARTICLE_KINEMATICS_RANGE_PLAN.md#coordinate-overflow-follow-on).
+
 - Relativistic Boris and leapfrog priming now reject rounded velocities outside
   the existing supported subluminal domain, including native batch bypasses.
   Public relativistic EMPIC advances restore particles, fields, gathers, FFT

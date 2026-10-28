@@ -65,4 +65,4 @@ No latency acceptance claim is made under shared-machine contention. The
 existing collision wrapper still supports only its documented ideal isothermal
 closure; jointly coupled transport/collisions, electron transport S2–S8, MPI and
 device sources remain separate implementation work. Root integration and all six
-exact-SHA CI jobs remain open for this fix.
+[exact-SHA CI jobs](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40369103017) pass for `a356c6b`; complete compiler acceptance is recorded in the [audit tracker](DEEP_DEBUG_TRACKER.md#current-progress).

@@ -50,9 +50,10 @@ has 0 / 22; all optional test imports have 9 / 31. These observations do not
 attribute a runtime defect to either dependency. Logs:
 `/tmp/hybrid-jet002-retained-{base,hdf5,pencils,all}112.log`.
 
-The current stable Julia release was rechecked on 2026-10-15 against the
-[official downloads page](https://julialang.org/downloads/manual-downloads/):
-1.13.1. CI retains both minimum minor `1.12` and moving stable `1`.
+The historical runtime note from 2026-10-15 records Julia 1.13.1 and an
+[official downloads check](https://julialang.org/downloads/manual-downloads/).
+The audit tracker owns current runtime evidence. CI retains both minimum minor
+`1.12` and moving stable `1`.
 
 ## Verification and remaining scope
 

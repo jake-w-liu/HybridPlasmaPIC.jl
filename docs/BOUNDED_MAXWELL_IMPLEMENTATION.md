@@ -15,9 +15,26 @@ Julia 1.12.7/1.13.3; full package/selected-provider records match per runtime.
 Root accepts the exact cache/native/header/embedded-source metadata proof on
 both runtimes (248/245 assertions). Both syntax parsers pass. The first normal
 minimum-runtime focused run retains 119,470 passes and 12 allocation failures:
-192 B against the unchanged 0 B gate. Its numerical/neighbor assertions pass;
-allocation ownership is under investigation. Latest focused and later
-CRC/compiler/resource/full-package gates remain held. It does not
+192 B against the unchanged 0 B gate. Its numerical/neighbor assertions pass.
+A separate paired diagnosis retains exit 1 and all 12 profiles / 48 traces:
+every Float32 direct/helper call allocates 192 B (including empty populations),
+while sampled Float64 calls allocate 0 B. All six 32 B tuple allocations per
+Float32 trace come from the heterogeneous-buffer indexing in alias admission.
+An isolated repair spells out the same three alias predicates in the same order.
+Both refreshed focused lanes pass all 119,482 assertions, including the unchanged
+48 allocation checks. Each paired diagnosis passes 87 checks; all 288 byte
+measurements are zero and all 48 production traces are empty, with four separate
+no-op records retained. The next CRC stage stops at evidence serialization:
+`TOML.print` rejects tuple-valued geometry weights at the external driver line 25
+(10 passes, zero failed assertions, four errors). That failure remains recorded;
+the serialization-only correction passes 90 controls on each runtime. The
+corrected CRC lanes each pass 1,806 assertions: 430 geometry records, 390
+displacement records and 66 separate public outcomes are retained. The next
+minimum compiler gate stops with 32 passes and four failed zero-report
+assertions. All 34 full captures are retained: the four abstract empty-vector
+charge/impulse roots each report two Base reinterpret/padding diagnostics; the
+other 30 roots are empty. Valid-input runtime behavior is under investigation.
+Later compiler/resource/full-package gates remain unrun. It does not
 implement a coupled force, particle pusher, wall event or restart. The
 [audit tracker](DEEP_DEBUG_TRACKER.md) owns current acceptance.
 

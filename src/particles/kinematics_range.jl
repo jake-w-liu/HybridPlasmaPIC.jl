@@ -4,8 +4,8 @@
 # - Ordinary inputs keep the native operation order, so results are bitwise
 #   those of the plain formulas.
 # - A cheap guard over the native intermediates flags intermediate overflow or
-#   underflow. Only flagged Float16/Float32/Float64 evaluations repeat the same
-#   expression in a wider format and round once to T. Other number types keep
+#   underflow. Flagged Float16/Float32/Float64 expressions use wider or exact
+#   arithmetic; drift overflow classification is exact. Other number types keep
 #   native semantics, and non-finite inputs keep IEEE propagation.
 # - Accuracy is a few ulps of the operation scale (|v|, |h E| for kicks and
 #   |x| + |dt v| for drifts). Componentwise accuracy of a nearly cancelling
@@ -153,25 +153,28 @@ end
 """
     _particle_coordinate(x, v, dt)
 
-Particle drift `x + dt*v` (pass `dt/2` for a midpoint) in the native operation
-order. Only a non-finite result from finite operands is repaired: additions of
-subnormals are exact, so an underflowed product costs at most one subnormal
-quantum, within the normwise `|x| + |dt v|` scale. In the wide format `dt*v` is
-exact (twice T's precision fits the wider significand) and lies far inside its
-range, so the repaired value is the sum rounded once in the wide format and
-once to `T`. A coordinate that truly exceeds `T` stays `±Inf` for the caller.
+Particle drift `x + dt*v` (pass the stored `dt/2` for a midpoint) in the native
+operation order. Finite native results inside half the maximum are certified
+in range. Other finite-input cases use the same expression with exact rational
+operands to classify nearest-even overflow. A valid finite native result keeps
+its bits; a nonfinite native result is rounded from the exact expression once.
+This also resolves cancellation at the overflow endpoint without an intermediate
+wider-float rounding. Nonfinite inputs retain their native IEEE propagation.
 """
 @inline function _particle_coordinate(x::T, v::T, dt::T) where {T}
     position = _particle_coordinate_native(x, v, dt)
     T <: _RangeGuardedFloat || return position
-    isfinite(position) && return position
+    # Two finite rounded operations put the exact coordinate inside the range
+    # when the native result is within half the maximum; retain its native bits.
+    isfinite(position) && abs(position) <= floatmax(T) / 2 && return position
     return _particle_coordinate_repair(position, x, v, dt)
 end
 
 @noinline function _particle_coordinate_repair(position::T, x::T, v::T, dt::T) where {T}
     (isfinite(x) & isfinite(v) & isfinite(dt)) || return position
-    W = _kinematics_wide(T)
-    return _kinematics_round(T, _particle_coordinate_native(W(x), W(v), W(dt)))
+    exact = _particle_coordinate_native(_exact_rational(x), _exact_rational(v), _exact_rational(dt))
+    rounded = _kinematics_round(T, exact)
+    return isfinite(position) && isfinite(rounded) ? position : rounded
 end
 
 # ---------------------------------------------------------------- Euler half-kicks
@@ -577,6 +580,19 @@ end
 @inline _coordinate_batch_certified(xmax::T, dt::T, vbound::T) where {T} =
     !(T <: _RangeGuardedFloat) || (xmax + abs(dt) * vbound <= floatmax(T) / 2)
 
+# A pre-pass bound is valid only while earlier particle writes cannot change
+# later reads. Overlapping components keep their existing sequential semantics
+# and use the per-coordinate guard instead of rejecting the population.
+@inline function _coordinate_batch_certified(
+    ps::ParticleSet{D,T},
+    xmax::T,
+    dt::T,
+    vbound::T,
+) where {D,T}
+    T <: _RangeGuardedFloat || return true
+    return _coordinate_batch_certified(xmax, dt, vbound) && !_particle_components_mightalias(ps)
+end
+
 # Shock steppers gather fields inside their push loops with interpolation
 # weights that are nonnegative and sum to one, so every sample is at most
 # 2 max|grid| in magnitude. A particle at rest has the unknown scale |h E_p|, so
@@ -596,5 +612,8 @@ function _shock_batch_certified(ps::ParticleSet{D,T}, Egrid::Tuple, Bgrid::Tuple
     end
     smin = iszero(emax) ? vmin_nonzero : vmin
     kick, vbound = _boris_batch_certificate(one(T) * dt / 2, one(T), dt, vmax, emax, bmax, smin)
-    return kick && _coordinate_batch_certified(_coordinate_batch_max(ps.x, T), dt, vbound)
+    return kick &&
+           _coordinate_batch_certified(ps, _coordinate_batch_max(ps.x, T), dt, vbound) &&
+           !any(a -> _mightalias_particle_storage(a, ps), Egrid) &&
+           !any(a -> _mightalias_particle_storage(a, ps), Bgrid)
 end

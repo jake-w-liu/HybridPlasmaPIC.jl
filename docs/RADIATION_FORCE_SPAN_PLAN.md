@@ -39,7 +39,7 @@ concrete calls are clean; complete 29/27 package trees are byte-identical to the
 parent without normalization. All 21 cold-resource profiles per runtime match V1
 exactly. `takeover/radiation-span/integration-review-v4.json` records these checks;
 failed verification-harness attempts remain in `harness-corrections-v1.json`.
-Exact-SHA GitHub CI remains required. The frozen-rate physics approximation and
+`07792ab` passes all six [exact-SHA CI jobs](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40374929835); complete compiler acceptance is recorded in the [audit tracker](DEEP_DEBUG_TRACKER.md#current-progress). The frozen-rate physics approximation and
 generic BigFloat policy are unchanged.
 
 The independent hand derivation below is tied to frozen numerical source

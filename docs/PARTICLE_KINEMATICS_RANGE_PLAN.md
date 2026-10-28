@@ -2,7 +2,9 @@
 
 Status: the normwise Boris/phase/coordinate range chain landed in `cd55831`.
 The [audit tracker](DEEP_DEBUG_TRACKER.md) records subsequent near-light fixes
-and the open normal-accuracy, original-factor and coordinate-overflow findings.
+and the open normal-accuracy and original-factor findings. The coordinate
+overflow correction is implemented in this revision, with CI acceptance tracked
+separately.
 The historical range repair does not certify those later-discovered boundaries.
 The implemented chain uses the
 [normwise standard](DEEP_DEBUG_TRACKER.md#numerical-accuracy-standard-user-decision-2026-10-26).
@@ -29,6 +31,8 @@ erasing half-step kicks and midpoints.
    `1 - |v|²/c²`, because `(|u|/c)²` can exceed the next IEEE format for
    extreme `c`. Bounded IEEE priming first attempts a residual-certified
    double-word evaluation of that same expression.
+   CPU coordinate overflow classification instead uses exact rational arithmetic
+   outside its conservative finite-result certificate, as described below.
    Other number types keep native semantics; non-finite inputs propagate.
 3. Accuracy is a few ulps of the operation scale (`|v|`, `|h E|` for kicks,
    `|x| + |dt v|` for drifts); componentwise accuracy under cancellation is
@@ -57,7 +61,7 @@ the same preflight check before any particle update.
 | Euler priming/predictor | `_euler_kick`, `src/particles/kinematics_range.jl` (used by `_prime_leapfrog!`, `_predict_half_kick!`, `_prime_empic1d!`) | `h*qm` normal or legitimately zero, finite `E + u×B`, scale `≥ 256 floatmin (1+|h qm|)` |
 | Relativistic priming | `_rel_prime_in_range`/`_rel_prime_repair` | `c²` normal, `h` normal or zero, finite acceleration and `γ`, resolved Lorentz factor and output squared speed `≤ c²/2`, scale `≥ 256 floatmin (1+|h|)(1+|qm|)` |
 | ES priming | `_es_prime_component` | `h*qm` normal or zero, scale `≥ 256 floatmin` |
-| Drift/midpoint | `_particle_coordinate` (push_uniform!/push_gathered!, hybrid, EMPIC1D/EMPIC, ES, 7 shock updates) | finite result only (subnormal sums are exact) |
+| Drift/midpoint | `_particle_coordinate` (push_uniform!/push_gathered!, hybrid, EMPIC1D/EMPIC, ES, 7 shock updates) | finite native result within half the maximum; unresolved finite inputs use exact nearest-even overflow classification |
 
 The wide-format claims (no overflow, harmless underflow) are derived in the
 comments next to each repair. `dt` validation is `_require_resolved_dt` in
@@ -77,8 +81,10 @@ reduction without calls or writes: max |v|, |E|, |B| (|x| for drifts) and the
 smallest nonzero guard scale. A global certificate derived from these bounds
 (comments at `_boris_batch_certificate` and siblings in `kinematics_range.jl`)
 proves that every particle passes its guard; the batch then runs the native
-historical loop with the same arithmetic order. Otherwise the guarded
-loop runs on the untouched inputs. The scalar `boris_kick` keeps its per-call
+historical loop with the same arithmetic order. Coordinate admission also checks
+that particle components are disjoint; shock admission checks field/particle
+storage overlap. Overlapping storage keeps the existing sequential behavior
+through per-coordinate guards. Otherwise the guarded loop runs on the inputs. The scalar `boris_kick` keeps its per-call
 guard. Shock loops gather per particle, so their certificate uses grid maxima
 (nonnegative interpolation weights) and conservatively rejects particles at rest
 in a nonzero electric field.
@@ -92,7 +98,7 @@ unsupported.
 
 ## Coordinate overflow follow-on
 
-VERIFIED on actual Julia 1.12.7 and 1.13.3: an exact coordinate at the
+VERIFIED on the pre-repair source on Julia 1.12.7 and 1.13.3: an exact coordinate at the
 nearest-even overflow boundary can return finite signed `floatmax` through the
 native finite-result shortcut. The bounded replay retains 18 signed/type/neighbor
 rows and 90 owner observations per runtime; 30 observations violate the existing
@@ -106,8 +112,7 @@ the overflow midpoint. The represented product rounds to 32768 and the native
 sum returns 65504. This is within the absolute normwise tolerance but violates
 the separate nearest-overflow contract already enforced by `normwise_ok`.
 The canonical drift admission/repair and all scalar/batch/public/backend callers
-need a separate range-classification repair. Current main retains this gap;
-no tolerance change is proposed.
+use the range-classification correction below. No tolerance changes.
 
 A second independent 18-input replay now confirms the cold-endpoint failure on
 both runtimes. Set dt*v exactly to O=M+ulp(M)/2 and x=-D, where D is the minimum
@@ -121,7 +126,7 @@ recorded. Root checks all 18 inputs / 90 observations per runtime in
 The scalar repair must use exact overflow classification in both directions;
 replaying only native nonfinite results in a wider hardware type is insufficient.
 
-An isolated root repair now preserves the raw expression, certifies inner-half
+The correction preserves the raw expression, certifies inner-half
 finite results and uses exact rational classification for unresolved finite
 inputs. A separate actual Float16 shifted-view witness invalidates the old
 pre-pass bound: stored velocity grows from an initial maximum 600 to 21,840,
@@ -132,13 +137,57 @@ and shock field/particle storage instead of rejecting it. Both runtimes pass
 profiles each; all 36 ordinary profiles per runtime retain 0 B. Independent
 IEEE dyadic decoding checks the 216 recorded first outputs per runtime against
 the original range/four-ulp rule. Cold exact costs are retained and disclosed.
-Both runtimes also pass all 46,725 existing kinematics assertions. Complete
-compiler/Aqua collections finish on both parents and candidates; all 87 candidate
-concrete analyses are empty, while full-package diagnostic comparison remains
-under review. Caller/rollback/device/format/integration/CI gates remain open. The first compiler harness failed
-by requesting the new candidate-only method on the parent; that failed capture
-is preserved and its explicit parent/candidate comparison is corrected. This
-is unmerged implementation progress, not current-main acceptance.
+Both runtimes also pass all 46,725 existing kinematics assertions and the
+expanded 4,786 endpoint/bit/alias/model-owner assertions. The complete compiler/
+Aqua comparison is accepted: all 87 candidate concrete analyses are empty;
+every field in the 29/27 full-package reports matches its parent after checked
+source-root and three generated-name relocations. The changed full-file source
+attachments retain their complete source disposition. Actual Metal integration
+passes all 3,543 assertions per runtime on functional devices. The 22-file
+neighboring-model matrix passes 117,819 assertions on Julia 1.12.7; its latest
+Julia lane is running. Final integration acceptance and exact-SHA CI remain
+open. The first compiler harness failed by requesting the candidate-only method on the parent; that
+failed capture remains. Formatting passes on all 466 Julia files. Earlier AST
+checker metadata and syntax failures remain failed, with explicit corrected
+checks and final-source review. Publication acceptance stays in the audit tracker.
+
+### Coordinate classification proof and measured costs
+
+Let M be floatmax, u=eps(T)/2 and D the minimum subnormal. For finite stored
+operands in nearest-even arithmetic, write p=fl(dt*v) and z=fl(x+p). If z is
+finite, p is finite. The two rounding errors satisfy
+`|x + dt*v - z| <= u/(1-u) * (|p| + |z|) + D`, including subnormal rounding.
+For `|z| <= M/2`, `|p| <= M` therefore gives an exact magnitude at most
+`M/2 + 3uM/(2(1-u)) + D < M` for Float16/32/64. Such outputs cannot cross the
+overflow midpoint. Other finite-input cases evaluate the same expression over
+exact rationals. The existing integer nearest-even converter classifies both
+sides of the midpoint; finite native bits remain when that classification is
+finite. Nonfinite-input propagation and device-native formulas stay unchanged.
+
+The 108 paired scalar/public profiles per runtime cover N=1/64/4096 and Array/
+strided storage. All 36 ordinary profiles retain 0 B; no retained workspace is
+added. Exact cold evaluation has a cost. In the sampled Array N=4096 case with
+x=0.75M, v=0 and dt=1, both scalar and complete public calls allocate the
+following managed bytes on both runtimes (all three samples agree):
+
+| T | Allocated bytes per call |
+| --- | ---: |
+| Float16 | 6,848,512 |
+| Float32 | 7,143,424 |
+| Float64 | 10,092,544 |
+
+The old parent returns correct bits for this particular zero-product case with
+0 B. A separate isolated optimization now admits a finite native result directly
+when dt or v is exactly zero. Both runtimes pass 7,366 focused assertions,
+including 2,580 added endpoint/signed-zero/nonfinite and complete-public checks.
+All 108 paired profiles per runtime preserve every recorded output bit: all 36
+affected near-boundary scalar/public profiles now allocate 0 B, while all 36
+ordinary profiles remain 0 B. Every other recorded allocation sample is
+unchanged. Actual Metal passes all 3,543 assertions per runtime. Both complete
+compiler/Aqua collections match all 88 parent captures after exact checkout-root mapping,
+including 87 empty concrete analyses each and the complete 29/27-report package
+records. Its legacy checks are running; it has not been integrated or pushed.
+This follow-on remains open. Other cold profiles retain their raw costs; neither native peak memory nor portable latency is certified.
 
 ## Verification
 

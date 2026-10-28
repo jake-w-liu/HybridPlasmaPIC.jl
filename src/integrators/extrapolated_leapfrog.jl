@@ -935,7 +935,7 @@ function _push_hybrid_population!(st, ws, ps::ParticleSet{D,T}, dtT::T, kick_dt:
     hk = qm * kick_dt / 2
     scales = _boris_batch_scales(ps.v, ws.Ep, ws.Bp, hk, eachindex(ps.weight))
     kick, vbound = _boris_batch_certificate(hk, qm, kick_dt, scales...)
-    if kick && _coordinate_batch_certified(_coordinate_batch_max(ps.x, T), dtT, vbound)
+    if kick && _coordinate_batch_certified(ps, _coordinate_batch_max(ps.x, T), dtT, vbound)
         _hybrid_kick_drift!(ps, ws, qm, dtT, kick_dt, Val(false))
     else
         _hybrid_kick_drift!(ps, ws, qm, dtT, kick_dt, Val(true))
