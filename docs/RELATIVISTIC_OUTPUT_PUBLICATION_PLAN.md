@@ -1,7 +1,9 @@
 # Relativistic output publication and rollback (C1)
 
-Status: implemented and locally accepted, pushed separately as `1bc618b`.
-The exact-SHA CI acceptance is recorded in the audit tracker.
+Status: implemented, locally accepted and pushed separately as `1bc618b`.
+All six exact-SHA CI jobs pass. Root checks the complete minimum/latest compiler
+trees against the accepted parent after verified unchanged-source line mapping;
+all 24/21 reports and 243/181 frames match. The audit tracker retains the evidence.
 This page owns the C1 contract and local gate status; the
 [audit tracker](DEEP_DEBUG_TRACKER.md) owns main/CI acceptance.
 
@@ -136,7 +138,7 @@ bounds. Near-cone cost reduction is a separate open optimization.
 | C1.7 warm retained/copy budget, ordinary allocations, complete compiler/Aqua | All eight root resource calls pass: 32 matched complete-step profiles add zero bytes and 12 ordinary profiles retain three zero-byte samples per runtime. Four complete quality collections retain eight inherited zero-report failures each; root reconstructs every frame/source/render difference and accepts the bounded comparison, including all 30 empty concrete captures |
 | C1.8 min/latest regressions, task contexts and actual Metal | Actual Julia 1.12.7/1.13.3 numerical/neighbor/resource gates pass. Both actual functional Metal calls pass 3,543 assertions per runtime; this does not establish a resident relativistic Metal solver |
 | C1.9 additive failure/near-cone observations | Independent replay checks 128 failure configurations, 664 stage rows, 52 complete profiles, 2,649 input pins and 196 terminal artifacts. Original physical/domain/bit/copy/retained gates pass; full raw observations retained |
-| C1.10 main push and exact-SHA GitHub CI | `1bc618b` pushed; [six-job run](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40694351554) pending at this review. Local acceptance does not establish remote CI |
+| C1.10 main push and exact-SHA GitHub CI | `1bc618b` pushed; [all six jobs pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40694351554). Actual Julia 1.12.7/1.13.3 pass 1,242,177/1,242,178 assertions; both complete compiler trees match the accepted parent with checked source-line mapping |
 
 Wrong fixes rejected by these gates include scalar-only checks that miss batch
 bypasses; inward clipping that conceals representability; particle-only rollback
@@ -167,7 +169,7 @@ a separate state/schema and method design. Their [C2/C3 work orders](RELATIVISTI
   contents. Every exposed allocation/frame field remains present.
 - [x] Pass whole tracked-file CI-compatible formatting with no source changes.
 - [x] Finish source/docs review and push separately as `1bc618b`.
-- [ ] Pass all six exact-SHA CI jobs and review both complete compiler reports.
+- [x] Pass all six exact-SHA CI jobs and review both complete compiler reports.
 
 A separate inherited nonrelativistic Float16 arithmetic gap remains open:
 four normal-ratio native/scalar/public witnesses on both runtimes exceed the
