@@ -3,8 +3,8 @@
 Initial source assessment: **2026-10-23**, revision
 `bf2a8bc615f514f8d2868934849bf44814140bbb`. This document plans work; it does not
 certify the proposed implementations. Implementation status and CI were reconciled on
-**2026-10-29** against `80688ab`, accepted C1 `1bc618b` and the current
-isolated-candidate receipts;
+**2026-10-29** against correctness `a29da03`, optimization `8d7473f`,
+accepted C1 `1bc618b` and the current isolated-candidate receipts;
 earlier line references remain pinned to the initial assessment. The
 [audit tracker](DEEP_DEBUG_TRACKER.md) owns accepted fixes, measured results and exact-revision CI status.
 

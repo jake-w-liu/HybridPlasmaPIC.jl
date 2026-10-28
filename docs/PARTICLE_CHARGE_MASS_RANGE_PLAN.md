@@ -3,8 +3,9 @@
 Status: confirmed current-main defect. The isolated P1 CPU adapter preserves
 original factors only for nonnormal quotients and passes a 964-assertion
 source/AST preflight. Numerical, compiler, resource and integration acceptance
-remain open. The production normal-path design below is not implemented; bounded scalar and
-whole-batch experiments are recorded separately from production acceptance.
+remain open. A new isolated production candidate is being implemented; its
+trace/carrier/certificate source has no numerical or performance acceptance yet.
+Bounded scalar and whole-batch experiments are recorded separately.
 This work is separate from C1's supported relativistic output closure.
 The numerical contract uses the original stored q, m, dt and field operands;
 a rounded derived ratio must not silently erase a representable result.
@@ -71,9 +72,13 @@ bit and exact target: 192 coefficient-meaning contexts and 8,208 finite node
 enclosures per runtime, plus 594 outward-primitive checks. Its sufficient test
 accepts 66 contexts after the unchanged range guard. This bounded experiment
 does not establish a universal or production certificate, batch hit rate or cost.
-The separate whole-batch experiment completes 144,590 assertions per runtime;
-its full source/evidence root review remains open. Production and cost gates
-remain unaccepted. The quotient-range adapter does not repair this gap. Preserve
+The separate whole-batch experiment passes 144,590 assertions per runtime.
+Root complete source/derivation/replay review checks 570 batch contexts,
+66,664 magnitude and 66,656 error enclosures, and 222 sufficient certificates
+per runtime. All original inputs, 95 independently invalid native contexts and
+38 invalid range-only batch bypasses remain recorded. This is bounded evidence;
+production and cost gates remain unaccepted. The quotient-range adapter does
+not repair this gap. Preserve
 explicit scalar result-range semantics separately from public original-factor
 publication; define any changed error/staging policy before implementation.
 
@@ -87,8 +92,17 @@ batch flag cannot authorize the native accuracy bypass. Independently valid
 finite parent bits are retained under the unchanged physical tolerance and
 nearest-overflow rule. Required measurements include complete public uniform
 and gathered calls, Array/strided midpoint storage, zero warmed ordinary heap
-allocation and zero added retained storage. This is a design requirement;
-carrier/compiler/resource acceptance remains open.
+allocation and zero added retained storage. The new isolated candidate
+implements this flow in source; its source proofs, numerical, compiler, resource
+and integration gates remain open. A separate unchanged-converter hardware-mode
+probe first fails on an unavailable public method, then terminates with SIGSEGV
+without result data. Both failures are retained; no mode/converter cause is
+established for that crash. The revised typed probe completes 2,976 conversions
+per runtime and restores raw rounding/flush state after every call. Independent
+root replay finds 76 converter mismatches per runtime under changed hardware
+modes; every nearest/gradual row is correct. IEEE packing of the already-rounded
+integer is a separately planned fix; its implementation and broader caller
+acceptance remain open. This is separate from the normal-mode production campaign.
 
 The separately frozen 96-row native-node observation corpus adds three
 exact-overflow failures on both actual runtimes, one each for Float16/32/64.
@@ -131,9 +145,11 @@ losing the coordinate or midpoint contribution.
   and independent root review; no public-call coverage is inferred for them.
 - [x] Pass and independently replay the bounded actual Julia scalar-radius
   prototype on minimum/latest Julia, preserving all 96 inputs and all 48 nodes.
-- [ ] Complete whole-batch source/evidence review and the production normal
-  accuracy proof, preserving all four confirmed witnesses, the three raw overflow
-  rows and the original four-ulp/nearest-infinity contract.
+- [x] Complete bounded whole-batch source/derivation/evidence review on both
+  runtimes, preserving the original inputs and every rejected numerical context.
+- [ ] Complete production source proofs and normal-accuracy verification,
+  preserving all four confirmed witnesses, the three raw overflow rows and
+  the original four-ulp/nearest-infinity contract.
 - [ ] Implement and CRC-verify P1, then P2–P4 as separate coherent slices.
 - [ ] Current-main integration, docs, separate pushes and exact-SHA CI.
 

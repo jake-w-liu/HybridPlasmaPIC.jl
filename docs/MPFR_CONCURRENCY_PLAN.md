@@ -52,9 +52,14 @@ This accepts bounded metadata correspondence only: 69 attribute-provenance
 contexts, 553 delayed markers, mapped-cache byte hashes and initializer/runtime
 behavior retain explicit limits. The next source-only original-Make preparation
 is sealed with 796 file pins and six links, including the independently matched
-11-target / 100-edge prerequisite graph and conditional submake writes. No Make,
-compiler/plugin or runtime consumer has run; actual provider/import/SDK/cache/
-write admission remains open. Threading
+11-target / 100-edge prerequisite graph and conditional submake writes. One
+subsequent CLT `make --version` call from an empty external directory exits zero.
+Root checks all 1,155 raw loader rows: the exact Make image plus all 599 prior
+system path/UUID pairs, and 555 uninterpreted delayed markers. All 819 input
+files, eight links, one directory and complete source guards pass. The banner
+and observed image UUID are retained without inferring architecture from the
+banner. No Makefile/target, compiler/plugin or runtime consumer has run; actual
+provider/import/SDK/cache/write admission remains open. Threading
 analysis, Julia bootstrap, numerical consumers, GC/lifecycle, P4 child/depot and
 platform gates remain unaccepted.
 Installed Julia libraries are unchanged and NUM-001

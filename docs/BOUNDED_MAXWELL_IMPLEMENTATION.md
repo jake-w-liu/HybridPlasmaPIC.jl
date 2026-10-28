@@ -46,9 +46,14 @@ A new isolated candidate now contains the reviewed population/endpoint method
 barriers and a count sentinel derived from the unchanged 2^51 native limit.
 Global validation order, shared native/exact particle arithmetic and final
 publication remain explicit invariants. Targeted broad/mixed/custom-container,
-count, rejection and liveness tests are being added. Julia numerical/compiler/
-resource acceptance for this repair remains unrun; the previous compiler gate
-remains failed. Later quality/resource/full-package gates remain open. It does not
+count, rejection and liveness tests are written. Both runtime syntax checks and
+formatter AST/idempotence pass; all original test bytes remain. Seven fresh
+offline provider stages pass, with all 160/161 package and 440/444 loaded-library
+records reviewed. Both metadata decoders pass 248/245 assertions and match all
+203 embedded/live/frozen source records per runtime. Only the exact four fields
+of the observed package-image row differ per runtime; every other loaded row
+is equal. Fresh normal numerical/compiler/resource validation runs separately;
+acceptance remains open and the previous compiler gate remains failed. Later quality/resource/full-package gates remain open. It does not
 implement a coupled force, particle pusher, wall event or restart. The
 [audit tracker](DEEP_DEBUG_TRACKER.md) owns current acceptance.
 
