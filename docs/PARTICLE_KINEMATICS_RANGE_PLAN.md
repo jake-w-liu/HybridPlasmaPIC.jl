@@ -147,7 +147,9 @@ passes all 3,543 assertions per runtime on functional devices. The 22-file
 neighboring-model matrix passes 117,819 / 117,820 assertions on actual Julia
 1.12.7 / 1.13.3. Correctness commit `a29da03` is pushed; its
 [exact-SHA CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40751545173)
-and complete CI compiler review remain open. The first compiler harness failed by requesting the candidate-only method on the parent; that
+passes all six jobs and complete CI compiler review. Actual Julia 1.12.7 /
+1.13.3 pass 1,246,963 / 1,246,964 assertions; both entire compiler forests
+match accepted C1 byte-for-byte (24 / 21 reports). The first compiler harness failed by requesting the candidate-only method on the parent; that
 failed capture remains. Formatting passes on all 466 Julia files. Earlier AST
 checker metadata and syntax failures remain failed, with explicit corrected
 checks and final-source review. Publication acceptance stays in the audit tracker.
@@ -195,7 +197,10 @@ including 87 empty concrete analyses each and the complete 29/27-report package
 records. Both full legacy suites also pass 46,725 assertions each. Composition
 onto `a29da03` preserves all 466 tested Julia source hashes and the formatter
 config exactly; the temporary duplicate baseline is absent from commit history.
-Separate exact-SHA CI and complete CI compiler review remain required.
+Optimization `8d7473f` passes [all six exact-SHA jobs](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40753722133)
+and complete compiler review: 1,249,543 / 1,249,544 assertions on actual Julia
+1.12.7 / 1.13.3; both entire compiler forests match accepted C1 byte-for-byte
+(24 / 21 reports).
 Other cold profiles retain their raw costs; neither native peak memory nor portable latency is certified.
 
 ## Verification

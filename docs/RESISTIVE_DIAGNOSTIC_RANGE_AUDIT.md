@@ -29,7 +29,7 @@
 - [x] Implement the canonical repair with regression coverage.
 - [x] Pass minimum/latest correctness, robustness and resource checks.
 - [x] Review compiler reports and exact final diff.
-- [ ] Root integration, main push and exact-SHA CI acceptance.
+- [x] Root integration, main push and exact-SHA six-job/compiler acceptance for `a356c6b`, as linked in the final record below.
 
 ## Wrong-repair controls
 

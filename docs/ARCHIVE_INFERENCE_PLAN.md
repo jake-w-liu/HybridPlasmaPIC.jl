@@ -4,8 +4,11 @@ Revision-scoped implementation record. The pre-edit findings and candidate
 acceptance states below are historical; see the [audit tracker](DEEP_DEBUG_TRACKER.md)
 for current integration and remaining work.
 
-Recorded status: JET-002 implemented and focused gates passed on both native versions;
-pushed as `6341c4b`. Full-package integration runs are in progress.
+JET-002 landed as `6341c4b`. The [audit tracker](DEEP_DEBUG_TRACKER.md) records
+352,287 assertions per native full suite for that frozen revision; no currently
+running process is implied. Its [GitHub run](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/38709717246)
+finished cancelled (checked 2026-10-29), so this revision has no six-job green
+acceptance. Later containing revisions have their own checked results in the tracker.
 
 ## Pre-edit brief
 

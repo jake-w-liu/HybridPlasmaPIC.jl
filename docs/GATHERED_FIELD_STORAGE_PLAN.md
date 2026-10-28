@@ -41,7 +41,7 @@ predicate and does not promise detection of hidden unsafe pointer aliases.
   concrete analysis, Aqua and complete compiler-tree review.
 - [x] CI-pinned formatter AST/idempotence and exact final diff.
 - [x] Root integration onto current main, including both supported runtimes.
-- [ ] All six exact-SHA GitHub CI jobs; current status belongs to the [audit tracker](DEEP_DEBUG_TRACKER.md).
+- [x] `0f78536`: [all six exact-SHA GitHub jobs](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40411920570) and complete compiler review pass; remaining broader work belongs to the [audit tracker](DEEP_DEBUG_TRACKER.md).
 
 Wrong repairs include identity-only checks, a velocity-only check, checking
 only E, rejecting shared read-only fields, and checking after the kick. The

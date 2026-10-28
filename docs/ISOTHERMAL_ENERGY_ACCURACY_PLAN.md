@@ -4,9 +4,12 @@ Revision-scoped implementation record. The baseline failures and candidate
 acceptance states below are historical; see the [audit tracker](DEEP_DEBUG_TRACKER.md)
 for current integration and remaining work.
 
-The numerical repair landed as `6e7fb01`, followed by traversal optimization
-`5323c4d`. The pre-promotion status below is retained as history; it does not
-claim that the public repair is still unpushed.
+The numerical repair landed as `6e7fb01`. Its [exact-SHA run](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39129297310)
+finished with one failed latest-Julia package job; the minimum package, formatter
+and all MPI jobs passed. The separate traversal revision `5323c4d`
+[passes all six jobs](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39129564503).
+These outcomes were checked again 2026-10-29. The pre-promotion gates and
+measurements below are historical; the earlier failure stays failed.
 
 Recorded pre-promotion status: defects confirmed on Julia 1.12.7 and 1.13.2. Public v2 is frozen and
 under verification. Public v3 separately integrates verified traversal optimizations;
@@ -161,14 +164,15 @@ these shared-host timings establish no universal speedup. General v5's separate
 latest run passes 132 paired output/resource assertions. The public-v3 paired
 comparison is recorded below; complete public acceptance remains pending.
 
-## Acceptance still required
+## Historical pre-promotion gates
 
 Complete both public-v2 native lanes and retain the measured timing costs
 against the exact previous public owner as an open optimization task. Native lanes include solver/restart, quality/Aqua,
 threaded and full compiler-tree comparisons. Verify the real extreme-density
 resource controls and preserve failed evidence. The correction is pushed as
-`6e7fb01`; its exact-SHA GitHub run and the separate optimization run must both
-finish green before acceptance.
+`6e7fb01`; its original exact-SHA run later failed, while the separate traversal
+run passed as recorded above. No current acceptance is inferred from this old
+pre-promotion checklist.
 
 The [polytropic plan](POLYTROPIC_ENERGY_RANGE_PLAN.md) and the
 [complete budget/inertia scope](HYBRID_DIAGNOSTIC_RANGE_PLAN.md) remain separate
@@ -202,14 +206,15 @@ Linux package/format/MPI run with native solver, restart, quality, threaded and
 full compiler-tree checks; it does not accept or remove any pending gate.
 The 15,427 permanent assertions plus one smoke check and 72 concrete compiler
 checks already pass on each runtime. The performance-v3 and pressure candidates
-remain separate. The latest fully green earlier revision is `d497436`.
+remain separate. The reference to `d497436` in this campaign identifies its then-green baseline.
 
 The separate public-v3 traversal change is pushed as `5323c4d`;
 [its exact-revision CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39129564503)
-is running.
+finished with all six jobs successful.
 Its four Julia paths add the checked Float64 degree-eight first pass and local
 repeated-density reuse, with the original complete fallback and accumulation
 order retained. Both native versions pass 27,831 permanent assertions plus one
 smoke check and 144 concrete compiler checks. The 240-assertion paired run and
 92-assertion Float32 repeat above pass. Broader native acceptance remains queued
-and mandatory; its full GitHub run is executing in parallel.
+and mandatory in that historical handoff; the completed GitHub outcome is
+recorded above.

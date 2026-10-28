@@ -4,8 +4,11 @@ Revision-scoped implementation record. The pre-edit findings and candidate
 acceptance states below are historical; see the [audit tracker](DEEP_DEBUG_TRACKER.md)
 for current integration and remaining work.
 
-Recorded status: correction passes focused and package-sandbox validation on both Julia
-versions; individual push and exact-SHA CI remain.
+The correction landed as `4f26e1d`; [all six exact-SHA jobs pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40206440280)
+(checked 2026-10-29). The archived complete compiler review records unchanged
+24 / 21-report forests after checked source-line mappings and 790,608 /
+790,609 assertions on actual Julia 1.12.7 / 1.13.2. The original `839c109`
+run remains failed.
 
 ## Pre-edit brief
 
@@ -58,10 +61,11 @@ versions; individual push and exact-SHA CI remain.
 - [x] Trace canonical full/half-window owner and affected artifacts.
 - [x] Implement centered observation arithmetic and permanent regressions.
 - [x] Complete numerical, resource/compiler and production-history replay gates.
-- [ ] Commit and push the correction; review exact-SHA CI and full diagnostics.
+- [x] Commit and push `4f26e1d`; six exact-SHA jobs and complete compiler review pass.
 
-The separate Coulomb population-mean repair remains planned; this CI failure
-takes priority without changing that scope or its retained witnesses.
+The separate [Coulomb population-mean repair](COULOMB_WEIGHT_MEAN_PLAN.md)
+also landed, with its own exact-SHA acceptance; this centering repair does not
+change that physical contract or its retained witnesses.
 
 ## Validation results
 
@@ -89,5 +93,5 @@ Both actual package test sandboxes pass 12,997 assertions across fitter,
 production initialization/history, frequency extraction and configured Aqua
 checks. All 94 `src`/`ext` Julia files match the parent byte for byte; the
 validation helper is not part of the package's compilation surface. Its own
-concrete compiler checks pass. Exact-SHA CI still requires complete compiler
-log review, and the failed historical run remains failed evidence.
+concrete compiler checks pass. Complete exact-SHA compiler review is accepted
+as recorded above; the failed historical run remains failed evidence.

@@ -4,7 +4,8 @@ Revision-scoped implementation record. The pre-edit findings and candidate
 acceptance states below are historical; see the [audit tracker](DEEP_DEBUG_TRACKER.md)
 and [local collision guide](LOCAL_COULOMB.md) for current scope.
 
-Status: landed on `main` as the standalone CPU operator (2026-10-26); see the
+Status: landed as standalone CPU operator `1b7b8b7` (2026-10-26);
+[all six exact-SHA jobs and complete compiler review pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40272777081). See the
 [allocation repair record](LOCAL_COULOMB_RATE_ALLOCATION_PLAN.md) for landing
 verification. The fixed-step CPU isothermal [CAP-010 composition](COLLISIONAL_HYBRID.md)
 has also landed; broader closures/models, MPI ownership and device kernels remain open.
@@ -229,7 +230,7 @@ using the direct increment rather than renormalization noise.
   measurement controls and retained initial failures are recorded below;
   latency acceptance remains separate.
 - [x] Implement reusable cell bins and transactional multispecies collisions;
-  runtime and resource acceptance is still in progress.
+  runtime and resource acceptance had not completed at that historical V10 checkpoint.
 - [x] Test both precisions and all dimensions: locality, periodic seams,
   empty/odd/sparse cells, neutral/zero channels, mass and charge ratios,
   weight/count repartitioning, no self pairs, and untouched metadata.
@@ -627,8 +628,9 @@ Current evidence: `composition-v10-permanent-source.json`,
 `completion-certificate-derivation-v5.md`, `fixed-cost-v2-final-freeze.json`,
 `fixed-exceptional-selfcheck-v1-commands.json` and `fixed-cost-v2-design.md`.
 
-Three independent implementation agents are active for linear CN, ES species
-collections and bounded Maxwell vacuum/cavity. This collision slice does not
-complete CAP-001 composition/restart or any dependent parallel backend. The
+The recorded V10 handoff assigned separate linear-CN, ES-species and bounded-
+Maxwell work. That is historical ownership, not a claim about current agents.
+This standalone operator does not complete broader CAP-001, the remaining
+CAP-010 source/restart combinations or dependent parallel backends. The
 [full implementation roadmap](PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md)
 retains every CAP-001–011 acceptance gate.

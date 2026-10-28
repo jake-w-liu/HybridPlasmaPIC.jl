@@ -4,8 +4,9 @@ Revision-scoped implementation record. The baseline failures and candidate
 acceptance states below are historical; see the [audit tracker](DEEP_DEBUG_TRACKER.md)
 for current integration and remaining work.
 
-Recorded status: final local acceptance passes on Julia 1.12.7 and 1.13.2;
-separate promotion and exact-commit CI remain required.
+The repair landed as `7be1916`; [all six exact-SHA jobs pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39895197004)
+(checked 2026-10-29). The local acceptance results below retain their actual
+Julia 1.12.7 / 1.13.2 versions.
 Parent: `e8925e8663883832b6ffe453a559ac7be1903ae3`.
 
 The retained `migration-seam/boundary-allocation-probe.jl` commands measure
@@ -49,7 +50,7 @@ Pre-Edit Brief:
 - [x] Preserve measured parent allocation evidence.
 - [x] Implement in an isolated worktree and preserve original source snapshots.
 - [x] Pass numerical/error/resource and compiler gates on both runtimes.
-- [ ] Push separately and require all six exact-commit GitHub CI jobs.
+- [x] Push separately as `7be1916`; all six exact-SHA GitHub CI jobs pass.
 
 Final candidate: `../HybridPlasmaPIC-interval-validation-20261023`. Both native
 neighboring suites pass 21,723 assertions. The same 2,405 indexed-message,

@@ -6,8 +6,10 @@ for current integration and remaining work.
 
 Recorded status: pushed as `95c5678`; local implementation and validation gates passed.
 [Exact-SHA GitHub CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40186481856)
-remains pending. Production dispersion and full shock-profile comparisons remain
-CAP-007B/C.
+finished successfully in the archived exact-revision workflow overview. This
+audit has not rechecked that original run's individual jobs and compiler forest;
+the containing `4724947` has checked six-job/compiler acceptance. Production
+dispersion and full shock-profile comparisons remain CAP-007B/C.
 
 ## Pre-edit brief
 
@@ -67,7 +69,9 @@ the unchanged case metrics.
 - [x] Build and execute both pinned external references; verify cache replay.
 - [x] Review physics metrics, formatting, final diff and documentation.
 - [x] Push the locally verified slice to main as `95c5678`.
-- [ ] Review all six exact-SHA CI jobs and complete compiler output.
+- [x] Record original `95c5678` completed-success workflow metadata.
+- [ ] Recheck the original run's individual job receipts and complete compiler output; the workflow overview alone does not establish this review.
+- [x] Check containing `4724947`: [all six jobs and complete compiler review pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40325153253), with checked ancestry from `95c5678`.
 
 ## Verification ledger
 
@@ -161,5 +165,6 @@ final-source integration checks before promotion; those checks are recorded belo
 
 The local system MPI failure and all product/harness failure records remain
 retained. No global tool installation, automatic retry or cache deletion was
-introduced. Full package tests and complete compiler-log review remain required
-on the pushed GitHub revision.
+introduced. The original pushed workflow completed successfully; individual
+original-job/compiler re-review remains explicit above. The containing revision
+has separately checked full package and complete compiler acceptance.

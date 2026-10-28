@@ -4,9 +4,11 @@ Revision-scoped implementation record. The pre-edit findings and candidate
 acceptance states below are historical; see the [audit tracker](DEEP_DEBUG_TRACKER.md)
 for current integration and remaining work.
 
-Recorded status: V2 passes final local verification on Julia 1.12.7 and 1.13.2;
-promotion and exact-SHA CI review remain. V1 is retained unaccepted after the
-coarse-BigFloat follow-up.
+V2 landed as `861e562`; [all six exact-SHA jobs pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40211340659)
+(checked 2026-10-29). The archived complete compiler review records unchanged
+24 / 21-report forests after checked source-line mappings, with 796,350 /
+796,351 assertions on actual Julia 1.12.7 / 1.13.2. V1 remains unaccepted after
+the coarse-BigFloat follow-up.
 This is a separate repair after the sampled-angle/update slice.
 
 ## Evidence and owner
@@ -104,13 +106,13 @@ sharing an implementation.
   instead of all particles, omit tiny positive weights, or change error/RNG
   behavior. Include no-op, rejected-call and odd-triplet regressions.
 - [x] Reverify the collision sandbox, compiler, resource and formatting gates.
-- [ ] Commit and push this repair separately, then review all six exact-SHA CI
-  jobs and complete compiler logs. Fixed latency remains open optimization work.
+- [x] Commit and push separately as `861e562`; all six exact-SHA CI
+  jobs and complete compiler review pass. Fixed latency remains open optimization work.
 
 The same observations do not establish a defect in every other weighted
 reduction. Those owners need their own input/output witnesses before changes.
 
-## Verification in progress
+## Historical candidate verification
 
 The first candidate passes all 3,152 new permanent regression assertions on
 both runtimes, plus six assertions in the unchanged original public witness.

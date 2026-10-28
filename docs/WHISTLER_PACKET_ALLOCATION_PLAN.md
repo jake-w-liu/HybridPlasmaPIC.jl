@@ -18,7 +18,10 @@ and formatting checks pass on Julia 1.12.7 and 1.13.2. Landed on `main` after th
 linear CN repair `03e4eb3` (2026-10-26): `test_whistler_packet_allocation.jl`
 (5,793 assertions), the linear CN/phase suites, Aqua and JET pass on both
 runtimes; the largest measured n=128/100-step call drops from about 692 MB to
-9.4 MB. Exact-commit CI is pending.
+9.4 MB. The hoist landed as `cf2c4c5`; the containing `4724947` passes
+[all six jobs and complete compiler review](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40325153253).
+That containing-revision result does not establish the outcome of the original
+hoist revision or close the separate latency work.
 
 ## Pre-edit brief
 
@@ -91,7 +94,9 @@ runtimes; the largest measured n=128/100-step call drops from about 692 MB to
 - [x] Reverify generic inputs, settings and nonrepresentable/error paths.
 - [x] Run neighboring caller, compiler and formatting checks; review final diff.
 - [x] Freeze exact patch and evidence for root review in `packet-hoist-v2`.
-- [ ] Root integration, individual main push and exact-SHA GitHub CI.
+- [x] Root integration and individual main push (`cf2c4c5`).
+- [x] Containing `4724947`: all six jobs and complete compiler review, as linked above.
+- [x] Recheck the original `cf2c4c5` [run](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40275325475): both package jobs failed; formatter and MPI 2/4/8 passed. This historical failure remains failed.
 
 Latency acceptance remains open under the unchanged V5c contract. The complete
 plasma-simulator roadmap remains separate from this linear reference optimization.

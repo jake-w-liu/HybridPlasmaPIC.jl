@@ -48,7 +48,7 @@ Recorded status: 2026-10-23; parent stack overflow reproduced on an actual Metal
 - [x] Pass actual device, neighboring, validation, compiler and format gates.
 - [x] Review measured resources and the final source/held-file hashes.
 - [x] Commit and push this repair separately as `bf2a8bc`.
-- [ ] Require all six exact-SHA CI jobs.
+- [x] `bf2a8bc`: all six exact-SHA jobs pass, as linked in the final CI record below (checked again 2026-10-29).
 
 Wrong patches to reject: invoking the CPU particle loop would require prohibited
 scalar device indexing; updating velocity components in separate dependent

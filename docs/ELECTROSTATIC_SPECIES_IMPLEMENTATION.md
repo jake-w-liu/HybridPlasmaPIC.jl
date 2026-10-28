@@ -3,8 +3,12 @@
 Status: landed on `main` (2026-10-26) as the first CAP-008 slice. On `cf2c4c5`
 the species, ES/EM, charge, I/O, restart, variable-step, clock, dimension,
 moment, MPI-collection-checkpoint, Aqua and JET suites pass on Julia 1.12.7 and
-1.13.2; the scalar 2D ES step runs at parent speed. Arbitrary EM collections and
-the remaining CAP-008 integrations stay open.
+1.13.2. V7 functional, storage, allocation and compiler results are recorded
+below; coordinated timing acceptance remains open. The feature landed as
+`d46029e`; its original CI run failed, while containing `4724947` passes
+[all six jobs and complete compiler review](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40325153253).
+That containing result does not relabel the original failure. Arbitrary EM
+collections and the remaining CAP-008 integrations stay open.
 
 ## Pre-edit brief (2026-10-25)
 
@@ -97,9 +101,9 @@ level. Population replacement/reordering follows the initialization contract.
 - [x] Format, static/architecture review and final source freeze.
 - [x] Verify scalar bytes/allocations and collection storage/growth on both runtimes.
 - [x] Preflight complete timing harness, including output retention on failure.
-- [ ] Revalidate V7 boundary-scan cleanup and freeze final integration candidate.
+- [x] Revalidate V7 boundary-scan cleanup and freeze the candidate: all 14 final command/log receipts pass, as recorded below.
 - [ ] Complete coordinated timing acceptance.
-- [ ] Root integration, main push and GitHub CI.
+- [x] Root integration and main push as `d46029e`; original failed CI and containing `4724947` six-job/compiler acceptance are distinguished above.
 
 
 ## Audit matrix

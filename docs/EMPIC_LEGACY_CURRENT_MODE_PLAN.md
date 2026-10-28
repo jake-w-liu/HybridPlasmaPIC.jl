@@ -58,7 +58,7 @@ Any failed gate remains a failed candidate; no retry-until-green acceptance.
 - [x] Implement the shared-owner modal completion and permanent regression in isolation.
 - [x] Pass numerical, neighboring, compiler, format and resource gates.
 - [x] Review the exact source, preserve held changes, commit and push separately.
-- [ ] Require all six exact-SHA GitHub jobs.
+- [x] `7b50b51`: all six exact-SHA GitHub jobs pass, as linked in the final record below (checked again 2026-10-29).
 
 Fixing only infinities misses the zero-result witness. Multiplying `dt*k` first
 can itself overflow or underflow before the completed quotient. Routing every

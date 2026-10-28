@@ -16,8 +16,8 @@ CAP-005's nonlinear particle–field coupling or add Hall induction to this mode
 | CRC numerical, failure, caller and restart verification | Pass | Candidate6: 666/666 broad and 24/24 independent public-boundary checks on each native lane |
 | Measure storage, allocation, ordinary and error-matched costs | Pass with recorded repair costs | First fixed matrix and one prescribed four-profile confirmation complete; all raw samples retained |
 | Matched fresh-process compiler comparison | Pass with retained abstract diagnostics | 28 full records match on minimum plus two removed/one reviewed generic KdV report; all 27 match on latest; concrete KdV/FFT differentials pass |
-| Independent final audit and exact final diff | Local and root source review pass | Boundary audit passes; root reviewed six source/test diffs and full owner/tests without a new confirmed defect; final composition is verified; exact-SHA CI remains |
-| Push main and exact-SHA GitHub CI | Pushed ce52836; CI running | All 363 committed Julia files match the candidate; all six exact-SHA jobs required |
+| Independent final audit and exact final diff | Local and root source review pass | Boundary audit passes; root reviewed six source/test diffs and full owner/tests without a new confirmed defect; final composition is verified; exact-SHA CI is accepted below |
+| Push main and exact-SHA GitHub CI | `ce52836`: all six jobs and complete compiler review pass | [Run 39999012813](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39999012813): actual Julia 1.12.7 / 1.13.2 pass 624,178 / 624,179 assertions; complete forests match reviewed `ba3694c` byte-for-byte |
 
 Durable evidence directory, outside the source worktree:
 `HybridPlasmaPIC-audit-evidence/2026-10-23/shock-cn-solve/`.

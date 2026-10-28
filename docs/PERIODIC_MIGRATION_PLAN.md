@@ -6,8 +6,8 @@ for current integration and remaining work.
 
 Recorded status: pushed separately as `e8925e8` after local acceptance on Julia 1.12.7
 and 1.13.2. [Exact-commit CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39893248890)
-has passed formatting and 2/4-rank MPI; the other three jobs remain running.
-Updated 2026-10-23.
+passes all six jobs. Checked again 2026-10-29; the historical local results
+below keep their actual runtime versions.
 
 ## Verified behavior
 
@@ -51,7 +51,7 @@ rank-arithmetic or integrator change is part of this repair.
 - [x] Check neighboring boundaries, rank lookup, migration, deposition and
   MPI/checkpoint behavior; compare complete compiler reports and allocations.
 - [x] Commit and push separately as `e8925e8`.
-- [ ] Require all six exact-SHA CI jobs.
+- [x] `e8925e8`: all six exact-SHA CI jobs pass, as linked above.
 
 The candidate at `../HybridPlasmaPIC-periodic-seam-20261023` layers this change
 over frozen GROWTH-002 V3. Its original witness passes 216/216 assertions on both

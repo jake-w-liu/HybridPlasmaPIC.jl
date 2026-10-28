@@ -60,7 +60,12 @@ failed zero-report assertions. All 82 full captures remain: the original 34
 roots have four failures, and the 48 added roots have 22. Latest compiler and
 later vector/quality/resource/full-package stages are unrun. This candidate
 remains unaccepted; all previous failures remain recorded. Diagnose the full
-reports and owning source before another repair or campaign. It does not
+reports and owning source before another repair or campaign. The separate
+minimum-runtime scalar diagnosis passes 230 assertions: root replays all
+17 matched Base/JET targets, 34 full optimized/unoptimized IR entries and
+34 independent half-cell/wall controls. Broad constructor and vector-load
+returns infer `Any`; the local typed-boundary experiment clears its narrow
+reports. No production boundary has been selected or accepted. It does not
 implement a coupled force, particle pusher, wall event or restart. The
 [audit tracker](DEEP_DEBUG_TRACKER.md) owns current acceptance.
 

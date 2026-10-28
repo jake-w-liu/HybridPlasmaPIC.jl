@@ -5,8 +5,10 @@ acceptance states below are historical; see the [audit tracker](DEEP_DEBUG_TRACK
 for current integration and remaining work.
 
 Recorded status: canonical repair is pushed as `a18f09d` after local numerical, RNG,
-resource and compiler checks on Julia 1.12.7 and 1.13.2. Exact-SHA CI and full
-compiler-log review remain.
+resource and compiler checks on Julia 1.12.7 and 1.13.2. Its [exact-SHA run](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40197509625)
+finished with a failed minimum-Julia package job and five passing jobs
+(checked 2026-10-29). The archive retains twelve mode-history failures; the
+separate centering repair owns their correction. This original run stays failed.
 The separate nonzero-small-angle defect below and broader CAP-001 remain open.
 
 ## Pre-edit brief
@@ -53,7 +55,7 @@ The separate nonzero-small-angle defect below and broader CAP-001 remain open.
 - [x] Verify targeted, neighboring, error, RNG, resource and compiler contracts.
 - [x] Independent final source/evidence review for this bounded repair.
 - [x] Individual main push as `a18f09d`.
-- [ ] All six exact-SHA CI jobs with full compiler review.
+- [x] Record the original failed six-job outcome above; a later green containing revision does not relabel it.
 - [ ] Separate nonzero-small-angle repair and remaining CAP-001 acceptance.
 
 The first current-main test run exposed a fixture dispatch ambiguity between

@@ -5,7 +5,11 @@ acceptance states below are historical; see the [audit tracker](DEEP_DEBUG_TRACK
 for current integration and remaining work.
 
 Recorded status: the numerical repair is pushed as `2a5cc12` after final local validation;
-exact-SHA CI and fixed latency acceptance remain open. Baseline is `a18f09d`, including the exact-null
+its [exact-SHA run](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40205148875)
+finished with a failed minimum-Julia package job and five passing jobs
+(checked 2026-10-29). The failure record retains twelve mode-history assertions;
+the separate centering repair owns their correction. Fixed latency acceptance
+remains open. Baseline is `a18f09d`, including the exact-null
 repair. This slice does not accept the full local multispecies feature.
 
 ## Pre-edit brief
@@ -90,7 +94,7 @@ repair. This slice does not accept the full local multispecies feature.
 - [x] Review exact final source for the bounded legacy numerical repair.
 - [ ] Reassemble and reverify the separate local-collision candidate.
 - [x] Commit/push the bounded repair individually as `2a5cc12`.
-- [ ] Complete all six exact-SHA CI jobs and full compiler-tree review.
+- [x] Record the original exact-SHA CI failure above; it remains failed.
 - [ ] Complete fixed latency acceptance and remaining CAP-001 integration.
 
 The frozen local sampler reconstructs exceptional tangents from logarithms;

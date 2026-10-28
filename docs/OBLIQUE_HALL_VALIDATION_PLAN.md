@@ -4,9 +4,11 @@ CAP-007B3 remains open beyond this bounded periodic CPU Float64 fluid slice.
 
 Landing status (2026-10-26, on `cda63f1`): `test_oblique_hall_history.jl` and the
 neighboring parallel-wave, mode-history and validation-frequency suites pass on
-Julia 1.12.7 and 1.13.2. The earlier report that a fixed memory limit failed on
-Julia 1.12.7 does not reproduce: the landed test and `validation/oblique_hall_history.jl`
-contain no resource assertion, and the test passes on both runtimes. Case 35 is
+Julia 1.12.7 and 1.13.2. Those public tests do not contain the separate resource
+assertion and do not settle its result. The retained `resource-v6` minimum-Julia
+command exits 1: RSS growth is 20,398,080 B against the unchanged 16 MiB bound.
+Julia 1.13.2, the latest runtime in that campaign, exits 0 with 15,286,272 B. No cause,
+repair or nonreproduction finding follows from the public-test passes. Case 35 is
 a long campaign (60 profiles; 46 completed in about 25 minutes on a shared
 Apple M5), so it is a manual validation run rather than part of `Pkg.test`.
 The scientific matrix and gates were frozen before production measurements;
@@ -154,7 +156,7 @@ limits are permitted. These 12 raw histories are separate from the fit matrix.
 - [ ] Pass the original retention gate on both runtimes: final Julia 1.12.7
   RSS growth remains above 16 MiB. Native diagnostic plateaus do not pass it.
 - [x] Freeze source/dependency/run/artifact hashes and separate patch/handoff.
-- [ ] Parent review, individual main push and exact-commit CI.
+- [x] Record the landed `8144fbb` original failed CI separately from containing `4724947` [six-job/compiler acceptance](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40325153253). The original resource gate above remains failed/open.
 
 Wrong patches to reject: reversing Faraday/Hall or frequency signs; omitting
 Te from momentum; dividing cold delta_p by zero; selecting a sorted eigenvalue
@@ -241,4 +243,6 @@ The final seven-file patch and hashes are in the evidence directory's
 `handoff-v5`. Numerical sources match the completed V5 runs; this final tracker
 update records their results after source-pinned runs finished. Canonical solver,
 case 34 and the shared fitter remain unchanged. CAP-007B3 remains open beyond the
-bounded oblique fluid scope, and parent integration/push/CI remain unperformed.
+bounded oblique fluid scope. The helper/tests subsequently landed as `8144fbb`;
+its original CI failed, while the containing revision passes as linked above.
+That integration does not accept or repair the retained RSS gate.

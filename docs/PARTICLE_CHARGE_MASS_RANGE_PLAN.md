@@ -105,7 +105,14 @@ Complete inverses preserve production code, assertions, references and
 tolerances. All 489 V1/V2 content pins and 468 Julia files/modes were checked.
 The V1 test was edited and restored from immutable formatter bytes; its
 timestamp changed and is not claimed untouched. The four-call V2 bounded run
-is active; compiler, resource, backend and integration gates remain open.
+remains active. A separately isolated V3 restores the historical generic
+three-argument square sum: both runtimes pass 45 checks, and root replays all
+228 stored values per runtime plus 48 trace nodes. Default generic dispatch
+returns to 13 binary / one ternary addition; all three warmed BigFloat samples
+match the parent in each of 12 contexts. Only this bounded generic compatibility
+is accepted. A new four-call V3 physical harness adds external phase records
+around unchanged tests; its source inverse and frozen inputs are reviewed and
+released. Physical, compiler, resource, backend and integration gates remain open.
 
 A separate unchanged-converter hardware-mode
 probe first fails on an unavailable public method, then terminates with SIGSEGV
@@ -118,10 +125,13 @@ integer is a separate canonical repair in progress. A second typed probe
 checks stored-input extraction: 1,680 rows per runtime retain the input bits
 and restore mode state; independent integer-field replay finds 144 wrong
 rationals per runtime, 48 per IEEE type, all with flush-to-zero enabled. All
-non-flush rows are correct. The repair will extend the existing BigFloat
-`Base.decompose` extraction body to IEEE types and pack already-rounded output
-integers without floating scaling. The generic/nonfinite behavior and BigFloat
-body remain compatibility gates. Neither this probe nor the output probe
+non-flush rows are correct. The canonical candidate extends the existing BigFloat
+`Base.decompose` extraction body to IEEE types and packs already-rounded output
+integers without floating scaling. Both bounded stdlib children pass 87,507
+assertions per runtime; root replays every 14,240 rows/runtime, including all
+original inputs and output witnesses. All 693 frozen inputs remain exact.
+Broader package/caller, generic/nonfinite/BigFloat, compiler, strict ordinary
+resource and actual Metal gates remain open. Neither this probe nor the output probe
 accepts the complete cold Boris pipeline under changed hardware modes.
 This is separate from the normal-mode production campaign.
 

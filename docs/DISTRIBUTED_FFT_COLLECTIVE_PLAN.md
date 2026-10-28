@@ -58,16 +58,16 @@
 
 ## Subsequent CAP-003 work
 
-- [ ] Accept the collective constructor slice and exact-SHA CI.
-- [ ] Specify rank-local field storage, global/logical frequency indexing and
-  serial owner reuse for derivative/curl/Laplacian/projection/filter operators.
-- [ ] Implement preallocated operators with analytic and serial-reference
-  parity, DC/Nyquist/range gates and real2/4/8rank local-storage checks.
+- [x] Accept the constructor slice: `00f7922` has six green exact-SHA jobs and complete compiler review, as recorded below.
+- [x] Land rank-local storage and the derivative/vector/filter operator slices;
+  [canonical stage and acceptance record](DISTRIBUTED_OPERATOR_IMPLEMENTATION_PLAN.md)
+  tracks `4fafe4a` and `4724947`, including their six-job/compiler acceptance.
 - [ ] Compose local deposition, halos, migration, fields and hybrid timesteps.
 - [ ] Add per-family restart, diagnostics, ES/EM and measured multi-node scaling.
 
-The operator and coupled evolution boxes are not implemented by this constructor
-repair. Fixed performance acceptance and complete simulator scope remain open.
+The constructor and later operator slices have separate acceptance records.
+Coupled distributed evolution, restart, cluster performance and complete
+simulator scope remain open.
 Primary layout contract: https://jipolanco.github.io/PencilFFTs.jl/dev/tutorial/
 and https://jipolanco.github.io/PencilArrays.jl/dev/PencilArrays/.
 
@@ -143,6 +143,9 @@ candidate unchanged.
 
 All local constructor acceptance gates are complete, and the repair is pushed as
 `00f7922`. [Exact-revision GitHub CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40220039958)
-and its full compiler-log review remain active. This repair
-closes the constructor prerequisite only; every subsequent CAP-003 stage above
-remains open.
+passes all six jobs (checked 2026-10-29). The archived complete compiler review
+records 797,946 / 797,947 assertions on actual Julia 1.12.7 / 1.13.2, with all
+24 / 21-report forests equal after checked unchanged-source line mappings. This repair
+closes the constructor prerequisite only. Subsequent operator progress belongs
+to the linked canonical plan; coupled evolution, restart and cluster scaling
+remain open.

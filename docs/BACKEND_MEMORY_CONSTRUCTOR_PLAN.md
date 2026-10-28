@@ -6,7 +6,10 @@ for current integration and remaining work.
 
 Recorded status: pushed as `c810eb0`; both native correctness/compiler and fixed cost
 lanes pass. [Exact-SHA CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40005434857)
-remains required. Parent:
+finished with a failed minimum-Julia allocation assertion; the other five jobs
+passed. The later `f1410b7` diagnostic-only revision has six green jobs and
+complete compiler review, as recorded below. The original failure and its
+unresolved allocation attribution remain. Parent:
 `ba3694c` (production GPU owner unchanged from `61356f1`). Evidence: `../HybridPlasmaPIC-audit-evidence/2026-10-23/backend-constructor`.
 
 ## Contract and scope
@@ -58,7 +61,7 @@ backend telemetry APIs and pressure calculation unchanged.
 - [x] Review the final diff and composed source, verify held-change hashes and
   commit/push separately as `c810eb0`; all 364 committed Julia files match the
   validated candidate. Fifteen final command logs and 144 Markdown links checked.
-- [ ] Require all six exact-SHA CI jobs green.
+- [x] Record original `c810eb0` failed exact-SHA CI and subsequent green `f1410b7`; retain the unresolved historical allocation attribution below.
 
 This is a host metadata invariant repair. It does not establish GPU kernel
 correctness, device memory capacity or a complete GPU-resident solver.

@@ -9,7 +9,9 @@ artifact-replay and CLI/plot checks on Julia 1.12.7 and 1.13.2. Pushed as
 `839c109`; [exact-SHA CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40194825415)
 passes five jobs but fails twelve Julia 1.12 log-amplitude residual assertions.
 The [centering repair](MODE_HISTORY_CENTERING_PLAN.md) preserves those failures
-and the unchanged tolerance. Corrected CI and full compiler review remain.
+and the unchanged tolerance. The correction `4f26e1d`
+[passes all six exact-SHA jobs](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40206440280)
+and archived complete compiler review; the original run stays failed.
 The full [completeness roadmap](PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md)
 remains open; this plan does not replace its other solver and parameter regimes.
 
@@ -84,7 +86,7 @@ statistic, not a plasma-noise model or numerical-discretization uncertainty.
   versions pass local checks. This first matrix is periodic CPU Float64;
   unsupported backend/model claims remain open.
 - [x] Push the locally accepted slice individually to main as `839c109`.
-- [ ] Complete all six exact-SHA CI jobs plus full compiler-tree review.
+- [x] Record original `839c109` failed CI and corrected `4f26e1d` six-job/compiler acceptance separately, as linked above.
 - [ ] **007B3:** extend to oblique fluid and cold hybrid modes, electron/ion
   temperature and mass-ratio scans, production EM branches and physical
   damping/growth with independent kinetic references. Freeze initialization,

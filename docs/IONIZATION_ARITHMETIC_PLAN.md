@@ -1,10 +1,11 @@
 # Ionization energy and optical-depth arithmetic
 
-Status (2026-10-23): COLL-001 is freshly reproduced against pushed `16c9776`.
-Both native runtimes retain 3,834 passes and 127 failed behavior assertions,
-without fixture errors. The reconstructed repair passes its final local gates below. Parent CI is
-green on all six jobs. The repair is pushed as `b251cb7`; its exact-SHA CI
-run 39885899763 is in progress (formatting and real 2/4/8-rank MPI are green).
+Status checked 2026-10-29: COLL-001 landed as `b251cb7`;
+[all six exact-SHA CI jobs pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/39885899763).
+The reconstructed repair passes the local gates recorded below. The parent
+reproduction retains 3,834 passes and 127 failures per runtime, without fixture
+errors. Those baseline failures and the failed full local run remain historical
+evidence; later green CI does not relabel them.
 
 The full local Julia 1.13.2 run exited unsuccessfully after 599,361 passes,
 zero failed assertions and one metadata subprocess error. Its child selected
@@ -13,7 +14,7 @@ and could not load FFTW. The original command and complete report remain in
 `../HybridPlasmaPIC-audit-evidence/2026-10-23/full1132.log`. A separately verified
 [test-harness repair](TEST_SUBPROCESS_ENVIRONMENT_PLAN.md) preserves both child
 processes and all checksum assertions. The failed full run is not reported as
-passing; exact-commit GitHub package results remain required.
+passing. The exact-commit GitHub run above subsequently passed both package jobs.
 
 The earlier `/tmp` candidates and evidence below are no longer available.
 Their historical counts do not validate the reconstructed implementation.
@@ -335,5 +336,5 @@ checks per runtime; no patch was made for that unconfirmed hypothesis.
 `ionization-control-flow-proof.json` also verifies byte-identical validation,
 selected-batch/storage/ID/newborn blocks, and final append/counter publication.
 Formatting passes twelve parsed-semantics/idempotence checks. The complete
-latest-Julia local suite is running; exact-SHA GitHub acceptance remains a
-separate required gate after promotion.
+latest-Julia local run ended with the separate metadata subprocess error
+recorded above. The exact-SHA GitHub run subsequently passed all six jobs.

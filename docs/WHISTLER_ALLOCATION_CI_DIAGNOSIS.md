@@ -1,6 +1,9 @@
 # Whistler allocation CI investigation
 
-The allocation failure remains open. Exact revision `a7fb3c8` fails both package
+The historical allocation cause remains unresolved. The later
+[bounded-counter optimization](WHISTLER_BIGINT_COUNTER_PLAN.md) is accepted at
+`cd8b94d`, with six green jobs and complete compiler review; that result does
+not establish the cause of earlier failures. Exact revision `a7fb3c8` fails both package
 jobs in [run 40393658443](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40393658443):
 `test_whistler_packet_allocation.jl:158` measures mode-count differences of
 4,768 bytes on Julia 1.13.3 and 6,352 on 1.12.7 against the unchanged 4,096-byte
@@ -42,11 +45,11 @@ The six-job main CI workflow is unchanged and remains required for every push.
   forced-assertion pipeline controls preserve visible nonzero failure. Both
   Julia files pass formatting/syntax/idempotence checks; the original formatter
   harness line-location mismatch is retained.
-- [ ] Push the diagnostic and current status to main; require all six CI jobs.
-- [ ] Dispatch once and review all four Ubuntu artifacts, including failures.
+- [x] Push diagnostic `f93e17d`; its exact-SHA run retains a latest-Julia package failure and five passing jobs in the [audit tracker](DEEP_DEBUG_TRACKER.md).
+- [x] Dispatch and review all four Ubuntu artifacts; preserve raw byte variation and the unsuccessful historical gate.
 - [ ] Establish the allocation owner and cause with measured evidence.
-- [ ] Repair that owner, retain all existing gates and reverify both runtimes.
-- [ ] Push the repair separately and require exact-SHA green CI.
+- [x] Implement and reverify the separately measured bounded-counter optimization with all existing gates retained; this does not attribute the historical variation.
+- [x] Push `cd8b94d`; [all six exact-SHA jobs](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40423035764) and complete compiler review pass.
 
 No tolerance increase, disabled coverage, test skip, selected minimum, retry to
 green or production optimization is part of this investigation slice. The

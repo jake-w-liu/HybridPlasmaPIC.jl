@@ -199,7 +199,8 @@ Retain exact source/env hashes, commands, logs, raw errors and every failed run.
   user permission requirement.
 - [x] Implement the bounded composition owner on the separate provisional V10
   dependency, with full rollback and exact disabled-source/component controls.
-  Promotion and final sampler/phase recomposition remain pending.
+  This describes the historical V10 assembly; final sampler/phase recomposition
+  and the landed port are recorded below.
 - [x] Extend canonical checkpoint/archive schema and validation; exact same-env
   uninterrupted vs restart at every permitted boundary, corrupted/missing/type-
   mismatched RNG/phase/configuration, rejected incoming state and failed publish.
@@ -227,7 +228,7 @@ Retain exact source/env hashes, commands, logs, raw errors and every failed run.
   monitored exclusive window.
 - [x] Repeat scientific/restart/resource/neighbor gates on `main`'s landed sampler
   (port record below).
-- [ ] Parent integration, individual push and CI.
+- [x] Root integration and individual push as `2b2420b`; [all six exact-SHA jobs](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40326554556) and complete compiler review pass for the bounded fixed-step CPU isothermal slice.
 
 Dependent expansion remains explicit: variable-step collision scheduling;
 second-order stochastic splitting; evolving-pressure heat exchange; CAM-CL
@@ -472,13 +473,15 @@ bounded preflight failures; the complete 180-profile resource inventory and
 physical, quality, final dependency and integration gates remain open.
 
 
-## Current verified implementation status
+## Historical provisional assembly
 
-The current bounded API and worked restart example are documented in
-[COLLISIONAL_HYBRID.md](COLLISIONAL_HYBRID.md). Parent owns root integration/CI;
-this isolated candidate has not been pushed. The source is still based on the
-separate provisional V10 assembly and must consume the final root sampler and
-phase repair before promotion.
+The results in this section describe the isolated V10-based candidate before
+its port to the landed sampler. The port and its verification appear below.
+The bounded fixed-step CPU isothermal API landed as `2b2420b`, with six green
+exact-SHA jobs and complete compiler review. The current contract and restart
+example are in [COLLISIONAL_HYBRID.md](COLLISIONAL_HYBRID.md). Expanded physical
+regimes, higher-order/variable-step composition, other closures and exclusive
+latency acceptance remain separate open gates.
 
 - `functional-v3`:817 assertions/runtime, including finite-input post-draw
   failure, exact retry and dynamic storage/value rejection. `checkpoint-v2`:178
