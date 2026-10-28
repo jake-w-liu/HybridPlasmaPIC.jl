@@ -155,7 +155,8 @@ end
 
 Particle drift `x + dt*v` (pass the stored `dt/2` for a midpoint) in the native
 operation order. Finite native results inside half the maximum are certified
-in range. Other finite-input cases use the same expression with exact rational
+in range, as are finite results with a zero displacement factor. Other
+finite-input cases use the same expression with exact rational
 operands to classify nearest-even overflow. A valid finite native result keeps
 its bits; a nonfinite native result is rounded from the exact expression once.
 This also resolves cancellation at the overflow endpoint without an intermediate
@@ -164,9 +165,12 @@ wider-float rounding. Nonfinite inputs retain their native IEEE propagation.
 @inline function _particle_coordinate(x::T, v::T, dt::T) where {T}
     position = _particle_coordinate_native(x, v, dt)
     T <: _RangeGuardedFloat || return position
-    # Two finite rounded operations put the exact coordinate inside the range
-    # when the native result is within half the maximum; retain its native bits.
-    isfinite(position) && abs(position) <= floatmax(T) / 2 && return position
+    # A finite zero-factor drift is exactly x in real arithmetic. Otherwise,
+    # two rounded operations are in range inside half the maximum. Preserve
+    # the native result, including its signed-zero bits, in either case.
+    isfinite(position) &&
+        (abs(position) <= floatmax(T) / 2 || iszero(v) || iszero(dt)) &&
+        return position
     return _particle_coordinate_repair(position, x, v, dt)
 end
 

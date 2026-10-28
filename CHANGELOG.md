@@ -8,6 +8,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Finite particle drifts with an exactly zero displacement factor retain native
+  IEEE bits without exact range work. The measured near-boundary scalar and
+  complete public profiles now allocate zero Julia bytes; signed zeros and
+  nonfinite propagation are unchanged.
+
 - CPU particle drifts and gathered midpoints classify nearest-even overflow from
   the complete stored expression `x + dt*v`. This repairs both finite native
   results whose exact result overflows and nonfinite native results whose exact

@@ -208,4 +208,59 @@ end
         end
     end
 end
+
+@testset "Zero-factor drift keeps exact range and native IEEE bits" begin
+    for T in (Float16, Float32, Float64)
+        M = floatmax(T)
+        coordinates = (
+            zero(T),
+            -zero(T),
+            one(T),
+            -one(T),
+            T(0.75) * M,
+            -T(0.75) * M,
+            prevfloat(M),
+            -prevfloat(M),
+            M,
+            -M,
+        )
+        factors = (-M, -one(T), -nextfloat(zero(T)), nextfloat(zero(T)), one(T), M)
+        for x in coordinates,
+            z in (zero(T), -zero(T)),
+            factor in factors,
+            (v, dt) in ((z, factor), (factor, z))
+
+            native = H._particle_coordinate_native(x, v, dt)
+            actual = H._particle_coordinate(x, v, dt)
+            @test isfinite(actual)
+            @test Q(actual) == Q(x)
+            @test bitstring(actual) == bitstring(native)
+        end
+        for x in (M, -M, T(0.75) * M, -T(0.75) * M),
+            n in (1, 17),
+            (v, dt) in ((zero(T), M), (M, zero(T)))
+
+            fields = ntuple(_ -> zero(T), 3)
+            ps = population(T, n, false, x, v)
+            push_uniform!(ps, fields, fields, dt)
+            @test all(y -> bitstring(y) == bitstring(x), ps.x[1])
+            @test all(y -> bitstring(y) == bitstring(v), ps.v[1])
+            ps = population(T, n, false, x, v)
+            gathered = ntuple(_ -> zeros(T, n), 3)
+            midpoint = (zeros(T, n),)
+            push_gathered!(ps, gathered, gathered, dt; xmid = midpoint)
+            @test all(y -> bitstring(y) == bitstring(x), ps.x[1])
+            @test all(y -> bitstring(y) == bitstring(x), midpoint[1])
+            @test all(y -> bitstring(y) == bitstring(v), ps.v[1])
+        end
+        for x in (zero(T), M, T(Inf), -T(Inf), T(NaN)),
+            z in (zero(T), -zero(T)),
+            factor in (T(Inf), -T(Inf), T(NaN)),
+            (v, dt) in ((z, factor), (factor, z))
+
+            @test bitstring(H._particle_coordinate(x, v, dt)) ==
+                  bitstring(H._particle_coordinate_native(x, v, dt))
+        end
+    end
+end
 end

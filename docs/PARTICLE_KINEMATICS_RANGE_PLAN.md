@@ -61,7 +61,7 @@ the same preflight check before any particle update.
 | Euler priming/predictor | `_euler_kick`, `src/particles/kinematics_range.jl` (used by `_prime_leapfrog!`, `_predict_half_kick!`, `_prime_empic1d!`) | `h*qm` normal or legitimately zero, finite `E + u×B`, scale `≥ 256 floatmin (1+|h qm|)` |
 | Relativistic priming | `_rel_prime_in_range`/`_rel_prime_repair` | `c²` normal, `h` normal or zero, finite acceleration and `γ`, resolved Lorentz factor and output squared speed `≤ c²/2`, scale `≥ 256 floatmin (1+|h|)(1+|qm|)` |
 | ES priming | `_es_prime_component` | `h*qm` normal or zero, scale `≥ 256 floatmin` |
-| Drift/midpoint | `_particle_coordinate` (push_uniform!/push_gathered!, hybrid, EMPIC1D/EMPIC, ES, 7 shock updates) | finite native result within half the maximum; unresolved finite inputs use exact nearest-even overflow classification |
+| Drift/midpoint | `_particle_coordinate` (push_uniform!/push_gathered!, hybrid, EMPIC1D/EMPIC, ES, 7 shock updates) | finite native result within half the maximum or with a zero displacement factor; unresolved finite inputs use exact nearest-even overflow classification |
 
 The wide-format claims (no overflow, harmless underflow) are derived in the
 comments next to each repair. `dt` validation is `_require_resolved_dt` in
@@ -144,14 +144,19 @@ every field in the 29/27 full-package reports matches its parent after checked
 source-root and three generated-name relocations. The changed full-file source
 attachments retain their complete source disposition. Actual Metal integration
 passes all 3,543 assertions per runtime on functional devices. The 22-file
-neighboring-model matrix passes 117,819 assertions on Julia 1.12.7; its latest
-Julia lane is running. Final integration acceptance and exact-SHA CI remain
-open. The first compiler harness failed by requesting the candidate-only method on the parent; that
+neighboring-model matrix passes 117,819 / 117,820 assertions on actual Julia
+1.12.7 / 1.13.3. Correctness commit `a29da03` is pushed; its
+[exact-SHA CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40751545173)
+and complete CI compiler review remain open. The first compiler harness failed by requesting the candidate-only method on the parent; that
 failed capture remains. Formatting passes on all 466 Julia files. Earlier AST
 checker metadata and syntax failures remain failed, with explicit corrected
 checks and final-source review. Publication acceptance stays in the audit tracker.
 
 ### Coordinate classification proof and measured costs
+
+A finite native result with v=0 or dt=0 has exact coordinate x; retaining its
+native bits also preserves the existing signed-zero behavior. The outer finite
+guard excludes nonfinite zero-product propagation from this shortcut.
 
 Let M be floatmax, u=eps(T)/2 and D the minimum subnormal. For finite stored
 operands in nearest-even arithmetic, write p=fl(dt*v) and z=fl(x+p). If z is
@@ -167,17 +172,18 @@ finite. Nonfinite-input propagation and device-native formulas stay unchanged.
 The 108 paired scalar/public profiles per runtime cover N=1/64/4096 and Array/
 strided storage. All 36 ordinary profiles retain 0 B; no retained workspace is
 added. Exact cold evaluation has a cost. In the sampled Array N=4096 case with
-x=0.75M, v=0 and dt=1, both scalar and complete public calls allocate the
-following managed bytes on both runtimes (all three samples agree):
+x=0.75M, v=0 and dt=1, correctness-only `a29da03` and this optimization have
+these managed-byte costs for both scalar and complete public calls on both
+runtimes (all three samples agree):
 
-| T | Allocated bytes per call |
-| --- | ---: |
-| Float16 | 6,848,512 |
-| Float32 | 7,143,424 |
-| Float64 | 10,092,544 |
+| T | Correctness-only bytes | Zero-product optimization bytes |
+| --- | ---: | ---: |
+| Float16 | 6,848,512 | 0 |
+| Float32 | 7,143,424 | 0 |
+| Float64 | 10,092,544 | 0 |
 
 The old parent returns correct bits for this particular zero-product case with
-0 B. A separate isolated optimization now admits a finite native result directly
+0 B. The zero-product optimization admits a finite native result directly
 when dt or v is exactly zero. Both runtimes pass 7,366 focused assertions,
 including 2,580 added endpoint/signed-zero/nonfinite and complete-public checks.
 All 108 paired profiles per runtime preserve every recorded output bit: all 36
@@ -186,8 +192,11 @@ ordinary profiles remain 0 B. Every other recorded allocation sample is
 unchanged. Actual Metal passes all 3,543 assertions per runtime. Both complete
 compiler/Aqua collections match all 88 parent captures after exact checkout-root mapping,
 including 87 empty concrete analyses each and the complete 29/27-report package
-records. Its legacy checks are running; it has not been integrated or pushed.
-This follow-on remains open. Other cold profiles retain their raw costs; neither native peak memory nor portable latency is certified.
+records. Both full legacy suites also pass 46,725 assertions each. Composition
+onto `a29da03` preserves all 466 tested Julia source hashes and the formatter
+config exactly; the temporary duplicate baseline is absent from commit history.
+Separate exact-SHA CI and complete CI compiler review remain required.
+Other cold profiles retain their raw costs; neither native peak memory nor portable latency is certified.
 
 ## Verification
 
