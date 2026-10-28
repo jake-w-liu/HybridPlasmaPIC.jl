@@ -1,8 +1,10 @@
 # Particle charge/mass factor range
 
-Status: confirmed current-main defect. The isolated P1 CPU adapter is written
-and passes a 964-assertion source/AST preflight; numerical, compiler, resource
-and integration acceptance remain open. This work is separate from C1's supported relativistic output closure.
+Status: confirmed current-main defect. The isolated P1 CPU adapter preserves
+original factors only for nonnormal quotients and passes a 964-assertion
+source/AST preflight. Numerical, compiler, resource and integration acceptance
+remain open. The complete normal-path design below is not implemented.
+This work is separate from C1's supported relativistic output closure.
 The numerical contract uses the original stored q, m, dt and field operands;
 a rounded derived ratio must not silently erase a representable result.
 
@@ -46,7 +48,7 @@ See dated takeover `empic-mass-ratio-range/FINDING_V1.md`.
 
 | Stage | Owners and contract | Required acceptance |
 | --- | --- | --- |
-| P1 CPU uniform/gathered | Preserve validated q and positive m through the exceptional branch. Extend the existing kick/repair owner; keep ordinary native operation order and direct explicit-q/m semantics. Define and verify the original-factor result-range/publication policy before writes; retain direct-scalar semantics separately. | All original witnesses and controls, both signs, normal/subnormal/overflow ratio boundaries, empty/heterogeneous particles, aliases, nonzero B, genuine output overflow/error state and both actual runtimes. Ordinary bit/zero-allocation replay and a separately declared cold full-call resource budget. |
+| P1 CPU uniform/gathered | Preserve validated q and positive m through every IEEE species path, including normal quotients. Extend the existing kick/repair owner; keep ordinary native operation order and direct explicit-q/m semantics. Define and verify the original-factor result-range/publication policy before writes; retain direct-scalar semantics separately. | All original witnesses and controls, both signs, normal/subnormal/overflow ratio boundaries, empty/heterogeneous particles, aliases, nonzero B, genuine output overflow/error state and both actual runtimes. Ordinary bit/zero-allocation replay and a separately declared cold full-call resource budget. |
 | P2 shared ES/hybrid owners | Inventory `_validated_qm` consumers and direct species divisions in `electrostatic.jl` and `extrapolated_leapfrog.jl`. Preserve loaded phase, predictor and variable-step semantics through the same factor owner. | Independent complete-stage references, public init/prime/step/restart, neighboring conservation and rollback, exact-source/compiler/resource comparisons. |
 | P3 EMPIC priming/push | Preserve original ion q/m factors in both public owners and their canonical priming/Boris arithmetic. Keep C1 admission and whole-step undo; preserve all ordinary valid historical bits. | Both owners/dimensions, fresh/established/variable/subcycled clocks, electric/magnetic/zero-source controls, unsupported stored outputs, checkpoint/archive continuation and unchanged physical state on error. |
 | P4 device/backend | Audit the Metal host preflight and gathered kernels plus every other affected caller. Use the documented native domain and reject unsupported original factors before launch when a backend lacks a cold owner. | Actual device execution or explicit preflight rejection on both supported runtimes; no silent CPU fallback, dropped charge or unsupported resident-solver claim. |
@@ -66,6 +68,19 @@ A 48-node outward-error certificate is proposed; its proof/prototype and cost
 gates are unaccepted. The quotient-range adapter does not repair this gap. Preserve
 explicit scalar result-range semantics separately from public original-factor
 publication; define any changed error/staging policy before implementation.
+
+The planned CPU carrier retains concrete q,m,qm once per public push, including
+normal quotients. Native arithmetic uses the already computed qm in the one
+existing expression; the species accuracy certificate and exact cold reference
+retain original q,m. Direct scalar calls keep their stored explicit-qm meaning.
+No per-particle ratio division is introduced. Every unresolved scalar or batch
+case must retain the correct factor meaning through exact replay; a range-only
+batch flag cannot authorize the native accuracy bypass. Independently valid
+finite parent bits are retained under the unchanged physical tolerance and
+nearest-overflow rule. Required measurements include complete public uniform
+and gathered calls, Array/strided midpoint storage, zero warmed ordinary heap
+allocation and zero added retained storage. This is a design requirement;
+carrier/compiler/resource acceptance remains open.
 
 The separately frozen 96-row native-node observation corpus adds three
 exact-overflow failures on both actual runtimes, one each for Float16/32/64.
@@ -99,7 +114,7 @@ losing the coordinate or midpoint contribution.
 
 ## Progress
 
-- [x] Fixed min/latest original-factor underflow reproductions and zero controls.
+- [x] Record min/latest original-factor underflow reproductions and zero controls.
 - [x] Related actual latest-Julia EMPIC overflow and C1 whole-state rollback.
 - [x] Freeze the original P1 adapter source/caller contract and cold budget;
   preserve its seven source/test snapshots and 475 pins.

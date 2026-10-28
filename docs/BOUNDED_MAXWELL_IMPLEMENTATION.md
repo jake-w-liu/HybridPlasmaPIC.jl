@@ -10,7 +10,10 @@ The isolated B2a prerequisite now has extensive nodal charge and longitudinal
 endpoint-impulse source, tests and documentation. Its six-file formatter pass
 checks the complete executable AST under an explicit source-line metadata
 contract, idempotence and 12 checker controls. The immutable postformat source
-has 616 files. Numerical/provider/resource/compiler acceptance remains open. It does not
+has 616 files. All seven environment/provider commands exit zero on actual
+Julia 1.12.7/1.13.3; full package/selected-provider records match per runtime.
+Complete loaded-image provenance review and numerical/resource/compiler
+acceptance remain open. It does not
 implement a coupled force, particle pusher, wall event or restart. The
 [audit tracker](DEEP_DEBUG_TRACKER.md) owns current acceptance.
 

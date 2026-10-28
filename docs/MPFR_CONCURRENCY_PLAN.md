@@ -12,8 +12,16 @@ actual cores: 12 serial thread contexts, 36 state snapshots and 517 exact symbol
 owner records. The helper widens only the positive controls' exponent ranges,
 preserves flags/precision/rounding and makes zero measured GMP allocations.
 Original loader and test-fixture failures remain retained. Static-analysis
-dependency installation passes; analyzer gates remain. Julia bootstrap, numerical consumers,
-GC/lifecycle, P4 child/depot and platform gates remain unaccepted.
+dependency installation passes. The actual MPFR analysis stops on two
+GCChecker diagnostics for external calls from helpers annotated NOTSAFEPOINT.
+The reviewed repair retains the early initializer's contract with eight local
+constant/TLS metadata declarations and removes the cleanup annotation because
+cleanup calls the current GMP free callback. Its existing caller enters a live
+GC-unsafe region before teardown. This two-file repair is being prepared in a
+new isolated source copy; the failed analysis and original source are preserved.
+No checker exemption or runtime-safety conclusion follows. Threading
+analysis, Julia bootstrap, numerical consumers, GC/lifecycle, P4 child/depot and
+platform gates remain unaccepted.
 Installed Julia libraries are unchanged and NUM-001
 remains open.
 

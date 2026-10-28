@@ -107,8 +107,19 @@ sum returns 65504. This is within the absolute normwise tolerance but violates
 the separate nearest-overflow contract already enforced by `normwise_ok`.
 The canonical drift admission/repair and all scalar/batch/public/backend callers
 need a separate range-classification repair. No tolerance change or repaired
-implementation is claimed. Float64's existing cold owner is exact rational;
-Float16/32 hardware-wide double-rounding questions remain separate hypotheses.
+implementation is claimed.
+
+A second independent 18-input replay now confirms the cold-endpoint failure on
+both runtimes. Set dt*v exactly to O=M+ulp(M)/2 and x=-D, where D is the minimum
+subnormal. The exact target O-D nearest-rounds to finite floatmax, but Float16/32
+hardware-wide addition loses D and converts O to infinity. Both signs give four
+failing inputs per runtime, each in the guarded owner, public uniform/gathered
+position and gathered midpoint: 16 wrong guarded/public classifications.
+The six raw-native failures and Float64 exact-rational controls remain separately
+recorded. Root checks all 18 inputs / 90 observations per runtime in
+`takeover/p1-coordinate-wide-endpoint-actual-root-review-v1.json`.
+The scalar repair must use exact overflow classification in both directions;
+replaying only native nonfinite results in a wider hardware type is insufficient.
 
 ## Verification
 
