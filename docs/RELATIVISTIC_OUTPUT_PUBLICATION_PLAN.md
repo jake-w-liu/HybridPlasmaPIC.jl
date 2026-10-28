@@ -5,9 +5,12 @@ full acceptance and root integration are pending. The parent and earlier V5
 sources/evidence remain immutable. The original evidence is in
 `HybridPlasmaPIC-audit-evidence/2026-10-27/relativistic-output-cone-c1`;
 V2 preserves the test-only migration and V3 the strengthened diagnostic capture.
-V3 stops after six passed commands and one failed fullstep gate; a separately
-versioned oracle-only continuation is being accepted, with six receipts carried
-only after exact source/harness/environment proof.
+V3 stops after six passed commands and one failed fullstep gate. The separately
+versioned oracle-only V4 continuation completes 20 numerical/resource commands
+and carries those six receipts after exact source/harness/environment proof.
+It then stops at eight baseline zero-report compiler expectations. Those failures
+remain failed; full matched diagnostic collection and actual Metal acceptance
+remain pending.
 The current-main root integration evidence is in `takeover/c1-root-integration`.
 
 ## Supported behavior and evidence
@@ -122,8 +125,8 @@ No timing acceptance is inferred under shared-machine contention.
 | C1.4 retained ordinary/range fixtures independently classified; valid-parent bits | Both full seeded/companion runs pass 46,725 assertions with every original 100,000 input/type retained |
 | C1.5 generic scale/vector/stored-precision/mode classification and atomic rejection | Both full focused runs include 432 independently classified rows (368 valid native-bit outputs, 64 input rejections) and distinct atomic output rejection |
 | C1.6 exact old advance and frozen IEEE RR/DD/persistence arithmetic | Final isolated source passes 48 expression/byte checks on each Julia 1.12.7/1.13.3, including reconstruction of the entire original07792 IEEE prefix under the sealed12-symbol map; formatter syntax/idempotence passes20 checks |
-| C1.7 warm retained/copy budget, ordinary allocations, concrete/full compiler, Aqua | Preliminary compile=min cache inventory smoke passes352 assertions across32 configurations; measured normal-compiler allocations, count-change retention and full quality remain pending |
-| C1.8 min/latest affected regressions, task contexts, actual Metal, formatting | Minimum neighbors pass 75,380 and affected IEEE RR passes 54,877 assertions. The continued minimum fullstep passes 38 stage/eight public checks, tasks 512, independent RR 9,728 and public RR 1,719; latest neighbors and remaining resource/quality/Metal gates are pending. No relativistic resident Metal path exists in this scope |
+| C1.7 warm retained/copy budget, ordinary allocations, concrete/full compiler, Aqua | Both normal-compiler resource campaigns pass: all 32 complete-step profiles per runtime have zero allocation increase; all 12 ordinary profiles retain three 0 B samples. Count-change retention and copy/retained ceilings pass. Failed-call heap/latency and near-cone costs need additive measurement. Full compiler/Aqua acceptance remains pending after the baseline zero-report failure |
+| C1.8 min/latest affected regressions, task contexts, actual Metal, formatting | Both runtimes pass neighbors 75,380, affected IEEE RR 54,877, continued fullstep 38 stage/eight public, tasks 512, independent RR 9,728 and public RR 1,719 assertions. Actual Metal and remaining quality gates are pending. No relativistic resident Metal path exists in this scope |
 | C1.9 root review, main push and exact-SHA GitHub CI | Pending; root owns integration |
 
 Wrong fixes rejected by these gates include scalar-only checks that miss batch
@@ -146,15 +149,24 @@ a separate state/schema and method design. Their [C2/C3 work orders](RELATIVISTI
   root checks all 2,023 source/harness/environment pins.
 - [x] Compose C1 on `cd8b94d` and compare every one of the 465 Julia files
   against exact frozen C1/current-main source or their complete three-way merge.
-  The subsequent RR docstring clarification changes no production statements.
+  The subsequent RR docstring clarification changes no production statements;
+  forwarding the docs-only ancestor to `e72db6c` preserves all 465 Julia files
+  and all 3,017 initial/resolved pins.
 - [x] Independently classify the failed fullstep fixture on both runtimes: two
   Float32 prime outputs are outside unchanged D_narrow; 2,072 supported parent
   publications retain all bits and ten raw stages retain physical accuracy.
-- [ ] Accept the 26-command harness-only continuation and six explicitly carried
-  passed receipts; review every compiler difference. V3 remains a failed run.
+- [x] Review all 20 completed numerical/resource continuation receipts and six
+  explicitly carried passes, including every actual receipt/log hash.
+- [ ] Complete the remaining four matched full compiler/Aqua collections and two
+  actual Metal calls; review every diagnostic difference. The original V3/V4
+  failed gates remain failed; pure Test context probes establish collection
+  behavior only.
 - [x] Review all six root setup graphs/providers and both 48-check source proofs;
   the explicit single-registry provenance migration changes no dependency source,
   version, edge or numerical test.
-- [ ] Pass current-main root numerical, resource, neighbor and actual Metal gates.
+- [x] Pass both current-main focused calls: 50,147 assertions per runtime, plus
+  minimum complete legacy replay: 46,725 assertions.
+- [ ] Pass latest legacy replay and remaining root numerical, resource, neighbor,
+  full compiler/Aqua and actual Metal gates.
 - [ ] Finish final source/docs review, push separately and pass all six exact-SHA
   GitHub CI jobs.

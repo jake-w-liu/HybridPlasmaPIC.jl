@@ -62,7 +62,7 @@ to the parent.
 - [x] Complete independent final source/evidence review and docs; preserve all
   generated coverage files and verify the primary worktree files unchanged.
 - [x] Push this optimization separately to main as `cd8b94d`.
-- [ ] Complete all six exact-SHA jobs; see the [current audit tracker](DEEP_DEBUG_TRACKER.md).
+- [x] Pass [all six exact-SHA jobs](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40423035764) and both complete compiler-tree reviews: 1,215,746 / 1,215,747 assertions on Julia 1.12.7 / 1.13.3; see the [current audit tracker](DEEP_DEBUG_TRACKER.md).
 
 The old resource fixture's 95% reduction target compared against the pre-hoist
 implementation. This follow-up retains its complete fixture inventory and
