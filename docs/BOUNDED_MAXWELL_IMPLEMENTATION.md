@@ -6,6 +6,12 @@ Scope: CAP-002A, source-free Cartesian vacuum/cavity fields, plus the 1D
 coupling (002B), absorbing layers (002C), or restart, GPU/MPI and full
 production integration (002D). CAP-002 remains open.
 
+The isolated B2a prerequisite now has extensive nodal charge and longitudinal
+endpoint-impulse source, tests and documentation. It is unaccepted: final source
+review and every Julia numerical/resource/compiler gate remain. It does not
+implement a coupled force, particle pusher, wall event or restart. The
+[audit tracker](DEEP_DEBUG_TRACKER.md) owns current acceptance.
+
 ## Discrete contract and derivation
 
 For component c, E is centered in axis c and nodal in other axes; B is nodal in

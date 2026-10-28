@@ -105,4 +105,4 @@ The root campaign passes all 23 commands on Julia 1.12.7 and 1.13.3:
 The strict compiler comparison was held before that path proof, and its diff
 is retained. Twenty-five changed-message/frame/path/signature controls reject.
 The root evidence is in `takeover/kinematics-root-integration/` in the dated
-external audit archive. `fd0a168` is pushed to main; exact-SHA CI remains.
+external audit archive. `fd0a168` is pushed to main; [all six exact-SHA CI jobs](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40407584532) and complete compiler review pass.

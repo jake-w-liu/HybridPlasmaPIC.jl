@@ -104,6 +104,15 @@ function rel_ok(actual::NTuple{3,T}, reference, scale::BigFloat) where {T}
     return all(i -> isfinite(actual[i]) && abs(BigFloat(actual[i]) - reference[i]) <= tol, 1:3)
 end
 
+# Independent C1 domain oracle: use the original stored components, retain
+# the old rounded-norm restriction, and resolve the physical norm exactly.
+function kinematics_supported_velocity(v, c)
+    all(isfinite, v) || return false
+    bx, by, bz = v[1] / c, v[2] / c, v[3] / c
+    beta2 = bx * bx + by * by + bz * bz
+    return isfinite(beta2) && beta2 < one(c) && sum(abs2, Q.(v)) < Q(c)^2
+end
+
 # ------------------------------------------------------------------ historical formulas
 
 # Copies of the bodies on main before the range repair (bitwise references).
@@ -286,12 +295,13 @@ function check_rel_prime_compatibility(actual, historical, start, Ep, Bp, qm, h,
     @info "Priming physical conditioning coverage" type = eltype(actual[1]) certified repaired
 end
 
-@testset "Kinematics preserve native bits or correctly round conditioned priming" begin
+@testset "Kinematics keep valid native bits and reject unsupported relativistic outputs" begin
     for T in (Float16, Float32, Float64)
         rng = Xoshiro(0x6b696e)
         s = spans(T)
         boris = rel = 0
         flagged = 0
+        rel_valid_parent = rel_repaired = rel_rejected = rel_invalid_input = 0
         for _ = 1:NORDINARY
             v = ntuple(_ -> ordinary(rng, T, s), 3)
             E = ntuple(_ -> ordinary(rng, T, s), 3)
@@ -308,15 +318,34 @@ end
             # Subluminal relativistic inputs.
             c = T(1 + 3rand(rng))
             w = ntuple(_ -> T(c * (rand(rng) - 0.5) / 2), 3)
-            rel +=
-                !isequal(
-                    H._boris_rel(w..., E..., B..., qm, dt, c),
-                    old_boris_rel(w..., E..., B..., qm, dt, c),
-                )
+            historical = old_boris_rel(w..., E..., B..., qm, dt, c)
+            if !kinematics_supported_velocity(w, c)
+                rel_invalid_input += 1
+                @test_throws ArgumentError H._boris_rel(w..., E..., B..., qm, dt, c)
+            elseif kinematics_supported_velocity(historical, c)
+                rel_valid_parent += 1
+                rel += !isequal(H._boris_rel(w..., E..., B..., qm, dt, c), historical)
+            else
+                # Preserve every original input. Only the independently
+                # inadmissible old publication needs a physical cold oracle;
+                # candidate flags or output differences do not classify it.
+                reference, scale = boris_rel_reference(w, E, B, qm, dt, c)
+                if kinematics_supported_velocity(T.(reference), c)
+                    rel_repaired += 1
+                    actual = H._boris_rel(w..., E..., B..., qm, dt, c)
+                    @test rel_ok(actual, reference, scale)
+                    @test kinematics_supported_velocity(actual, c)
+                else
+                    rel_rejected += 1
+                    @test_throws ArgumentError H._boris_rel(w..., E..., B..., qm, dt, c)
+                end
+            end
         end
         @test flagged == 0
         @test boris == 0
         @test rel == 0
+        @test rel_valid_parent + rel_repaired + rel_rejected + rel_invalid_input == NORDINARY
+        @info "C1 ordinary relativistic domain coverage" type = T rel_valid_parent rel_repaired rel_rejected rel_invalid_input
 
         n = NORDINARY
         gen(f) = ntuple(_ -> [f() for _ = 1:n], 3)
@@ -460,8 +489,14 @@ end
     for T in (Float16, Float32, Float64), (v, E, B, qm, dt, c) in rel_cases(T)
         for sign in (-one(T), one(T))
             reference, scale = boris_rel_reference(v, E, B, sign * qm, dt, c)
-            actual = H._boris_rel(v..., E..., B..., sign * qm, dt, c)
-            @test rel_ok(actual, reference, scale)
+            @test kinematics_supported_velocity(v, c)
+            if kinematics_supported_velocity(T.(reference), c)
+                actual = H._boris_rel(v..., E..., B..., sign * qm, dt, c)
+                @test rel_ok(actual, reference, scale)
+                @test kinematics_supported_velocity(actual, c)
+            else
+                @test_throws ArgumentError H._boris_rel(v..., E..., B..., sign * qm, dt, c)
+            end
         end
     end
     for T in (Float32, Float64)
@@ -622,7 +657,8 @@ end
         for (v, E, B, qm, h, c) in cases, sign in (-one(T), one(T))
             reference, scale = rel_prime_reference(v, E, B, sign * qm, h, c)
             w = ntuple(i -> [v[i]], 3)
-            H._prime_leapfrog!(
+            @test kinematics_supported_velocity(v, c)
+            prime_general() = H._prime_leapfrog!(
                 w,
                 ntuple(i -> [E[i]], 3),
                 ntuple(i -> [B[i]], 3),
@@ -632,7 +668,13 @@ end
                 true,
                 c,
             )
-            @test rel_ok(map(only, w), reference, scale)
+            if kinematics_supported_velocity(T.(reference), c)
+                prime_general()
+                @test rel_ok(map(only, w), reference, scale)
+                @test kinematics_supported_velocity(map(only, w), c)
+            else
+                @test_throws ArgumentError prime_general()
+            end
             planar_reference, planar_scale = rel_prime_reference(
                 v,
                 (E[1], E[2], zero(T)),
@@ -642,8 +684,14 @@ end
                 c,
             )
             w = ntuple(i -> [v[i]], 3)
-            H._prime_empic1d!(w, [E[1]], [E[2]], [B[3]], sign * qm, h, 1, true, c)
-            @test rel_ok(map(only, w), planar_reference, planar_scale)
+            prime_planar() = H._prime_empic1d!(w, [E[1]], [E[2]], [B[3]], sign * qm, h, 1, true, c)
+            if kinematics_supported_velocity(T.(planar_reference), c)
+                prime_planar()
+                @test rel_ok(map(only, w), planar_reference, planar_scale)
+                @test kinematics_supported_velocity(map(only, w), c)
+            else
+                @test_throws ArgumentError prime_planar()
+            end
         end
     end
 end
@@ -1247,7 +1295,30 @@ euler_certified(v, E, B, qm, h, n) = H._euler_batch_certificate(
                     end
                     s.v
                 end
-                @test batch_ok(run(1:n), run(o), run([k]), n, k)
+                if rel
+                    start = ntuple(d -> vel[d][k], 3)
+                    efield = D == 1 ? (Ep[1][k], Ep[2][k], zero(T)) : ntuple(d -> Ep[d][k], 3)
+                    bfield = D == 1 ? (zero(T), zero(T), Bp[3][k]) : ntuple(d -> Bp[d][k], 3)
+                    reference, _ =
+                        boris_rel_reference(start, efield, bfield, -one(T), T(0.5), one(T))
+                    @test kinematics_supported_velocity(start, one(T))
+                    @test !kinematics_supported_velocity(T.(reference), one(T))
+                    @test_throws ArgumentError run(1:n)
+                    @test_throws ArgumentError run([k])
+                    ordinary_result = run(o)
+                    for (index, p) in enumerate(o)
+                        start = ntuple(d -> vel[d][p], 3)
+                        efield = D == 1 ? (Ep[1][p], Ep[2][p], zero(T)) : ntuple(d -> Ep[d][p], 3)
+                        bfield = D == 1 ? (zero(T), zero(T), Bp[3][p]) : ntuple(d -> Bp[d][p], 3)
+                        historical =
+                            old_boris_rel(start..., efield..., bfield..., -one(T), T(0.5), one(T))
+                        @test kinematics_supported_velocity(start, one(T))
+                        @test kinematics_supported_velocity(historical, one(T))
+                        @test isequal(ntuple(d -> ordinary_result[d][index], 3), historical)
+                    end
+                else
+                    @test batch_ok(run(1:n), run(o), run([k]), n, k)
+                end
             end
             for D in (1, 2)
                 xs = ntuple(_ -> ord(4), D)
@@ -1336,7 +1407,60 @@ euler_certified(v, E, B, qm, h, n) = H._euler_batch_certificate(
                     end
                     w
                 end
-                @test batch_ok(prime(1:n), prime(o), prime([k]), n, k)
+                if rel
+                    start = ntuple(d -> u[d][k], 3)
+                    efield =
+                        kind === :empic1d ? (Ep[1][k], Ep[2][k], zero(T)) : ntuple(d -> Ep[d][k], 3)
+                    bfield =
+                        kind === :empic1d ? (zero(T), zero(T), Bp[3][k]) : ntuple(d -> Bp[d][k], 3)
+                    reference, _ = rel_prime_reference(start, efield, bfield, qm, one(T), one(T))
+                    @test kinematics_supported_velocity(start, one(T))
+                    @test !kinematics_supported_velocity(T.(reference), one(T))
+                    @test_throws ArgumentError prime(1:n)
+                    @test_throws ArgumentError prime([k])
+                    ordinary_result = prime(o)
+                    historical = pick(u, o)
+                    if kind === :empic1d
+                        old_prime_empic1d!(
+                            historical,
+                            Ep[1][o],
+                            Ep[2][o],
+                            Bp[3][o],
+                            qm,
+                            one(T),
+                            length(o),
+                            true,
+                            one(T),
+                        )
+                        zero_field = zeros(T, length(o))
+                        efields = (Ep[1][o], Ep[2][o], zero_field)
+                        bfields = (zero_field, zero_field, Bp[3][o])
+                    else
+                        old_prime!(
+                            historical,
+                            pick(Ep, o),
+                            pick(Bp, o),
+                            qm,
+                            one(T),
+                            length(o),
+                            true,
+                            one(T),
+                        )
+                        efields, bfields = pick(Ep, o), pick(Bp, o)
+                    end
+                    check_rel_prime_compatibility(
+                        ordinary_result,
+                        historical,
+                        pick(u, o),
+                        efields,
+                        bfields,
+                        qm,
+                        one(T),
+                        one(T),
+                    )
+                else
+                    @test batch_ok(prime(1:n), prime(o), prime([k]), n, k)
+                end
             end
         end
 

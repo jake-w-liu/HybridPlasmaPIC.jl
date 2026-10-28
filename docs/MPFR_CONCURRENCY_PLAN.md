@@ -3,9 +3,12 @@
 Status: the native MPFR shared-cache defect is reproduced on Julia 1.12.7,
 1.13.1, 1.13.2 and 1.13.3. Fresh private-cache native controls pass their bounded
 suite, but the copied-runtime experiment stops at its fresh-worker exponent
-range gate. The canonical Julia integration design is sealed and source-reviewed;
-the runtime correction is not accepted. Implementation, build, lifecycle and
-platform gates remain open. Installed Julia libraries are unchanged and NUM-001
+range gate. The canonical Julia integration source is sealed and reviewed. Actual task-only
+copy/configuration, canonical GMP/signature, source attestation, MPFR compilation
+and native test build gates pass. The new 198-program native suite fails in the
+uninstalled test loader because it cannot resolve staged GMP; the raw failures
+are retained and provider fixture correction is pending. Install/core build,
+Julia loading, lifecycle and platform gates remain unaccepted. Installed Julia libraries are unchanged and NUM-001
 remains open.
 
 The earlier experiments below are historical records. Their temporary build

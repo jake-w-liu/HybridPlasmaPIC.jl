@@ -6,6 +6,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- Relativistic Boris and leapfrog priming now reject rounded velocities outside
+  the existing supported subluminal domain, including native batch bypasses.
+  Public relativistic EMPIC advances restore particles, fields, gathers, FFT
+  scratch and clocks on error using a lazy reusable undo workspace; initialization
+  rejects unsupported required-species velocities before mutation. Generic-precision radiation
+  stages three velocity vectors before checked publication. Previously returned
+  out-of-domain velocities now raise `ArgumentError`; supported native output
+  bits and the explicit checkpoint/archive schemas are retained. See the
+  [publication contract and verification status](docs/RELATIVISTIC_OUTPUT_PUBLICATION_PLAN.md).
+
 ### Added
 
 - Rank-owned periodic vector operators and filters: `gradient!`, `divergence!`,

@@ -1,17 +1,15 @@
 # Relativistic output publication and rollback (C1)
 
-Status: isolated implementation on `fd0a1686deea4bbffa1a45fb9688a909aad6ec4a`;
-full acceptance and root integration are pending. The parent and earlier V5
-sources/evidence remain immutable. The original evidence is in
-`HybridPlasmaPIC-audit-evidence/2026-10-27/relativistic-output-cone-c1`;
-V2 preserves the test-only migration and V3 the strengthened diagnostic capture.
-V3 stops after six passed commands and one failed fullstep gate. The separately
-versioned oracle-only V4 continuation completes 20 numerical/resource commands
-and carries those six receipts after exact source/harness/environment proof.
-It then stops at eight baseline zero-report compiler expectations. Those failures
-remain failed; full matched diagnostic collection and actual Metal acceptance
-remain pending.
-The current-main root integration evidence is in `takeover/c1-root-integration`.
+Status: implemented and locally accepted on current main's `430bf48` base.
+Separate publication and all six exact-SHA GitHub CI jobs remain pending.
+This page owns the C1 contract and local gate status; the
+[audit tracker](DEEP_DEBUG_TRACKER.md) owns main/CI acceptance.
+
+The dated external evidence archive retains all earlier failures and frozen
+plans. The accepted root campaign is `takeover/c1-root-integration`; additive
+resource review is `takeover/c1-v7-numerical-root-review-v1.json`. A bounded
+matched compiler comparison is accepted explicitly; the original zero-report
+assertions remain failed. Earlier stopped runs are not relabelled as passes.
 
 ## Supported behavior and evidence
 
@@ -120,14 +118,15 @@ No timing acceptance is inferred under shared-machine contention.
 | Gate | Status |
 | --- | --- |
 | C1.1 actual-parent numerical, native-batch/public and generic-RR reproduction | Verified on Julia 1.13.3 with compile=min; evidence above |
-| C1.2 shared publication, preflight and typed whole-advance undo | Implemented in isolation; final source review pending |
-| C1.3 borrowed arrays/midpoint, old gather lengths, ignored ions, changing dt/subcycles, fresh restart | Both final-source focused runs pass all 2,615 assertions; remaining integration gates are below |
-| C1.4 retained ordinary/range fixtures independently classified; valid-parent bits | Both full seeded/companion runs pass 46,725 assertions with every original 100,000 input/type retained |
-| C1.5 generic scale/vector/stored-precision/mode classification and atomic rejection | Both full focused runs include 432 independently classified rows (368 valid native-bit outputs, 64 input rejections) and distinct atomic output rejection |
-| C1.6 exact old advance and frozen IEEE RR/DD/persistence arithmetic | Final isolated source passes 48 expression/byte checks on each Julia 1.12.7/1.13.3, including reconstruction of the entire original07792 IEEE prefix under the sealed12-symbol map; formatter syntax/idempotence passes20 checks |
-| C1.7 warm retained/copy budget, ordinary allocations, concrete/full compiler, Aqua | Both normal-compiler resource campaigns pass: all 32 complete-step profiles per runtime have zero allocation increase; all 12 ordinary profiles retain three 0 B samples. Count-change retention and copy/retained ceilings pass. Failed-call heap/latency and near-cone costs need additive measurement. Full compiler/Aqua acceptance remains pending after the baseline zero-report failure |
-| C1.8 min/latest affected regressions, task contexts, actual Metal, formatting | Both runtimes pass neighbors 75,380, affected IEEE RR 54,877, continued fullstep 38 stage/eight public, tasks 512, independent RR 9,728 and public RR 1,719 assertions. Actual Metal and remaining quality gates are pending. No relativistic resident Metal path exists in this scope |
-| C1.9 root review, main push and exact-SHA GitHub CI | Pending; root owns integration |
+| C1.2 shared publication, preflight and typed whole-advance undo | Current-main source reviewed; original advance bodies and the shared domain predicate are retained |
+| C1.3 borrowed arrays/midpoint, old gather lengths, ignored ions, changing dt/subcycles, fresh restart | Both current-main focused runs pass 50,147 assertions; both neighbor runs pass 75,380 |
+| C1.4 retained ordinary/range fixtures independently classified; valid-parent bits | Both current-main legacy replays pass 46,725 assertions; every original 100,000 input/type remains. Both-runtime 2,084-row classification retains 2,072 supported publications, ten raw physical stages and two explicit Float32 prime rejections |
+| C1.5 generic scale/vector/stored-precision/mode classification and atomic rejection | Both focused runs include the original 432-row independent classification and atomic rejected publication |
+| C1.6 old advance and frozen IEEE RR/DD/persistence arithmetic | Both source proofs pass; all 465 Julia files are composed against frozen/current-main owners. Whole tracked-file JuliaFormatter 1.0.62 passes with zero changed files |
+| C1.7 warm retained/copy budget, ordinary allocations, complete compiler/Aqua | All eight root resource calls pass: 32 matched complete-step profiles add zero bytes and 12 ordinary profiles retain three zero-byte samples per runtime. Four complete quality collections retain eight inherited zero-report failures each; root reconstructs every frame/source/render difference and accepts the bounded comparison, including all 30 empty concrete captures |
+| C1.8 min/latest regressions, task contexts and actual Metal | Actual Julia 1.12.7/1.13.3 numerical/neighbor/resource gates pass. Both actual functional Metal calls pass 3,543 assertions per runtime; this does not establish a resident relativistic Metal solver |
+| C1.9 additive failure/near-cone observations | Independent replay checks 128 failure configurations, 664 stage rows, 52 complete profiles, 2,649 input pins and 196 terminal artifacts. Original physical/domain/bit/copy/retained gates pass; full raw observations retained |
+| C1.10 main push and exact-SHA GitHub CI | Pending; local acceptance does not establish remote CI |
 
 Wrong fixes rejected by these gates include scalar-only checks that miss batch
 bypasses; inward clipping that conceals representability; particle-only rollback
@@ -142,31 +141,26 @@ a separate state/schema and method design. Their [C2/C3 work orders](RELATIVISTI
 
 ## Current-main integration
 
-- [x] Preserve the original V1 failed legacy run; independently classify every
-  retained input before changing legacy publication expectations.
-- [x] Freeze the V2 test-only migration and additive full-bit replay.
-- [x] Verify the V3 complete diagnostic capture on both actual Julia runtimes;
-  root checks all 2,023 source/harness/environment pins.
-- [x] Compose C1 on `cd8b94d` and compare every one of the 465 Julia files
-  against exact frozen C1/current-main source or their complete three-way merge.
-  The subsequent RR docstring clarification changes no production statements;
-  forwarding the docs-only ancestor to `e72db6c` preserves all 465 Julia files
-  and all 3,017 initial/resolved pins.
-- [x] Independently classify the failed fullstep fixture on both runtimes: two
-  Float32 prime outputs are outside unchanged D_narrow; 2,072 supported parent
-  publications retain all bits and ten raw stages retain physical accuracy.
-- [x] Review all 20 completed numerical/resource continuation receipts and six
-  explicitly carried passes, including every actual receipt/log hash.
-- [ ] Complete the remaining four matched full compiler/Aqua collections and two
-  actual Metal calls; review every diagnostic difference. The original V3/V4
-  failed gates remain failed; pure Test context probes establish collection
-  behavior only.
-- [x] Review all six root setup graphs/providers and both 48-check source proofs;
-  the explicit single-registry provenance migration changes no dependency source,
-  version, edge or numerical test.
-- [x] Pass both current-main focused calls: 50,147 assertions per runtime, plus
-  minimum complete legacy replay: 46,725 assertions.
-- [ ] Pass latest legacy replay and remaining root numerical, resource, neighbor,
-  full compiler/Aqua and actual Metal gates.
-- [ ] Finish final source/docs review, push separately and pass all six exact-SHA
-  GitHub CI jobs.
+- [x] Preserve every stopped source/oracle/quality/export attempt and raw failure.
+- [x] Independently classify all retained inputs before changing publication
+  expectations; preserve the physical references and normwise tolerances.
+- [x] Compose all 465 Julia files on current main and retain all 3,017 original
+  source/environment pins through the docs-only `e72db6c` / `430bf48` ancestry.
+- [x] Review all six accepted setup graphs and both source proofs. The declared
+  registry-provenance migration changes no dependency version, source or edge.
+- [x] Complete both current-main focused, full legacy and neighbor campaigns,
+  all eight resource calls and both actual functional Metal calls.
+- [x] Review all four complete compiler/Aqua collections with every original
+  diagnostic retained under the explicit bounded disposition.
+- [x] Independently replay the additive failure/near-cone observations. Native
+  binaries retain path, size, full streamed SHA and magic; text retains its full
+  contents. Every exposed allocation/frame field remains present.
+- [x] Pass whole tracked-file CI-compatible formatting with no source changes.
+- [ ] Finish publication, push separately and pass all six exact-SHA CI jobs.
+
+A separate inherited nonrelativistic Float16 arithmetic gap remains open:
+four normal-ratio native/scalar/public witnesses on both runtimes exceed the
+unchanged four-ulp bound against original-factor and explicit-qm exact references.
+Root independently checks their rational 3×3 rotation oracle. C1 does not repair
+that gap or the original charge/mass-factor range defect. See the
+[factor and accuracy work order](PARTICLE_CHARGE_MASS_RANGE_PLAN.md).

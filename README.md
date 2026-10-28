@@ -281,7 +281,16 @@ limits. Custom shapes retain their represented coefficients. See the
 Relativistic stepping and restart require subluminal stored velocities. Boundary
 validation compares the original components exactly when rounding could hide
 `|v| ≥ c`; inputs whose rounded speed ratio is already at least one remain
-unsupported. [Validation scope and evidence](docs/RELATIVISTIC_VALIDATION_PLAN.md).
+unsupported. Relativistic Boris and priming also check each rounded output.
+When the accurately evaluated stage cannot return a supported stored velocity,
+they raise `ArgumentError`. Public relativistic `step_empic!` calls restore the
+pre-call particles, fields, gathers, FFT scratch and clock on an advance error;
+they retain a lazy undo workspace with fixed backing storage at warmed particle
+counts. Generic-precision radiation stages its velocity writes before publication.
+These checks do not enlarge the velocity domain or guarantee recovery of a
+near-light Lorentz factor or an entire trajectory from rounded velocities.
+[Validation](docs/RELATIVISTIC_VALIDATION_PLAN.md) and
+[publication, memory and compatibility contract](docs/RELATIVISTIC_OUTPUT_PUBLICATION_PLAN.md).
 
 ## Collisions and extra particle physics
 

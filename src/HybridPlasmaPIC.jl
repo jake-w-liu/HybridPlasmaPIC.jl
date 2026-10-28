@@ -114,6 +114,7 @@ include("initial_conditions/instabilities.jl")
 
 # --- Models: full PIC ---
 include("models/electrostatic.jl")
+include("models/empic_transaction.jl")
 include("models/full_pic.jl")
 include("models/maxwell_vacuum.jl")
 include("models/hall_mhd.jl")

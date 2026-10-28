@@ -1,7 +1,8 @@
 # Particle charge/mass factor range
 
-Status: confirmed current-main defect; implementation and acceptance remain
-open. This work is separate from C1's supported relativistic output closure.
+Status: confirmed current-main defect. The isolated P1 CPU adapter is written
+and passes a 964-assertion source/AST preflight; numerical, compiler, resource
+and integration acceptance remain open. This work is separate from C1's supported relativistic output closure.
 The numerical contract uses the original stored q, m, dt and field operands;
 a rounded derived ratio must not silently erase a representable result.
 
@@ -56,8 +57,13 @@ contract and are not automatically covered by particle fixes.
 
 Normal-ratio native replay is a compatibility requirement, not an accuracy
 certificate. Include the original q/m division perturbation in the unchanged
-four-ulp physical oracle and the full local rounding budget before edits. No
-normal-ratio counterexample has been executed in this work order. Preserve
+four-ulp physical oracle and the full local rounding budget before edits. Four
+normal-ratio Float16 witnesses on both actual runtimes exceed the unchanged
+four-ulp bound against both original-factor and explicit-qm exact references.
+Native/scalar/uniform/gathered bits match; an independent rational 3×3 solve
+confirms all 32 outputs in takeover `p1-normal-native-accuracy-root-review-v1.json`.
+A 48-node outward-error certificate is proposed; its proof/prototype and cost
+gates are unaccepted. The quotient-range adapter does not repair this gap. Preserve
 explicit scalar result-range semantics separately from public original-factor
 publication; define any changed error/staging policy before implementation.
 
@@ -77,10 +83,14 @@ losing the coordinate or midpoint contribution.
 
 - [x] Fixed min/latest original-factor underflow reproductions and zero controls.
 - [x] Related actual latest-Julia EMPIC overflow and C1 whole-state rollback.
-- [ ] Complete source/caller and compatibility review; freeze P1 pre-edit budget.
+- [x] Freeze the original P1 adapter source/caller contract and cold budget;
+  preserve its seven source/test snapshots and 475 pins.
+- [x] Pass the bounded 964-assertion source/AST preflight.
+- [ ] Prove and prototype the canonical normal-accuracy certificate; retain
+  all four confirmed witnesses and the original four-ulp contract.
 - [ ] Implement and CRC-verify P1, then P2–P4 as separate coherent slices.
 - [ ] Current-main integration, docs, separate pushes and exact-SHA CI.
 
 The [audit tracker](DEEP_DEBUG_TRACKER.md) owns live acceptance and the
 [completeness plan](PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md) retains the wider
-simulator goal. This plan supplies no repaired implementation.
+simulator goal. No P1 numerical or publication acceptance is claimed.

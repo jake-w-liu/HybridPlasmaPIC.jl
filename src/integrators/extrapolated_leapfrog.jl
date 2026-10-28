@@ -740,6 +740,7 @@ end
 
 function _prime_leapfrog_loop!(v, Ep, Bp, qm, h, np, c, ::Val{rel}, ::Val{guard}) where {rel,guard}
     vx, vy, vz = v
+    T = eltype(vx)
     ex, ey, ez = Ep
     bx, by, bz = Bp
     if rel
@@ -751,7 +752,7 @@ function _prime_leapfrog_loop!(v, Ep, Bp, qm, h, np, c, ::Val{rel}, ::Val{guard}
             βy = v0y / c
             βz = v0z / c
             β2 = βx * βx + βy * βy + βz * βz
-            (isfinite(β2) && β2 < o) || throw(
+            _subluminal_velocity_supported((v0x, v0y, v0z), c, β2) || throw(
                 ArgumentError(
                     "_prime_leapfrog!: input velocity must be finite and satisfy |v| < c",
                 ),
@@ -771,10 +772,20 @@ function _prime_leapfrog_loop!(v, Ep, Bp, qm, h, np, c, ::Val{rel}, ::Val{guard}
             umz = g[3] - k[3]
             gm = sqrt(o + (umx * umx + umy * umy + umz * umz) / c2)
             primed = (umx / gm, umy / gm, umz / gm)
-            if guard &&
-               !_rel_prime_in_range(primed, g, (ax, ay, az), k, gm, h, qm, c2, gap_resolved)
-                primed = _rel_prime_repair(primed, (v0x, v0y, v0z), e, b, qm, h, c)
+            if (
+                guard &&
+                !_rel_prime_in_range(primed, g, (ax, ay, az), k, gm, h, qm, c2, gap_resolved)
+            ) || !_supported_relativistic_output(primed, c)
+                T <: _RangeGuardedFloat &&
+                    (primed = _rel_prime_repair(primed, (v0x, v0y, v0z), e, b, qm, h, c))
             end
+            primed = _publish_relativistic_velocity(
+                primed,
+                c,
+                "_prime_leapfrog!",
+                (v0x, v0y, v0z, e..., b..., qm, h, c),
+                p,
+            )
             vx[p], vy[p], vz[p] = primed
         end
     else

@@ -12,6 +12,7 @@ using Test
     include("test_gathered_field_storage.jl")
     include("test_particle_kinematics_range.jl")
     include("test_relativistic_validation.jl")
+    include("test_relativistic_output_closure.jl")
     include("test_boundary_edges.jl")
     include("test_interval_validation.jl")
     include("test_provenance.jl")

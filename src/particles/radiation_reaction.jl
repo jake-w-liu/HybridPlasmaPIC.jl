@@ -446,6 +446,8 @@ function _radiation_reaction_generic!(
 ) where {D,T}
     c2 = cT * cT
     vx, vy, vz = ps.v
+    isempty(vx) && return ps
+    staged = map(copy, ps.v)
     @inbounds for p in eachindex(vx)
         ux = vx[p]
         uy = vy[p]
@@ -464,10 +466,16 @@ function _radiation_reaction_generic!(
         py = s * uy
         pz = s * uz
         γn = sqrt(one(T) + (px * px + py * py + pz * pz) / c2)
-        vx[p] = px / γn
-        vy[p] = py / γn
-        vz[p] = pz / γn
+        out = _publish_relativistic_velocity(
+            (px / γn, py / γn, pz / γn),
+            cT,
+            "apply_radiation_reaction!",
+            (ux, uy, uz, Ex, Ey, Ez, Bx, By, Bz, dtT, KT, cT),
+            p,
+        )
+        staged[1][p], staged[2][p], staged[3][p] = out
     end
+    foreach(copyto!, ps.v, staged)
     return ps
 end
 
@@ -503,8 +511,12 @@ substep for the stored inputs. Particles whose native rounding bound or range fa
 are re-evaluated in a wider format or exponent-scaled double-double arithmetic; amplified
 invariant uncertainty is completed from the original operands with exact integers. Other
 element types such as `BigFloat` use the native momentum update at the ambient
-precision. `K ≥ 0`, `dt ≥ 0`, `c > 0`; these parameters and `E, B` must remain finite in
-the particle precision. Inputs are validated before a `K=0` or `dt=0` no-op. Returns `ps`.
+precision. Their velocity writes are staged: if a rounded output is outside the
+existing supported subluminal domain, `ArgumentError` is raised with the particle
+velocities unchanged. This uses three temporary velocity vectors. `K ≥ 0`, `dt ≥ 0`,
+`c > 0`; these parameters and `E, B` must remain finite in
+the particle precision. Parameters and uniform fields are validated before a `K=0`
+or `dt=0` no-op; particle velocity validation follows that no-op check. Returns `ps`.
 """
 function apply_radiation_reaction!(
     ps::ParticleSet{D,T},

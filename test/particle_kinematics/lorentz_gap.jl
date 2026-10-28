@@ -1,5 +1,101 @@
 # Included in ParticleKinematicsRangeTests so all references are the independent
 # Cayley/exact-gap oracles above; no production arithmetic is used by the oracle.
+# Independent retained-stage bit convention. Exact real zero has no physical
+# sign; the frozen V5 parent publishes +0 for these structural zero components.
+# Derive the proof from original components, never a production certificate.
+function _retained_lorentz_prime_expected(reference, v, E, B, qm, h, c)
+    T = typeof(c)
+    qv, qe, qb = Q.(v), Q.(E), Q.(B)
+    @test sum(abs2, reference) / BigFloat(c)^2 > BigFloat(0.5)
+    return ntuple(3) do i
+        j, k = mod1(i + 1, 3), mod1(i + 2, 3)
+        force = qe[i] + qv[j] * qb[k] - qv[k] * qb[j]
+        exact_zero = iszero(qv[i]) && iszero(Q(h) * Q(qm) * force)
+        if exact_zero
+            @test iszero(reference[i])
+            zero(T)
+        else
+            @test !iszero(reference[i])
+            T(reference[i])
+        end
+    end
+end
+
+function _check_retained_lorentz_prime!(velocity, Ep, Bp, qm, h, c; planar = false)
+    start = map(copy, velocity)
+    n = length(start[1])
+    states = [ntuple(i -> start[i][p], 3) for p = 1:n]
+    fields = [(ntuple(i -> Ep[i][p], 3), ntuple(i -> Bp[i][p], 3)) for p = 1:n]
+    references = [rel_prime_reference(states[p], fields[p]..., qm, h, c) for p = 1:n]
+    expected = [
+        _retained_lorentz_prime_expected(references[p][1], states[p], fields[p]..., qm, h, c)
+        for p = 1:n
+    ]
+    supported = [kinematics_supported_velocity(expected[p], c) for p = 1:n]
+    function invoke!(vv, ep, bp)
+        if planar
+            H._prime_empic1d!(vv, ep[1], ep[2], bp[3], qm, h, length(vv[1]), true, c)
+        else
+            H._prime_leapfrog!(vv, ep, bp, qm, h, length(vv[1]), true, c)
+        end
+    end
+    # Every complete original call remains. A raw private batch has no atomic
+    # post-error guarantee; isolated controls below reach all later particles.
+    if all(supported)
+        invoke!(velocity, Ep, Bp)
+        for p = 1:n
+            actual = ntuple(i -> velocity[i][p], 3)
+            @test rel_ok(actual, references[p]...)
+            @test isequal(actual, expected[p])
+            @test kinematics_supported_velocity(actual, c)
+        end
+    else
+        @test_throws ArgumentError invoke!(velocity, Ep, Bp)
+        for p = 1:n
+            single = ntuple(i -> [states[p][i]], 3)
+            ep, bp = map(f -> ntuple(i -> [f[i]], 3), fields[p])
+            if supported[p]
+                invoke!(single, ep, bp)
+                @test rel_ok(map(only, single), references[p]...)
+                @test isequal(map(only, single), expected[p])
+                @test kinematics_supported_velocity(map(only, single), c)
+            else
+                @test_throws ArgumentError invoke!(single, ep, bp)
+            end
+        end
+    end
+    # The original normwise physical gate still applies to every raw stage,
+    # including tuples which publication must reject. This also pins the
+    # existing parent bits with its independently proven zero convention.
+    for p = 1:n
+        v = states[p]
+        e, b = fields[p]
+        raw = H._rel_prime_repair(ntuple(_ -> zero(c), 3), v, e, b, qm, h, c)
+        @test rel_ok(raw, references[p]...)
+        @test isequal(raw, expected[p])
+        @test kinematics_supported_velocity(raw, c) == supported[p]
+    end
+    return count(identity, supported), count(!, supported)
+end
+
+function _check_retained_lorentz_native_cold(v, E, B, qm, dt, c, reference, scale)
+    historical = old_boris_rel(v..., E..., B..., qm, dt, c)
+    native = H._boris_rel_native(v..., E..., B..., qm, dt, c)
+    @test kinematics_supported_velocity(native, c)
+    if kinematics_supported_velocity(historical, c)
+        @test isequal(native, historical)
+    else
+        @test rel_ok(native, reference, scale)
+    end
+    # These deliberately forced native calls are outside the fast batch's
+    # input certificate. Their retained historical slice has no new accuracy
+    # claim; an unsupported old publication must use the guarded repair.
+    raw = H._boris_rel_repair(ntuple(_ -> zero(c), 3), v..., E..., B..., qm, dt, c)
+    @test rel_ok(raw, reference, scale)
+    @test kinematics_supported_velocity(raw, c)
+    return nothing
+end
+
 @testset "Relativistic kinematics resolve an ill-conditioned Lorentz gap" begin
     for T in (Float16, Float32, Float64)
         z = (zero(T), zero(T), zero(T))
@@ -9,6 +105,7 @@
         # around c misses the same conditioning mechanism farther from c.
         speeds = (T(0.75), T(0.9), T(0.99))
         states = (witness, ((s * T(0.6), s * T(0.8), zero(T)) for s in speeds)...)
+        prime_supported = prime_rejected = 0
         for raw in states,
             order in ((1, 2, 3), (2, 3, 1), (3, 1, 2)),
             sign in (-one(T), one(T)),
@@ -27,22 +124,24 @@
             reference, scale = boris_rel_reference(v, z, B, qm, dt, c)
             actual = H._boris_rel(v..., z..., B..., qm, dt, c)
             @test rel_ok(actual, reference, scale)
+            @test kinematics_supported_velocity(actual, c)
+            _check_retained_lorentz_native_cold(v, z, B, qm, dt, c, reference, scale)
             for h in (T(0.125), T(2))
-                reference, scale = rel_prime_reference(v, z, B, qm, h, c)
                 vv = ntuple(i -> [v[i]], 3)
-                H._prime_leapfrog!(
+                accepted, rejected = _check_retained_lorentz_prime!(
                     vv,
                     ntuple(i -> [z[i]], 3),
                     ntuple(i -> [B[i]], 3),
                     qm,
                     h,
-                    1,
-                    true,
                     c,
                 )
-                @test rel_ok(map(only, vv), reference, scale)
+                prime_supported += accepted
+                prime_rejected += rejected
             end
         end
+        @test prime_supported + prime_rejected == 4 * 3 * 2 * 3 * 2
+        @info "C1 retained Lorentz prime domain" type = T prime_supported prime_rejected
         # Admission-boundary neighbors and ordinary native identity.
         for β2 in (prevfloat(T(0.5)), T(0.5), nextfloat(T(0.5)))
             @test H._lorentz_gap_in_range(β2) == (β2 <= T(0.5))
@@ -93,15 +192,16 @@ end
                     old_boris_rel(slow..., z..., B..., one(T), dt, c),
                 )
             end
+            for p = 1:N
+                v = ntuple(i -> before[i][p], 3)
+                reference, scale = boris_rel_reference(v, z, B, one(T), dt, c)
+                _check_retained_lorentz_native_cold(v, z, B, one(T), dt, c, reference, scale)
+            end
             for planar in (false, true)
                 vv = map(copy, before)
-                if planar
-                    H._prime_empic1d!(vv, Ep[1], Ep[2], Bp[3], one(T), dt, N, true, c)
-                else
-                    H._prime_leapfrog!(vv, Ep, Bp, one(T), dt, N, true, c)
-                end
-                reference, scale = rel_prime_reference(fast, z, B, one(T), dt, c)
-                @test rel_ok(ntuple(i -> vv[i][index], 3), reference, scale)
+                accepted, rejected =
+                    _check_retained_lorentz_prime!(vv, Ep, Bp, one(T), dt, c; planar)
+                @test accepted + rejected == N
             end
         end
     end

@@ -101,6 +101,51 @@ function _exact_lorentz_gap(vx, vy, vz, c)
     return (c2 - (Q(vx)^2 + Q(vy)^2 + Q(vz)^2)) / c2
 end
 
+# The shared supported velocity domain. Keep the historical rounded-norm
+# admission, resolving only its accepted near-boundary side from the original
+# stored components. This deliberately does not admit rounded beta² >= 1.
+# Division, squaring and two positive additions contribute at most five
+# relative-rounding factors in normal IEEE arithmetic. The eight-epsilon band
+# also covers tiny underflowed contributions; resolve it from the original
+# components rather than a second rounded v/c tuple.
+@noinline function _subluminal_velocity_exact(v, c)
+    return sum(x -> _exact_rational(x)^2, v) < _exact_rational(c)^2
+end
+
+@inline function _subluminal_velocity_supported(v, c, beta2)
+    valid = all(isfinite, v) && isfinite(beta2) && beta2 < one(c)
+    if valid && c isa AbstractFloat && one(c) - beta2 <= oftype(c, 8) * eps(typeof(c))
+        return _subluminal_velocity_exact(v, c)
+    end
+    return valid
+end
+
+@inline function _subluminal_velocity_parts(v, c)
+    bx, by, bz = v[1] / c, v[2] / c, v[3] / c
+    beta2 = bx * bx + by * by + bz * bz
+    return beta2, _subluminal_velocity_supported(v, c, beta2)
+end
+
+@inline _supported_relativistic_output(v, c) =
+    !(c isa AbstractFloat) || last(_subluminal_velocity_parts(v, c))
+
+@inline function _publish_relativistic_velocity(out, c, context, operands, particle = 0)
+    # Preserve the existing IEEE propagation policy for unsupported nonfinite
+    # operands. Finite physical stages must publish in the supported domain.
+    (!(c isa AbstractFloat) || !all(isfinite, operands)) && return out
+    _supported_relativistic_output(out, c) || _throw_relativistic_output(context, particle)
+    return out
+end
+
+@noinline function _throw_relativistic_output(context, particle)
+    location = iszero(particle) ? context : "$context particle $particle"
+    throw(
+        ArgumentError(
+            "$location: rounded output is outside the supported subluminal velocity domain",
+        ),
+    )
+end
+
 # ---------------------------------------------------------------- drift
 
 @inline _particle_coordinate_native(x, v, dt) = x + dt * v
@@ -282,7 +327,8 @@ end
 # Wide evaluation of the same back-up. (|u|/c)² can exceed the range of the
 # next IEEE format for extreme c, so every flagged type uses 256-bit BigFloat
 # with the exact Lorentz gap. Planar callers pass exact zeros for the absent
-# components. The result |v| < c always fits T.
+# components. Physical components fit T; their separately rounded tuple may
+# lie outside the supported velocity domain. Callers check publication.
 @noinline function _rel_prime_repair(out::NTuple{3,T}, v0, e, b, qm::T, h::T, c::T) where {T}
     all(isfinite, (v0..., e..., b..., qm, h, c)) || return out
     if T <: _RangeGuardedFloat
@@ -409,7 +455,9 @@ end
 # γ0 <= G/2 with G = 2 sqrt(2/eps) and |u| <= G max|v|; γ⁻ >= 1 only shrinks t,
 # so the nonrelativistic bounds hold with w = G max|v| + k. |u⁻|²/c² and
 # |u⁺|²/c² are below 3(2.5 bound)²/c² <= floatmax when bound²/c² <= floatmax/32,
-# so γ⁻ and γ⁺ are finite and |v⁺| < c. γ0 >= 1 makes |u_p| >= |v_p|, so the
+# so γ⁻ and γ⁺ are finite. This does not certify the separately rounded
+# output tuple: native callers still check its supported domain. γ0 >= 1
+# makes |u_p| >= |v_p|, so the
 # velocity-based smin bounds the momentum scale from below. The additional
 # vmax <= c/4 condition gives β² <= 3/16, so no native batch bypasses the
 # Lorentz-gap conditioning guard.

@@ -137,6 +137,7 @@ mutable struct EMPIC1D{T,G,SH<:ShapeFunction}
     step::Base.RefValue{Int}
     last_dt::Base.RefValue{T}       # preceding full ion drift interval
     last_sub_dt::Base.RefValue{T}   # preceding electron/field drift interval
+    transaction::Union{Nothing,_EMPICTransaction{1,T}}
 end
 
 function EMPIC1D(
@@ -190,6 +191,7 @@ function EMPIC1D(
         Ref(0),
         Ref(zero(T)),
         Ref(zero(T)),
+        nothing,
     )
 end
 
@@ -670,8 +672,11 @@ end
     βy = vy / c
     βz = vz / c
     β2 = βx * βx + βy * βy + βz * βz
-    (isfinite(β2) && β2 < one(T)) ||
-        throw(ArgumentError("_boris_rel: input velocity must be finite and satisfy |v| < c"))
+    _subluminal_velocity_supported((vx, vy, vz), c, β2) || throw(
+        ArgumentError(
+            "_boris_rel: input velocity must be finite and satisfy the supported subluminal range",
+        ),
+    )
     ginit, gap_resolved =
         guard ? _conditioned_lorentz_factor((vx, vy, vz), c, β2) :
         (_native_lorentz_factor(β2), true)
@@ -685,8 +690,12 @@ end
 
 # Native-only relativistic push: the historical operation order, input
 # validation included (certified batch loops).
-@inline _boris_rel_native(vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, qm, dt, c) =
-    first(_boris_rel_parts(vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, qm, dt, c, Val(false)))
+@inline function _boris_rel_native(vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, qm, dt, c)
+    out = first(_boris_rel_parts(vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, qm, dt, c, Val(false)))
+    _supported_relativistic_output(out, c) && return out
+    # The batch certificate bounds intermediates, not the rounded output cone.
+    return _boris_rel(vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, qm, dt, c)
+end
 
 @inline function _boris_rel(
     vx::T,
@@ -704,9 +713,19 @@ end
 ) where {T}
     out, parts, u, c2, gap_resolved =
         _boris_rel_parts(vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, qm, dt, c, Val(true))
-    T <: _RangeGuardedFloat || return out
-    _boris_rel_in_range(out, parts, u, qm, dt, c2, gap_resolved) && return out
-    return _boris_rel_repair(out, vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, qm, dt, c)
+    if T <: _RangeGuardedFloat
+        if _boris_rel_in_range(out, parts, u, qm, dt, c2, gap_resolved) &&
+           _supported_relativistic_output(out, c)
+            return out
+        end
+        out = _boris_rel_repair(out, vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, qm, dt, c)
+    end
+    return _publish_relativistic_velocity(
+        out,
+        c,
+        "_boris_rel",
+        (vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, qm, dt, c),
+    )
 end
 
 # The same push in 256-bit BigFloat, rounded once to T. (|u|/c)² can exceed the
@@ -844,13 +863,17 @@ function init_empic!(
     ions::Union{Nothing,ParticleSet{1,T}} = nothing,
 ) where {T}
     _require_empic_electrons(e)
-    _ensure_electron_buffers!(es, nparticles(e))
     if es.mobile
         ions === nothing &&
             throw(ArgumentError("mobile=true requires an ion ParticleSet in init_empic!"))
         _require_empic_ions(ions, es.mi)
-        _ensure_ion_buffers!(es, nparticles(ions))
     end
+    if es.relativistic
+        _require_subluminal_velocities(e, es.c, "init_empic!")
+        es.mobile && _require_subluminal_velocities(ions, es.c, "init_empic! ion species")
+    end
+    _ensure_electron_buffers!(es, nparticles(e))
+    es.mobile && _ensure_ion_buffers!(es, nparticles(ions))
     g = es.g
     n = g.n[1]
     cb = g.cbuf
@@ -1441,6 +1464,7 @@ function _prime_empic1d_loop!(
     ::Val{guard},
 ) where {rel,guard}
     vx, vy, vz = v
+    T = eltype(vx)
     if rel
         # the relativistic Boris push works in momentum u=γv, so back up MOMENTUM:
         # u^{-1/2}=γ^0 v^0 − h·qm(E+v^0×B^0), then v^{-1/2}=u^{-1/2}/γ(u^{-1/2}). Backing up v
@@ -1458,8 +1482,10 @@ function _prime_empic1d_loop!(
             βy = v0y / c
             βz = v0z / c
             β2 = βx * βx + βy * βy + βz * βz
-            (isfinite(β2) && β2 < o) || throw(
-                ArgumentError("_prime_empic1d!: input velocity must be finite and satisfy |v| < c"),
+            _subluminal_velocity_supported((v0x, v0y, v0z), c, β2) || throw(
+                ArgumentError(
+                    "_prime_empic1d!: input velocity must be finite and satisfy the supported subluminal range",
+                ),
             )
             g0, gap_resolved =
                 guard ? _conditioned_lorentz_factor((v0x, v0y, v0z), c, β2) :
@@ -1475,21 +1501,39 @@ function _prime_empic1d_loop!(
             umz = g0 * v0z
             gm = sqrt(o + (umx * umx + umy * umy + umz * umz) / c2)
             primed = (umx / gm, umy / gm, umz / gm)
-            if guard &&
-               !_rel_prime_in_range(
-                primed,
-                (gx, gy, umz),
-                (ax, ay, z),
-                (kx, ky, z),
-                gm,
-                h,
-                qm,
-                c2,
-                gap_resolved,
-            )
-                primed =
-                    _rel_prime_repair(primed, (v0x, v0y, v0z), (ex, ey, z), (z, z, bz), qm, h, c)
+            if (
+                guard &&
+                !_rel_prime_in_range(
+                    primed,
+                    (gx, gy, umz),
+                    (ax, ay, z),
+                    (kx, ky, z),
+                    gm,
+                    h,
+                    qm,
+                    c2,
+                    gap_resolved,
+                )
+            ) || !_supported_relativistic_output(primed, c)
+                T <: _RangeGuardedFloat && (
+                    primed = _rel_prime_repair(
+                        primed,
+                        (v0x, v0y, v0z),
+                        (ex, ey, z),
+                        (z, z, bz),
+                        qm,
+                        h,
+                        c,
+                    )
+                )
             end
+            primed = _publish_relativistic_velocity(
+                primed,
+                c,
+                "_prime_empic1d!",
+                (v0x, v0y, v0z, ex, ey, bz, qm, h, c),
+                p,
+            )
             vx[p], vy[p], vz[p] = primed
         end
     else
@@ -1535,7 +1579,12 @@ this staggering unchanged. Returns `es`.
 
 A nonzero `dt` or substep `dt/n_sub` below `2*floatmin(T)` throws an
 `ArgumentError` before any state changes. Particle kicks, priming and drifts
-follow the normwise range contract of [`boris_kick`](@ref).
+follow the normwise range contract of [`boris_kick`](@ref). Relativistic output
+velocities must stay in the supported stored subluminal domain; otherwise an
+`ArgumentError` is raised. A relativistic advance uses a lazy reusable undo
+workspace and restores the enumerated particles, fields, gathers, FFT scratch
+and clock on error for standard writable arrays/views. The workspace itself is
+scratch and may be created or resized on a rejected advance.
 """
 function step_empic!(
     es::EMPIC1D{T},
@@ -1562,6 +1611,22 @@ function step_empic!(
         _require_subluminal_velocities(e, es.c, "step_empic!")
         es.mobile && _require_subluminal_velocities(ions, es.c, "step_empic! ion species")
     end
+    if es.relativistic
+        return _empic_step_transaction!(es, e, ions, dtT, dt_e, ns, next_time, next_step)
+    end
+    return _advance_empic_step!(es, e, ions, dtT, dt_e, ns, next_time, next_step)
+end
+
+function _advance_empic_step!(
+    es::EMPIC1D{T},
+    e::ParticleSet{1,T},
+    ions::Union{Nothing,ParticleSet{1,T}},
+    dtT::T,
+    dt_e::T,
+    ns::Int,
+    next_time::T,
+    next_step::Int,
+) where {T}
     _ensure_electron_buffers!(es, nparticles(e))
     if es.mobile
         _ensure_ion_buffers!(es, nparticles(ions))
@@ -1953,6 +2018,7 @@ mutable struct EMPIC{D,T,G,SH<:ShapeFunction}
     step::Base.RefValue{Int}
     last_dt::Base.RefValue{T}       # preceding full ion drift interval
     last_sub_dt::Base.RefValue{T}   # preceding electron/field drift interval
+    transaction::Union{Nothing,_EMPICTransaction{D,T}}
 end
 
 function EMPIC(
@@ -2006,6 +2072,7 @@ function EMPIC(
         Ref(0),
         Ref(zero(T)),
         Ref(zero(T)),
+        nothing,
     )
 end
 
@@ -2287,13 +2354,17 @@ function init_empic!(
     ions::Union{Nothing,ParticleSet{D,T}} = nothing,
 ) where {D,T}
     _require_empic_electrons(e)
-    _ensure_empic_electron_buffers!(es, nparticles(e))
     if es.mobile
         ions === nothing &&
             throw(ArgumentError("mobile=true requires an ion ParticleSet in init_empic!"))
         _require_empic_ions(ions, es.mi)
-        _ensure_empic_ion_buffers!(es, nparticles(ions))
     end
+    if es.relativistic
+        _require_subluminal_velocities(e, es.c, "init_empic!")
+        es.mobile && _require_subluminal_velocities(ions, es.c, "init_empic! ion species")
+    end
+    _ensure_empic_electron_buffers!(es, nparticles(e))
+    es.mobile && _ensure_empic_ion_buffers!(es, nparticles(ions))
     _charge_density!(es.rho_n, es.ne, es, e, ions)
     _enforce_gauss!(es)
     es.time[] = zero(T)                 # (re)start at t=0; step==0 triggers leapfrog priming
@@ -2390,7 +2461,12 @@ preceding step; zero timesteps leave this staggering unchanged.
 
 A nonzero `dt` or substep `dt/n_sub` below `2*floatmin(T)` throws an
 `ArgumentError` before any state changes. Particle kicks, priming and drifts
-follow the normwise range contract of [`boris_kick`](@ref).
+follow the normwise range contract of [`boris_kick`](@ref). Relativistic output
+velocities must stay in the supported stored subluminal domain; otherwise an
+`ArgumentError` is raised. A relativistic advance uses a lazy reusable undo
+workspace and restores the enumerated particles, fields, gathers, FFT scratch
+and clock on error for standard writable arrays/views. The workspace itself is
+scratch and may be created or resized on a rejected advance.
 """
 function step_empic!(
     es::EMPIC{D,T},
@@ -2417,6 +2493,22 @@ function step_empic!(
         _require_subluminal_velocities(e, es.c, "step_empic!")
         es.mobile && _require_subluminal_velocities(ions, es.c, "step_empic! ion species")
     end
+    if es.relativistic
+        return _empic_step_transaction!(es, e, ions, dtT, dt_e, ns, next_time, next_step)
+    end
+    return _advance_empic_step!(es, e, ions, dtT, dt_e, ns, next_time, next_step)
+end
+
+function _advance_empic_step!(
+    es::EMPIC{D,T},
+    e::ParticleSet{D,T},
+    ions::Union{Nothing,ParticleSet{D,T}},
+    dtT::T,
+    dt_e::T,
+    ns::Int,
+    next_time::T,
+    next_step::Int,
+) where {D,T}
     _ensure_empic_electron_buffers!(es, nparticles(e))
     if es.mobile
         _ensure_empic_ion_buffers!(es, nparticles(ions))
@@ -2523,3 +2615,24 @@ function charge_conservation_residual(es::EMPIC{D,T}, dt::Real) where {D,T}
     divergence!(dJ, es.J, g)
     return _em_continuity_finish(g, es.rho_n, es.rho_np1, es.J, dtT, dρrepr, dJ, lost)
 end
+
+# Exact undo inventory for public relativistic steps; checkpoint payloads keep
+# their existing explicit physical-state schema and exclude transaction scratch.
+_empic_transaction_fields(es::EMPIC1D) =
+    (es.Ex, es.Ey, es.Bz, es.Bzc, es.Jx, es.Jy, es.rho_n, es.rho_np1, es.ne, es.dEy, es.dBz)
+_empic_transaction_fields(es::EMPIC) = (
+    es.E...,
+    es.B...,
+    es.Bc...,
+    es.J...,
+    es.Jraw...,
+    es.rho_n,
+    es.rho_np1,
+    es.ne,
+    es.curlE...,
+    es.curlB...,
+)
+_empic_electron_gathers(es::EMPIC1D) = (es.Exp, es.Eyp, es.Bzp, es.work)
+_empic_ion_gathers(es::EMPIC1D) = (es.Exi, es.Eyi, es.Bzi, es.worki)
+_empic_electron_gathers(es::EMPIC) = (es.Ep..., es.Bp..., es.mide..., es.worke)
+_empic_ion_gathers(es::EMPIC) = (es.Epi..., es.Bpi..., es.midi..., es.worki)

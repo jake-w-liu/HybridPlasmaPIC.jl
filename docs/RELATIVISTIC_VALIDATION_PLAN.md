@@ -100,15 +100,17 @@ No optimization or whole-project completion claim follows from these checks.
 
 ## Output publication and public rollback (C1)
 
-The isolated, unaccepted [C1 implementation](RELATIVISTIC_OUTPUT_PUBLICATION_PLAN.md)
-factors this unchanged input predicate for scalar output admission. In that
-candidate, Boris and priming retain a supported native result or use their
-existing accurate cold stage; an unsupported rounded result raises
-`ArgumentError`. Its initialization validates both required relativistic species
-before changing gathers, deposition or clocks, and its public relativistic
-EMPIC steps use a reusable undo workspace. Current-main source integration and
-acceptance remain pending. These are a separate compatibility and storage change
-from `43881de` above; the linked tracker owns C1 verification.
+The [C1 implementation](RELATIVISTIC_OUTPUT_PUBLICATION_PLAN.md) uses this
+unchanged input predicate for scalar output admission. Boris and priming retain
+a supported native result or use their existing accurate cold stage; an
+unsupported rounded result raises `ArgumentError`. Initialization validates
+both required relativistic species before changing gathers, deposition or
+clocks. Public relativistic EMPIC steps use a reusable undo workspace.
+Current-main local numerical, source, resource, device and formatting gates are
+accepted, including an explicit complete matched compiler disposition that
+retains the inherited failed zero-report assertions. Separate main publication
+and exact-SHA CI remain pending in the linked tracker. This is a separate
+compatibility and storage change from `43881de` above.
 
 ## Planned domain and state extensions
 

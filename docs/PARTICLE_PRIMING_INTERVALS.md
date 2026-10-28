@@ -93,9 +93,12 @@ minimum/latest Julia, concurrent caller BigFloat scopes, actual Metal,
 compiler reports and warm allocations. See
 [KINEMATICS_AUDIT_20261027.md](KINEMATICS_AUDIT_20261027.md) for current gate
 status and limitations. A finite corpus and source review are not a formal
-machine-checked proof. Representable output-domain closure remains a separate
-open issue: accurate component rounding alone can put a limiting velocity on
-the public strict-cone boundary.
+machine-checked proof. Accurate component rounding alone can put a limiting
+velocity on the public strict-cone boundary. The separate
+[publication repair](RELATIVISTIC_OUTPUT_PUBLICATION_PLAN.md) keeps that domain
+and rejects such outputs; it does not move them inward or preserve an otherwise
+unrepresentable physical Lorentz factor. Its acceptance status is recorded in
+that plan.
 
 A separate eight-step scalar magnetic-field stress audit (`Bz=1/sqrt(eps(T))`,
 `dt=0.125`, loaded speeds 0.9c/0.99c followed by priming) distinguishes those
