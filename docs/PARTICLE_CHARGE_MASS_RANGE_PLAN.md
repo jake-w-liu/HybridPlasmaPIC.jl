@@ -3,7 +3,8 @@
 Status: confirmed current-main defect. The isolated P1 CPU adapter preserves
 original factors only for nonnormal quotients and passes a 964-assertion
 source/AST preflight. Numerical, compiler, resource and integration acceptance
-remain open. The complete normal-path design below is not implemented.
+remain open. The production normal-path design below is not implemented; bounded scalar and
+whole-batch experiments are recorded separately from production acceptance.
 This work is separate from C1's supported relativistic output closure.
 The numerical contract uses the original stored q, m, dt and field operands;
 a rounded derived ratio must not silently erase a representable result.
@@ -64,8 +65,15 @@ normal-ratio Float16 witnesses on both actual runtimes exceed the unchanged
 four-ulp bound against both original-factor and explicit-qm exact references.
 Native/scalar/uniform/gathered bits match; an independent rational 3×3 solve
 confirms all 32 outputs in takeover `p1-normal-native-accuracy-root-review-v1.json`.
-A 48-node outward-error certificate is proposed; its proof/prototype and cost
-gates are unaccepted. The quotient-range adapter does not repair this gap. Preserve
+The external scalar 48-node experiment passes 13,074 assertions per runtime on
+actual Julia 1.12.7 and 1.13.3. Independent root replay checks every center/radius
+bit and exact target: 192 coefficient-meaning contexts and 8,208 finite node
+enclosures per runtime, plus 594 outward-primitive checks. Its sufficient test
+accepts 66 contexts after the unchanged range guard. This bounded experiment
+does not establish a universal or production certificate, batch hit rate or cost.
+The separate whole-batch experiment completes 144,590 assertions per runtime;
+its full source/evidence root review remains open. Production and cost gates
+remain unaccepted. The quotient-range adapter does not repair this gap. Preserve
 explicit scalar result-range semantics separately from public original-factor
 publication; define any changed error/staging policy before implementation.
 
@@ -121,9 +129,11 @@ losing the coordinate or midpoint contribution.
 - [x] Pass the bounded 964-assertion source/AST preflight.
 - [x] Retain the bounded three-type raw/native exact-overflow observations
   and independent root review; no public-call coverage is inferred for them.
-- [ ] Prove and prototype the canonical normal-accuracy certificate; retain
-  all four confirmed witnesses, the three raw overflow rows and the original
-  four-ulp/nearest-infinity contract.
+- [x] Pass and independently replay the bounded actual Julia scalar-radius
+  prototype on minimum/latest Julia, preserving all 96 inputs and all 48 nodes.
+- [ ] Complete whole-batch source/evidence review and the production normal
+  accuracy proof, preserving all four confirmed witnesses, the three raw overflow
+  rows and the original four-ulp/nearest-infinity contract.
 - [ ] Implement and CRC-verify P1, then P2–P4 as separate coherent slices.
 - [ ] Current-main integration, docs, separate pushes and exact-SHA CI.
 

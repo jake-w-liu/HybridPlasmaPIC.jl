@@ -43,8 +43,18 @@ finds exactly two old-source ctime changes, with bytes and identities unchanged
 and every copied-tree field exact. The writer remains unknown. A separately
 reviewed fresh observation baseline keeps all future fields strict; all ten serial
 read-only LLVM-config collections exit zero with all 20 complete before/after
-guards passing. Every actual output and loader owner is under review; no
-native owner or Make target is accepted from collection alone. Threading
+guards passing. Independent full-output review checks every raw line and the
+three copied-image identities. One separately frozen batched system-image
+metadata query also exits zero; root reconstructs the complete raw output and
+checks all 599 exact path/UUID pairs, 605 architecture contexts, 17,450 load
+commands, 199,697 fields and 7,149 dependency records, plus all strict tree guards.
+This accepts bounded metadata correspondence only: 69 attribute-provenance
+contexts, 553 delayed markers, mapped-cache byte hashes and initializer/runtime
+behavior retain explicit limits. The next source-only original-Make preparation
+is sealed with 796 file pins and six links, including the independently matched
+11-target / 100-edge prerequisite graph and conditional submake writes. No Make,
+compiler/plugin or runtime consumer has run; actual provider/import/SDK/cache/
+write admission remains open. Threading
 analysis, Julia bootstrap, numerical consumers, GC/lifecycle, P4 child/depot and
 platform gates remain unaccepted.
 Installed Julia libraries are unchanged and NUM-001

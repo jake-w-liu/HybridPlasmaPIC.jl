@@ -33,8 +33,22 @@ displacement records and 66 separate public outcomes are retained. The next
 minimum compiler gate stops with 32 passes and four failed zero-report
 assertions. All 34 full captures are retained: the four abstract empty-vector
 charge/impulse roots each report two Base reinterpret/padding diagnostics; the
-other 30 roots are empty. Valid-input runtime behavior is under investigation.
-Later compiler/resource/full-package gates remain unrun. It does not
+other 30 roots are empty. Both normal runtime investigations complete: each
+retains 18 cases, 108 allocation measurements, 12 complete traces and 144 IR
+files. Independent exact charge/overlap checks, tuple parity and input/storage
+checks pass. Broad empty vectors allocate 160 B per operation; broad nonempty
+and mixed Array/view storage also allocate. Concrete controls remain 0 B.
+Complete raw/index/source review is done; allocation attribution does not prove
+every producer cause. Profile.Allocs.CorruptType is the installed decoder
+low-pointer sentinel, with the original type/pointer cause unresolved.
+
+A new isolated candidate now contains the reviewed population/endpoint method
+barriers and a count sentinel derived from the unchanged 2^51 native limit.
+Global validation order, shared native/exact particle arithmetic and final
+publication remain explicit invariants. Targeted broad/mixed/custom-container,
+count, rejection and liveness tests are being added. Julia numerical/compiler/
+resource acceptance for this repair remains unrun; the previous compiler gate
+remains failed. Later quality/resource/full-package gates remain open. It does not
 implement a coupled force, particle pusher, wall event or restart. The
 [audit tracker](DEEP_DEBUG_TRACKER.md) owns current acceptance.
 
