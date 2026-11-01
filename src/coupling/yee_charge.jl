@@ -574,7 +574,8 @@ operands round once to grid precision, nearest-even independently of arithmetic
 context; nonfinite final rounding rejects. Interior DC includes `n*dx/L`.
 Particle-bound endpoint tails give half that DC response at either wall when
 the half-width is at most L. This is the declared cloud/surface shape, not an
-absorbed/free plate charge or a point-wall force. Coupled PIC remains incomplete.
+absorbed/free plate charge or a point-wall force. The separate bounded coupled
+models have explicit event-free scopes; see `docs/BOUNDED_PARTICLE_COUPLING_PLAN.md`.
 """
 function yee_longitudinal_field(Ex, x, g::YeeGrid{1,T}; shape::YeeTriangularCloud) where {T}
     _yee_validate_longitudinal_storage(Ex, g)

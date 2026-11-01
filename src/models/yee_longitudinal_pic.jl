@@ -26,6 +26,10 @@ separate from cloud endpoint tails. Initialization builds Gauss-consistent Ex
 with longitudinal DC and resets the clock/history. Source, provenance, particle
 objects and component identities are fixed until explicit reinitialization.
 
+The gathered field first rounds to grid precision, including possible loss of
+a nonzero gather to zero. Original q/m and half duration are retained after that
+represented operand; completing original geometry through the force is open.
+
 Velocity-Verlet advances integer-time x/v/Ex. The first accepted positive dt
 fixes the resolved timestep. The rest-mode guard is not a general nonlinear
 stability or accuracy certificate. `last_energy_defect[]` is measured
@@ -89,7 +93,7 @@ function _yl_species(species::AbstractVector)
     return species
 end
 _yl_species(species) =
-    throw(ArgumentError("longitudinal particles must be a ParticleSet or ordered vector"))
+    throw(ArgumentError("closed Yee PIC particles must be a ParticleSet or ordered vector"))
 _yl_particle_arrays(ps::ParticleSet) = (ps.x..., ps.v..., ps.weight, ps.id, ps.tag)
 
 # Structural zero admission must inspect stored bits, including when the caller
@@ -98,7 +102,7 @@ _yl_stored_zero(x::Float32) = iszero(reinterpret(UInt32, x) & 0x7fffffff)
 _yl_stored_zero(x::Float64) = iszero(reinterpret(UInt64, x) & 0x7fffffffffffffff)
 function _yl_require_mode()
     _boris_accuracy_mode() ||
-        throw(ArgumentError("longitudinal PIC requires nearest rounding and gradual underflow"))
+        throw(ArgumentError("closed Yee PIC requires nearest rounding and gradual underflow"))
     return nothing
 end
 
@@ -118,11 +122,11 @@ end
 function _yl_check_particle_storage(ps::ParticleSet)
     _check_particle_storage_axes(ps)
     all(a -> a isa StridedVector && _particle_batch_injective(a), _yl_particle_arrays(ps)) ||
-        throw(ArgumentError("longitudinal particles require injective CPU strided storage"))
+        throw(ArgumentError("closed Yee PIC particles require injective CPU strided storage"))
     return nothing
 end
 
-function _yl_storage_arrays(st::YeeLongitudinalPIC)
+function _yl_storage_arrays(st)
     arrays = Any[
         st.fields.E..., st.fields.B..., st._candidate.E..., st._candidate.B...,
         st.last_impulse..., st._impulse..., st._charge_workspace.sum,
@@ -142,7 +146,8 @@ function _yl_validate_longitudinal_fields(st::YeeLongitudinalPIC, fields::YeeFie
     return nothing
 end
 
-function _yl_validate_storage(st::YeeLongitudinalPIC{T}, species) where {T}
+function _yl_validate_storage(st, species)
+    T = eltype(st.fields.E[1])
     _yee_check_shape(st.fields.E, st.g, true)
     _yee_check_shape(st.fields.B, st.g, false)
     _yee_check_shape(st._candidate.E, st.g, true)
@@ -151,40 +156,51 @@ function _yl_validate_storage(st::YeeLongitudinalPIC{T}, species) where {T}
     _yee_check_shape(st._impulse, st.g, true)
     work = st._charge_workspace
     work.n == st.g.n[1] && work.L === st.g.L[1] ||
-        throw(ArgumentError("longitudinal charge workspace does not match grid"))
+        throw(ArgumentError("closed Yee PIC charge workspace does not match grid"))
     length(work.sum) == st.g.n[1] + 1 && length(work.candidate) == st.g.n[1] + 1 ||
-        throw(DimensionMismatch("longitudinal charge workspace shape changed"))
-    clocks = (st.time, st.last_dt, st.last_work, st.last_energy_defect)
+        throw(DimensionMismatch("closed Yee PIC charge workspace shape changed"))
+    clocks = _yee_closed_references(st)
     for j in eachindex(clocks), i = 1:j-1
         clocks[i] === clocks[j] &&
-            throw(ArgumentError("longitudinal clock and diagnostic references must be independent"))
+            throw(ArgumentError("closed Yee PIC clock and diagnostic references must be independent"))
     end
     arrays = _yl_storage_arrays(st)
     for ps in species
         ps isa ParticleSet{1,T} ||
-            throw(ArgumentError("longitudinal particles must match grid precision and dimension"))
+            throw(ArgumentError("closed Yee PIC particles must match grid precision and dimension"))
         _yl_check_particle_storage(ps)
         append!(arrays, _yl_particle_arrays(ps))
     end
     for j in eachindex(arrays), i = 1:j-1
         _particle_arrays_mightalias(arrays[i], arrays[j]) &&
-            throw(ArgumentError("longitudinal public, stage and particle arrays must be independent"))
+            throw(ArgumentError("closed Yee PIC public, stage and particle arrays must be independent"))
     end
     return nothing
 end
 
-function _yl_validate_populations(st::YeeLongitudinalPIC{T}, species) where {T}
+_yee_closed_references(st::YeeLongitudinalPIC) =
+    (st.time, st.last_dt, st.last_work, st.last_energy_defect)
+
+function _yee_closed_validate_populations(st, species)
     _yl_require_mode()
     _yl_validate_storage(st, species)
     L = _exact_rational(st.g.L[1])
     for ps in species
         _validated_charge_mass(ps)
         all(isfinite, ps.weight) && all(w -> _exact_rational(w) >= 0, ps.weight) ||
-            throw(ArgumentError("longitudinal weights must be finite and nonnegative"))
-        all(a -> all(isfinite, a), ps.v) && all(_yl_stored_zero, ps.v[2]) && all(_yl_stored_zero, ps.v[3]) ||
-            throw(ArgumentError("longitudinal velocities must be finite with zero transverse components"))
+            throw(ArgumentError("closed Yee weights must be finite and nonnegative"))
+        all(a -> all(isfinite, a), ps.v) ||
+            throw(ArgumentError("closed Yee velocities must be finite"))
         all(x -> isfinite(x) && 0 < _exact_rational(x) < L, ps.x[1]) ||
-            throw(ArgumentError("longitudinal centers must lie strictly inside (0,L)"))
+            throw(ArgumentError("closed Yee centers must lie strictly inside (0,L)"))
+    end
+    return nothing
+end
+function _yl_validate_populations(st::YeeLongitudinalPIC, species)
+    _yee_closed_validate_populations(st, species)
+    for ps in species
+        all(_yl_stored_zero, ps.v[2]) && all(_yl_stored_zero, ps.v[3]) ||
+            throw(ArgumentError("longitudinal velocities must have zero transverse components"))
     end
     return nothing
 end
@@ -192,13 +208,13 @@ end
 function _yl_validate_phase_values(initialized, time::T, step, last_dt, work, defect) where {T}
     initialized isa Bool && step isa Int && step >= 0 && last_dt isa T &&
         work isa T && defect isa T && all(isfinite, (time, last_dt, work, defect)) ||
-        throw(ArgumentError("invalid longitudinal phase or diagnostics"))
+        throw(ArgumentError("invalid closed Yee PIC phase or diagnostics"))
     if step == 0
         iszero(time) && iszero(last_dt) && iszero(work) && iszero(defect) ||
-            throw(ArgumentError("unadvanced longitudinal clock/history must be zero"))
+            throw(ArgumentError("unadvanced closed Yee PIC clock/history must be zero"))
     else
         initialized && time > zero(T) && last_dt > zero(T) ||
-            throw(ArgumentError("advanced longitudinal phase must be initialized with positive dt/time"))
+            throw(ArgumentError("advanced closed Yee PIC phase must be initialized with positive dt/time"))
     end
     return nothing
 end
@@ -213,7 +229,7 @@ function _yl_validate_phase(st::YeeLongitudinalPIC)
     return nothing
 end
 
-function _yl_right_plate(st::YeeLongitudinalPIC, species)
+function _yl_right_plate(st, species)
     total = _exact_rational(st.left_plate_charge) +
         _exact_rational(st.background_charge) * _exact_rational(st.g.L[1])
     for ps in species, w in ps.weight
@@ -222,7 +238,7 @@ function _yl_right_plate(st::YeeLongitudinalPIC, species)
     return -total
 end
 
-function _yl_validate_bound(st::YeeLongitudinalPIC, species)
+function _yl_validate_bound(st, species)
     stage = st._stage[]
     length(species) == length(stage.owners) == length(stage.candidates) == length(stage.components) ||
         throw(ArgumentError("population count changed; call init! explicitly"))
@@ -236,11 +252,12 @@ function _yl_validate_bound(st::YeeLongitudinalPIC, species)
             throw(ArgumentError("particle source/provenance changed; call init!"))
     end
     st.right_plate_charge[] == _yl_right_plate(st, species) ||
-        throw(ArgumentError("derived longitudinal free-plate charge changed"))
+        throw(ArgumentError("derived closed Yee PIC free-plate charge changed"))
     return nothing
 end
 
-function _yl_initialize_fields!(st::YeeLongitudinalPIC{T}, species) where {T}
+function _yl_initialize_fields!(st, species)
+    T = eltype(st.fields.E[1])
     g, shape = st.g, st.shape
     h = _exact_rational(g.L[1]) / g.n[1]
     b, sigma = _exact_rational(st.background_charge), _exact_rational(st.left_plate_charge)
@@ -253,7 +270,7 @@ function _yl_initialize_fields!(st::YeeLongitudinalPIC{T}, species) where {T}
         cumulative += charge[e+1]
         total = sigma + b * (e + 1//2) * h + cumulative
         value = _from_exact(T, total)
-        isfinite(value) || throw(ArgumentError("initial longitudinal field does not round finite"))
+        isfinite(value) || throw(ArgumentError("initial closed Yee PIC Ex does not round finite"))
         st._candidate.E[1][e+1] = value
     end
     return nothing
@@ -310,22 +327,21 @@ function _yl_admit_step(st::YeeLongitudinalPIC, species, dt)
     return nothing
 end
 
+# Shared original-half owner. A scalar longitudinal wrapper keeps its original
+# checks and native order; the EM model supplies full gathered vectors.
+function _yee_particle_half_kick(v::NTuple{3,T}, E::NTuple{3,T}, B::NTuple{3,T}, factor, dt::T) where {T}
+    half = dt / T(2)
+    if half + half == dt
+        return _kick_eval(Val(true), v..., E..., B..., factor, half)
+    end
+    Q = _exact_rational
+    exact, _ = _boris_kick_parts(map(Q, v)..., map(Q, E)..., map(Q, B)...,
+        _boris_exact_factor(factor), Q(dt) / 2)
+    return map(value -> _from_exact(T, value), exact)
+end
 function _yl_kick(v::T, field::T, factor, dt::T) where {T}
     z = zero(T)
-    half = dt / T(2)
-    out = if half + half == dt
-        _kick_eval(Val(true), v, z, z, field, z, z, z, z, z, factor, half)
-    else
-        # An odd subnormal dt has no representable half. Retain that original
-        # duration through the canonical expression before the final rounding.
-        Q = _exact_rational
-        qz = Q(z)
-        exact, _ = _boris_kick_parts(
-            Q(v), qz, qz, Q(field), qz, qz, qz, qz, qz,
-            _boris_exact_factor(factor), Q(dt) / 2,
-        )
-        map(value -> _from_exact(T, value), exact)
-    end
+    out = _yee_particle_half_kick((v, z, z), (field, z, z), (z, z, z), factor, dt)
     all(isfinite, out) && iszero(out[2]) && iszero(out[3]) ||
         throw(ArgumentError("longitudinal kick does not produce finite longitudinal velocity"))
     return out[1]

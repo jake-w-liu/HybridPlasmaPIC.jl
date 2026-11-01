@@ -1736,7 +1736,7 @@ function _kinetic_energy_operations_certified(species, value::T, count::Int128) 
     return prevfloat(abs(value) - error) >= floatmin(T) && isfinite(nextfloat(abs(value) + error))
 end
 
-function _kinetic_energy_exact(species, ::Type{T}) where {T}
+function _kinetic_energy_rational(species)
     total = zero(Rational{BigInt})
     for ps in species
         mass = _exact_rational(ps.m)
@@ -1748,8 +1748,11 @@ function _kinetic_energy_exact(species, ::Type{T}) where {T}
             total += mass * weight * speed2 / 2
         end
     end
-    return _from_exact(T, total)
+    return total
 end
+
+_kinetic_energy_exact(species, ::Type{T}) where {T} =
+    _from_exact(T, _kinetic_energy_rational(species))
 
 function _kinetic_energy_checked(species, ::Type{T}, ::Val{single}) where {T,single}
     count = Int128(0)

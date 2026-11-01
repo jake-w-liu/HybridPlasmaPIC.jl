@@ -26,9 +26,13 @@ end
 
 function MaxwellVacuum(g::YeeGrid{D,T}; c = 1) where {D,T}
     cT = _require_finite_positive_real("c", c, T)
-    inverse_squared_limit = _exact_rational(cT)^2 * sum(d -> inv(_exact_rational(g.dx[d])^2), 1:D)
-    cfl = _sqrt_from_exact(T, inv(inverse_squared_limit), Int128(0), RoundDown, false)
+    cfl = _yee_cfl(g, cT)
     return MaxwellVacuum{D,T}(g, YeeFields(g), cT, Ref(zero(T)), Ref(0), YeeFields(g), cfl)
+end
+
+function _yee_cfl(g::YeeGrid{D,T}, c::T) where {D,T}
+    inverse_squared_limit = _exact_rational(c)^2 * sum(d -> inv(_exact_rational(g.dx[d])^2), 1:D)
+    return _sqrt_from_exact(T, inv(inverse_squared_limit), Int128(0), RoundDown, false)
 end
 
 """
@@ -396,15 +400,7 @@ function _yee_step_maxwell!(model::MaxwellVacuum{D,T}, dt::Real, impulse) where 
     end
     candidate, original = model._candidate, model.fields
     g, speed = model.g, model.c
-    _yee_advance!(candidate.B, original.B, original.E, g, true, dtT, speed)
-    _yee_advance!(candidate.E, original.E, candidate.B, g, false, dtT, speed, impulse)
-    if !_yee_stage!(candidate.B, candidate.B, candidate.E, g, Val(true), dtT, speed, false)
-        # The in-place native half-kick overwrote its inputs. Rebuild the
-        # deterministic first half-kick from the unchanged physical fields and
-        # evaluate the final half-kick carefully.
-        _yee_advance!(candidate.B, original.B, original.E, g, true, dtT, speed)
-        _yee_stage!(candidate.B, candidate.B, candidate.E, g, Val(true), dtT, speed, true)
-    end
+    _yee_candidate_step!(candidate, original, g, dtT, speed, impulse)
     # Homogeneous PEC data stay exactly zero: every constrained entry is
     # `0 + κ*(0 - 0)` (or its exact replay) because each difference it uses is
     # of constrained samples or is absent, and constrained impulses are zero;
@@ -416,4 +412,18 @@ function _yee_step_maxwell!(model::MaxwellVacuum{D,T}, dt::Real, impulse) where 
     model.time[] = next_time
     model.step[] = next_step
     return model
+end
+
+# Shared complete field candidate map; no clock or public publication.
+function _yee_candidate_step!(candidate, original, g, dtT, speed, impulse)
+    _yee_advance!(candidate.B, original.B, original.E, g, true, dtT, speed)
+    _yee_advance!(candidate.E, original.E, candidate.B, g, false, dtT, speed, impulse)
+    if !_yee_stage!(candidate.B, candidate.B, candidate.E, g, Val(true), dtT, speed, false)
+        # The in-place native half-kick overwrote its inputs. Rebuild the
+        # deterministic first half-kick from the unchanged physical fields and
+        # evaluate the final half-kick carefully.
+        _yee_advance!(candidate.B, original.B, original.E, g, true, dtT, speed)
+        _yee_stage!(candidate.B, candidate.B, candidate.E, g, Val(true), dtT, speed, true)
+    end
+    return nothing
 end

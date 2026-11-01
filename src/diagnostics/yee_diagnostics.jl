@@ -376,7 +376,7 @@ function yee_source_work(old, new, impulse, g::YeeGrid{1,T}) where {T}
     return _yee_source_work_exact(old, new, impulse, g.dx[1])
 end
 
-function _yee_modified_energy_exact(model::MaxwellVacuum{1,T}, dt::T) where {T}
+function _yee_modified_energy_rational(model, dt)
     e2 = sum(_exact_rational(x)^2 for a in model.fields.E for x in a)
     b2 = sum(_exact_rational(x)^2 for a in model.fields.B for x in a)
     curl2 = zero(Rational{BigInt})
@@ -384,8 +384,10 @@ function _yee_modified_energy_exact(model::MaxwellVacuum{1,T}, dt::T) where {T}
         curl2 += _yee_curl_exact(model.fields.E, I, c, model.g, true)^2
     end
     result = e2 + _exact_rational(model.c)^2 * (b2 - _exact_rational(dt)^2 * curl2 / 4)
-    return _from_exact(T, _exact_rational(model.g.dx[1]) * result / 2)
+    return _exact_rational(model.g.dx[1]) * result / 2
 end
+_yee_modified_energy_exact(model::MaxwellVacuum{1,T}, dt::T) where {T} =
+    _from_exact(T, _yee_modified_energy_rational(model, dt))
 
 # Σ((dt*c/(2dx)) * ΔE)² over the 1D curl(E) faces. Since dt*c < dx, each scaled
 # sample is below |ΔE|/2, so its square is dominated by the E² sum.
@@ -480,6 +482,19 @@ function yee_longitudinal_diagnostics(st::YeeLongitudinalPIC{T}, particles) wher
     _yl_validate_populations(st, species)
     _yl_validate_bound(st, species)
     _yl_validate_longitudinal_fields(st, st.fields)
+    residual = _yee_closed_gauss_residual(st, species)
+    return (
+        kinetic_energy = _kinetic_energy_checked(species, T, Val(false)),
+        field_energy = _em_field_energy_exact(st.fields.E, st.fields.B, one(T), st.g.dx),
+        left_plate_charge = _exact_rational(st.left_plate_charge),
+        right_plate_charge = st.right_plate_charge[], gauss_residual = residual,
+        last_work = st.last_work[], last_energy_defect = st.last_energy_defect[],
+    )
+end
+
+# Shared complete signed all-node Gauss expression, with both free plates.
+function _yee_closed_gauss_residual(st, species)
+    T = eltype(st.fields.E[1])
     n = st.g.n[1]
     charge = zeros(Rational{BigInt}, n + 1)
     _yee_charge_kernel!(charge, species, nothing, nothing, st.g, Val(true), Val(:charge), st.shape)
@@ -497,11 +512,60 @@ function yee_longitudinal_diagnostics(st::YeeLongitudinalPIC{T}, particles) wher
         residual[i] = _from_exact(T, _exact_rational(Ex[i]) - _exact_rational(Ex[i-1]) - charge[i])
     end
     residual[end] = _from_exact(T, -_exact_rational(Ex[end]) - charge[end])
-    return (
-        kinetic_energy = _kinetic_energy_checked(species, T, Val(false)),
-        field_energy = _em_field_energy_exact(st.fields.E, st.fields.B, one(T), st.g.dx),
+    return residual
+end
+
+"""
+    em_field_energy(state::YeeElectromagneticPIC)
+
+Physical synchronized field energy, using the original-input energy owner.
+Read-only energy overflow returns infinity; this is not modified Yee energy.
+"""
+function em_field_energy(st::YeeElectromagneticPIC)
+    _ye_validate_fields(st, st.fields)
+    return _em_field_energy_exact(st.fields.E, st.fields.B, st.c, st.g.dx)
+end
+
+"""
+    yee_modified_energy(state::YeeElectromagneticPIC, dt)
+
+The existing fixed-step modified field quadratic. Supply the frozen step once
+advanced. It is distinct from physical field energy and from total particle
+energy; no exactly conserved fully discrete coupled energy is implied.
+"""
+function yee_modified_energy(st::YeeElectromagneticPIC{T}, dt::Real) where {T}
+    tau = _require_finite_positive_real("dt", dt, T)
+    tau < maxwell_cfl(st) || throw(ArgumentError("dt must be strictly below Maxwell CFL"))
+    st.step[] == 0 || isequal(tau, st.last_dt[]) || throw(ArgumentError("modified energy requires fixed dt"))
+    _ye_validate_fields(st, st.fields)
+    return _from_exact(T, _yee_modified_energy_rational(st, tau))
+end
+
+"""
+    yee_electromagnetic_diagnostics(state, particles)
+
+Synchronized physical kinetic/field energies, fixed-step modified field energy
+(`nothing` before the first accepted step), plate charges and complete signed
+Gauss residuals. No Gauss projection is applied. Read-only energy/residual
+values may be infinite. Last source work is positive out of the field;
+`last_modified_energy_defect` uses rounded-diagnostic DeltaK-work, while
+`last_physical_energy_change` is one complete rational physical K+U change.
+Neither quantity is forced to zero. Independent field/current rounding prevents
+bitwise Gauss or modified-energy conservation claims.
+"""
+function yee_electromagnetic_diagnostics(st::YeeElectromagneticPIC{T}, particles) where {T}
+    species = _yl_species(particles)
+    st.initialized[] || throw(ArgumentError("call init! before electromagnetic diagnostics"))
+    _ye_validate_phase(st)
+    _yl_validate_populations(st, species)
+    _yl_validate_bound(st, species)
+    _ye_validate_fields(st, st.fields)
+    return (kinetic_energy = _kinetic_energy_checked(species, T, Val(false)),
+        field_energy = em_field_energy(st),
+        modified_field_energy = st.step[] == 0 ? nothing : yee_modified_energy(st, st.last_dt[]),
         left_plate_charge = _exact_rational(st.left_plate_charge),
-        right_plate_charge = st.right_plate_charge[], gauss_residual = residual,
-        last_work = st.last_work[], last_energy_defect = st.last_energy_defect[],
-    )
+        right_plate_charge = st.right_plate_charge[],
+        gauss_residual = _yee_closed_gauss_residual(st, species),
+        last_work = st.last_work[], last_modified_energy_defect = st.last_modified_energy_defect[],
+        last_physical_energy_change = st.last_physical_energy_change[])
 end

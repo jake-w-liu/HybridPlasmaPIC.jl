@@ -1787,11 +1787,14 @@ function _field_square_sum_exact(fields::Tuple{Vararg{AbstractArray{Float32}}})
     return total // (BigInt(1) << 298)
 end
 
-function _field_energy_exact(E, B, coefficient::Rational{BigInt}, dx, ::Type{T}) where {T}
+function _field_energy_rational(E, B, coefficient::Rational{BigInt}, dx)
     electric = _field_square_sum_exact(E)
     magnetic = _field_square_sum_exact(B)
     volume = prod(_exact_rational, dx)
-    return _from_exact(T, (electric + coefficient * magnetic) * volume / 2)
+    return (electric + coefficient * magnetic) * volume / 2
+end
+function _field_energy_exact(E, B, coefficient::Rational{BigInt}, dx, ::Type{T}) where {T}
+    return _from_exact(T, _field_energy_rational(E, B, coefficient, dx))
 end
 function _em_field_energy_exact(E, B, c::T, dx) where {T}
     return _field_energy_exact(E, B, _exact_rational(c)^2, dx, T)

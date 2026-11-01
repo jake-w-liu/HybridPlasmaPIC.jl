@@ -234,6 +234,12 @@ Enew = E-I
 vnew = u + (dt/2)*(q/m)*G(Enew,y)
 ```
 
+The stationary gathered field is first rounded to grid precision and must be
+finite. A nonzero gather can round to zero even when original q/m and duration
+could rescue a finite kick. Completing original geometry through the force
+expression remains open; the existing original-factor Boris contract begins
+at this represented gathered operand.
+
 The first successful step freezes the positive resolved dt. Each kick retains
 its exact original half duration when that half cannot be represented at grid
 precision. x, v and E remain at one integer-time phase. No Maxwell
@@ -289,6 +295,116 @@ schema/continuation cases. These are pending GitHub execution; no local Julia,
 formatter, compiler, build or profiling result is claimed. Complete-step resource
 costs and broader nonlinear/long-time physical validation remain separate gates.
 
+## Event-free 1D3V electromagnetic source candidate
+
+`YeeElectromagneticPIC` adds both transverse polarizations and all three velocity
+components on the closed 1D PEC grid. Source implementation and compact essential
+tests are present; exact-revision GitHub runtime, compiler and formatting acceptance
+remain pending. This finite-width event-free scope does not resolve retained
+point-sheet/contact/wall-event failures or provide broader nonlinear stability.
+
+```julia
+state = YeeElectromagneticPIC(YeeGrid((32,), (1.0,));
+    shape=YeeTriangularCloud(0.1), c=1.0,
+    background_charge=0.1, left_plate_charge=0.02)
+# Set finite transverse E/B, with Ey/Ez endpoints and all Bx stored zero.
+init!(state, particles)
+step!(state, particles, 0.001)
+diagnostics = yee_electromagnetic_diagnostics(state, particles)
+```
+
+The population, source/provenance/storage binding, original width/b/sigma,
+free-plate, strict-interior, nearest/gradual and fixed-after-first-success dt
+contracts follow the longitudinal model. c resolves once to grid precision.
+All public x/v/E/B share integer time. Ex/By/Bz use N cell/edge entries;
+Ey/Ez/Bx use N+1 nodes. All Bx must be stored zero, consistent with the 1D
+solenoidal cavity and homogeneous normal-B wall condition. Ey/Ez endpoint zeros
+are required, never projected. There is no normal guide flux, wall event,
+periodic/multi-D, relativistic, MPI/device, circuit or injection mode.
+
+With exact h=L/N and stored delta=dx, retain the canonical A/g and nodal C:
+
+```
+G1(F,x) = delta*sum(F_e*g_e(x))
+G0(F,x) = sum(F_i*C_i(x))
+GE = (G1(Ex), G0(Ey), G0(Ez)); GB = (0, G1(By), G1(Bz))
+Cbar_i(x,y) = integral_x^y C_i(s) ds/(y-x), or C_i(x) for a stored zero path
+Ix_e = sum(q*w*(A_e(y)-A_e(x)))
+Iy/z_i = sum(q*w*dt*u_y/z*Cbar_i)/delta, for interior nodes
+Iy/z endpoints = 0
+```
+
+G0 has no extra delta/h factor or wall renormalization. The derivative identity
+`d_x G0(E)=G1(Ddelta E)` follows from the same cumulative. Transverse current
+endpoints are absent PEC Dirichlet degrees of freedom: their E is zero, so
+masking them preserves the exact work contraction without removing endpoint
+particle-bound charge. A private quartic antiderivative of the original
+triangular density supplies exact path averages. Original q/weight/duration/
+velocity/metric factors and complete signed current sums round only at final
+entry publication. Required final impulses and gathered fields must be finite.
+Gathered GE/GB components round to grid precision before Boris, and a nonzero
+gather may round to zero. The kick retains original q/m and half duration only
+after that represented-operand boundary. A large q/m could rescue a response
+lost by gather underflow; original-geometry-through-Lorentz range completion
+remains open for both coupled models. Formal ideal-arithmetic order does not
+remove this finite-precision error floor.
+Static point/CIC and existing cloud A/g arithmetic remain unchanged.
+
+The explicit map is a guarded full-vector Boris half-kick at old x/E/B,
+a checked straight drift using its velocity u, compatible currents, one canonical
+B-half/E-full-minus-current/B-half field candidate, then a Boris half-kick at
+new x/E/B. Exact original half duration is retained when stored dt/2 is unresolved.
+The ideal map is self-adjoint and consistent, giving formal second order away
+from events; floating rounding and runtime order remain separate verification.
+Zero-transverse states reduce algebraically to longitudinal Verlet for steps
+admitted by both models; the EM admission restrictions remain.
+
+A step must be strictly below the existing downward-rounded Maxwell CFL. It
+also enforces the existing longitudinal rest bound and the combined transverse
+zero-B-rest guard `dt²*(4*c²/delta²+sum(q²*w/m)/delta)<4`. This follows from the
+actual composed rest operator `c²*Ddelta'*Ddelta+sum(q²*w*Cint*Cint'/(m*delta))`.
+Neither independent-axis guards nor this scoped rest bound prove general
+nonlinear or finite-guide-field stability, positivity or accuracy.
+
+The continuous declared cloud semidiscretization has the work-adjoint physical
+energy `H=K+delta*sum(E²+c²B²)/2`. It bounds the gathered electric norm by
+`E*=max(1,delta/h)*R`, where exact rational R encloses `sqrt(2H/delta)` upward.
+The strict full-speed tube
+`dt*sum(abs(v))+dt²*abs(q/m)*E*/2 < min(x,L-x)` excludes its first physical exit,
+including transverse rotation and zero-weight tracers. It uses original rational
+energy values, not an overflowing rounded energy. Separately, every rounded
+straight-drift endpoint must remain interior. This tube does not enclose a true
+continuum Maxwell trajectory or certify temporal accuracy. No clipping or nudge
+repairs rejected paths.
+
+`em_field_energy` returns physical field energy. `yee_modified_energy(state,dt)`
+uses the existing fixed-step modified field quadratic; it is distinct from
+physical energy. Diagnostics expose both plus synchronized kinetic energy and
+complete signed Gauss residuals with plates. `last_work` is positive out of the
+field; `last_modified_energy_defect` is rounded-diagnostic DeltaK-work, and
+`last_physical_energy_change` is one complete original-input physical H difference
+between stored states. None is forced to zero. Read-only diagnostic overflow may
+return infinity; stepping requires finite old/new rounded kinetic diagnostics,
+source work and stored last-step values before commit.
+No exact fully discrete energy or bitwise Gauss conservation is claimed.
+
+All candidates, late diagnostics and clocks stage before public writes. Rejection
+preserves particles, fields, histories, array identities and clock; scratch may
+change. One instance must not be mutated/stepped concurrently. The distinct EM
+schema 1 saves original config types/bits, resolved c, policies/versions, ordered
+particles/provenance, current E/B verbatim, synchronized fixed phase and histories.
+Restore validates/detaches everything before publication, with ordinary particle
+arrays resizable from empty storage and matched strided views retaining identity.
+Scalar/collection layouts and the old longitudinal schema remain distinct.
+
+The `yee-electromagnetic-pic` essentials suite includes independent physical
+quadrature/current and matrix time-map/rest references, nonzero temporal/energy
+refinement, original-factor/half-duration and late-error controls, zero-transverse
+reduction, alias/context rejection and complete checkpoint/archive continuation.
+These are source tests awaiting GitHub. No runtime, accuracy, allocation, latency
+or peak-memory acceptance is claimed. Wall histories/events, additional boundary
+models, broader physical validation and parallel/device paths remain open.
+
 ## Implementation tracker
 
 The optional static-cloud API, surface-tail model and canonical owners above
@@ -305,16 +421,22 @@ acceptance remains a separate gate.
 - [ ] GitHub validation of the path-voltage implementation and unchanged impulse.
 - [ ] Choose a force/current pairing that passes retained point-sheet force,
   isolated-plate/DC, work and semidiscrete stability controls.
-- [ ] Transverse current and a synchronized coupled particle/field method.
+- [x] Source candidate for exact PEC-masked transverse path currents and a
+  synchronized event-free 1D3V Boris/Yee method.
+- [ ] Accept the EM candidate on the exact integrated GitHub revision.
+- [ ] Complete original-geometry-through-Lorentz range semantics for both
+  coupled models, with original gathered factors retained through the kick.
 - [ ] Event-local reflection with crossing, grazing/contact and repeated-impact
   rules, atomic coupled failure and wall momentum/charge/work ledgers.
 - [x] Source candidate for event-free longitudinal Verlet coupling, energy/Gauss
   diagnostics, uniform background and exact isolated free plates.
 - [ ] Accept the coupled candidate on the exact integrated GitHub revision.
-- [ ] Full electromagnetic coupled diagnostics and wall/plate history.
+- [x] Source candidate for synchronized EM physical/modified-energy and Gauss
+  diagnostics with distinct complete checkpoint/archive.
+- [ ] Accept EM diagnostics/restart; add wall/plate event history.
 - [x] Distinct source checkpoint/archive schema for initialized event-free
   longitudinal fields, ordered particles, fixed phase and exposed diagnostics.
-- [ ] Accept longitudinal restart regressions; add full EM/wall/history restart.
+- [ ] Accept longitudinal and EM restart regressions; add wall/history restart.
 - [ ] Absorption/injection/circuits, relativistic coupling, higher dimensions,
   GPU/MPI and broader physical validation.
 

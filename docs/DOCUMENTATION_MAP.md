@@ -37,7 +37,7 @@ rerun by this documentation-only audit.
   and the bounded represented-temperature conduction source candidate.
 - [docs/LOCAL_COULOMB.md](LOCAL_COULOMB.md)
 - [docs/BOUNDED_PARTICLE_COUPLING_PLAN.md](BOUNDED_PARTICLE_COUPLING_PLAN.md) — static
-  cloud primitives and the event-free longitudinal coupled source candidate.
+  cloud primitives and the event-free longitudinal/1D3V electromagnetic source candidates.
 - [docs/SOURCED_YEE_FIELDS.md](SOURCED_YEE_FIELDS.md)
 
 ## Implementation, audit and design records

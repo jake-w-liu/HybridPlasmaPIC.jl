@@ -52,6 +52,17 @@ end
     return (left[1] - right[1]) / h, (left[2] - right[2]) / h
 end
 
+# One further primitive U'=R supplies exact nodal path averages. Existing
+# A/g keep their original arithmetic; inputs here are original rationals.
+@inline function _yee_cloud_path_primitive(t, a)
+    positive(x) = max(zero(x), x)
+    return (positive(t + a)^4 - 2 * positive(t)^4 + positive(t - a)^4) / (24a^2)
+end
+@inline function _yee_cloud_integrated_edge(x, lower, h, a)
+    return (_yee_cloud_path_primitive(x - lower, a) -
+        _yee_cloud_path_primitive(x - lower - h, a)) / h
+end
+
 # Outside this exact span both endpoint cumulatives equal the same saturated
 # constant and their derivatives vanish. Clip before Int conversion: widths can
 # exceed the domain, while positive a keeps the first retained edge below n.

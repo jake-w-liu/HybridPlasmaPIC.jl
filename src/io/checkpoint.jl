@@ -24,6 +24,7 @@ using Serialization
 const _HybridCheckpointStepper{D,T} = Union{HybridStepper{D,T},CAMCLStepper{D,T}}
 const _ElectrostaticCheckpointStepper = Union{Electrostatic1D,ElectrostaticPIC}
 const _ElectromagneticCheckpointStepper = Union{EMPIC1D,EMPIC}
+const _ClosedYeeCheckpointStepper = Union{YeeLongitudinalPIC,YeeElectromagneticPIC}
 const _CheckpointStepper = Union{
     _HybridCheckpointStepper,
     _ElectrostaticCheckpointStepper,
@@ -1277,7 +1278,7 @@ end
 
 function _save_checkpoint(
     path::AbstractString,
-    st::Union{_CheckpointStepper,HallMHDState,CollisionalHybridStepper,YeeLongitudinalPIC},
+    st::Union{_CheckpointStepper,HallMHDState,CollisionalHybridStepper,_ClosedYeeCheckpointStepper},
     state,
 )
     _validate_checkpoint_state(state, st)

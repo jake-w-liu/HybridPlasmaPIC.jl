@@ -11,6 +11,13 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Added
 
+- `YeeElectromagneticPIC` supplies a bounded nonrelativistic CPU 1D3V cloud
+  source candidate with both transverse polarizations, compatible path currents,
+  synchronized Boris/Yee stages, scoped rest/impact guards, diagnostics and a
+  distinct checkpoint/archive schema. Required gathers round before Boris;
+  original geometry through the force remains open. Exact-revision GitHub
+  acceptance is pending; see the [contract](docs/BOUNDED_PARTICLE_COUPLING_PLAN.md#event-free-1d3v-electromagnetic-source-candidate).
+
 - Fixed-step `CollisionalHybridStepper` composes `ConductingElectrons` with
   ion-ion scattering through its existing field/pressure and force/RNG owners.
   The inner conduction policy is required at restart; temperature scratch must
@@ -29,7 +36,7 @@ records scoped verification and remaining exact-revision acceptance gates.
   original-source background/free-plate initialization, energy/Gauss diagnostics
   and distinct checkpoint/archive state. Strict impact and rest-mode guards
   reject unsupported steps. Initialization builds Ex from exact cumulative
-  nodal charge before final rounding. Full transverse EM coupling and
+  nodal charge before final rounding. Broader bounded EM coupling and
   wall events remain open in the [contract](docs/BOUNDED_PARTICLE_COUPLING_PLAN.md).
 
 - Optional `YeeTriangularCloud(a)` extends closed 1D Yee static charge, endpoint

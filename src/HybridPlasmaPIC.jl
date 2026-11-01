@@ -86,6 +86,7 @@ include("coupling/deposit.jl")
 include("coupling/gather.jl")
 include("coupling/moments.jl")
 include("coupling/yee_charge.jl")
+include("coupling/yee_transverse.jl")
 
 # --- Electrons + hybrid model + field state ---
 include("electrons/closures.jl")
@@ -124,6 +125,7 @@ include("models/full_pic.jl")
 include("models/empic_collection.jl")
 include("models/maxwell_vacuum.jl")
 include("models/yee_longitudinal_pic.jl")
+include("models/yee_electromagnetic_pic.jl")
 include("models/hall_mhd.jl")
 include("models/gyrokinetics.jl")
 
@@ -149,6 +151,7 @@ include("io/publication.jl")
 include("io/checkpoint.jl")
 include("io/empic_collection_checkpoint.jl")
 include("io/yee_longitudinal_checkpoint.jl")
+include("io/yee_electromagnetic_checkpoint.jl")
 include("io/collisional_checkpoint.jl")
 include("io/metadata.jl")
 include("io/hdf5_output.jl")
@@ -370,6 +373,7 @@ export CAMCLStepper, init_camcl!, step_camcl!
 export EMPIC, EMPIC1D, init_empic!, step_empic!, em_field_energy, charge_conservation_residual
 export electromagnetic_diagnostics
 export YeeLongitudinalPIC, yee_longitudinal_diagnostics
+export YeeElectromagneticPIC, yee_electromagnetic_diagnostics
 export YeeGrid,
     YeeFields,
     yee_coordinates,
