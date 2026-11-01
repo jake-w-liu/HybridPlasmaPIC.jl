@@ -643,8 +643,10 @@ time levels. Never normalize away nonzero physical net charge silently.
   invariant planar inputs, staged publication and distinct persistence.
   Exact-revision GitHub runtime/compiler/format acceptance remains pending.
 - [ ] Implement and accept S2 per-species dividing integer schedules, with
-  independent velocity histories and explicit restart semantics. Synchronous
-  `n_sub` alone does not supply species multirate stepping.
+  independent velocity histories and explicit restart semantics. The reviewed
+  setter/phase/schema-2 and tagged S1 migration design is now in implementation;
+  runtime and physical refinement gates remain. Synchronous `n_sub` alone does
+  not supply species multirate stepping.
 - [ ] Accept new EM collection checkpoint/archive (implemented with the synchronous
   slice); extend CAP-001 interactions, CAP-002 boundaries, CAP-003 partitions and
   CAP-004 residency. Existing ES collection persistence remains landed.

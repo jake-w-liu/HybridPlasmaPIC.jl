@@ -677,7 +677,8 @@ EM and comparative campaigns remain in the
 - Specialized `EMPIC1D` arbitrary-species collections have a planar synchronous
   CPU source implementation, pending GitHub acceptance;
   their [S1/S2 tracker](docs/EMPIC1D_SPECIES_IMPLEMENTATION_PLAN.md) separates
-  planar synchronous stepping from later per-species multirate schedules.
+  planar synchronous stepping from the per-species multirate implementation
+  now in progress.
 - Collision/field composition covers fixed-step, first-order `HybridStepper`
   runs with ideal isothermal/evolving scalar electrons, S1/S2 transport or S3b
   original-quotient conduction on the CPU (stored-pressure extensions are CI-pending). Variable steps, higher-order

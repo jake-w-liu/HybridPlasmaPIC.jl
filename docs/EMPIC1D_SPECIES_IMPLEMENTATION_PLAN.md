@@ -7,6 +7,10 @@ items in [CAP-008](PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md#cap-008--arbitrary
 The [generic EMPIC collection contract](EMPIC_SPECIES_IMPLEMENTATION.md) remains
 the source of its existing scope and pending acceptance.
 
+The concrete S2 schedule/phase/persistence design is reviewed and its source
+implementation is in progress. The S2 API below is planned behavior until that
+implementation is integrated and its gates pass.
+
 ## Scope and source owners
 
 `src/models/full_pic.jl` carries a specialized `EMPIC1D` with `Ex/Ey/Bz`,
@@ -43,7 +47,9 @@ Private scratch may change on rejection; public destination identities remain.
 | S1 source review and essential checks | Source reviewed; runtime pending | Legacy helper-expansion comparison and independent caller review; essential current/phase and failure/retry/restore controls registered; existing assertions retained |
 | S1 GitHub acceptance | Pending | Exact revision on minimum `1.12` and moving stable `1`; full neighboring tests, complete compiler review and formatter |
 | S1 resource acceptance | Pending | Remote complete init/step/restart cost versus specialized legacy path, actual hardware/runtime/threads, allocation traffic and peak memory distinguished |
-| S2 per-species schedules | Planned separately | Dividing integer strides, independent species phase/history, explicit restart version/migration and physical refinement |
+| S2 schedule/phase/schema design | Reviewed | Dividing strides, independent previous intervals, atomic future-configuration updates, nominal offsets and explicit S1 migration |
+| S2 construction and advance | In implementation | Due-event kicks with every-fast drift/current; whole-operation history staging; generic/scalar/all-fast compatibility |
+| S2 persistence, essential checks and acceptance | Pending | Schema 2/policy 1 and tagged S1 migration; independent phase/refinement, rejection/retry and restart controls; exact-revision remote runtime/compiler/format/resource gates |
 | Broader CAP-008 integration | Open | Collisions, boundaries, partition ownership, device residency and matched physical/cost validation |
 
 All Julia tests, compiler checks, formatter, builds and profiling run on GitHub
@@ -92,17 +98,54 @@ mobile species and deposit total charge and midpoint current on every fast
 interval. Update fields once after all species contributions. `r_s=1` recovers
 S1; electron stride 1 and ion stride M provide the legacy comparison target.
 
-Define the represented coarse interval as `H_s=dt/(M/r_s)`. Its kick spans the
-previous and new species half intervals; B centering retains its independent
-fast history. Persist each species' previous interval and schedule semantics,
-and report its own diagnostic velocity offset. Allow schedule changes only at
-completed external boundaries where all blocks close. Zero steps preserve all
-histories. Before coding, record a schema version and explicit S1 migration or
-strict rejection policy; never infer species phase from fast dt alone.
+The planned constructor keyword is `species_stride=nothing`: default mobile
+rows use 1 and fixed rows use 0. Explicit rows must be one-based integers fitting
+Int, with Bool rejected. Mobile strides divide M; fixed rows are exactly 0.
+Typed-empty and zero-particle mobile populations retain their declared schedules.
+The planned `set_empic1d_schedule!` setter validates and copies M/strides together
+before publication. It works at completed boundaries, including step zero, and
+preserves prior phase histories. Direct `n_sub` edits are checked against current
+strides before init/step/diagnostics/save mutation; zero steps still validate.
+
+Define `b_s=M÷r_s`, then the represented coarse interval `H_s=dt/b_s`.
+Use zero-based events `j%r_s==0`, or `(k-1)%r_s==0` in a one-based fast loop.
+Prime each mobile velocity by its own H_s/2 and B by fast h/2. The first ever
+kick uses virtual previous H equal to new H; later external first kicks consume
+saved previous H/2 plus new H/2. Interior events then use new halves. Gather and
+kick only due species, but drift and deposit current from every mobile species
+at every h. Preserve one common field update and the existing numerical owners.
+
+Each specialized collection will own strides, authoritative `last_species_dt`
+and private history candidates; generic EMPIC keeps synchronous behavior.
+Stage histories with the entire external operation and publish only after all
+candidate checks. At step zero histories are stored zero; afterward each mobile
+history is finite/resolved and lies between saved last_sub_dt and last_dt, with
+fixed history zero. Do not reconstruct previous durations from current settings:
+the schedule may have changed after the last advance. Currents/rho still describe
+the last fast interval, so continuity diagnostics use last_sub_dt.
+
+Specialized S2 writes will use schema 2 with required Int `schedule_policy=1`,
+strides and per-species histories; archive container 4 stays. Only validated
+specialized schema-1 `:empic1d_collection`/`:ex_ey_bz` state migrates to all-fast:
+advanced mobile history comes from saved last_sub_dt, fixed/step-zero history
+is zero. Saved current n_sub may differ from the configuration used for its last
+advance. Reject reserved S2 fields in schema 1 and unknown versions/policies.
+Saved M/strides replace destination configuration together. Normalize once,
+validate/detach the complete incoming graph, reserve capacity, then restore
+verbatim fields and phase. Destination requested settings being replaced do not
+govern incoming schedule validation. Generic/scalar layouts remain distinct.
+
+Velocity offsets `-last_species_dt/2` and magnetic offset `-last_sub_dt/2` are
+nominal declared stage durations. H_s need not equal r_s*h exactly, and repeated
+rounded h additions need not equal one full-dt addition. Preserve that existing
+arithmetic; do not claim exact timestamps relative to the rounded public clock.
 
 Gate all-fast identity, actual legacy coarse-ion comparison, variable intervals,
-restart and independent pair/unequal-mass refinement. Continuity for the split
-path does not establish multirate accuracy or nonlinear stability. Nondividing,
+history rollback/retry, explicit migration and restart after changing a schedule
+before another advance. A compact independent interior-event oracle and positive
+pair/unequal-mass refinement signals must expose held currents and phase mistakes;
+observed orders apply only to those problems. Continuity for the split path does
+not establish general multirate accuracy or nonlinear stability. Nondividing,
 asynchronous/adaptive schedules and mid-step checkpoints require a later phase
 design. Extending specialized EMPIC1D to a second polarization also requires
 additional fields/current, diagnostics and persistence; removing the planar
