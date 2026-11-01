@@ -8,6 +8,22 @@ when supported by the run's diagnostics; they do not excuse code failures.
 
 Current exact-revision status is maintained in the [audit tracker](DEEP_DEBUG_TRACKER.md).
 
+## Distributed FFT process partition
+
+The default [aggregate driver](../test/test_distributed_fft.jl) includes the
+[core tests](../test/test_distributed_fft_core.jl) followed by the unchanged
+[metadata tests](../test/test_distributed_metadata_alias.jl). CI prepares one
+environment per MPI job and runs the collections in separate MPI processes
+through the private [launcher](../tools/ci_distributed_fft.jl). Both phases use
+the same Project/Manifest, the existing 2/4/8-rank matrix and 30-minute rank-8 /
+20-minute rank-2/4 step bounds. Setup has the same bounded window.
+
+Setup, core and metadata logs are uploaded on failure. Metadata may run after a
+core failure; the failed core step keeps the job red. Plain `run(command)`
+propagates nonzero exits and signal termination. This partition does not
+establish a cause for earlier deadlines or a measured runtime improvement.
+Validation runs in GitHub CI.
+
 ## Historical checkpoint at 61356f1
 
 One earlier completed log review is

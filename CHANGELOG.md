@@ -8,6 +8,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Distributed FFT CI prepares one environment and runs core and metadata
+  regressions in separate MPI processes. Launcher errors propagate as failures;
+  both collections retain their existing tests and uploaded logs.
+
 - Finite particle drifts with an exactly zero displacement factor retain native
   IEEE bits without exact range work. The measured near-boundary scalar and
   complete public profiles now allocate zero Julia bytes; signed zeros and
