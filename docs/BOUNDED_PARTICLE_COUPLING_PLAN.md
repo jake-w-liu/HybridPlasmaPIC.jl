@@ -150,10 +150,13 @@ whole-entry sums, then rounds once using the shared nearest-even IEEE owner.
 It includes original q and weight cancellation and is independent of hardware
 rounding/FTZ. Invalid input preserves output and scratch; unrepresentable required
 output rejects before publication, with reusable scratch. No point native error
-bound is reused. All N edges are scanned per particle, so charge/impulse cost is
-O(N+P*N), and scalar field/voltage cost is O(N), in rational arithmetic. The
-existing workspace payload is unchanged. Native arithmetic, allocation and
-latency acceptance remain open; no measured optimization is claimed.
+bound is reused. Exact rational support bounds omit edges with identically
+zero contributions. With k_p retained edges for particle p, charge/impulse use
+O(N+sum(k_p)) rational operations, with worst case O(N+P*N). Fixed physical
+width can still span an increasing number of cells under refinement. Scalar
+field/voltage validate all N entries and contract only the retained support.
+The workspace payload is unchanged. Native arithmetic, allocation and latency
+acceptance remain open; no measured speedup is claimed.
 
 The compact new regressions use independent polynomial volume/path quadrature,
 whole original-source cancellation, mixed width/grid precision, broad/view

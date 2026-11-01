@@ -52,6 +52,15 @@ end
     return (left[1] - right[1]) / h, (left[2] - right[2]) / h
 end
 
+# Outside this exact span both endpoint cumulatives equal the same saturated
+# constant and their derivatives vanish. Clip before Int conversion: widths can
+# exceed the domain, while positive a keeps the first retained edge below n.
+@inline function _yee_cloud_edge_span(x, y, h, a, n)
+    lower = max(zero(h), min(x, y) - a)
+    upper = min(n * h, max(x, y) + a)
+    return floor(Int, lower / h):min(n - 1, floor(Int, upper / h))
+end
+
 @inline width(::NGP) = 1
 @inline width(::CIC) = 2
 @inline width(::TSC) = 3

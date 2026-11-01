@@ -382,6 +382,15 @@ end
             @test O.rounded(yee_longitudinal_voltage(field, x, y, g; shape = cloud), expected)
         end
         @test isequal(map(state, species), original)
+        # Compact interior support keeps its final charge at the following
+        # node. Also exercise exact support endpoints on grid nodes.
+        for (center, width) in ((T(0.375), T(0.0625)), (T(0.5), T(0.25)))
+            interior = population(T, T[center])
+            aligned = YeeTriangularCloud(width)
+            yee_particle_charge!(charge, interior, g, work; shape = aligned)
+            expected = O.cloud_charge((interior,), (interior.x[1],), 4, g.L[1], width)
+            @test all(O.rounded(v, q) for (v, q) in zip(charge, expected))
+        end
         # Global preflight still precedes scratch/output writes in the new mode.
         second.weight[end] = -one(T)
         before = (copy(charge), copy(work.sum), copy(work.candidate))

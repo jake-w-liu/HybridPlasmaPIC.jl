@@ -348,16 +348,17 @@ end
         if mode isa Val{:charge}
             x = _exact_rational(ps.x[1][p])
             previous = one(h)
-            for e = 0:(g.n[1]-1)
+            edges = _yee_cloud_edge_span(x, x, h, a, g.n[1])
+            for e in edges
                 cumulative, _ = _yee_cloud_edge(x, e * h, h, a)
                 sums[e+1] += charge * (previous - cumulative)
                 previous = cumulative
             end
-            sums[end] += charge * previous
+            sums[last(edges)+2] += charge * previous
         else
             before = _exact_rational(old[p])
             after = _exact_rational(new[p])
-            for e = 0:(g.n[1]-1)
+            for e in _yee_cloud_edge_span(before, after, h, a, g.n[1])
                 left, _ = _yee_cloud_edge(before, e * h, h, a)
                 right, _ = _yee_cloud_edge(after, e * h, h, a)
                 sums[e+1] += charge * (right - left)
@@ -542,7 +543,7 @@ function _yee_cloud_field_contraction(Ex, old, new, g::YeeGrid{1,T}, shape::YeeT
     x = _exact_rational(old)
     y = new === nothing ? nothing : _exact_rational(new)
     total = zero(h)
-    for e = 0:(g.n[1]-1)
+    for e in _yee_cloud_edge_span(x, y === nothing ? x : y, h, a, g.n[1])
         cumulative, derivative = _yee_cloud_edge(x, e * h, h, a)
         coefficient = if y === nothing
             derivative
