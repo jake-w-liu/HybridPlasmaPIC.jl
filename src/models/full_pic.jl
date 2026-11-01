@@ -753,10 +753,8 @@ end
     dt::T,
     c::T,
 ) where {T}
-    all(
-        isfinite,
-        (vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, _boris_factor_operands(factor)..., dt, c),
-    ) || return out
+    all(isfinite, (vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, _boris_factor_operands(factor)..., dt, c)) ||
+        return out
     gap = _exact_lorentz_gap(vx, vy, vz, c)
     gap > 0 || throw(ArgumentError("_boris_rel: input velocity must be finite and satisfy |v| < c"))
     wide = _kinematics_bigfloat() do
@@ -764,7 +762,8 @@ end
         ginit = inv(sqrt(W(gap)))
         fields = map(W, (Ex, Ey, Ez, Bx, By, Bz))
         u = (ginit * W(vx), ginit * W(vy), ginit * W(vz))
-        coefficient = factor isa _BorisSpeciesFactors ? W(_boris_exact_factor(factor)) : W(factor)
+        coefficient =
+            factor isa _BorisSpeciesFactors ? W(_boris_exact_factor(factor)) : W(factor)
         first(_boris_rel_momentum(u..., fields..., coefficient, W(dt), W(c)^2))
     end
     return map(x -> _kinematics_round(T, x), wide)
@@ -1448,8 +1447,9 @@ end
     z = zero(T)
     qm = _boris_native_factor(factor)
     if rel
-        storage_safe = !(T <: _RangeGuardedFloat) ||
-                       _euler_batch_storage_safe(v, v, (Exp, Eyp, z), (z, z, Bzp))
+        storage_safe =
+            !(T <: _RangeGuardedFloat) ||
+            _euler_batch_storage_safe(v, v, (Exp, Eyp, z), (z, z, Bzp))
         scales = _euler_batch_scales(v, (Exp, Eyp, z), (z, z, Bzp), (h, qm), 1:np, T)
         if storage_safe && _rel_prime_batch_certificate(h, factor, c, scales...)
             _prime_empic1d_loop!(v, Exp, Eyp, Bzp, factor, h, np, c, Val(true), Val(false))
@@ -1459,9 +1459,9 @@ end
     else
         hq = h * qm
         # The planar back-up reads and writes only u_x and u_y.
-        storage_safe = !(T <: _RangeGuardedFloat) || _euler_batch_storage_safe(
-            (v[1], v[2]), (v[1], v[2], z), (Exp, Eyp, z), (z, z, Bzp),
-        )
+        storage_safe =
+            !(T <: _RangeGuardedFloat) ||
+            _euler_batch_storage_safe((v[1], v[2]), (v[1], v[2], z), (Exp, Eyp, z), (z, z, Bzp))
         scales = _euler_batch_scales((v[1], v[2], z), (Exp, Eyp, z), (z, z, Bzp), hq, 1:np, T)
         if storage_safe && _euler_batch_certificate(h, factor, hq, scales...)
             _prime_empic1d_loop!(v, Exp, Eyp, Bzp, factor, h, np, c, Val(false), Val(false))
@@ -1576,24 +1576,20 @@ function _prime_empic1d_loop!(
             ky = hq * ay
             primed = (ux - kx, uy - ky, z)
             if guard
-                range = _euler_kick_in_range(
-                    primed,
-                    (ax, ay, z, kx, ky, z),
-                    (ux, uy, z),
-                    h,
-                    factor,
-                    hq,
-                )
+                range =
+                    _euler_kick_in_range(primed, (ax, ay, z, kx, ky, z), (ux, uy, z), h, factor, hq)
                 # The planar back-up is the 3-D one with u_z = E_z = B_x = B_y = 0.
-                if !(range && _euler_accuracy_scalar(
-                    primed,
-                    (ux, uy, z),
-                    (ex, ey, z),
-                    (z, z, bz),
-                    h,
-                    factor,
-                    hq,
-                ))
+                if !(
+                    range && _euler_accuracy_scalar(
+                        primed,
+                        (ux, uy, z),
+                        (ex, ey, z),
+                        (z, z, bz),
+                        h,
+                        factor,
+                        hq,
+                    )
+                )
                     primed = _euler_kick_repair(
                         primed,
                         (ux, uy, z),
@@ -2357,8 +2353,9 @@ end
     h = qm * dt / 2
     scales = _boris_batch_scales(s.v, Ep, Bp, h, eachindex(s.weight))
     if es.relativistic
-        certified = _euler_batch_storage_safe(s.v, s.v, Ep, Bp) &&
-                    _boris_rel_batch_certificate(h, factor, dt, es.c, scales...)
+        certified =
+            _euler_batch_storage_safe(s.v, s.v, Ep, Bp) &&
+            _boris_rel_batch_certificate(h, factor, dt, es.c, scales...)
         certified ? _empic_kicks!(s, Ep, Bp, factor, dt, es.c, Val(true), Val(false)) :
         _empic_kicks!(s, Ep, Bp, factor, dt, es.c, Val(true), Val(true))
     else

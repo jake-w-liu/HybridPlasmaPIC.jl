@@ -13,22 +13,25 @@ end
 
 function abstract_storage(ps::ParticleSet{1,T}) where {T}
     P = ParticleSet{
-        1,T,AbstractVector{T},AbstractVector{T},AbstractVector{T},
-        AbstractVector{UInt64},AbstractVector{UInt32},
+        1,
+        T,
+        AbstractVector{T},
+        AbstractVector{T},
+        AbstractVector{T},
+        AbstractVector{UInt64},
+        AbstractVector{UInt32},
     }
     return P(ps.x, ps.v, ps.weight, ps.id, ps.tag, ps.q, ps.m)
 end
 
-state(ps) = (
-    map(copy, ps.x), map(copy, ps.v), copy(ps.weight), copy(ps.id), copy(ps.tag), ps.q, ps.m,
-)
+state(ps) =
+    (map(copy, ps.x), map(copy, ps.v), copy(ps.weight), copy(ps.id), copy(ps.tag), ps.q, ps.m)
 
 function check_values(actual, exact, magnitude, count)
     T = eltype(actual)
     for i in eachindex(actual)
         @test isfinite(actual[i])
-        @test abs(O.rat(actual[i]) - exact[i]) <=
-              O.error_bound(T, exact[i], magnitude[i], count)
+        @test abs(O.rat(actual[i]) - exact[i]) <= O.error_bound(T, exact[i], magnitude[i], count)
     end
 end
 
@@ -131,7 +134,12 @@ end
         @test (q0, work.sum, work.candidate) == before
         original_impulse = copy(impulse)
         @test_throws ArgumentError yee_longitudinal_impulse!(
-            impulse, Any[unit, unit], Any[T[0], T[0]], Any[T[1], T[NaN]], g, work,
+            impulse,
+            Any[unit, unit],
+            Any[T[0], T[0]],
+            Any[T[1], T[NaN]],
+            g,
+            work,
         )
         @test impulse == original_impulse
         @test (q0, work.sum, work.candidate) == before
@@ -281,7 +289,10 @@ end
                 ),
             )
                 report = JET.report_call(
-                    operation, types; sourceinfo = :full, stacktrace_types_limit = 0,
+                    operation,
+                    types;
+                    sourceinfo = :full,
+                    stacktrace_types_limit = 0,
                 )
                 if !isempty(JET.get_reports(report))
                     show(IOContext(stdout, :limit => false), MIME"text/plain"(), report)

@@ -588,12 +588,14 @@ end
             native = u + (h * one(T)) * E
             kind === :finite_native && offset == 0 && @test isfinite(native)
             for factor in (one(T), H._BorisSpeciesFactors(one(T), one(T), one(T)))
-                predicted = H._euler_kick((u, z, z), (E, z, z), (z, z, z), h, factor, h, Val(:predict))
+                predicted =
+                    H._euler_kick((u, z, z), (E, z, z), (z, z, z), h, factor, h, Val(:predict))
                 @test contract(predicted, (exact, Q(0), Q(0)), scale2)
                 if abs(exact) < threshold
                     expected = isfinite(native) ? native : nearest(T, exact)
                     @test isequal(predicted[1], expected)
-                    primed = H._euler_kick((u, z, z), (-E, z, z), (z, z, z), h, factor, h, Val(:prime))
+                    primed =
+                        H._euler_kick((u, z, z), (-E, z, z), (z, z, z), h, factor, h, Val(:prime))
                     @test isequal(primed[1], expected)
                     @test isequal(H._es_prime_component(u, -E, h, factor, h), expected)
                     planar = ([u], [z], [T(0.25)])
@@ -601,10 +603,28 @@ end
                     @test isequal(only(planar[1]), expected)
                     @test only(planar[3]) == T(0.25)
                 else
-                    @test_throws ArgumentError H._euler_kick((u, z, z), (-E, z, z), (z, z, z), h, factor, h, Val(:prime))
+                    @test_throws ArgumentError H._euler_kick(
+                        (u, z, z),
+                        (-E, z, z),
+                        (z, z, z),
+                        h,
+                        factor,
+                        h,
+                        Val(:prime),
+                    )
                     @test_throws ArgumentError H._es_prime_component(u, -E, h, factor, h)
                     planar = ([u], [z], [T(0.25)])
-                    @test_throws ArgumentError H._prime_empic1d!(planar, [-E], [z], [z], factor, h, 1, false, one(T))
+                    @test_throws ArgumentError H._prime_empic1d!(
+                        planar,
+                        [-E],
+                        [z],
+                        [z],
+                        factor,
+                        h,
+                        1,
+                        false,
+                        one(T),
+                    )
                 end
             end
         end
@@ -613,7 +633,9 @@ end
 
 @testset "Euler ordinary accuracy admission retains native arithmetic" begin
     for T in (Float16, Float32, Float64)
-        u, E, B = (T(0.5), T(-0.25), T(0.125)), (T(0.125), T(0.0625), T(-0.03125)), (T(0.25), T(-0.125), T(0.0625))
+        u, E, B = (T(0.5), T(-0.25), T(0.125)),
+        (T(0.125), T(0.0625), T(-0.03125)),
+        (T(0.25), T(-0.125), T(0.0625))
         h = T(0.0625)
         for factor in (one(T), H._BorisSpeciesFactors(one(T), one(T), one(T)))
             native = ntuple(c -> u[c] - h * E[c], 3) # u and B are parallel; cross(u,B)=0 exactly.
@@ -635,12 +657,18 @@ end
     # before drifting; gathered push kicks and drifts each particle in order.
     for T in (Float16, Float32, Float64), gathered in (false, true)
         n, dt, amplitude = 4, T(1 / 16), T(1 / 8)
-        positions = view(T[1 / 4], fill(1, n))
+        positions = view(T[1/4], fill(1, n))
         velocity = ntuple(3) do c
             view(T[c == 1 ? 1 / 2 : 0], fill(1, n))
         end
         ps = ParticleSet{1,T}(
-            (positions,), velocity, ones(T, n), UInt64.(1:n), zeros(UInt32, n), one(T), T(2),
+            (positions,),
+            velocity,
+            ones(T, n),
+            UInt64.(1:n),
+            zeros(UInt32, n),
+            one(T),
+            T(2),
         )
         if gathered
             electric = (fill(amplitude, n), zeros(T, n), zeros(T, n))

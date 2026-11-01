@@ -82,7 +82,12 @@ function _yee_endpoint_aliases(buffers, positions)
 end
 
 function _yee_validate_charge_position(
-    x::Union{Float32,Float64}, length, species, particle, role, native_mode,
+    x::Union{Float32,Float64},
+    length,
+    species,
+    particle,
+    role,
+    native_mode,
 )
     inside = if !isfinite(x)
         false
@@ -98,14 +103,20 @@ function _yee_validate_charge_position(
 end
 
 @inline function _yee_charge_nonnegative(weight::Union{Float32,Float64}, native_mode)
-    return isfinite(weight) &&
-           (native_mode ? weight >= zero(weight) : _exact_rational(weight) >= 0)
+    return isfinite(weight) && (native_mode ? weight >= zero(weight) : _exact_rational(weight) >= 0)
 end
 
 # Every value/shape/alias is checked across all populations before either scratch
 # array is written. Unused mass/velocity/provenance values are not operands.
 function _yee_validate_charge(
-    out, species, old, new, g::YeeGrid{1,T}, work, mode, native_mode,
+    out,
+    species,
+    old,
+    new,
+    g::YeeGrid{1,T},
+    work,
+    mode,
+    native_mode,
 ) where {T}
     g.periodic[1] && throw(ArgumentError("Yee charge coupling requires a closed PEC grid"))
     work isa YeeChargeWorkspace{T} ||
@@ -131,7 +142,16 @@ function _yee_validate_charge(
         ps isa ParticleSet{1,T} ||
             throw(ArgumentError("Yee charge species must be one-dimensional at grid precision $T"))
         count, magnitude = _yee_validate_charge_population(
-            buffers, ps, old, new, g, k, mode, count, magnitude, native_mode,
+            buffers,
+            ps,
+            old,
+            new,
+            g,
+            k,
+            mode,
+            count,
+            magnitude,
+            native_mode,
         )
     end
     return count, magnitude

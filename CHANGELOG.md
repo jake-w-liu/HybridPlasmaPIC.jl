@@ -36,6 +36,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Apply the reviewed nine-file formatter artifact from the relativistic-factor
+  GitHub run. Changes are spacing, wrapping and optional trailing call-argument
+  commas; fresh exact-revision formatter and package checks remain required.
+
 - Original-factor relativistic priming defines its typed coefficient method
   after the carrier type, removing the observed include-time undefined name.
   The coefficient test and numerical expressions are unchanged; the failed

@@ -32,16 +32,17 @@ end
 field_values(es) = es isa EMPIC1D ? (es.Ex, es.Ey, es.Bz) : (es.E..., es.B...)
 
 @testset "Relativistic stages retain original species factors" begin
-    for (T, mass_power, field_power) in
-        ((Float16, 10, 10), (Float32, 80, 60), (Float64, 600, 400))
+    for (T, mass_power, field_power) in ((Float16, 10, 10), (Float32, 80, 60), (Float64, 600, 400))
         z, c = zero(T), one(T)
         zero3 = (z, z, z)
         # Overflowed quotient, underflowed quotient and a subnormal quotient.
         cases = (
             (one(T), nextfloat(z), 2floatmin(T), ldexp(one(T), -precision(T) - 8)),
             (
-                nextfloat(z), ldexp(one(T), mass_power),
-                ldexp(one(T), field_power), ldexp(one(T), field_power),
+                nextfloat(z),
+                ldexp(one(T), mass_power),
+                ldexp(one(T), field_power),
+                ldexp(one(T), field_power),
             ),
             (one(T), floatmax(T), one(T), T(0.125)),
         )
@@ -70,8 +71,7 @@ field_values(es) = es isa EMPIC1D ? (es.Ex, es.Ey, es.Bz) : (es.E..., es.B...)
         E = (z, T(0.125), z)
         @test !H._rel_prime_exact_coefficient(factor)
         expected = axial_reference(z, ps.q, ps.m, -T(0.5), E[2], c)
-        @test H._rel_prime_repair(zero3, zero3, E, zero3, factor, T(0.5), c) ==
-              (z, expected, z)
+        @test H._rel_prime_repair(zero3, zero3, E, zero3, factor, T(0.5), c) == (z, expected, z)
         ordinary = H._BorisSpeciesFactors(one(T), one(T), one(T))
         @test H._boris_rel(zero3..., E..., zero3..., ordinary, T(0.125), c) ==
               H._boris_rel(zero3..., E..., zero3..., one(T), T(0.125), c)
@@ -109,8 +109,12 @@ end
             path = joinpath(directory, "light-ion.bin")
             save_checkpoint(path, es, electrons, ions)
             fresh = State(
-                FourierGrid((4,), (T(4),)), 0;
-                mobile = true, mi = mass, relativistic = true, c,
+                FourierGrid((4,), (T(4),)),
+                0;
+                mobile = true,
+                mi = mass,
+                relativistic = true,
+                c,
             )
             fresh_e = ParticleSet{1,T}(0; q = -one(T))
             fresh_i = ParticleSet{1,T}(0; m = mass)
@@ -148,8 +152,13 @@ end
         electric = ldexp(one(T), cld(precision(T), 2) - 3)
         v = ntuple(_ -> view(T[0], ones(Int, count)), 3)
         ps = ParticleSet{1,T}(
-            (zeros(T, count),), v, ones(T, count), UInt64.(1:count),
-            zeros(UInt32, count), one(T), one(T),
+            (zeros(T, count),),
+            v,
+            ones(T, count),
+            UInt64.(1:count),
+            zeros(UInt32, count),
+            one(T),
+            one(T),
         )
         E, B = (zero(T), electric, zero(T)), ntuple(_ -> zero(T), 3)
         Ep, Bp = map(x -> fill(x, count), E), map(x -> fill(x, count), B)

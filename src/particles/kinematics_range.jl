@@ -281,11 +281,20 @@ end
         isfinite(out) &
         (iszero(S) | (S >= floatmin(T) * T(256)))
     z = zero(T)
-    range && _euler_accuracy_scalar((out, z, z), (v, z, z), (E, z, z), (z, z, z), h, factor, hq) && return out
+    range &&
+        _euler_accuracy_scalar((out, z, z), (v, z, z), (E, z, z), (z, z, z), h, factor, hq) &&
+        return out
     return _es_prime_component_repair(out, v, E, h, factor, range)
 end
 
-@noinline function _es_prime_component_repair(out::T, v::T, E::T, h::T, factor, retain_native::Bool = false) where {T}
+@noinline function _es_prime_component_repair(
+    out::T,
+    v::T,
+    E::T,
+    h::T,
+    factor,
+    retain_native::Bool = false,
+) where {T}
     all(isfinite, (v, E, h)) || return out
     qm = _boris_native_factor(factor)
     (!(factor isa _BorisSpeciesFactors) && !isfinite(qm)) && return out
@@ -355,15 +364,21 @@ end
 # exact zeros for absent components. The separately rounded output tuple may
 # lie outside the supported velocity domain. Callers check publication.
 @noinline function _rel_prime_repair(
-    out::NTuple{3,T}, v0, e, b, factor, h::T, c::T, exact_coefficient = nothing,
+    out::NTuple{3,T},
+    v0,
+    e,
+    b,
+    factor,
+    h::T,
+    c::T,
+    exact_coefficient = nothing,
 ) where {T}
     all(isfinite, (v0..., e..., b..., _boris_factor_operands(factor)..., h, c)) || return out
     qm = _boris_native_factor(factor)
     # The existing DD enclosure certifies the supplied scalar coefficient.
     # A species may use it only for an exact quotient in the EFT's native
     # context; otherwise retain the rational ratio in BigFloat replay.
-    exact_coefficient === nothing &&
-        (exact_coefficient = _rel_prime_exact_coefficient(factor))
+    exact_coefficient === nothing && (exact_coefficient = _rel_prime_exact_coefficient(factor))
     dd_mode = !(factor isa _BorisSpeciesFactors) || _boris_accuracy_mode()
     if T <: _RangeGuardedFloat && exact_coefficient && dd_mode
         candidate, resolved = _rel_prime_dd_attempt(out, v0, e, b, qm, h, c)
@@ -653,7 +668,8 @@ end
 ) where {D,T}
     T <: _RangeGuardedFloat || return true
     return _coordinate_batch_certified(xmax, dt, vbound) &&
-           all(_particle_batch_injective, ps.x) && !_particle_components_mightalias(ps)
+           all(_particle_batch_injective, ps.x) &&
+           !_particle_components_mightalias(ps)
 end
 
 # Shock steppers gather fields inside their push loops with interpolation

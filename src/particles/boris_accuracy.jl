@@ -592,8 +592,7 @@ end
     isfinite(lower) && lower >= 0 || return false
     e = iszero(lower) ? exponent(floatmin(T)) : max(exponent(lower), exponent(floatmin(T)))
     tolerance = ldexp(1.0, e - precision(T) + 3)
-    return _boris_upper_add(bound[1], bound[2]) <= Float64(floatmax(T)) &&
-           bound[2] <= tolerance
+    return _boris_upper_add(bound[1], bound[2]) <= Float64(floatmax(T)) && bound[2] <= tolerance
 end
 
 @inline function _euler_accuracy_scalar(out, v, E, B, h::T, factor, hq::T) where {T}
@@ -789,6 +788,7 @@ end
 @inline function _boris_batch_admission(ps::ParticleSet, h, factor, dt, vmax, emax, bmax, smin)
     admitted, vbound = _boris_batch_admission(h, factor, dt, vmax, emax, bmax, smin)
     # Repeated-index storage can change later velocity samples within one component.
-    stable = admitted && all(_particle_batch_injective, ps.v) && !_particle_components_mightalias(ps)
+    stable =
+        admitted && all(_particle_batch_injective, ps.v) && !_particle_components_mightalias(ps)
     return stable, vbound
 end

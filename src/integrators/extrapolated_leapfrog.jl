@@ -1047,7 +1047,14 @@ function _prime_leapfrog_loop!(
                     exact_coefficient === nothing &&
                         (exact_coefficient = _rel_prime_exact_coefficient(factor))
                     primed = _rel_prime_repair(
-                        primed, (v0x, v0y, v0z), e, b, factor, h, c, exact_coefficient,
+                        primed,
+                        (v0x, v0y, v0z),
+                        e,
+                        b,
+                        factor,
+                        h,
+                        c,
+                        exact_coefficient,
                     )
                 end
             end
