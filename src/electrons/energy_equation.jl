@@ -294,6 +294,31 @@ function _publish_complete_rate!(out::Array{T}, exact, context) where {T}
     return nonzero, represented
 end
 
+# The physical temperature is a derived stage operand, not a carried reservoir.
+# Original division rounds once; reciprocal multiplication would define a
+# different represented source. Scratch may change on rejection.
+function _conduction_temperature!(temperature::Array{T,D}, pe, n, g::FourierGrid{D,T}) where {D,T}
+    _boris_accuracy_mode() ||
+        throw(ArgumentError("active electron conduction requires nearest rounding and gradual underflow"))
+    _require_grid_array(:temperature, temperature, g)
+    _require_grid_array(:pe, pe, g)
+    _require_grid_array(:n, n, g)
+    (_particle_arrays_mightalias(temperature, pe) || _particle_arrays_mightalias(temperature, n)) &&
+        throw(ArgumentError("electron temperature scratch must be independent of pressure and density"))
+    for I in eachindex(temperature, pe, n)
+        pressure, density = pe[I], n[I]
+        isfinite(pressure) && pressure >= zero(T) && isfinite(density) && density > zero(T) ||
+            throw(ArgumentError("electron temperature requires finite nonnegative pressure and positive density"))
+        exact = _exact_rational(pressure) / _exact_rational(density)
+        value = _from_exact(T, exact)
+        isfinite(value) || throw(ArgumentError("electron temperature does not round finite"))
+        (!iszero(exact) && iszero(value)) &&
+            throw(ArgumentError("nonzero electron temperature rounds to zero"))
+        temperature[I] = value
+    end
+    return temperature
+end
+
 @noinline function _complete_transport_pressure_rhs!(
     out::Array{T,D},
     pe,
@@ -304,6 +329,8 @@ end
     ηH::T,
     g::FourierGrid{D,T};
     context = "complete transport pressure rate",
+    κ::T = zero(T),
+    temperature = nothing,
 ) where {D,T}
     exact = zeros(Rational{BigInt}, size(out))
     gamma = _exact_rational(γ)
@@ -336,6 +363,18 @@ end
                 data = SpectralOperators.nyquist_scaled_data!(g, J[c], d)
                 _add_exact_pressure_channel!(exact, data, coefficient)
             end
+        end
+    end
+    if !iszero(κ)
+        temperature isa Array{T,D} ||
+            throw(ArgumentError("active conduction requires grid-precision temperature storage"))
+        data = SpectralOperators.laplacian_scaled_data!(g, temperature)
+        coefficient = gamma_minus_one * _exact_rational(κ) *
+            _exact_binary_scale(data.input_scale, data.exponent)
+        # Consume borrowed Fourier data before any other operator uses g.
+        # No physical Laplacian or partial conductive rate is rounded here.
+        for I in eachindex(exact, data.values)
+            exact[I] += coefficient * _exact_rational(real(data.values[I]))
         end
     end
     nonzero, represented = _publish_complete_rate!(out, exact, context)

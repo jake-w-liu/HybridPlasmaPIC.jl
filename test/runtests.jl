@@ -56,6 +56,7 @@ using Test
     include("test_evolving_pressure_io.jl")
     include("test_transport_electrons.jl")
     include("test_transport_electrons_io.jl")
+    include("test_electron_conduction.jl")
     include("test_transport_hyperresistivity.jl")
     include("test_transport_hyperresistive_range.jl")
     include("test_transport_source_range.jl")

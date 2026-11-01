@@ -155,6 +155,11 @@ unverified. See
   electron heating. Serial periodic CPU only; density must stay ≥ `nfloor`.
   The [S2 implementation and acceptance tracker](docs/TRANSPORT_SOURCE_RANGE_PLAN.md)
   records its finite-source domain and outstanding integration gates.
+- `ConductingElectrons(γ = 5/3; κ)` — S3a source candidate: constant isotropic
+  heat flux using the represented stage temperature `round(pe/n)`, added to the
+  transport pressure equation. Serial periodic CPU Float32/64 only; active κ
+  requires nearest rounding and gradual underflow.
+  [Scope, timestep and pending verification](docs/EVOLVING_ELECTRONS.md#constant-isotropic-conduction-source-candidate).
 - `CGLElectrons(p⊥0, p∥0, n0, B0)` — anisotropic double-adiabatic
   (Chew–Goldberger–Low): `p_⊥ ∝ n·B`, `p_∥ ∝ n³/B²`, entering Ohm's law
   through the full gyrotropic pressure-tensor force `−(∇·P_e)/n`. (Note the

@@ -95,7 +95,7 @@ end
 TransportElectrons(γ::Real = 5 / 3) = TransportElectrons{float(typeof(γ))}(γ)
 closure_gamma(c::TransportElectrons) = c.γ
 _evolves_pressure(::TransportElectrons) = true
-# Only this closure splits the ion force from the full electric field.
+# Scalar transport closures split the ion force from the full electric field.
 _transports_electrons(::ElectronClosure) = false
 _transports_electrons(::TransportElectrons) = true
 
@@ -104,6 +104,77 @@ electron_pressure!(::Any, ::Any, ::TransportElectrons) = throw(
         "TransportElectrons requires stored pressure; initialize fields.pe and use ohms_law!",
     ),
 )
+
+"""
+    ConductingElectrons(γ=5/3; κ)
+
+Stored scalar pressure with constant isotropic Fourier heat flux
+`q_e = -κ*grad(Te)`, using the represented stage temperature
+`Te = round(pe/n)` from the original pressure and actual deposited density.
+Use with a serial periodic CPU Float32/64 `HybridStepper` and
+`HybridModel(...; η, ηH, de2=0)`. It shares the ion-force/field split and
+Ohmic/hyperresistive heating of [`TransportElectrons`](@ref).
+
+Requires finite `γ>1`, `κ>=0`; nonzero κ must remain finite and nonzero at grid
+precision. Active conduction requires nearest hardware rounding and gradual
+underflow. A nonfinite temperature or nonzero quotient rounded to zero rejects
+with full public-step rollback. The complete signed pressure rate includes
+`(γ-1)*κ*laplacian(Te)` before final rounding, with the full Nyquist convention.
+Pressure must remain nonnegative at every RK stage; spectral diffusion is not
+positivity preserving. This is a represented-temperature closure, not completion
+of an arbitrary unrounded quotient through the Fourier operator.
+
+Set stored pressure before `init!`. `κ=0` retains the transport arithmetic and
+performs no temperature division or transform. Checkpoints retain pressure,
+carried ion force, κ and conduction policy 1. No extra energy reservoir, wall
+flux, collisional composition, MPI/device, CAM-CL or Hall-MHD support is implied.
+"""
+struct ConductingElectrons{T<:AbstractFloat} <: ElectronClosure
+    γ::T
+    κ::T
+    function ConductingElectrons{T}(γ::Real; κ::Real) where {T<:AbstractFloat}
+        gamma = _require_finite_real("γ", γ, T)
+        gamma > one(T) || throw(ArgumentError("conducting electron γ must be greater than one"))
+        conductivity = _require_finite_real("κ", κ, T)
+        _validate_conduction_mode(κ)
+        conductivity >= zero(T) || throw(ArgumentError("κ must be nonnegative"))
+        (_conduction_zero(κ) || !_conduction_zero(conductivity)) ||
+            throw(ArgumentError("ConductingElectrons κ underflows to zero at closure precision"))
+        return new{T}(gamma, conductivity)
+    end
+end
+
+function ConductingElectrons(γ::Real = 5 / 3; κ::Real)
+    T = float(promote_type(typeof(γ), typeof(κ)))
+    return ConductingElectrons{T}(γ; κ)
+end
+
+const _ScalarTransportClosure = Union{TransportElectrons,ConductingElectrons}
+closure_gamma(c::ConductingElectrons) = c.γ
+_evolves_pressure(::ConductingElectrons) = true
+_transports_electrons(::ConductingElectrons) = true
+
+electron_pressure!(::Any, ::Any, ::ConductingElectrons) = throw(
+    ArgumentError("ConductingElectrons requires stored pressure; initialize fields.pe and use ohms_law!"),
+)
+
+_conduction_zero(value::Union{Float16,Float32,Float64,BigFloat}) = iszero(_exact_rational(value))
+_conduction_zero(value::Real) = iszero(value)
+function _validate_conduction_mode(κ)
+    (_conduction_zero(κ) || _boris_accuracy_mode()) ||
+        throw(ArgumentError("active electron conduction requires nearest rounding and gradual underflow"))
+    return nothing
+end
+
+_electron_conductivity(::ElectronClosure, ::Type{T}) where {T} = zero(T)
+function _electron_conductivity(closure::ConductingElectrons, ::Type{T}) where {T}
+    conductivity = _require_finite_real("κ", closure.κ, T)
+    _validate_conduction_mode(closure.κ)
+    conductivity >= zero(T) || throw(ArgumentError("κ must be nonnegative"))
+    (_conduction_zero(closure.κ) || !_conduction_zero(conductivity)) ||
+        throw(ArgumentError("ConductingElectrons κ underflows to zero at grid precision"))
+    return conductivity
+end
 
 "Isothermal electrons: p_e = T_e · n  (T_e the normalized electron temperature)."
 struct IsothermalElectrons{T} <: ElectronClosure

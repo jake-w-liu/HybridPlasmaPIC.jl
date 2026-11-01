@@ -6,7 +6,7 @@
 #   magnetic field   B         : integer n          (→ n+1)
 #   evolving electron pe        : integer n          (→ n+1, optional closure)
 #   electric field   E (carried): integer n         (recomputed → n+1)
-#   transport ion force E_force : integer n         (recomputed with E, TransportElectrons)
+#   transport ion force E_force : integer n         (recomputed with E, transport closures)
 #   moments for the B-subcycle : n+1/2 (midpoint positions x^{n+1/2}, v^{n+1/2})
 #
 # The loaded velocity is the physical v^0, so the FIRST step primes the leapfrog once
@@ -30,7 +30,7 @@
 # closures use `nothing`, so their hot path carries no extra array storage.
 # `Eforce` is the transport-owned carried ion force and `saved_Eforce` its
 # rollback copy; both are `nothing` (zero storage) for EvolvingElectrons.
-mutable struct _PressureEvolutionWorkspace{D,T,F}
+mutable struct _PressureEvolutionWorkspace{D,T,F,C}
     ue::NTuple{3,Array{T,D}}
     divue::Array{T,D}
     kp::NTuple{4,Array{T,D}}
@@ -41,16 +41,22 @@ mutable struct _PressureEvolutionWorkspace{D,T,F}
     clock::Tuple{T,Int,T}
     Eforce::F
     saved_Eforce::F
+    temperature::C
 end
 
 _transport_force_storage(::FourierGrid, ::ElectronClosure) = nothing
-_transport_force_storage(g::FourierGrid{D,T}, ::TransportElectrons) where {D,T} =
+_transport_force_storage(g::FourierGrid{D,T}, ::_ScalarTransportClosure) where {D,T} =
     ntuple(_ -> zeros(T, g.n), 3)
+
+_conduction_temperature_storage(::FourierGrid, ::ElectronClosure) = nothing
+_conduction_temperature_storage(g::FourierGrid{D,T}, ::ConductingElectrons) where {D,T} =
+    zeros(T, g.n)
 
 function _pressure_workspace(g::FourierGrid{D,T}, closure, count) where {D,T}
     _evolves_pressure(closure) || return nothing
     force = _transport_force_storage(g, closure)
-    return _PressureEvolutionWorkspace{D,T,typeof(force)}(
+    temperature = _conduction_temperature_storage(g, closure)
+    return _PressureEvolutionWorkspace{D,T,typeof(force),typeof(temperature)}(
         ntuple(_ -> zeros(T, g.n), 3),
         zeros(T, g.n),
         ntuple(_ -> zeros(T, g.n), 4),
@@ -61,6 +67,7 @@ function _pressure_workspace(g::FourierGrid{D,T}, closure, count) where {D,T}
         (zero(T), 0, zero(T)),
         force,
         _transport_force_storage(g, closure),
+        temperature,
     )
 end
 
@@ -73,10 +80,11 @@ with deposition/gather `shape`. `N` is the initial total particle workspace
 length, resized as needed. Pass one proton `ParticleSet` or a vector of positive
 ion populations to [`init!`](@ref) and [`step!`](@ref), after setting the initial
 field in `stepper.fields.B`. With [`EvolvingElectrons`](@ref) or
-[`TransportElectrons`](@ref), also set the finite, nonnegative initial pressure
+[`TransportElectrons`](@ref) or [`ConductingElectrons`](@ref), also set the finite, nonnegative initial pressure
 in `stepper.fields.pe`; initialization preserves it. Algebraic closures compute
-pressure from their constitutive law. `TransportElectrons` additionally
-allocates the carried ion force and its rollback copy (six grid arrays).
+pressure from their constitutive law. Both transport closures additionally
+allocate the carried ion force and its rollback copy (six grid arrays).
+`ConductingElectrons` also owns one derived temperature scratch grid.
 """
 mutable struct HybridStepper{D,T,SH<:ShapeFunction,M<:HybridModel,W}
     g::FourierGrid{D,T}
@@ -139,6 +147,90 @@ function HybridStepper(
     )
 end
 
+# The full Laplacian uses kfull, including even-axis Nyquist. Exact positive
+# factors avoid a spurious infinite decay rate before the timestep comparison.
+function _conduction_laplacian_gain(g)
+    total = zero(Rational{BigInt})
+    for axis in g.kfull
+        _validate_pressure_finite(axis, "conduction Fourier metadata")
+        total += maximum(k -> abs(_exact_rational(k)), axis)^2
+    end
+    return total
+end
+
+function _validate_conduction_substep(st::HybridStepper{D,T}, h::T) where {D,T}
+    κ = _electron_conductivity(st.model.closure, T)
+    iszero(κ) && return nothing
+    isfinite(h) && h > zero(T) ||
+        throw(ArgumentError("active electron conduction requires a positive resolved substep"))
+    nmin = minimum(st.fn)
+    γ = T(st.model.closure.γ)
+    decay_step = _exact_rational(h) * _exact_rational(_pressure_heat_gamma(γ)) *
+        _exact_rational(κ) * _conduction_laplacian_gain(st.g) / _exact_rational(nmin)
+    decay_step < _exact_rational(_integrator_real_axis_limit(:rk4)) ||
+        throw(ArgumentError("electron conduction substep violates the strict pure-diffusion RK4 bound"))
+    return nothing
+end
+
+function _conduction_dt_down(::Type{T}, bound::Rational{BigInt}) where {T}
+    value = _from_exact(T, bound)
+    isfinite(value) || return floatmax(T)
+    return _exact_rational(value) > bound ? prevfloat(value) : value
+end
+function _conduction_dt_down(::Type{T}, bound::AbstractFloat) where {T}
+    isinf(bound) && bound > 0 && return floatmax(T)
+    isfinite(bound) && bound >= 0 || throw(ArgumentError("recommended timestep must be nonnegative"))
+    return _conduction_dt_down(T, _exact_rational(bound))
+end
+
+"""
+    recommended_dt(stepper::HybridStepper; NB=1, safety=0.8, d_i=1, Ω_ci=1)
+
+Return a grid-precision downward-rounded recommendation using this RK4
+stepper's magnetic transport coefficients. For active [`ConductingElectrons`](@ref),
+also cap by the pure-conduction RK4 bound with `nfloor` as the conservative
+density lower bound. The cap uses full Nyquist modes and counts magnetic/pressure
+subcycles. It does not bound pressure advection/compression, guarantee combined
+nonlinear stability or preserve positivity. A bound below the public
+`2*floatmin(T)` full-step resolution or an unresolved zero substep returns zero.
+The recommendation respects the strict bound after grid-precision substep division, including at
+`safety=1`. The existing grid-based overload is unchanged.
+"""
+function recommended_dt(
+    st::HybridStepper{D,T}; NB::Integer = 1, safety::Real = 0.8,
+    d_i::Real = 1.0, Ω_ci::Real = 1.0,
+) where {D,T}
+    _validate_evolving_model(st.model, T)
+    magnetic = recommended_dt(st.g; NB, integrator = :rk4, safety, d_i, Ω_ci,
+        η = st.model.η, ηH = st.model.ηH)
+    result = _conduction_dt_down(T, magnetic)
+    (result >= 2 * floatmin(T) && !iszero(result / NB)) || return zero(T)
+    κ = _electron_conductivity(st.model.closure, T)
+    iszero(κ) && return result
+    gain = _conduction_laplacian_gain(st.g)
+    iszero(gain) && return result
+    γ = T(st.model.closure.γ)
+    floor = _require_finite_positive_real("nfloor", st.model.nfloor, T)
+    limit = _exact_rational(_integrator_real_axis_limit(:rk4))
+    decay = _exact_rational(_pressure_heat_gamma(γ)) * _exact_rational(κ) * gain /
+        _exact_rational(floor)
+    safety_exact = safety isa AbstractFloat ? _exact_rational(safety) : Rational{BigInt}(safety)
+    bound = Rational{BigInt}(NB) * safety_exact * limit / decay
+    # The largest represented admissible h avoids a potentially long search
+    # in dt when h is subnormal. Match native division's promoted NB operand.
+    hmax = _conduction_dt_down(T, limit / decay)
+    _exact_rational(hmax) * decay < limit || (hmax = prevfloat(hmax))
+    iszero(hmax) && return zero(T)
+    divisor = last(promote(one(T), NB))
+    isfinite(divisor) || return zero(T)
+    resolved_bound = _exact_rational(hmax) * _exact_rational(divisor)
+    candidate = min(result, _conduction_dt_down(T, bound), _conduction_dt_down(T, resolved_bound))
+    candidate >= 2 * floatmin(T) || return zero(T)
+    h = candidate / NB
+    (!iszero(h) && _exact_rational(h) * decay < limit) || return zero(T)
+    return candidate
+end
+
 _pressure_populations(ps::ParticleSet) = (ps,)
 _pressure_populations(species::AbstractVector) = species
 
@@ -187,6 +279,31 @@ function _validate_pressure_storage(st::HybridStepper, ps)
             throw(ArgumentError("evolving pressure must not alias particle storage"))
     end
     _validate_transport_force_storage(st, ps, w.Eforce)
+    _validate_conduction_temperature_storage(st, ps, w.temperature)
+    return nothing
+end
+
+_validate_conduction_temperature_storage(st, ps, ::Nothing) = nothing
+function _validate_conduction_temperature_storage(st::HybridStepper, ps, temperature::Array)
+    f, w, g = st.fields, st.pressure_work, st.g
+    _require_grid_array(:temperature, temperature, g)
+    grids = (f.n, f.ui..., f.B..., f.E..., f.J..., f.pe, f.gradp..., f.ninv,
+        f.lapJ..., f.pforce..., f.cgl_dp, st.fn, st.fui..., st.Escr...,
+        st.k1..., st.k2..., st.k3..., st.k4..., st.Btmp..., w.ue..., w.divue,
+        w.kp..., w.ptmp, w.saved.n, w.saved.ui..., w.saved.B..., w.saved.E...,
+        w.saved.J..., w.saved.pe, w.saved.gradp..., w.saved.ninv, w.saved.lapJ...,
+        w.saved.pforce..., w.saved.cgl_dp, w.Eforce..., w.saved_Eforce...)
+    scratch = (st.Ep..., st.Bp..., st.vpred..., st.xmid..., st.work, w.x0..., w.v0...,
+        g.cbuf, g.tbuf, g.abuf, g.sbuf, g.kfull..., g.kvec..., g.ik..., g.midx...)
+    for a in (grids..., scratch...)
+        _particle_arrays_mightalias(temperature, a) &&
+            throw(ArgumentError("electron temperature scratch must have independent storage"))
+    end
+    for population in _pressure_populations(ps),
+        a in (population.x..., population.v..., population.weight, population.id, population.tag)
+        _particle_arrays_mightalias(temperature, a) &&
+            throw(ArgumentError("electron temperature scratch must not alias particles"))
+    end
     return nothing
 end
 
@@ -297,7 +414,7 @@ function _validate_transport_step_inputs(st, ps, force::NTuple{3})
         !isone(ps.q) &&
         throw(
             ArgumentError(
-                "TransportElectrons scalar populations require q = 1; use a one-element collection",
+                "transport scalar populations require q = 1; use a one-element collection",
             ),
         )
     for a in force
@@ -486,7 +603,7 @@ Collection calls combine positive ion populations with their own charge and mass
 using charge-weighted moments. Populations require independent storage and a
 common time level. Reinitialize when adding populations loaded at a new physical
 velocity time level. Empty populations contribute zero moments.
-[`TransportElectrons`](@ref) also computes the carried ion force and requires
+[`TransportElectrons`](@ref) and [`ConductingElectrons`](@ref) also compute the carried ion force and require
 the initial density to be finite and at least `nfloor` in every cell.
 """
 function init!(st::HybridStepper{D,T}, ps::_HybridPopulations{D,T}) where {D,T}
@@ -659,7 +776,7 @@ _add_transport_stage_sources!(st, rate, ::ElectronClosure) = nothing
 function _add_transport_stage_sources!(
     st::HybridStepper,
     rate::Array{T},
-    closure::TransportElectrons,
+    closure::_ScalarTransportClosure,
 ) where {T}
     model, f, w, g = st.model, st.fields, st.pressure_work, st.g
     η = T(model.η)
@@ -717,44 +834,54 @@ function _bpressure_rhs!(
         source = _ohm_original_source(st.fui, Btrial, f.J, f.gradp, f.ninv, T(st.model.η), g)
     end
     electron_velocity!(w.ue, st.fui, f.J, st.fn; nfloor = T(st.model.nfloor))
-    if _transports_electrons(st.model.closure) && !iszero(T(st.model.ηH))
-        return _transport_hyperpressure_rhs!(outB, outp, Btrial, ptrial, st, g)
+    κ = _electron_conductivity(st.model.closure, T)
+    if !iszero(κ)
+        _conduction_temperature!(w.temperature, ptrial, st.fn, g)
     end
-    divergence!(w.divue, w.ue, g)
+    if _transports_electrons(st.model.closure) && !iszero(T(st.model.ηH))
+        return _transport_hyperpressure_rhs!(outB, outp, Btrial, ptrial, st, g; κ)
+    end
     γ, η = T(st.model.closure.γ), T(st.model.η)
-    derivative_risk = _transport_pressure_derivative_range_risk(
-        ptrial,
-        w.ue,
-        f.gradp,
-        g,
-        _transport_derivative_gains(g),
-    )
-    active = _transport_pressure_rhs_with_activity!(
-        outp,
-        ptrial,
-        w.ue,
-        f.gradp,
-        w.divue,
-        γ,
-        f.J,
-        η,
-        false,
-        Val(D),
-    )
-    _add_transport_stage_sources!(st, outp)
-    _complete_scalar_pressure_if_needed!(
-        outp,
-        ptrial,
-        w.ue,
-        f.gradp,
-        w.divue,
-        f.J,
-        γ,
-        η,
-        active,
-        g;
-        derivative_risk,
-    )
+    if !iszero(κ)
+        iszero(η) || _add_ohmic_field!(st.Escr, st.Escr, f.J, η)
+        _complete_transport_pressure_rhs!(outp, ptrial, w.ue, f.J, γ, η, zero(T), g;
+            κ, temperature = w.temperature)
+    else
+        divergence!(w.divue, w.ue, g)
+        derivative_risk = _transport_pressure_derivative_range_risk(
+            ptrial,
+            w.ue,
+            f.gradp,
+            g,
+            _transport_derivative_gains(g),
+        )
+        active = _transport_pressure_rhs_with_activity!(
+            outp,
+            ptrial,
+            w.ue,
+            f.gradp,
+            w.divue,
+            γ,
+            f.J,
+            η,
+            false,
+            Val(D),
+        )
+        _add_transport_stage_sources!(st, outp)
+        _complete_scalar_pressure_if_needed!(
+            outp,
+            ptrial,
+            w.ue,
+            f.gradp,
+            w.divue,
+            f.J,
+            γ,
+            η,
+            active,
+            g;
+            derivative_risk,
+        )
+    end
     if source === nothing
         faraday_rhs!(outB, st.Escr, g)
     else
@@ -886,10 +1013,16 @@ function _transport_hyperpressure_rhs!(
     Btrial,
     ptrial,
     st,
-    g::FourierGrid{D,T},
+    g::FourierGrid{D,T};
+    κ::T = zero(T),
 ) where {D,T}
     f, w, model = st.fields, st.pressure_work, st.model
     η, ηH, γ = T(model.η), T(model.ηH), T(model.closure.γ)
+    if !iszero(κ)
+        _add_complete_transport_field!(st.Escr, st.Escr, f.J, f.lapJ, η, ηH, g)
+        _complete_transport_stage_rhs!(outB, outp, Btrial, ptrial, st, g; κ)
+        return nothing
+    end
     current_active = any(_transport_input_stats(a).varies for a in f.J)
     gains = _transport_derivative_gains(g)
     cold = _transport_stage_range_risk(st, ptrial, g, gains)
@@ -944,7 +1077,8 @@ end
     Btrial,
     ptrial,
     st,
-    g::FourierGrid{D,T},
+    g::FourierGrid{D,T};
+    κ::T = zero(T),
 ) where {D,T}
     f, w, model = st.fields, st.pressure_work, st.model
     ideal = ntuple(_ -> similar(ptrial), 3)
@@ -961,7 +1095,9 @@ end
         T(model.closure.γ),
         T(model.η),
         T(model.ηH),
-        g,
+        g;
+        κ,
+        temperature = w.temperature,
     )
     _complete_transport_faraday_rhs!(outB, ideal, f.J, T(model.η), T(model.ηH), g)
     return nothing
@@ -1026,6 +1162,7 @@ function _advance_hybrid_fields!(st::HybridStepper{D,T}, dtT::T, NB::Integer) wh
         )
     end
     hb = dtT / NB
+    _validate_conduction_substep(st, hb)
     for cycle = 1:NB
         if _evolves_pressure(st.model.closure)
             _rk4_Bp!(st, hb, cycle)
@@ -1183,16 +1320,16 @@ function _prime_leapfrog_loop!(
 end
 
 # Carried fields. The full E drives Faraday's law and diagnostics. With
-# TransportElectrons the ions are pushed by the carried force E_force instead:
+# transport closures the ions are pushed by the carried force E_force instead:
 # the first-step priming, every Boris kick and the endpoint predictor gather it.
 # Only HybridStepper owns that force; CAM-CL rejects the closure on construction.
 _particle_electric_field(st) = _particle_electric_field(st, st.model.closure)
 _particle_electric_field(st, ::ElectronClosure) = st.fields.E
-_particle_electric_field(st::HybridStepper, ::TransportElectrons) = st.pressure_work.Eforce
+_particle_electric_field(st::HybridStepper, ::_ScalarTransportClosure) = st.pressure_work.Eforce
 
 _carried_ohms_law!(st) = _carried_ohms_law!(st, st.model.closure)
 _carried_ohms_law!(st, ::ElectronClosure) = ohms_law!(st.fields, st.model, st.g)
-_carried_ohms_law!(st::HybridStepper, ::TransportElectrons) =
+_carried_ohms_law!(st::HybridStepper, ::_ScalarTransportClosure) =
     _carried_transport_ohms_law!(st.fields, st.pressure_work, st.model, st.g)
 # The grid field is abstractly typed; passing the mutable workspace instead of
 # its force tuple keeps that dynamic call boundary free of a boxed argument.
@@ -1397,7 +1534,9 @@ nothing, including invalid input pressure. Private work arrays are scratch.
 matching positive Ohmic/hyperresistive heat; ions use the carried ideal force
 `E_force`. The midpoint, endpoint and predictor densities must
 stay finite and at least `nfloor`, and the transaction also restores the
-carried force.
+carried force. [`ConductingElectrons`](@ref) adds constant isotropic conduction
+of represented stage temperature, with its scoped pure-conduction timestep
+guard and the same pressure rejection/rollback contract.
 
 A nonzero `dt` below `2*floatmin(T)` throws an `ArgumentError` before any state
 changes. Particle kicks, priming, predictor and drifts follow the normwise range

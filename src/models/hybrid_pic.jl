@@ -14,7 +14,8 @@ frequency at `ω_pe` scales and enables collisionless reconnection at the `d_e` 
 
 [`EvolvingElectrons`](@ref) requires `η = ηH = de2 = 0`; its independent
 pressure is initialized in `HybridStepper.fields.pe` before calling `init!`.
-[`TransportElectrons`](@ref) accepts constant `η ≥ 0` and `ηH ≥ 0` with `de2 = 0`;
+[`TransportElectrons`](@ref) and [`ConductingElectrons`](@ref) accept constant
+`η ≥ 0` and `ηH ≥ 0` with `de2 = 0`;
 nonzero coefficients must stay finite and nonzero at grid precision.
 """
 struct HybridModel{C<:ElectronClosure}
@@ -44,6 +45,7 @@ function _validate_evolving_model(model::HybridModel, ::Type{T}) where {T}
             throw(ArgumentError("evolving electron γ must be greater than one at grid precision"))
         if _transports_electrons(model.closure)
             _validate_transport_resistivity(model, T)
+            _electron_conductivity(model.closure, T)
         else
             (iszero(model.η) && iszero(model.ηH) && iszero(model.de2)) ||
                 throw(ArgumentError("EvolvingElectrons requires η = ηH = de2 = 0"))
@@ -56,13 +58,13 @@ end
 # Constant dissipative transport. A nonzero coefficient must survive conversion:
 # overflow or disappearance to zero would silently change the model.
 function _validate_transport_resistivity(model::HybridModel, ::Type{T}) where {T}
-    iszero(model.de2) || throw(ArgumentError("TransportElectrons requires de2 = 0"))
+    iszero(model.de2) || throw(ArgumentError("scalar electron transport requires de2 = 0"))
     η = _require_finite_nonnegative_real("η", model.η, T)
     (iszero(model.η) || !iszero(η)) ||
-        throw(ArgumentError("TransportElectrons η underflows to zero at grid precision"))
+        throw(ArgumentError("scalar electron transport η underflows to zero at grid precision"))
     ηH = _require_finite_nonnegative_real("ηH", model.ηH, T)
     (iszero(model.ηH) || !iszero(ηH)) ||
-        throw(ArgumentError("TransportElectrons ηH underflows to zero at grid precision"))
+        throw(ArgumentError("scalar electron transport ηH underflows to zero at grid precision"))
     return η
 end
 
@@ -72,7 +74,7 @@ function _validate_transport_density(n, nfloor::T, context) where {T}
     for value in n
         isfinite(value) && value >= nfloor || throw(
             ArgumentError(
-                "TransportElectrons $context density must be finite and at least nfloor = $nfloor",
+                "scalar electron transport $context density must be finite and at least nfloor = $nfloor",
             ),
         )
     end

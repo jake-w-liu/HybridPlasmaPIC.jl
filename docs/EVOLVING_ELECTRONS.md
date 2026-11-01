@@ -11,8 +11,9 @@ The closure requires finite `γ > 1` and `η = ηH = de2 = 0`, including after
 conversion to the grid precision. CAM-CL and Hall-MHD reject this closure.
 Constant Ohmic heating is provided by
 [`TransportElectrons`](#constant-ohmic-transport), with its hyperresistive
-[extension](#constant-hyperresistive-transport). Heat flux and anisotropic
-pressure evolution are separate model extensions.
+[extension](#constant-hyperresistive-transport). The bounded isotropic
+[conduction source candidate](#constant-isotropic-conduction-source-candidate)
+adds heat flux; anisotropic pressure evolution remains separate.
 
 ## Initialize and advance
 
@@ -265,5 +266,79 @@ separate [original-factor work order](IDEAL_FORCE_SOURCE_RANGE_WORK_ORDER.md)
 has implemented scalar/CGL pointwise range completion and a bounded scalar
 Hybrid Faraday route for `de2=ηH=0` finite product-range events. Its verification,
 normal swallowed-variation admission, broader operators and general FFT
-conditioning remain open. Conduction, equilibration, anisotropic transport,
+conditioning remain open. Broader conduction, equilibration, anisotropic transport,
 complete electron inertia, MPI and device integration remain separate capabilities.
+
+## Constant isotropic conduction source candidate
+
+`ConductingElectrons(γ = 5/3; κ)` adds a declared constant isotropic heat flux
+`q_e = −κ∇Te` to the stored scalar-pressure transport closure. Use
+`HybridModel(ConductingElectrons(γ; κ); η, ηH, de2=0)` with serial periodic CPU
+Float32/64 `HybridStepper`, one unit-charge scalar population or an ordered
+positive-ion collection. The current implementation is a source candidate;
+its GitHub runtime/compiler and integration acceptance remains pending. This
+does not add magnetic anisotropy, flux limiting, equilibration, MPI/device,
+CAM-CL, Hall-MHD or collisional-wrapper support.
+
+The stage temperature convention is `Θ = round_T(pe/n)` from the original stored
+pressure and actual deposited density, rather than reciprocal multiplication.
+Active κ requires nearest hardware rounding and gradual underflow. κ must be
+finite and nonnegative, and a nonzero κ must resolve finite and nonzero at grid
+precision. A required quotient that is nonfinite or rounds a nonzero value to
+zero rejects the public step. The new closure owns one temperature scratch grid;
+`TransportElectrons` keeps its original layout and semantics.
+
+The pressure source is
+
+```
+∂pe/∂t = −ue·∇pe − γ pe ∇·ue
+          + (γ−1) [η|J|² + H_H + κ L(Θ)].
+```
+
+`L` is the canonical full spectral Laplacian, including even-grid Nyquist.
+The scaled transform is consumed into the complete signed pressure equation
+before rate publication; an overflowing partial conductive rate or Laplacian
+is not itself a rejection. The complete required rate must be finite, and a
+nonzero complete rate that rounds wholly to zero rejects. Field and heating
+terms retain the transport owners. `κ=0` bypasses temperature division and
+transforms and retains transport operation ordering.
+
+For the ideal periodic semidiscrete operator, conduction has zero mean, so it
+redistributes the single electron internal energy `∫pe/(γ−1) dV`. At frozen
+positive density, the unrounded-temperature equation dissipates
+`V = ∫pe²/(2n) dV`. With this represented temperature, writing
+`e = pe/n − Θ` gives
+`dV/dt = (γ−1)κ [⟨Θ,LΘ⟩ + ⟨e,LΘ⟩]`; the second term is a rounding error term,
+not a sign guarantee. The full spectral Laplacian is not positivity preserving.
+Every explicit pressure stage and final candidate must remain nonnegative;
+failure rolls back public fields, force, particles and clocks without clipping.
+No exact fully discrete energy, variance or bitwise mean conservation is claimed.
+
+Each nonzero resolved substep `h = dt/NB` must satisfy the strict scoped bound
+`h*(γ−1)*κ*Kmax²/min(n) < 2.785`, where `Kmax²` sums the largest squared full
+mode on each axis. This is a frozen-density pure-conduction RK4 guard, not a
+combined stability or positivity theorem. `recommended_dt(stepper; NB, safety,
+d_i, Ω_ci)` adds a conservative cap using `nfloor` and rounds downward to grid
+precision, respecting the strict bound after resolved substep division even at
+`safety=1`; a cap below the public `2*floatmin(T)` full-step resolution or an
+unresolved zero substep returns zero. The existing grid-based overload is
+unchanged. Advection/compression and nonlinear coupled accuracy still require
+timestep refinement.
+
+Checkpoint/archive state saves κ in the concrete closure, pressure and carried
+force verbatim, existing `transport_policy_version=1`, and required
+`conduction_policy_version=1` under the existing archive schema. Temperature
+is recomputed at each active stage; its scratch array identity survives restore.
+A matching concrete conducting destination may replace its κ, including zero
+with positive κ.
+Legacy transport payloads retain their meanings.
+
+Essential candidate tests cover independent DFT stages, variable-density
+constant-temperature and Nyquist controls, signed source range cancellation,
+RK4 decay refinement, scoped timestep/positivity rejection, full rollback,
+zero-κ legacy reduction, malformed checkpoint policies and unchanged resume.
+They await GitHub acceptance on the composed source, including the canonical
+nonzero-substep preflight and original-h RK affine maps.
+Completion of arbitrary original quotients through the Fourier operator remains
+open: this tier explicitly requires a representable physical temperature and
+does not recover variation lost by that temperature rounding.

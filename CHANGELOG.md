@@ -11,6 +11,13 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Added
 
+- `ConductingElectrons(γ; κ)` adds constant isotropic heat flux from represented
+  stage temperature `round(pe/n)` to the complete signed transport pressure
+  source, including full Nyquist modes. It retains pressure rollback and adds
+  a scoped pure-conduction timestep cap and required restart policy. The
+  serial periodic CPU scope and remaining acceptance are in the
+  [electron guide](docs/EVOLVING_ELECTRONS.md#constant-isotropic-conduction-source-candidate).
+
 - `YeeLongitudinalPIC` supplies event-free CPU 1D longitudinal electrostatic
   coupling with an explicit physical-width cloud, synchronized Verlet stages,
   original-source background/free-plate initialization, energy/Gauss diagnostics

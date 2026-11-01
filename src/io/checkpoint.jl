@@ -2,7 +2,7 @@
 #
 # The deterministic steppers use no RNG, so their restart state contains model
 # and shape, particle phase space + provenance, canonical B,
-# carried E, evolving electron pressure when present, the TransportElectrons
+# carried E, evolving electron pressure when present, the scalar transport
 # carried ion force with its policy version, time/step counters, and
 # the previous particle timestep. The frozen n+1/2 moments are scratch
 # recomputed every step, so they are not stored.
@@ -273,9 +273,19 @@ end
 # Version of the TransportElectrons payload meaning (carried ion force E_force
 # with constant dissipative transport). It is required; old payloads carry no force.
 const _TRANSPORT_POLICY_VERSION = 1
+const _CONDUCTION_POLICY_VERSION = 1
+
+_validate_checkpoint_conduction_state(s, ::ElectronClosure) = nothing
+function _validate_checkpoint_conduction_state(s, ::ConductingElectrons)
+    _validate_checkpoint_container(s, (:conduction_policy_version,))
+    s.conduction_policy_version === _CONDUCTION_POLICY_VERSION ||
+        throw(ArgumentError("unsupported electron conduction checkpoint policy"))
+    return nothing
+end
 
 function _validate_checkpoint_transport_state(s, st::_HybridCheckpointStepper{D,T}) where {D,T}
     _validate_checkpoint_container(s, (:transport_policy_version, :Eforce))
+    _validate_checkpoint_conduction_state(s, s.model.closure)
     s.transport_policy_version === _TRANSPORT_POLICY_VERSION || throw(
         ArgumentError(
             "checkpoint transport_policy_version $(repr(s.transport_policy_version)) ≠ $_TRANSPORT_POLICY_VERSION",
@@ -297,7 +307,7 @@ function _validate_checkpoint_transport_state(s, st::_HybridCheckpointStepper{D,
     end
     if !haskey(s, :particle_layout)
         isone(s.q) ||
-            throw(ArgumentError("TransportElectrons scalar checkpoint populations require q = 1"))
+            throw(ArgumentError("transport scalar checkpoint populations require q = 1"))
     end
     return nothing
 end
@@ -749,19 +759,22 @@ function _checkpoint_state(
     return _hybrid_checkpoint_state(st, particles)
 end
 
-# Stored pressure for both evolving closures; transport also stores its policy
+# Stored scalar pressure; transport also stores its policy
 # version and the carried ion force, which cannot be rebuilt from half-time
 # particle moments.
 # Only HybridStepper owns the force; other steppers reject the closure.
 _pressure_checkpoint_state(st, ::ElectronClosure) = (pe = st.fields.pe,)
-_pressure_checkpoint_state(st::HybridStepper, ::TransportElectrons) = (
-    pe = st.fields.pe,
-    transport_policy_version = _TRANSPORT_POLICY_VERSION,
-    Eforce = st.pressure_work.Eforce,
+_conduction_checkpoint_state(::ElectronClosure) = NamedTuple()
+_conduction_checkpoint_state(::ConductingElectrons) =
+    (conduction_policy_version = _CONDUCTION_POLICY_VERSION,)
+_pressure_checkpoint_state(st::HybridStepper, closure::_ScalarTransportClosure) = merge(
+    (pe = st.fields.pe, transport_policy_version = _TRANSPORT_POLICY_VERSION,
+        Eforce = st.pressure_work.Eforce),
+    _conduction_checkpoint_state(closure),
 )
 
 _restore_transport_checkpoint_force!(st, s, ::ElectronClosure) = nothing
-function _restore_transport_checkpoint_force!(st::HybridStepper, s, ::TransportElectrons)
+function _restore_transport_checkpoint_force!(st::HybridStepper, s, ::_ScalarTransportClosure)
     foreach(copyto!, st.pressure_work.Eforce, s.Eforce)
     return nothing
 end
@@ -1292,6 +1305,8 @@ validated before mutation. Algebraic closures retain pressure-free payloads.
 `TransportElectrons` payloads also require `transport_policy_version = 1` and
 the carried ion force `Eforce` (three independent finite grid `Array`s); the
 force is restored verbatim, never rebuilt from half-time particle moments.
+`ConductingElectrons` additionally requires `conduction_policy_version = 1`;
+the saved model replaces γ/κ and derived temperature scratch is not persisted.
 Collection destinations require the same number of ordered populations and
 matching dimension/precision. Each population keeps its existing storage while
 saved charge, mass, provenance and phase space replace its values. Every

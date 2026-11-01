@@ -88,7 +88,7 @@ Source names below resolve to these canonical files:
 | Kinetic species diversity | Arbitrary ES collections landed; synchronous CPU EMPIC collections with optional relativistic motion implemented, CI pending | Multirate EM collections and backend composition remain CAP-008 work |
 | Multidimensional shocks | shock3d:9–19,337–359 and shock2d:230–236 intentionally exclude Hall induction while retaining Hall particle forces | Documented reduced shock model; full-Hall multidimensional branch required for broader claims, CAP-009 |
 | Coupled sources and collisions | `CollisionalHybridStepper` and full RNG checkpoint/archive state (`2b2420b`); ideal evolving and S1/S2 pressure/force extensions are CI-pending | Fixed-step first-order CPU composition; anisotropic/inertial models, electron-ion heat exchange, other sources, schedules and backends remain CAP-010 work |
-| Electron transport | `EvolvingElectrons` covers ideal massless pressure; `TransportElectrons` provides constant Ohmic transport (S1), with complete-source hyperresistive S2 and shared scalar pressure range routing composed onto current main | [S2 gates](TRANSPORT_SOURCE_RANGE_PLAN.md) and [scalar pressure verification](SCALAR_PRESSURE_RATE_RANGE_PLAN.md) remain open; conduction, equilibration, anisotropy, inertia and backends remain CAP-011 S3–S8 |
+| Electron transport | `EvolvingElectrons` covers ideal massless pressure; `TransportElectrons` provides constant Ohmic transport (S1), with complete-source hyperresistive S2 and shared scalar pressure range routing. `ConductingElectrons` adds a bounded represented-temperature S3a source candidate | [S2 gates](TRANSPORT_SOURCE_RANGE_PLAN.md), [scalar pressure verification](SCALAR_PRESSURE_RATE_RANGE_PLAN.md) and [S3a GitHub verification](EVOLVING_ELECTRONS.md#constant-isotropic-conduction-source-candidate) remain open; original-quotient completion, broader conduction, equilibration, anisotropy, inertia and backends remain CAP-011 work |
 
 The geometry integration finding also follows from a repository-wide symbol
 search: outside their defining files, `ToroidalGrid`, `AMRGrid`, `GuidingCentre`,
@@ -774,6 +774,21 @@ through the existing dyadic FFT owner. Normal swallowed variation, severe FFT
 conditioning and broader source-aware operator/backend admission remain open.
 Linear completion of represented ideal E alone cannot recover an original
 product lost before differentiation. CAP-011 remains incomplete.
+
+**S3a source candidate (constant isotropic conduction).** `ConductingElectrons(γ; κ)`
+adds `(γ−1)κ L(round_T(pe/n))` to the complete signed represented pressure
+sources through the canonical scaled full Laplacian, retaining Nyquist. It
+requires serial periodic CPU Float32/64, nearest/gradual arithmetic for active
+κ, representable physical temperature, unchanged density/pressure admission,
+and the existing force/heating owners. The pure-conduction substep guard and
+floor-based downward-rounded `recommended_dt(stepper)` cap are scoped limits;
+neither guarantees positivity or combined nonlinear stability. The old closure
+and schema meanings remain unchanged; the new closure requires conduction
+policy 1 alongside transport policy 1. Independent essential tests and the
+composed RK affine/substep integration gates are pending GitHub;
+source implementation is not acceptance. Original-quotient conditioning/range
+completion, anisotropic/limited conduction and other S3–S8 work remain open.
+See the [declared model and candidate checks](EVOLVING_ELECTRONS.md#constant-isotropic-conduction-source-candidate).
 
 ## Additional risks requiring tests, not assertions
 
