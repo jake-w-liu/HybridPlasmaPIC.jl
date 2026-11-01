@@ -122,12 +122,13 @@ identity and the separate dissipative and inertial model limitations.
 
 ## Workspace cost
 
-Only this closure allocates pressure stages and transaction buffers. For D
-dimensions, Ncell grid cells and Nparticle local particles, their numeric
+`EvolvingElectrons` and `TransportElectrons` share pressure stages and transaction
+buffers; algebraic closures use none. For D
+dimensions, Ncell grid cells and Nparticle local particles, the shared numeric
 storage is `(27 + D)*Ncell + (D + 3)*Nparticle` grid-precision values, plus
 array headers and bookkeeping. Particle buffers resize with local particle
-counts. Successful steps copy public state into the saved buffers; rejected
-steps also copy it back. Algebraic closures do not allocate these buffers.
+counts. Transport adds the six force arrays described below. Successful steps
+copy public state into the saved buffers; rejected steps also copy it back.
 
 ## Constant Ohmic transport
 
@@ -258,7 +259,11 @@ rejected. A finite update rescued only by multiplying an unrepresentable rate
 by `dt` is outside this representation. Raw `ohms_law!` can retain partial work
 on a later failure; `init!` and `step!` restore their public transaction state.
 
-The composed implementation awaits GitHub validation in the linked tracker. It completes an already represented ideal field; the separate
-[original-factor ideal-force work order](IDEAL_FORCE_SOURCE_RANGE_WORK_ORDER.md)
-remains unimplemented. Conduction, equilibration, anisotropic transport, complete
-electron inertia, MPI and device integration remain separate capabilities.
+The composed implementation awaits GitHub validation in the linked tracker.
+Hyperresistive completion starts from an already represented ideal field. The
+separate [original-factor work order](IDEAL_FORCE_SOURCE_RANGE_WORK_ORDER.md)
+has implemented scalar/CGL pointwise range completion and a bounded scalar
+Hybrid Faraday route for `de2=ηH=0` finite product-range events. Its verification,
+normal swallowed-variation admission, broader operators and general FFT
+conditioning remain open. Conduction, equilibration, anisotropic transport,
+complete electron inertia, MPI and device integration remain separate capabilities.

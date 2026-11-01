@@ -734,13 +734,12 @@ end
     )
 end
 
-# The same push in 256-bit BigFloat, rounded once to T. (|u|/c)² can exceed the
-# next IEEE format for extreme c (for Float32 inputs up to 2^1068), so all
-# flagged types use BigFloat. The Lorentz gap 1 - |v|²/c² is formed exactly, so
-# its cancellation cannot vanish or change sign; an exactly superluminal input
-# that the rounded test accepted is rejected.
-# Species replay converts the original rational q/m here, never an overflowing
-# or underflowed IEEE quotient. Explicit scalar qm keeps its existing meaning.
+# Try the bounded residual-certified DD owner before the inherited 256-bit
+# replay. That replay forms the original Lorentz gap exactly, rejecting an
+# exactly superluminal input even if its rounded gap appeared positive. It also
+# retains original rational q/m; explicit scalar qm keeps its existing meaning.
+# Extreme (|u|/c)² can exceed the next IEEE format, so unresolved cases use
+# BigFloat. Fixed replay precision alone is not a general accuracy certificate.
 @noinline function _boris_rel_repair(
     out::NTuple{3,T},
     vx::T,

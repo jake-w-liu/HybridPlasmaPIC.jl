@@ -311,10 +311,12 @@ The final V7 results on Julia 1.12.7 / 1.13.2 pass: 6,496 / 6,497 functional ass
 
 Final harness review found that V2 covered fixed total particle count but omitted the resource plan's fixed particles per species sweep and general nonuniform-weight path. V3 adds those cases and explicit single-thread Julia/FFTW settings, retaining V2's unchanged sampling, controls, acceptance thresholds and failure-output path. Both runtimes pass 1,908 untimed preflight assertions; all 198 workload IDs match the independent manifest in `cost-v3-exact-coverage.json`. Timing mode has 72 additional control rows per runtime. Actual Array backing-capacity probes pass 864 assertions / 144 rows per runtime after growth, shrink and empty transitions; their internal storage access is pinned to both Julia runtime sources and confined to audit tooling. `commands-v7-supplement.json` retains command and log hashes. Process maximum RSS includes compilation and all prior fixtures; it is not a per-operation peak-memory measurement or native FFT bound.
 
-## Pre-existing particle-kinematics range defect
+## Historical particle-kinematics range defect
 
 An independent audit found that finite q/m and dt can overflow the shared Boris
 coefficient `q/m*dt/2` and produce NaNs on an exactly neutral zero-field
 equilibrium. The defect lives in the shared pusher and priming arithmetic used
-by every solver, not in the collection code, so it is repaired separately under
-the normwise particle-kinematics plan rather than blocking this slice.
+by every solver, not in the collection code. Shared CPU range, original-factor
+and accuracy repairs are now implemented separately; their full-model and
+exact-revision acceptance remains in the
+[factor plan](PARTICLE_CHARGE_MASS_RANGE_PLAN.md).

@@ -169,8 +169,13 @@ admission, transaction and checkpoint paths, with essential component-sequence,
 force/full-E, zero-log, eta-zero, pressure/force/RNG continuation and failure
 regressions. An owner-level control restores the outer transaction after a
 completed inner step and explicit test exception; it does not reproduce a stock
-public post-completion failure. Runtime, formatting and
-compiler acceptance are pending exact-revision GitHub CI. No new resource,
+public post-completion failure.
+
+The [focused run at `213ed8c`](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41278911757)
+passes all 2,729 assertions on each actual Julia 1.12.7 and 1.13.3, covering
+the three existing collisional test files listed below. This verifies those
+component, persistence and production-invariant cases. Full exact-revision
+package, formatting, compiler and resource acceptance remains pending. No new
 energy-conservation or splitting-order claim is made.
 
 The following historical results cover **isothermal electrons only**

@@ -155,8 +155,9 @@ variable-step checkpoint/archive continuation, detached field permutation and
 one strided destination roundtrip/count failure. The first GitHub run at
 `213ed8c` passed its earlier charge/current/substep/policy assertions, then failed
 at collection checkpoint dispatch: the shared validator entered the legacy
-electron/ion payload path. Root owns the canonical validator-routing correction;
-the relativistic follow-on depends on that composition. No tests ran locally.
+electron/ion payload path. The canonical routing correction and relativistic
+follow-on are now composed; that failed run does not accept either change.
+No tests ran locally.
 The corrected exact revision must pass GitHub package, formatter, Aqua/JET and
 neighboring checks, with complete compiler findings reviewed.
 
@@ -165,7 +166,7 @@ permutation/conservation campaigns, population growth and complete resource
 acceptance, exact-revision acceptance of relativistic collections, species-specific multirate evolution,
 EMPIC1D collections, collisions, boundaries and resident backends remain open.
 
-## Relativistic follow-on pre-edit brief (2026-11-01)
+## Relativistic follow-on pre-edit brief (2026-11-01, historical)
 
 - Mode: extend the synchronous collection owner and canonical diagnostics.
 - Requirement: optional relativistic mobile populations with the unchanged C1

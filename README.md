@@ -515,17 +515,20 @@ Independent views and shared Array/Ref parameters remain supported. Custom
 serializers own their reconstruction semantics; already-detached saved graphs
 cannot recover their original links. See the
 [configuration contract and limits](docs/CHECKPOINT_CONFIGURATION_PLAN.md).
-Hybrid and electrostatic collections use `save_checkpoint(path, st, species)` and
+Hybrid, electrostatic and synchronous `EMPIC` collections use
+`save_checkpoint(path, st, species)` and
 `load_checkpoint!(st, species, path)`, preserving population order, charge, mass
 and particle data. Destination storage is retained; resizable arrays may change
 length. Every destination is checked before any population changes;
 the population count must match, and scalar/collection layouts stay distinct.
 `archive_run(path, st, species; rng_seed=...)` captures the same collection state.
-EM checkpoints preserve both species, field/current diagnostics, configuration,
-and electron/ion timestep history. For mobile ions, use
+Legacy electron/ion EM checkpoints preserve both species, field/current
+diagnostics, configuration and electron/ion timestep history. For mobile ions, use
 `save_checkpoint(path, es, electrons, ions)` and
 `load_checkpoint!(es, electrons, ions, path)`; the destination must have matching
 ion mobility and independent species storage. `archive_run` accepts the same species.
+`EMPIC` collections retain ordered populations, per-population mobility and their
+shared fast phase. See [collection persistence and pending verification](docs/EMPIC_SPECIES_IMPLEMENTATION.md).
 Hall-MHD uses `save_checkpoint(path, hall)`, `load_checkpoint!(hall, path)`, and
 `archive_run(path, hall; rng_seed=...)`. It preserves the model, fluid and derived
 fields, retained hyperresistive stage values, and clock without particle arguments.

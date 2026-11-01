@@ -88,8 +88,8 @@ records essential regressions and pending exact-revision GitHub acceptance.
   scratch lifetimes, stage ordering and publication boundaries directly.
 - [x] Include focused permanent independent-DFT/SBP, damping/energy, Nyquist,
   cancellation/range, phase, rollback and restart regressions.
-- [x] Require registered SpectralOperators 0.1.7, whose four dependency CI jobs
-  pass. [Dependency evidence](https://github.com/jake-w-liu/SpectralOperators.jl/blob/main/docs/SCALED_FOURIER_VERIFICATION.md)
+- [x] Historical prerequisite: registered SpectralOperators 0.1.7 passed its four
+  dependency CI jobs. [Dependency evidence](https://github.com/jake-w-liu/SpectralOperators.jl/blob/main/docs/SCALED_FOURIER_VERIFICATION.md)
   does not establish HPIC integration acceptance.
 - [x] Adopt registered 0.1.8 after all five dependency checks and General publication.
 - [ ] Pass HPIC's signed mixed-axis pressure and represented complete-Faraday

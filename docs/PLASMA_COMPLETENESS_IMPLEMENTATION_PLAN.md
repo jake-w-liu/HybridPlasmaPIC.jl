@@ -211,7 +211,7 @@ and quota failures describe historical work, not current ownership.
 | 003A/B local storage + distributed operators | Distributed audit track; MPI/Pencil/SpectralOperators owners | Collective precision, shared kernels and owned storage | Rank-owned storage and derivative/vector/filter operators landed; `4724947` exact-SHA CI/compiler gates pass | Shared filter/inverse repairs are registered as 0.1.4/0.1.5; consumer and metadata repairs are pushed with local integration gates passed. Their exact-SHA CI is tracked separately; next complete [resources and integration](DISTRIBUTED_OPERATOR_IMPLEMENTATION_PLAN.md) |
 | 003C/D distributed coupled solvers | Agent unassigned; MPI orchestration + canonical solver owners | 003A/B and accepted serial solver | Planned; full-grid allreduce reference inspected | Compose a periodic hybrid step without replicated grids and test 2/4/8 ranks |
 | 003E cluster scale/restart | Agent unassigned; benchmark/MPI/I/O | 003C/D; real multi-node allocation | Hardware campaign pending | Freeze strong/weak scaling and changed-layout restart workloads before requesting/running resources |
-| 004A GPU primitive closure | Root; extensions and coupling | Current kernel gates and exact-SHA CI | Metal uniform push and NGP have green CI; gathered V1 fails allocation, V2–V5 fail fixed latency gates; V5 native correctness passes | V6 native/compiler/resource gates pass both; minimum fixed costs pass but latest doubled-work calibration fails. Hold without retry; latest candidate timing and primitive closure remain open |
+| 004A GPU primitive closure | Root; extensions and coupling | Current kernel gates and exact-SHA CI | Metal uniform push and NGP have green CI. Current gathered preflight source adds guarded canonical native publication and explicit field-storage admission; historical V1 allocation, V2–V5 latency and V6 calibration failures remain retained | Accept current source on GitHub and actual Metal, including native bits, compiler and both fixed cost matrices. The 1.5 latency and 8 KiB additional-allocation limits remain unchanged; [historical results do not accept this source](METAL_GATHERED_VALIDATION_PLAN.md) |
 | 004B/C resident solver families | Agent unassigned; fields, integrators/models, extensions | 004A; storage/operator contract; actual device operators | Planned; concrete host arrays inspected | Implement one complete resident hybrid path and trace all transfers/scalar access |
 | 004D multi-GPU | Agent unassigned; MPI + device extensions | 003C/D, 004B/C; real devices/network | Hardware/integration pending | Establish buffer ownership/staging contract and matched device/rank oracle |
 | 005A existing CN-labelled paths | Shock3d and integrator stability owners | Independent linear-system oracle | Shock CN `ce52836` and [linear CN](LINEAR_CN_RANGE_PLAN.md) `03e4eb3` have green exact-SHA CI | Continue with 005B/C; preserve separate resource regressions and corrections |
@@ -230,7 +230,7 @@ and quota failures describe historical work, not current ownership.
 | 008 ES/EM arbitrary species | Canonical electrostatic/EM owners; synchronous collection implementation track | Existing deposition, spectral Maxwell and phase owners | ES containing `4724947` passes all six jobs/compiler review. [Synchronous EMPIC collections with optional relativistic motion](EMPIC_SPECIES_IMPLEMENTATION.md) implemented, GitHub acceptance pending | Accept current sum/continuity, staged publication, physical relativistic diagnostics and restart; implement species multirate and remaining backends |
 | 009 full-Hall multidimensional shocks | Scope proposal; root selects implementation agent | Full mixed-operator/field-boundary balance; 005 optional | Deliberate reduced induction verified | Derive full induction and SAT budget; build transverse-mode witness |
 | 010 composed sources and RNG restart | Integrator/checkpoint owners; independent collision audit track | 001 and phase/growth/checkpoint contracts | Fixed-step first-order isothermal CPU `CollisionalHybridStepper` landed; `2b2420b` exact-SHA CI/compiler gates pass. Ideal evolving and S1/S2 transport extensions implemented, CI pending | Accept the extensions, then extend schedules, other closures/models/sources and backends; preserve full pressure/force/RNG/phase/rollback contract |
-| 011 electron transport/energy | Electron/integrator owners and transport track | Term-specific balance and carried force contract | S1 is landed. SO 0.1.8 is registered with all five exact-revision CI jobs passing, including 26,986 assertions on each Linux/macOS minimum/latest job. Earlier 0.1.7 and rejected-candidate evidence remains historical | HPIC integration and CI, transport resource/peak-memory and restart checks, nonlinear ideal-product repair and S3–S8 remain open |
+| 011 electron transport/energy | Electron/integrator owners and transport track | Term-specific balance and carried force contract | S1 is landed. The registered SO 0.1.8 consumer floor and bounded scalar original-product prerequisites are integrated; the dependency's five passing checks do not accept HPIC. Earlier 0.1.7 and rejected-candidate evidence remains historical | Exact-revision HPIC CI, transport resource/peak-memory and restart checks, general original-product admission and S3–S8 remain open |
 
 For every row, its detailed section below supplies the required conservation,
 accuracy/convergence, error/rollback, restart, parallel, hardware, performance and
@@ -668,13 +668,15 @@ sources one by one with their own conservation/accuracy contracts.
   back the whole step including the RNG. [Guide and verified state](COLLISIONAL_HYBRID.md).
 - [ ] Accept the ideal `EvolvingElectrons` extension: implemented on the same
   source schedule, with pressure/RNG rollback and schema-1 consistency checks;
-  essential component, zero-log, restart and failure tests await GitHub CI.
+  focused component, zero-log, restart and failure tests pass in the
+  [scoped remote run](COLLISIONAL_HYBRID.md#verification-status); full CI remains pending.
 - [ ] Accept S1 `TransportElectrons` composition (`eta>=0`, `etaH=de2=0`):
   optional outer force snapshot, canonical inner policy-1 persistence and
   pressure/force/RNG regression tests are implemented; exact-revision CI pending.
 - [ ] Accept the S2 admission extension (`eta>=0`, `etaH>=0`, `de2=0`): it reuses
   the same full-field/pressure/force/RNG owners and policy-1 persistence, with
-  essential positive-hyperresistivity regressions awaiting GitHub CI.
+  focused positive-hyperresistivity regressions passing in that scoped run;
+  full exact-revision CI remains pending.
   Anisotropic/inertial composition and electron-ion heat exchange remain open.
 - [ ] Persist complete RNG state/stream assignment, split phase, source clocks,
   ionization ID counters and external reservoir state. A saved initial seed alone
@@ -753,9 +755,9 @@ these historical results do not accept this composition. Minimum/latest Julia pa
 GitHub, as recorded by the [S2 implementation tracker](TRANSPORT_SOURCE_RANGE_PLAN.md).
 Public physical lapJ/E and complete required rates retain representability
 requirements; normalized-dt RK storage remains unsupported. Raw Ohm partial-work
-and coupled init/step rollback remain separate contracts. The confirmed
-[original-factor ideal-force loss](IDEAL_FORCE_SOURCE_RANGE_WORK_ORDER.md) is
-still open. Its scalar/CGL pointwise range prerequisite now combines complete
+and coupled init/step rollback remain separate contracts. The
+[original-factor ideal-force work order](IDEAL_FORCE_SOURCE_RANGE_WORK_ORDER.md)
+remains incomplete. Its scalar/CGL pointwise range prerequisite now combines complete
 represented factors on intermediate overflow/subnormal products, with essential
 GitHub checks pending. Bounded scalar Hybrid Faraday with `de2=ηH=0` also retains
 original represented constitutive products on finite product-range events,

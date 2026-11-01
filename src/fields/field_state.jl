@@ -6,8 +6,9 @@
 Grid-resident hybrid fields and scratch: density `n`, ion bulk velocity `ui`,
 magnetic `B`, electric `E`, current `J`, electron pressure `pe`, its gradient
 `gradp`, reciprocal density `ninv`, and a density-floor activation counter.
-For [`EvolvingElectrons`](@ref), `pe` is persistent integer-time state alongside
-B; algebraic closures use it as derived pressure storage.
+For [`EvolvingElectrons`](@ref) and [`TransportElectrons`](@ref), `pe` is
+persistent integer-time state alongside B; algebraic closures use it as derived
+pressure storage.
 """
 mutable struct HybridFields{D,T}
     n::Array{T,D}

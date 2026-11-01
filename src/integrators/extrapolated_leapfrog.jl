@@ -72,10 +72,10 @@ Workspace and configuration for time-stepping ions on grid `g` under `model`
 with deposition/gather `shape`. `N` is the initial total particle workspace
 length, resized as needed. Pass one proton `ParticleSet` or a vector of positive
 ion populations to [`init!`](@ref) and [`step!`](@ref), after setting the initial
-field in `stepper.fields.B`. With [`EvolvingElectrons`](@ref), also set the
-finite, nonnegative initial pressure in `stepper.fields.pe`; initialization
-preserves that pressure. Other closures compute pressure from their algebraic law.
-[`TransportElectrons`](@ref) uses the same pressure state and additionally
+field in `stepper.fields.B`. With [`EvolvingElectrons`](@ref) or
+[`TransportElectrons`](@ref), also set the finite, nonnegative initial pressure
+in `stepper.fields.pe`; initialization preserves it. Algebraic closures compute
+pressure from their constitutive law. `TransportElectrons` additionally
 allocates the carried ion force and its rollback copy (six grid arrays).
 """
 mutable struct HybridStepper{D,T,SH<:ShapeFunction,M<:HybridModel,W}

@@ -177,8 +177,8 @@ silent clipping, broad catches or unrelated-source rejection certificate.
 - [ ] Establish conservative admission and FFT/restoration headroom through
       the existing numerical owners. Review storage and restart ownership before
       adding persistent state; measure costs before claiming optimization.
-- [ ] Implement original-factor ideal publication and source-aware Faraday
-      completion through canonical equation/numerical owners.
+- [ ] Extend original-factor ideal publication and source-aware Faraday beyond
+      the bounded product-range `de2=ηH=0` slice through canonical owners.
 - [ ] Permanent both-type D1–3 odd/even, anisotropic, constant-axis, broad-span,
       mixed-source cancellation, subnormal/overflow and null-source regressions.
 - [ ] Public init/step rejection, rollback identities, phase/particles/clock,

@@ -72,8 +72,12 @@ then run them and the existing suites in GitHub Actions. Large local protocol,
 provenance and replay campaigns are not prerequisites for code review.
 
 Relativistic native range admission requires a normal derived quotient (or an
-original zero charge) in the existing nearest/gradual context. Cold evaluation
-uses the original rational q/m in the existing 256-bit BigFloat expression.
+original zero charge) in the existing nearest/gradual context. Kicks additionally
+use the bounded native/DD residual and joint batch accuracy owners in the
+[normal-accuracy plan](RELATIVISTIC_NORMAL_ACCURACY_PLAN.md). A certified DD
+attempt precedes the inherited exact-gap 256-bit replay; both retain original
+q,m rather than a lossy derived quotient. This does not prove arbitrary-extreme
+accuracy of that replay.
 Priming reuses the scalar DD certificate only when that quotient is exact and
 its EFT context is admitted; the decision is cached on the first cold particle
 per species loop. Cold allocations and non-exact-quotient output-bit changes are
@@ -119,8 +123,8 @@ simulator goal. No full original-factor trajectory or global optimization claim
 is established.
 
 The [normal relativistic accuracy work order](RELATIVISTIC_NORMAL_ACCURACY_PLAN.md)
-records the corrected minimum/latest GitHub observation: all 60 stage
-classifications are stable at both reference precisions, with six production
-kick violations per runtime. A bounded native/DD residual correction and joint
-batch admission are implemented; exact-revision GitHub verification is pending.
+records the parent's six production failures and the bounded correction's
+minimum/latest observation with zero production violations. Focused particle
+essentials also pass on both runtimes; full exact-revision CI, retained legacy
+gates and resource acceptance remain pending.
 The inherited extreme 256-bit replay does not gain a general accuracy proof.

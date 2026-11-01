@@ -1,12 +1,13 @@
 # Relativistic normal-range accuracy
 
-Status: the corrected [GitHub observation at `7189d75`](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41278586898)
-completes on actual Julia 1.12.7 and 1.13.3. All 60 stage classifications agree
-between the independent 512/1024-bit references on each runtime. Six production
-kick violations occur on each version. The bounded canonical correction below
-is implemented and source reviewed; its GitHub verification remains pending.
+Status: the bounded correction at `308cb45` passes the fixed-corpus
+[remote observation](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41280483562)
+and [focused particle essentials](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41280485822)
+on actual Julia 1.12.7 and 1.13.3. The earlier six production kick failures at
+`7189d75` remain recorded below. Full package/compiler/formatter/MPI acceptance,
+extreme replay accuracy and resource/performance gates remain pending.
 
-## Bounded kick correction: pre-edit brief
+## Bounded kick correction: historical pre-edit brief
 
 The corrected GitHub observation at `7189d75` completes all 60 stages on Julia
 1.12.7 and 1.13.3. Each runtime records the same six kick violations: Float16
@@ -38,7 +39,8 @@ verification runs on GitHub only.
 - [x] Read canonical scalar/native/batch/cold owners, callers and retained tests.
 - [x] Review both corrected remote observations and the weak-gamma design limit.
 - [x] Implement and source-review canonical bounded scalar/DD and batch admission.
-- [ ] Pass focused independent regressions and retained legacy gates remotely.
+- [x] Pass fixed-corpus observations and focused independent regressions remotely.
+- [ ] Pass the retained legacy gates in the full remote package suite.
 - [ ] Review exact-revision package/compiler/formatter/MPI results and costs.
 
 The [factor plan](PARTICLE_CHARGE_MASS_RANGE_PLAN.md) owns P3 factor routing;
@@ -112,6 +114,21 @@ requires correction. Complete inputs, actual results and both references remain
 in the workflow artifacts; the four-ulp contract is unchanged. All Float64 fixed
 cases are within budget; that observation is not a general Float64 theorem.
 
+## Verified correction at `308cb45`
+
+The [post-repair observation](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41280483562)
+completes all 60 distinct stages on each actual Julia 1.12.7 and 1.13.3. All
+512/1024-bit classifications are stable, with zero production violations and
+zero unresolved stages. The six raw-native violations remain visible. Every
+observation row has batch admission false, so this corpus does not exercise a
+successful native batch bypass.
+
+The separate [particle essentials run](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41280485822)
+passes 25 test groups and 5,687 assertions on each runtime, including nine
+ordinary nonzero certified-batch/native-bit checks and 15 zero-native-scale
+quantum-budget checks. This accepts those focused regressions, not the retained
+100,000-input-per-type legacy gate, full compiler/integration or cost targets.
+
 ## Bounded implementation and limits
 
 `relativistic_boris_accuracy.jl` adds a private arithmetic payload for the single
@@ -153,5 +170,6 @@ remain open work; no fixed-precision convergence is called a proof.
 - [x] Run the observation on actual minimum/latest Julia and inspect every row.
 - [x] Confirm concrete scalar and batch kick witnesses under both factor meanings.
 - [x] Implement a bounded canonical native/DD correction and joint batch admission.
-- [ ] Add the confirmed essential regression and verify exact-revision package,
-  compiler, formatter and MPI checks in GitHub; measure applicable cost changes.
+- [x] Add the confirmed essential regressions and pass both-runtime focused checks.
+- [ ] Verify exact-revision package, compiler, formatter and MPI checks in GitHub;
+  measure applicable cost changes.
