@@ -130,10 +130,13 @@ records scoped verification and remaining exact-revision acceptance gates.
   charge and extreme original ratios. Other legacy snapshot value policies and
   schemas are unchanged. Essential actual-mode and atomicity checks await GitHub.
 
-- `apply_antenna!` rejects magnetic-field/workspace overlap, shared magnetic
-  components and writable Fourier-metadata aliases before the curl can overwrite
-  old state. Supported antenna-input sharing remains; essential GitHub checks
-  are pending.
+- `apply_antenna!` stages complete finite-stored-curl updates before changing B,
+  using shared exact conversion for affine overflow classification and finite
+  rescue. Nonzero steps require nearest/gradual mode and finite B/materialized
+  curl; curl unrepresentability rejects even if dt could later rescue it.
+  Ordinary native bits, converted signed-zero no-op and input sharing remain.
+  Workspace/field, shared-B and writable-metadata conflicts reject before curl.
+  Essential GitHub runtime/compiler/format and cost checks remain pending.
 
 - Hybrid collection checkpoint essentials now follow CPU original charge/mass
   admission: finite factors may have an overflowing or zero-rounded quotient.

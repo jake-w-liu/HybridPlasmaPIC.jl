@@ -188,3 +188,133 @@ end
         end
     end
 end
+
+@testset "ANT-004 finite stored-curl range and staged publication" begin
+    H = HybridPlasmaPIC
+    Q = Rational{BigInt}
+    oldmode = get_zero_subnormals()
+    try
+        @test set_zero_subnormals(false)
+        for T in (Float32, Float64)
+            U = T === Float32 ? UInt32 : UInt64
+            @test rounding(T) === RoundNearest
+            g = FourierGrid((4,), (T(2π),))
+            @test g.kvec[1][2] == one(T)
+            amplitude = ldexp(T(3), exponent(floatmax(T)) - 2)
+            Eant = (zeros(T, 4), amplitude .* T[0, 1, 0, -1], zeros(T, 4))
+            electric_before = map(copy, Eant)
+            samplecurl = ntuple(_ -> zeros(T, 4), 3)
+            curl!(samplecurl, Eant, g)
+            maximum_exact = Q(floatmax(T))
+            observation = (
+                type = T,
+                julia = VERSION,
+                spectral_operators = Base.pkgversion(H.SpectralOperators),
+                flush = get_zero_subnormals(),
+                electric_words = collect(reinterpret(U, Eant[2])),
+                curl_words = collect(reinterpret(U, samplecurl[3])),
+                native_product_words = collect(reinterpret(U, T(3) .* samplecurl[3])),
+            )
+            @info "Antenna finite-curl fixture" observation
+            # Qualify actual FFT storage; the oracle below concerns this stored curl.
+            @test all(a -> all(isfinite, a), samplecurl)
+            @test all(a -> all(x -> abs(Q(x)) <= maximum_exact / 2, a), samplecurl)
+            @test any(x -> abs(Q(x)) > maximum_exact / 3, samplecurl[3])
+            @test any(x -> !isfinite(T(3) * x), samplecurl[3])
+            expected = map(a -> -T(2) .* a, samplecurl)
+            @test all(a -> all(isfinite, a), expected)
+            for supplied_work in (false, true)
+                B = map(copy, samplecurl)
+                work = ntuple(_ -> fill(T(7), 4), 3)
+                returned = supplied_work ? apply_antenna!(B, Eant, T(3), g; work) :
+                           apply_antenna!(B, Eant, T(3), g)
+                @test returned === B
+                # B=c and dt=3 give -2c, an exact finite binary scaling.
+                @test B == expected
+                @test isequal(Eant, electric_before)
+            end
+
+            # The late active component overflows genuinely; earlier candidates stay private.
+            B = map(a -> -a, samplecurl)
+            before = map(a -> collect(reinterpret(U, a)), B)
+            work = ntuple(_ -> fill(T(7), 4), 3)
+            @test_throws ArgumentError apply_antenna!(B, Eant, T(3), g; work)
+            @test all(collect(reinterpret(U, B[c])) == before[c] for c = 1:3)
+            @test isequal(Eant, electric_before)
+            B = ntuple(_ -> zeros(T, 4), 3)
+            B[3][end] = T(NaN)
+            before = map(a -> collect(reinterpret(U, a)), B)
+            @test_throws ArgumentError apply_antenna!(B, Eant, T(0.125), g; work)
+            @test all(collect(reinterpret(U, B[c])) == before[c] for c = 1:3)
+
+            # Finite E can have a nonfinite materialized curl despite a small dt.
+            short = FourierGrid((4,), (T(2π) / T(4),))
+            @test short.kvec[1][2] == T(4)
+            curl!(work, Eant, short)
+            observation = (type = T, curl_words = collect(reinterpret(U, work[3])))
+            @info "Antenna materialized-curl boundary" observation
+            @test any(x -> !isfinite(x), work[3])
+            B = ntuple(_ -> fill(one(T), 4), 3)
+            before = map(a -> collect(reinterpret(U, a)), B)
+            @test_throws ArgumentError apply_antenna!(B, Eant, T(0.0625), short; work)
+            @test all(collect(reinterpret(U, B[c])) == before[c] for c = 1:3)
+            @test isequal(Eant, electric_before)
+
+            # Ordinary arithmetic keeps the historical native two-operation bits.
+            ordinary_E = (zeros(T, 4), T[0, 1, 0, -1], T[0, -2, 0, 2])
+            curl!(work, ordinary_E, g)
+            B = ntuple(c -> fill(T(c), 4), 3)
+            dt = T(0.125)
+            native = ntuple(c -> T[B[c][i] - dt * work[c][i] for i in eachindex(B[c])], 3)
+            apply_antenna!(B, ordinary_E, dt, g; work)
+            @test isequal(B, native)
+            badE = map(copy, ordinary_E)
+            badE[3][end] = T(Inf)
+            before = map(a -> collect(reinterpret(U, a)), B)
+            @test_throws ArgumentError apply_antenna!(B, badE, dt, g; work)
+            @test all(collect(reinterpret(U, B[c])) == before[c] for c = 1:3)
+            for dtzero in (zero(T), -zero(T))
+                @test apply_antenna!(B, badE, dtzero, g; work) === B
+                @test all(collect(reinterpret(U, B[c])) == before[c] for c = 1:3)
+            end
+
+            # Unsupported arithmetic rejects before any FFT or workspace write.
+            storage = (B..., ordinary_E..., work..., g.cbuf, g.tbuf, g.abuf, g.sbuf)
+            stored_words = map(a -> collect(reinterpret(U, a)), storage)
+            @test set_zero_subnormals(true)
+            @test get_zero_subnormals()
+            observation = (type = T, requested_flush = true, active_flush = get_zero_subnormals())
+            @info "Antenna context admission" observation
+            for dtzero in (zero(T), -zero(T))
+                @test apply_antenna!(B, ordinary_E, dtzero, g; work) === B
+            end
+            @test_throws ArgumentError apply_antenna!(B, ordinary_E, dt, g; work)
+            @test all(collect(reinterpret(U, a)) == b for (a, b) in zip(storage, stored_words))
+            @test set_zero_subnormals(false)
+        end
+
+        # U=2^971. Stored |c|=M/5+U/20, so 5|c|=M+U/4 rounds to M.
+        # Native M+3U/8 also rounds M, but exact M+5U/8 exceeds M+U/2.
+        T = Float64
+        b, c, dt = ldexp(T(3), 968), -reinterpret(T, 0x7fc9999999999999), T(5)
+        product = dt * c
+        native = b - product
+        exact = Q(b) - Q(dt) * Q(c)
+        threshold = Q(floatmax(T)) + Q(BigInt(1) << 971) / 2
+        observation = (
+            b_word = reinterpret(UInt64, b),
+            curl_word = reinterpret(UInt64, c),
+            native_product = product,
+            native_output = native,
+            exact_overflow = exact > threshold,
+        )
+        @info "Antenna finite-native overflow boundary" observation
+        @test product === -floatmax(T)
+        @test native === floatmax(T)
+        @test exact > threshold
+        @test_throws ArgumentError H._antenna_update_value(b, c, dt)
+    finally
+        set_zero_subnormals(oldmode)
+    end
+    @test get_zero_subnormals() == oldmode
+end
