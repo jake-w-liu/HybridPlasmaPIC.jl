@@ -8,6 +8,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- A manual GitHub workflow runs existing implementation essentials on minimum
+  and latest Julia, supplementing the unchanged full CI matrix. Runtime checks
+  remain remote; no additional numerical tests are introduced by this workflow.
+
 - Periodic CPU `EMPIC` collections support arbitrary finite charge/positive mass,
   mobile and fixed populations, one charge-conserving current/Maxwell update,
   synchronous fast velocity phases, explicit neutrality/background policy,

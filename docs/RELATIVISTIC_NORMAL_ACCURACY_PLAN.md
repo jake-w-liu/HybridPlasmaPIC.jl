@@ -1,9 +1,10 @@
 # Relativistic normal-range accuracy
 
-Status: the initial manual GitHub run failed during package precompilation on
-both Julia versions, before observing any candidates. The carrier specialization
-is now defined after its type; corrected-source loading and observations remain
-pending. No normal-range numerical correction or accuracy acceptance is claimed.
+Status: the corrected [GitHub observation at `7189d75`](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41278586898)
+completed on actual Julia 1.12.7 and 1.13.3. All 60 stage classifications agree
+between independent 512/1024-bit references on each runtime. Six production kick
+violations were observed on each version; canonical repair is in progress.
+No numerical accuracy acceptance is claimed.
 The [factor plan](PARTICLE_CHARGE_MASS_RANGE_PLAN.md) owns P3 factor routing;
 [C1](RELATIVISTIC_OUTPUT_PUBLICATION_PLAN.md) owns supported output publication
 and public rollback. Neither establishes a full normal-range accuracy theorem.
@@ -36,8 +37,8 @@ fails on both actual Julia 1.12.7 and 1.13.3 at
 that file before `boris_accuracy.jl` defines `_BorisSpeciesFactors`. The
 specialization now lives beside that carrier's factor helpers with its body
 unchanged. The generic scalar method and include order are retained. The
-initial failure supplies no candidate accuracy result; loading and observations
-must run again against the corrected revision.
+initial failure supplies no candidate accuracy result. The subsequent corrected
+run loads the package and supplies the separate numerical findings below.
 
 Run the workflow **Relativistic normal accuracy observation**. It uses Julia
 `1.12` and moving latest-stable `1`, records the actual version and instantiates
@@ -60,10 +61,25 @@ are retained as workflow artifacts. A raw native failure outside its admission
 is distinct from a production result exceeding the budget. Job exit zero means
 the observation completed; it does not turn a printed violation into acceptance.
 
+## Verified observation at `7189d75`
+
+Both raw job logs record the same six production failures: Float16 candidate
+rows 3 and 4 under both original-factor and explicit stored-qm meanings, and
+Float32 row 3 under both meanings. These are kick observations; none of the
+30 priming observations exceeds the budget. This bounded result does not certify
+priming in general or inputs outside the fixed corpus.
+
+For Float32 row 3, scalar range admission and batch admission both return true.
+The original-factor y-component error is approximately `3.64046e-7` against a
+`2.384185791015625e-7` budget. Thus the batch bypass as well as the scalar owner
+requires correction. Complete inputs, actual results and both references remain
+in the workflow artifacts; the four-ulp contract is unchanged. All Float64 fixed
+cases are within budget; that observation is not a general Float64 theorem.
+
 ## Bounded implementation decision
 
-If the remote observation confirms a witness, first repair its canonical owner
-and both bypasses. Retain valid native bits, original q,m, explicit-qm meaning,
+The confirmed kick witnesses require repair at the canonical owner and both
+scalar and batch bypasses. Retain valid native bits, original q,m, explicit-qm meaning,
 the existing four-ulp normalized Euclidean scale, C1 domain and public undo.
 Do not duplicate the Boris kernel, clip a limiting velocity, widen a budget or
 use an unproved cold result as an accuracy certificate.
@@ -79,8 +95,8 @@ separate remaining task.
 
 - [x] Inspect native/cold relativistic kick, both EMPIC callers and both primes.
 - [x] Prepare a compact independent, two-precision remote observation.
-- [ ] Run the observation on actual minimum/latest Julia and inspect every row.
-- [ ] Confirm a concrete witness or record that these candidates do not fail.
+- [x] Run the observation on actual minimum/latest Julia and inspect every row.
+- [x] Confirm concrete scalar and batch kick witnesses under both factor meanings.
 - [ ] Derive and implement a sufficient canonical owner correction if supported.
 - [ ] Add the confirmed essential regression and verify exact-revision package,
   compiler, formatter and MPI checks in GitHub; measure applicable cost changes.
