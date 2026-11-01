@@ -7,6 +7,19 @@ remains pending. Specialized
 `EMPIC1D` collections, species-specific multirate schedules, collisions,
 nonperiodic boundaries and resident MPI/GPU evolution remain open.
 
+## Ordinary-store admission (2026-11-01)
+
+The canonical particle owner now rejects known read-only `Base.Experimental.Const`
+and atomic-only storage through standard wrapper parents before collection alias
+checks. It covers every population and particle leaf. Fixed populations are also
+copied at publication, and checkpoint restore writes weights and provenance.
+Writable ordinary vectors, non-atomic Memory and writable views/reinterpretations
+remain supported. Host storage must support ordinary writes and expose aliases;
+OS protection changes and arbitrary custom setter side effects are outside the
+publication guarantee. The shared check also serves ES collections and closed
+Yee models. Essential constructor/init/restore controls are present but unrun;
+exact-revision GitHub runtime/compiler/format and resource acceptance remain open.
+
 ## Initial nonrelativistic pre-edit brief (2026-11-01, historical)
 
 - Mode: extend the existing periodic electromagnetic PIC owner.

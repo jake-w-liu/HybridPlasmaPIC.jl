@@ -172,6 +172,21 @@ end
 @inline _particle_batch_injective(a::AbstractVector) =
     length(a) <= 1 || (a isa StridedVector && !iszero(stride(a, 1)))
 
+# Dense/strided storage does not imply ordinary writes: Const is read-only,
+# and AtomicMemory requires atomic stores. Inspect standard wrapper parents
+# before alias checks too, because Const does not expose its backing dataids.
+# This excludes known Base storage; other host storage must support ordinary writes.
+_particle_requires_special_stores(::AbstractArray) = false
+_particle_requires_special_stores(::Union{Base.Experimental.Const,AtomicMemory}) = true
+_particle_requires_special_stores(a::Union{SubArray,Base.ReshapedArray,Base.ReinterpretArray}) =
+    _particle_requires_special_stores(parent(a))
+
+function _require_particle_ordinary_stores(ps::ParticleSet, context::AbstractString)
+    any(_particle_requires_special_stores, (ps.x..., ps.v..., ps.weight, ps.id, ps.tag)) &&
+        throw(ArgumentError("$context particles require storage supporting ordinary writes"))
+    return nothing
+end
+
 function _particle_components_mightalias(ps::ParticleSet, alias_test = _particle_arrays_mightalias)
     for (d, x) in enumerate(ps.x)
         for k = 1:(d-1)

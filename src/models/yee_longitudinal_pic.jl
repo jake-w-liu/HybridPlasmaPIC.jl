@@ -121,19 +121,9 @@ function _yl_make_stage(species, sources, ::Type{T}) where {T}
     return _YeeLongitudinalStage{T}(owners, components, candidates)
 end
 
-# Dense/strided storage does not imply ordinary writes: Const is read-only,
-# and AtomicMemory requires atomic stores. Inspect standard wrapper parents
-# before alias checks too, because Const does not expose its backing dataids.
-# Other supplied storage must meet the documented writable-host contract.
-_yl_requires_special_stores(::AbstractArray) = false
-_yl_requires_special_stores(::Union{Base.Experimental.Const,AtomicMemory}) = true
-_yl_requires_special_stores(a::Union{SubArray,Base.ReshapedArray,Base.ReinterpretArray}) =
-    _yl_requires_special_stores(parent(a))
-
 function _yl_check_particle_storage(ps::ParticleSet)
     _check_particle_storage_axes(ps)
-    any(_yl_requires_special_stores, _yl_particle_arrays(ps)) &&
-        throw(ArgumentError("closed Yee PIC particles require storage supporting ordinary writes"))
+    _require_particle_ordinary_stores(ps, "closed Yee PIC")
     all(a -> a isa StridedVector && _particle_batch_injective(a), _yl_particle_arrays(ps)) ||
         throw(ArgumentError("closed Yee PIC particles require injective CPU strided storage"))
     return nothing

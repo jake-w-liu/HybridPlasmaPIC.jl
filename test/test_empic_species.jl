@@ -44,6 +44,56 @@ function physical(state, species)
     ))
 end
 
+@testset "Periodic collection ordinary-store admission" begin
+    atomic_storage(a) = begin
+        storage = AtomicMemory{eltype(a)}(undef, length(a))
+        for i in eachindex(a)
+            Base.setindex_atomic!(storage, :monotonic, a[i], i)
+        end
+        storage
+    end
+    function storage_snapshot(state, species)
+        fields = state isa EMPIC ? H._empic_checkpoint_fields(state) : (E = state.E, ne = state.ne)
+        phase = state isa EMPIC ?
+            (state.time[], state.step[], state.last_dt[], state.last_sub_dt[]) :
+            (state.primed[], state.last_dt[])
+        particles = [(map(collect, (p.x..., p.v..., p.weight, p.id, p.tag)), p.q, p.m)
+            for p in species]
+        return deepcopy((fields, phase, particles, state.collection.initialized[],
+            objectid.(state.collection.owners)))
+    end
+    for T in (Float32, Float64), Model in (ElectrostaticPIC, EMPIC)
+        g = FourierGrid((4,), (one(T),))
+        keywords = Model === EMPIC ? (; mobile = Bool[true, false]) : NamedTuple()
+        initialize = Model === EMPIC ? init_empic! : init_espic!
+        source = ParticleSet{1,T}[ParticleSet{1,T}(1; q = zero(T)) for _ = 1:2]
+        source[1].x[1][1], source[2].x[1][1] = T(0.25), T(0.75)
+        original = Model(g, source; keywords...)
+        initialize(original, source)
+        saved = deepcopy(H._checkpoint_state(original, source))
+        for wrap in (Base.Experimental.Const,
+            a -> view(Base.Experimental.Const(a), 1:length(a)), atomic_storage),
+            component in (:position, :weight)
+            firstps, secondps = ParticleSet{1,T}(1; q = zero(T)), ParticleSet{1,T}(1; q = zero(T))
+            firstps.x[1][1], secondps.x[1][1] = T(0.125), T(0.875)
+            target = Model(g, ParticleSet{1,T}[firstps, secondps]; keywords...)
+            x = component === :position ? (wrap(secondps.x[1]),) : secondps.x
+            weight = component === :weight ? wrap(secondps.weight) : secondps.weight
+            blocked = ParticleSet{1,T}(x, secondps.v, weight, secondps.id, secondps.tag,
+                secondps.q, secondps.m)
+            destination = ParticleSet{1,T}[firstps, blocked]
+            identities = [map(objectid, (p.x..., p.v..., p.weight, p.id, p.tag)) for p in destination]
+            before = storage_snapshot(target, destination)
+            @test_throws ArgumentError Model(g, destination; keywords...)
+            @test_throws ArgumentError initialize(target, destination)
+            @test isequal(storage_snapshot(target, destination), before)
+            @test_throws ArgumentError H._restore_checkpoint_state!(target, destination, saved)
+            @test isequal(storage_snapshot(target, destination), before)
+            @test [map(objectid, (p.x..., p.v..., p.weight, p.id, p.tag)) for p in destination] == identities
+        end
+    end
+end
+
 @testset "EM collection charge, summed midpoint current and fixed populations" begin
     for T in (Float32, Float64), D = 1:3, shape in (NGP(), CIC(), TSC())
         state, species = fixture(T, D; shape)

@@ -25,6 +25,10 @@ Particles, physical fields and clock publish after the complete operation
 succeeds. Scratch and shared FFT work may change on rejection. Concurrent calls
 require independent states, populations and grids. The integer-count constructor
 retains its electron/ion contract and separate checkpoint layout.
+All particle leaves, including fixed populations and metadata, must support
+ordinary writes and expose aliases. Known read-only `Base.Experimental.Const`
+and atomic-only storage reject through standard wrapper ancestry. OS protection
+changes and arbitrary custom setter failures are outside the publication guarantee.
 """
 function EMPIC(
     g::FourierGrid{D,T},
@@ -164,6 +168,7 @@ function _empic_collection_validate_storage(es::EMPIC{D,T}, species) where {D,T}
     end
     for (i, ps) in enumerate(species)
         _check_particle_storage_axes(ps)
+        _require_particle_ordinary_stores(ps, "electromagnetic collection")
         all(a -> a isa StridedVector, (ps.x..., ps.v..., ps.weight, ps.id, ps.tag)) ||
             throw(ArgumentError("electromagnetic collections require CPU strided particle storage"))
         _particle_components_mightalias(ps) &&

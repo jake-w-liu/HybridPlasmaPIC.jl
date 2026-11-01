@@ -7,8 +7,9 @@ moment, MPI-collection-checkpoint, Aqua and JET suites pass on Julia 1.12.7 and
 below; coordinated timing acceptance remains open. The feature landed as
 `d46029e`; its original CI run failed, while containing `4724947` passes
 [all six jobs and complete compiler review](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40325153253).
-That containing result does not relabel the original failure. Arbitrary EM
-collections and the remaining CAP-008 integrations stay open.
+That containing result does not relabel the original failure. Synchronous EM
+collections are now implemented with [acceptance pending](EMPIC_SPECIES_IMPLEMENTATION.md);
+specialized EMPIC1D, multirate and backend integrations remain open.
 
 ## Pre-edit brief (2026-10-25)
 
@@ -63,6 +64,20 @@ independent storage, finite deposited charge/fields/outputs, synchronized phase
 and staged publication remain required. Essential nonzero-force range and
 checkpoint continuation regressions await GitHub CI; the historical results
 below predate this update.
+
+## Ordinary-store admission (2026-11-01)
+
+Periodic ES/EM collections and closed Yee models share the particle storage
+owner for known ordinary-write exclusions. It rejects `Base.Experimental.Const`
+and `AtomicMemory`, including standard view/reshape/reinterpret ancestry,
+before alias checks, initialization or restore publication. Every particle
+leaf is checked: frozen metadata also participates in restore and independence.
+Ordinary writable vectors, non-atomic Memory and writable views/reinterpretations
+retain their admission. Supplied host storage must support ordinary writes and
+alias detection; OS protection changes and arbitrary custom setter side effects
+are outside the staged-publication guarantee. This is not a universal writable
+array trait. The focused constructor/init/restore controls await GitHub on the
+composed source; historical functional/compiler counts below do not accept it.
 
 ## Physics and representation contract
 

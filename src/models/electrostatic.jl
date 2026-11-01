@@ -495,7 +495,7 @@ _espic_require_scalar(es::ElectrostaticPIC) =
                      neutrality=:require, charge_rtol=64eps(T))
 
 Periodic CPU electrostatic PIC for ordered `ParticleSet{D,T}` populations, with
-finite arbitrary charges, positive masses and independent strided storage.
+finite arbitrary charges, positive masses and independent writable strided storage.
 The CPU mover retains original charge and mass when their derived quotient
 overflows or underflows; deposited charge, fields and particle outputs must
 still satisfy their documented range checks.
@@ -524,6 +524,10 @@ checks retain the exact represented weights, charges and box lengths.
 Input failures leave physical fields, particles and phase unchanged. Collection
 updates are staged, including arithmetic failures; scratch/FFT work may change.
 Concurrent calls require independent solver states, populations and grids.
+All particle leaves must support ordinary writes and expose aliases. Known
+read-only `Base.Experimental.Const` and atomic-only storage reject, including
+standard wrapper ancestry. OS protection changes and arbitrary custom setter
+failures are outside the staged-publication guarantee.
 """
 function ElectrostaticPIC(
     g::FourierGrid{D,T},
@@ -621,6 +625,7 @@ function _espic_validate_storage(es::ElectrostaticPIC{D,T}, species) where {D,T}
         ps isa ParticleSet{D,T} ||
             throw(ArgumentError("electrostatic species must match grid dimension and precision"))
         _check_particle_storage_axes(ps)
+        _require_particle_ordinary_stores(ps, "electrostatic collection")
         all(a -> a isa StridedVector, (ps.x..., ps.v..., ps.weight, ps.id, ps.tag)) ||
             throw(ArgumentError("electrostatic collections require CPU strided particle storage"))
         _particle_components_mightalias(ps) &&

@@ -275,7 +275,10 @@ Individually sub-CFL steps do not guarantee stability for an arbitrary variable
 step sequence; see its [centering and stability contract](docs/BOUNDED_MAXWELL_IMPLEMENTATION.md#discrete-contract-and-derivation).
 
 The PIC models share the grid, particle, and diagnostic infrastructure with
-the hybrid stepper. Their species and time-level contracts differ;
+the hybrid stepper. Periodic ES/EM collections require writable, independent
+host particle storage; known read-only and atomic-only Base storage rejects
+before publication, including through standard wrappers. Their species and
+time-level contracts differ;
 [the electrostatic collection example](examples/electrostatic_species.jl) shows a
 neutral pair plasma. Hall-MHD shares the grid and field machinery, and the KdV
 solver is a standalone verification tool.
