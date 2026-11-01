@@ -27,11 +27,16 @@ require independent states, populations and grids. The integer-count constructor
 retains its electron/ion contract and separate checkpoint layout.
 """
 function EMPIC(
-    g::FourierGrid{D,T}, species::AbstractVector;
+    g::FourierGrid{D,T},
+    species::AbstractVector;
     mobile::AbstractVector{Bool} = trues(length(species)),
-    background_charge = zero(T), neutrality::Symbol = :require,
-    charge_rtol = 64eps(T), c = 5.0, shape::ShapeFunction = CIC(),
-    n_sub::Integer = 1, relativistic::Bool = false,
+    background_charge = zero(T),
+    neutrality::Symbol = :require,
+    charge_rtol = 64eps(T),
+    c = 5.0,
+    shape::ShapeFunction = CIC(),
+    n_sub::Integer = 1,
+    relativistic::Bool = false,
 ) where {D,T}
     1 <= D <= 3 || throw(ArgumentError("EMPIC supports D = 1, 2, or 3"))
     T in (Float32, Float64) ||
@@ -60,7 +65,8 @@ function EMPIC(
 end
 
 _require_scalar_empic(::EMPIC1D) = nothing
-_require_scalar_empic(es::EMPIC) = es.collection === nothing ? nothing :
+_require_scalar_empic(es::EMPIC) =
+    es.collection === nothing ? nothing :
     throw(ArgumentError("collection EMPIC requires its ordered species vector"))
 
 # Physical arrays carried across completed boundaries. Persistence, diagnostics
@@ -70,7 +76,8 @@ _empic_physical_fields(es::EMPIC) =
 
 function _empic_collection_require_finite_fields(es::EMPIC)
     for components in values(_empic_physical_fields(es))
-        finite = components isa Tuple ? all(a -> all(isfinite, a), components) :
+        finite =
+            components isa Tuple ? all(a -> all(isfinite, a), components) :
             all(isfinite, components)
         finite || throw(ArgumentError("electromagnetic physical fields must be finite"))
     end
@@ -85,8 +92,9 @@ end
 
 function _empic_collection_bound(work, species)
     length(work.owners) == length(species) &&
-        all(a === b for (a, b) in zip(work.owners, species)) ||
-        throw(ArgumentError("electromagnetic population membership/order changed; call init_empic!"))
+        all(a === b for (a, b) in zip(work.owners, species)) || throw(
+        ArgumentError("electromagnetic population membership/order changed; call init_empic!"),
+    )
     return nothing
 end
 
@@ -99,7 +107,8 @@ function _empic_collection_validate_storage(es::EMPIC{D,T}, species) where {D,T}
     # The staged and public field inventories are deliberately identical to the
     # existing transaction inventory, including continuity diagnostic snapshots.
     fields = (_empic_transaction_fields(es)..., _empic_transaction_fields(work.stage)...)
-    work.stage.g === es.g || throw(ArgumentError("electromagnetic stage must share its owning grid"))
+    work.stage.g === es.g ||
+        throw(ArgumentError("electromagnetic stage must share its owning grid"))
     fft = (es.g.cbuf, es.g.tbuf, es.g.abuf, es.g.sbuf)
     metadata = (es.g.midx..., es.g.kfull..., es.g.ik..., es.g.kvec...)
     for (i, a) in enumerate(fields)
@@ -113,19 +122,37 @@ function _empic_collection_validate_storage(es::EMPIC{D,T}, species) where {D,T}
                 throw(ArgumentError("electromagnetic fields must not alias Fourier storage"))
         end
     end
-    buffers = (fields..., fft..., metadata...,
-        _empic_electron_gathers(es)..., _empic_ion_gathers(es)...,
-        _empic_electron_gathers(work.stage)..., _empic_ion_gathers(work.stage)...)
-    gathers = (_empic_electron_gathers(es)..., _empic_ion_gathers(es)...,
-        _empic_electron_gathers(work.stage)..., _empic_ion_gathers(work.stage)...)
+    buffers = (
+        fields...,
+        fft...,
+        metadata...,
+        _empic_electron_gathers(es)...,
+        _empic_ion_gathers(es)...,
+        _empic_electron_gathers(work.stage)...,
+        _empic_ion_gathers(work.stage)...,
+    )
+    gathers = (
+        _empic_electron_gathers(es)...,
+        _empic_ion_gathers(es)...,
+        _empic_electron_gathers(work.stage)...,
+        _empic_ion_gathers(work.stage)...,
+    )
     for (i, a) in enumerate(gathers)
         for b in (fields..., fft..., metadata..., gathers[1:(i-1)]...)
             Base.mightalias(a, b) &&
                 throw(ArgumentError("electromagnetic gather storage must be independent"))
         end
     end
-    clocks = (es.time, es.step, es.last_dt, es.last_sub_dt,
-        work.stage.time, work.stage.step, work.stage.last_dt, work.stage.last_sub_dt)
+    clocks = (
+        es.time,
+        es.step,
+        es.last_dt,
+        es.last_sub_dt,
+        work.stage.time,
+        work.stage.step,
+        work.stage.last_dt,
+        work.stage.last_sub_dt,
+    )
     for (i, a) in enumerate(clocks), j = 1:(i-1)
         a === clocks[j] && throw(ArgumentError("electromagnetic clock storage must be independent"))
     end
@@ -201,12 +228,11 @@ end
 
 function _empic_collection_charge_target(es, work, charges)
     return work.neutrality === :neutralize ? zero(charges.net) :
-        charges.net / prod(_exact_rational, es.g.dx)
+           charges.net / prod(_exact_rational, es.g.dx)
 end
 
 function _empic_collection_charge!(rho, stage, work, target)
-    _charge_density_sum!(rho, stage.ne, work.staged, stage.g, stage.shape;
-        background = stage.n0)
+    _charge_density_sum!(rho, stage.ne, work.staged, stage.g, stage.shape; background = stage.n0)
     all(isfinite, rho) ||
         throw(ArgumentError("electromagnetic deposited charge exceeds numeric range"))
     shift = (_exact_float_sum(rho) - target) / length(rho)
@@ -240,8 +266,12 @@ function init_empic!(es::EMPIC{D,T}, species::AbstractVector) where {D,T}
     _empic_collection_prepare!(es, species)
     sizehint!(work.owners, length(species))
     stage = work.stage
-    _empic_collection_charge!(stage.rho_n, stage, work,
-        _empic_collection_charge_target(es, work, charges))
+    _empic_collection_charge!(
+        stage.rho_n,
+        stage,
+        work,
+        _empic_collection_charge_target(es, work, charges),
+    )
     _enforce_gauss!(stage)
     all(a -> all(isfinite, a), stage.E) ||
         throw(ArgumentError("electromagnetic initialized field exceeds numeric range"))
@@ -279,7 +309,8 @@ function _empic_collection_current!(stage::EMPIC{D,T}, work) where {D,T}
             exact = fill(zero(Rational{BigInt}), stage.g.n)
             for (i, ps) in enumerate(work.staged)
                 work.mobile[i] || continue
-                contribution = _exact_midpoint_current(ps, work.midpoints[i], stage.g, stage.shape, c)
+                contribution =
+                    _exact_midpoint_current(ps, work.midpoints[i], stage.g, stage.shape, c)
                 for I in eachindex(exact)
                     exact[I] += contribution[I]
                 end
@@ -337,18 +368,21 @@ function _empic_collection_validate_phase(es::EMPIC{D,T}) where {D,T}
         throw(ArgumentError("electromagnetic clock must be finite and nonnegative"))
     previous = es.last_sub_dt[]
     full = es.last_dt[]
-    isfinite(full) && isfinite(previous) && zero(T) <= previous <= full &&
+    isfinite(full) &&
+        isfinite(previous) &&
+        zero(T) <= previous <= full &&
         (es.step[] == 0 ? iszero(full) && iszero(previous) : previous > zero(T)) ||
         throw(ArgumentError("electromagnetic timestep history is inconsistent with its phase"))
     return nothing
 end
 
 function step_empic!(es::EMPIC{D,T}, species::AbstractVector, dt::Real) where {D,T}
-    dtT = _require_resolved_dt("step_empic!",
-        _validated_nonnegative_dt(T, dt; name = "step_empic!"))
+    dtT =
+        _require_resolved_dt("step_empic!", _validated_nonnegative_dt(T, dt; name = "step_empic!"))
     charges = _empic_collection_validate_species(es, species)
     work = _empic_collection(es)
-    work.initialized[] || throw(ArgumentError("initialize the electromagnetic collection before stepping"))
+    work.initialized[] ||
+        throw(ArgumentError("initialize the electromagnetic collection before stepping"))
     _empic_collection_bound(work, species)
     _empic_collection_validate_phase(es)
     _empic_collection_require_finite_fields(es)
@@ -384,7 +418,8 @@ total energy exactly. Fixed populations have no velocity time offset.
 function electromagnetic_diagnostics(es::EMPIC{D,T}, species::AbstractVector) where {D,T}
     charges = _empic_collection_validate_species(es, species)
     work = _empic_collection(es)
-    work.initialized[] || throw(ArgumentError("initialize the electromagnetic collection before diagnostics"))
+    work.initialized[] ||
+        throw(ArgumentError("initialize the electromagnetic collection before diagnostics"))
     _empic_collection_bound(work, species)
     _empic_collection_validate_phase(es)
     _empic_collection_require_finite_fields(es)
@@ -394,11 +429,16 @@ function electromagnetic_diagnostics(es::EMPIC{D,T}, species::AbstractVector) wh
     neutralizing = work.neutrality === :neutralize ? -charges.net : zero(charges.net)
     offset = es.step[] == 0 ? zero(T) : -es.last_sub_dt[] / 2
     return (
-        particle_charge = charges.particle, background_charge = charges.background,
-        neutralizing_charge = neutralizing, net_charge = charges.net + neutralizing,
+        particle_charge = charges.particle,
+        background_charge = charges.background,
+        neutralizing_charge = neutralizing,
+        net_charge = charges.net + neutralizing,
         deposited_charge = _exact_float_sum(es.step[] == 0 ? es.rho_n : es.rho_np1) *
                            prod(_exact_rational, es.g.dx),
-        momentum = momentum, kinetic = kinetic, field = field, total = kinetic + field,
+        momentum = momentum,
+        kinetic = kinetic,
+        field = field,
+        total = kinetic + field,
         velocity_time_offsets = [mobile ? offset : zero(T) for mobile in work.mobile],
         magnetic_time_offset = offset,
     )

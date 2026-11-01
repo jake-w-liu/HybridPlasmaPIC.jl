@@ -667,7 +667,10 @@ function _espic_validate_species(es::ElectrostaticPIC{D,T}, species) where {D,T}
     return charges
 end
 
-function _pic_prepare_species_stages!(staged::Vector{_ElectrostaticHostParticle{D,T}}, species) where {D,T}
+function _pic_prepare_species_stages!(
+    staged::Vector{_ElectrostaticHostParticle{D,T}},
+    species,
+) where {D,T}
     while length(staged) < length(species)
         push!(staged, ParticleSet{D,T}(0))
     end

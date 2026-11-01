@@ -4,13 +4,11 @@ const H = HybridPlasmaPIC
 
 function fixture(::Type{T}, D; n_sub = 1, shape = CIC()) where {T}
     g = FourierGrid(ntuple(_ -> 6, D), ntuple(_ -> one(T), D))
-    species = [ParticleSet{D,T}(k + 2; q = q, m = k + 1)
-        for (k, q) in enumerate((-2, 1, 3, 0))]
+    species = [ParticleSet{D,T}(k + 2; q = q, m = k + 1) for (k, q) in enumerate((-2, 1, 3, 0))]
     # Exact physical charge: -2*2 + 1*1 + 3*1 = 0. The fourth species is neutral.
     for (k, ps) in enumerate(species)
         for d = 1:D
-            ps.x[d] .= [T(mod(p / (nparticles(ps) + 1) + 0.07k * d, 1))
-                for p = 1:nparticles(ps)]
+            ps.x[d] .= [T(mod(p / (nparticles(ps) + 1) + 0.07k * d, 1)) for p = 1:nparticles(ps)]
         end
         fill!(ps.weight, zero(T))
         ps.weight[1] = k == 1 ? T(2) : one(T)
@@ -26,19 +24,24 @@ end
 
 function snapshot(state, species)
     io = IOBuffer()
-    serialize(io, (
-        fields = H._empic_transaction_fields(state),
-        phase = (state.time[], state.step[], state.last_dt[], state.last_sub_dt[]),
-        species = [H._checkpoint_particle_state(ps) for ps in species],
-        initialized = state.collection.initialized[],
-        owners = objectid.(state.collection.owners),
-    ))
+    serialize(
+        io,
+        (
+            fields = H._empic_transaction_fields(state),
+            phase = (state.time[], state.step[], state.last_dt[], state.last_sub_dt[]),
+            species = [H._checkpoint_particle_state(ps) for ps in species],
+            initialized = state.collection.initialized[],
+            owners = objectid.(state.collection.owners),
+        ),
+    )
     return take!(io)
 end
 
 function physical(state, species)
-    return deepcopy((fields = H._empic_checkpoint_fields(state),
-        species = [H._checkpoint_particle_state(ps) for ps in species]))
+    return deepcopy((
+        fields = H._empic_checkpoint_fields(state),
+        species = [H._checkpoint_particle_state(ps) for ps in species],
+    ))
 end
 
 @testset "EM collection charge, summed midpoint current and fixed populations" begin
@@ -76,7 +79,7 @@ end
         @test diagnostic.field == em_field_energy(state)
         @test diagnostic.total == diagnostic.kinetic + diagnostic.field
         @test diagnostic.velocity_time_offsets ==
-            T[-state.last_sub_dt[] / 2, -state.last_sub_dt[] / 2, 0, -state.last_sub_dt[] / 2]
+              T[-state.last_sub_dt[]/2, -state.last_sub_dt[]/2, 0, -state.last_sub_dt[]/2]
         @test diagnostic.magnetic_time_offset == -state.last_sub_dt[] / 2
     end
 end
@@ -109,8 +112,11 @@ end
         state, species = fixture(T, D)
         init_empic!(state, species)
         fine_species = deepcopy(species)
-        fine = EMPIC(FourierGrid(state.g.n, state.g.L), fine_species;
-            mobile = Bool[true, true, false, true])
+        fine = EMPIC(
+            FourierGrid(state.g.n, state.g.L),
+            fine_species;
+            mobile = Bool[true, true, false, true],
+        )
         init_empic!(fine, fine_species)
         for (dt, ns) in ((T(0.03), 3), (T(0.02), 2), (T(0.012), 4))
             state.n_sub = ns
@@ -154,7 +160,8 @@ end
         dt = T(0.02)
         step_empic!(state, species, dt)
         for (i, ps) in enumerate(species)
-            expected = initial[i].v[1] .+
+            expected =
+                initial[i].v[1] .+
                 (state.collection.mobile[i] ? (ps.q / ps.m) * (dt / 2) * force : zero(T))
             @test isapprox(ps.v[1], expected; atol = 32eps(T), rtol = 32eps(T))
         end
@@ -277,8 +284,12 @@ end
                 step_empic!(state, species, dt)
                 step_empic!(restored, destination, dt)
                 @test physical(restored, destination) == physical(state, species)
-                @test (restored.time[], restored.step[], restored.last_dt[], restored.last_sub_dt[]) ==
-                    (state.time[], state.step[], state.last_dt[], state.last_sub_dt[])
+                @test (
+                    restored.time[],
+                    restored.step[],
+                    restored.last_dt[],
+                    restored.last_sub_dt[],
+                ) == (state.time[], state.step[], state.last_dt[], state.last_sub_dt[])
             end
             archive = joinpath(dir, "em.run")
             archive_run(archive, state, species; rng_seed = 19)
@@ -287,16 +298,24 @@ end
             @test physical(restored, destination) == physical(state, species)
             before = snapshot(restored, destination)
             malformed = merge(deepcopy(archived), (last_sub_dt = zero(T),))
-            @test_throws ArgumentError H._restore_checkpoint_state!(restored, destination, malformed)
+            @test_throws ArgumentError H._restore_checkpoint_state!(
+                restored,
+                destination,
+                malformed,
+            )
             @test snapshot(restored, destination) == before
-            aliased = merge(deepcopy(archived),
-                (fields = merge(archived.fields, (B = archived.fields.E,)),))
+            aliased = merge(
+                deepcopy(archived),
+                (fields = merge(archived.fields, (B = archived.fields.E,)),),
+            )
             @test_throws ArgumentError H._restore_checkpoint_state!(restored, destination, aliased)
             @test snapshot(restored, destination) == before
             # All source fields are independent, but are permuted live arrays.
             # Detaching before the first copy preserves both incoming tuples.
-            swapped = merge(deepcopy(archived), (fields = merge(archived.fields,
-                (E = restored.B, B = restored.E)),))
+            swapped = merge(
+                deepcopy(archived),
+                (fields = merge(archived.fields, (E = restored.B, B = restored.E)),),
+            )
             expected_E, expected_B = deepcopy(restored.B), deepcopy(restored.E)
             H._restore_checkpoint_state!(restored, destination, swapped)
             @test restored.E == expected_E
@@ -315,11 +334,19 @@ end
         copyto!(result, a)
         return result
     end
-    views = ParticleSet{1,Float64}[ParticleSet{1,Float64}(
-        map(strided, ps.x), map(strided, ps.v), strided(ps.weight),
-        strided(ps.id), strided(ps.tag), ps.q, ps.m) for ps in species]
-    restored = EMPIC(FourierGrid(state.g.n, state.g.L), views;
-        mobile = Bool[true, true, false, true])
+    views = ParticleSet{1,Float64}[
+        ParticleSet{1,Float64}(
+            map(strided, ps.x),
+            map(strided, ps.v),
+            strided(ps.weight),
+            strided(ps.id),
+            strided(ps.tag),
+            ps.q,
+            ps.m,
+        ) for ps in species
+    ]
+    restored =
+        EMPIC(FourierGrid(state.g.n, state.g.L), views; mobile = Bool[true, true, false, true])
     identities = [ps.x[1] for ps in views]
     mktempdir() do dir
         path = joinpath(dir, "views.chk")
@@ -332,10 +359,16 @@ end
         payload = deepcopy(H._checkpoint_state(state, species))
         records = Any[payload.species...]
         last = records[end]
-        records[end] = merge(last, (
-            x = map(a -> a[1:(end-1)], last.x), v = map(a -> a[1:(end-1)], last.v),
-            weight = last.weight[1:(end-1)], id = last.id[1:(end-1)], tag = last.tag[1:(end-1)],
-        ))
+        records[end] = merge(
+            last,
+            (
+                x = map(a -> a[1:(end-1)], last.x),
+                v = map(a -> a[1:(end-1)], last.v),
+                weight = last.weight[1:(end-1)],
+                id = last.id[1:(end-1)],
+                tag = last.tag[1:(end-1)],
+            ),
+        )
         malformed = merge(payload, (species = records,))
         before = snapshot(restored, views)
         @test_throws ArgumentError H._restore_checkpoint_state!(restored, views, malformed)

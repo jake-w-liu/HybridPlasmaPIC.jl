@@ -33,11 +33,13 @@ function _validate_empic_collection_checkpoint(s, st::EMPIC{D,T}) where {D,T}
         throw(ArgumentError("checkpoint n_sub must be a positive Int"))
     s.initialized isa Bool || throw(ArgumentError("checkpoint initialized flag must be Bool"))
     _validate_checkpoint_time_state(s, T)
-    s.last_sub_dt isa T && isfinite(s.last_sub_dt) &&
+    s.last_sub_dt isa T &&
+        isfinite(s.last_sub_dt) &&
         zero(T) <= s.last_sub_dt <= s.last_dt &&
         (s.step == 0 ? iszero(s.last_sub_dt) : s.last_sub_dt > zero(T)) ||
         throw(ArgumentError("checkpoint fast timestep history is inconsistent"))
-    !s.initialized && s.step != 0 &&
+    !s.initialized &&
+        s.step != 0 &&
         throw(ArgumentError("advanced electromagnetic checkpoint must be initialized"))
     s.species isa AbstractVector && axes(s.species, 1) == Base.OneTo(length(s.species)) ||
         throw(ArgumentError("checkpoint species must be an ordered one-based vector"))
@@ -90,8 +92,9 @@ function _restore_checkpoint_state!(
     for (ps, record) in zip(species, s.species)
         _validate_checkpoint_destination(ps, length(record.weight))
         for saved in saved_populations
-            _particle_sets_mightalias(ps, saved) &&
-                throw(ArgumentError("checkpoint source and destination particles must be independent"))
+            _particle_sets_mightalias(ps, saved) && throw(
+                ArgumentError("checkpoint source and destination particles must be independent"),
+            )
         end
         for a in saved_fields
             _mightalias_particle_storage(a, ps) &&
@@ -109,7 +112,8 @@ function _restore_checkpoint_state!(
         count = length(record.weight)
         for a in (ps.x..., ps.v..., ps.weight, ps.id, ps.tag)
             if length(a) != count
-                a isa Vector || throw(ArgumentError("only Vector checkpoint destinations may resize"))
+                a isa Vector ||
+                    throw(ArgumentError("only Vector checkpoint destinations may resize"))
                 sizehint!(a, count)
             end
         end

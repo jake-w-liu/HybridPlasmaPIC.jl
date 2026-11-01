@@ -2102,7 +2102,15 @@ function EMPIC(
 end
 
 function _new_empic_state(
-    g::FourierGrid{D,T}, Np, n0T, cT, shape, relativistic, mobile, miT, n_sub,
+    g::FourierGrid{D,T},
+    Np,
+    n0T,
+    cT,
+    shape,
+    relativistic,
+    mobile,
+    miT,
+    n_sub,
     collection::W,
 ) where {D,T,W<:Union{Nothing,_EMPICCollectionWork{D,T}}}
     grid_tuple() = ntuple(_ -> zeros(T, g.n), 3)
