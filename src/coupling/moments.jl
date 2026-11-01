@@ -513,9 +513,10 @@ function _charge_density_sum!(
     g::FourierGrid{D,T},
     shape;
     sign::T = one(T),
+    background::T = zero(T),
 ) where {D,T}
-    fill!(rho, zero(T))
-    eligible, lost = isfinite(sign), false
+    fill!(rho, background)
+    eligible, lost = isfinite(sign) && isfinite(background), false
     for ps in species
         state = _density_with_range!(density, ps, g, shape)
         eligible &= state.eligible && isfinite(ps.q)
@@ -531,7 +532,7 @@ function _charge_density_sum!(
         end
     end
     if eligible && lost
-        exact = fill(zero(Rational{BigInt}), size(rho))
+        exact = fill(_exact_rational(background), size(rho))
         for ps in species
             iszero(ps.q) && continue
             contribution = _exact_moment(ps, (ps.weight,), g, shape, sign * ps.q)

@@ -56,7 +56,10 @@ Electrostatic collections retain ordered species, neutrality policy and charge
 tolerance through the same collection checkpoint schema.
 Electromagnetic archives include both species for mobile runs, their physics
 configuration, electric/magnetic fields, continuity diagnostic snapshots, and
-full/fast timestep history. Supply ions exactly when `mobile=true`.
+full/fast timestep history. Supply ions exactly when `mobile=true` for the legacy
+electron/ion API. Synchronous nonrelativistic `EMPIC` collections preserve their
+ordered arbitrary populations, mobility, neutrality/background policy and common
+fast velocity half level through collection checkpoint schema 1.
 Hall-MHD archives contain the model, fluid and public derived fields, retained
 stage `lapJ`, and clock; no particle argument or timestep history is needed.
 Collisional archives add the complete advanced RNG state and completed source
@@ -79,7 +82,7 @@ end
 
 function archive_run(
     path::AbstractString,
-    st::Union{_HybridCheckpointStepper,ElectrostaticPIC},
+    st::Union{_HybridCheckpointStepper,ElectrostaticPIC,EMPIC},
     species::AbstractVector{<:ParticleSet};
     kwargs...,
 )

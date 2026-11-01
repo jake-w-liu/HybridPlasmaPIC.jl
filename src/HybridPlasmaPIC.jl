@@ -120,6 +120,7 @@ include("initial_conditions/instabilities.jl")
 include("models/electrostatic.jl")
 include("models/empic_transaction.jl")
 include("models/full_pic.jl")
+include("models/empic_collection.jl")
 include("models/maxwell_vacuum.jl")
 include("models/hall_mhd.jl")
 include("models/gyrokinetics.jl")
@@ -143,6 +144,7 @@ include("parallel/mpi.jl")
 # --- IO ---
 include("io/publication.jl")
 include("io/checkpoint.jl")
+include("io/empic_collection_checkpoint.jl")
 include("io/collisional_checkpoint.jl")
 include("io/metadata.jl")
 include("io/hdf5_output.jl")
@@ -361,6 +363,7 @@ export GuidingCentre,
     exb_drift, gradb_drift, curvature_drift, drift_velocity, push_guiding_centre!, gyroaverage
 export CAMCLStepper, init_camcl!, step_camcl!
 export EMPIC, EMPIC1D, init_empic!, step_empic!, em_field_energy, charge_conservation_residual
+export electromagnetic_diagnostics
 export YeeGrid,
     YeeFields,
     yee_coordinates,

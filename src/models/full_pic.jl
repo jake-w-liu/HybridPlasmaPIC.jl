@@ -2009,6 +2009,18 @@ end
 
 # ---------------------------------------------------------------- dimension-parametric EM PIC
 
+struct _EMPICCollectionWork{D,T,P<:ParticleSet{D,T},S}
+    neutrality::Symbol
+    charge_rtol::T
+    mobile::BitVector
+    owners::Vector{P}
+    staged::Vector{_ElectrostaticHostParticle{D,T}}
+    midpoints::Vector{NTuple{D,Vector{T}}}
+    stage::S
+    initialized::Base.RefValue{Bool}
+end
+
+
 """
     EMPIC(g, Nparticles; n0=1.0, c=5.0, shape=CIC(), relativistic=false,
           mobile=false, mi=1836.0, n_sub=1)
@@ -2032,7 +2044,7 @@ component so that `Δρ/dt + div(J) = 0` holds to roundoff on the represented
 Fourier modes; the pure-Nyquist mode combinations (`k² = 0` but not DC), which
 are outside the spectral operators' range, are zeroed in all components.
 """
-mutable struct EMPIC{D,T,G,SH<:ShapeFunction}
+mutable struct EMPIC{D,T,G,SH<:ShapeFunction,W<:Union{Nothing,_EMPICCollectionWork{D,T}}}
     g::G
     n0::T
     c::T
@@ -2061,9 +2073,10 @@ mutable struct EMPIC{D,T,G,SH<:ShapeFunction}
     worki::Vector{T}
     time::Base.RefValue{T}
     step::Base.RefValue{Int}
-    last_dt::Base.RefValue{T}       # preceding full ion drift interval
-    last_sub_dt::Base.RefValue{T}   # preceding electron/field drift interval
+    last_dt::Base.RefValue{T}       # preceding full external step (legacy ion drift interval)
+    last_sub_dt::Base.RefValue{T}   # preceding fast field/mobile-collection interval
     transaction::Union{Nothing,_EMPICTransaction{D,T}}
+    collection::W
 end
 
 function EMPIC(
@@ -2083,10 +2096,17 @@ function EMPIC(
     n0T = _require_finite_nonnegative_real("n0", n0, T)
     cT = _require_finite_positive_real("c", c, T)
     miT = _require_finite_positive_real("mi", mi, T)
+    return _new_empic_state(g, Np, n0T, cT, shape, relativistic, mobile, miT, Int(n_sub), nothing)
+end
+
+function _new_empic_state(
+    g::FourierGrid{D,T}, Np, n0T, cT, shape, relativistic, mobile, miT, n_sub,
+    collection::W,
+) where {D,T,W<:Union{Nothing,_EMPICCollectionWork{D,T}}}
     grid_tuple() = ntuple(_ -> zeros(T, g.n), 3)
     particle_tuple() = ntuple(_ -> zeros(T, Np), 3)
     midpoint_tuple() = ntuple(_ -> zeros(T, Np), D)
-    return EMPIC{D,T,typeof(g),typeof(shape)}(
+    return EMPIC{D,T,typeof(g),typeof(shape),W}(
         g,
         n0T,
         cT,
@@ -2118,6 +2138,7 @@ function EMPIC(
         Ref(zero(T)),
         Ref(zero(T)),
         nothing,
+        collection,
     )
 end
 
@@ -2400,6 +2421,7 @@ function init_empic!(
     e::ParticleSet{D,T},
     ions::Union{Nothing,ParticleSet{D,T}} = nothing,
 ) where {D,T}
+    _require_scalar_empic(es)
     _require_empic_electrons(e)
     if es.mobile
         ions === nothing &&
@@ -2421,48 +2443,28 @@ function init_empic!(
     return es
 end
 
-function _substep_empic!(
-    es::EMPIC{D,T},
-    e::ParticleSet{D,T},
-    ions::Union{Nothing,ParticleSet{D,T}},
-    dt::T,
-    dt_previous::T,
-    push_ions::Bool,
-    dt_ion_push::T,
-) where {D,T}
-    g = es.g
-    c2 = es.c * es.c
-    kick_dt = dt_previous / 2 + dt / 2
-    _charge_density!(es.rho_n, es.ne, es, e, ions)
+function _empic_prime_magnetic!(es::EMPIC{D,T}, g0, dt_e) where {D,T}
+    electric_parts = _em_curl_parts!(es.curlE, es.E, g0)
+    for c = 1:3
+        parts = electric_parts === nothing ? nothing : electric_parts[c]
+        _em_magnetic_update!(es.B[c], es.B[c], es.curlE[c], parts, dt_e, zero(T), true)
+    end
+    return es
+end
 
+# Shared Maxwell owners; particle population scheduling does not alter these
+# centering and complete-expression field-update operations.
+function _empic_center_magnetic!(es::EMPIC{D,T}, g, dt_previous) where {D,T}
     electric_parts = _em_curl_parts!(es.curlE, es.E, g)
     for c = 1:3
         parts = electric_parts === nothing ? nothing : electric_parts[c]
         _em_magnetic_update!(es.Bc[c], es.B[c], es.curlE[c], parts, dt_previous, zero(T))
     end
 
-    gather_vector!(es.Ep, es.E, e, g, es.shape)
-    gather_vector!(es.Bp, es.Bc, e, g, es.shape)
-    _push_velocities!(es, e, es.Ep, es.Bp, kick_dt)
-    _drift_record_mid!(e, es.mide, dt, g.L)
-    apply_periodic!(e, ntuple(_ -> zero(T), D), g.L)
+    return electric_parts
+end
 
-    if es.mobile && ions !== nothing
-        if push_ions
-            gather_vector!(es.Epi, es.E, ions, g, es.shape)
-            gather_vector!(es.Bpi, es.Bc, ions, g, es.shape)
-            _push_velocities!(es, ions, es.Epi, es.Bpi, dt_ion_push)
-        end
-        # Both species must drift and deposit at every fast substep, even when
-        # the ion velocity stays at its full-step half level.
-        _drift_record_mid!(ions, es.midi, dt, g.L)
-        apply_periodic!(ions, ntuple(_ -> zero(T), D), g.L)
-    end
-
-    _deposit_current_at_midpoints!(es, e, ions)
-    _charge_density!(es.rho_np1, es.ne, es, e, ions)
-    _correct_current_continuity!(es, dt)
-
+function _empic_update_fields!(es::EMPIC{D,T}, g, c2, electric_parts, dt_previous, dt) where {D,T}
     for c = 1:3
         parts = electric_parts === nothing ? nothing : electric_parts[c]
         _em_magnetic_update!(es.B[c], es.B[c], es.curlE[c], parts, dt_previous, dt)
@@ -2496,6 +2498,48 @@ function _substep_empic!(
     return es
 end
 
+function _substep_empic!(
+    es::EMPIC{D,T},
+    e::ParticleSet{D,T},
+    ions::Union{Nothing,ParticleSet{D,T}},
+    dt::T,
+    dt_previous::T,
+    push_ions::Bool,
+    dt_ion_push::T,
+) where {D,T}
+    g = es.g
+    c2 = es.c * es.c
+    kick_dt = dt_previous / 2 + dt / 2
+    _charge_density!(es.rho_n, es.ne, es, e, ions)
+
+    electric_parts = _empic_center_magnetic!(es, g, dt_previous)
+
+    gather_vector!(es.Ep, es.E, e, g, es.shape)
+    gather_vector!(es.Bp, es.Bc, e, g, es.shape)
+    _push_velocities!(es, e, es.Ep, es.Bp, kick_dt)
+    _drift_record_mid!(e, es.mide, dt, g.L)
+    apply_periodic!(e, ntuple(_ -> zero(T), D), g.L)
+
+    if es.mobile && ions !== nothing
+        if push_ions
+            gather_vector!(es.Epi, es.E, ions, g, es.shape)
+            gather_vector!(es.Bpi, es.Bc, ions, g, es.shape)
+            _push_velocities!(es, ions, es.Epi, es.Bpi, dt_ion_push)
+        end
+        # Both species must drift and deposit at every fast substep, even when
+        # the ion velocity stays at its full-step half level.
+        _drift_record_mid!(ions, es.midi, dt, g.L)
+        apply_periodic!(ions, ntuple(_ -> zero(T), D), g.L)
+    end
+
+    _deposit_current_at_midpoints!(es, e, ions)
+    _charge_density!(es.rho_np1, es.ne, es, e, ions)
+    _correct_current_continuity!(es, dt)
+
+    _empic_update_fields!(es, g, c2, electric_parts, dt_previous, dt)
+    return es
+end
+
 """
     step_empic!(es::EMPIC, electrons[, ions], dt)
 
@@ -2521,6 +2565,7 @@ function step_empic!(
     ions::Union{Nothing,ParticleSet{D,T}},
     dt::Real,
 ) where {D,T}
+    _require_scalar_empic(es)
     _require_empic_electrons(e)
     if es.mobile
         ions === nothing &&
@@ -2591,11 +2636,7 @@ function _advance_empic_step!(
                 es.c,
             )
         end
-        electric_parts = _em_curl_parts!(es.curlE, es.E, g0)
-        for c = 1:3
-            parts = electric_parts === nothing ? nothing : electric_parts[c]
-            _em_magnetic_update!(es.B[c], es.B[c], es.curlE[c], parts, dt_e, zero(T), true)
-        end
+        _empic_prime_magnetic!(es, g0, dt_e)
     end
     dt_previous = es.step[] == 0 ? dt_e : es.last_sub_dt[]
     dt_ion_push = es.step[] == 0 ? dtT : es.last_dt[] / 2 + dtT / 2
@@ -2636,8 +2677,9 @@ end
     charge_conservation_residual(es::EMPIC, dt)
 
 Continuity residual on the represented Fourier modes from the most recent
-electron substep. Pass its duration `dt_full/es.n_sub`, including when ions
-are mobile and receive one kick over the full step. The true zero-frequency
+Maxwell substep. Pass its duration `dt_full/es.n_sub`. Legacy mobile ions receive
+one kick over the full step; every mobile collection population kicks at each
+Maxwell substep and shares its fast velocity half level. The true zero-frequency
 mode is retained so a change in total charge contributes to the residual;
 only non-DC modes annihilated by every spectral derivative are excluded.
 Range-sensitive inputs retain the complete density and timestep-weighted

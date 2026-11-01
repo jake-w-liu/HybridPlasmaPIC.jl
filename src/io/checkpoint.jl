@@ -831,14 +831,14 @@ _empic_checkpoint_fields(st::EMPIC1D) = (
     rho_n = st.rho_n,
     rho_np1 = st.rho_np1,
 )
-_empic_checkpoint_fields(st::EMPIC) =
-    (E = st.E, B = st.B, J = st.J, rho_n = st.rho_n, rho_np1 = st.rho_np1)
+_empic_checkpoint_fields(st::EMPIC) = _empic_physical_fields(st)
 
 function _checkpoint_state(
     st::_ElectromagneticCheckpointStepper,
     electrons::ParticleSet,
     ions::Union{Nothing,ParticleSet} = nothing,
 )
+    _require_scalar_empic(st)
     return (
         integrator = _empic_checkpoint_integrator(st),
         D = length(st.g.n),
@@ -1204,7 +1204,11 @@ the destination; saved physical species values replace the destination values.
 electric/magnetic fields, current and charge snapshots, and full/fast timestep
 history. Supply the ion `ParticleSet` exactly when `mobile=true`; electron and
 ion storage must be independent. Particle workspaces are resized on restore;
-scratch values are recomputed during stepping.
+scratch values are recomputed during stepping. `EMPIC` collection schema 1 stores
+ordered arbitrary species, per-population mobility, neutrality/background policy
+and the common fast velocity phase alongside these fields. Collection policy and
+mobility must match the destination. Saved c, n_sub and physical species values
+replace destination values; relativistic collections are not supported.
 Mutable model/shape parameters must be independent of particle and evolving
 solver storage, including FFT plans, scratch arrays, and clock/phase references. Links to
 evolving storage are rejected before serialization can detach them. Array checks
@@ -1234,7 +1238,7 @@ end
 
 function save_checkpoint(
     path::AbstractString,
-    st::Union{_HybridCheckpointStepper,ElectrostaticPIC},
+    st::Union{_HybridCheckpointStepper,ElectrostaticPIC,EMPIC},
     species::AbstractVector{<:ParticleSet},
 )
     return _save_checkpoint(path, st, _checkpoint_state(st, species))
@@ -1311,7 +1315,7 @@ function load_checkpoint!(st::HallMHDState, path::AbstractString)
 end
 
 function load_checkpoint!(
-    st::Union{_HybridCheckpointStepper,ElectrostaticPIC},
+    st::Union{_HybridCheckpointStepper,ElectrostaticPIC,EMPIC},
     species::AbstractVector{<:ParticleSet},
     path::AbstractString,
 )

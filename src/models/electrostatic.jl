@@ -575,7 +575,7 @@ end
 # Exact stored charge is needed to distinguish genuinely neutral states from
 # products that merely round to the same value. The shared dyadic sum uses a
 # bounded integer accumulator when the exponent spread permits it.
-function _espic_charges(es::ElectrostaticPIC, species)
+function _pic_collection_charges(g, background_density, species)
     particle = zero(Rational{BigInt})
     absolute = zero(Rational{BigInt})
     for ps in species
@@ -583,9 +583,11 @@ function _espic_charges(es::ElectrostaticPIC, species)
         particle += term
         absolute += abs(term) # Validated particle weights are nonnegative.
     end
-    background = _exact_rational(es.n0) * prod(_exact_rational, es.g.L)
+    background = _exact_rational(background_density) * prod(_exact_rational, g.L)
     return (; particle, background, net = particle + background, scale = absolute + abs(background))
 end
+
+_espic_charges(es::ElectrostaticPIC, species) = _pic_collection_charges(es.g, es.n0, species)
 
 function _espic_check_neutrality(work, charges)
     work.neutrality === :require &&
@@ -665,13 +667,12 @@ function _espic_validate_species(es::ElectrostaticPIC{D,T}, species) where {D,T}
     return charges
 end
 
-function _espic_prepare_stages!(es::ElectrostaticPIC{D,T}, species) where {D,T}
-    work = _espic_collection(es)
-    while length(work.staged) < length(species)
-        push!(work.staged, ParticleSet{D,T}(0))
+function _pic_prepare_species_stages!(staged::Vector{_ElectrostaticHostParticle{D,T}}, species) where {D,T}
+    while length(staged) < length(species)
+        push!(staged, ParticleSet{D,T}(0))
     end
-    resize!(work.staged, length(species))
-    for (stage, ps) in zip(work.staged, species)
+    resize!(staged, length(species))
+    for (stage, ps) in zip(staged, species)
         for (out, input) in zip(
             (stage.x..., stage.v..., stage.weight, stage.id, stage.tag),
             (ps.x..., ps.v..., ps.weight, ps.id, ps.tag),
@@ -681,6 +682,12 @@ function _espic_prepare_stages!(es::ElectrostaticPIC{D,T}, species) where {D,T}
         end
         stage.q, stage.m = ps.q, ps.m
     end
+    return staged
+end
+
+function _espic_prepare_stages!(es::ElectrostaticPIC, species)
+    work = _espic_collection(es)
+    _pic_prepare_species_stages!(work.staged, species)
     return work
 end
 

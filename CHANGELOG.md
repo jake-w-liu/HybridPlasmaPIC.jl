@@ -8,6 +8,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Periodic CPU `EMPIC` collections support arbitrary finite charge/positive mass,
+  mobile and fixed populations, one charge-conserving current/Maxwell update,
+  synchronous fast velocity phases, explicit neutrality/background policy,
+  shared-field diagnostics and distinct schema-1 checkpoint/archive. Existing
+  electron/ion and `EMPIC1D` APIs remain. Essential regressions and full compiler
+  acceptance await GitHub; relativistic collections and species multirate
+  schedules remain open in the [scoped tracker](docs/EMPIC_SPECIES_IMPLEMENTATION.md).
+
 - Fixed-step `CollisionalHybridStepper` accepts constant Ohmic/hyperresistive
   `TransportElectrons` with `η >= 0`, `ηH >= 0`, `de2 = 0`. An optional outer force snapshot
   restores the independently carried ion force alongside pressure and RNG;

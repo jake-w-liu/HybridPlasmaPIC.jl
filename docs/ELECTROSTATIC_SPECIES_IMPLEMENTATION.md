@@ -137,7 +137,8 @@ update loop is rejected by invalid-final-species snapshots.
 
 ## Dependent CAP-008 work
 
-EM arbitrary species/current summation, multirate and relativistic scheduling,
+[Synchronous nonrelativistic EM species/current summation](EMPIC_SPECIES_IMPLEMENTATION.md)
+is implemented with GitHub acceptance pending. EM multirate and relativistic scheduling,
 local Coulomb composition, bounded domains, distributed/device ownership and
 portable cross-version archives remain separate, open implementation tracks.
 This slice uses CPU periodic CIC and synchronized nonrelativistic velocities.

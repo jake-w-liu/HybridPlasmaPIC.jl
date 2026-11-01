@@ -74,7 +74,7 @@ Source names below resolve to these canonical files:
 | Capability | Existing implementation and checked evidence | Completion state |
 | --- | --- | --- |
 | Periodic hybrid, positive ion collections | `HybridStepper` / `CAMCLStepper`; README:78–93,156–169; `extrapolated_leapfrog.jl:67–120,359,766`; collection and pressure tests | Implemented within documented closure, geometry and time-centering restrictions; inherited audit findings remain open |
-| ES/EM PIC | Periodic `ElectrostaticPIC`, `EMPIC` and `EMPIC1D`; ES collection implementation `d46029e` | Periodic CPU evolution and arbitrary ES species exist; arbitrary EM collections, coupled nonperiodic PIC and resident GPU/MPI solvers remain missing |
+| ES/EM PIC | Periodic `ElectrostaticPIC`, `EMPIC` and `EMPIC1D`; ES collection implementation `d46029e` | Periodic CPU ES collections are landed; synchronous nonrelativistic EM collections are implemented pending GitHub acceptance. Relativistic/multirate EM collections, coupled nonperiodic PIC and resident GPU/MPI solvers remain open |
 | Hall-MHD | `HallMHDModel`, `HallMHDState`, `step_hall_mhd!`; `test_hall_mhd.jl`, `test_io_hall_mhd.jl` | A periodic solver exists; it is not a general geometry/closure solver |
 | Coulomb collisions | Canonical homogeneous and local collection `collide_coulomb!`; `CollisionalHybridStepper` | Local self/cross CPU operator and fixed-step isothermal hybrid/RNG restart exist; ideal evolving-scalar and S1/S2 transport extensions await CI, additional compositions and parallel/device support remain |
 | Nonperiodic EM | Periodic `EMPIC`; separate Yee vacuum/prescribed-current fields; closed 1D PEC particle charge, longitudinal endpoint impulse and path voltage | B2a source is implemented with GitHub acceptance pending. Coupled force/pusher/walls, absorbers and restart remain CAP-002 work |
@@ -85,7 +85,7 @@ Source names below resolve to these canonical files:
 | Gyrokinetics | `GuidingCentre`, local-field push and `gyroaverage` in gyrokinetics:559–645,823–876 | Single-particle/local sampling utilities; no self-consistent gyrokinetic distribution/field solve, CAP-006B |
 | AMR | `AMRGrid` is a single 1D scalar level, adaptive_mesh_refinement:8–23; prolong/restrict/refine:322–366 | Transfer primitives; no adaptive plasma hierarchy, particle crossing or coupled timestep, CAP-006C |
 | External validation | Pinned external references plus case 34 parallel and case 35 oblique Hall production histories | Bounded production validation exists; complete manual campaigns, broader regimes, full profile replay and matched cost/accuracy comparisons remain CAP-007 work |
-| Kinetic species diversity | Arbitrary ES charge/mass collections landed; current EMPIC electron/ion model remains restricted | Arbitrary EM collection evolution and backend composition remain CAP-008 work |
+| Kinetic species diversity | Arbitrary ES collections landed; synchronous CPU nonrelativistic EMPIC collections implemented, CI pending | Relativistic/multirate EM collections and backend composition remain CAP-008 work |
 | Multidimensional shocks | shock3d:9–19,337–359 and shock2d:230–236 intentionally exclude Hall induction while retaining Hall particle forces | Documented reduced shock model; full-Hall multidimensional branch required for broader claims, CAP-009 |
 | Coupled sources and collisions | `CollisionalHybridStepper` and full RNG checkpoint/archive state (`2b2420b`); ideal evolving and S1/S2 pressure/force extensions are CI-pending | Fixed-step first-order CPU composition; anisotropic/inertial models, electron-ion heat exchange, other sources, schedules and backends remain CAP-010 work |
 | Electron transport | `EvolvingElectrons` covers ideal massless pressure; `TransportElectrons` provides constant Ohmic transport (S1), with complete-source hyperresistive S2 and shared scalar pressure range routing composed onto current main | [S2 gates](TRANSPORT_SOURCE_RANGE_PLAN.md) and [scalar pressure verification](SCALAR_PRESSURE_RATE_RANGE_PLAN.md) remain open; conduction, equilibration, anisotropy, inertia and backends remain CAP-011 S3–S8 |
@@ -227,7 +227,7 @@ and quota failures describe historical work, not current ownership.
 | 006C adaptive plasma hierarchy | Agent unassigned; AMR/coupling/model/I/O | Composite field method; 002/003/004 only where claimed | Partial scalar-level primitives | Design static ES hierarchy and crossing/self-force oracle before dynamic refinement |
 | 007A/B reference provenance + production dispersion | Canonical validation/reference owners; next campaign agent unassigned | Source/network/toolchain; accepted production solver | Pinned provenance, parallel production histories and oblique Hall case 35 landed; CI state is in the audit tracker | Complete manual campaigns and broaden thermal/kinetic/EM regimes, uncertainty and matched-cost comparisons; [production plan](PRODUCTION_DISPERSION_PLAN.md) |
 | 007C–E profiles, new physics, comparative costs | Agent unassigned; validation/benchmark owners | Accepted corresponding capability; datasets/hardware | Existing scalar comparisons inspected; campaigns unrun here | Freeze matched inputs/diagnostics/uncertainty and preserve raw reference outputs |
-| 008 ES/EM arbitrary species | Canonical electrostatic/EM owners; next implementation agent unassigned | Species charge/time-level design; existing Poisson owner | ES collections landed; containing `4724947` passes all six jobs and full compiler review; arbitrary EM collections remain planned | Design EM collections: charge-conserving summed currents, mobile/immobile species and multirate schedule |
+| 008 ES/EM arbitrary species | Canonical electrostatic/EM owners; synchronous collection implementation track | Existing deposition, spectral Maxwell and phase owners | ES containing `4724947` passes all six jobs/compiler review. [Synchronous nonrelativistic EMPIC collections](EMPIC_SPECIES_IMPLEMENTATION.md) implemented, GitHub acceptance pending | Accept current sum/continuity, staged publication, diagnostics and restart; implement relativistic collections, species multirate and remaining backends |
 | 009 full-Hall multidimensional shocks | Scope proposal; root selects implementation agent | Full mixed-operator/field-boundary balance; 005 optional | Deliberate reduced induction verified | Derive full induction and SAT budget; build transverse-mode witness |
 | 010 composed sources and RNG restart | Integrator/checkpoint owners; independent collision audit track | 001 and phase/growth/checkpoint contracts | Fixed-step first-order isothermal CPU `CollisionalHybridStepper` landed; `2b2420b` exact-SHA CI/compiler gates pass. Ideal evolving and S1/S2 transport extensions implemented, CI pending | Accept the extensions, then extend schedules, other closures/models/sources and backends; preserve full pressure/force/RNG/phase/rollback contract |
 | 011 electron transport/energy | Electron/integrator owners and transport track | Term-specific balance and carried force contract | S1 is landed. SO 0.1.7 is registered and released; both Julia versions pass 26,886 dependency assertions and four exact-revision CI jobs pass. Earlier rejected candidates remain historical evidence | HPIC integration and CI, transport resource/peak-memory and restart checks, nonlinear ideal-product repair and S3–S8 remain open |
@@ -613,11 +613,14 @@ independent storage. Preserve scalar/two-population constructors through the
 same implementation, with explicit background/neutrality policy and per-species
 time levels. Never normalize away nonzero physical net charge silently.
 
-- [ ] ES collections, shared Poisson source and charge/momentum/energy diagnostics.
-- [ ] EM collections, charge-conserving summed currents, mobile/immobile species,
-  relativistic restrictions and explicit multirate schedule.
-- [ ] Collection checkpoint/archive, CAP-001 interactions, CAP-002 boundaries,
-  CAP-003 partitions and CAP-004 residency.
+- [x] ES collections, shared Poisson source and charge/momentum/energy diagnostics.
+- [ ] Accept [synchronous CPU nonrelativistic EM collections](EMPIC_SPECIES_IMPLEMENTATION.md):
+  summed charge-conserving currents, mobile/fixed populations, diagnostics and restart
+  are implemented; exact-revision GitHub checks and full compiler review remain.
+- [ ] Relativistic EM collections and an explicit per-species multirate schedule.
+- [ ] Accept new EM collection checkpoint/archive (implemented with the synchronous
+  slice); extend CAP-001 interactions, CAP-002 boundaries, CAP-003 partitions and
+  CAP-004 residency. Existing ES collection persistence remains landed.
 
 Gate scalar/two-species compatibility, species permutation of physical totals,
 pair-plasma and unequal-charge/mass dispersion, neutral/empty species, charge
