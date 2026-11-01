@@ -1,6 +1,8 @@
 # Original-factor ideal field and Faraday completion
 
-Status: **confirmed missing implementation; planned, not implemented**. This
+Status: **pointwise scalar range prerequisite implemented; source-aware Faraday
+completion remains planned and unimplemented**. GitHub verification of the
+pointwise repair is pending. The remaining source-aware work
 blocks any claim of complete exponent-range ideal plasma dynamics. The represented-source
 S2 implementation completes the linear constitutive/operator expression of an
 already represented ideal field; it does not repair this separate loss.
@@ -25,6 +27,28 @@ independent rational four-point matrix applied to the original pointwise
 product gives a nonzero representable magnetic rate. Checking variation of
 already rounded ideal E cannot detect this failure. A broad zero-E rejection
 would also reject valid constants and exact cancellation and is not a repair.
+
+## Implemented pointwise prerequisite
+
+The scalar `_ohm_Efield!` uses a shared component owner that retains its ordinary
+operation order. A nonfinite result or a nonzero-factor product that overflows
+or enters the subnormal range requests exact completion of the entire signed
+motional/Hall/pressure/Ohmic/hyperresistive expression. Finite original point
+operands are extracted through the shared exact conversion owner and the final
+component rounds once. Thus separately overflowing terms can cancel, and a tiny
+Hall product can survive later multiplication by inverse density. Raw nonfinite
+operands retain native propagation and public validation/rollback stays in its
+existing owners. No persistent storage or public API is added.
+
+This prerequisite uses represented J and gradp and the existing rounded `ninv`.
+It does not recover their original derivative/density factors, certify general
+normal-range error, change the separate CGL kernel or perform an original-product
+Faraday derivative. A pointwise field below storage range can still round to
+zero before a later derivative rescues it. The retained four-point witnesses
+above remain open; the pointwise repair does not close this work order.
+
+Essential exact-vector-cross, ordinary-bit and public uniform-field controls
+are included in `test/test_ohm_scalar_range.jl`; execution remains on GitHub.
 
 ## Canonical owner and required architecture review
 
@@ -70,7 +94,10 @@ silent clipping, broad catches or unrelated-source rejection certificate.
 - [x] Retain both-runtime original-factor witnesses and the independent exact
       four-point centered collocation matrix; record the current zero-output
       failure. The general original-product DFT campaign remains a future gate.
-- [ ] Complete a source-supported pre-edit brief: canonical callers, complete
+- [x] Implement the bounded pointwise scalar range prerequisite and inspect
+      its canonical callers; remote execution remains pending.
+- [ ] Complete a source-supported pre-edit brief for the original-product
+      derivative representation: canonical callers, complete
       constitutive factors, representation, cancellation and admission boundaries.
 - [ ] Establish conservative admission and FFT/restoration headroom through
       the existing numerical owners. Review storage and restart ownership before
@@ -91,5 +118,6 @@ silent clipping, broad catches or unrelated-source rejection certificate.
 - [ ] Root current-main integration, push, exact-SHA green GitHub CI, dependency
       publication if needed, and truthful global implementation-tracker update.
 
-The source/representation choice is intentionally pending the pre-edit review;
-this work order is a concrete follow-on, not a claimed implementation.
+The original-product derivative representation remains pending its pre-edit
+review. The implemented pointwise prerequisite and the open derivative work
+are separate scopes.

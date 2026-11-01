@@ -104,6 +104,12 @@ Ohm's law: E   = −u_i×B + (J×B)/n − ∇p_e/n + ηJ − ηH∇²J
 Faraday:   ∂B/∂t = −∇×E,    ∇·B = 0  (spectrally enforced)
 ```
 
+Scalar Ohm evaluation completes finite represented-factor expressions exactly
+when intermediate products overflow or become subnormal, preserving the ordinary
+arithmetic order otherwise. This pointwise repair does not recover tiny ideal
+products lost before Faraday differentiation. See the
+[ideal-source implementation tracker](docs/IDEAL_FORCE_SOURCE_RANGE_WORK_ORDER.md).
+
 | quantity | unit |
 |---|---|
 | length | ion inertial length `d_i = c/ω_pi` |

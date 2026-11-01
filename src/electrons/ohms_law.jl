@@ -160,23 +160,60 @@ function _ohm_Efield!(
         jy = Jy[I]
         jz = Jz[I]
         inv = ninv[I]
-        # −(u_i×B) + (J×B)/n + η J − ηH ∇²J
-        e1 = -(vy * bz - vz * by) + (jy * bz - jz * by) * inv + η * jx - ηH * LJx[I]
-        e2 = -(vz * bx - vx * bz) + (jz * bx - jx * bz) * inv + η * jy - ηH * LJy[I]
-        e3 = -(vx * by - vy * bx) + (jx * by - jy * bx) * inv + η * jz - ηH * LJz[I]
-        # −∇p_e/n on the spatial components only
-        e1 -= gp[1][I] * inv
-        if D >= 2
-            e2 -= gp[2][I] * inv
-        end
-        if D >= 3
-            e3 -= gp[3][I] * inv
-        end
+        # Complete each signed represented-factor expression on a range event.
+        # Spatial pressure is absent, rather than a zero subtraction, off-axis.
+        e1 = _ohm_scalar_field_value(vy, vz, by, bz, jy, jz, inv, η, jx, ηH, LJx[I], gp[1][I])
+        e2 = _ohm_scalar_field_value(
+            vz, vx, bz, bx, jz, jx, inv, η, jy, ηH, LJy[I], D >= 2 ? gp[2][I] : nothing,
+        )
+        e3 = _ohm_scalar_field_value(
+            vx, vy, bx, by, jx, jy, inv, η, jz, ηH, LJz[I], D >= 3 ? gp[3][I] : nothing,
+        )
         Ex[I] = e1
         Ey[I] = e2
         Ez[I] = e3
     end
     return E
+end
+
+# A true zero factor is harmless. A subnormal product requests completion even
+# when it is nonzero: later Hall scaling or signed cancellation can rescue it.
+@inline function _ohm_product_needs_completion(a, b, product)
+    (iszero(a) || iszero(b)) && return false
+    return !isfinite(product) || abs(product) < floatmin(typeof(product))
+end
+
+@inline function _ohm_scalar_field_value(v1, v2, b1, b2, j1, j2, ninv, η, current, ηH, lap, pressure)
+    m1, m2 = v1 * b2, v2 * b1
+    h1, h2 = j1 * b2, j2 * b1
+    cross = h1 - h2
+    hall, ohmic, hyper = cross * ninv, η * current, ηH * lap
+    value = -(m1 - m2) + hall + ohmic - hyper
+    pressure_term = pressure === nothing ? zero(value) : pressure * ninv
+    pressure === nothing || (value -= pressure_term)
+    cold =
+        !isfinite(value) ||
+        _ohm_product_needs_completion(v1, b2, m1) ||
+        _ohm_product_needs_completion(v2, b1, m2) ||
+        _ohm_product_needs_completion(j1, b2, h1) ||
+        _ohm_product_needs_completion(j2, b1, h2) ||
+        _ohm_product_needs_completion(cross, ninv, hall) ||
+        _ohm_product_needs_completion(η, current, ohmic) ||
+        _ohm_product_needs_completion(ηH, lap, hyper) ||
+        (pressure !== nothing && _ohm_product_needs_completion(pressure, ninv, pressure_term))
+    cold || return value
+    return _ohm_scalar_field_value_cold(value, v1, v2, b1, b2, j1, j2, ninv, η, current, ηH, lap, pressure)
+end
+
+@noinline function _ohm_scalar_field_value_cold(native, v1, v2, b1, b2, j1, j2, ninv, η, current, ηH, lap, pressure)
+    operands = (v1, v2, b1, b2, j1, j2, ninv, η, current, ηH, lap)
+    # Raw nonfinite inputs keep native propagation; model owners retain their
+    # existing validation and transaction policy.
+    all(isfinite, operands) && (pressure === nothing || isfinite(pressure)) || return native
+    qv1, qv2, qb1, qb2, qj1, qj2, qi, qη, qj, qηH, qlap = map(_exact_rational, operands)
+    exact = -(qv1 * qb2 - qv2 * qb1) + (qj1 * qb2 - qj2 * qb1) * qi + qη * qj - qηH * qlap
+    pressure === nothing || (exact -= _exact_rational(pressure) * qi)
+    return _from_exact(typeof(native), exact)
 end
 
 # Full Ohm's law (prep + field) in one call — used for the carried E (init! and
@@ -261,9 +298,7 @@ end
 end
 
 @inline function _transport_product_needs_completion(a::T, b::T) where {T}
-    (iszero(a) || iszero(b)) && return false
-    product = a * b
-    return !isfinite(product) || abs(product) < floatmin(T)
+    return _ohm_product_needs_completion(a, b, a * b)
 end
 
 function _ordinary_transport_component!(E, ideal, J, lap, η::T, ηH::T, data) where {T}

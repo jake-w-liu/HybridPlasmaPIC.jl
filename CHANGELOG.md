@@ -8,6 +8,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Scalar Ohm evaluation combines complete signed finite represented factors on
+  intermediate overflow or subnormal products, preserving ordinary operation
+  order and raw nonfinite propagation. This repairs motional/Hall cancellation
+  and inverse-density-rescued Hall fields. Original-product Faraday recovery
+  and the separate CGL kernel remain open; essential checks run on GitHub.
+
 - Relativistic EMPIC priming and kicks retain original species charge and mass
   through range repair and finite-output publication, including overflowing or
   subnormal derived quotients. Both model owners keep C1 rejection and whole-step
