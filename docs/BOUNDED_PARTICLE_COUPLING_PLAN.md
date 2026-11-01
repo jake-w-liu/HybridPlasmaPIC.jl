@@ -193,6 +193,8 @@ without contributing source or weighted kinetic energy. Positions/velocities
 have grid precision and independent ordinary or strided CPU storage. Centers
 must lie strictly inside `(0,L)`; cloud tails may overlap the walls. All
 transverse velocities, transverse E and all B must have stored zero values.
+Private particle candidates own ordinary vector storage through the shared PIC
+staging owner; public particle objects, views and component identities remain bound.
 Initialization, stepping and restart require nearest hardware rounding and
 gradual underflow; other contexts reject before staging. Static cloud APIs keep
 their independent exact-arithmetic context contract.

@@ -467,6 +467,10 @@ end
             @test isequal(snapshot(restored,other),snapshot(st,ps))
             @test ids == map(objectid,(restored.fields.E...,restored.fields.B...))
             @test all(pair -> pair[1]===pair[2],zip(particleids,H._yl_particle_arrays(viewed)))
+            @test all(candidate -> all(a -> a isa Vector, H._yl_particle_arrays(candidate)),
+                restored._stage[].candidates)
+            @test all(pair -> !Base.mightalias(pair...),
+                zip(H._yl_particle_arrays(restored._stage[].candidates[1]),H._yl_particle_arrays(viewed)))
             # Empty ordinary particle storage may resize without replacing arrays.
             ordinary = ParticleSet{1,T}(0)
             destination = collection ? [ordinary,ParticleSet{1,T}(0)] : ordinary
@@ -475,6 +479,8 @@ end
             load_checkpoint!(fresh,destination,path)
             @test isequal(snapshot(fresh,destination),snapshot(st,ps))
             @test all(pair -> pair[1]===pair[2],zip(ordinaryids,H._yl_particle_arrays(ordinary)))
+            @test all(candidate -> all(a -> a isa Vector, H._yl_particle_arrays(candidate)),
+                fresh._stage[].candidates)
             for bad in (merge(saved,(schema_version=1,)),merge(saved,(c=nextfloat(saved.c),)),
                 merge(saved,(force_policy=:rounded_gather,)),
                 merge(saved,(force_policy_version=2,)),

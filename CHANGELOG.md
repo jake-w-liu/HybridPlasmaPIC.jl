@@ -86,6 +86,11 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Changed
 
+- Closed Yee models retain concrete candidates with ordinary vector storage
+  through the shared PIC staging owner. Public particle views and restart destinations
+  retain their identities. Compiler and complete-step cost verification remains
+  pending on GitHub.
+
 - Both closed Yee coupled source candidates retain complete original-geometry
   gathers, original q/m and the exact full-dt half through canonical Boris,
   rounding only each final half-kick velocity. Intermediate gathers can lie outside

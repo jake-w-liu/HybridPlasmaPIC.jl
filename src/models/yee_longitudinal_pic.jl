@@ -3,7 +3,7 @@
 struct _YeeLongitudinalStage{T}
     owners::Vector{ParticleSet{1,T}}
     components::Vector{Tuple}
-    candidates::Vector{ParticleSet{1,T}}
+    candidates::Vector{_ElectrostaticHostParticle{1,T}}
 end
 
 """
@@ -76,7 +76,7 @@ function YeeLongitudinalPIC(
     sigma = _yl_source_scalar("left_plate_charge", left_plate_charge, T)
     fields, candidate = YeeFields(g), YeeFields(g)
     impulse() = ntuple(c -> zeros(T, length(fields.E[c])), 3)
-    stage = _YeeLongitudinalStage{T}(ParticleSet{1,T}[], Tuple[], ParticleSet{1,T}[])
+    stage = _YeeLongitudinalStage{T}(ParticleSet{1,T}[], Tuple[], _ElectrostaticHostParticle{1,T}[])
     return YeeLongitudinalPIC{T,typeof(shape),typeof(b),typeof(sigma)}(
         g, shape, b, sigma, fields, Ref(zero(T)), Ref(0), Ref(false), Ref(zero(T)),
         Ref(-_exact_rational(sigma) - _exact_rational(b) * _exact_rational(g.L[1])),
@@ -111,12 +111,9 @@ function _yl_make_stage(species, sources, ::Type{T}) where {T}
     length(species) == length(sources) || throw(ArgumentError("population counts must match"))
     owners = ParticleSet{1,T}[ps for ps in species]
     components = Tuple[_yl_particle_arrays(ps) for ps in species]
-    candidates = ParticleSet{1,T}[
-        ParticleSet{1,T}(
-            (copy(ps.x[1]),), ntuple(c -> copy(ps.v[c]), 3), copy(ps.weight),
-            copy(ps.id), copy(ps.tag), ps.q, ps.m,
-        ) for ps in sources
-    ]
+    # Candidate storage belongs to the model, independently of public views.
+    candidates = _ElectrostaticHostParticle{1,T}[]
+    _pic_prepare_species_stages!(candidates, sources)
     return _YeeLongitudinalStage{T}(owners, components, candidates)
 end
 

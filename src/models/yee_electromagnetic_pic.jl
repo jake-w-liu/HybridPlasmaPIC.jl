@@ -61,7 +61,7 @@ function YeeElectromagneticPIC(g::YeeGrid{1,T}; shape::YeeTriangularCloud,
     speed = _require_finite_positive_real("c", c, T)
     fields, candidate = YeeFields(g), YeeFields(g)
     impulse() = ntuple(c -> zeros(T, length(fields.E[c])), 3)
-    stage = _YeeLongitudinalStage{T}(ParticleSet{1,T}[], Tuple[], ParticleSet{1,T}[])
+    stage = _YeeLongitudinalStage{T}(ParticleSet{1,T}[], Tuple[], _ElectrostaticHostParticle{1,T}[])
     return YeeElectromagneticPIC{T,typeof(shape),typeof(b),typeof(sigma)}(
         g, shape, b, sigma, speed, fields, Ref(zero(T)), Ref(0), Ref(false), Ref(zero(T)),
         Ref(-_exact_rational(sigma) - _exact_rational(b) * _exact_rational(g.L[1])),

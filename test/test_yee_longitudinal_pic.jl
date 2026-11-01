@@ -59,6 +59,11 @@ end
         exact = initial_reference(st, species)
         identities = st.fields.E[1], species[1].x[1], species[2].v[1]
         @test init!(st, species) === st
+        for (candidate, ps) in zip(st._stage[].candidates, species)
+            @test all(a -> a isa Vector, H._yl_particle_arrays(candidate))
+            @test all(pair -> !Base.mightalias(pair...),
+                zip(H._yl_particle_arrays(candidate), H._yl_particle_arrays(ps)))
+        end
         @test typeof(st.shape.half_width) === W
         @test typeof(st.background_charge) === W
         @test all(O.rounded(value, reference) for (value, reference) in zip(st.fields.E[1], exact))
@@ -289,6 +294,10 @@ end
             @test load_checkpoint!(target, dest, path) === target
             @test isequal(snapshot(target, [targetps]), snapshot(st, [ps]))
             @test targetps.x[1] === ids[1] && targetps.v[1] === ids[2] && target.fields.E[1] === ids[3]
+            candidate = target._stage[].candidates[1]
+            @test all(a -> a isa Vector, H._yl_particle_arrays(candidate))
+            @test all(pair -> !Base.mightalias(pair...),
+                zip(H._yl_particle_arrays(candidate), H._yl_particle_arrays(targetps)))
             for _ = 1:3
                 step!(st, particles, T(0.01))
                 step!(target, dest, T(0.01))
@@ -343,6 +352,8 @@ end
             background_charge = st.background_charge, left_plate_charge = st.left_plate_charge)
         load_checkpoint!(restored, ParticleSet{1,Float64}[], path)
         @test isequal(snapshot(restored, empty), snapshot(st, empty))
+        @test isempty(restored._stage[].candidates)
+        @test eltype(restored._stage[].candidates) === H._ElectrostaticHostParticle{1,Float64}
         ps = population(Float64, [0.4, 0.6]; q = -0.3, m = 2.0, w = [0.2, 0.4])
         ps.id .= UInt64[7, 11]
         ps.tag .= UInt32[3, 5]
@@ -354,6 +365,7 @@ end
         load_checkpoint!(restored, [targetps], path)
         @test isequal(snapshot(restored, [targetps]), snapshot(st, [ps]))
         @test all(pair -> pair[1] === pair[2], zip(identities, H._yl_particle_arrays(targetps)))
+        @test all(a -> a isa Vector, H._yl_particle_arrays(restored._stage[].candidates[1]))
         step!(st, [ps], 0.01)
         step!(restored, [targetps], 0.01)
         @test isequal(snapshot(restored, [targetps]), snapshot(st, [ps]))
