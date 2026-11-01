@@ -300,6 +300,7 @@ end
         rng = Xoshiro(0x6b696e)
         s = spans(T)
         boris = rel = 0
+        boris_accuracy_repaired = 0
         flagged = 0
         rel_valid_parent = rel_repaired = rel_rejected = rel_invalid_input = rel_accuracy_repaired = 0
         for _ = 1:NORDINARY
@@ -310,11 +311,18 @@ end
             dt = ordinary(rng, T, s)
             out, parts = H._boris_kick_parts(v..., E..., B..., qm, dt)
             flagged += !H._boris_kick_in_range(out, parts, v..., qm, dt)
-            boris +=
-                !isequal(
-                    H.boris_kick(v..., E..., B..., qm, dt),
-                    old_boris(v..., E..., B..., qm, dt),
-                )
+            actual = H.boris_kick(v..., E..., B..., qm, dt)
+            historical = old_boris(v..., E..., B..., qm, dt)
+            if !isequal(actual, historical)
+                # Only the independent physical reference permits a bit change:
+                # a valid native tuple must stay, and a repair must meet 4 ulps.
+                reference, scale2 = boris_exact(v, E, B, qm, dt)
+                tolerance = 4ulp_sqrt(T, scale2)
+                old_ok = normwise_ok(historical, reference, tolerance)
+                new_ok = all(isfinite, actual) && normwise_ok(actual, reference, tolerance)
+                boris += old_ok || !new_ok
+                boris_accuracy_repaired += 1
+            end
             # Subluminal relativistic inputs.
             c = T(1 + 3rand(rng))
             w = ntuple(_ -> T(c * (rand(rng) - 0.5) / 2), 3)
@@ -355,6 +363,7 @@ end
         @test flagged == 0
         @test boris == 0
         @test rel == 0
+        @info "Ordinary nonrelativistic accuracy repairs" type = T boris_accuracy_repaired
         @test rel_valid_parent + rel_repaired + rel_rejected + rel_invalid_input == NORDINARY
         @info "C1 ordinary relativistic domain coverage" type = T rel_valid_parent rel_repaired rel_rejected rel_invalid_input rel_accuracy_repaired
 
@@ -1477,7 +1486,8 @@ euler_certified(v, E, B, qm, h, n) = H._euler_batch_certificate(
 
         @testset "shock push batches $T" begin
             # A particle at rest has the unknown scale |h E_p|, so it forces the
-            # guarded loop; the ordinary particles match the certified batch.
+            # guarded loop. The remaining mixed-scale particles retain the
+            # same physical result whether their sufficient certificate admits them.
             for D = 1:3
                 L = T(8)
                 sh =
@@ -1508,9 +1518,21 @@ euler_certified(v, E, B, qm, h, n) = H._euler_batch_certificate(
                     ps.q,
                     ps.m,
                 )
-                @test H._shock_batch_certified(ps2, Egrid, Bgrid, T(0.05))
+                # A sufficient error bound need not admit this mixed-scale
+                # fixture. Retain the producer comparison, plus a controlled
+                # positive certificate that exercises the real native push.
+                native_sh, native_ps = deepcopy(sh), deepcopy(ps2)
+                native_E, native_B = D == 3 ? (native_sh.E, native_sh.B) :
+                    ((native_sh.Ex, native_sh.Ey), (native_sh.Bz,))
+                foreach(a -> fill!(a, zero(T)), (native_E..., native_B...))
+                foreach(a -> fill!(a, one(T)), native_ps.v)
+                @test H._shock_batch_certified(native_ps, native_E, native_B, T(0.05))
+                start_x, start_v = map(copy, native_ps.x), map(copy, native_ps.v)
                 sh2 = deepcopy(sh)
                 step = D == 1 ? step_shock! : D == 2 ? step_shock2d! : step_shock3d!
+                step(native_sh, native_ps, T(0.05); NB = 1)
+                @test isequal(native_ps.v, start_v)
+                @test all(d -> isequal(native_ps.x[d], start_x[d] .+ T(0.05) .* start_v[d]), 1:D)
                 step(sh, ps, T(0.05); NB = 1)
                 step(sh2, ps2, T(0.05); NB = 1)
                 @test nparticles(ps) == m && nparticles(ps2) == m - 1

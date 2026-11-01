@@ -107,3 +107,21 @@ Implementation tracker:
 - [ ] GitHub relativistic phase/restart/rollback checks, normal accuracy and device follow-ons.
 - [ ] Complete public resource and compiler acceptance; prior bounded numerical
   checks do not establish these guarantees.
+
+## Legacy corpus compatibility
+
+The older `58037b7` [package run](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41266833542)
+records 554/1,355/1,521 changed native Boris tuples in its Float16/32/64 ordinary
+corpus, plus six failed mandatory shock-batch admissions. Those counts are bit
+differences, not measured physical-error counts. The unchanged source contracts
+permit an inaccurate native tuple to change and a sufficient batch bound to
+reject a mixed-scale population.
+
+The retained 100,000 draws per type now check each changed nonrelativistic tuple
+with the existing independent exact Cayley reference and unchanged four-ulp
+budget: a change fails if the historical tuple already met the budget or the
+new tuple does not. Unchanged tuples receive no new accuracy classification.
+Mixed-scale shock producer comparisons remain, alongside a controlled native
+free-flight certificate and actual production push check. No numerical method,
+accuracy budget, seed, corpus size or existing relativistic/prime control changed.
+Current execution and complete corpus acceptance remain pending on GitHub.
