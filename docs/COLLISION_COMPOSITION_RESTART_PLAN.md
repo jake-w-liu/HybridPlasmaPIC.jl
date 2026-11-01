@@ -1,8 +1,8 @@
 # CAP-010: collision/field composition and stochastic restart
 
-Current extension (2026-11-01): ideal evolving scalar pressure is implemented
-with essential regressions; exact-revision GitHub verification is pending. See
-[the scoped extension tracker](#ideal-evolving-electron-extension-2026-11-01).
+Current extensions (2026-11-01): ideal evolving scalar pressure and fixed-step
+S1 transport composition are implemented. Exact-revision GitHub
+verification is pending. See the scoped trackers below.
 
 Status (2026-10-26): ported onto `main` after `cda63f1` on the landed cell-local
 Coulomb operator; the provisional V10 collision copy is not used. Both recorded
@@ -563,7 +563,8 @@ one row does not imply acceptance of the following rows.
 | Variable-step CPU collision composition | Existing `last_dt` field/particle contract and this source ledger | Derive preceding/following collision intervals and velocity centering; abrupt changes, alternating steps, zero steps, restart at each allowed boundary and independent variable-step weak-order evidence |
 | Higher-order stochastic composition | Native staggered deterministic map plus accepted stochastic transition kernel | Establish synchronized or explicitly staggered order conditions, positive substep intervals and weak-kernel accuracy; noncommuting coupled production oracles must distinguish first/second order before a Strang claim |
 | Ideal evolving scalar electrons | Existing B/pressure stages, ion-only source and pressure/RNG transaction | Scoped implementation below; exact-revision CI pending. Ion-ion collisions hold electron pressure fixed; electron-ion heat exchange is separate |
-| Transport/anisotropic electrons and electron-ion exchange | Electron closure, moment/Ohm owner and canonical pressure transaction | Explicit receiving energy reservoir and heat-exchange equations; full pressure/source rollback and restart; analytic relaxation, entropy/energy and positivity gates |
+| S1 constant Ohmic electrons | Canonical transport field stages and force-based particle owners | Scoped implementation below; optional independent outer-force transaction and policy-1 checkpoint reuse. Exact-revision CI pending |
+| Hyperresistive/anisotropic/inertial composition and electron-ion exchange | Electron closure, moment/Ohm owner and canonical pressure transaction | Explicit receiving energy reservoir and heat-exchange equations; full pressure/source rollback and restart; analytic relaxation, entropy/energy and positivity gates |
 | CAM-CL and ES/EM families | `camcl.jl`, `electrostatic.jl`, `full_pic.jl`, their canonical checkpoint owners | Respect persistent cyclic magnetic phase, each species' half-time history and fast subcycles; do not substitute Hybrid recentering. Re-derive current/charge continuity and source-time rules per family |
 | BGK and neutral collisions | Existing `collide_bgk!` / `collide_neutral_mcc!` | Explicit bath state and exchanged momentum/energy; full RNG/reservoir continuation and rollback; independent equilibrium/rate tests and inactive-source cost controls |
 | Ionization and particle growth | Existing `ionize_mcc!`, particle append/provenance and checkpoint owners | Stage all species, charge changes, unique-ID allocation and counters atomically; preserve growth/source clocks and RNG in checkpoints; threshold/rate, conservation, capacity failure and same-environment continuation gates |
@@ -711,7 +712,38 @@ Pre-edit brief, based on `6dd8f6f`:
 - [x] Complete source review and update the current capability documents.
 - [ ] Pass exact-revision GitHub tests, formatting and compiler checks.
 
-Transport, anisotropic pressure, electron-ion thermal exchange, variable steps,
-higher-order splitting, other source families and distributed/device composition
-remain open. This extension does not establish new energy conservation, weak
-order or performance claims.
+S1 transport proceeds in the next section. Hyperresistive/anisotropic/inertial
+composition, electron-ion thermal exchange, variable steps, higher-order
+splitting, other source families and distributed/device composition remain open.
+These extensions do not establish new energy conservation, weak order or
+performance claims.
+
+## S1 transport collision composition (2026-11-01)
+
+Pre-edit brief, based on `d56b56f`:
+
+- Extend the fixed-step wrapper to `TransportElectrons` with constant `eta>=0`
+  and `etaH=de2=0` only. The canonical inner step owns all numerical operations:
+  field-stage Ohmic heat, force-based ion push/predictor and final full E/force.
+- Ion-ion collisions hold electron pressure fixed. They add no electron-ion
+  thermal exchange or second copy of the existing S1 heat source.
+- Add a concrete optional outer force snapshot, independent of the inner
+  pressure transaction. The same outer save/restore owner covers initialization,
+  active/inactive steps and checkpoint restore. Old closures retain `nothing`.
+- Keep outer schema 1. The canonical inner transport checkpoint already requires
+  policy 1 and the carried force; do not reconstruct or default either field.
+  Validate pressure agreement and independent force storage across the full
+  wrapper payload before publication.
+- Add focused component/force-split, eta-zero, zero-log, restart, malformed-state
+  and completed-inner outer-transaction regressions. All execution is on GitHub.
+
+- [x] Trace canonical S1 pressure/force lifetime, source schedule and persistence.
+- [x] Implement bounded admission and optional outer-force rollback.
+- [x] Add essential transport composition/restart/failure tests.
+- [x] Finish source review and current documentation updates.
+- [ ] Pass exact-revision GitHub tests, formatting and compiler checks.
+
+The completed-inner transaction test is an owner-level control with an explicit
+test exception and finally restore; it is not a reproduced stock public failure.
+Hyperresistive composition, inertia, anisotropy, electron-ion heat exchange,
+variable/higher-order splitting and parallel/device composition remain open.

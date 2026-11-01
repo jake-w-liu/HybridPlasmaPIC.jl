@@ -210,6 +210,14 @@ the force `Eforce`, validated and restored verbatim without `init!` or
 reconstruction from half-time moments. The archive schema remains 4; its
 checksum covers the new fields. Earlier checkpoints contain no carried force.
 
+Fixed-step CPU ion-ion collision composition is available through
+[`CollisionalHybridStepper`](COLLISIONAL_HYBRID.md) for S1 (`etaH=de2=0`). The
+field stages supply Ohmic heat; ion collisions hold pressure fixed, then both
+carried force and full E are refreshed. The wrapper adds its own force rollback
+copy and retains pressure/force/RNG continuation. Exact-revision GitHub validation
+is pending; hyperresistive collision composition and electron-ion thermal
+exchange remain separate work.
+
 MPI, CAM-CL and Hall-MHD reject this closure, and the hybrid stepper has no
 device path. MPI ranks agree on the rejection collectively before mutation when
 every rank uses an evolving-pressure model; other model mismatches remain

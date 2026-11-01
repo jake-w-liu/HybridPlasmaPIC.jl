@@ -100,11 +100,27 @@ function _validate_checkpoint_state(s, st::CollisionalHybridStepper{D,T}) where 
     end
     isequal(s.fields.B, s.inner.B) && isequal(s.fields.E, s.inner.E) ||
         throw(ArgumentError("collisional checkpoint inner and public fields disagree"))
-    if st.model.closure isa EvolvingElectrons
+    if _evolves_pressure(st.model.closure)
         # The full-field restore follows the canonical inner restore. It must
         # not overwrite the pressure that the inner validator just admitted.
         isequal(s.fields.pe, s.inner.pe) ||
             throw(ArgumentError("collisional checkpoint inner and public pressure disagree"))
+    end
+    if _transports_electrons(st.model.closure)
+        # The inner validator owns policy/type/range checks. The wrapper stores
+        # additional public fields and particles, which must not share force storage.
+        for force in s.inner.Eforce
+            for components in values(s.fields),
+                array in (components isa Tuple ? components : (components,))
+
+                _particle_arrays_mightalias(force, array) &&
+                    throw(ArgumentError("collisional checkpoint force must not alias saved fields"))
+            end
+            for ps in s.inner.species, array in (ps.x..., ps.v..., ps.weight, ps.id, ps.tag)
+                _particle_arrays_mightalias(force, array) &&
+                    throw(ArgumentError("collisional checkpoint force must not alias saved particles"))
+            end
+        end
     end
     s.floor_count isa Int && s.floor_count >= 0 ||
         throw(ArgumentError("collisional checkpoint density floor count must be nonnegative"))

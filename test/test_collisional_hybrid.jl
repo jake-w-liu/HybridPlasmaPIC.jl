@@ -101,6 +101,7 @@ isdefined(@__MODULE__, :_composition_fixture) || include("collisional_fixtures.j
 
     @testset "constructor model and ownership boundary" begin
         st, ps = _composition_fixture(Val(1), Float64, Xoshiro)
+        @test st.transaction.Eforce === nothing
         make(inner; dt = st.dt, rng = Xoshiro(1)) = CollisionalHybridStepper(
             inner,
             ps;
@@ -115,7 +116,7 @@ isdefined(@__MODULE__, :_composition_fixture) || include("collisional_fixtures.j
             HybridModel(IsothermalElectrons(0.02); ηH = eps()),
             HybridModel(IsothermalElectrons(0.02); de2 = eps()),
             HybridModel(PolytropicElectrons(1.0, 1.0, 5 / 3)),
-            HybridModel(TransportElectrons()),
+            HybridModel(TransportElectrons(); ηH = eps()),
         )
             inner = HybridStepper(st.inner.g, model, CIC(), sum(length(p.weight) for p in ps))
             @test_throws ArgumentError make(inner)
@@ -261,6 +262,103 @@ isdefined(@__MODULE__, :_composition_fixture) || include("collisional_fixtures.j
         @test isequal(entry, _composition_snapshot(st, [p]))
         @test st.inner.fields.pe === pressure_identity
         @test !st.busy[]
+    end
+
+    @testset "S1 transport keeps the carried force and heat schedule $T" for T in
+        (Float32, Float64)
+
+        st, ps = _composition_transport_fixture(T, Xoshiro)
+        reference, rps = _composition_transport_fixture(T, Xoshiro)
+        init!(st, ps)
+        init!(reference, rps)
+        @test st.transaction.Eforce !== st.inner.pressure_work.Eforce
+        for _ = 1:2
+            step!(st, ps, st.dt)
+            pressure = copy(reference.inner.fields.pe)
+            _composition_component!(reference, rps)
+            @test reference.inner.fields.pe != pressure
+            @test isequal(_composition_physical(st, ps), _composition_physical(reference, rps))
+        end
+        f, force = st.inner.fields, st.inner.pressure_work.Eforce
+        ideal = ntuple(_ -> similar(f.n), 3)
+        for I in eachindex(f.n)
+            ux, uy, uz = (a[I] for a in f.ui)
+            bx, by, bz = (a[I] for a in f.B)
+            jx, jy, jz = (a[I] for a in f.J)
+            ideal[1][I] = -(uy * bz - uz * by) + (jy * bz - jz * by) * f.ninv[I] -
+                          f.gradp[1][I] * f.ninv[I]
+            ideal[2][I] = -(uz * bx - ux * bz) + (jz * bx - jx * bz) * f.ninv[I]
+            ideal[3][I] = -(ux * by - uy * bx) + (jx * by - jy * bx) * f.ninv[I]
+        end
+        for c = 1:3
+            @test force[c] ≈ ideal[c] rtol = 8eps(T)
+            @test isequal(f.E[c], force[c] .+ T(st.model.η) .* f.J[c])
+        end
+        @test any(c -> !isequal(f.E[c], force[c]), 1:3)
+        saved_force = st.transaction.Eforce
+        st.transaction.Eforce = st.inner.pressure_work.Eforce
+        entry = _composition_snapshot(st, ps)
+        @test_throws ArgumentError step!(st, ps, st.dt)
+        @test isequal(entry, _composition_snapshot(st, ps))
+        st.transaction.Eforce = saved_force
+
+        unsupported = st.inner.model
+        st.inner.model = HybridModel(unsupported.closure, unsupported.η, 0.01, unsupported.nfloor, 0.0)
+        @test_throws ArgumentError step!(st, ps, st.dt)
+        @test isequal(entry, _composition_snapshot(st, ps))
+        st.inner.model = unsupported
+
+        inactive, ips = _composition_transport_fixture(T, Xoshiro; logs = zero(T))
+        bare, bps = _composition_transport_fixture(T, Xoshiro; logs = zero(T))
+        init!(inactive, ips)
+        init!(bare.inner, bps)
+        step!(inactive, ips, inactive.dt)
+        step!(bare.inner, bps, bare.dt)
+        @test isequal(_composition_physical(inactive, ips), _composition_physical(bare, bps))
+
+        zero_eta, zps = _composition_transport_fixture(T, Xoshiro; η = zero(T))
+        evolving, epspecies = _composition_transport_fixture(
+            T, Xoshiro; η = zero(T), closure = EvolvingElectrons(T(5 / 3)),
+        )
+        init!(zero_eta, zps)
+        init!(evolving, epspecies)
+        @test evolving.transaction.Eforce === nothing
+        for _ = 1:2
+            step!(zero_eta, zps, zero_eta.dt)
+            step!(evolving, epspecies, evolving.dt)
+            a, b = _composition_snapshot(zero_eta, zps), _composition_snapshot(evolving, epspecies)
+            @test isequal(a.fields, b.fields)
+            @test isequal(a.particles, b.particles)
+            @test isequal((a.floor, a.clock, a.rng), (b.floor, b.clock, b.rng))
+            @test isequal(a.Eforce, b.fields.E)
+        end
+    end
+
+    @testset "outer transport transaction survives a completed inner step" begin
+        st, ps = _composition_transport_fixture(Float64, Xoshiro)
+        init!(st, ps)
+        entry = _composition_snapshot(st, ps)
+        force_identity = st.inner.pressure_work.Eforce
+        injected = ErrorException("test-owned exception after completed inner step")
+        H._save_collisional_transaction!(st)
+        caught = try
+            try
+                H._step_hybrid!(st.inner, ps, st.dt, 1, st)
+                advanced = _composition_snapshot(st, ps)
+                @test st.inner.step[] == 1
+                @test !isequal(entry.Eforce, advanced.Eforce)
+                @test !isequal(entry.fields.pe, advanced.fields.pe)
+                @test !isequal(entry.rng, advanced.rng)
+                throw(injected)
+            finally
+                H._restore_collisional_transaction!(st)
+            end
+        catch error
+            error
+        end
+        @test caught === injected
+        @test isequal(entry, _composition_snapshot(st, ps))
+        @test st.inner.pressure_work.Eforce === force_identity
     end
 
     @testset "advanced RNG and complete checkpoint" for R in (Xoshiro, MersenneTwister),

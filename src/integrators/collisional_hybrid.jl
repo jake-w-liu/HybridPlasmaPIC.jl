@@ -3,8 +3,9 @@
 const _CollisionalPopulation{D,T} =
     ParticleSet{D,T,Vector{T},Vector{T},Vector{T},Vector{UInt64},Vector{UInt32}}
 
-mutable struct _CollisionalTransaction{D,T,R}
+mutable struct _CollisionalTransaction{D,T,R,F}
     fields::HybridFields{D,T}
+    Eforce::F
     x::NTuple{D,Vector{T}}
     v::NTuple{3,Vector{T}}
     rng::R
@@ -25,10 +26,13 @@ of the moments, Ohm's law and carried E, without forming E twice. This is not a
 symmetric or second-order collision split. Call `init!` before active stepping.
 
 Supports Float32/Float64, D=1:3, standard Vector particle storage, positive ions,
-NGP/CIC/TSC, and ideal massless `IsothermalElectrons` or `EvolvingElectrons`.
-With evolving electrons, initialize `inner.fields.pe` before `init!`; the field
+NGP/CIC/TSC, ideal massless `IsothermalElectrons` or `EvolvingElectrons`, and
+S1 `TransportElectrons` with constant `η ≥ 0` and `ηH = de2 = 0`.
+With stored pressure, initialize `inner.fields.pe` before `init!`; the field
 substep evolves pressure and the ion-ion collision substep leaves it unchanged.
-No electron-ion heat exchange is included. The ordered populations,
+Ohmic heating occurs only in the transport field stages; no electron-ion heat
+exchange is included. Transport rolls back its independently carried ion force
+as well as the full E. The ordered populations,
 counts, charges, masses, model and timestep are fixed; any other nonzero `dt` is
 rejected before state changes and `dt = 0` is a no-op that consumes no random
 draws. All-zero Coulomb logarithms reproduce plain `HybridStepper` stepping
@@ -43,7 +47,7 @@ resets the physical clock but preserves the current RNG stream.
 Checkpoint/restart retains the full advanced RNG state for the same Julia version
 and environment; a seed alone is only provenance.
 """
-mutable struct CollisionalHybridStepper{D,T,S,R,L,M,SH,G<:FourierGrid{D,T}}
+mutable struct CollisionalHybridStepper{D,T,S,R,L,M,SH,G<:FourierGrid{D,T},F}
     const inner::S
     # Concrete, so the collision call dispatches statically and allocates nothing.
     const grid::G
@@ -59,7 +63,7 @@ mutable struct CollisionalHybridStepper{D,T,S,R,L,M,SH,G<:FourierGrid{D,T}}
     const u_floor::T
     const rng::R
     const workspace::CoulombCollisionWorkspace{T}
-    const transaction::_CollisionalTransaction{D,T,R}
+    const transaction::_CollisionalTransaction{D,T,R,F}
     const busy::Threads.Atomic{Bool}
     phase::Symbol
     source_time::T
@@ -70,11 +74,16 @@ function _validate_collisional_model(inner::HybridStepper{D,T}) where {D,T}
     T <: Union{Float32,Float64} ||
         throw(ArgumentError("CollisionalHybridStepper requires Float32 or Float64"))
     model = inner.model
-    model.closure isa Union{IsothermalElectrons,EvolvingElectrons} || throw(
-        ArgumentError("CollisionalHybridStepper requires IsothermalElectrons or EvolvingElectrons"),
+    model.closure isa Union{IsothermalElectrons,EvolvingElectrons,TransportElectrons} || throw(
+        ArgumentError("CollisionalHybridStepper requires IsothermalElectrons, EvolvingElectrons or TransportElectrons"),
     )
-    (iszero(model.η) && iszero(model.ηH) && iszero(model.de2)) ||
-        throw(ArgumentError("CollisionalHybridStepper requires η = ηH = de2 = 0"))
+    if _transports_electrons(model.closure)
+        (iszero(model.ηH) && iszero(model.de2)) ||
+            throw(ArgumentError("collisional TransportElectrons requires ηH = de2 = 0"))
+    else
+        (iszero(model.η) && iszero(model.ηH) && iszero(model.de2)) ||
+            throw(ArgumentError("ideal collisional electrons require η = ηH = de2 = 0"))
+    end
     if model.closure isa IsothermalElectrons
         _require_finite_nonnegative_real("Te", model.closure.Te, T)
     else
@@ -159,6 +168,7 @@ function CollisionalHybridStepper(
     populations = Vector{_CollisionalPopulation{D,T}}(species)
     transaction = _CollisionalTransaction(
         HybridFields{D,T}(inner.g.n),
+        _transport_force_storage(inner.g, inner.model.closure),
         ntuple(_ -> zeros(T, count), D),
         ntuple(_ -> zeros(T, count), 3),
         deepcopy(owned_rng),
@@ -218,8 +228,22 @@ function _validate_collisional_fields(st::CollisionalHybridStepper)
     f.floor_count[] >= 0 || throw(ArgumentError("density floor count must be nonnegative"))
     # Pressure is persistent state for this closure. Reuse the inner owner's
     # positivity and independence checks before saving or mutating either state.
-    st.model.closure isa EvolvingElectrons &&
+    _evolves_pressure(st.model.closure) &&
         _validate_pressure_step_state(st.inner, st.species)
+    _validate_collisional_force_storage(st, st.transaction.Eforce)
+    return nothing
+end
+
+@inline _collisional_force(st::CollisionalHybridStepper) =
+    _transports_electrons(st.model.closure) ? st.inner.pressure_work.Eforce : nothing
+
+_validate_collisional_force_storage(st, ::Nothing) = nothing
+function _validate_collisional_force_storage(st, saved::NTuple{3})
+    _validate_transport_force_storage(st.inner, st.species, saved)
+    for a in saved, b in _collisional_force(st)
+        _particle_arrays_mightalias(a, b) &&
+            throw(ArgumentError("collisional force rollback must have independent storage"))
+    end
     return nothing
 end
 
@@ -267,6 +291,7 @@ end
 function _save_collisional_transaction!(st::CollisionalHybridStepper{D}) where {D}
     w, inner = st.transaction, st.inner
     _copy_hybrid_fields!(w.fields, inner.fields)
+    _copy_transport_force!(w.Eforce, _collisional_force(st))
     offset = 0
     for ps in st.species
         count = nparticles(ps)
@@ -286,6 +311,7 @@ end
 function _restore_collisional_transaction!(st::CollisionalHybridStepper{D}) where {D}
     w, inner = st.transaction, st.inner
     _copy_hybrid_fields!(inner.fields, w.fields)
+    _copy_transport_force!(_collisional_force(st), w.Eforce)
     offset = 0
     for ps in st.species
         count = nparticles(ps)

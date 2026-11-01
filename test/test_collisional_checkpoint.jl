@@ -4,6 +4,65 @@ isdefined(@__MODULE__, :_composition_fixture) || include("collisional_fixtures.j
 
 @testset "Collisional checkpoint validation and failure ownership" begin
     H = HybridPlasmaPIC
+    @testset "S1 force pressure and advanced RNG restart together $R" for R in
+        (Xoshiro, MersenneTwister)
+
+        # Matching particle/grid lengths allow a real force/particle alias control.
+        st, ps = _composition_transport_fixture(Float64, R; count = 4)
+        init!(st, ps)
+        randn(st.rng, 3)
+        step!(st, ps, st.dt)
+        saved = deepcopy(H._checkpoint_state(st, ps))
+        @test saved.schema === 1
+        @test saved.inner.transport_policy_version === 1
+        @test isequal(saved.inner.Eforce, st.inner.pressure_work.Eforce)
+        dest, dps = _composition_transport_fixture(Float64, R; count = 4)
+        init!(dest, dps)
+        entry = _composition_snapshot(dest, dps)
+        drop(key) = (; (k => v for (k, v) in pairs(saved.inner) if k !== key)...)
+        force = saved.inner.Eforce
+        corruptions = Any[
+            drop(:Eforce),
+            drop(:transport_policy_version),
+            merge(saved.inner, (transport_policy_version = 2,)),
+            merge(saved.inner, (Eforce = (fill(NaN, 4), force[2], force[3]),)),
+            merge(saved.inner, (Eforce = (saved.fields.ui[1], force[2], force[3]),)),
+            merge(saved.inner, (Eforce = (saved.inner.species[1].x[1], force[2], force[3]),)),
+        ]
+        for inner in corruptions
+            @test_throws ArgumentError H._restore_checkpoint_state!(dest, dps, merge(saved, (; inner)))
+            @test isequal(entry, _composition_snapshot(dest, dps))
+        end
+        corrupt = merge(saved, (fields = merge(saved.fields, (pe = 2 .* saved.inner.pe,)),))
+        @test_throws ArgumentError H._restore_checkpoint_state!(dest, dps, corrupt)
+        @test isequal(entry, _composition_snapshot(dest, dps))
+        if R === MersenneTwister
+            corrupt = deepcopy(saved)
+            corrupt.rng.seed = corrupt.inner.Eforce[1]
+            @test_throws ArgumentError H._restore_checkpoint_state!(dest, dps, corrupt)
+            @test isequal(entry, _composition_snapshot(dest, dps))
+        end
+        force_identity = dest.inner.pressure_work.Eforce
+        mktempdir() do dir
+            path, archive = joinpath(dir, "transport.bin"), joinpath(dir, "transport-archive.bin")
+            save_checkpoint(path, st, ps)
+            @test load_checkpoint!(dest, dps, path) === dest
+            @test dest.inner.pressure_work.Eforce === force_identity
+            @test isequal(_composition_snapshot(dest, dps), _composition_snapshot(st, ps))
+            for _ = 1:2
+                step!(st, ps, st.dt)
+                step!(dest, dps, dest.dt)
+                @test isequal(_composition_snapshot(dest, dps), _composition_snapshot(st, ps))
+            end
+            @test randn(dest.rng, 7) == randn(st.rng, 7)
+            archive_run(archive, st, ps; rng_seed = 712)
+            archived = load_archive(archive).state
+            @test isequal(archived.inner.Eforce, st.inner.pressure_work.Eforce)
+            @test H._restore_checkpoint_state!(dest, dps, archived) === dest
+            @test isequal(_composition_snapshot(dest, dps), _composition_snapshot(st, ps))
+        end
+    end
+
     @testset "evolving pressure and advanced RNG continue together $R" for R in
         (Xoshiro, MersenneTwister)
 

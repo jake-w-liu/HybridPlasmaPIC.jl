@@ -14,6 +14,7 @@ function _composition_fixture(
     magnetic = T(0.1),
     shape = CIC(),
     closure = IsothermalElectrons(temperature),
+    η = 0.0,
 ) where {D,T}
     g = FourierGrid(ntuple(_ -> 4, D), ntuple(_ -> T(2), D))
     species = [ParticleSet{D,T}(count; q = T(a), m = T(a + 1)) for a = 1:ns]
@@ -26,9 +27,9 @@ function _composition_fixture(
         end
         fill!(p.weight, T(2^D / max(count, 1)))
     end
-    inner = HybridStepper(g, HybridModel(closure), shape, ns * count)
+    inner = HybridStepper(g, HybridModel(closure; η), shape, ns * count)
     fill!(inner.fields.B[1], magnetic)
-    closure isa EvolvingElectrons && fill!(inner.fields.pe, temperature)
+    HybridPlasmaPIC._evolves_pressure(closure) && fill!(inner.fields.pe, temperature)
     st = CollisionalHybridStepper(
         inner,
         species;
@@ -39,6 +40,15 @@ function _composition_fixture(
         weight_to_number = one(T),
     )
     return st, species
+end
+
+function _composition_transport_fixture(
+    ::Type{T}, R; η = T(0.03), logs = T(0.05), closure = TransportElectrons(T(5 / 3)), count = 8,
+) where {T}
+    st, ps = _composition_fixture(Val(1), T, R; η, logs, closure, count)
+    st.inner.fields.B[3] .= T[0, 0.1, 0, -0.1]
+    st.inner.fields.pe .= T[0.02, 0.022, 0.02, 0.018]
+    return st, ps
 end
 
 # Finite inputs can yield an unrepresentable sampled velocity. No injection hook
@@ -79,6 +89,8 @@ function _composition_snapshot(st, species)
     return deepcopy((
         particles = [H._checkpoint_particle_state(p) for p in species],
         fields = H._hybrid_field_state(st.inner.fields),
+        Eforce = H._transports_electrons(st.inner.model.closure) ?
+                 st.inner.pressure_work.Eforce : nothing,
         floor = st.inner.fields.floor_count[],
         clock = (st.inner.time[], st.inner.step[], st.inner.last_dt[]),
         ledger = (st.source_time, st.source_count, st.phase),
@@ -88,7 +100,7 @@ end
 
 function _composition_physical(st, species)
     s = _composition_snapshot(st, species)
-    return (; s.particles, s.fields, s.floor, s.clock, s.rng)
+    return (; s.particles, s.fields, s.Eforce, s.floor, s.clock, s.rng)
 end
 
 function _composition_component!(st, species)
@@ -109,7 +121,7 @@ function _composition_component!(st, species)
             workspace = st.workspace,
         )
         H._hybrid_integer_moments!(st.inner, species)
-        ohms_law!(st.inner.fields, st.inner.model, st.inner.g)
+        H._carried_ohms_law!(st.inner)
         H._recenter_carried_E!(st.inner, species, st.dt)
     end
 end

@@ -4,8 +4,9 @@
 self/interspecies Coulomb collisions ([`collide_coulomb!`](LOCAL_COULOMB.md)). This
 slice is **first order** and CPU-only. It supports Float32/Float64 in one to three
 spatial dimensions, periodic Fourier grids, positive-ion populations, standard
-Vector particle storage, NGP/CIC/TSC, and ideal massless isothermal or evolving
-scalar electrons (`eta=etaH=de2=0`). The ordered populations, counts, charges,
+Vector particle storage, NGP/CIC/TSC, ideal massless isothermal or evolving
+scalar electrons (`eta=etaH=de2=0`), and S1 `TransportElectrons` with constant
+`eta>=0`, `etaH=de2=0`. The ordered populations, counts, charges,
 masses, model, normalization and positive timestep are fixed for the wrapper's
 lifetime.
 
@@ -18,28 +19,42 @@ velocity (the `HybridStepper` convention). One nonzero step of size `h` from
 
 1. The canonical `HybridStepper` push: Boris kick to the half level `t+h/2`
    (priming on the first step), drift to `t+h`, magnetic field to `t+h` with
-   frozen midpoint moments. With `EvolvingElectrons`, pressure advances with B
-   through the canonical RK4 stages.
+   frozen midpoint moments. With either stored-pressure closure, pressure advances
+   with B through the canonical RK4 stages; S1 adds its existing Ohmic heat there.
 2. `collide_coulomb!` for the interval `h`, at the new positions and the
    half-level velocities, with the wrapper's RNG and workspace. The collision
    interval is the field interval, and its velocities sit at that interval's
-   midpoint. This ion-ion subflow leaves evolving electron pressure fixed.
+   midpoint. This ion-ion subflow leaves stored electron pressure fixed.
 3. Integer-time moments, Ohm's law and the carried-E recentering from the
-   collided velocities, giving E at `t+h`.
+   collided velocities, giving E at `t+h`. S1 refreshes the independently carried
+   ion force as well as the full field; its predictor uses that force.
 
 The result is bitwise identical to `step!(inner, ...)`, then
-`collide_coulomb!(..., h; ...)`, then recomputing the moments, Ohm's law and the
-carried E; the composition forms E once instead of twice. This is a staggered
+`collide_coulomb!(..., h; ...)`, then recomputing the moments and the closure's
+carried field/force before carried-E recentering; the composition forms E once
+instead of twice. This is a staggered
 first-order (Lie-type) split, not a symmetric split or a synchronized exact
 collision subflow. Skipping step 3 (reusing the pre-collision E) is wrong: the
 next kick then lacks `h (q/m) dE`, where `dE` is the change of `-u_i×B` from
 the collisional change of the charge-weighted bulk velocity.
 
-For `EvolvingElectrons`, set finite nonnegative `inner.fields.pe` before `init!`.
+For `EvolvingElectrons` or `TransportElectrons`, set finite nonnegative
+`inner.fields.pe` before `init!`.
 Initialization preserves it, and collision feedback enters the next pressure
 interval through the refreshed moments. There is no electron-ion temperature
 equilibration, collisional electron heating or additional reservoir. Pressure
 retains the canonical explicit-stage positivity checks and is never clipped.
+
+S1 retains `E = E_force + eta*J`, force-based ion kicks and stage-based
+`(gamma-1)*eta*|J|^2` pressure heating. The collision substep adds no heat source.
+It combines the existing reduced Ohmic model with ion-ion Coulomb scattering;
+it does not reinterpret the Ohmic term as electron-ion Coulomb equilibration.
+`eta` and the Coulomb logarithms remain independent model inputs; the wrapper
+does not derive either from the other.
+Deposited density must remain finite and at least `nfloor` at initialization
+and every midpoint, endpoint and predictor, as in the canonical S1 model.
+`eta=0` matches evolving electrons only on states admitted by that density rule.
+Hyperresistive (`etaH>0`), inertial and anisotropic composition remain unsupported.
 
 ## Timestep, RNG and failures
 
@@ -54,11 +69,16 @@ run is active. Independent wrappers need independent inner states and particle
 storage. `init!` resets the physical clock and preserves the current owned RNG.
 
 A failed step restores particle x/v, every public hybrid field including evolving
-pressure, the clock, source ledger and RNG in place; no partially collided
-velocities are published and a retry draws the same numbers. Private scratch
-(inner workspaces, collision bins) may change. The standalone `collide_coulomb!`
+pressure, the S1 carried force, clock, source ledger and RNG in place; no partially
+collided velocities are published and a retry draws the same numbers. Private
+scratch (inner workspaces, collision bins) may change. The standalone `collide_coulomb!`
 keeps its weaker policy: it publishes no velocities on failure but may advance
 its RNG.
+
+The wrapper owns an independent three-grid force snapshot for S1, in addition
+to the inner stepper's force transaction. Isothermal and ideal evolving closures
+store `nothing` for this snapshot and allocate no added force arrays. New
+complete-call allocation, memory and timing acceptance remains open.
 
 Coulomb logarithms may be a scalar or a symmetric channel matrix; zero entries
 disable channels. All-zero logs run exactly the plain `HybridStepper` step and
@@ -125,6 +145,11 @@ this slice does not resize particles on restore. Missing/malformed, mid-step or
 incompatible state is rejected before publication. Evolving pressure is stored
 in the existing schema-1 full-field and inner records; the reader requires those
 copies to agree before restoring either state.
+Transport uses the inner record's required `transport_policy_version=1` and
+`Eforce`; neither is defaulted or reconstructed from the full E. Force arrays
+must be finite, correctly shaped and independent of all saved fields and
+particles. The force is restored in place, and outer failures restore its
+entry value along with pressure and the RNG.
 
 `archive_run(path, st, ions; rng_seed=42)` uses the same state and existing
 checksum/provenance archive. Its seed is metadata, not a replacement for advanced
@@ -133,9 +158,12 @@ compatible environment; cross-version bitwise identity is not promised.
 
 ## Verification status
 
-The ideal `EvolvingElectrons` extension has source-reviewed admission,
-transaction and checkpoint paths, with essential component-sequence, zero-log,
-pressure/RNG continuation and failure regressions. Runtime, formatting and
+The ideal `EvolvingElectrons` and S1 transport extensions have source-reviewed
+admission, transaction and checkpoint paths, with essential component-sequence,
+force/full-E, zero-log, eta-zero, pressure/force/RNG continuation and failure
+regressions. An owner-level control restores the outer transaction after a
+completed inner step and explicit test exception; it does not reproduce a stock
+public post-completion failure. Runtime, formatting and
 compiler acceptance are pending exact-revision GitHub CI. No new resource,
 energy-conservation or splitting-order claim is made.
 
@@ -173,6 +201,6 @@ and `test_collisional_physics.jl`. The [composition plan](COLLISION_COMPOSITION_
 records the design history and evidence.
 
 Variable timesteps, second-order stochastic splitting, electron-ion heat
-exchange, transport/anisotropic pressure, CAM-CL, electrostatic/electromagnetic
-PIC, neutral/BGK sources, ionization, radiation, distributed cell ownership and
-GPU RNG/storage remain separate planned extensions.
+exchange, hyperresistive/anisotropic or inertial composition, CAM-CL,
+electrostatic/electromagnetic PIC, neutral/BGK sources, ionization, radiation,
+distributed cell ownership and GPU RNG/storage remain separate planned extensions.
