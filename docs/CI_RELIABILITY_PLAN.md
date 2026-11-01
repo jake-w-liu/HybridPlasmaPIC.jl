@@ -13,9 +13,12 @@ Current exact-revision status is maintained in the [audit tracker](DEEP_DEBUG_TR
 The [Implementation essentials workflow](../.github/workflows/implementation-essentials.yml)
 runs selected existing test files on minimum `1.12` and moving latest-stable `1`.
 Its fixed choices cover EM collections and adjacent legacy ES/EM behavior,
-collisional composition/restart, and particle accuracy/publication. It instantiates
-the ordinary package project, records the actual runtime and retains complete
-output. A failed included test fails the job through bash pipefail.
+collisional composition/restart, particle accuracy/publication, the focused EM
+continuity check, and bounded charge/Maxwell/source fields. It instantiates the
+ordinary package project, records the actual runtime and retains complete output.
+The bounded-fields choice also installs the already-declared JET test extra in
+the ephemeral runner checkout, subject to the package's existing compatibility.
+A failed dependency install or included test fails the job through bash pipefail.
 
 This provides focused remote feedback without running Julia on the development
 machine or adding another test implementation. It supplements the unchanged
