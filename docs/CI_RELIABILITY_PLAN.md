@@ -34,6 +34,22 @@ The focused continuity choice runs the existing relativistic collection file,
 including its rollback and restart cases, without those long legacy files.
 Full automatic CI continues to include all package tests.
 
+## Analyzer compatibility
+
+The package permits JET 0.13 alongside the earlier declared series. The
+[upstream v0.13.1 contract](https://github.com/aviatesk/JET.jl/blob/v0.13.1/README.md#julia-compatibility-and-versioning)
+supports full analysis on Julia 1.12, 1.13 and 1.14. Import and analysis failures
+remain failures, and the package ceiling of 30 reports is unchanged.
+
+The [ec20 bounded-field run](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41284321526)
+with JET 0.12.3 passes 106,078 assertions on Julia 1.12.7. Julia 1.13.3 passes
+675 physical assertions, then records four broad-input impulse findings through
+Base reinterpret/subarray indexing. Its cloud and later field tests are not
+reached. JET 0.12.3 also supports Julia 1.13, so those findings do not establish
+an unsupported analyzer or a runtime defect. Allowing the current series is a
+compatibility recheck; its actual resolution and unchanged reports require
+fresh GitHub review before any acceptance.
+
 ## Distributed FFT process partition
 
 The default [aggregate driver](../test/test_distributed_fft.jl) includes the
