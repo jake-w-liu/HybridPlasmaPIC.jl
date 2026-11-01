@@ -116,7 +116,7 @@ isdefined(@__MODULE__, :_composition_fixture) || include("collisional_fixtures.j
             HybridModel(IsothermalElectrons(0.02); ηH = eps()),
             HybridModel(IsothermalElectrons(0.02); de2 = eps()),
             HybridModel(PolytropicElectrons(1.0, 1.0, 5 / 3)),
-            HybridModel(TransportElectrons(); ηH = eps()),
+            HybridModel(CGLElectrons(0.6, 0.3, 1.0, 1.0)),
         )
             inner = HybridStepper(st.inner.g, model, CIC(), sum(length(p.weight) for p in ps))
             @test_throws ArgumentError make(inner)
@@ -264,14 +264,21 @@ isdefined(@__MODULE__, :_composition_fixture) || include("collisional_fixtures.j
         @test !st.busy[]
     end
 
-    @testset "S1 transport keeps the carried force and heat schedule $T" for T in
-        (Float32, Float64)
+    @testset "transport keeps the carried force and heat schedule $T etaH=$ηH" for T in
+        (Float32, Float64), ηH in (zero(T), T(0.01))
 
-        st, ps = _composition_transport_fixture(T, Xoshiro)
-        reference, rps = _composition_transport_fixture(T, Xoshiro)
+        st, ps = _composition_transport_fixture(T, Xoshiro; ηH)
+        reference, rps = _composition_transport_fixture(T, Xoshiro; ηH)
         init!(st, ps)
         init!(reference, rps)
         @test st.transaction.Eforce !== st.inner.pressure_work.Eforce
+        if !iszero(ηH)
+            # The initial Bz is a resolved first Fourier mode in a box of length 2.
+            # Its current and full Laplacian obey LJ = -pi^2 J independently of heat.
+            initial = st.inner.fields
+            @test maximum(abs, initial.lapJ[2]) > zero(T)
+            @test initial.lapJ[2] ≈ -T(pi)^2 .* initial.J[2] rtol = 32eps(T)
+        end
         for _ = 1:2
             step!(st, ps, st.dt)
             pressure = copy(reference.inner.fields.pe)
@@ -292,7 +299,9 @@ isdefined(@__MODULE__, :_composition_fixture) || include("collisional_fixtures.j
         end
         for c = 1:3
             @test force[c] ≈ ideal[c] rtol = 8eps(T)
-            @test isequal(f.E[c], force[c] .+ T(st.model.η) .* f.J[c])
+            expected = force[c] .+ T(st.model.η) .* f.J[c]
+            iszero(ηH) || (expected .-= ηH .* f.lapJ[c])
+            @test isequal(f.E[c], expected)
         end
         @test any(c -> !isequal(f.E[c], force[c]), 1:3)
         saved_force = st.transaction.Eforce
@@ -303,39 +312,54 @@ isdefined(@__MODULE__, :_composition_fixture) || include("collisional_fixtures.j
         st.transaction.Eforce = saved_force
 
         unsupported = st.inner.model
-        st.inner.model = HybridModel(unsupported.closure, unsupported.η, 0.01, unsupported.nfloor, 0.0)
-        @test_throws ArgumentError step!(st, ps, st.dt)
-        @test isequal(entry, _composition_snapshot(st, ps))
+        for (bad_etaH, bad_de2) in ((-0.01, 0.0), (Float64(ηH), 0.01))
+            st.inner.model = HybridModel(
+                unsupported.closure, unsupported.η, bad_etaH, unsupported.nfloor, bad_de2,
+            )
+            @test_throws ArgumentError step!(st, ps, st.dt)
+            @test isequal(entry, _composition_snapshot(st, ps))
+        end
         st.inner.model = unsupported
 
-        inactive, ips = _composition_transport_fixture(T, Xoshiro; logs = zero(T))
-        bare, bps = _composition_transport_fixture(T, Xoshiro; logs = zero(T))
+        inactive, ips = _composition_transport_fixture(T, Xoshiro; ηH, logs = zero(T))
+        bare, bps = _composition_transport_fixture(T, Xoshiro; ηH, logs = zero(T))
         init!(inactive, ips)
         init!(bare.inner, bps)
         step!(inactive, ips, inactive.dt)
         step!(bare.inner, bps, bare.dt)
         @test isequal(_composition_physical(inactive, ips), _composition_physical(bare, bps))
 
-        zero_eta, zps = _composition_transport_fixture(T, Xoshiro; η = zero(T))
-        evolving, epspecies = _composition_transport_fixture(
-            T, Xoshiro; η = zero(T), closure = EvolvingElectrons(T(5 / 3)),
-        )
-        init!(zero_eta, zps)
-        init!(evolving, epspecies)
-        @test evolving.transaction.Eforce === nothing
-        for _ = 1:2
+        zero_eta, zps = _composition_transport_fixture(T, Xoshiro; η = zero(T), ηH)
+        if iszero(ηH)
+            evolving, epspecies = _composition_transport_fixture(
+                T, Xoshiro; η = zero(T), closure = EvolvingElectrons(T(5 / 3)),
+            )
+            init!(zero_eta, zps)
+            init!(evolving, epspecies)
+            @test evolving.transaction.Eforce === nothing
+            for _ = 1:2
+                step!(zero_eta, zps, zero_eta.dt)
+                step!(evolving, epspecies, evolving.dt)
+                a, b = _composition_snapshot(zero_eta, zps), _composition_snapshot(evolving, epspecies)
+                @test isequal(a.fields, b.fields)
+                @test isequal(a.particles, b.particles)
+                @test isequal((a.floor, a.clock, a.rng), (b.floor, b.clock, b.rng))
+                @test isequal(a.Eforce, b.fields.E)
+            end
+        else
+            pure_hyper, hps = _composition_transport_fixture(T, Xoshiro; η = zero(T), ηH)
+            init!(zero_eta, zps)
+            init!(pure_hyper, hps)
             step!(zero_eta, zps, zero_eta.dt)
-            step!(evolving, epspecies, evolving.dt)
-            a, b = _composition_snapshot(zero_eta, zps), _composition_snapshot(evolving, epspecies)
-            @test isequal(a.fields, b.fields)
-            @test isequal(a.particles, b.particles)
-            @test isequal((a.floor, a.clock, a.rng), (b.floor, b.clock, b.rng))
-            @test isequal(a.Eforce, b.fields.E)
+            _composition_component!(pure_hyper, hps)
+            @test isequal(_composition_physical(zero_eta, zps), _composition_physical(pure_hyper, hps))
         end
     end
 
-    @testset "outer transport transaction survives a completed inner step" begin
-        st, ps = _composition_transport_fixture(Float64, Xoshiro)
+    @testset "outer transport transaction survives a completed inner step etaH=$ηH" for
+        ηH in (0.0, 0.01)
+
+        st, ps = _composition_transport_fixture(Float64, Xoshiro; ηH)
         init!(st, ps)
         entry = _composition_snapshot(st, ps)
         force_identity = st.inner.pressure_work.Eforce

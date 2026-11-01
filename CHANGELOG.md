@@ -8,12 +8,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
-- Fixed-step `CollisionalHybridStepper` accepts S1 constant-Ohmic
-  `TransportElectrons` with `ηH = de2 = 0`. An optional outer force snapshot
+- Fixed-step `CollisionalHybridStepper` accepts constant Ohmic/hyperresistive
+  `TransportElectrons` with `η >= 0`, `ηH >= 0`, `de2 = 0`. An optional outer force snapshot
   restores the independently carried ion force alongside pressure and RNG;
   schema-1 restart retains the canonical required transport force and policy.
   Essential composition, malformed-state and continuation checks await GitHub
-  CI. Hyperresistive collision composition remains open.
+  CI. Field stages own the heating; ion-ion collisions leave pressure fixed.
 
 - Fixed-step `CollisionalHybridStepper` accepts ideal `EvolvingElectrons`.
   The existing field stages evolve electron pressure, ion-ion collisions hold

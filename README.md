@@ -200,11 +200,12 @@ the separately composed collisional stepper has the first-order contract below:
   `HybridStepper` composed with cell-local Coulomb collisions: each fixed step
   scatters the half-level velocities at the new positions for the full step,
   then forms the carried `E` from the scattered velocities. First order, CPU,
-  ideal massless isothermal/evolving electrons or S1 constant-Ohmic transport
-  (`etaH=de2=0`). The field substep advances stored pressure with applicable
-  Ohmic heating; ion-ion collisions hold pressure fixed. Checkpoints carry the S1 ion
-  force and the advanced RNG. Both stored-pressure extensions await exact-revision
-  CI; [scope and verified state](docs/COLLISIONAL_HYBRID.md).
+  ideal massless isothermal/evolving electrons or constant Ohmic/hyperresistive
+  transport (`de2=0`). The field substep advances stored pressure with applicable
+  Ohmic/hyperresistive heating; ion-ion collisions hold pressure fixed. Checkpoints
+  carry pressure, the transport ion force and the advanced RNG. Stored-pressure
+  extensions await exact-revision CI;
+  [scope and verified state](docs/COLLISIONAL_HYBRID.md).
 
 **Choosing dt.** `recommended_dt(g; NB = 1, integrator = :rk4, safety = 0.8,
 η = 0.0, ηH = 0.0)` returns a conservative particle step from the whistler CFL
@@ -646,9 +647,9 @@ EM and comparative campaigns remain in the
   supplies conducting cavities and mixed periodic/conducting fields; charge-conserving
   particle coupling, absorbing layers and restart integration remain open.
 - Collision/field composition covers fixed-step, first-order `HybridStepper`
-  runs with ideal isothermal/evolving scalar electrons or S1 Ohmic transport on
+  runs with ideal isothermal/evolving scalar electrons or S1/S2 transport on
   the CPU (stored-pressure extensions are CI-pending). Variable steps, higher-order
-  splitting, electron-ion heat exchange, hyperresistive/anisotropic/inertial
+  splitting, electron-ion heat exchange, anisotropic/inertial
   composition, other models and sources, MPI cell ownership and device kernels
   are separate open stages ([CAP-010](docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md)).
 - The [normalization repair](docs/NORMALIZATION_RANGE_PLAN.md)

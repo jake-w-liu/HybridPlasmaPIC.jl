@@ -69,6 +69,14 @@ Raw `ohms_law!` may leave partial work after a later error. Public `init!` and
 Checkpoints and archives retain physical carried force and transport policy 1;
 the zero-`ηH` payload meaning is unchanged.
 
+`CollisionalHybridStepper` admits this existing S2 model in its fixed-step,
+first-order serial CPU composition. It reuses canonical field/pressure stages
+and carried force, holds pressure fixed during ion-ion scattering, and snapshots
+physical `lapJ` with all public fields. Schema 1 and transport policy 1 are
+unchanged; no additional persistent state is introduced. The
+[composition tracker](COLLISION_COMPOSITION_RESTART_PLAN.md#s2-hyperresistive-collision-composition-2026-11-01)
+records essential regressions and pending exact-revision GitHub acceptance.
+
 ## Verification and remaining implementation
 
 - [x] Compose the full hyperresistive prerequisite and complete-source changes

@@ -27,12 +27,12 @@ symmetric or second-order collision split. Call `init!` before active stepping.
 
 Supports Float32/Float64, D=1:3, standard Vector particle storage, positive ions,
 NGP/CIC/TSC, ideal massless `IsothermalElectrons` or `EvolvingElectrons`, and
-S1 `TransportElectrons` with constant `η ≥ 0` and `ηH = de2 = 0`.
+`TransportElectrons` with constant `η ≥ 0`, `ηH ≥ 0` and `de2 = 0`.
 With stored pressure, initialize `inner.fields.pe` before `init!`; the field
 substep evolves pressure and the ion-ion collision substep leaves it unchanged.
-Ohmic heating occurs only in the transport field stages; no electron-ion heat
-exchange is included. Transport rolls back its independently carried ion force
-as well as the full E. The ordered populations,
+Ohmic and hyperresistive heating occur only in the transport field stages; no
+electron-ion heat exchange is included. Transport rolls back its independently
+carried ion force as well as the full E. The ordered populations,
 counts, charges, masses, model and timestep are fixed; any other nonzero `dt` is
 rejected before state changes and `dt = 0` is a no-op that consumes no random
 draws. All-zero Coulomb logarithms reproduce plain `HybridStepper` stepping
@@ -78,8 +78,8 @@ function _validate_collisional_model(inner::HybridStepper{D,T}) where {D,T}
         ArgumentError("CollisionalHybridStepper requires IsothermalElectrons, EvolvingElectrons or TransportElectrons"),
     )
     if _transports_electrons(model.closure)
-        (iszero(model.ηH) && iszero(model.de2)) ||
-            throw(ArgumentError("collisional TransportElectrons requires ηH = de2 = 0"))
+        iszero(model.de2) ||
+            throw(ArgumentError("collisional TransportElectrons requires de2 = 0"))
     else
         (iszero(model.η) && iszero(model.ηH) && iszero(model.de2)) ||
             throw(ArgumentError("ideal collisional electrons require η = ηH = de2 = 0"))

@@ -5,8 +5,8 @@ self/interspecies Coulomb collisions ([`collide_coulomb!`](LOCAL_COULOMB.md)). T
 slice is **first order** and CPU-only. It supports Float32/Float64 in one to three
 spatial dimensions, periodic Fourier grids, positive-ion populations, standard
 Vector particle storage, NGP/CIC/TSC, ideal massless isothermal or evolving
-scalar electrons (`eta=etaH=de2=0`), and S1 `TransportElectrons` with constant
-`eta>=0`, `etaH=de2=0`. The ordered populations, counts, charges,
+scalar electrons (`eta=etaH=de2=0`), and `TransportElectrons` with constant
+`eta>=0`, `etaH>=0`, `de2=0`. The ordered populations, counts, charges,
 masses, model, normalization and positive timestep are fixed for the wrapper's
 lifetime.
 
@@ -20,14 +20,15 @@ velocity (the `HybridStepper` convention). One nonzero step of size `h` from
 1. The canonical `HybridStepper` push: Boris kick to the half level `t+h/2`
    (priming on the first step), drift to `t+h`, magnetic field to `t+h` with
    frozen midpoint moments. With either stored-pressure closure, pressure advances
-   with B through the canonical RK4 stages; S1 adds its existing Ohmic heat there.
+   with B through the canonical RK4 stages; transport adds its existing Ohmic
+   and applicable hyperresistive heat there.
 2. `collide_coulomb!` for the interval `h`, at the new positions and the
    half-level velocities, with the wrapper's RNG and workspace. The collision
    interval is the field interval, and its velocities sit at that interval's
    midpoint. This ion-ion subflow leaves stored electron pressure fixed.
 3. Integer-time moments, Ohm's law and the carried-E recentering from the
-   collided velocities, giving E at `t+h`. S1 refreshes the independently carried
-   ion force as well as the full field; its predictor uses that force.
+   collided velocities, giving E at `t+h`. Transport refreshes the independently
+   carried ion force as well as the full field; its predictor uses that force.
 
 The result is bitwise identical to `step!(inner, ...)`, then
 `collide_coulomb!(..., h; ...)`, then recomputing the moments and the closure's
@@ -45,16 +46,21 @@ interval through the refreshed moments. There is no electron-ion temperature
 equilibration, collisional electron heating or additional reservoir. Pressure
 retains the canonical explicit-stage positivity checks and is never clipped.
 
-S1 retains `E = E_force + eta*J`, force-based ion kicks and stage-based
-`(gamma-1)*eta*|J|^2` pressure heating. The collision substep adds no heat source.
-It combines the existing reduced Ohmic model with ion-ion Coulomb scattering;
-it does not reinterpret the Ohmic term as electron-ion Coulomb equilibration.
-`eta` and the Coulomb logarithms remain independent model inputs; the wrapper
-does not derive either from the other.
+Transport retains `E = E_force + eta*J - etaH*laplacian(J)`, force-based ion
+kicks and the canonical stage-based positive Ohmic and hyperresistive pressure
+heat. S2's heat includes its stated Nyquist convention; see the
+[model and discrete balance](TRANSPORT_HYPERRESISTIVITY_PLAN.md).
+The collision substep adds no heat source.
+It combines the existing reduced transport model with ion-ion Coulomb scattering;
+it does not reinterpret the transport terms as electron-ion Coulomb equilibration.
+`eta`, `etaH` and the Coulomb logarithms remain independent model inputs; the wrapper
+does not derive one from another.
 Deposited density must remain finite and at least `nfloor` at initialization
-and every midpoint, endpoint and predictor, as in the canonical S1 model.
-`eta=0` matches evolving electrons only on states admitted by that density rule.
-Hyperresistive (`etaH>0`), inertial and anisotropic composition remain unsupported.
+and every midpoint, endpoint and predictor, as in the canonical transport model.
+`eta=etaH=0` matches evolving electrons only on states admitted by that density
+rule. S1's `etaH=0` arithmetic is retained. Inertial and anisotropic composition
+remain unsupported. S2 inherits its required finite physical current Laplacian,
+electric field and complete rates; see the [source-range contract](TRANSPORT_SOURCE_RANGE_PLAN.md).
 
 ## Timestep, RNG and failures
 
@@ -69,14 +75,14 @@ run is active. Independent wrappers need independent inner states and particle
 storage. `init!` resets the physical clock and preserves the current owned RNG.
 
 A failed step restores particle x/v, every public hybrid field including evolving
-pressure, the S1 carried force, clock, source ledger and RNG in place; no partially
+pressure, the transport carried force, clock, source ledger and RNG in place; no partially
 collided velocities are published and a retry draws the same numbers. Private
 scratch (inner workspaces, collision bins) may change. The standalone `collide_coulomb!`
 keeps its weaker policy: it publishes no velocities on failure but may advance
 its RNG.
 
-The wrapper owns an independent three-grid force snapshot for S1, in addition
-to the inner stepper's force transaction. Isothermal and ideal evolving closures
+The wrapper owns an independent three-grid force snapshot for transport, in
+addition to the inner stepper's force transaction. Isothermal and ideal evolving closures
 store `nothing` for this snapshot and allocate no added force arrays. New
 complete-call allocation, memory and timing acceptance remains open.
 
@@ -158,7 +164,7 @@ compatible environment; cross-version bitwise identity is not promised.
 
 ## Verification status
 
-The ideal `EvolvingElectrons` and S1 transport extensions have source-reviewed
+The ideal `EvolvingElectrons` and S1/S2 transport extensions have source-reviewed
 admission, transaction and checkpoint paths, with essential component-sequence,
 force/full-E, zero-log, eta-zero, pressure/force/RNG continuation and failure
 regressions. An owner-level control restores the outer transaction after a
@@ -201,6 +207,6 @@ and `test_collisional_physics.jl`. The [composition plan](COLLISION_COMPOSITION_
 records the design history and evidence.
 
 Variable timesteps, second-order stochastic splitting, electron-ion heat
-exchange, hyperresistive/anisotropic or inertial composition, CAM-CL,
+exchange, anisotropic or inertial composition, CAM-CL,
 electrostatic/electromagnetic PIC, neutral/BGK sources, ionization, radiation,
 distributed cell ownership and GPU RNG/storage remain separate planned extensions.

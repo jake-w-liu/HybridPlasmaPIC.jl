@@ -73,9 +73,9 @@ same species collection supplied by the caller.
 
 This call is a stand-alone operator. For coupled evolution, the package provides
 [`CollisionalHybridStepper`](COLLISIONAL_HYBRID.md) with fixed-step, first-order
-CPU ideal isothermal/evolving-scalar or S1 Ohmic transport splitting and
+CPU ideal isothermal/evolving-scalar or S1/S2 transport splitting and
 RNG-complete checkpoint/archive continuation. Stored-pressure extensions await
-exact-revision CI; S1 composition requires `etaH=de2=0`.
+exact-revision CI; transport composition requires `de2=0`.
 Its supported models, time levels and failure semantics are narrower than this
 stand-alone collision API; use that guide when choosing the composed run.
 

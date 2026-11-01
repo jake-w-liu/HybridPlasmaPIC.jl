@@ -5,6 +5,9 @@ This page owns the equations and Nyquist heat convention for CAP-011 S2.
 status, canonical owners, compatibility, rejection and all acceptance gates.
 Its composed implementation awaits GitHub validation. The public setup and supported
 combinations are in the [transport guide](EVOLVING_ELECTRONS.md#constant-hyperresistive-transport).
+The fixed-step first-order [ion-collision wrapper](COLLISIONAL_HYBRID.md) reuses
+this model without an additional heat source or reservoir; its S2 admission and
+essential regressions await exact-revision GitHub verification.
 
 ## Continuous and discrete balance
 

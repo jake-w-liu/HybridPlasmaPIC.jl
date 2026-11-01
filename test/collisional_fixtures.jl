@@ -15,6 +15,7 @@ function _composition_fixture(
     shape = CIC(),
     closure = IsothermalElectrons(temperature),
     η = 0.0,
+    ηH = 0.0,
 ) where {D,T}
     g = FourierGrid(ntuple(_ -> 4, D), ntuple(_ -> T(2), D))
     species = [ParticleSet{D,T}(count; q = T(a), m = T(a + 1)) for a = 1:ns]
@@ -27,7 +28,7 @@ function _composition_fixture(
         end
         fill!(p.weight, T(2^D / max(count, 1)))
     end
-    inner = HybridStepper(g, HybridModel(closure; η), shape, ns * count)
+    inner = HybridStepper(g, HybridModel(closure; η, ηH), shape, ns * count)
     fill!(inner.fields.B[1], magnetic)
     HybridPlasmaPIC._evolves_pressure(closure) && fill!(inner.fields.pe, temperature)
     st = CollisionalHybridStepper(
@@ -43,9 +44,9 @@ function _composition_fixture(
 end
 
 function _composition_transport_fixture(
-    ::Type{T}, R; η = T(0.03), logs = T(0.05), closure = TransportElectrons(T(5 / 3)), count = 8,
+    ::Type{T}, R; η = T(0.03), ηH = zero(T), logs = T(0.05), closure = TransportElectrons(T(5 / 3)), count = 8,
 ) where {T}
-    st, ps = _composition_fixture(Val(1), T, R; η, logs, closure, count)
+    st, ps = _composition_fixture(Val(1), T, R; η, ηH, logs, closure, count)
     st.inner.fields.B[3] .= T[0, 0.1, 0, -0.1]
     st.inner.fields.pe .= T[0.02, 0.022, 0.02, 0.018]
     return st, ps

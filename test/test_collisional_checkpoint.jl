@@ -4,19 +4,20 @@ isdefined(@__MODULE__, :_composition_fixture) || include("collisional_fixtures.j
 
 @testset "Collisional checkpoint validation and failure ownership" begin
     H = HybridPlasmaPIC
-    @testset "S1 force pressure and advanced RNG restart together $R" for R in
-        (Xoshiro, MersenneTwister)
+    @testset "transport force pressure and advanced RNG restart together $R etaH=$ηH" for R in
+        (Xoshiro, MersenneTwister), ηH in (0.0, 0.01)
 
         # Matching particle/grid lengths allow a real force/particle alias control.
-        st, ps = _composition_transport_fixture(Float64, R; count = 4)
+        st, ps = _composition_transport_fixture(Float64, R; count = 4, ηH)
         init!(st, ps)
         randn(st.rng, 3)
         step!(st, ps, st.dt)
         saved = deepcopy(H._checkpoint_state(st, ps))
         @test saved.schema === 1
         @test saved.inner.transport_policy_version === 1
+        @test saved.inner.model.ηH == ηH
         @test isequal(saved.inner.Eforce, st.inner.pressure_work.Eforce)
-        dest, dps = _composition_transport_fixture(Float64, R; count = 4)
+        dest, dps = _composition_transport_fixture(Float64, R; count = 4, ηH)
         init!(dest, dps)
         entry = _composition_snapshot(dest, dps)
         drop(key) = (; (k => v for (k, v) in pairs(saved.inner) if k !== key)...)
@@ -25,6 +26,9 @@ isdefined(@__MODULE__, :_composition_fixture) || include("collisional_fixtures.j
             drop(:Eforce),
             drop(:transport_policy_version),
             merge(saved.inner, (transport_policy_version = 2,)),
+            merge(saved.inner, (model = HybridModel(
+                saved.inner.model.closure; η = saved.inner.model.η, ηH = ηH + 0.01,
+            ),)),
             merge(saved.inner, (Eforce = (fill(NaN, 4), force[2], force[3]),)),
             merge(saved.inner, (Eforce = (saved.fields.ui[1], force[2], force[3]),)),
             merge(saved.inner, (Eforce = (saved.inner.species[1].x[1], force[2], force[3]),)),
