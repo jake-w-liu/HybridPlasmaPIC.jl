@@ -86,13 +86,19 @@ The `rk4-affine` GitHub essentials suite includes independent rational affine
 controls, ordinary scalar/array bit comparisons, and public Ohmic heating at
 `dt=2*floatmin(T)`. The heating fixture has finite physical rates but an
 overflowing native RK weighted sum; its complete pressure update is finite.
-All new runtime, compiler, formatting and resource results remain pending.
+The historical [exact-f9dd08d essentials run](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41289773560)
+passes all 23 groups and 22,400 assertions on each actual Julia 1.12.7 and 1.13.3.
+Root checked both complete logs and found the four test files and complete affine
+owner byte-identical at current `cfb3833`. This is focused numerical evidence;
+current full-package/compiler/formatter, later conduction/coupled changes and
+complete-operation resource acceptance remain pending.
 
 The separate `_validated_step_dt` preflight at
 [`7254c7e`](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/commit/7254c7e638df5ee6ca62e777397d4070f0cf3766)
 rejects a nonzero full timestep when `dt/NB` rounds to zero before evolution;
-its runtime acceptance remains pending. This affine candidate leaves that
-preflight and CAM-CL unchanged and supports represented subnormal field steps.
+its ten essential substep-resolution assertions pass in that same historical
+run on both runtimes. Full integrated acceptance remains pending. The affine
+owner retains that preflight and CAM-CL and supports represented subnormal field steps.
 
 Raw `ohms_law!` may leave partial work after a later error. Public `init!` and
 `step!` retain their existing rollback, carried force and clock ownership.
