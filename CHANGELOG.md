@@ -11,6 +11,12 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Added
 
+- Fixed-step `CollisionalHybridStepper` composes `ConductingElectrons` with
+  ion-ion scattering through its existing field/pressure and force/RNG owners.
+  The inner conduction policy is required at restart; temperature scratch must
+  be independent of the outer force snapshot. The [composition guide](docs/COLLISIONAL_HYBRID.md)
+  records the first-order scope and pending GitHub acceptance.
+
 - `ConductingElectrons(γ; κ)` adds constant isotropic heat flux from represented
   stage temperature `round(pe/n)` to the complete signed transport pressure
   source, including full Nyquist modes. It retains pressure rollback and adds

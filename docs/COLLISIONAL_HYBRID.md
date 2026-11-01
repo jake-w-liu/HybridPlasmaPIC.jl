@@ -5,8 +5,8 @@ self/interspecies Coulomb collisions ([`collide_coulomb!`](LOCAL_COULOMB.md)). T
 slice is **first order** and CPU-only. It supports Float32/Float64 in one to three
 spatial dimensions, periodic Fourier grids, positive-ion populations, standard
 Vector particle storage, NGP/CIC/TSC, ideal massless isothermal or evolving
-scalar electrons (`eta=etaH=de2=0`), and `TransportElectrons` with constant
-`eta>=0`, `etaH>=0`, `de2=0`. The ordered populations, counts, charges,
+scalar electrons (`eta=etaH=de2=0`), and `TransportElectrons` or
+`ConductingElectrons` with constant `eta>=0`, `etaH>=0`, `de2=0`. The ordered populations, counts, charges,
 masses, model, normalization and positive timestep are fixed for the wrapper's
 lifetime.
 
@@ -19,7 +19,7 @@ velocity (the `HybridStepper` convention). One nonzero step of size `h` from
 
 1. The canonical `HybridStepper` push: Boris kick to the half level `t+h/2`
    (priming on the first step), drift to `t+h`, magnetic field to `t+h` with
-   frozen midpoint moments. With either stored-pressure closure, pressure advances
+   frozen midpoint moments. With stored-pressure closures, pressure advances
    with B through the canonical RK4 stages; transport adds its existing Ohmic
    and applicable hyperresistive heat there.
 2. `collide_coulomb!` for the interval `h`, at the new positions and the
@@ -39,8 +39,8 @@ collision subflow. Skipping step 3 (reusing the pre-collision E) is wrong: the
 next kick then lacks `h (q/m) dE`, where `dE` is the change of `-u_i×B` from
 the collisional change of the charge-weighted bulk velocity.
 
-For `EvolvingElectrons` or `TransportElectrons`, set finite nonnegative
-`inner.fields.pe` before `init!`.
+For `EvolvingElectrons`, `TransportElectrons` or `ConductingElectrons`, set
+finite nonnegative `inner.fields.pe` before `init!`.
 Initialization preserves it, and collision feedback enters the next pressure
 interval through the refreshed moments. There is no electron-ion temperature
 equilibration, collisional electron heating or additional reservoir. Pressure
@@ -51,7 +51,13 @@ kicks and the canonical stage-based positive Ohmic and hyperresistive pressure
 heat. S2's heat includes its stated Nyquist convention; see the
 [model and discrete balance](TRANSPORT_HYPERRESISTIVITY_PLAN.md).
 The collision substep adds no heat source.
-It combines the existing reduced transport model with ion-ion Coulomb scattering;
+The bounded [conduction model](EVOLVING_ELECTRONS.md#constant-isotropic-conduction-source-candidate)
+adds its represented-temperature heat flux only in those field stages, retaining
+its physical-temperature admission, full Nyquist convention, strict pure-conduction
+guard and pressure rejection. κ is fixed as part of the wrapper's bound model.
+Derived temperature scratch must be independent of the outer force snapshot.
+
+The wrapper combines the existing reduced transport model with ion-ion Coulomb scattering;
 it does not reinterpret the transport terms as electron-ion Coulomb equilibration.
 `eta`, `etaH` and the Coulomb logarithms remain independent model inputs; the wrapper
 does not derive one from another.
@@ -156,6 +162,9 @@ Transport uses the inner record's required `transport_policy_version=1` and
 must be finite, correctly shaped and independent of all saved fields and
 particles. The force is restored in place, and outer failures restore its
 entry value along with pressure and the RNG.
+Conducting state also requires the inner `conduction_policy_version=1`; the
+existing outer schema remains 1. The destination must match the saved κ as part
+of the fixed model, and temperature scratch is not persisted.
 
 `archive_run(path, st, ions; rng_seed=42)` uses the same state and existing
 checksum/provenance archive. Its seed is metadata, not a replacement for advanced
@@ -177,6 +186,12 @@ the three existing collisional test files listed below. This verifies those
 component, persistence and production-invariant cases. Full exact-revision
 package, formatting, compiler and resource acceptance remains pending. No new
 energy-conservation or splitting-order claim is made.
+
+The `ConductingElectrons` composition extends these existing owners. Essential
+component/zero-log, temperature/outer-force alias, guard rollback and advanced-RNG
+checkpoint/archive controls are prepared in the same files. Their exact-revision
+GitHub runtime/compiler/format and resource acceptance remains pending; the
+historical S1/S2 result above does not validate this extension.
 
 The following historical results cover **isothermal electrons only**
 (2026-10-26, Julia 1.12.7 and 1.13.2):

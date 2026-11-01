@@ -126,8 +126,10 @@ of an arbitrary unrounded quotient through the Fourier operator.
 
 Set stored pressure before `init!`. `κ=0` retains the transport arithmetic and
 performs no temperature division or transform. Checkpoints retain pressure,
-carried ion force, κ and conduction policy 1. No extra energy reservoir, wall
-flux, collisional composition, MPI/device, CAM-CL or Hall-MHD support is implied.
+carried ion force, κ and conduction policy 1. The fixed-step
+[`CollisionalHybridStepper`](@ref) composes it with ion-ion scattering, which
+leaves pressure fixed. No extra reservoir, wall flux, electron-ion exchange,
+MPI/device, CAM-CL or Hall-MHD support is implied.
 """
 struct ConductingElectrons{T<:AbstractFloat} <: ElectronClosure
     γ::T

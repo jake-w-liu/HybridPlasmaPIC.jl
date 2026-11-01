@@ -1,8 +1,8 @@
 # CAP-010: collision/field composition and stochastic restart
 
-Current extensions (2026-11-01): ideal evolving scalar pressure and fixed-step
-S1/S2 transport composition are implemented. Exact-revision GitHub
-verification is pending. See the scoped trackers below.
+Current extensions (2026-11-01): ideal evolving scalar pressure, fixed-step
+S1/S2 transport and S3a represented-temperature conduction composition are
+implemented. Exact-revision GitHub verification is pending. See the scoped trackers below.
 
 Status (2026-10-26): ported onto `main` after `cda63f1` on the landed cell-local
 Coulomb operator; the provisional V10 collision copy is not used. Both recorded
@@ -775,3 +775,25 @@ Pre-edit brief, based on `ebad36e`:
 This reuses the represented-source S2 model. It does not repair original ideal
 factor loss, general FFT conditioning or dt-scaled RK representation, and makes
 no new global energy, higher-order, exchange, resource or backend claim.
+
+## S3a represented-temperature collision composition (2026-11-01)
+
+The fixed-step first-order wrapper admits `ConductingElectrons` through the
+same scalar-transport and evolving-model owners. Field stages alone evolve
+pressure and add conduction; the canonical ion-ion subflow leaves it fixed.
+Outer force snapshots reject aliases with derived temperature scratch.
+Existing full pressure/field/force/particle/clock/RNG transactions and nested
+checkpoint validation remain the state owners. The inner record requires
+conduction policy 1 and transport policy 1; the outer schema remains 1 and
+restored κ must match the wrapper's fixed model. No new storage or source
+formula is added to the wrapper.
+
+- [x] Trace canonical stage/source/force/rollback and nested checkpoint ownership.
+- [x] Extend model admission and the shared force/temperature storage invariant.
+- [x] Reuse essential component, zero-log, rollback and advanced-RNG restart controls.
+- [ ] Pass exact-revision GitHub numerical/compiler/format/resource acceptance.
+
+The [conduction model](EVOLVING_ELECTRONS.md#constant-isotropic-conduction-source-candidate)
+retains its represented-temperature and pure-conduction guard limits. This
+composition adds no electron-ion heat exchange, positivity theorem, higher-order
+split or parallel/device support. Source publication is distinct from acceptance.

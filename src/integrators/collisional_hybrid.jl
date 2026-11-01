@@ -27,10 +27,11 @@ symmetric or second-order collision split. Call `init!` before active stepping.
 
 Supports Float32/Float64, D=1:3, standard Vector particle storage, positive ions,
 NGP/CIC/TSC, ideal massless `IsothermalElectrons` or `EvolvingElectrons`, and
-`TransportElectrons` with constant `η ≥ 0`, `ηH ≥ 0` and `de2 = 0`.
+`TransportElectrons` or `ConductingElectrons` with constant `η ≥ 0`, `ηH ≥ 0`
+and `de2 = 0`. Conduction retains its represented-temperature model and guard.
 With stored pressure, initialize `inner.fields.pe` before `init!`; the field
 substep evolves pressure and the ion-ion collision substep leaves it unchanged.
-Ohmic and hyperresistive heating occur only in the transport field stages; no
+Ohmic/hyperresistive heating and conduction occur only in the field stages; no
 electron-ion heat exchange is included. Transport rolls back its independently
 carried ion force as well as the full E. The ordered populations,
 counts, charges, masses, model and timestep are fixed; any other nonzero `dt` is
@@ -74,13 +75,13 @@ function _validate_collisional_model(inner::HybridStepper{D,T}) where {D,T}
     T <: Union{Float32,Float64} ||
         throw(ArgumentError("CollisionalHybridStepper requires Float32 or Float64"))
     model = inner.model
-    model.closure isa Union{IsothermalElectrons,EvolvingElectrons,TransportElectrons} || throw(
+    model.closure isa Union{IsothermalElectrons,EvolvingElectrons,_ScalarTransportClosure} || throw(
         ArgumentError(
-            "CollisionalHybridStepper requires IsothermalElectrons, EvolvingElectrons or TransportElectrons",
+            "CollisionalHybridStepper requires IsothermalElectrons, EvolvingElectrons, TransportElectrons or ConductingElectrons",
         ),
     )
     if _transports_electrons(model.closure)
-        iszero(model.de2) || throw(ArgumentError("collisional TransportElectrons requires de2 = 0"))
+        iszero(model.de2) || throw(ArgumentError("collisional scalar transport requires de2 = 0"))
     else
         (iszero(model.η) && iszero(model.ηH) && iszero(model.de2)) ||
             throw(ArgumentError("ideal collisional electrons require η = ηH = de2 = 0"))

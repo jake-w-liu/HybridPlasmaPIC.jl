@@ -333,6 +333,14 @@ function _validate_transport_force_storage(
         _particle_arrays_mightalias(a, carried[j]) &&
             throw(ArgumentError("transport force arrays must have independent storage"))
     end
+    # A wrapper can supply its outer rollback force here. Active stages reuse
+    # temperature scratch, so that snapshot must be independent of it too.
+    if w.temperature !== nothing
+        for a in carried
+            _particle_arrays_mightalias(a, w.temperature) &&
+                throw(ArgumentError("transport force must not alias electron temperature scratch"))
+        end
+    end
     grids = (
         f.n,
         f.ui...,

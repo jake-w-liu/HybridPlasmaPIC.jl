@@ -278,7 +278,8 @@ Float32/64 `HybridStepper`, one unit-charge scalar population or an ordered
 positive-ion collection. The current implementation is a source candidate;
 its GitHub runtime/compiler and integration acceptance remains pending. This
 does not add magnetic anisotropy, flux limiting, equilibration, MPI/device,
-CAM-CL, Hall-MHD or collisional-wrapper support.
+CAM-CL or Hall-MHD support. Fixed-step ion-ion collision composition uses the
+[existing wrapper](COLLISIONAL_HYBRID.md), with its source and acceptance scope.
 
 The stage temperature convention is `Θ = round_T(pe/n)` from the original stored
 pressure and actual deposited density, rather than reciprocal multiplication.

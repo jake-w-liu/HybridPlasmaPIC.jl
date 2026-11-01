@@ -385,6 +385,47 @@ isdefined(@__MODULE__, :_composition_fixture) || include("collisional_fixtures.j
         end
     end
 
+    @testset "conducting pressure uses the canonical collision split $T etaH=$ηH kappa=$κ" for T in
+        (Float32, Float64), ηH in (zero(T), T(0.01)), κ in (zero(T), T(0.07))
+
+        make(logs) = _composition_transport_fixture(T, Xoshiro; ηH, logs,
+            closure = ConductingElectrons(T(5 / 3); κ))
+        st, ps = make(T(0.05))
+        reference, rps = make(T(0.05))
+        init!(st, ps)
+        init!(reference, rps)
+        for _ = 1:2
+            step!(st, ps, st.dt)
+            _composition_component!(reference, rps)
+            @test isequal(_composition_physical(st, ps), _composition_physical(reference, rps))
+        end
+        inactive, ips = make(zero(T))
+        bare, bps = make(zero(T))
+        init!(inactive, ips)
+        init!(bare.inner, bps)
+        step!(inactive, ips, inactive.dt)
+        step!(bare.inner, bps, bare.dt)
+        @test isequal(_composition_physical(inactive, ips), _composition_physical(bare, bps))
+        # The derived temperature cannot be an outer force rollback component.
+        snapshot = st.transaction.Eforce
+        st.transaction.Eforce = (st.inner.pressure_work.temperature, snapshot[2], snapshot[3])
+        before = _composition_snapshot(st, ps)
+        @test_throws ArgumentError step!(st, ps, st.dt)
+        @test isequal(_composition_snapshot(st, ps), before)
+        st.transaction.Eforce = snapshot
+    end
+
+    @testset "conduction guard restores the composed state $T" for T in (Float32, Float64)
+        st, ps = _composition_transport_fixture(T, Xoshiro;
+            closure = ConductingElectrons(T(2); κ = floatmax(T)))
+        init!(st, ps)
+        before = _composition_snapshot(st, ps)
+        for _ = 1:2
+            @test_throws ArgumentError step!(st, ps, st.dt)
+            @test isequal(_composition_snapshot(st, ps), before)
+        end
+    end
+
     @testset "outer transport transaction survives a completed inner step etaH=$ηH" for ηH in
                                                                                         (0.0, 0.01)
 

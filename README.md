@@ -659,8 +659,8 @@ EM and comparative campaigns remain in the
   supplies conducting cavities and mixed periodic/conducting fields; charge-conserving
   particle coupling, absorbing layers and restart integration remain open.
 - Collision/field composition covers fixed-step, first-order `HybridStepper`
-  runs with ideal isothermal/evolving scalar electrons or S1/S2 transport on
-  the CPU (stored-pressure extensions are CI-pending). Variable steps, higher-order
+  runs with ideal isothermal/evolving scalar electrons, S1/S2 transport or S3a
+  represented-temperature conduction on the CPU (stored-pressure extensions are CI-pending). Variable steps, higher-order
   splitting, electron-ion heat exchange, anisotropic/inertial
   composition, other models and sources, MPI cell ownership and device kernels
   are separate open stages ([CAP-010](docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md)).
