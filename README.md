@@ -200,8 +200,10 @@ the separately composed collisional stepper has the first-order contract below:
   `HybridStepper` composed with cell-local Coulomb collisions: each fixed step
   scatters the half-level velocities at the new positions for the full step,
   then forms the carried `E` from the scattered velocities. First order, CPU,
-  ideal massless isothermal electrons; checkpoints carry the advanced RNG so a
-  restarted run continues bitwise. [User guide](docs/COLLISIONAL_HYBRID.md).
+  ideal massless isothermal or evolving scalar electrons. The field substep
+  evolves stored pressure; ion-ion collisions leave it fixed. Checkpoints carry
+  pressure and the advanced RNG. The evolving extension awaits exact-revision
+  CI; [scope and verified state](docs/COLLISIONAL_HYBRID.md).
 
 **Choosing dt.** `recommended_dt(g; NB = 1, integrator = :rk4, safety = 0.8,
 η = 0.0, ηH = 0.0)` returns a conservative particle step from the whistler CFL
@@ -643,9 +645,11 @@ EM and comparative campaigns remain in the
   supplies conducting cavities and mixed periodic/conducting fields; charge-conserving
   particle coupling, absorbing layers and restart integration remain open.
 - Collision/field composition covers fixed-step, first-order `HybridStepper`
-  runs with ideal isothermal electrons on the CPU. Variable steps, higher-order
-  splitting, other closures and models, other sources, MPI cell ownership and
-  device kernels are separate open stages ([CAP-010](docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md)).
+  runs with ideal isothermal or evolving scalar electrons on the CPU (the
+  evolving extension is CI-pending). Variable steps, higher-order splitting,
+  electron-ion heat exchange, transport/anisotropic closures, other models and
+  sources, MPI cell ownership and device kernels are separate open stages
+  ([CAP-010](docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md)).
 - The [normalization repair](docs/NORMALIZATION_RANGE_PLAN.md)
   does not establish range correctness of every compound RayCon expression.
   The shared BigFloat exact-conversion repair has passed its

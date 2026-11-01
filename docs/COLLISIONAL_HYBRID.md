@@ -4,9 +4,10 @@
 self/interspecies Coulomb collisions ([`collide_coulomb!`](LOCAL_COULOMB.md)). This
 slice is **first order** and CPU-only. It supports Float32/Float64 in one to three
 spatial dimensions, periodic Fourier grids, positive-ion populations, standard
-Vector particle storage, NGP/CIC/TSC, and ideal massless isothermal electrons
-(`eta=etaH=de2=0`). The ordered populations, counts, charges, masses, model,
-normalization and positive timestep are fixed for the wrapper's lifetime.
+Vector particle storage, NGP/CIC/TSC, and ideal massless isothermal or evolving
+scalar electrons (`eta=etaH=de2=0`). The ordered populations, counts, charges,
+masses, model, normalization and positive timestep are fixed for the wrapper's
+lifetime.
 
 ## Step order and time levels
 
@@ -17,11 +18,12 @@ velocity (the `HybridStepper` convention). One nonzero step of size `h` from
 
 1. The canonical `HybridStepper` push: Boris kick to the half level `t+h/2`
    (priming on the first step), drift to `t+h`, magnetic field to `t+h` with
-   frozen midpoint moments.
+   frozen midpoint moments. With `EvolvingElectrons`, pressure advances with B
+   through the canonical RK4 stages.
 2. `collide_coulomb!` for the interval `h`, at the new positions and the
    half-level velocities, with the wrapper's RNG and workspace. The collision
    interval is the field interval, and its velocities sit at that interval's
-   midpoint.
+   midpoint. This ion-ion subflow leaves evolving electron pressure fixed.
 3. Integer-time moments, Ohm's law and the carried-E recentering from the
    collided velocities, giving E at `t+h`.
 
@@ -32,6 +34,12 @@ first-order (Lie-type) split, not a symmetric split or a synchronized exact
 collision subflow. Skipping step 3 (reusing the pre-collision E) is wrong: the
 next kick then lacks `h (q/m) dE`, where `dE` is the change of `-u_i×B` from
 the collisional change of the charge-weighted bulk velocity.
+
+For `EvolvingElectrons`, set finite nonnegative `inner.fields.pe` before `init!`.
+Initialization preserves it, and collision feedback enters the next pressure
+interval through the refreshed moments. There is no electron-ion temperature
+equilibration, collisional electron heating or additional reservoir. Pressure
+retains the canonical explicit-stage positivity checks and is never clipped.
 
 ## Timestep, RNG and failures
 
@@ -45,11 +53,12 @@ populations exclusively: advance them through the wrapper while the composed
 run is active. Independent wrappers need independent inner states and particle
 storage. `init!` resets the physical clock and preserves the current owned RNG.
 
-A failed step restores particle x/v, every public hybrid field, the clock, the
-source ledger and the RNG in place; no partially collided velocities are
-published and a retry draws the same numbers. Private scratch (inner workspaces,
-collision bins) may change. The standalone `collide_coulomb!` keeps its weaker
-policy: it publishes no velocities on failure but may advance its RNG.
+A failed step restores particle x/v, every public hybrid field including evolving
+pressure, the clock, source ledger and RNG in place; no partially collided
+velocities are published and a retry draws the same numbers. Private scratch
+(inner workspaces, collision bins) may change. The standalone `collide_coulomb!`
+keeps its weaker policy: it publishes no velocities on failure but may advance
+its RNG.
 
 Coulomb logarithms may be a scalar or a symmetric channel matrix; zero entries
 disable channels. All-zero logs run exactly the plain `HybridStepper` step and
@@ -113,14 +122,25 @@ fresh wrapper and call `load_checkpoint!`; do not initialize it afterward.
 The destination must have the same grid, precision, model/shape values,
 population order/counts/charges/masses and RNG algorithm. Arrays stay in place;
 this slice does not resize particles on restore. Missing/malformed, mid-step or
-incompatible state is rejected before publication.
+incompatible state is rejected before publication. Evolving pressure is stored
+in the existing schema-1 full-field and inner records; the reader requires those
+copies to agree before restoring either state.
 
 `archive_run(path, st, ions; rng_seed=42)` uses the same state and existing
 checksum/provenance archive. Its seed is metadata, not a replacement for advanced
 RNG state. Stochastic restart requires the same Julia version/platform and
 compatible environment; cross-version bitwise identity is not promised.
 
-## Verified state (2026-10-26, Julia 1.12.7 and 1.13.2)
+## Verification status
+
+The ideal `EvolvingElectrons` extension has source-reviewed admission,
+transaction and checkpoint paths, with essential component-sequence, zero-log,
+pressure/RNG continuation and failure regressions. Runtime, formatting and
+compiler acceptance are pending exact-revision GitHub CI. No new resource,
+energy-conservation or splitting-order claim is made.
+
+The following historical results cover **isothermal electrons only**
+(2026-10-26, Julia 1.12.7 and 1.13.2):
 
 - The composed step equals the explicit component sequence bitwise over D=1–3,
   Float32/64, both RNGs, scalar and matrix logs, NGP/CIC/TSC; zero logs equal a
@@ -152,7 +172,7 @@ The tests are `test/test_collisional_hybrid.jl`, `test_collisional_checkpoint.jl
 and `test_collisional_physics.jl`. The [composition plan](COLLISION_COMPOSITION_RESTART_PLAN.md)
 records the design history and evidence.
 
-Variable timesteps, second-order stochastic splitting, evolving/anisotropic
-pressure, CAM-CL, electrostatic/electromagnetic PIC, neutral/BGK sources,
-ionization, radiation, distributed cell ownership and GPU RNG/storage remain
-separate planned extensions.
+Variable timesteps, second-order stochastic splitting, electron-ion heat
+exchange, transport/anisotropic pressure, CAM-CL, electrostatic/electromagnetic
+PIC, neutral/BGK sources, ionization, radiation, distributed cell ownership and
+GPU RNG/storage remain separate planned extensions.

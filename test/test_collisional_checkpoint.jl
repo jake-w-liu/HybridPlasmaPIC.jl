@@ -4,6 +4,52 @@ isdefined(@__MODULE__, :_composition_fixture) || include("collisional_fixtures.j
 
 @testset "Collisional checkpoint validation and failure ownership" begin
     H = HybridPlasmaPIC
+    @testset "evolving pressure and advanced RNG continue together $R" for R in
+        (Xoshiro, MersenneTwister)
+
+        make() = _composition_fixture(
+            Val(1), Float64, R; closure = EvolvingElectrons(),
+        )
+        st, ps = make()
+        st.inner.fields.pe .= [0.02, 0.022, 0.02, 0.018]
+        init!(st, ps)
+        randn(st.rng, 3)
+        step!(st, ps, st.dt)
+        saved = deepcopy(H._checkpoint_state(st, ps))
+        dest, dps = make()
+        init!(dest, dps)
+        entry = _composition_snapshot(dest, dps)
+        for pressure in (fill(-1.0, 4), 2 .* saved.inner.pe)
+            # Detach this leaf: the writer intentionally shares the two pe arrays.
+            corrupt = merge(saved, (fields = merge(saved.fields, (pe = pressure,)),))
+            @test_throws ArgumentError H._restore_checkpoint_state!(dest, dps, corrupt)
+            @test isequal(entry, _composition_snapshot(dest, dps))
+        end
+        missing = NamedTuple{Tuple(k for k in keys(saved.inner) if k !== :pe)}(saved.inner)
+        @test_throws ArgumentError H._restore_checkpoint_state!(
+            dest, dps, merge(saved, (inner = missing,)),
+        )
+        @test isequal(entry, _composition_snapshot(dest, dps))
+        pressure_identity = dest.inner.fields.pe
+        mktempdir() do dir
+            path = joinpath(dir, "evolving.bin")
+            save_checkpoint(path, st, ps)
+            @test load_checkpoint!(dest, dps, path) === dest
+            @test dest.inner.fields.pe === pressure_identity
+            @test isequal(_composition_snapshot(dest, dps), _composition_snapshot(st, ps))
+            for _ = 1:2
+                step!(st, ps, st.dt)
+                step!(dest, dps, dest.dt)
+                @test isequal(_composition_snapshot(dest, dps), _composition_snapshot(st, ps))
+            end
+            @test randn(dest.rng, 7) == randn(st.rng, 7)
+            archive = joinpath(dir, "evolving-archive.bin")
+            archive_run(archive, st, ps; rng_seed = 712)
+            state = load_archive(archive).state
+            @test state.inner.pe == st.inner.fields.pe == state.fields.pe
+        end
+    end
+
     @testset "malformed payload rejects before publication $R" for R in (Xoshiro, MersenneTwister)
         st, ps = _composition_fixture(Val(1), Float64, R)
         init!(st, ps)

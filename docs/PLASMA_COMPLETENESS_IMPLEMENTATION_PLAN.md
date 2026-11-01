@@ -76,7 +76,7 @@ Source names below resolve to these canonical files:
 | Periodic hybrid, positive ion collections | `HybridStepper` / `CAMCLStepper`; README:78–93,156–169; `extrapolated_leapfrog.jl:67–120,359,766`; collection and pressure tests | Implemented within documented closure, geometry and time-centering restrictions; inherited audit findings remain open |
 | ES/EM PIC | Periodic `ElectrostaticPIC`, `EMPIC` and `EMPIC1D`; ES collection implementation `d46029e` | Periodic CPU evolution and arbitrary ES species exist; arbitrary EM collections, coupled nonperiodic PIC and resident GPU/MPI solvers remain missing |
 | Hall-MHD | `HallMHDModel`, `HallMHDState`, `step_hall_mhd!`; `test_hall_mhd.jl`, `test_io_hall_mhd.jl` | A periodic solver exists; it is not a general geometry/closure solver |
-| Coulomb collisions | Canonical homogeneous and local collection `collide_coulomb!`; `CollisionalHybridStepper` | Local self/cross CPU operator and fixed-step isothermal hybrid/RNG restart exist; additional compositions and parallel/device support remain |
+| Coulomb collisions | Canonical homogeneous and local collection `collide_coulomb!`; `CollisionalHybridStepper` | Local self/cross CPU operator and fixed-step isothermal hybrid/RNG restart exist; ideal evolving-scalar extension awaits CI, additional compositions and parallel/device support remain |
 | Nonperiodic EM | Periodic `EMPIC`; separate Yee vacuum/prescribed-current fields; closed 1D PEC particle charge, longitudinal endpoint impulse and path voltage | B2a source is implemented with GitHub acceptance pending. Coupled force/pusher/walls, absorbers and restart remain CAP-002 work |
 | Distributed evolution | Replicated-field MPI reference plus rank-owned Fourier storage and derivative/vector/filter operators (`4724947`) | Distributed operator primitives exist; coupled domain-owned solver, restart and cluster-scale acceptance remain CAP-003 work |
 | GPU | Metal extension has deposit/gather/push methods; CUDA extension:1–68 has storage/telemetry hooks; `HybridFields` uses `Array` at field_state:12–29 | Partial kernels, not complete resident solvers, CAP-004; device availability is not numerical acceptance |
@@ -87,7 +87,7 @@ Source names below resolve to these canonical files:
 | External validation | Pinned external references plus case 34 parallel and case 35 oblique Hall production histories | Bounded production validation exists; complete manual campaigns, broader regimes, full profile replay and matched cost/accuracy comparisons remain CAP-007 work |
 | Kinetic species diversity | Arbitrary ES charge/mass collections landed; current EMPIC electron/ion model remains restricted | Arbitrary EM collection evolution and backend composition remain CAP-008 work |
 | Multidimensional shocks | shock3d:9–19,337–359 and shock2d:230–236 intentionally exclude Hall induction while retaining Hall particle forces | Documented reduced shock model; full-Hall multidimensional branch required for broader claims, CAP-009 |
-| Coupled sources and collisions | `CollisionalHybridStepper` and full RNG checkpoint/archive state (`2b2420b`) | Fixed-step first-order isothermal CPU composition exists; other models/closures/sources, schedules and backends remain CAP-010 work |
+| Coupled sources and collisions | `CollisionalHybridStepper` and full RNG checkpoint/archive state (`2b2420b`); ideal evolving scalar extension is CI-pending | Fixed-step first-order CPU composition; transport/anisotropic models, electron-ion heat exchange, other sources, schedules and backends remain CAP-010 work |
 | Electron transport | `EvolvingElectrons` covers ideal massless pressure; `TransportElectrons` provides constant Ohmic transport (S1), with complete-source hyperresistive S2 and shared scalar pressure range routing composed onto current main | [S2 gates](TRANSPORT_SOURCE_RANGE_PLAN.md) and [scalar pressure verification](SCALAR_PRESSURE_RATE_RANGE_PLAN.md) remain open; conduction, equilibration, anisotropy, inertia and backends remain CAP-011 S3–S8 |
 
 The geometry integration finding also follows from a repository-wide symbol
@@ -229,7 +229,7 @@ and quota failures describe historical work, not current ownership.
 | 007C–E profiles, new physics, comparative costs | Agent unassigned; validation/benchmark owners | Accepted corresponding capability; datasets/hardware | Existing scalar comparisons inspected; campaigns unrun here | Freeze matched inputs/diagnostics/uncertainty and preserve raw reference outputs |
 | 008 ES/EM arbitrary species | Canonical electrostatic/EM owners; next implementation agent unassigned | Species charge/time-level design; existing Poisson owner | ES collections landed; containing `4724947` passes all six jobs and full compiler review; arbitrary EM collections remain planned | Design EM collections: charge-conserving summed currents, mobile/immobile species and multirate schedule |
 | 009 full-Hall multidimensional shocks | Scope proposal; root selects implementation agent | Full mixed-operator/field-boundary balance; 005 optional | Deliberate reduced induction verified | Derive full induction and SAT budget; build transverse-mode witness |
-| 010 composed sources and RNG restart | Integrator/checkpoint owners; independent collision audit track | 001 and phase/growth/checkpoint contracts | Fixed-step first-order isothermal CPU `CollisionalHybridStepper` landed; `2b2420b` exact-SHA CI/compiler gates pass | Extend schedules, closures/models/sources and backends; preserve full RNG/phase/rollback contract |
+| 010 composed sources and RNG restart | Integrator/checkpoint owners; independent collision audit track | 001 and phase/growth/checkpoint contracts | Fixed-step first-order isothermal CPU `CollisionalHybridStepper` landed; `2b2420b` exact-SHA CI/compiler gates pass. Ideal evolving-scalar extension implemented, CI pending | Accept the extension, then extend schedules, other closures/models/sources and backends; preserve full RNG/phase/rollback contract |
 | 011 electron transport/energy | Electron/integrator owners and transport track | Term-specific balance and carried force contract | S1 is landed. SO 0.1.7 is registered and released; both Julia versions pass 26,886 dependency assertions and four exact-revision CI jobs pass. Earlier rejected candidates remain historical evidence | HPIC integration and CI, transport resource/peak-memory and restart checks, nonlinear ideal-product repair and S3–S8 remain open |
 
 For every row, its detailed section below supplies the required conservation,
@@ -270,6 +270,8 @@ candidates and numerical/resource evidence. No global cost optimum follows.
   production workload and independently controlled timing acceptance.
 - [x] CAP-010 supplies fixed-step first-order isothermal CPU composition and full
   advanced-RNG/phase restart. This does not add transport-closure composition.
+- [ ] Accept the implemented ideal evolving-scalar extension through exact-revision
+  GitHub CI; ion-ion collisions leave the electron reservoir fixed.
 - [ ] CAP-003 must supply cell-complete populations after migration; CAP-004 must
   supply real device pairing/streams. The CPU slice closes neither backend gate.
 
@@ -659,6 +661,10 @@ sources one by one with their own conservation/accuracy contracts.
   cell-local collisions between the field advance and the carried-E formation,
   persists the advanced RNG and source ledger in checkpoints/archives and rolls
   back the whole step including the RNG. [Guide and verified state](COLLISIONAL_HYBRID.md).
+- [ ] Accept the ideal `EvolvingElectrons` extension: implemented on the same
+  source schedule, with pressure/RNG rollback and schema-1 consistency checks;
+  essential component, zero-log, restart and failure tests await GitHub CI.
+  Electron-ion heat exchange and transport/anisotropic composition remain open.
 - [ ] Persist complete RNG state/stream assignment, split phase, source clocks,
   ionization ID counters and external reservoir state. A saved initial seed alone
   does not specify continuation after random draws.
@@ -715,9 +721,10 @@ range-safe heating and restart ([guide](EVOLVING_ELECTRONS.md#constant-ohmic-tra
 MPI, CAM-CL and Hall-MHD reject the closure. Thermal equilibration,
 S2 acceptance, conduction (S3–S5), backends (S6), anisotropy (S7)
 and inertia (S8) remain open. S1 landed as `a6d20d3` with all six exact-SHA
-CI jobs and complete compiler review passed. `CollisionalHybridStepper` currently
-requires `IsothermalElectrons`; composing collisions with transport remains an
-explicit unimplemented extension. The subsequent [Ohmic diagnostic range repair](RESISTIVE_DIAGNOSTIC_RANGE_AUDIT.md)
+CI jobs and complete compiler review passed. `CollisionalHybridStepper` admits
+ideal isothermal or evolving scalar electrons (the latter awaits exact-revision
+CI); composing collisions with transport remains an explicit unimplemented
+extension. The subsequent [Ohmic diagnostic range repair](RESISTIVE_DIAGNOSTIC_RANGE_AUDIT.md)
 is pushed as `a356c6b` and passes all six exact-SHA CI jobs and complete compiler review.
 
 **S2 current-main candidate.** The hyperresistive implementation and complete represented-source repair

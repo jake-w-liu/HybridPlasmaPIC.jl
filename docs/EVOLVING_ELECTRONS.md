@@ -59,6 +59,11 @@ without evolving it again. Direct `ohms_law!` also reads pressure without
 changing it. `electron_pressure!(pe, n, closure)` rejects this closure because
 density alone cannot reconstruct the stored pressure.
 
+For fixed-step CPU ion-ion collisions, use
+[`CollisionalHybridStepper`](COLLISIONAL_HYBRID.md). Its first-order composition
+leaves pressure fixed during the collision substep and retains pressure/RNG
+rollback and restart. The evolving extension awaits exact-revision GitHub CI.
+
 ## Rejected states and retries
 
 Pressure must be finite and nonnegative on entry, at every RK4 stage, and in

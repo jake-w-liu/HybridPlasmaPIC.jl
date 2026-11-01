@@ -115,7 +115,7 @@ isdefined(@__MODULE__, :_composition_fixture) || include("collisional_fixtures.j
             HybridModel(IsothermalElectrons(0.02); ηH = eps()),
             HybridModel(IsothermalElectrons(0.02); de2 = eps()),
             HybridModel(PolytropicElectrons(1.0, 1.0, 5 / 3)),
-            HybridModel(EvolvingElectrons()),
+            HybridModel(TransportElectrons()),
         )
             inner = HybridStepper(st.inner.g, model, CIC(), sum(length(p.weight) for p in ps))
             @test_throws ArgumentError make(inner)
@@ -129,6 +129,138 @@ isdefined(@__MODULE__, :_composition_fixture) || include("collisional_fixtures.j
         before = _composition_snapshot(st, ps)
         @test_throws ArgumentError make(st.inner)
         @test isequal(before, _composition_snapshot(st, ps))
+    end
+
+    @testset "ideal evolving pressure uses the canonical split $T $R" for T in
+        (Float32, Float64), R in (Xoshiro, MersenneTwister)
+
+        make(logs) = _composition_fixture(
+            Val(1), T, R; logs, closure = EvolvingElectrons(T(5 / 3)),
+        )
+        st, ps = make(T(0.05))
+        reference, rps = make(T(0.05))
+        for run in (st, reference)
+            run.inner.fields.pe .= T[0.02, 0.022, 0.02, 0.018]
+        end
+        initial_pressure = copy(st.inner.fields.pe)
+        init!(st, ps)
+        init!(reference, rps)
+        @test st.inner.fields.pe == initial_pressure
+        for _ = 1:2
+            step!(st, ps, st.dt)
+            step!(reference.inner, rps, reference.dt)
+            advanced_pressure = copy(reference.inner.fields.pe)
+            collide_coulomb!(
+                rps, reference.grid, reference.dt;
+                coulomb_log = reference.coulomb_log,
+                epsilon0 = reference.epsilon0,
+                weight_to_number = reference.weight_to_number,
+                u_floor = reference.u_floor,
+                rng = reference.rng,
+                workspace = reference.workspace,
+            )
+            @test reference.inner.fields.pe == advanced_pressure
+            H._hybrid_integer_moments!(reference.inner, rps)
+            ohms_law!(reference.inner.fields, reference.inner.model, reference.grid)
+            H._recenter_carried_E!(reference.inner, rps, reference.dt)
+            @test reference.inner.fields.pe == advanced_pressure
+            @test isequal(_composition_physical(st, ps), _composition_physical(reference, rps))
+        end
+        @test st.inner.fields.pe != initial_pressure
+
+        inactive, ips = make(zero(T))
+        bare, bps = make(zero(T))
+        init!(inactive, ips)
+        init!(bare.inner, bps)
+        rng = _composition_rng_state(inactive.rng)
+        for _ = 1:2
+            step!(inactive, ips, inactive.dt)
+            step!(bare.inner, bps, bare.dt)
+            @test isequal(_composition_physical(inactive, ips), _composition_physical(bare, bps))
+        end
+        @test isequal(_composition_rng_state(inactive.rng), rng)
+        inactive.inner.fields.pe[1] = -one(T)
+        entry = _composition_snapshot(inactive, ips)
+        @test step!(inactive, ips, zero(T)) === inactive
+        @test_throws ArgumentError init!(inactive, ips)
+        @test_throws ArgumentError step!(inactive, ips, inactive.dt)
+        @test_throws ArgumentError H._checkpoint_state(inactive, ips)
+        @test isequal(entry, _composition_snapshot(inactive, ips))
+        @test !inactive.busy[]
+
+        cold, cps = _composition_fixture(
+            Val(1), T, R; temperature = zero(T), closure = EvolvingElectrons(T(5 / 3)),
+        )
+        init!(cold, cps)
+        step!(cold, cps, cold.dt)
+        @test all(iszero, cold.inner.fields.pe)
+        @test cold.inner.pressure_work.Eforce === nothing
+        cold.inner.fields.pe = cold.inner.pressure_work.ptmp
+        entry = _composition_snapshot(cold, cps)
+        @test_throws ArgumentError init!(cold, cps)
+        @test isequal(entry, _composition_snapshot(cold, cps))
+    end
+
+    @testset "evolving pressure and sampled failure restore the stream" begin
+        rejected = 0
+        for seed = 1:8
+            st, ps = _composition_sampled_failure_fixture(
+                Float64, Xoshiro, seed; closure = EvolvingElectrons(),
+            )
+            init!(st, ps)
+            entry = _composition_snapshot(st, ps)
+            failure = try
+                step!(st, ps, st.dt)
+                nothing
+            catch error
+                error
+            end
+            failure === nothing && continue
+            rejected += 1
+            @test failure isa ArgumentError
+            @test isequal(entry, _composition_snapshot(st, ps))
+            @test !st.busy[]
+            @test_throws typeof(failure) step!(st, ps, st.dt)
+            @test isequal(entry, _composition_snapshot(st, ps))
+            direct, dps = _composition_sampled_failure_fixture(
+                Float64, Xoshiro, seed; closure = EvolvingElectrons(),
+            )
+            init!(direct, dps)
+            rng = _composition_rng_state(direct.rng)
+            @test_throws typeof(failure) _composition_component!(direct, dps)
+            @test !isequal(rng, _composition_rng_state(direct.rng))
+        end
+        @test rejected > 0
+    end
+
+    @testset "rejected pressure stage restores the full composed state" begin
+        # Retain the canonical rejection after an accepted earlier subcycle:
+        # pressure has advanced before the second subcycle rejects the step.
+        g = FourierGrid((32,), (2pi,))
+        p = ParticleSet{1,Float64}(128)
+        load_lattice_1d!(p, 0.0, g.L[1])
+        set_density_weight!(p, 1.0, g)
+        @. p.v[1] = sin(p.x[1])
+        inner = HybridStepper(g, HybridModel(EvolvingElectrons(3.0)), CIC(), nparticles(p))
+        fill!(inner.fields.pe, 1.0)
+        st = CollisionalHybridStepper(
+            inner, [p]; dt = 0.8, rng = Xoshiro(712), coulomb_log = 0.05,
+            epsilon0 = 1.0, weight_to_number = 1.0,
+        )
+        init!(st, [p])
+        entry = _composition_snapshot(st, [p])
+        pressure_identity = st.inner.fields.pe
+        failure = try
+            step!(st, [p], st.dt; NB = 2)
+            nothing
+        catch error
+            error
+        end
+        @test failure isa ArgumentError
+        @test occursin("subcycle 2", sprint(showerror, failure))
+        @test isequal(entry, _composition_snapshot(st, [p]))
+        @test st.inner.fields.pe === pressure_identity
+        @test !st.busy[]
     end
 
     @testset "advanced RNG and complete checkpoint" for R in (Xoshiro, MersenneTwister),

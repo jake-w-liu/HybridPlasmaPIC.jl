@@ -1,5 +1,9 @@
 # CAP-010: collision/field composition and stochastic restart
 
+Current extension (2026-11-01): ideal evolving scalar pressure is implemented
+with essential regressions; exact-revision GitHub verification is pending. See
+[the scoped extension tracker](#ideal-evolving-electron-extension-2026-11-01).
+
 Status (2026-10-26): ported onto `main` after `cda63f1` on the landed cell-local
 Coulomb operator; the provisional V10 collision copy is not used. Both recorded
 open findings are resolved as test-expectation errors with evidence; see
@@ -558,7 +562,8 @@ one row does not imply acceptance of the following rows.
 | Final CPU dependency assembly | Accepted local `collide_coulomb!`, shared sampler and public Hybrid `step!`/carried-E owner | Repeat exact trajectories/RNG/restart, independent physical histories, all resource gates and neighbors; retain original rate-boundary failures |
 | Variable-step CPU collision composition | Existing `last_dt` field/particle contract and this source ledger | Derive preceding/following collision intervals and velocity centering; abrupt changes, alternating steps, zero steps, restart at each allowed boundary and independent variable-step weak-order evidence |
 | Higher-order stochastic composition | Native staggered deterministic map plus accepted stochastic transition kernel | Establish synchronized or explicitly staggered order conditions, positive substep intervals and weak-kernel accuracy; noncommuting coupled production oracles must distinguish first/second order before a Strang claim |
-| Evolving/anisotropic electrons | Electron closure, moment/Ohm owner and canonical pressure transaction | Explicit receiving energy reservoir and heat-exchange equations; full pressure/source rollback and restart; analytic relaxation, entropy/energy and positivity gates |
+| Ideal evolving scalar electrons | Existing B/pressure stages, ion-only source and pressure/RNG transaction | Scoped implementation below; exact-revision CI pending. Ion-ion collisions hold electron pressure fixed; electron-ion heat exchange is separate |
+| Transport/anisotropic electrons and electron-ion exchange | Electron closure, moment/Ohm owner and canonical pressure transaction | Explicit receiving energy reservoir and heat-exchange equations; full pressure/source rollback and restart; analytic relaxation, entropy/energy and positivity gates |
 | CAM-CL and ES/EM families | `camcl.jl`, `electrostatic.jl`, `full_pic.jl`, their canonical checkpoint owners | Respect persistent cyclic magnetic phase, each species' half-time history and fast subcycles; do not substitute Hybrid recentering. Re-derive current/charge continuity and source-time rules per family |
 | BGK and neutral collisions | Existing `collide_bgk!` / `collide_neutral_mcc!` | Explicit bath state and exchanged momentum/energy; full RNG/reservoir continuation and rollback; independent equilibrium/rate tests and inactive-source cost controls |
 | Ionization and particle growth | Existing `ionize_mcc!`, particle append/provenance and checkpoint owners | Stage all species, charge changes, unique-ID allocation and counters atomically; preserve growth/source clocks and RNG in checkpoints; threshold/rate, conservation, capacity failure and same-environment continuation gates |
@@ -676,6 +681,37 @@ abstract field had cost a 64–80 B dynamic keyword call); its process CPU time 
 1.006–1.082 times that sum (minimum of 21 interleaved samples, heavily loaded
 machine; wall-time ratios were not reliable under that load).
 
-Remaining CAP-010 work is unchanged: variable-step collision scheduling,
+Remaining CAP-010 work includes variable-step collision scheduling,
 higher-order splitting, other closures/models and sources, distributed cell
 ownership and device RNG.
+
+## Ideal evolving-electron extension (2026-11-01)
+
+Pre-edit brief, based on `6dd8f6f`:
+
+- Extend the existing fixed-step CPU wrapper to ideal `EvolvingElectrons` only;
+  keep `eta=etaH=de2=0`, the existing staggered first-order source schedule,
+  standard storage and fixed species/configuration contracts.
+- The canonical inner step already advances B and pressure before the ion
+  collision source, then recomputes moments and carried E. Ion-ion collisions
+  leave electron pressure fixed; electron-ion heat exchange is not this model.
+- Reuse the inner pressure model/storage/state validators. Both existing
+  transactions already copy pressure with the public fields, and the outer
+  transaction owns RNG rollback. No new persistent state or pressure algorithm.
+- Schema 1 already stores all public fields and the closure-typed inner state.
+  Require the duplicated evolving pressure to agree before restore; the inner
+  checkpoint validator owns its positivity and layout checks.
+- Preserve the isothermal arithmetic and source path. Add essential component
+  sequence, zero-log, pressure/RNG restart and pressure rejection regressions.
+  Run all numerical, formatting and compiler checks on GitHub only.
+
+- [x] Trace wrapper scheduling, pressure lifetime, rollback and checkpoint owners.
+- [x] Implement the scoped admission and checkpoint consistency changes.
+- [x] Add essential evolving-pressure composition and restart regressions.
+- [x] Complete source review and update the current capability documents.
+- [ ] Pass exact-revision GitHub tests, formatting and compiler checks.
+
+Transport, anisotropic pressure, electron-ion thermal exchange, variable steps,
+higher-order splitting, other source families and distributed/device composition
+remain open. This extension does not establish new energy conservation, weak
+order or performance claims.

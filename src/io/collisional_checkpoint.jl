@@ -100,6 +100,12 @@ function _validate_checkpoint_state(s, st::CollisionalHybridStepper{D,T}) where 
     end
     isequal(s.fields.B, s.inner.B) && isequal(s.fields.E, s.inner.E) ||
         throw(ArgumentError("collisional checkpoint inner and public fields disagree"))
+    if st.model.closure isa EvolvingElectrons
+        # The full-field restore follows the canonical inner restore. It must
+        # not overwrite the pressure that the inner validator just admitted.
+        isequal(s.fields.pe, s.inner.pe) ||
+            throw(ArgumentError("collisional checkpoint inner and public pressure disagree"))
+    end
     s.floor_count isa Int && s.floor_count >= 0 ||
         throw(ArgumentError("collisional checkpoint density floor count must be nonnegative"))
     s.rng_algorithm === typeof(st.rng) && typeof(s.rng) === typeof(st.rng) ||

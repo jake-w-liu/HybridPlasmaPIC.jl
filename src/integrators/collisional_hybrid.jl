@@ -25,7 +25,10 @@ of the moments, Ohm's law and carried E, without forming E twice. This is not a
 symmetric or second-order collision split. Call `init!` before active stepping.
 
 Supports Float32/Float64, D=1:3, standard Vector particle storage, positive ions,
-NGP/CIC/TSC, and ideal massless `IsothermalElectrons`. The ordered populations,
+NGP/CIC/TSC, and ideal massless `IsothermalElectrons` or `EvolvingElectrons`.
+With evolving electrons, initialize `inner.fields.pe` before `init!`; the field
+substep evolves pressure and the ion-ion collision substep leaves it unchanged.
+No electron-ion heat exchange is included. The ordered populations,
 counts, charges, masses, model and timestep are fixed; any other nonzero `dt` is
 rejected before state changes and `dt = 0` is a no-op that consumes no random
 draws. All-zero Coulomb logarithms reproduce plain `HybridStepper` stepping
@@ -67,11 +70,16 @@ function _validate_collisional_model(inner::HybridStepper{D,T}) where {D,T}
     T <: Union{Float32,Float64} ||
         throw(ArgumentError("CollisionalHybridStepper requires Float32 or Float64"))
     model = inner.model
-    model.closure isa IsothermalElectrons ||
-        throw(ArgumentError("CollisionalHybridStepper requires IsothermalElectrons"))
+    model.closure isa Union{IsothermalElectrons,EvolvingElectrons} || throw(
+        ArgumentError("CollisionalHybridStepper requires IsothermalElectrons or EvolvingElectrons"),
+    )
     (iszero(model.η) && iszero(model.ηH) && iszero(model.de2)) ||
         throw(ArgumentError("CollisionalHybridStepper requires η = ηH = de2 = 0"))
-    _require_finite_nonnegative_real("Te", model.closure.Te, T)
+    if model.closure isa IsothermalElectrons
+        _require_finite_nonnegative_real("Te", model.closure.Te, T)
+    else
+        _validate_evolving_model(model, T)
+    end
     _require_finite_positive_real("nfloor", model.nfloor, T)
     inner.shape isa Union{NGP,CIC,TSC} ||
         throw(ArgumentError("CollisionalHybridStepper requires NGP, CIC or TSC"))
@@ -208,6 +216,10 @@ function _validate_collisional_fields(st::CollisionalHybridStepper)
         end
     end
     f.floor_count[] >= 0 || throw(ArgumentError("density floor count must be nonnegative"))
+    # Pressure is persistent state for this closure. Reuse the inner owner's
+    # positivity and independence checks before saving or mutating either state.
+    st.model.closure isa EvolvingElectrons &&
+        _validate_pressure_step_state(st.inner, st.species)
     return nothing
 end
 
@@ -332,7 +344,8 @@ end
 @inline _collisional_active(logs::AbstractMatrix) = any(!iszero, logs)
 
 # The only HybridStepper source: scatter the half-level velocities at the new
-# positions for the full field interval before the carried E is formed.
+# positions for the full field interval before the carried E is formed. The
+# evolved electron pressure stays fixed during this ion-only subflow.
 function _apply_hybrid_source!(st::CollisionalHybridStepper, species, dtT)
     collide_coulomb!(
         species,

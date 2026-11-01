@@ -13,6 +13,7 @@ function _composition_fixture(
     temperature = T(0.02),
     magnetic = T(0.1),
     shape = CIC(),
+    closure = IsothermalElectrons(temperature),
 ) where {D,T}
     g = FourierGrid(ntuple(_ -> 4, D), ntuple(_ -> T(2), D))
     species = [ParticleSet{D,T}(count; q = T(a), m = T(a + 1)) for a = 1:ns]
@@ -25,8 +26,9 @@ function _composition_fixture(
         end
         fill!(p.weight, T(2^D / max(count, 1)))
     end
-    inner = HybridStepper(g, HybridModel(IsothermalElectrons(temperature)), shape, ns * count)
+    inner = HybridStepper(g, HybridModel(closure), shape, ns * count)
     fill!(inner.fields.B[1], magnetic)
+    closure isa EvolvingElectrons && fill!(inner.fields.pe, temperature)
     st = CollisionalHybridStepper(
         inner,
         species;
@@ -41,7 +43,9 @@ end
 
 # Finite inputs can yield an unrepresentable sampled velocity. No injection hook
 # or custom RNG is needed to exercise failure after field and random advancement.
-function _composition_sampled_failure_fixture(::Type{T}, R, seed) where {T}
+function _composition_sampled_failure_fixture(
+    ::Type{T}, R, seed; closure = IsothermalElectrons(zero(T)),
+) where {T}
     g = FourierGrid((1,), (one(T),))
     charge = floatmax(T) / T(2)
     p = ParticleSet{1,T}(2; q = charge, m = charge)
@@ -49,7 +53,8 @@ function _composition_sampled_failure_fixture(::Type{T}, R, seed) where {T}
     fill!(p.weight, T(0.001) / charge)
     fill!(p.v[1], T(0.95) * floatmax(T))
     p.v[2] .= (T(0.1) * floatmax(T), -T(0.1) * floatmax(T))
-    inner = HybridStepper(g, HybridModel(IsothermalElectrons(zero(T)); nfloor = 1.0), NGP(), 2)
+    inner = HybridStepper(g, HybridModel(closure; nfloor = 1.0), NGP(), 2)
+    closure isa EvolvingElectrons && fill!(inner.fields.pe, one(T))
     st = CollisionalHybridStepper(
         inner,
         [p];

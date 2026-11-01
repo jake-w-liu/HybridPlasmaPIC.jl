@@ -73,7 +73,8 @@ same species collection supplied by the caller.
 
 This call is a stand-alone operator. For coupled evolution, the package provides
 [`CollisionalHybridStepper`](COLLISIONAL_HYBRID.md) with fixed-step, first-order
-CPU isothermal splitting and RNG-complete checkpoint/archive continuation.
+CPU ideal isothermal or evolving-scalar splitting and RNG-complete
+checkpoint/archive continuation; the evolving extension awaits exact-revision CI.
 Its supported models, time levels and failure semantics are narrower than this
 stand-alone collision API; use that guide when choosing the composed run.
 

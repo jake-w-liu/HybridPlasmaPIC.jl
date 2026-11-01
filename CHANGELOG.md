@@ -6,6 +6,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- Fixed-step `CollisionalHybridStepper` accepts ideal `EvolvingElectrons`.
+  The existing field stages evolve electron pressure, ion-ion collisions hold
+  it fixed, and pressure and RNG share whole-step rollback and restart. The
+  schema-1 reader checks agreement between its two stored pressure copies.
+  Essential composition and continuation checks await GitHub CI; see the
+  [scoped contract](docs/COLLISIONAL_HYBRID.md).
+
 ### Fixed
 
 - Coupled ideal and Ohmic scalar pressure stages request the existing complete
