@@ -8,6 +8,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Complete represented transport sources before final range classification.
+  Active hyperresistivity uses shared normalized Fourier channels for the
+  ideal/Ohmic/hyperresistive field, signed pressure equation and source-aware
+  Faraday rate. Required physical E, current Laplacian and rates retain explicit
+  representability checks. See the [S2 contract and acceptance status](docs/TRANSPORT_SOURCE_RANGE_PLAN.md).
+
 - Nonrelativistic leapfrog and electrostatic priming, EMPIC ion priming and the
   hybrid Euler predictor retain stored species charge and mass through range
   guards and exact cold replay. A quotient rounded to zero no longer certifies
@@ -57,6 +63,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Constant hyperresistive `TransportElectrons` (CAP-011 S2) for serial periodic
+  CPU Float32/64 grids in one to three dimensions. Each stage pairs
+  `ηJ − ηH∇²J` in Faraday with positive Ohmic and Nyquist-completed electron
+  heat; ions keep the carried ideal force. The zero-`ηH` path and policy-1
+  restart meaning are retained. Requires SpectralOperators 0.1.7. Current-main
+  numerical, resource and compiler acceptance remains tracked in the linked S2 plan.
+
 - Rank-owned periodic vector operators and filters: `gradient!`, `divergence!`,
   `curl!`, `laplacian!`, `project_divfree!`, `exp_filter!` and
   `dealias_two_thirds!` methods on `DistributedFourierGrid` reuse the
@@ -76,7 +89,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   carried `E_force`, and each RK4 stage heats the pressure by `(γ−1)η|J|²` from
   its own current, so the periodic continuum energy total closes (fourth order
   with fixed ions, second order coupled). `η = 0` reproduces `EvolvingElectrons`
-  bitwise. Density below `nfloor`, unsupported `ηH`/`de2`, scalar `q ≠ 1`,
+  bitwise. In this S1 slice, density below `nfloor`, unsupported `ηH`/`de2`, scalar `q ≠ 1`,
   non-finite heat and invalid force storage are rejected with full rollback.
   Checkpoints and archives store `Eforce` with `transport_policy_version = 1`
   (archive schema unchanged). MPI, CAM-CL and Hall-MHD reject the closure.

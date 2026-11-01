@@ -1,0 +1,91 @@
+# CAP-011 S2: complete represented transport sources
+
+Updated: 2026-11-01. The serial CPU implementation is composed with the shared
+IEEE conversion and particle-factor changes. GitHub validation is pending;
+CAP-011 remains incomplete. This page owns the implemented source domain and
+remaining work. The [transport guide](EVOLVING_ELECTRONS.md#constant-hyperresistive-transport)
+provides setup; the [model contract](TRANSPORT_HYPERRESISTIVITY_PLAN.md) derives
+the positive heat and periodic discrete balance.
+
+## Implemented scope
+
+`TransportElectrons` accepts constant finite `η ≥ 0`, `ηH ≥ 0`, `de2 = 0`
+on serial periodic CPU Float32/64 grids in one to three dimensions. A nonzero
+coefficient must stay finite and nonzero at grid precision. Density must remain
+at least `nfloor`; existing scalar/collection charge restrictions still apply.
+MPI, CAM-CL, Hall-MHD and device transport remain unsupported.
+
+Each RK4 stage computes its own current. Faraday uses
+`E = E_force + ηJ − ηH∇²J`; ions gather the carried ideal `E_force`.
+Pressure receives `(γ−1)` times positive Ohmic and hyperresistive heat. The
+latter includes centered derivative squares and even-axis Nyquist projector
+squares, pairing the full Laplacian's periodic global SBP identity. This is a
+semidiscrete energy identity, with RK4 field/pressure and second-order coupled
+particle time error; it is not exact fully discrete conservation.
+
+## Canonical owners and range handling
+
+- `src/electrons/ohms_law.jl` owns the complete ideal/Ohmic/hyperresistive field
+  and source-aware Faraday composition. Cold evaluation combines signed terms
+  before conversion, including cancellation of separately overflowing terms.
+- `src/electrons/energy_equation.jl` owns the complete signed pressure rate:
+  advection, compression, Ohmic heat and Nyquist-completed hyperresistive heat.
+- `src/integrators/extrapolated_leapfrog.jl` selects ordinary or cold stage
+  evaluation and retains the existing RK arrays, stage order and transaction.
+  Activity checks select a path; they do not prove a nonzero complete source.
+- SpectralOperators 0.1.7 owns normalized Fourier channels for Laplacian,
+  derivative, Nyquist projection and derivative of Laplacian. HPIC consumes each
+  borrowed result before calling another operator on that grid. Its physical
+  value is `real(values) * input_scale * 2^exponent`; normalized scratch is never
+  published as a physical field.
+- `src/utils/exact_arithmetic.jl` owns exact binary rescaling and final IEEE
+  conversion. The transport addition retains the shared converter implementation.
+
+The ordinary branch retains the existing arithmetic order; `ηH = 0` takes the
+S1 branch. Risk routing considers source amplitudes and active curl axes rather
+than the norm of an already rounded total E. Cold completion differentiates the
+represented ideal source and composes transport terms before final publication.
+It uses transient exact accumulators, with no new persistent arrays or schema.
+Its FFT coefficients remain numerical represented data, not symbolic exact DFTs.
+
+Required physical `lapJ` and E must be finite, even if later coefficient scaling
+could rescue an otherwise overflowing scratch value. Complete required physical
+pressure and magnetic rates must fit their storage type. Exact zero and complete
+signed cancellation are valid. An exactly nonzero complete rate norm whose every
+component rounds to zero is rejected. A finite update rescued only by multiplying
+an unrepresentable rate by `dt` requires a different RK representation and remains
+unsupported.
+
+Raw `ohms_law!` may leave partial work after a later error. Public `init!` and
+`step!` retain their existing rollback, carried force and clock ownership.
+Checkpoints and archives retain physical carried force and transport policy 1;
+the zero-`ηH` payload meaning is unchanged.
+
+## Verification and remaining implementation
+
+- [x] Compose the full hyperresistive prerequisite and complete-source changes
+  with current IEEE and CPU particle owners; inspect their numerical owners,
+  scratch lifetimes, stage ordering and publication boundaries directly.
+- [x] Include focused permanent independent-DFT/SBP, damping/energy, Nyquist,
+  cancellation/range, phase, rollback and restart regressions.
+- [x] Require registered SpectralOperators 0.1.7, whose four dependency CI jobs
+  pass. [Dependency evidence](https://github.com/jake-w-liu/SpectralOperators.jl/blob/main/docs/SCALED_FOURIER_VERIFICATION.md)
+  does not establish HPIC integration acceptance.
+- [ ] Pass the existing minimum/latest Julia package/compiler, formatter and
+  MPI checks on the exact composed revision in GitHub. Record failures and fix
+  their causes without weakening existing gates.
+- [ ] Establish complete public resource costs and suitable hardware results
+  before making allocation, peak-memory or comparative performance claims.
+- [ ] Complete [original-factor ideal fields and Faraday](IDEAL_FORCE_SOURCE_RANGE_WORK_ORDER.md).
+  Nonlinear pointwise products can vanish before a stiff derivative rescues a
+  representable rate. This implementation starts from represented ideal data.
+- [ ] Implement any required normalized dt-scaled RK storage, then conduction,
+  equilibration, anisotropy, inertia and backend stages in the
+  [capability plan](PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md#cap-011--electron-transport-and-complete-energy-accounting).
+
+Earlier bounded candidates, failed harnesses and their raw outputs remain in
+the dated audit evidence. Their 504 numerical assertions and 48 ordinary-bit
+profiles per runtime belong to those frozen sources. The old 36/46-command local
+campaigns are retained history, not prerequisites for this source review.
+All new runtime validation runs remotely under the current working policy.
+The [audit tracker](DEEP_DEBUG_TRACKER.md) records publication and CI status.

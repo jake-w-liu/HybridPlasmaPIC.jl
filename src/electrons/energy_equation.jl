@@ -55,6 +55,44 @@ function _electron_pressure_rhs!(out, pe, ue, gradpe, divu, γ, ::Val{D}) where 
     return out
 end
 
+# Capture possible represented pressure sources before derivative scratch is
+# reused for heating. A contributing factor pair is only a routing condition;
+# the complete cold equation decides exact cancellation and physical range.
+function _transport_pressure_rhs_with_activity!(
+    out,
+    pe,
+    ue,
+    gradpe,
+    divu,
+    γ,
+    J,
+    η,
+    active::Bool,
+    ::Val{D},
+) where {D}
+    if !active && !iszero(η)
+        for component in J
+            for value in component
+                if !iszero(value)
+                    active = true
+                    break
+                end
+            end
+            active && break
+        end
+    end
+    @inbounds for I in eachindex(out, pe, divu)
+        out[I] = _electron_pressure_rate(pe, ue, gradpe, divu, γ, I, Val(D))
+        if !active
+            active = !iszero(pe[I]) && !iszero(divu[I])
+            for d = 1:D
+                active |= !iszero(ue[d][I]) && !iszero(gradpe[d][I])
+            end
+        end
+    end
+    return active
+end
+
 # (γ−1)η|J|² from the exact power-of-two factors of the coefficient: the
 # largest current component is scaled to [1, 2), so only the final ldexp can
 # underflow (within one subnormal ulp) or overflow (rejected as non-finite).
@@ -72,24 +110,160 @@ end
 # cost at most a few ulps of the operation scale. Other cells take the scaled
 # evaluation of the same expression; a non-finite result is left for the
 # caller's finite-rate rejection.
-function _add_ohmic_pressure_heating!(out, J, γ::T, η::T) where {T}
-    γm1 = γ - one(T)
+@inline function _pressure_heating_factors(γ::T, η::T) where {T}
+    γm1 = _pressure_heat_gamma(γ)
     coefficient = γm1 * η
     fγ, eγ = frexp(γm1)
     fη, eη = frexp(η)
     mantissa = fγ * fη
     exponent = eγ + eη
     ordinary = isfinite(coefficient) && coefficient >= floatmin(T)
+    return coefficient, mantissa, exponent, ordinary
+end
+
+@inline _pressure_heat_gamma(γ::T) where {T} = γ - one(T)
+
+@inline function _squared_pressure_heating(jx, jy, jz, coefficient, mantissa, exponent, ordinary)
+    square = jx * jx + jy * jy + jz * jz
+    return ordinary && isfinite(square) && square >= floatmin(typeof(jx)) ? coefficient * square :
+           _scaled_ohmic_heating(mantissa, exponent, jx, jy, jz)
+end
+
+function _add_ohmic_pressure_heating!(out, J, γ::T, η::T) where {T}
+    factors = _pressure_heating_factors(γ, η)
     Jx, Jy, Jz = J
     @inbounds for I in eachindex(out, Jx, Jy, Jz)
         jx, jy, jz = Jx[I], Jy[I], Jz[I]
-        square = jx * jx + jy * jy + jz * jz
-        heating =
-            ordinary && isfinite(square) && square >= floatmin(T) ? coefficient * square :
-            _scaled_ohmic_heating(mantissa, exponent, jx, jy, jz)
-        out[I] += heating
+        out[I] += _squared_pressure_heating(jx, jy, jz, factors...)
     end
     return out
+end
+
+# Each real channel contributes a positive square through the same range-safe
+# numerical owner as Ohmic heating. Both scratch owners have been consumed
+# by advection; gradient! shares one forward transform across spatial axes.
+function _add_hyperresistive_pressure_heating!(
+    out,
+    J,
+    gradJ,
+    scratch,
+    γ::T,
+    ηH::T,
+    g::FourierGrid{D,T},
+) where {D,T}
+    _add_represented_hyperresistive_heating!(out, J, gradJ, scratch, γ, ηH, g) || throw(
+        ArgumentError("hyperresistive pressure channels require complete scaled rate evaluation"),
+    )
+    return out
+end
+
+# The coupled owner may replay the complete equation when a physical derivative
+# channel cannot be stored. Never feed Inf to the scaled square's exponent owner.
+function _add_represented_hyperresistive_heating!(
+    out,
+    J,
+    gradJ,
+    scratch,
+    γ::T,
+    ηH::T,
+    g::FourierGrid{D,T},
+) where {D,T}
+    iszero(ηH) && return true
+    factors = _pressure_heating_factors(γ, ηH)
+    for c = 1:3
+        gradient!(gradJ, J[c], g)
+        for d = 1:D
+            all(isfinite, gradJ[d]) || return false
+            _add_pressure_heating_channel!(out, gradJ[d], factors)
+            if iseven(g.n[d])
+                nyquist_channel!(scratch, J[c], g, d)
+                all(isfinite, scratch) || return false
+                _add_pressure_heating_channel!(out, scratch, factors)
+            end
+        end
+    end
+    return true
+end
+
+function _add_pressure_heating_channel!(out::Array{T}, channel, factors) where {T}
+    @inbounds for I in eachindex(out, channel)
+        out[I] += _squared_pressure_heating(channel[I], zero(T), zero(T), factors...)
+    end
+    return out
+end
+
+# Classification follows the complete signed sum, never an individual channel.
+# Magnetic components use the returned flags jointly before norm rejection.
+function _publish_complete_rate!(out::Array{T}, exact, context) where {T}
+    nonzero, represented = false, false
+    for I in eachindex(out, exact)
+        value = _from_exact(T, exact[I])
+        _validate_pressure_finite((value,), context)
+        nonzero |= !iszero(exact[I])
+        represented |= !iszero(value)
+        out[I] = value
+    end
+    return nonzero, represented
+end
+
+@noinline function _complete_transport_pressure_rhs!(
+    out::Array{T,D},
+    pe,
+    ue,
+    J,
+    γ::T,
+    η::T,
+    ηH::T,
+    g::FourierGrid{D,T},
+) where {D,T}
+    exact = zeros(Rational{BigInt}, size(out))
+    gamma = _exact_rational(γ)
+    for d = 1:D
+        data = SpectralOperators.deriv_scaled_data!(g, pe, d)
+        factor = _exact_binary_scale(data.input_scale, data.exponent)
+        for I in eachindex(exact, pe, ue[d], data.values)
+            exact[I] -= _exact_rational(ue[d][I]) * _exact_rational(real(data.values[I])) * factor
+        end
+        data = SpectralOperators.deriv_scaled_data!(g, ue[d], d)
+        factor = gamma * _exact_binary_scale(data.input_scale, data.exponent)
+        for I in eachindex(exact, pe, data.values)
+            exact[I] -= _exact_rational(pe[I]) * _exact_rational(real(data.values[I])) * factor
+        end
+    end
+    gamma_minus_one = _exact_rational(_pressure_heat_gamma(γ))
+    if !iszero(η)
+        coefficient = gamma_minus_one * _exact_rational(η)
+        for c = 1:3, I in eachindex(exact, J[c])
+            current = _exact_rational(J[c][I])
+            exact[I] += coefficient * current * current
+        end
+    end
+    if !iszero(ηH)
+        coefficient = gamma_minus_one * _exact_rational(ηH)
+        for c = 1:3, d = 1:D
+            data = SpectralOperators.deriv_scaled_data!(g, J[c], d)
+            _add_exact_pressure_channel!(exact, data, coefficient)
+            if iseven(g.n[d])
+                data = SpectralOperators.nyquist_scaled_data!(g, J[c], d)
+                _add_exact_pressure_channel!(exact, data, coefficient)
+            end
+        end
+    end
+    nonzero, represented = _publish_complete_rate!(out, exact, "complete transport pressure rate")
+    nonzero &&
+        !represented &&
+        throw(ArgumentError("complete transport pressure rate rounds entirely to zero in $T"))
+    return nothing
+end
+
+function _add_exact_pressure_channel!(exact, data, coefficient)
+    factor = _exact_binary_scale(data.input_scale, data.exponent)
+    scaled_coefficient = coefficient * factor * factor
+    for I in eachindex(exact, data.values)
+        value = _exact_rational(real(data.values[I]))
+        exact[I] += scaled_coefficient * value * value
+    end
+    return nothing
 end
 
 function _validate_evolving_pressure(pe, g; context = "electron pressure", subcycle = 0, stage = 0)

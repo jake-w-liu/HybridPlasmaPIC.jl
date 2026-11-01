@@ -3,6 +3,14 @@
 
 _exact_rational(value) = Rational{BigInt}(value)
 
+# Keep a binary scale outside floating-point range until its complete source
+# expression is composed. The finite conversion remains the canonical owner.
+function _exact_binary_scale(value, power::Int)
+    exact = _exact_rational(value)
+    n, d = numerator(exact), denominator(exact)
+    return power >= 0 ? (n << power) // d : n // (d << -power)
+end
+
 # Assemble an already-rounded IEEE grid point without a float conversion or
 # scaling operation. Callers supply 0 <= rounded <= 2^p and a quantum between
 # the minimum subnormal quantum and emax-p+1. The only p+1-bit value is the

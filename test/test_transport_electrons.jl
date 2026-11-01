@@ -31,6 +31,7 @@ function tr_fixture(
     ::Val{D},
     closure;
     η = 0.0,
+    ηH = 0.0,
     collection = false,
     shape = CIC(),
 ) where {T,D}
@@ -43,7 +44,7 @@ function tr_fixture(
     @. ps.v[2] = T(0.03) * cos(ps.x[1])
     fill!(ps.v[3], T(0.01))
     particles = collection ? [ps, ParticleSet{D,T}(0; q = T(2), m = T(4))] : ps
-    model = closure isa TransportElectrons ? HybridModel(closure; η) : HybridModel(closure)
+    model = closure isa TransportElectrons ? HybridModel(closure; η, ηH) : HybridModel(closure)
     st = HybridStepper(g, model, shape, 0)
     fill!(st.fields.B[1], T(0.5))
     for I in CartesianIndices(g.n)
@@ -65,7 +66,7 @@ end
             @test_throws ArgumentError TransportElectrons{T}(bad)
         end
         @test HybridModel(c; η = 0.02).η == 0.02
-        for keywords in ((ηH = 0.01,), (de2 = 0.01,), (η = -0.1,), (η = Inf,), (η = NaN,))
+        for keywords in ((ηH = -0.01,), (de2 = 0.01,), (η = -0.1,), (η = Inf,), (η = NaN,))
             @test_throws ArgumentError HybridModel(c; keywords...)
         end
         # The ideal closure keeps its contract.
@@ -87,7 +88,7 @@ end
         added = Base.summarysize(transport) - Base.summarysize(ideal)
         @test 6 * prod(g.n) * sizeof(T) <= added <= 6 * prod(g.n) * sizeof(T) + 1024
         # Positional models are revalidated at the Ohm and stepping boundaries.
-        raw = HybridModel(c, 0.01, 0.01, 1e-6, 0.0)
+        raw = HybridModel(c, 0.01, 0.0, 1e-6, 0.01)
         f = HybridFields{1,T}(g.n)
         fill!(f.n, one(T))
         snapshot = map(copy, tr_fields(f))
@@ -125,8 +126,8 @@ end
 
 # Direct odd-grid discrete Fourier differentiation, independent of package FFTs.
 function tr_dft_derivative(n)
-    x = 2pi .* (0:n-1) ./ n
-    modes = -(n ÷ 2):(n÷2)
+    x = 2pi .* (0:(n-1)) ./ n
+    modes = (-(n ÷ 2)):(n÷2)
     return [real(sum(im * k * cis(k * (xi - xj)) for k in modes)) / n for xi in x, xj in x]
 end
 
@@ -204,8 +205,10 @@ end
 # Circular Beltrami mode B = A(e1 cos φ + e2 sin φ), φ = k⋅x, with J = −|k|B:
 # J×B = 0, |J|² is uniform and uniform pressure has no gradient. For constant
 # density and ions at rest, B decays as exp(−ηk²t) and pe gains the field loss.
-function tr_beltrami(::Type{T}, ::Val{D}, η, dt, steps; NB = 1) where {T,D}
+function tr_beltrami(::Type{T}, ::Val{D}, η, dt, steps; NB = 1, ηH = 0.0) where {T,D}
     n, mode = D == 1 ? ((16,), (1,)) : D == 2 ? ((8, 8), (1, 1)) : ((6, 6, 6), (1, 1, 1))
+    # Keep the hyperdiffusive corner spectrum inside the explicit RK4 interval.
+    !iszero(ηH) && (n = ntuple(_ -> D == 1 ? 8 : 4, D))
     g = FourierGrid(n, ntuple(_ -> T(2pi), D))
     k = T[mode..., zeros(Int, 3 - D)...]
     kk = norm(k)
@@ -216,7 +219,7 @@ function tr_beltrami(::Type{T}, ::Val{D}, η, dt, steps; NB = 1) where {T,D}
     ps = ParticleSet{D,T}(prod(counts))
     load_lattice!(ps, ntuple(_ -> zero(T), D), g.L, counts)
     set_density_weight!(ps, one(T), g)
-    st = HybridStepper(g, HybridModel(TransportElectrons(T(5 / 3)); η), CIC(), 0)
+    st = HybridStepper(g, HybridModel(TransportElectrons(T(5 / 3)); η, ηH), CIC(), 0)
     amplitude, pressure = T(0.3), T(0.5)
     phase = map(I -> sum(T(mode[d]) * T(I[d] - 1) * g.dx[d] for d = 1:D), CartesianIndices(n))
     for c = 1:3
@@ -231,7 +234,7 @@ function tr_beltrami(::Type{T}, ::Val{D}, η, dt, steps; NB = 1) where {T,D}
         step!(st, ps, dt; NB)
     end
     t = st.time[]
-    rate = T(η) * kk^2
+    rate = T(η) * kk^2 + T(ηH) * kk^4
     A = amplitude * exp(-rate * t)
     expected_pe = pressure + (T(5 / 3) - 1) * amplitude^2 * (1 - exp(-2rate * t)) / 2
     field_error = maximum(
@@ -247,8 +250,10 @@ function tr_beltrami(::Type{T}, ::Val{D}, η, dt, steps; NB = 1) where {T,D}
         speed = maximum(maximum(abs, v) for v in ps.v),
         force = maximum(maximum(abs, a) for a in st.pressure_work.Eforce),
         split = all(
-            isequal(st.fields.E[c], st.pressure_work.Eforce[c] .+ T(η) .* st.fields.J[c]) for
-            c = 1:3
+            isequal(
+                st.fields.E[c],
+                st.pressure_work.Eforce[c] .+ T(η) .* st.fields.J[c] .- T(ηH) .* st.fields.lapJ[c],
+            ) for c = 1:3
         ),
         field_scale = maximum(maximum(abs, a) for a in st.fields.E),
     )
@@ -297,10 +302,10 @@ end
 
 # NGP particles at grid nodes move less than half a cell, so the deposited
 # density stays exactly uniform while the ion current is correlated with J.
-function tr_energy_error(steps; multispecies = false, variable = false, η = 0.05)
+function tr_energy_error(steps; multispecies = false, variable = false, η = 0.05, ηH = 0.0, NB = 2)
     N = 33
     g = FourierGrid((N,), (2pi,))
-    x = (0:N-1) .* g.dx[1]
+    x = (0:(N-1)) .* g.dx[1]
     qs, ms, ns = multispecies ? ((1.0, 2.0), (1.0, 4.0), (0.6, 0.2)) : ((1.0,), (1.0,), (1.0,))
     populations = ParticleSet{1,Float64}[]
     for s in eachindex(qs)
@@ -311,7 +316,7 @@ function tr_energy_error(steps; multispecies = false, variable = false, η = 0.0
         @. ps.v[2] = (0.03 / s) * cos(x)
         push!(populations, ps)
     end
-    st = HybridStepper(g, HybridModel(TransportElectrons(); η), NGP(), N * length(qs))
+    st = HybridStepper(g, HybridModel(TransportElectrons(); η, ηH), NGP(), N * length(qs))
     fill!(st.fields.B[1], 0.5)
     @. st.fields.B[3] = 0.2 * sin(x)
     @. st.fields.pe = 0.7 + 0.04 * sin(x)
@@ -322,7 +327,7 @@ function tr_energy_error(steps; multispecies = false, variable = false, η = 0.0
     duration = 0.4
     for k = 1:steps
         dt = duration / steps * (variable ? (isodd(k) ? 0.7 : 1.3) : 1.0)
-        step!(st, ps, dt; NB = 2)
+        step!(st, ps, dt; NB)
     end
     # Common-time kinetic energy: interpolate the staggered velocities to the
     # integer time of B and pe with one further step.
@@ -331,7 +336,7 @@ function tr_energy_error(steps; multispecies = false, variable = false, η = 0.0
     previous = [map(copy, q.v) for q in populations]
     prevdt = st.last_dt[]
     nextdt = duration / steps * (variable ? 0.7 : 1.0)
-    step!(st, ps, nextdt; NB = 2)
+    step!(st, ps, nextdt; NB)
     kinetic = sum(eachindex(populations)) do s
         q = populations[s]
         sum(1:3) do c

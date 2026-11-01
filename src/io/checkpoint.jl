@@ -271,7 +271,7 @@ function _validate_checkpoint_field_state(s, st::_HybridCheckpointStepper{D,T}) 
 end
 
 # Version of the TransportElectrons payload meaning (carried ion force E_force
-# with constant Ohmic transport). It is required; old payloads carry no force.
+# with constant dissipative transport). It is required; old payloads carry no force.
 const _TRANSPORT_POLICY_VERSION = 1
 
 function _validate_checkpoint_transport_state(s, st::_HybridCheckpointStepper{D,T}) where {D,T}

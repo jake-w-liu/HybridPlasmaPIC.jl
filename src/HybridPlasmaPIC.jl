@@ -21,6 +21,7 @@ using SpectralOperators:
     divergence!,
     curl!,
     laplacian!,
+    nyquist_channel!,
     project_divfree!,
     exp_filter!,
     dealias_two_thirds!,

@@ -579,23 +579,38 @@ function _rk4_B!(st::HybridStepper{D,T}, h::T) where {D,T}
     return B
 end
 
-# Constant Ohmic transport adds ηJ to the stage field that drives Faraday and
-# its heat (γ−1)η|J|² to the pressure rate, both from this stage's current.
-# The ideal closure and η = 0 leave the stage arithmetic untouched.
-_add_transport_stage_sources!(E, rate, J, model::HybridModel) =
-    _add_transport_stage_sources!(E, rate, J, model, model.closure)
-_add_transport_stage_sources!(E, rate, J, model, ::ElectronClosure) = nothing
+# Constant transport adds ηJ−ηH∇²J to the field that drives Faraday and
+# matching positive Ohmic/hyperresistive heat, all from this stage's current.
+# The ideal closure and η=ηH=0 leave the stage arithmetic untouched.
+_add_transport_stage_sources!(st, rate) = _add_transport_stage_sources!(st, rate, st.model.closure)
+_add_transport_stage_sources!(st, rate, ::ElectronClosure) = nothing
 function _add_transport_stage_sources!(
-    E,
+    st::HybridStepper,
     rate::Array{T},
-    J,
-    model,
     closure::TransportElectrons,
 ) where {T}
+    model, f, w, g = st.model, st.fields, st.pressure_work, st.g
     η = T(model.η)
-    iszero(η) && return nothing
-    _add_ohmic_field!(E, E, J, η)
-    _add_ohmic_pressure_heating!(rate, J, T(closure.γ), η)
+    ηH = T(model.ηH)
+    if !iszero(ηH)
+        _add_transport_hyper_sources!(st, rate, g)
+        return nothing
+    end
+    if !iszero(η)
+        _add_ohmic_field!(st.Escr, st.Escr, f.J, η)
+        _add_ohmic_pressure_heating!(rate, f.J, T(closure.γ), η)
+    end
+    return nothing
+end
+
+# Specialize on the grid's concrete FFT plan types before extracting inline
+# array tuples. The stepper's grid field intentionally erases those parameters.
+function _add_transport_hyper_sources!(st, rate::Array{T}, g) where {T}
+    f, w, model = st.fields, st.pressure_work, st.model
+    η, ηH = T(model.η), T(model.ηH)
+    _add_complete_transport_field!(st.Escr, st.Escr, f.J, f.lapJ, η, ηH, g)
+    iszero(η) || _add_ohmic_pressure_heating!(rate, f.J, T(model.closure.γ), η)
+    _add_hyperresistive_pressure_heating!(rate, f.J, f.gradp, w.divue, T(model.closure.γ), ηH, g)
     return nothing
 end
 
@@ -617,14 +632,205 @@ function _bpressure_rhs!(
     gradient!(f.gradp, ptrial, g)
     _ohm_Efield!(st.Escr, st.fui, Btrial, f.J, f.lapJ, f.gradp, f.ninv, zero(T), zero(T), g)
     electron_velocity!(w.ue, st.fui, f.J, st.fn; nfloor = T(st.model.nfloor))
+    if _transports_electrons(st.model.closure) && !iszero(T(st.model.ηH))
+        return _transport_hyperpressure_rhs!(outB, outp, Btrial, ptrial, st, g)
+    end
     divergence!(w.divue, w.ue, g)
     _electron_pressure_rhs!(outp, ptrial, w.ue, f.gradp, w.divue, T(st.model.closure.γ), Val(D))
-    _add_transport_stage_sources!(st.Escr, outp, f.J, st.model)
+    _add_transport_stage_sources!(st, outp)
     faraday_rhs!(outB, st.Escr, g)
     _validate_pressure_finite(outp, "evolving-pressure rate")
     for a in outB
         _validate_pressure_finite(a, "evolving-pressure magnetic rate")
     end
+    return nothing
+end
+
+function _transport_input_stats(input::AbstractArray{T}) where {T}
+    magnitude = zero(T)
+    reference = first(input)
+    varies, finite = false, true
+    for value in input
+        magnitude = max(magnitude, abs(value))
+        varies |= value != reference
+        finite &= isfinite(value)
+    end
+    return (; magnitude, varies, finite)
+end
+
+# Bound the actual centered collocation row, including rounding of generated
+# mode metadata. This is a routing bound, not an FFTW forward-error theorem.
+function _transport_derivative_gains(g::FourierGrid{D,T}) where {D,T}
+    return ntuple(D) do d
+        n = g.n[d]
+        n <= 2 && return 0.0
+        k0 = Float64(abs(g.kfull[d][2]))
+        nu = nextfloat(Float64(n))
+        m = n ÷ 2
+        harmonic = Float64(m <= 1 ? 1 : 1 + ndigits(m - 1; base = 2))
+        u = Float64(eps(T)) / 2
+        gamma2 = nextfloat((2u) / (1 - 2u))
+        ideal = _transport_upmul(_transport_upmul(k0, nu / 2), harmonic)
+        metadata = _transport_upmul(_transport_upmul(_transport_upmul(k0, nu), nu / 4), gamma2)
+        _transport_upadd(ideal, metadata)
+    end
+end
+
+function _transport_channel_range_risk(stats, gain, g::FourierGrid{D,T}) where {D,T}
+    stats.finite || return true
+    (!stats.varies || iszero(gain) || iszero(stats.magnitude)) && return false
+    floor =
+        ldexp(floatmin(T), (length(g.cbuf) <= 1 ? 0 : ndigits(length(g.cbuf) - 1; base = 2)) + 4)
+    stats.magnitude < floor && return true
+    bound = _transport_upmul(gain, Float64(stats.magnitude))
+    return !isfinite(bound) || bound < Float64(32floatmin(T)) || bound > Float64(floatmax(T)) / 32
+end
+
+function _transport_stage_range_risk(st, ptrial, g::FourierGrid{D,T}, gains) where {D,T}
+    f, w = st.fields, st.pressure_work
+    for c = 1:3
+        stats = _transport_input_stats(f.J[c])
+        for d = 1:D
+            _transport_channel_range_risk(stats, gains[d], g) && return true
+            if iseven(g.n[d])
+                nyquist_gain = Float64(abs(g.kfull[d][g.n[d]÷2+1]))
+                _transport_channel_range_risk(stats, nyquist_gain, g) && return true
+            end
+        end
+    end
+    velocity_max, symbol_gain = zero(T), zero(T)
+    for d = 1:D
+        stats = _transport_input_stats(w.ue[d])
+        _transport_channel_range_risk(stats, gains[d], g) && return true
+        velocity_max = max(velocity_max, stats.magnitude)
+        symbol_gain = max(symbol_gain, maximum(abs, g.kvec[d]))
+    end
+    safe = SpectralOperators._fft_safe_magnitude(T, length(g.cbuf), symbol_gain)
+    isone(SpectralOperators._fft_input_scale(velocity_max, safe)) || return true
+    if _transport_input_stats(ptrial).varies
+        grad_max = maximum(maximum(abs, a) for a in f.gradp)
+        grad_max < 32floatmin(T) && return true
+    end
+    return false
+end
+
+function _transport_rate_range_risk(
+    outB,
+    outp,
+    receipt,
+    gains,
+    pressure_active,
+    magnetic_active,
+    ::Type{T},
+) where {T}
+    pnorm, bnorm = zero(T), zero(T)
+    for value in outp
+        isfinite(value) || return true
+        pnorm = max(pnorm, abs(value))
+    end
+    for component in outB, value in component
+        isfinite(value) || return true
+        bnorm = max(bnorm, abs(value))
+    end
+    pressure_active && pnorm < 32floatmin(T) && return true
+    magnetic_active || return false
+    gain = 0.0
+    for value in gains
+        gain = _transport_upadd(gain, value)
+    end
+    iszero(gain) && return false
+    # Inclusive, dimensionless engineering routing threshold. It is never a
+    # rejection certificate or permission for large local arithmetic error.
+    bound = _transport_upmul(gain, receipt.source_scale) / 1024
+    return Float64(bnorm) <= bound
+end
+
+# Concrete grid specialization keeps ordinary tuple loops and range bookkeeping
+# allocation-free. Only the exact cold equation owners allocate field storage.
+function _transport_hyperpressure_rhs!(
+    outB,
+    outp::Array{T,D},
+    Btrial,
+    ptrial,
+    st,
+    g::FourierGrid{D,T},
+) where {D,T}
+    f, w, model = st.fields, st.pressure_work, st.model
+    η, ηH, γ = T(model.η), T(model.ηH), T(model.closure.γ)
+    current_active = any(_transport_input_stats(a).varies for a in f.J)
+    gains = _transport_derivative_gains(g)
+    cold = _transport_stage_range_risk(st, ptrial, g, gains)
+    pressure_active, magnetic_active = current_active, false
+    if !cold
+        magnetic_active = _transport_faraday_sources_active(st.Escr, f.J, η, ηH, g)
+        divergence!(w.divue, w.ue, g)
+        pressure_active = _transport_pressure_rhs_with_activity!(
+            outp,
+            ptrial,
+            w.ue,
+            f.gradp,
+            w.divue,
+            γ,
+            f.J,
+            η,
+            current_active,
+            Val(D),
+        )
+    end
+    receipt = _add_complete_transport_field!(st.Escr, st.Escr, f.J, f.lapJ, η, ηH, g)
+    cold |= receipt.cold
+    if !cold
+        iszero(η) || _add_ohmic_pressure_heating!(outp, f.J, γ, η)
+        cold = !_add_represented_hyperresistive_heating!(outp, f.J, f.gradp, w.divue, γ, ηH, g)
+        if !cold
+            faraday_rhs!(outB, st.Escr, g)
+            cold = _transport_rate_range_risk(
+                outB,
+                outp,
+                receipt,
+                gains,
+                pressure_active,
+                magnetic_active,
+                T,
+            )
+        end
+    end
+    if cold
+        _complete_transport_stage_rhs!(outB, outp, Btrial, ptrial, st, g)
+    end
+    _validate_pressure_finite(outp, "evolving-pressure rate")
+    for component in outB
+        _validate_pressure_finite(component, "evolving-pressure magnetic rate")
+    end
+    return nothing
+end
+
+@noinline function _complete_transport_stage_rhs!(
+    outB,
+    outp::Array{T,D},
+    Btrial,
+    ptrial,
+    st,
+    g::FourierGrid{D,T},
+) where {D,T}
+    f, w, model = st.fields, st.pressure_work, st.model
+    ideal = ntuple(_ -> similar(ptrial), 3)
+    gradient!(f.gradp, ptrial, g)
+    _ohm_Efield!(ideal, st.fui, Btrial, f.J, f.lapJ, f.gradp, f.ninv, zero(T), zero(T), g)
+    for component in ideal
+        _validate_pressure_finite(component, "transport ideal electric field")
+    end
+    _complete_transport_pressure_rhs!(
+        outp,
+        ptrial,
+        w.ue,
+        f.J,
+        T(model.closure.γ),
+        T(model.η),
+        T(model.ηH),
+        g,
+    )
+    _complete_transport_faraday_rhs!(outB, ideal, f.J, T(model.η), T(model.ηH), g)
     return nothing
 end
 
@@ -1014,9 +1220,9 @@ identities. There is no pressure clipping. Choose a smaller timestep or improve
 spatial resolution when a pressure stage is rejected. A zero timestep changes
 nothing, including invalid input pressure. Private work arrays are scratch.
 
-[`TransportElectrons`](@ref) shares these stages and adds `ηJ` to the stage
-field and `(γ−1)η|J|²` to the stage pressure rate; ions are pushed by the
-carried force `E_force`. The midpoint, endpoint and predictor densities must
+[`TransportElectrons`](@ref) shares these stages and adds `ηJ−ηH∇²J` and
+matching positive Ohmic/hyperresistive heat; ions use the carried ideal force
+`E_force`. The midpoint, endpoint and predictor densities must
 stay finite and at least `nfloor`, and the transaction also restores the
 carried force.
 

@@ -1,0 +1,95 @@
+# Original-factor ideal field and Faraday completion
+
+Status: **confirmed missing implementation; planned, not implemented**. This
+blocks any claim of complete exponent-range ideal plasma dynamics. The represented-source
+S2 implementation completes the linear constitutive/operator expression of an
+already represented ideal field; it does not repair this separate loss.
+
+## Verified failure and retained evidence
+
+Both Julia 1.12.7 and 1.13.3 reproduce eight assertions in
+`source-range-hpic-v1/nonlinear-ideal-boundary-v1.jl`, with command receipts,
+TOML observations, binary original-factor/reference buffers and logs retained
+under the transport range audit evidence. With four periodic points, zero
+pressure/current, constant By and sinusoidal u1:
+
+| Type | k | u1 and By amplitudes | Exact ideal product | Exact differentiated product |
+| --- | --- | --- | --- | --- |
+| Float32 | 2^60 | 2^-100 | 2^-200, rounds to zero | 2^-140, representable |
+| Float64 | 2^300 | 2^-600 | 2^-1200, rounds to zero | 2^-900, representable |
+
+In those frozen witness runs, public `ohms_law!` and the actual coupled stage
+publish zero. Current-main composition retains the same nonlinear ideal owner;
+its final integrated regression still needs to be run. The
+independent rational four-point matrix applied to the original pointwise
+product gives a nonzero representable magnetic rate. Checking variation of
+already rounded ideal E cannot detect this failure. A broad zero-E rejection
+would also reject valid constants and exact cancellation and is not a repair.
+
+## Canonical owner and required architecture review
+
+- Scalar ideal constitutive arithmetic belongs to `_ohm_Efield!` in
+  `src/electrons/ohms_law.jl`; carried force and full E publication must keep
+  their existing split. Its callers include scalar algebraic, evolving and
+  transport closures. Map each caller before deciding the first bounded slice.
+- Faraday composition belongs beside `faraday_rhs!` and the complete transport
+  Faraday owner, using the shared SO centered/full metadata and normalized FFT
+  representation. The integrator coordinates owners and adds no physics formula.
+- Complete original-factor signs and cancellation for `-ui×B`, the Hall term
+  `(J×B)/n`, and pressure force must be accounted for together. Explicitly settle
+  represented J/gradp versus their original derivative sources, and the existing
+  rounded inverse-density convention versus division by original density. Do
+  not silently claim that repairing ui×B also fixes those separate intermediate
+  losses. Inspect CGL and electron-inertia callers separately.
+- Before editing, derive a representation that retains a tiny varying source
+  beneath a large independent constant, broad factor/product exponent spans,
+  finite overflowing products that cancel, and subnormal final neighbors. A
+  single whole-field normalization is not an established solution. Share
+  canonical numerical owners rather than adding a local FFT implementation.
+- The discrete expression is the derivative of the **collocation pointwise
+  product**. A continuum product-rule rewrite is not generally equivalent on
+  the aliased Fourier grid. Retain mixed-mode/Nyquist aliasing references.
+
+## Admission, state and error requirements
+
+Preserve the ordinary arithmetic/bit contract under a declared and verified
+admission region. Compose complete original-factor fields/rates before lossy
+publication, then classify representability. Exact constants, null curl axes,
+centered n<=2/Nyquist nulls and exact cancellation must be admitted. Test both
+representable rescued rates and complete nonzero rates that cannot fit.
+
+Public E and carried ideal force retain physical unscaled meanings; do not
+publish normalized scratch as physical data. Decide explicitly when a required
+physical field/force itself cannot fit even if a later derivative can. Map raw
+Ohm partial-work semantics separately from init/step transaction, priming phase,
+particle/clock state, checkpoint ownership and restart reproducibility. No
+silent clipping, broad catches or unrelated-source rejection certificate.
+
+## Concrete implementation and validation tracker
+
+- [x] Retain both-runtime original-factor witnesses and the independent exact
+      four-point centered collocation matrix; record the current zero-output
+      failure. The general original-product DFT campaign remains a future gate.
+- [ ] Complete a source-supported pre-edit brief: canonical callers, complete
+      constitutive factors, representation, cancellation and admission boundaries.
+- [ ] Establish conservative admission and FFT/restoration headroom through
+      the existing numerical owners. Review storage and restart ownership before
+      adding persistent state; measure costs before claiming optimization.
+- [ ] Implement original-factor ideal publication and source-aware Faraday
+      completion through canonical equation/numerical owners.
+- [ ] Permanent both-type D1–3 odd/even, anisotropic, constant-axis, broad-span,
+      mixed-source cancellation, subnormal/overflow and null-source regressions.
+- [ ] Public init/step rejection, rollback identities, phase/particles/clock,
+      successful neighbor retry, checkpoint/archive/restart and force/J/gradp tests.
+- [ ] Independent high-precision discrete DFT of original products, modal/SBP
+      and common-time energy/refinement checks with separately reported local,
+      FFT/source and time errors. Mutants must reject rounded-product-only
+      replay, whole-E norm certificates and continuum-product-rule substitution.
+- [ ] Direct implementation/caller review and essential regressions, followed
+      by minimum/latest Julia package/compiler, formatter and MPI checks on
+      GitHub. Existing resource gates remain unchanged; no local test campaign.
+- [ ] Root current-main integration, push, exact-SHA green GitHub CI, dependency
+      publication if needed, and truthful global implementation-tracker update.
+
+The source/representation choice is intentionally pending the pre-edit review;
+this work order is a concrete follow-on, not a claimed implementation.

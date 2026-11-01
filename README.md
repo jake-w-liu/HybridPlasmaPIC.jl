@@ -138,10 +138,12 @@ unverified. See
 - `EvolvingElectrons(γ = 5/3)` — independent adiabatic scalar pressure,
   advanced with B by `HybridStepper`. Initialize `fields.pe` before `init!`;
   requires `γ > 1` and `η = ηH = de2 = 0`. Supports ion collections and MPI.
-- `TransportElectrons(γ = 5/3)` — the same stored pressure with constant Ohmic
-  transport (`η ≥ 0`, `ηH = de2 = 0`): Faraday uses `E = E_force + ηJ`, ions
-  are pushed by `E_force` and the pressure gains `(γ−1)η|J|²`, so the periodic
-  continuum energy total closes. Serial CPU only; density must stay ≥ `nfloor`.
+- `TransportElectrons(γ = 5/3)` — stored scalar pressure with constant Ohmic
+  and hyperresistive transport (`η ≥ 0`, `ηH ≥ 0`, `de2 = 0`). Faraday uses
+  `E = E_force + ηJ − ηH∇²J`; ions use `E_force`, with paired positive
+  electron heating. Serial periodic CPU only; density must stay ≥ `nfloor`.
+  The [S2 implementation and acceptance tracker](docs/TRANSPORT_SOURCE_RANGE_PLAN.md)
+  records its finite-source domain and outstanding integration gates.
 - `CGLElectrons(p⊥0, p∥0, n0, B0)` — anisotropic double-adiabatic
   (Chew–Goldberger–Low): `p_⊥ ∝ n·B`, `p_∥ ∝ n³/B²`, entering Ohm's law
   through the full gyrotropic pressure-tensor force `−(∇·P_e)/n`. (Note the

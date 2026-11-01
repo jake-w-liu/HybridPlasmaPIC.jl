@@ -88,7 +88,7 @@ Source names below resolve to these canonical files:
 | Kinetic species diversity | Arbitrary ES charge/mass collections landed; current EMPIC electron/ion model remains restricted | Arbitrary EM collection evolution and backend composition remain CAP-008 work |
 | Multidimensional shocks | shock3d:9–19,337–359 and shock2d:230–236 intentionally exclude Hall induction while retaining Hall particle forces | Documented reduced shock model; full-Hall multidimensional branch required for broader claims, CAP-009 |
 | Coupled sources and collisions | `CollisionalHybridStepper` and full RNG checkpoint/archive state (`2b2420b`) | Fixed-step first-order isothermal CPU composition exists; other models/closures/sources, schedules and backends remain CAP-010 work |
-| Electron transport | `EVOLVING_ELECTRONS.md` restricts `EvolvingElectrons` to ideal massless parameters; `TransportElectrons` adds constant Ohmic transport (S1) | Ideal pressure and serial constant-η Ohmic transport exist; hyperresistive, conductive, anisotropic, inertial and backend extensions missing, CAP-011 S2–S8 |
+| Electron transport | `EvolvingElectrons` covers ideal massless pressure; `TransportElectrons` provides constant Ohmic transport (S1), with the complete-source hyperresistive S2 candidate composed onto current main | [S2 integration and range gates](TRANSPORT_SOURCE_RANGE_PLAN.md) remain open; conduction, equilibration, anisotropy, inertia and backends remain CAP-011 S3–S8 |
 
 The geometry integration finding also follows from a repository-wide symbol
 search: outside their defining files, `ToroidalGrid`, `AMRGrid`, `GuidingCentre`,
@@ -700,7 +700,7 @@ the ES/EM/GK model's responsibility, not an implicit property of a fluid closure
 **S1 status (constant Ohmic, serial CPU).** `TransportElectrons` splits Ohm's
 law into the carried ion force `E_force` and `E = E_force + ηJ`, heats the
 stored pressure by `(γ−1)η|J|²` from each RK4 stage current, rejects density
-below `nfloor` and unsupported `ηH`/`de2`/scalar charge, rolls back the carried
+below `nfloor` and, in S1, unsupported `ηH`/`de2`/scalar charge, rolls back the carried
 force with the pressure transaction and persists it as
 `transport_policy_version = 1` (archive schema 4 unchanged). Tests cover
 direct-DFT stage rates, the semidiscrete Ohmic exchange, analytic Beltrami
@@ -708,23 +708,26 @@ heating (fourth-order energy closure with fixed ions), second-order coupled
 common-time energy, bitwise `η = 0` reduction, admissibility/rollback,
 range-safe heating and restart ([guide](EVOLVING_ELECTRONS.md#constant-ohmic-transport)).
 MPI, CAM-CL and Hall-MHD reject the closure. Thermal equilibration,
-hyperresistive heating (S2), conduction (S3–S5), backends (S6), anisotropy (S7)
+S2 acceptance, conduction (S3–S5), backends (S6), anisotropy (S7)
 and inertia (S8) remain open. S1 landed as `a6d20d3` with all six exact-SHA
 CI jobs and complete compiler review passed. `CollisionalHybridStepper` currently
 requires `IsothermalElectrons`; composing collisions with transport remains an
 explicit unimplemented extension. The subsequent [Ohmic diagnostic range repair](RESISTIVE_DIAGNOSTIC_RANGE_AUDIT.md)
 is pushed as `a356c6b` and passes all six exact-SHA CI jobs and complete compiler review.
 
-**S2 integration hold.** Registered SpectralOperators 0.1.6 supplies the Nyquist
-energy channel. The sealed HPIC feature passes its original local analytic,
-SBP, restart, rollback, resource and compiler gates. A fresh eight-cell finite-input
-probe, bounded using full `kfull` metadata, returns nonfinite public E/lapJ
-without an error even though physical field/heating/rate bounds are finite.
-The canonical unscaled lapJ scratch contract requires explicit admission; the
-planned repair must also cover finite-lapJ product/subtraction overflow and
-representable cancellation. Current-main promotion is held until those range and existing
-feature gates pass together. Raw Ohm partial-work and public init/step rollback
-are separate contracts, not an implicit universal transaction.
+**S2 current-main candidate.** The hyperresistive implementation and complete represented-source repair
+are composed with the shared IEEE and CPU particle-factor changes without
+replacing newer unrelated source or documentation. The shared normalized
+Fourier API is supplied by SpectralOperators 0.1.7. The prepared earlier HPIC
+snapshot passed bounded 504-check and 48-profile ordinary-bit probes per runtime;
+these historical results do not accept this composition. Minimum/latest Julia package/compiler, formatter and MPI validation runs in
+GitHub, as recorded by the [S2 implementation tracker](TRANSPORT_SOURCE_RANGE_PLAN.md).
+Public physical lapJ/E and complete required rates retain representability
+requirements; normalized-dt RK storage remains unsupported. Raw Ohm partial-work
+and coupled init/step rollback remain separate contracts. The confirmed
+[original-factor ideal-force loss](IDEAL_FORCE_SOURCE_RANGE_WORK_ORDER.md) is
+planned and unimplemented; linear completion of represented ideal E does not
+close it. CAP-011 remains incomplete.
 
 ## Additional risks requiring tests, not assertions
 

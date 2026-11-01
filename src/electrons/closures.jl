@@ -29,7 +29,7 @@ be finite and nonnegative at every explicit stage. Rejected numerical steps
 roll back public state and never clip pressure. Checkpoints preserve
 `pe`, and electron-energy diagnostics require it explicitly through `pe=`.
 No heating, heat flux, or discrete total-energy conservation is implied;
-[`TransportElectrons`](@ref) adds paired constant Ohmic heating.
+[`TransportElectrons`](@ref) adds paired constant Ohmic and hyperresistive heating.
 The magnetic [`recommended_dt`](@ref) does not bound pressure advection or
 compression. The explicit spectral pressure scheme is not positivity preserving.
 """
@@ -56,15 +56,17 @@ electron_pressure!(::Any, ::Any, ::EvolvingElectrons) = throw(
 """
     TransportElectrons(γ = 5/3)
 
-Stored scalar electron pressure with constant Ohmic transport for a serial,
-periodic CPU `HybridStepper`. Use `HybridModel(TransportElectrons(γ); η)` with
-finite constant `η ≥ 0` and `ηH = de2 = 0`; `γ > 1`. Generalized Ohm's law is
+Stored scalar electron pressure with constant Ohmic and hyperresistive transport for a serial,
+periodic CPU `HybridStepper`. Use `HybridModel(TransportElectrons(γ); η, ηH)` with
+finite constant `η ≥ 0`, `ηH ≥ 0` and `de2 = 0`; `γ > 1`. Generalized Ohm's law is
 split into the ion force and the resistive field,
 
-    E_force = −ui×B + (J×B)/n − ∇pe/n,      E = E_force + ηJ,
-    ∂B/∂t = −∇×E,   ∂pe/∂t = −ue⋅∇pe − γ*pe*∇⋅ue + (γ−1)*η*|J|²,
+    E_force = −ui×B + (J×B)/n − ∇pe/n,      E = E_force + ηJ − ηH∇²J,
+    ∂B/∂t = −∇×E,   ∂pe/∂t = −ue⋅∇pe − γ*pe*∇⋅ue + (γ−1)*(η*|J|² + H_H),
 
-with `ue = ui − J/n`. Faraday's law uses the full `E`, while the first-step
+with `ue = ui − J/n` and positive hyperresistive heat `H_H`. Current-gradient
+squares plus the full-Laplacian Nyquist channel pair the periodic magnetic
+loss; see `docs/TRANSPORT_HYPERRESISTIVITY_PLAN.md`. Faraday's law uses the full `E`, while the first-step
 priming, every Boris kick and the endpoint predictor use `E_force`. The
 resistive friction is thus paired with its ion recoil, and its heat `η|J|²` enters
 the single electron reservoir `∫pe/(γ−1) dV`. This is a prescribed reduced
@@ -77,7 +79,7 @@ endpoint and predictor deposition; floor activation is rejected rather than
 used as an untracked source. Scalar populations need unit charge; use a
 one-element collection otherwise. Pressure validation, rollback and the absence
 of clipping follow [`EvolvingElectrons`](@ref). The stepper owns the carried
-`E_force`, which checkpoints and archives restore verbatim. With `η = 0` the
+`E_force`, which checkpoints and archives restore verbatim. With `η = ηH = 0` the
 closure reproduces `EvolvingElectrons` bitwise. MPI, CAM-CL and Hall-MHD reject
 this closure.
 """

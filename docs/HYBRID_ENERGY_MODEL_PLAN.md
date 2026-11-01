@@ -8,8 +8,9 @@ gates. Implementation commit `013a70b` passes all six jobs in
 374,060/374,061 assertions on actual Julia 1.12.7/1.13.2, formatting and all
 MPI ranks. Constant Ohmic recoil and heating are provided separately by
 `TransportElectrons` (CAP-011 S1, [guide](EVOLVING_ELECTRONS.md#constant-ohmic-transport));
-hyperresistive heating and complete electron inertia remain separate model
-extensions.
+the constant hyperresistive source candidate and its outstanding acceptance
+gates are tracked in [the S2 source plan](TRANSPORT_SOURCE_RANGE_PLAN.md).
+Complete electron inertia remains a separate model extension.
 
 ## Verified balance and scope
 
@@ -65,7 +66,10 @@ The balance above is derived from this repository's equations.
 - Design dissipative recoil and heat partition together before enabling
   resistive/hyperresistive evolution with a closed-energy claim. Constant
   resistivity is implemented as `TransportElectrons`: the ion force omits `ηJ`
-  and `Q = η|J|²`, which removes the `J_i·R` term; hyperresistivity remains open.
+  and `Q = η|J|²`, which removes the `J_i·R` term. S2 extends the same force
+  split to `R = ηJ − ηH∇²J`, with positive Nyquist-completed heat; see its
+  [model contract](TRANSPORT_HYPERRESISTIVITY_PLAN.md) and
+  [integration gates](TRANSPORT_SOURCE_RANGE_PLAN.md).
 - Treat full finite-electron-inertia dynamics as a separate extension;
   relabeling the quadratic diagnostic cannot supply omitted momentum terms.
 

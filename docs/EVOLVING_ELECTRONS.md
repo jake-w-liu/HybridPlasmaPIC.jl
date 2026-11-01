@@ -10,8 +10,9 @@ to obtain charge-weighted moments; the scalar interface retains proton normaliza
 The closure requires finite `γ > 1` and `η = ηH = de2 = 0`, including after
 conversion to the grid precision. CAM-CL and Hall-MHD reject this closure.
 Constant Ohmic heating is provided by
-[`TransportElectrons`](#constant-ohmic-transport); hyperresistive heating, heat
-flux, and anisotropic pressure evolution are separate model extensions.
+[`TransportElectrons`](#constant-ohmic-transport), with its hyperresistive
+[extension](#constant-hyperresistive-transport). Heat flux and anisotropic
+pressure evolution are separate model extensions.
 
 ## Initialize and advance
 
@@ -191,3 +192,42 @@ MPI, CAM-CL and Hall-MHD reject this closure, and the hybrid stepper has no
 device path. MPI ranks agree on the rejection collectively before mutation when
 every rank uses an evolving-pressure model; other model mismatches remain
 outside the existing MPI contract.
+
+## Constant hyperresistive transport
+
+`HybridModel(TransportElectrons(γ); η, ηH)` extends the same serial periodic CPU
+contract to constant finite `η ≥ 0`, `ηH ≥ 0` and `de2 = 0`. Each nonzero
+coefficient must remain finite and nonzero at grid precision. The equations are
+
+```
+R = ηJ − ηH∇²J,                         E = E_force + R,
+∂B/∂t = −∇×E,
+∂p_e/∂t = −u_e·∇p_e − γ p_e ∇·u_e + (γ−1)(η|J|² + H_H).
+```
+
+For the full Fourier Laplacian, positive `H_H` includes both ordinary
+current-gradient squares and the even-axis Nyquist projector squares. Their
+periodic sum pairs the magnetic loss. A pure curl-null mode has `J = 0` and no
+heat. The [model and discrete balance](TRANSPORT_HYPERRESISTIVITY_PLAN.md)
+explain this collocation convention and its boundaries.
+
+Ions retain the carried ideal force. The zero-`ηH` branch keeps S1's arithmetic,
+and zero `η` and `ηH` reduce to the ideal evolving-pressure closure. Existing
+pressure admissibility, density rejection, transaction, carried-force and
+policy-1 restart rules apply. No persistent field or particle arrays are added.
+Pass both coefficients to `recommended_dt`; its magnetic stability bound still
+does not bound pressure transport or heating.
+
+The [complete-source contract and verification tracker](TRANSPORT_SOURCE_RANGE_PLAN.md)
+defines cold completion before separately rounded E, pressure and Faraday
+sources lose information. Public `lapJ` and E must remain finite physical
+arrays; complete required rates must also be representable. Exact-zero rates
+are valid. A nonzero complete required norm that rounds wholly to zero is
+rejected. A finite update rescued only by multiplying an unrepresentable rate
+by `dt` is outside this representation. Raw `ohms_law!` can retain partial work
+on a later failure; `init!` and `step!` restore their public transaction state.
+
+The composed implementation awaits GitHub validation in the linked tracker. It completes an already represented ideal field; the separate
+[original-factor ideal-force work order](IDEAL_FORCE_SOURCE_RANGE_WORK_ORDER.md)
+remains unimplemented. Conduction, equilibration, anisotropic transport, complete
+electron inertia, MPI and device integration remain separate capabilities.

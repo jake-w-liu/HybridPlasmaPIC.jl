@@ -14,8 +14,8 @@ frequency at `ω_pe` scales and enables collisionless reconnection at the `d_e` 
 
 [`EvolvingElectrons`](@ref) requires `η = ηH = de2 = 0`; its independent
 pressure is initialized in `HybridStepper.fields.pe` before calling `init!`.
-[`TransportElectrons`](@ref) accepts constant `η ≥ 0` with `ηH = de2 = 0`; a
-nonzero `η` must stay finite and nonzero after conversion to grid precision.
+[`TransportElectrons`](@ref) accepts constant `η ≥ 0` and `ηH ≥ 0` with `de2 = 0`;
+nonzero coefficients must stay finite and nonzero at grid precision.
 """
 struct HybridModel{C<:ElectronClosure}
     closure::C
@@ -53,14 +53,16 @@ function _validate_evolving_model(model::HybridModel, ::Type{T}) where {T}
     return nothing
 end
 
-# Constant Ohmic transport only. A nonzero coefficient must survive conversion:
+# Constant dissipative transport. A nonzero coefficient must survive conversion:
 # overflow or disappearance to zero would silently change the model.
 function _validate_transport_resistivity(model::HybridModel, ::Type{T}) where {T}
-    (iszero(model.ηH) && iszero(model.de2)) ||
-        throw(ArgumentError("TransportElectrons supports constant η only; requires ηH = de2 = 0"))
+    iszero(model.de2) || throw(ArgumentError("TransportElectrons requires de2 = 0"))
     η = _require_finite_nonnegative_real("η", model.η, T)
     (iszero(model.η) || !iszero(η)) ||
         throw(ArgumentError("TransportElectrons η underflows to zero at grid precision"))
+    ηH = _require_finite_nonnegative_real("ηH", model.ηH, T)
+    (iszero(model.ηH) || !iszero(ηH)) ||
+        throw(ArgumentError("TransportElectrons ηH underflows to zero at grid precision"))
     return η
 end
 

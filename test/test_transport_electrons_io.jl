@@ -115,7 +115,7 @@ end
             merge(state, (Eforce = (force[1], fill(T(Inf), 8), force[3]),)),
             merge(state, (Eforce = (force[1], force[1], force[3]),)),
             merge(state, (Eforce = (state.E[1], force[2], force[3]),)),
-            merge(state, (model = raw_model(state.model.closure; ηH = 0.1),)),
+            merge(state, (model = raw_model(state.model.closure; ηH = -0.1),)),
             merge(state, (model = raw_model(state.model.closure; de2 = 0.1),)),
             merge(state, (model = raw_model(state.model.closure; η = -0.1),)),
             merge(state, (model = raw_model(state.model.closure; η = NaN),)),

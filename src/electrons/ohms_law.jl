@@ -8,8 +8,12 @@ Fill `f.E` from generalized Ohm's law using `f.n`, `f.ui`, `f.B`. Also updates
 closures recompute `f.pe`; [`EvolvingElectrons`](@ref) validates and reads its
 stored pressure without changing it. Stored pressure must have independent
 storage, and scalar CGL scratch must retain its empty layout.
-[`TransportElectrons`](@ref) returns the full field `E_force + ηJ`; it rejects
-a density below `nfloor` before writing any output.
+[`TransportElectrons`](@ref) returns `E_force + ηJ − ηH∇²J`; it rejects
+a density below `nfloor` before writing any output. Active hyperresistivity
+requires its unscaled current Laplacian and final electric field to be finite;
+nonfinite published values raise `ArgumentError`. A later error can leave partial
+work in raw `ohms_law!` outputs. The coupled `init!` and `step!` owners restore
+their public state on rejection.
 """
 function ohms_law!(f::HybridFields{D,T}, model::HybridModel, g::FourierGrid{D,T}) where {D,T}
     _validate_evolving_model(model, T)
@@ -216,6 +220,130 @@ function _add_ohmic_field!(E, Eforce, J, η::T) where {T}
     return E
 end
 
+# Preserve the ordinary finite arithmetic; exact replay is only needed when an
+# intermediate product or the subtraction overflows. Reuse the canonical exact
+# owner because minimum-supported Julia's software fma can overflow at this edge.
+@inline function _hyperresistive_field_value(initial, ηH, lap)
+    value = _ordinary_transport_field_value(initial, zero(ηH), zero(lap), ηH, lap)
+    isfinite(value) && return value
+    return _hyperresistive_field_value_cold(initial, ηH, lap)
+end
+
+@noinline function _hyperresistive_field_value_cold(initial, ηH, lap)
+    _validate_pressure_finite((initial, ηH, lap), "transport hyperresistive field operands")
+    return _complete_transport_field_value(initial, zero(ηH), zero(lap), ηH, _exact_rational(lap))
+end
+
+@inline function _ordinary_transport_field_value(initial, η, current, ηH, lap)
+    ohmic = iszero(η) ? initial : initial + η * current
+    return ohmic - ηH * lap
+end
+
+@noinline function _complete_transport_field_value(initial, η, current, ηH, physical_lap)
+    _validate_pressure_finite((initial, η, current, ηH), "transport field operands")
+    exact =
+        _exact_rational(initial) + _exact_rational(η) * _exact_rational(current) -
+        _exact_rational(ηH) * physical_lap
+    value = _from_exact(typeof(initial), exact)
+    _validate_pressure_finite((value,), "transport hyperresistive electric field")
+    return value
+end
+
+@inline function _transport_upmul(a::Float64, b::Float64)
+    (iszero(a) || iszero(b)) && return 0.0
+    return nextfloat(a * b)
+end
+
+@inline function _transport_upadd(a::Float64, b::Float64)
+    iszero(a) && return b
+    iszero(b) && return a
+    return nextfloat(a + b)
+end
+
+@inline function _transport_product_needs_completion(a::T, b::T) where {T}
+    (iszero(a) || iszero(b)) && return false
+    product = a * b
+    return !isfinite(product) || abs(product) < floatmin(T)
+end
+
+function _ordinary_transport_component!(E, ideal, J, lap, η::T, ηH::T, data) where {T}
+    SpectralOperators._store_fft_output!(lap, data.values, data.input_scale)
+    _validate_pressure_finite(lap, "transport current Laplacian")
+    factor = nothing
+    cold = false
+    ideal_max, current_max, lap_max = 0.0, 0.0, zero(T)
+    for I in eachindex(E, ideal, J, lap, data.values)
+        initial, current, physical = ideal[I], J[I], lap[I]
+        ideal_max = max(ideal_max, abs(Float64(initial)))
+        current_max = max(current_max, abs(Float64(current)))
+        lap_max = max(lap_max, abs(physical))
+        value = _ordinary_transport_field_value(initial, η, current, ηH, physical)
+        needs_completion =
+            !isfinite(value) ||
+            (!iszero(value) && abs(value) < floatmin(T)) ||
+            _transport_product_needs_completion(η, current) ||
+            _transport_product_needs_completion(ηH, physical)
+        if needs_completion
+            factor === nothing && (factor = _exact_binary_scale(data.input_scale, data.exponent))
+            exact_lap = _exact_rational(real(data.values[I])) * factor
+            value = _complete_transport_field_value(initial, η, current, ηH, exact_lap)
+            cold = true
+        end
+        E[I] = value
+    end
+    # One successor encloses rounding of the restored physical Laplacian. An
+    # infinite bound requests cold stage completion; it is never published.
+    lap_upper = iszero(lap_max) ? 0.0 : Float64(nextfloat(lap_max))
+    source_scale = _transport_upadd(
+        _transport_upadd(ideal_max, _transport_upmul(Float64(η), current_max)),
+        _transport_upmul(Float64(ηH), lap_upper),
+    )
+    return (; cold, source_scale)
+end
+
+@noinline function _scaled_transport_component!(E, ideal, J, lap, η, ηH, data)
+    factor = _exact_binary_scale(data.input_scale, data.exponent)
+    T = eltype(E)
+    for I in eachindex(E, ideal, J, lap, data.values)
+        physical = _exact_rational(real(data.values[I])) * factor
+        value = _from_exact(T, physical)
+        _validate_pressure_finite((value,), "transport current Laplacian")
+        lap[I] = value
+        E[I] = _complete_transport_field_value(ideal[I], η, J[I], ηH, physical)
+    end
+    return (; cold = true, source_scale = Inf)
+end
+
+# This one owner receives the ideal value before either resistive term is
+# rounded. The ordinary branch retains the old eta=0 copy and finite order.
+function _add_complete_transport_field!(E, ideal, J, lapJ, η::T, ηH::T, g) where {T}
+    for c = 1:3
+        _validate_pressure_finite(ideal[c], "transport ideal electric field")
+        _validate_pressure_finite(J[c], "transport current")
+    end
+    cold, source_scale = false, 0.0
+    for c = 1:3
+        data = SpectralOperators.laplacian_scaled_data!(g, J[c])
+        receipt =
+            data.ordinary ?
+            _ordinary_transport_component!(E[c], ideal[c], J[c], lapJ[c], η, ηH, data) :
+            _scaled_transport_component!(E[c], ideal[c], J[c], lapJ[c], η, ηH, data)
+        cold |= receipt.cold
+        source_scale = _transport_upadd(source_scale, receipt.source_scale)
+    end
+    return (; cold, source_scale)
+end
+
+# Full-Laplacian hyperresistivity shares the canonical operator with algebraic
+# closures. The public scratch retains unscaled physical ∇²J, so an
+# nonfinite rounded Laplacian rejects even if multiplication by ηH could be finite.
+# The carried ideal force is already published independently.
+function _add_hyperresistive_field!(E, J, lapJ, ηH::T, g) where {T}
+    iszero(ηH) && return E
+    _add_complete_transport_field!(E, E, J, lapJ, zero(T), ηH, g)
+    return E
+end
+
 # Carried transport Ohm law: the ion force `Eforce` uses the ideal arithmetic
 # and order of the canonical kernel; `f.E` receives the full field. The actual
 # density is checked before any output is written.
@@ -244,7 +372,10 @@ function _transport_ohms_law!(
         f.floor_count,
         g,
     )
-    return _add_ohmic_field!(f.E, Eforce, f.J, T(model.η))
+    η, ηH = T(model.η), T(model.ηH)
+    iszero(ηH) && return _add_ohmic_field!(f.E, Eforce, f.J, η)
+    _add_complete_transport_field!(f.E, Eforce, f.J, f.lapJ, η, ηH, g)
+    return f.E
 end
 
 # ---------------------------------------------------------------- anisotropic (CGL) pressure
@@ -625,7 +756,7 @@ function _apply_electron_inertia!(
     g::FourierGrid{D,T},
 ) where {T,D}
     if de2 != zero(T)
-        for c = 1:2, d = c+1:3
+        for c = 1:2, d = (c+1):3
             Base.mightalias(E[c], E[d]) && throw(
                 ArgumentError("_apply_electron_inertia! components must not alias each other"),
             )
@@ -687,6 +818,83 @@ function faraday_rhs!(
         dB[c] .*= -one(T)
     end
     return dB
+end
+
+# Complete the linear constitutive/operator expression before separately rounded
+# E publication: -curl(Eideal)-eta*curl(J)+etaH*curl(LJ). The ideal base comes
+# from the unchanged Ohm owner; no resistive subtraction reconstructs its force.
+const _TRANSPORT_FARADAY_CHANNELS = ((1, 3, 2, 2, 3), (2, 1, 3, 3, 1), (3, 2, 1, 1, 2))
+
+function _transport_axis_varies(input::Array{T,D}, axis) where {T,D}
+    @inbounds for I in CartesianIndices(input)
+        reference = CartesianIndex(ntuple(d -> d == axis ? 1 : I[d], Val(D)))
+        input[I] != input[reference] && return true
+    end
+    return false
+end
+
+# Inspect each source in its actual curl axes before the full-field mutation
+# overwrites the ideal buffer. Constants and centered-null axes are inactive;
+# other variation is conservative and never itself a nonzero-rate certificate.
+function _transport_faraday_sources_active(ideal, J, η, ηH, g::FourierGrid{D}) where {D}
+    for (_, plus, plus_axis, minus, minus_axis) in _TRANSPORT_FARADAY_CHANNELS
+        for (component, axis) in ((plus, plus_axis), (minus, minus_axis))
+            (axis > D || g.n[axis] <= 2) && continue
+            _transport_axis_varies(ideal[component], axis) && return true
+            if !iszero(η) || !iszero(ηH)
+                _transport_axis_varies(J[component], axis) && return true
+            end
+        end
+    end
+    return false
+end
+
+@noinline function _complete_transport_faraday_rhs!(
+    out::NTuple{3,<:Array{T,D}},
+    ideal,
+    J,
+    η::T,
+    ηH::T,
+    g::FourierGrid{D,T},
+) where {D,T}
+    exact = zeros(Rational{BigInt}, g.n)
+    nonzero, represented = false, false
+    for (c, plus, plus_axis, minus, minus_axis) in _TRANSPORT_FARADAY_CHANNELS
+        fill!(exact, zero(Rational{BigInt}))
+        for (component, axis, sign) in ((plus, plus_axis, -one(T)), (minus, minus_axis, one(T)))
+            axis > D && continue
+            data = SpectralOperators.deriv_scaled_data!(g, ideal[component], axis)
+            _add_exact_faraday_channel!(exact, data, _exact_rational(sign))
+            if !iszero(η)
+                data = SpectralOperators.deriv_scaled_data!(g, J[component], axis)
+                _add_exact_faraday_channel!(exact, data, _exact_rational(sign) * _exact_rational(η))
+            end
+            if !iszero(ηH)
+                data = SpectralOperators.deriv_laplacian_scaled_data!(g, J[component], axis)
+                _add_exact_faraday_channel!(
+                    exact,
+                    data,
+                    -_exact_rational(sign) * _exact_rational(ηH),
+                )
+            end
+        end
+        component_nonzero, component_represented =
+            _publish_complete_rate!(out[c], exact, "complete transport magnetic rate")
+        nonzero |= component_nonzero
+        represented |= component_represented
+    end
+    nonzero &&
+        !represented &&
+        throw(ArgumentError("complete transport magnetic rate rounds entirely to zero in $T"))
+    return nothing
+end
+
+function _add_exact_faraday_channel!(exact, data, coefficient)
+    factor = coefficient * _exact_binary_scale(data.input_scale, data.exponent)
+    for I in eachindex(exact, data.values)
+        exact[I] += factor * _exact_rational(real(data.values[I]))
+    end
+    return nothing
 end
 
 "Discrete ∇·B into `out`; returns its L2 norm."

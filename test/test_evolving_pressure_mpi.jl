@@ -142,14 +142,18 @@ end
     world = MPI.Comm_size(MPI.COMM_WORLD)
     ctx = create_cartesian_communicator(LogicalRankLayout((world,)); reorder = false)
     try
-        for T in (Float32, Float64), collection in (false, true), mixed in (false, true)
+        for T in (Float32, Float64),
+            collection in (false, true),
+            mixed in (false, true),
+            ηH in (0.0, 0.03)
+
             st, particles, _ = evolving_mpi_fixture(T, collection, ctx)
             # Mixed-model negative control: only the last rank selects transport.
             if !mixed || ctx.mpi_rank == world - 1
                 ideal = st
                 st = HybridStepper(
                     ideal.g,
-                    HybridModel(TransportElectrons(T(5 / 3)); η = 0.02),
+                    HybridModel(TransportElectrons(T(5 / 3)); η = 0.02, ηH),
                     CIC(),
                     0,
                 )
