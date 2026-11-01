@@ -2,8 +2,9 @@
 
 P1 CPU kick code is implemented; final GitHub CI is pending. Its current
 contract and tracker live in [CPU Boris accuracy](BORIS_ACCURACY_IMPLEMENTATION.md).
-Priming, predictors, relativistic arithmetic and device original-factor support
-remain open stages. This plan does not broaden C1's supported relativistic domain.
+Nonrelativistic priming and predictor range replay are implemented; their CI
+acceptance and full normal-range Euler accuracy remain open. Relativistic and
+device original-factor support remain open stages. This plan does not broaden C1's supported relativistic domain.
 
 The physical expression uses the original stored q, positive m, dt and field
 operands. A rounded derived ratio must not silently erase a representable result.
@@ -46,7 +47,7 @@ probe SIGSEGV remains unexplained and is not attributed to a converter instructi
 | Stage | Canonical work | Required verification |
 | --- | --- | --- |
 | P1 CPU kicks | Implemented: immutable q,m,qm carrier, one native expression, scalar/batch accuracy admission, exact replay and CPU model kick threading | Essential regressions and complete package/compiler, formatter and MPI checks in GitHub; performance and backend guarantees remain separately unverified |
-| P2 CPU priming and prediction | Preserve original factors through hybrid and electrostatic priming and the hybrid endpoint predictor | Complete-stage references, fresh/established and variable-step phase, public init/step/restart, conservation and rollback |
+| P2 CPU priming and prediction | Implemented factor routing and exact range replay through hybrid, electrostatic and EMPIC priming and the hybrid endpoint predictor | Essential factor, cancellation, overflow, phase and checkpoint regressions await GitHub CI. Full normal-range Euler accuracy remains a separate open requirement |
 | P3 relativistic factors | Preserve original ion factors through relativistic priming and kicks in both EMPIC owners, retaining C1 admission and whole-step undo | Both model owners, variable/subcycled clocks, supported and rejected stored outputs, checkpoint continuation and unchanged state on failure |
 | P4 devices and parallel owners | Preserve original factors or reject unsupported factors explicitly before launch through the backend's existing owner | Suitable remote hardware, backend equivalence, launch/error behavior and documented native domain; no silent CPU fallback |
 
@@ -68,7 +69,9 @@ provenance and replay campaigns are not prerequisites for code review.
 - [x] Thread original factors through CPU public and nonrelativistic model kicks.
 - [x] Compose the shared IEEE conversion repair and focused regressions.
 - [ ] Complete exact-revision GitHub package/compiler, formatter and MPI checks.
-- [ ] Complete P2–P4 and their public phase, restart and hardware checks.
+- [x] Implement P2 original-factor nonrelativistic priming/predictor range replay.
+- [ ] Verify P2 in GitHub and complete its normal-range Euler accuracy audit.
+- [ ] Complete P3–P4 and their public phase, restart and hardware checks.
 - [ ] Establish full public resource and comparative performance results.
 
 The [audit tracker](DEEP_DEBUG_TRACKER.md) owns current acceptance; the

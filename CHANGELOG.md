@@ -8,11 +8,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Nonrelativistic leapfrog and electrostatic priming, EMPIC ion priming and the
+  hybrid Euler predictor retain stored species charge and mass through range
+  guards and exact cold replay. A quotient rounded to zero no longer certifies
+  a zero physical kick. Normal native arithmetic, priming overflow errors,
+  predictor infinities and leapfrog phase/history are retained. Full normal
+  Euler accuracy remains a separate audit in the
+  [CPU particle tracker](docs/BORIS_ACCURACY_IMPLEMENTATION.md).
+
 - Nonrelativistic CPU Boris kicks retain original species charge and mass in
   public pushes and model kick owners. Joint range and accuracy certificates
   guard native batch bypasses; unresolved finite kicks use exact replay with
-  the existing four-ulp tolerance and nearest-even overflow rule. Priming,
-  predictor, relativistic and device factor support remain separate follow-ons.
+  the existing four-ulp tolerance and nearest-even overflow rule. Relativistic
+  and device factor support remain separate follow-ons.
   See the [CPU Boris contract and tracker](docs/BORIS_ACCURACY_IMPLEMENTATION.md).
 
 - Distributed FFT CI prepares one environment and runs core and metadata

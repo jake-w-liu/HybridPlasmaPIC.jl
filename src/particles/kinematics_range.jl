@@ -214,11 +214,13 @@ end
 # underflowing product adds absolute error at most floatmin*eps/2, and the
 # products inside E + u×B are amplified by |h*qm|. Their total stays below
 # floatmin*eps*(1 + |h*qm|), which the scale threshold keeps under eps*S/256.
-@inline function _euler_kick_in_range(out::NTuple{3,T}, parts, u, h::T, qm::T, hq::T) where {T}
+@inline function _euler_kick_in_range(out::NTuple{3,T}, parts, u, h::T, factor, hq::T) where {T}
     T <: _RangeGuardedFloat || return true
+    qm = _boris_native_factor(factor)
     ax, ay, az, kx, ky, kz = parts
     S = max(abs(u[1]), abs(u[2]), abs(u[3]), abs(kx), abs(ky), abs(kz))
-    return _kinematics_product_in_range(hq, h, qm) &
+    return _euler_factor_in_range(factor, T) &
+           _kinematics_product_in_range(hq, h, qm) &
            isfinite(ax) &
            isfinite(ay) &
            isfinite(az) &
@@ -228,10 +230,10 @@ end
            (iszero(S) | (S >= floatmin(T) * T(256) * (one(T) + abs(hq))))
 end
 
-@inline function _euler_kick(u::NTuple{3,T}, e, b, h::T, qm::T, hq::T, ::Val{mode}) where {T,mode}
+@inline function _euler_kick(u::NTuple{3,T}, e, b, h::T, factor, hq::T, ::Val{mode}) where {T,mode}
     out, parts = _euler_kick_parts(u..., e..., b..., hq, Val(mode))
-    _euler_kick_in_range(out, parts, u, h, qm, hq) && return out
-    return _euler_kick_repair(out, u, e, b, h, qm, Val(mode))
+    _euler_kick_in_range(out, parts, u, h, factor, hq) && return out
+    return _euler_kick_repair(out, u, e, b, h, factor, Val(mode))
 end
 
 # The same expression in the wider format. Every term is below
@@ -242,18 +244,29 @@ end
 # 2^-648 (2^-119), all normal; a sum landing in the subnormal range is exact.
 # The wide evaluation therefore has no overflow and no lossy underflow.
 # Missing planar components are exact zeros and leave the remaining terms exact.
+# Species carriers instead replay the original factors exactly; their quotient
+# need not fit any intermediate IEEE type.
 @noinline function _euler_kick_repair(
     out::NTuple{3,T},
     u,
     e,
     b,
     h::T,
-    qm::T,
+    factor,
     ::Val{mode},
 ) where {T,mode}
-    all(isfinite, (u..., e..., b..., h, qm)) || return out
-    W = _kinematics_wide(T)
-    wide, _ = _euler_kick_parts(map(W, u)..., map(W, e)..., map(W, b)..., W(h) * W(qm), Val(mode))
+    all(isfinite, (u..., e..., b..., h)) || return out
+    qm = _boris_native_factor(factor)
+    (!(factor isa _BorisSpeciesFactors) && !isfinite(qm)) && return out
+    W = factor isa _BorisSpeciesFactors ? _exact_rational : _kinematics_wide(T)
+    coefficient = factor isa _BorisSpeciesFactors ? _boris_exact_factor(factor) : W(qm)
+    wide, _ = _euler_kick_parts(
+        map(W, u)...,
+        map(W, e)...,
+        map(W, b)...,
+        W(h) * coefficient,
+        Val(mode),
+    )
     kicked = map(x -> _kinematics_round(T, x), wide)
     mode === :prime &&
         !all(isfinite, kicked) &&
@@ -270,21 +283,26 @@ end
 # floatmin*eps/2 stays below eps*S/512 above the scale threshold. In the wider
 # format h*qm is exact and both products are zero or normal (at least 2^-447
 # for Float32 in Float64, 2^-72 for Float16 in Float32) and below 2*floatmax^3.
-@inline function _es_prime_component(v::T, E::T, h::T, qm::T, hq::T) where {T}
+@inline function _es_prime_component(v::T, E::T, h::T, factor, hq::T) where {T}
     k = hq * E
     out = v - k
     T <: _RangeGuardedFloat || return out
+    qm = _boris_native_factor(factor)
     S = max(abs(v), abs(k))
+    _euler_factor_in_range(factor, T) &
     _kinematics_product_in_range(hq, h, qm) &
     isfinite(out) &
     (iszero(S) | (S >= floatmin(T) * T(256))) && return out
-    return _es_prime_component_repair(out, v, E, h, qm)
+    return _es_prime_component_repair(out, v, E, h, factor)
 end
 
-@noinline function _es_prime_component_repair(out::T, v::T, E::T, h::T, qm::T) where {T}
-    all(isfinite, (v, E, h, qm)) || return out
-    W = _kinematics_wide(T)
-    primed = _kinematics_round(T, W(v) - (W(h) * W(qm)) * W(E))
+@noinline function _es_prime_component_repair(out::T, v::T, E::T, h::T, factor) where {T}
+    all(isfinite, (v, E, h)) || return out
+    qm = _boris_native_factor(factor)
+    (!(factor isa _BorisSpeciesFactors) && !isfinite(qm)) && return out
+    W = factor isa _BorisSpeciesFactors ? _exact_rational : _kinematics_wide(T)
+    coefficient = factor isa _BorisSpeciesFactors ? _boris_exact_factor(factor) : W(qm)
+    primed = _kinematics_round(T, W(v) - (W(h) * coefficient) * W(E))
     isfinite(primed) || throw(
         ArgumentError(
             "electrostatic priming: the half-step backed-up velocity exceeds the range of $T; rescale the units or reduce dt",
@@ -523,10 +541,12 @@ end
 # |E + u×B| <= max|E| + 2 max|u| max|B| and every intermediate and result of
 # u ∓ h qm (E + u×B) is below bound/4 <= floatmax/16 (the factor 4 covers the
 # roundings); S_p >= σ_p >= smin passes the threshold of _euler_kick_in_range.
-@inline function _euler_batch_certificate(h::T, qm::T, hq::T, umax, emax, bmax, smin) where {T}
+@inline function _euler_batch_certificate(h::T, factor, hq::T, umax, emax, bmax, smin) where {T}
     T <: _RangeGuardedFloat || return true
+    qm = _boris_native_factor(factor)
     bound = 4 * (umax + abs(hq) * (emax + 2 * (umax * bmax)))
-    return _kinematics_product_in_range(hq, h, qm) &
+    return _euler_factor_in_range(factor, T) &
+           _kinematics_product_in_range(hq, h, qm) &
            (bound <= floatmax(T) / 4) &
            (smin >= floatmin(T) * T(256) * (one(T) + abs(hq)))
 end
@@ -552,8 +572,9 @@ end
 end
 
 # Electrostatic priming v - (h*qm)*E: the guard's exact per-component scale.
-@inline function _es_prime_batch_certificate(v, E, h::T, qm::T, hq::T, C, indices) where {T}
+@inline function _es_prime_batch_certificate(v, E, h::T, factor, hq::T, C, indices) where {T}
     T <: _RangeGuardedFloat || return true
+    qm = _boris_native_factor(factor)
     vmax = emax = zero(T)
     smin = T(Inf)
     @inbounds for c = 1:C, p in indices
@@ -562,7 +583,8 @@ end
         emax = max(emax, abs(e))
         smin = _batch_nonzero_min(smin, max(abs(a), abs(hq * e)))
     end
-    return _kinematics_product_in_range(hq, h, qm) &
+    return _euler_factor_in_range(factor, T) &
+           _kinematics_product_in_range(hq, h, qm) &
            (4 * (vmax + abs(hq) * emax) <= floatmax(T) / 4) &
            (smin >= floatmin(T) * T(256))
 end

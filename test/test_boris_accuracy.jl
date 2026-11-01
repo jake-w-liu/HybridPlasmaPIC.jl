@@ -19,6 +19,11 @@ function exact_reference(v, E, B, qm, dt)
     out = ((1 - t2) .* w .+ 2dot(t, w) .* t .+ 2cross(w, t)) ./ (1 + t2) .+ k
     return Tuple(out), max(dot(v, v), dot(k, k))
 end
+function euler_reference(v, E, B, q, m, h, sign)
+    u, e, b = map(x -> Q.(collect(x)), (v, E, B))
+    k = (Q(h) * Q(q) / Q(m)) .* (e .+ cross(u, b))
+    return Tuple(u .+ sign .* k)
+end
 function contract(actual::NTuple{3,T}, exact, scale2) where {T}
     emin = exponent(floatmin(T))
     e = iszero(scale2) ? emin : max(fld(binade(scale2), 2), emin)
@@ -359,20 +364,30 @@ end
         expected = map(x -> nearest(T, x), exact)
         @test !iszero(expected[1])
         grid = FourierGrid((4,), (one(T),))
-        for route in (:hybrid, :electrostatic, :empic1d, :empic)
+        for (route, primed) in (
+            (:hybrid, true),
+            (:hybrid, false),
+            (:electrostatic, true),
+            (:electrostatic, false),
+            (:empic1d, true),
+            (:empic, true),
+        )
             ps = ParticleSet{1,T}(1; q, m)
             fill!(ps.x[1], zero(T))
             Ep = map(e -> [e], E)
             Bp = ntuple(_ -> zeros(T, 1), 3)
+            start = primed ? z : map(x -> nearest(T, x), euler_reference(z, E, z, q, m, dt / 2, -1))
+            reference, reference_scale = exact_reference(start, E, z, Q(q) / Q(m), dt)
+            expected = map(x -> nearest(T, x), reference)
             if route === :hybrid
                 st = HybridStepper(grid, HybridModel(IsothermalElectrons(zero(T))), CIC(), 1)
                 fill!(st.fields.E[1], E[1])
-                st.step[] = 1 # Already staggered: priming is a separate arithmetic owner.
+                st.step[] = primed ? 1 : 0
                 H._push_hybrid_population!(st, st, ps, dt, dt)
                 half = nearest(T, Q(dt / T(2)) * Q(expected[1]))
                 @test isequal(st.xmid[1][1], mod(half, grid.L[1]))
             elseif route === :electrostatic
-                H._espic_push!(ps, (Ep[1],), grid, dt, true, dt)
+                H._espic_push!(ps, (Ep[1],), grid, dt, primed, primed ? dt : zero(T))
             elseif route === :empic1d
                 es = EMPIC1D(grid, 1; n0 = zero(T))
                 H._push_velocities!(es, ps, Ep[1], Ep[2], Bp[3], dt)
@@ -381,13 +396,91 @@ end
                 H._push_velocities!(es, ps, Ep, Bp, dt)
             end
             actual = ntuple(c -> ps.v[c][1], 3)
-            @test contract(actual, exact, scale2)
+            @test contract(actual, reference, reference_scale)
             @test isequal(actual, expected)
             if route in (:hybrid, :electrostatic)
                 moved = nearest(T, Q(dt) * Q(expected[1]))
                 @test isequal(ps.x[1][1], mod(moved, grid.L[1]))
             end
         end
+    end
+end
+
+@testset "Original-factor Euler and electrostatic priming range" begin
+    for T in (Float16, Float32, Float64), kind in (:underflow, :overflow)
+        z = (zero(T), zero(T), zero(T))
+        q = kind === :underflow ? nextfloat(zero(T)) : one(T)
+        m = kind === :underflow ? ldexp(one(T), T === Float16 ? 10 : T === Float32 ? 80 : 600) : nextfloat(zero(T))
+        h = kind === :underflow ? ldexp(one(T), T === Float16 ? 10 : T === Float32 ? 60 : 400) : floatmin(T)
+        E = (kind === :underflow ? h : one(T), kind === :underflow ? -h : -one(T), zero(T))
+        B = (zero(T), zero(T), one(T))
+        u = (zero(T), zero(T), T(0.25))
+        factor = H._BorisSpeciesFactors(q, m, q / m)
+        hq = h * factor.qm
+        @test kind === :underflow ? iszero(factor.qm) : isinf(factor.qm)
+        expected = map(x -> nearest(T, x), euler_reference(u, E, B, q, m, h, -1))
+        v, Ep, Bp = map(x -> [x], u), map(x -> [x], E), map(x -> [x], B)
+        H._prime_leapfrog!(v, Ep, Bp, factor, h, 1)
+        @test isequal(map(only, v), expected)
+        v = map(x -> [x], u)
+        H._prime_empic1d!(v, Ep[1], Ep[2], Bp[3], factor, h, 1, false, one(T))
+        @test isequal(map(only, v), expected) # Planar priming must retain stored vz.
+        v = map(x -> [x], u)
+        H._predict_half_kick!(v, v, Ep, Bp, factor, h, 1)
+        predicted = map(x -> nearest(T, x), euler_reference(u, E, B, q, m, h, 1))
+        @test isequal(map(only, v), predicted)
+        @test isequal(H._es_prime_component(z[1], E[1], h, factor, hq), expected[1])
+        # A vanishing Lorentz force keeps a finite unchanged velocity even
+        # when the native quotient cannot represent the original factors.
+        balanced = (one(T), -one(T), T(0.25))
+        force = (one(T), one(T), zero(T))
+        actual = H._euler_kick(balanced, force, B, h, factor, hq, Val(:prime))
+        @test isequal(actual, balanced)
+        zero_factor = H._BorisSpeciesFactors(-zero(T), T(2), -zero(T))
+        signed = (-zero(T), zero(T), -zero(T))
+        native = ntuple(c -> signed[c] - (one(T) * zero_factor.qm) * force[c], 3)
+        @test isequal(H._euler_kick(signed, force, z, one(T), zero_factor, -zero(T), Val(:prime)), native)
+        empty = ntuple(_ -> T[], 3)
+        @test H._prime_leapfrog!(empty, empty, empty, factor, h, 0) === empty
+        @test H._predict_half_kick!(empty, empty, empty, empty, factor, h, 0) === empty
+        huge = H._BorisSpeciesFactors(floatmax(T), nextfloat(zero(T)), T(Inf))
+        @test_throws ArgumentError H._euler_kick(z, (one(T), z[2], z[3]), z, one(T), huge, T(Inf), Val(:prime))
+        @test H._euler_kick(z, (one(T), z[2], z[3]), z, one(T), huge, T(Inf), Val(:predict))[1] == T(Inf)
+        @test_throws ArgumentError H._es_prime_component(z[1], one(T), one(T), huge, T(Inf))
+    end
+end
+
+@testset "Original-factor hybrid phase and checkpoint continuation" begin
+    grid = FourierGrid((4,), (1.0,))
+    ps = ParticleSet{1,Float64}(1; m = 2.0)
+    fill!(ps.x[1], 0.25)
+    fill!(ps.weight, 0.0)
+    st = HybridStepper(grid, HybridModel(IsothermalElectrons(0.0)), CIC(), 1)
+    init!(st, ps)
+    step!(st, ps, 0.0)
+    @test (st.step[], st.last_dt[], st.time[]) == (0, 0.0, 0.0)
+    elapsed = 0.0
+    for dt in (0.125, 0.0625)
+        fill!(st.fields.E[1], 1.0)
+        step!(st, ps, dt)
+        elapsed += dt
+        @test ps.v[1][1] == 0.5 * (elapsed - dt / 2)
+        @test ps.x[1][1] == 0.25 + 0.25 * elapsed^2
+        @test st.last_dt[] == dt
+    end
+    mktempdir() do dir
+        path = joinpath(dir, "original-factor-phase.jld2")
+        save_checkpoint(path, st, ps)
+        restored = HybridStepper(grid, st.model, CIC(), 1)
+        particles = ParticleSet{1,Float64}(1)
+        load_checkpoint!(restored, particles, path)
+        @test (particles.q, particles.m, restored.last_dt[]) == (ps.q, ps.m, st.last_dt[])
+        for (solver, population) in ((st, ps), (restored, particles))
+            fill!(solver.fields.E[1], 1.0)
+            step!(solver, population, 0.03125)
+        end
+        @test particles.x == ps.x && particles.v == ps.v
+        @test (restored.step[], restored.time[], restored.last_dt[]) == (st.step[], st.time[], st.last_dt[])
     end
 end
 end

@@ -417,10 +417,10 @@ function _espic_push!(ps::ParticleSet{D,T}, Ep::NTuple{C}, g, dt::T, primed, las
     if !primed
         h = dt / 2
         hq = h * qm
-        if _es_prime_batch_certificate(ps.v, Ep, h, qm, hq, C, indices)
-            _espic_prime!(ps, Ep, h, qm, hq, Val(false))
+        if _es_prime_batch_certificate(ps.v, Ep, h, factor, hq, C, indices)
+            _espic_prime!(ps, Ep, h, factor, hq, Val(false))
         else
-            _espic_prime!(ps, Ep, h, qm, hq, Val(true))
+            _espic_prime!(ps, Ep, h, factor, hq, Val(true))
         end
     end
     z = zero(T)
@@ -448,13 +448,13 @@ function _espic_prime!(
     ps::ParticleSet{D,T},
     Ep::NTuple{C},
     h,
-    qm,
+    factor,
     hq,
     ::Val{guard},
 ) where {D,T,C,guard}
     @inbounds for c = 1:C, p in eachindex(ps.weight)
         ps.v[c][p] =
-            guard ? _es_prime_component(ps.v[c][p], Ep[c][p], h, qm, hq) :
+            guard ? _es_prime_component(ps.v[c][p], Ep[c][p], h, factor, hq) :
             ps.v[c][p] - hq * Ep[c][p]
     end
     return ps

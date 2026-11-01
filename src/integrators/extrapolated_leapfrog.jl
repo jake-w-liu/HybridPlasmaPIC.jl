@@ -718,8 +718,9 @@ end
 # Well-conditioned outputs keep this native order; ill-conditioned or range-flagged IEEE back-ups
 # use the repair/publication tier, and a backed-up velocity that exceeds the type throws an ArgumentError
 # (kinematics_range.jl).
-@inline function _prime_leapfrog!(v, Ep, Bp, qm, h, np, rel::Bool = false, c = one(eltype(v[1])))
+@inline function _prime_leapfrog!(v, Ep, Bp, factor, h, np, rel::Bool = false, c = one(eltype(v[1])))
     T = eltype(v[1])
+    qm = _boris_native_factor(factor)
     if rel
         scales = _euler_batch_scales(v, Ep, Bp, (h, qm), 1:np, T)
         if _rel_prime_batch_certificate(h, qm, c, scales...)
@@ -729,18 +730,19 @@ end
         end
     else
         scales = _euler_batch_scales(v, Ep, Bp, h * qm, 1:np, T)
-        if _euler_batch_certificate(h, qm, h * qm, scales...)
-            _prime_leapfrog_loop!(v, Ep, Bp, qm, h, np, c, Val(false), Val(false))
+        if _euler_batch_certificate(h, factor, h * qm, scales...)
+            _prime_leapfrog_loop!(v, Ep, Bp, factor, h, np, c, Val(false), Val(false))
         else
-            _prime_leapfrog_loop!(v, Ep, Bp, qm, h, np, c, Val(false), Val(true))
+            _prime_leapfrog_loop!(v, Ep, Bp, factor, h, np, c, Val(false), Val(true))
         end
     end
     return v
 end
 
-function _prime_leapfrog_loop!(v, Ep, Bp, qm, h, np, c, ::Val{rel}, ::Val{guard}) where {rel,guard}
+function _prime_leapfrog_loop!(v, Ep, Bp, factor, h, np, c, ::Val{rel}, ::Val{guard}) where {rel,guard}
     vx, vy, vz = v
     T = eltype(vx)
+    qm = _boris_native_factor(factor)
     ex, ey, ez = Ep
     bx, by, bz = Bp
     if rel
@@ -795,7 +797,7 @@ function _prime_leapfrog_loop!(v, Ep, Bp, qm, h, np, c, ::Val{rel}, ::Val{guard}
             e = (ex[p], ey[p], ez[p])
             b = (bx[p], by[p], bz[p])
             vx[p], vy[p], vz[p] =
-                guard ? _euler_kick(u, e, b, h, qm, hq, Val(:prime)) :
+                guard ? _euler_kick(u, e, b, h, factor, hq, Val(:prime)) :
                 first(_euler_kick_parts(u..., e..., b..., hq, Val(:prime)))
         end
     end
@@ -820,29 +822,30 @@ _carried_transport_ohms_law!(f, w, model, g) = _transport_ohms_law!(f, w.Eforce,
 
 # Forward half-kick predictor v^{n+1/2} → v^{n+1} into `vp`, from particle-gathered E, B.
 # Range handling as in _prime_leapfrog!; a predicted velocity that exceeds the type stays ±Inf.
-@inline function _predict_half_kick!(vp, v, Ep, Bp, qm, h, np)
+@inline function _predict_half_kick!(vp, v, Ep, Bp, factor, h, np)
+    qm = _boris_native_factor(factor)
     hq = h * qm
     scales = _euler_batch_scales(v, Ep, Bp, hq, 1:np, typeof(hq))
-    if _euler_batch_certificate(h, qm, hq, scales...)
-        _predict_half_kick_loop!(vp, v, Ep, Bp, qm, h, np, Val(false))
+    if _euler_batch_certificate(h, factor, hq, scales...)
+        _predict_half_kick_loop!(vp, v, Ep, Bp, factor, h, np, Val(false))
     else
-        _predict_half_kick_loop!(vp, v, Ep, Bp, qm, h, np, Val(true))
+        _predict_half_kick_loop!(vp, v, Ep, Bp, factor, h, np, Val(true))
     end
     return vp
 end
 
-function _predict_half_kick_loop!(vp, v, Ep, Bp, qm, h, np, ::Val{guard}) where {guard}
+function _predict_half_kick_loop!(vp, v, Ep, Bp, factor, h, np, ::Val{guard}) where {guard}
     vx, vy, vz = v
     vpx, vpy, vpz = vp
     ex, ey, ez = Ep
     bx, by, bz = Bp
-    hq = h * qm
+    hq = h * _boris_native_factor(factor)
     @inbounds for p = 1:np
         u = (vx[p], vy[p], vz[p])
         e = (ex[p], ey[p], ez[p])
         b = (bx[p], by[p], bz[p])
         vpx[p], vpy[p], vpz[p] =
-            guard ? _euler_kick(u, e, b, h, qm, hq, Val(:predict)) :
+            guard ? _euler_kick(u, e, b, h, factor, hq, Val(:predict)) :
             first(_euler_kick_parts(u..., e..., b..., hq, Val(:predict)))
     end
     return vp
@@ -856,11 +859,11 @@ end
 # convergence rate 1 → 2). Unmagnetized behavior is unchanged (u_i drops out of Ohm's law when
 # B=0). Generic over the stepper (HybridStepper/CAMCLStepper share Ep/Bp/vpred/work). No alloc.
 function _hybrid_predictor_raw_moments!(st, ps::ParticleSet{D,T}, dtT::T) where {D,T}
-    qm = _validated_qm(ps)
+    factor = _validated_boris_factor(ps)
     g = st.g
     gather_vector!(st.Ep, _particle_electric_field(st), ps, g, st.shape)   # E^{n+1}
     gather_vector!(st.Bp, st.fields.B, ps, g, st.shape)   # B^{n+1}
-    _predict_half_kick!(st.vpred, ps.v, st.Ep, st.Bp, qm, dtT / 2, length(ps.weight))
+    _predict_half_kick!(st.vpred, ps.v, st.Ep, st.Bp, factor, dtT / 2, length(ps.weight))
     pspred = ParticleSet{D,T}(ps.x, st.vpred, ps.weight, ps.id, ps.tag, ps.q, ps.m)
     _deposit_density_momentum_moments!(st.fields.n, st.fields.ui, pspred, g, st.shape, st.work)
     return st
@@ -879,7 +882,7 @@ function _hybrid_predictor_raw_moments!(
         ws = _hybrid_particle_workspace(st, (offset+1):(offset+n))
         gather_vector!(ws.Ep, _particle_electric_field(st), ps, st.g, st.shape)
         gather_vector!(ws.Bp, f.B, ps, st.g, st.shape)
-        _predict_half_kick!(ws.vpred, ps.v, ws.Ep, ws.Bp, _validated_qm(ps), dtT / 2, n)
+        _predict_half_kick!(ws.vpred, ps.v, ws.Ep, ws.Bp, _validated_boris_factor(ps), dtT / 2, n)
         predicted = ParticleSet{D,T}(ps.x, ws.vpred, ps.weight, ps.id, ps.tag, ps.q, ps.m)
         _accumulate_charge_moments!(f.n, f.ui, predicted, st.g, st.shape, st.fn, st.fui, ws.work)
         offset += n
@@ -932,7 +935,7 @@ function _push_hybrid_population!(st, ws, ps::ParticleSet{D,T}, dtT::T, kick_dt:
     h = dtT / 2
     gather_vector!(ws.Ep, _particle_electric_field(st), ps, st.g, st.shape)
     gather_vector!(ws.Bp, st.fields.B, ps, st.g, st.shape)
-    st.step[] == 0 && _prime_leapfrog!(ps.v, ws.Ep, ws.Bp, qm, h, length(ps.weight))
+    st.step[] == 0 && _prime_leapfrog!(ps.v, ws.Ep, ws.Bp, factor, h, length(ps.weight))
     hk = qm * kick_dt / 2
     scales = _boris_batch_scales(ps.v, ws.Ep, ws.Bp, hk, eachindex(ps.weight))
     kick, vbound = _boris_batch_admission(ps, hk, factor, kick_dt, scales...)

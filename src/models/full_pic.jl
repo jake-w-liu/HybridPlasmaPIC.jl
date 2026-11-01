@@ -1431,9 +1431,10 @@ end
 # 2nd-order temporal accuracy (verified: rate 1 → 2 for both species). Ordinary inputs keep the
 # native order; range-flagged Float16/32/64 back-ups are evaluated wider and rounded once, and a
 # backed-up velocity that exceeds the type throws an ArgumentError (kinematics_range.jl).
-@inline function _prime_empic1d!(v, Exp, Eyp, Bzp, qm, h, np, rel::Bool, c)
+@inline function _prime_empic1d!(v, Exp, Eyp, Bzp, factor, h, np, rel::Bool, c)
     T = typeof(h)
     z = zero(T)
+    qm = _boris_native_factor(factor)
     if rel
         scales = _euler_batch_scales(v, (Exp, Eyp, z), (z, z, Bzp), (h, qm), 1:np, T)
         if _rel_prime_batch_certificate(h, qm, c, scales...)
@@ -1445,10 +1446,10 @@ end
         hq = h * qm
         # The planar back-up reads and writes only u_x and u_y.
         scales = _euler_batch_scales((v[1], v[2], z), (Exp, Eyp, z), (z, z, Bzp), hq, 1:np, T)
-        if _euler_batch_certificate(h, qm, hq, scales...)
-            _prime_empic1d_loop!(v, Exp, Eyp, Bzp, qm, h, np, c, Val(false), Val(false))
+        if _euler_batch_certificate(h, factor, hq, scales...)
+            _prime_empic1d_loop!(v, Exp, Eyp, Bzp, factor, h, np, c, Val(false), Val(false))
         else
-            _prime_empic1d_loop!(v, Exp, Eyp, Bzp, qm, h, np, c, Val(false), Val(true))
+            _prime_empic1d_loop!(v, Exp, Eyp, Bzp, factor, h, np, c, Val(false), Val(true))
         end
     end
     return v
@@ -1459,7 +1460,7 @@ function _prime_empic1d_loop!(
     Exp,
     Eyp,
     Bzp,
-    qm,
+    factor,
     h,
     np,
     c,
@@ -1468,6 +1469,7 @@ function _prime_empic1d_loop!(
 ) where {rel,guard}
     vx, vy, vz = v
     T = eltype(vx)
+    qm = _boris_native_factor(factor)
     if rel
         # the relativistic Boris push works in momentum u=γv, so back up MOMENTUM:
         # u^{-1/2}=γ^0 v^0 − h·qm(E+v^0×B^0), then v^{-1/2}=u^{-1/2}/γ(u^{-1/2}). Backing up v
@@ -1552,7 +1554,7 @@ function _prime_empic1d_loop!(
             ky = hq * ay
             primed = (ux - kx, uy - ky, z)
             if guard &&
-               !_euler_kick_in_range(primed, (ax, ay, z, kx, ky, z), (ux, uy, z), h, qm, hq)
+               !_euler_kick_in_range(primed, (ax, ay, z, kx, ky, z), (ux, uy, z), h, factor, hq)
                 # The planar back-up is the 3-D one with u_z = E_z = B_x = B_y = 0.
                 primed = _euler_kick_repair(
                     primed,
@@ -1560,7 +1562,7 @@ function _prime_empic1d_loop!(
                     (ex, ey, z),
                     (z, z, bz),
                     h,
-                    qm,
+                    factor,
                     Val(:prime),
                 )
             end
@@ -1647,7 +1649,7 @@ function _advance_empic_step!(
             es.Exp,
             es.Eyp,
             es.Bzp,
-            -one(T),
+            es.relativistic ? -one(T) : _validated_boris_factor(e),
             dt_e / 2,
             nparticles(e),
             es.relativistic,
@@ -1663,7 +1665,7 @@ function _advance_empic_step!(
                 es.Exi,
                 es.Eyi,
                 es.Bzi,
-                ions.q / ions.m,
+                es.relativistic ? ions.q / ions.m : _validated_boris_factor(ions),
                 dtT / 2,
                 nparticles(ions),
                 es.relativistic,
@@ -2524,7 +2526,16 @@ function _advance_empic_step!(
         h = dt_e / 2
         gather_vector!(es.Ep, es.E, e, g0, es.shape)
         gather_vector!(es.Bp, es.B, e, g0, es.shape)
-        _prime_leapfrog!(e.v, es.Ep, es.Bp, -one(T), h, nparticles(e), es.relativistic, es.c)
+        _prime_leapfrog!(
+            e.v,
+            es.Ep,
+            es.Bp,
+            es.relativistic ? -one(T) : _validated_boris_factor(e),
+            h,
+            nparticles(e),
+            es.relativistic,
+            es.c,
+        )
         if es.mobile && ions !== nothing
             gather_vector!(es.Epi, es.E, ions, g0, es.shape)
             gather_vector!(es.Bpi, es.B, ions, g0, es.shape)
@@ -2532,7 +2543,7 @@ function _advance_empic_step!(
                 ions.v,
                 es.Epi,
                 es.Bpi,
-                ions.q / ions.m,
+                es.relativistic ? ions.q / ions.m : _validated_boris_factor(ions),
                 dtT / 2,
                 nparticles(ions),
                 es.relativistic,

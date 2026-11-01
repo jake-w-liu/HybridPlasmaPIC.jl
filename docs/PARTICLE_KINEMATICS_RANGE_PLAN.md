@@ -6,6 +6,10 @@ and the open normal-accuracy and original-factor findings. The coordinate
 overflow correction is implemented in this revision, with CI acceptance tracked
 separately.
 The historical range repair does not certify those later-discovered boundaries.
+Nonrelativistic species priming and predictor owners now retain original charge
+and mass through their range guards and exact cold replay. GitHub CI acceptance
+is pending; full normal-range Euler accuracy remains a separate open audit in
+the [CPU particle tracker](BORIS_ACCURACY_IMPLEMENTATION.md).
 The implemented chain uses the
 [normwise standard](DEEP_DEBUG_TRACKER.md#numerical-accuracy-standard-user-decision-2026-10-26).
 
@@ -34,6 +38,11 @@ erasing half-step kicks and midpoints.
    CPU coordinate overflow classification instead uses exact rational arithmetic
    outside its conservative finite-result certificate, as described below.
    Other number types keep native semantics; non-finite inputs propagate.
+   Nonrelativistic species priming and predictor cold replay instead uses the
+   exact original `q/m` and the shared IEEE rounding owner for all three IEEE
+   types. Their native certificates also require the rounded quotient to be
+   normal, or the original charge to be zero. An underflowed quotient of a
+   nonzero charge cannot certify a zero physical kick.
 3. Accuracy is a few ulps of the operation scale (`|v|`, `|h E|` for kicks,
    `|x| + |dt v|` for drifts); componentwise accuracy under cancellation is
    not certified in general. Relativistic priming whose native output has rounded normalized squared

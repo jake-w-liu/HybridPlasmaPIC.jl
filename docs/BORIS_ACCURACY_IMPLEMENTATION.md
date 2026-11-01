@@ -25,12 +25,20 @@ that shared owner. Generic arithmetic keeps its historical variadic sum;
 nonfinite inputs keep native propagation. These rules do not add persistent
 particle or solver storage, and no new allocation or timing guarantee is made.
 
-Priming, the hybrid endpoint Euler predictor and relativistic updates still
-receive a rounded numerical `qm`; original-factor support for those owners
-remains follow-up work. Existing model input restrictions, including collection
-electrostatic rejection of an underflowed charged quotient, are unchanged.
-Device kernels retain their explicit-`qm` semantics and have no new
-original-factor guarantee.
+Nonrelativistic leapfrog and electrostatic priming, including EMPIC ion priming,
+and the hybrid endpoint Euler predictor also retain the species factors. Their
+existing native range certificates require a normal rounded quotient or a truly
+zero charge; unresolved coefficients replay the same Euler expression exactly
+from stored `q,m`. Cold replay throws when the rounded backed-up velocity
+overflows; a predictor returns signed infinity. Explicit numerical `qm`
+and generic callers retain their previous native and widened arithmetic.
+This factor-routing correction does not establish a full normal-range Euler
+accuracy certificate; that requirement remains open for a separate audit.
+
+Relativistic updates and priming still receive a rounded numerical `qm`.
+Existing model input restrictions, including collection electrostatic rejection
+of an underflowed charged quotient, are unchanged. Device kernels retain their
+explicit-`qm` semantics and have no new original-factor guarantee.
 
 Implementation tracker:
 
@@ -42,6 +50,10 @@ Implementation tracker:
 - [x] Compose the shared IEEE conversion repair from `7300c4f`.
 - [ ] GitHub CI verification of the composed implementation on minimum and
   latest Julia, formatting and MPI jobs.
-- [ ] Original-factor priming, predictor, relativistic and device follow-ons.
+- [x] Original-factor nonrelativistic priming and predictor range/rounding
+  implementation, with essential physical, phase and checkpoint regressions.
+- [ ] GitHub CI verification of the priming/predictor correction.
+- [ ] Full normal-range Euler accuracy audit and any required implementation.
+- [ ] Original-factor relativistic and device follow-ons.
 - [ ] Complete public resource and compiler acceptance; prior bounded numerical
   checks do not establish these guarantees.
