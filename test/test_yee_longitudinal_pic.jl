@@ -86,6 +86,18 @@ end
         species[2].m = T(2)
         @test isequal(snapshot(st, species), before)
     end
+    # Nodal charge may exceed IEEE range while its complete Gauss field is finite.
+    for T in (Float32, Float64)
+        ps = population(T, T[0.5]; q = floatmax(T), w = T(2))
+        st = YeeLongitudinalPIC(YeeGrid((2,), (one(T),));
+            shape = YeeTriangularCloud(T(0.125)), left_plate_charge = -floatmax(T))
+        exact = initial_reference(st, [ps])
+        nodal = O.cloud_charge([ps], [ps.x[1]], 2, one(T), T(0.125))
+        @test nodal[2] > O.rat(floatmax(T))
+        init!(st, ps)
+        @test all(isfinite, st.fields.E[1])
+        @test all(O.rounded(value, reference) for (value, reference) in zip(st.fields.E[1], exact))
+    end
     @test_throws ArgumentError YeeLongitudinalPIC(YeeGrid((4,), (1.0,); boundaries = (:periodic,));
         shape = YeeTriangularCloud(0.2))
 end

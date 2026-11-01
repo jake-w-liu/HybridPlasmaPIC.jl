@@ -243,14 +243,15 @@ end
 function _yl_initialize_fields!(st::YeeLongitudinalPIC{T}, species) where {T}
     g, shape = st.g, st.shape
     h = _exact_rational(g.L[1]) / g.n[1]
-    a, b, sigma = _exact_rational(shape.half_width),
-        _exact_rational(st.background_charge), _exact_rational(st.left_plate_charge)
+    b, sigma = _exact_rational(st.background_charge), _exact_rational(st.left_plate_charge)
+    charge = fill(zero(Rational{BigInt}), g.n[1] + 1)
+    _yee_charge_kernel!(charge, species, nothing, nothing, g, Val(true), Val(:charge), shape)
+    cumulative = zero(h)
     for e = 0:g.n[1]-1
-        total = sigma + b * (e + 1//2) * h
-        for ps in species, p in eachindex(ps.weight)
-            cumulative, _ = _yee_cloud_edge(_exact_rational(ps.x[1][p]), e * h, h, a)
-            total += _exact_rational(ps.q) * _exact_rational(ps.weight[p]) * (1 - cumulative)
-        end
+        # The exact nodal prefix telescopes to sum(q*w*(1-A_e)); do not
+        # convert nodal charges, which can overflow even when Ex is finite.
+        cumulative += charge[e+1]
+        total = sigma + b * (e + 1//2) * h + cumulative
         value = _from_exact(T, total)
         isfinite(value) || throw(ArgumentError("initial longitudinal field does not round finite"))
         st._candidate.E[1][e+1] = value

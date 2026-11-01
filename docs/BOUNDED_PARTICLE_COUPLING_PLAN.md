@@ -211,9 +211,13 @@ right_free_plate = -sigma-b*L-sum(q*w)
 The derived right free plate is retained exactly as `Rational{BigInt}`, even
 when it is outside grid floating-point range. Background endpoint node charges
 are `b*h/2`; interior nodes have `b*h`. Free plates and particle-bound endpoint
-tails remain distinct. No DC removal, voltage condition or Gauss projection is
-applied. Required initialized fields must round finite. Successful `init!`
-resets time, step and last-step diagnostics and binds particle objects, component
+tails remain distinct. Initialization reuses the exact support-limited charge
+kernel and an exact nodal prefix before final field rounding; nodal charge need
+not fit the grid scalar range. It uses O(N+sum(k_p)) rational operations and O(N)
+transient exact storage, with worst-case O(N+P*N). These are source-level costs,
+not measured allocation or latency acceptance. No DC removal, voltage condition
+or Gauss projection is applied. Required initialized fields must round finite.
+Successful `init!` resets time, step and last-step diagnostics and binds particle objects, component
 identities, q/m, weights, IDs and tags. Changing that configuration requires
 explicit reinitialization. Particle positions, longitudinal velocities and Ex
 are evolving state; callers remain responsible for any deliberate external
