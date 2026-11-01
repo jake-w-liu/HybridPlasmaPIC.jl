@@ -27,7 +27,7 @@ isdefined(@__MODULE__, :_composition_fixture) || include("collisional_fixtures.j
         @test saved.schema === 1
         @test saved.inner.transport_policy_version === 1
         @test saved.inner.model.ηH == ηH
-        conducting && @test saved.inner.conduction_policy_version === 1
+        conducting && @test saved.inner.conduction_policy_version === 2
         @test isequal(saved.inner.Eforce, st.inner.pressure_work.Eforce)
         dest, dps = _composition_transport_fixture(Float64, R; count = 4, ηH, closure)
         init!(dest, dps)
@@ -63,7 +63,7 @@ isdefined(@__MODULE__, :_composition_fixture) || include("collisional_fixtures.j
                 η = saved.inner.model.η, ηH)
             append!(corruptions, (
                 drop(:conduction_policy_version),
-                merge(saved.inner, (conduction_policy_version = 2,)),
+                merge(saved.inner, (conduction_policy_version = 1,)),
                 merge(saved.inner, (model = changed_model,)),
             ))
         end

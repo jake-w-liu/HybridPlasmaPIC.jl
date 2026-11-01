@@ -281,36 +281,71 @@ does not add magnetic anisotropy, flux limiting, equilibration, MPI/device,
 CAM-CL or Hall-MHD support. Fixed-step ion-ion collision composition uses the
 [existing wrapper](COLLISIONAL_HYBRID.md), with its source and acceptance scope.
 
-The stage temperature convention is `Θ = round_T(pe/n)` from the original stored
-pressure and actual deposited density, rather than reciprocal multiplication.
-Active κ requires nearest hardware rounding and gradual underflow. κ must be
-finite and nonnegative, and a nonzero κ must resolve finite and nonzero at grid
-precision. A required quotient that is nonfinite or rounds a nonzero value to
-zero rejects the public step. The new closure owns one temperature scratch grid;
-`TransportElectrons` keeps its original layout and semantics.
+S3b prepares the exact quotient `Θ = Q(pe)/Q(n)` from the original stored pressure
+and actual deposited density, rather than reciprocal multiplication or a
+grid-precision temperature. Active κ requires nearest hardware rounding and
+gradual underflow. κ must be finite and nonnegative, and a nonzero κ must resolve
+finite and nonzero at grid precision. The derived quotient grid is exact rational
+storage; `TransportElectrons` keeps its original layout and semantics. A quotient
+need not fit the grid's floating-point type.
 
-The pressure source is
+For each axis `d`, prepare a fresh residual
+`r_d[I] = Θ[I] − Θ[I with index d replaced by 1]`. The removed background is
+constant along that axis and its ideal axis Laplacian is zero. Exact constant
+and axis-null inputs, including nondyadic or unrepresentable temperatures,
+therefore require no transform after input and metadata validation. The original
+quotient grid is retained unchanged between axes.
+
+Each nonzero residual is approximated by two normalized nearest-even IEEE
+mantissas with their powers of two retained exactly. If their dyadic sum is `a_d`,
+the retained preparation error satisfies `|r_d−a_d| ≤ u²|r_d|`, where
+`u=2^(-precision(T))`. This is a bounded approximation of a general quotient,
+not an exact quotient representation. The canonical dyadic FFT owner then
+applies each axis's full stored-wavenumber multiplier `−Q(kfull[d])²`, including
+even-grid Nyquist; composing first derivatives would lose that mode.
+
+After the inverse transform and real part, each axis result is projected by
+subtracting its exact rational mean along that axis's lines. This projection
+has norm at most one and preserves the ideal axis Laplacian. Its rational line
+sums, and hence the complete conductive contribution's global sum, are exactly
+zero before final rate rounding. Only conduction is projected: the complete
+pressure rate and pressure state are not projected. Compatible generated Fourier
+metadata is assumed, with `kfull`, `ik` and `kvec` treated as read-only; existing
+full-gain metadata admission remains in force even for a null input.
+
+The target pressure equation is
 
 ```
 ∂pe/∂t = −ue·∇pe − γ pe ∇·ue
           + (γ−1) [η|J|² + H_H + κ L(Θ)].
 ```
 
-`L` is the canonical full spectral Laplacian, including even-grid Nyquist.
-The scaled transform is consumed into the complete signed pressure equation
-before rate publication; an overflowing partial conductive rate or Laplacian
-is not itself a rejection. The complete required rate must be finite, and a
-nonzero complete rate that rounds wholly to zero rejects. Field and heating
-terms retain the transport owners. `κ=0` bypasses temperature division and
-transforms and retains transport operation ordering.
+`L` here is the ideal Fourier operator using the stored full wavenumbers, not
+infinitely precise continuum wavenumbers. The computed projected axis results
+enter the existing complete signed advection/compression/heating accumulator.
+The existing grid-precision `γ−1` subtraction is retained; this does not complete
+an original γ subtraction. Quotient, Laplacian, coefficient product and partial
+conductive source need not fit T. Only the complete computed rate is converted:
+it must be finite, and a nonzero rate that rounds wholly to zero rejects. Stored
+rates and RK stages must fit T even if `dt*rate` could fit. Field, heating and
+original-duration RK owners remain unchanged. `κ=0` bypasses quotient preparation,
+transforms and projection and retains transport operation ordering.
+
+With `Λ_d=max(kfull[d]²)` and `S_cond=Σ_d Λ_d*||r_d||₂`, preparation alone adds at
+most `u²*S_cond` to the operator's l2 error. Exact multipliers and signed sums
+add no rational arithmetic error; final rate conversion adds its IEEE rounding.
+FFTW is still a finite-precision transform, with no verified universal all-plan
+error constant. Independent exact-four-point and general-DFT controls remain
+required GitHub qualifications. Severe signed cancellation can magnify relative
+final-rate error, so this preparation bound does not certify arbitrary componentwise
+accuracy or exact-DFT range classification near overflow/zero boundaries.
 
 For the ideal periodic semidiscrete operator, conduction has zero mean, so it
 redistributes the single electron internal energy `∫pe/(γ−1) dV`. At frozen
 positive density, the unrounded-temperature equation dissipates
-`V = ∫pe²/(2n) dV`. With this represented temperature, writing
-`e = pe/n − Θ` gives
-`dV/dt = (γ−1)κ [⟨Θ,LΘ⟩ + ⟨e,LΘ⟩]`; the second term is a rounding error term,
-not a sign guarantee. The full spectral Laplacian is not positivity preserving.
+`V = ∫pe²/(2n) dV`. Those are ideal target properties, not a sign guarantee for
+the prepared/FFTW/RK map. Final stored rates may have nonzero mean from their
+individual rounding. The full spectral Laplacian is not positivity preserving.
 Every explicit pressure stage and final candidate must remain nonnegative;
 failure rolls back public fields, force, particles and clocks without clipping.
 No exact fully discrete energy, variance or bitwise mean conservation is claimed.
@@ -328,18 +363,24 @@ timestep refinement.
 
 Checkpoint/archive state saves κ in the concrete closure, pressure and carried
 force verbatim, existing `transport_policy_version=1`, and required
-`conduction_policy_version=1` under the existing archive schema. Temperature
-is recomputed at each active stage; its scratch array identity survives restore.
-A matching concrete conducting destination may replace its κ, including zero
-with positive κ.
-Legacy transport payloads retain their meanings.
+integer `conduction_policy_version=2`, including when κ=0, under unchanged archive
+container 4. Missing, policy-1, boolean or differently typed versions reject
+before mutation; there is no hidden legacy mode or migration. Quotient and
+transform scratch is not persisted and is recomputed at each active stage; the
+quotient scratch array identity survives restore. A matching concrete conducting
+destination may replace its κ, including zero with positive κ. Legacy transport
+payloads retain their meanings. Fixed collisional wrappers retain their stricter
+saved-model match and outer schema 1.
 
 Essential candidate tests cover independent DFT stages, variable-density
-constant-temperature and Nyquist controls, signed source range cancellation,
+constant-temperature/axis-null and Nyquist controls, original quotient variation
+and range rescue, signed source range cancellation,
 RK4 decay refinement, scoped timestep/positivity rejection, full rollback,
 zero-κ legacy reduction, malformed checkpoint policies and unchanged resume.
-They await GitHub acceptance on the composed source, including the canonical
-nonzero-substep preflight and original-h RK affine maps.
-Completion of arbitrary original quotients through the Fourier operator remains
-open: this tier explicitly requires a representable physical temperature and
-does not recover variation lost by that temperature rounding.
+They await GitHub acceptance on the composed source. Complete-step BigInt/FFT
+cost and broader conditioning are unmeasured; no optimized-cost claim is made.
+
+Historical S3a used `round_T(Q(pe)/Q(n))`, required a representable nonzero
+physical temperature and saved conduction policy 1. Its dated source/CI evidence
+remains history; S3b replaces that numerical policy rather than silently
+reinterpreting its checkpoints.

@@ -50,8 +50,10 @@ Hybrid species collections preserve the ordered per-population state alongside
 the common fields, configuration and integrator phase. Evolving electron
 pressure is included; scalar transport closures also store their carried ion
 force and `transport_policy_version`. `ConductingElectrons` additionally requires
-`conduction_policy_version`; γ/κ remain in its saved model. All are covered by
-the unchanged schema-4 checksum.
+integer `conduction_policy_version=2`, including for κ=0; γ/κ remain in its
+saved model and quotient/transform scratch is not persisted. Policy-1 conducting
+state cannot be restored under policy 2. All are covered by the unchanged
+schema-4 checksum; `load_archive` checks integrity, not destination compatibility.
 Electrostatic archives instead contain their electric field, density, immutable
 background density, and priming/timestep state alongside the particles and grid.
 Electrostatic collections retain ordered species, neutrality policy and charge

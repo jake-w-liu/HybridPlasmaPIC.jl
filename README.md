@@ -155,10 +155,12 @@ unverified. See
   electron heating. Serial periodic CPU only; density must stay ≥ `nfloor`.
   The [S2 implementation and acceptance tracker](docs/TRANSPORT_SOURCE_RANGE_PLAN.md)
   records its finite-source domain and outstanding integration gates.
-- `ConductingElectrons(γ = 5/3; κ)` — S3a source candidate: constant isotropic
-  heat flux using the represented stage temperature `round(pe/n)`, added to the
-  transport pressure equation. Serial periodic CPU Float32/64 only; active κ
-  requires nearest rounding and gradual underflow.
+- `ConductingElectrons(γ = 5/3; κ)` — S3b source candidate: constant isotropic
+  heat flux prepared from original `Q(pe)/Q(n)`, with bounded two-term
+  preparation and projected full-Nyquist conduction in the complete pressure
+  rate. Serial periodic CPU Float32/64 only; active κ requires nearest rounding
+  and gradual underflow. FFTW accuracy remains qualified; policy-1 checkpoints
+  are rejected under the required conduction policy 2.
   [Scope, timestep and pending verification](docs/EVOLVING_ELECTRONS.md#constant-isotropic-conduction-source-candidate).
 - `CGLElectrons(p⊥0, p∥0, n0, B0)` — anisotropic double-adiabatic
   (Chew–Goldberger–Low): `p_⊥ ∝ n·B`, `p_∥ ∝ n³/B²`, entering Ohm's law
@@ -667,8 +669,8 @@ EM and comparative campaigns remain in the
   supplies conducting cavities and mixed periodic/conducting fields; charge-conserving
   particle coupling, absorbing layers and restart integration remain open.
 - Collision/field composition covers fixed-step, first-order `HybridStepper`
-  runs with ideal isothermal/evolving scalar electrons, S1/S2 transport or S3a
-  represented-temperature conduction on the CPU (stored-pressure extensions are CI-pending). Variable steps, higher-order
+  runs with ideal isothermal/evolving scalar electrons, S1/S2 transport or S3b
+  original-quotient conduction on the CPU (stored-pressure extensions are CI-pending). Variable steps, higher-order
   splitting, electron-ion heat exchange, anisotropic/inertial
   composition, other models and sources, MPI cell ownership and device kernels
   are separate open stages ([CAP-010](docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md)).

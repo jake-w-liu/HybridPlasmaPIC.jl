@@ -49,7 +49,7 @@ function matrices(g)
     return D, L
 end
 
-@testset "Conducting closure and derived temperature admission" begin
+@testset "Conducting closure and original quotient admission" begin
     for T in (Float32, Float64)
         c = ConductingElectrons(T(2); κ = T(0.1))
         @test closure_gamma(c) == T(2)
@@ -63,23 +63,33 @@ end
         @test_throws ArgumentError CAMCLStepper(g, HybridModel(c), NGP(), 0)
         @test_throws ArgumentError HallMHDModel(c)
         @test_throws ArgumentError electron_pressure!(ones(T, 4), ones(T, 4), c)
-        temp, p, n = zeros(T, 4), T[2, 6, 10, 14], T[1, 3, 5, 7]
-        @test H._conduction_temperature!(temp, p, n, g) === temp
-        @test temp == fill(T(2), 4)
+        quotient, p, n = zeros(Q, 4), T[2, 6, 10, 14], T[1, 3, 5, 7]
+        @test H._conduction_quotient!(quotient, p, n, g) === quotient
+        @test quotient == fill(Q(2), 4)
         n .= T[3, 5, 7, 9]
-        H._conduction_temperature!(temp, p, n, g)
-        for i = 1:4
-            exact = Q(p[i]) / Q(n[i])
-            lower = (Q(prevfloat(temp[i])) + Q(temp[i])) / 2
-            upper = (Q(temp[i]) + Q(nextfloat(temp[i]))) / 2
-            @test lower < exact < upper
+        H._conduction_quotient!(quotient, p, n, g)
+        @test quotient == Q.(p) ./ Q.(n)
+        @test_throws ArgumentError H._conduction_quotient!(p, p, n, g)
+        @test_throws DimensionMismatch H._conduction_quotient!(zeros(Q, 3), p, n, g)
+        for (pressure, density) in ((floatmax(T), T(0.5)), (nextfloat(zero(T)), T(2)))
+            H._conduction_quotient!(quotient, fill(pressure, 4), fill(density, 4), g)
+            @test quotient == fill(Q(pressure) / Q(density), 4)
         end
-        @test_throws ArgumentError H._conduction_temperature!(p, p, n, g)
-        @test_throws ArgumentError H._conduction_temperature!(temp, fill(floatmax(T), 4), fill(T(0.5), 4), g)
-        @test_throws ArgumentError H._conduction_temperature!(temp, fill(nextfloat(zero(T)), 4), fill(T(2), 4), g)
         for pe in (zeros(T, 4), fill(-zero(T), 4))
-            H._conduction_temperature!(temp, pe, n, g)
-            @test all(iszero, temp)
+            H._conduction_quotient!(quotient, pe, n, g)
+            @test all(iszero, quotient)
+        end
+        for (pressure, density) in ((-one(T), one(T)), (T(Inf), one(T)),
+            (one(T), zero(T)), (one(T), T(NaN)))
+            @test_throws ArgumentError H._conduction_quotient!(quotient, fill(pressure, 4), fill(density, 4), g)
+        end
+        u = Q(1) / (BigInt(1) << precision(T))
+        for value in (Q(1) / 3, -Q(7) / 11, Q(floatmax(T)) / Q(nextfloat(zero(T))),
+            Q(nextfloat(zero(T))) / Q(floatmax(T)), zero(Q))
+            prepared = H._conduction_dyadic(T, value)
+            @test ispow2(denominator(prepared))
+            @test abs(value - prepared) <= u^2 * abs(value)
+            @test iszero(prepared) == iszero(value)
         end
     end
     g = FourierGrid((4,), (Float32(2pi),))
@@ -105,14 +115,23 @@ end
             end
         end
         legacy = th_reference(f.B, f.pe, f.n, st.fui, g.L, γ, η, T(ηH))
-        # Quotient conversion is independently rounded by Base; no production
-        # temperature, derivative, Laplacian or rate helper supplies the oracle.
-        temperature = T.(Q.(f.pe) ./ Q.(f.n))
-        conductive = Float64(γ - 1) * Float64(κ) *
-            sum(th_apply(th_matrix(dims[d], g.L[d], :lap), temperature, d) for d = 1:D)
+        # Remove exact axis-null backgrounds before converting the independent
+        # direct-DFT oracle operands. No production preparation/FFT supplies it.
+        quotient = Q.(f.pe) ./ Q.(f.n)
+        residuals = [map(CartesianIndices(dims)) do I
+            reference = CartesianIndex(ntuple(c -> c == d ? 1 : I[c], D))
+            quotient[I] - quotient[reference]
+        end for d = 1:D]
+        lap = sum(th_apply(th_matrix(dims[d], g.L[d], :lap), Float64.(residuals[d]), d) for d = 1:D)
+        conductive = Float64(γ - 1) * Float64(κ) * lap
         actual = stage!(st)
-        @test st.pressure_work.temperature == temperature
+        @test st.pressure_work.quotient == quotient
         @test actual ≈ legacy.outp + conductive rtol = 2048eps(T) atol = 2048eps(T)
+        computed = zeros(Q, dims)
+        H._add_conduction_pressure!(computed, quotient, one(Q), g)
+        scale = sum(maximum(abs2, Float64.(g.kfull[d])) * norm(Float64.(residuals[d])) for d = 1:D)
+        @test norm(Float64.(computed) - lap) <= (2048eps(T) + 2.0^(-2precision(T))) * scale
+        @test iszero(sum(computed))
         for c = 1:3
             @test st.Escr[c] ≈ legacy.E[c] rtol = 2048eps(T) atol = 2048eps(T)
             @test st.k1[c] ≈ legacy.outB[c] rtol = 2048eps(T) atol = 2048eps(T)
@@ -122,11 +141,12 @@ end
     for T in (Float32, Float64)
         g = FourierGrid((4,), (T(2pi),))
         st = HybridStepper(g, HybridModel(ConductingElectrons(T(2); κ = T(0.1))), NGP(), 0)
-        st.fn .= T[1, 3, 5, 7]
-        st.fields.pe .= T(2) .* st.fn
+        st.fn .= T[3, 6, 9, 12]
+        st.fields.pe .= T[1, 2, 3, 4]
         st.fields.ninv .= inv.(st.fn)
         rate = stage!(st)
-        @test all(iszero, rate) # L(pe) is nonzero, but Te is exactly constant.
+        @test st.pressure_work.quotient == fill(Q(1) / 3, 4)
+        @test all(iszero, rate) # L(pe) is nonzero, but original p/n is constant.
         st.fn .= one(T)
         st.fields.ninv .= one(T)
         st.fields.pe .= T[2, 1, 2, 1]
@@ -136,11 +156,57 @@ end
         @test rate ≈ T.(expected) rtol = 16eps(T)
         @test any(!iszero, rate)
         @test sum(rate) == zero(T)
-        @test dot(st.pressure_work.temperature, rate) < 0
+        @test dot(st.pressure_work.quotient, Q.(rate)) < 0
     end
 end
 
-@testset "Complete represented conduction before source range classification" begin
+@testset "Original quotient variation, range rescue and exact null projection" begin
+    for T in (Float32, Float64), ηH in (0.0, 0.02)
+        g = FourierGrid((4,), (T(2pi),))
+        M = ldexp(one(T), precision(T) - 1)
+        st = HybridStepper(g, HybridModel(ConductingElectrons(T(2); κ = one(T)); ηH), NGP(), 0)
+        st.fields.pe .= T[M, M + 1, M, M + 1]
+        st.fn .= T[M + 1, M + 2, M + 1, M + 2]
+        st.fields.ninv .= inv.(st.fn)
+        quotient = Q.(st.fields.pe) ./ Q.(st.fn)
+        @test all(==(T(quotient[1])), T.(quotient))
+        delta = Q(1) / ((Q(M) + 1) * (Q(M) + 2))
+        @test quotient[2] - quotient[1] == delta
+        _, L = matrices(g)
+        expected = L * quotient
+        @test expected == 2 * Q(g.kfull[1][2])^2 * delta .* Q[1, -1, 1, -1]
+        actual = stage!(st)
+        @test all(x -> abs(x) >= floatmin(T), actual)
+        @test actual ≈ T.(expected) rtol = 16eps(T)
+        for (p, n, κ) in (
+            (fill(floatmax(T), 4), T[0.5, 1, 0.5, 1], ldexp(one(T), -exponent(floatmax(T)))),
+            (T[nextfloat(zero(T)), 0, nextfloat(zero(T)), 0], fill(T(2), 4), ldexp(one(T), exponent(floatmax(T)))),
+        )
+            st.model = HybridModel(ConductingElectrons(T(2); κ); ηH)
+            st.fields.pe .= p
+            st.fn .= n
+            st.fields.ninv .= inv.(n)
+            @test all(isfinite, st.fields.ninv)
+            expected = Q(κ) .* (L * (Q.(p) ./ Q.(n)))
+            @test all(x -> floatmin(T) < abs(x) < Q(floatmax(T)), expected)
+            @test stage!(st) ≈ T.(expected) rtol = 16eps(T)
+        end
+        # The stiff first axis is exactly null; an odd active second axis
+        # exercises the required rational projection after the last FFT.
+        stiff = T === Float32 ? 30 : 300
+        g2 = FourierGrid((4, 5), (ldexp(T(2pi), -stiff), T(2pi)))
+        q = [Q(2) + Q(j - 1) / 7 for i = 1:4, j = 1:5]
+        projected = zeros(Q, 4, 5)
+        H._add_conduction_pressure!(projected, q, one(Q), g2)
+        expected2 = th_apply(th_matrix(5, g2.L[2], :lap), Float64.(q .- q[:, 1:1]), 2)
+        scale = maximum(abs2, Float64.(g2.kfull[2])) * norm(Float64.(q .- q[:, 1:1]))
+        @test norm(Float64.(projected) - expected2) <= 2048eps(T) * scale
+        @test all(iszero, sum(projected; dims = 2))
+        @test all(projected[1, :] == projected[i, :] for i = 2:4)
+    end
+end
+
+@testset "Complete original conduction before source range classification" begin
     for T in (Float32, Float64)
         ek, ep = T === Float32 ? (40, 60) : (300, 500)
         g = FourierGrid((4,), (ldexp(T(2pi), -ek),))
@@ -186,6 +252,9 @@ end
         @test stage!(scaled) ≈ T.(expected) rtol = 16eps(T)
         scaled.model = HybridModel(ConductingElectrons(T(2); κ = one(T)))
         @test_throws ArgumentError stage!(scaled)
+        scaled.model = HybridModel(ConductingElectrons(T(2); κ = small))
+        scaled.fields.pe .*= T(0.5)
+        @test stage!(scaled) ≈ T.(expected ./ 2) rtol = 16eps(T)
     end
 end
 
@@ -266,12 +335,12 @@ end
         @test_throws ArgumentError step!(negative, ions, T(0.001))
         @test isequal(public_state(negative, ions), before)
         for (pressure, density) in ((floatmax(T), T(0.5)), (nextfloat(zero(T)), T(2)))
-            failed, pops = fixture(T; κ = T(0.001), density, constant_pressure = true)
-            failed.fields.pe .= pressure
-            init!(failed, pops)
-            before = public_state(failed, pops)
-            @test_throws ArgumentError step!(failed, pops, T(0.0001))
-            @test isequal(public_state(failed, pops), before)
+            constant, pops = fixture(T; κ = T(0.001), density, constant_pressure = true)
+            constant.fields.pe .= pressure
+            init!(constant, pops)
+            step!(constant, pops, T(0.0001))
+            @test constant.fields.pe == fill(pressure, 8)
+            @test constant.time[] == T(0.0001) && constant.step[] == 1
         end
     end
 end
@@ -280,8 +349,8 @@ end
     for T in (Float32, Float64), collection in (false, true), (η, ηH) in ((0.0, 0.0), (0.02, 0.01))
         old, ions = fixture(T; legacy = true, η, ηH, collection)
         inactive, tracers = fixture(T; κ = zero(T), η, ηH, collection)
-        @test old.pressure_work.temperature === nothing
-        @test inactive.pressure_work.temperature isa Array{T}
+        @test old.pressure_work.quotient === nothing
+        @test inactive.pressure_work.quotient isa Array{Q}
         @test isequal(public_state(old, ions), public_state(inactive, tracers))
         for dt in (T(0.001), T(0.002))
             step!(old, ions, dt; NB = 2)
@@ -296,12 +365,12 @@ end
             save_checkpoint(path, st, particles)
             archive_run(archive, st, particles; rng_seed = 17)
             saved = deserialize(path)
-            @test saved.transport_policy_version === 1 && saved.conduction_policy_version === 1
+            @test saved.transport_policy_version === 1 && saved.conduction_policy_version === 2
             @test isequal(saved, load_archive(archive).state)
             restored, pop = fixture(T; κ = zero(T), collection, η, ηH)
-            theta = restored.pressure_work.temperature
+            theta = restored.pressure_work.quotient
             load_checkpoint!(restored, pop, path)
-            @test restored.pressure_work.temperature === theta
+            @test restored.pressure_work.quotient === theta
             @test restored.model.closure.κ == st.model.closure.κ
             @test isequal(H._checkpoint_state(restored, pop), saved)
             step!(restored, pop, T(0.001); NB = 2)
@@ -309,8 +378,10 @@ end
             @test isequal(public_state(restored, pop), public_state(st, particles))
             drop_policy = (; (k => v for (k, v) in pairs(saved) if k != :conduction_policy_version)...)
             bad = reinterpret(ConductingElectrons{T}, T[T(2), -one(T)])[1]
-            malformed = (drop_policy, merge(saved, (; conduction_policy_version = 2)),
-                merge(saved, (; conduction_policy_version = 1.0)),
+            malformed = (drop_policy, merge(saved, (; conduction_policy_version = 1)),
+                merge(saved, (; conduction_policy_version = 2.0)),
+                merge(saved, (; conduction_policy_version = true)),
+                merge(saved, (; conduction_policy_version = BigInt(2))),
                 merge(saved, (; model = HybridModel(bad, η, ηH, 1e-6, 0.0))),
                 merge(saved, (; Eforce = (saved.Eforce[1], saved.Eforce[1], saved.Eforce[3]))))
             for payload in malformed
@@ -325,12 +396,15 @@ end
 @testset "Conduction scratch and numerical context preflight" begin
     for T in (Float32, Float64)
         st, ps = fixture(T)
-        theta = st.pressure_work.temperature
-        st.pressure_work.temperature = st.fields.pe
+        theta = st.pressure_work.quotient
+        # The concrete Q workspace excludes safe assignment of a physical T
+        # array. Exercise its structural guard without manufacturing an alias.
+        @test_throws ArgumentError H._validate_conduction_quotient_storage(st, ps, st.fields.pe)
+        st.pressure_work.quotient = zeros(Q, 3)
         before = public_state(st, ps)
-        @test_throws ArgumentError step!(st, ps, T(0.001))
+        @test_throws DimensionMismatch step!(st, ps, T(0.001))
         @test isequal(public_state(st, ps), before)
-        st.pressure_work.temperature = theta
+        st.pressure_work.quotient = theta
         for (mode, flush) in ((RoundDown, false), (RoundNearest, true))
             saved = Base.Rounding.rounding_raw(Float64), get_zero_subnormals()
             before = public_state(st, ps)

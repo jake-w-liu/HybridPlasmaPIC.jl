@@ -406,9 +406,9 @@ isdefined(@__MODULE__, :_composition_fixture) || include("collisional_fixtures.j
         step!(inactive, ips, inactive.dt)
         step!(bare.inner, bps, bare.dt)
         @test isequal(_composition_physical(inactive, ips), _composition_physical(bare, bps))
-        # The derived temperature cannot be an outer force rollback component.
+        # The outer force rollback cannot alias the live inner carried force.
         snapshot = st.transaction.Eforce
-        st.transaction.Eforce = (st.inner.pressure_work.temperature, snapshot[2], snapshot[3])
+        st.transaction.Eforce = (st.inner.pressure_work.Eforce[1], snapshot[2], snapshot[3])
         before = _composition_snapshot(st, ps)
         @test_throws ArgumentError step!(st, ps, st.dt)
         @test isequal(_composition_snapshot(st, ps), before)

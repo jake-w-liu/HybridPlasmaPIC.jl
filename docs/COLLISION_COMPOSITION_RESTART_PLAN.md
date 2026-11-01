@@ -1,7 +1,7 @@
 # CAP-010: collision/field composition and stochastic restart
 
 Current extensions (2026-11-01): ideal evolving scalar pressure, fixed-step
-S1/S2 transport and S3a represented-temperature conduction composition are
+S1/S2 transport and S3b original-quotient conduction composition are
 implemented. Exact-revision GitHub verification is pending. See the scoped trackers below.
 
 Status (2026-10-26): ported onto `main` after `cda63f1` on the landed cell-local
@@ -778,7 +778,8 @@ no new global energy, higher-order, exchange, resource or backend claim.
 
 ## S3a represented-temperature collision composition (2026-11-01)
 
-The fixed-step first-order wrapper admits `ConductingElectrons` through the
+Historical S3a source scope, superseded by S3b below. At that revision, the
+fixed-step first-order wrapper admitted `ConductingElectrons` through the
 same scalar-transport and evolving-model owners. Field stages alone evolve
 pressure and add conduction; the canonical ion-ion subflow leaves it fixed.
 Outer force snapshots reject aliases with derived temperature scratch.
@@ -793,10 +794,28 @@ formula is added to the wrapper.
 - [x] Reuse essential component, zero-log, rollback and advanced-RNG restart controls.
 - [ ] Pass exact-revision GitHub numerical/compiler/format/resource acceptance.
 
-The [conduction model](EVOLVING_ELECTRONS.md#constant-isotropic-conduction-source-candidate)
-retains its represented-temperature and pure-conduction guard limits. This
+That [conduction model](EVOLVING_ELECTRONS.md#constant-isotropic-conduction-source-candidate)
+used represented temperature and the pure-conduction guard. This
 composition adds no electron-ion heat exchange, positivity theorem, higher-order
 split or parallel/device support. Source publication is distinct from acceptance.
+
+## S3b original-quotient collision composition (2026-11-01)
+
+The current source candidate keeps the same wrapper and canonical field-stage,
+force, full-state/RNG rollback and fixed-model owners. Active conduction now
+prepares exact original `Q(pe)/Q(n)` with two normalized terms per axis residual,
+full stored-k/Nyquist and exact rational line-mean projection. FFTW accuracy
+remains qualified; the finite stored-rate, stage-positivity and scoped
+pure-conduction limits remain. The ion-ion subflow still leaves pressure fixed.
+Derived quotient scratch replaces temperature scratch in the force-storage
+independence check; neither it nor transform scratch is persisted.
+
+The inner checkpoint requires integer conduction policy 2, including for κ=0,
+and rejects policy 1 before publication. Transport policy 1, collisional outer
+schema 1 and archive container 4 remain unchanged. Restored κ must still match
+the wrapper's fixed model. The canonical scalar/collection/empty/view and
+advanced-RNG resume/rejection controls remain required on the exact composed
+revision; numerical/compiler/format/resource acceptance is pending.
 
 ### Fixed model value binding
 

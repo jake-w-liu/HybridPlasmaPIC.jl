@@ -137,8 +137,11 @@ records essential regressions and pending exact-revision GitHub acceptance.
 - [x] Integrate original-duration affine RK completion for represented finite
   rates; its [GitHub and remaining normalized-storage gates](SCALAR_PRESSURE_RATE_RANGE_PLAN.md)
   remain separate from source publication.
-- [x] Implement the bounded [represented-temperature conduction source](EVOLVING_ELECTRONS.md#constant-isotropic-conduction-source-candidate);
-  exact-revision GitHub acceptance and original-quotient completion remain open.
+- [x] Implement the bounded [original-quotient conduction source](EVOLVING_ELECTRONS.md#constant-isotropic-conduction-source-candidate)
+  after historical S3a represented-temperature conduction. S3b uses two-term
+  preparation and exact line-mean projection under required conduction policy 2;
+  exact-revision GitHub acceptance, FFTW conditioning and finite stored-rate
+  limits remain separate from source publication.
 - [ ] Implement broader conduction, equilibration, anisotropy, inertia and backend stages in the
   [capability plan](PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md#cap-011--electron-transport-and-complete-energy-accounting).
 

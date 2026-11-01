@@ -28,7 +28,7 @@ symmetric or second-order collision split. Call `init!` before active stepping.
 Supports Float32/Float64, D=1:3, standard Vector particle storage, positive ions,
 NGP/CIC/TSC, ideal massless `IsothermalElectrons` or `EvolvingElectrons`, and
 `TransportElectrons` or `ConductingElectrons` with constant `η ≥ 0`, `ηH ≥ 0`
-and `de2 = 0`. Conduction retains its represented-temperature model and guard.
+and `de2 = 0`. Conduction retains its original-quotient numerical policy and guard.
 With stored pressure, initialize `inner.fields.pe` before `init!`; the field
 substep evolves pressure and the ion-ion collision substep leaves it unchanged.
 Ohmic/hyperresistive heating and conduction occur only in the field stages; no

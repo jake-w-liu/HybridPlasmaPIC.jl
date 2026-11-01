@@ -76,7 +76,7 @@ Source names below resolve to these canonical files:
 | Periodic hybrid, positive ion collections | `HybridStepper` / `CAMCLStepper`; README:78–93,156–169; `extrapolated_leapfrog.jl:67–120,359,766`; collection and pressure tests | Implemented within documented closure, geometry and time-centering restrictions; inherited audit findings remain open |
 | ES/EM PIC | Periodic `ElectrostaticPIC`, `EMPIC` and `EMPIC1D`; ES collection implementation `d46029e` | Periodic CPU ES collections are landed; synchronous EM collections with optional relativistic motion are implemented pending GitHub acceptance. Multirate EM collections, coupled nonperiodic PIC and resident GPU/MPI solvers remain open |
 | Hall-MHD | `HallMHDModel`, `HallMHDState`, `step_hall_mhd!`; `test_hall_mhd.jl`, `test_io_hall_mhd.jl` | A periodic solver exists; it is not a general geometry/closure solver |
-| Coulomb collisions | Canonical homogeneous and local collection `collide_coulomb!`; `CollisionalHybridStepper` | Local self/cross CPU operator and fixed-step isothermal hybrid/RNG restart exist; ideal evolving-scalar, S1/S2 transport and S3a conduction extensions await CI, additional compositions and parallel/device support remain |
+| Coulomb collisions | Canonical homogeneous and local collection `collide_coulomb!`; `CollisionalHybridStepper` | Local self/cross CPU operator and fixed-step isothermal hybrid/RNG restart exist; ideal evolving-scalar, S1/S2 transport and S3b conduction extensions await CI, additional compositions and parallel/device support remain |
 | Nonperiodic EM | Periodic `EMPIC`; separate Yee vacuum/prescribed-current fields; closed 1D PEC charge/impulse/path voltage plus optional finite physical-width cloud static coupling | B2a, optional cloud, event-free longitudinal and 1D3V EM coupling/restart source are implemented with GitHub acceptance pending. Original-force acceptance, wall events, absorbers and broader bounded EM remain CAP-002 work |
 | Distributed evolution | Replicated-field MPI reference plus rank-owned Fourier storage and derivative/vector/filter operators (`4724947`) | Distributed operator primitives exist; coupled domain-owned solver, restart and cluster-scale acceptance remain CAP-003 work |
 | GPU | Metal extension has deposit/gather/push methods; CUDA extension:1–68 has storage/telemetry hooks; `HybridFields` uses `Array` at field_state:12–29 | Partial kernels, not complete resident solvers, CAP-004; device availability is not numerical acceptance |
@@ -87,8 +87,8 @@ Source names below resolve to these canonical files:
 | External validation | Pinned external references plus case 34 parallel and case 35 oblique Hall production histories | Bounded production validation exists; complete manual campaigns, broader regimes, full profile replay and matched cost/accuracy comparisons remain CAP-007 work |
 | Kinetic species diversity | Arbitrary ES collections landed; synchronous CPU EMPIC collections with optional relativistic motion implemented, CI pending | Multirate EM collections and backend composition remain CAP-008 work |
 | Multidimensional shocks | shock3d:9–19,337–359 and shock2d:230–236 intentionally exclude Hall induction while retaining Hall particle forces | Documented reduced shock model; full-Hall multidimensional branch required for broader claims, CAP-009 |
-| Coupled sources and collisions | `CollisionalHybridStepper` and full RNG checkpoint/archive state (`2b2420b`); ideal evolving, S1/S2 transport and S3a conduction pressure/force extensions are CI-pending | Fixed-step first-order CPU composition; anisotropic/inertial models, electron-ion heat exchange, other sources, schedules and backends remain CAP-010 work |
-| Electron transport | `EvolvingElectrons` covers ideal massless pressure; `TransportElectrons` provides constant Ohmic transport (S1), with complete-source hyperresistive S2 and shared scalar pressure range routing. `ConductingElectrons` adds a bounded represented-temperature S3a source candidate | [S2 gates](TRANSPORT_SOURCE_RANGE_PLAN.md), [scalar pressure verification](SCALAR_PRESSURE_RATE_RANGE_PLAN.md) and [S3a GitHub verification](EVOLVING_ELECTRONS.md#constant-isotropic-conduction-source-candidate) remain open; original-quotient completion, broader conduction, equilibration, anisotropy, inertia and backends remain CAP-011 work |
+| Coupled sources and collisions | `CollisionalHybridStepper` and full RNG checkpoint/archive state (`2b2420b`); ideal evolving, S1/S2 transport and S3b conduction pressure/force extensions are CI-pending | Fixed-step first-order CPU composition; anisotropic/inertial models, electron-ion heat exchange, other sources, schedules and backends remain CAP-010 work |
+| Electron transport | `EvolvingElectrons` covers ideal massless pressure; `TransportElectrons` provides constant Ohmic transport (S1), with complete-source hyperresistive S2 and shared scalar pressure range routing. `ConductingElectrons` adds an original-quotient S3b source candidate with bounded preparation and projected full-Nyquist conduction | [S2 gates](TRANSPORT_SOURCE_RANGE_PLAN.md), [scalar pressure verification](SCALAR_PRESSURE_RATE_RANGE_PLAN.md) and [S3b GitHub verification](EVOLVING_ELECTRONS.md#constant-isotropic-conduction-source-candidate) remain open; broader conditioning, complete-step cost, conduction models, equilibration, anisotropy, inertia and backends remain CAP-011 work |
 
 The geometry integration finding also follows from a repository-wide symbol
 search: outside their defining files, `ToroidalGrid`, `AMRGrid`, `GuidingCentre`,
@@ -229,7 +229,7 @@ and quota failures describe historical work, not current ownership.
 | 007C–E profiles, new physics, comparative costs | Agent unassigned; validation/benchmark owners | Accepted corresponding capability; datasets/hardware | Existing scalar comparisons inspected; campaigns unrun here | Freeze matched inputs/diagnostics/uncertainty and preserve raw reference outputs |
 | 008 ES/EM arbitrary species | Canonical electrostatic/EM owners; synchronous collection implementation track | Existing deposition, spectral Maxwell and phase owners | ES containing `4724947` passes all six jobs/compiler review. [Synchronous EMPIC collections with optional relativistic motion](EMPIC_SPECIES_IMPLEMENTATION.md) implemented, GitHub acceptance pending | Accept current sum/continuity, staged publication, physical relativistic diagnostics and restart; implement species multirate and remaining backends |
 | 009 full-Hall multidimensional shocks | Scope proposal; root selects implementation agent | Full mixed-operator/field-boundary balance; 005 optional | Deliberate reduced induction verified | Derive full induction and SAT budget; build transverse-mode witness |
-| 010 composed sources and RNG restart | Integrator/checkpoint owners; independent collision audit track | 001 and phase/growth/checkpoint contracts | Fixed-step first-order isothermal CPU `CollisionalHybridStepper` landed; `2b2420b` exact-SHA CI/compiler gates pass. Ideal evolving, S1/S2 transport and S3a conduction extensions implemented, CI pending | Accept the extensions, then extend schedules, other closures/models/sources and backends; preserve full pressure/force/RNG/phase/rollback contract |
+| 010 composed sources and RNG restart | Integrator/checkpoint owners; independent collision audit track | 001 and phase/growth/checkpoint contracts | Fixed-step first-order isothermal CPU `CollisionalHybridStepper` landed; `2b2420b` exact-SHA CI/compiler gates pass. Ideal evolving, S1/S2 transport and S3b conduction extensions implemented, CI pending | Accept the extensions, then extend schedules, other closures/models/sources and backends; preserve full pressure/force/RNG/phase/rollback contract |
 | 011 electron transport/energy | Electron/integrator owners and transport track | Term-specific balance and carried force contract | S1 is landed. The registered SO 0.1.8 consumer floor and bounded scalar original-product prerequisites are integrated; the dependency's five passing checks do not accept HPIC. Earlier 0.1.7 and rejected-candidate evidence remains historical | Exact-revision HPIC CI, transport resource/peak-memory and restart checks, general original-product admission and S3–S8 remain open |
 
 For every row, its detailed section below supplies the required conservation,
@@ -270,7 +270,7 @@ candidates and numerical/resource evidence. No global cost optimum follows.
   production workload and independently controlled timing acceptance.
 - [x] CAP-010 supplies fixed-step first-order isothermal CPU composition and full
   advanced-RNG/phase restart.
-- [ ] Accept the implemented ideal evolving-scalar, S1/S2 transport and S3a conduction extensions
+- [ ] Accept the implemented ideal evolving-scalar, S1/S2 transport and S3b conduction extensions
   through exact-revision GitHub CI; ion-ion collisions leave pressure fixed,
   while existing field stages provide the applicable Ohmic/hyperresistive heat and conduction.
 - [ ] CAP-003 must supply cell-complete populations after migration; CAP-004 must
@@ -755,10 +755,10 @@ MPI, CAM-CL and Hall-MHD reject the closure. Thermal equilibration,
 S2 acceptance, conduction (S3–S5), backends (S6), anisotropy (S7)
 and inertia (S8) remain open. S1 landed as `a6d20d3` with all six exact-SHA
 CI jobs and complete compiler review passed. `CollisionalHybridStepper` admits
-ideal isothermal/evolving scalar electrons and S1/S2 transport or S3a conduction
+ideal isothermal/evolving scalar electrons and S1/S2 transport or S3b conduction
 with `de2=0`; the stored-pressure extensions await exact-revision CI. The transport wrapper preserves
-the independent force in outer rollback and policy-1 restart. Hyperresistive
-and represented-temperature conduction compositions reuse those same state owners;
+the independent force in outer rollback and transport policy 1 at restart. Hyperresistive
+and original-quotient conduction compositions reuse those same state owners;
 their exact-revision CI remains pending.
 The subsequent [Ohmic diagnostic range repair](RESISTIVE_DIAGNOSTIC_RANGE_AUDIT.md)
 is pushed as `a356c6b` and passes all six exact-SHA CI jobs and complete compiler review.
@@ -787,41 +787,40 @@ conditioning and broader source-aware operator/backend admission remain open.
 Linear completion of represented ideal E alone cannot recover an original
 product lost before differentiation. CAP-011 remains incomplete.
 
-**S3a source candidate (constant isotropic conduction).** `ConductingElectrons(γ; κ)`
-adds `(γ−1)κ L(round_T(pe/n))` to the complete signed represented pressure
-sources through the canonical scaled full Laplacian, retaining Nyquist. It
-requires serial periodic CPU Float32/64, nearest/gradual arithmetic for active
-κ, representable physical temperature, unchanged density/pressure admission,
-and the existing force/heating owners. The pure-conduction substep guard and
-floor-based downward-rounded `recommended_dt(stepper)` cap are scoped limits;
-neither guarantees positivity or combined nonlinear stability. The old closure
-and schema meanings remain unchanged; the new closure requires conduction
-policy 1 alongside transport policy 1. Independent essential tests and the
-composed RK affine/substep integration gates are pending GitHub;
-source implementation is not acceptance. Original-quotient conditioning/range
-completion, anisotropic/limited conduction and other S3–S8 work remain open.
-See the [declared model and candidate checks](EVOLVING_ELECTRONS.md#constant-isotropic-conduction-source-candidate).
+**S3a predecessor (represented temperature).** The initial source candidate
+used `L(round_T(Q(pe)/Q(n)))` and conduction policy 1. Its dated source/CI
+evidence remains history. S3b replaces that map and explicitly rejects its
+checkpoint policy rather than reinterpreting it.
 
-**S3b planned (original pressure/density quotient).** The target is conduction
-from original stage `pe/n` through the full Fourier operator and complete signed
-pressure source. S3a's representable-temperature boundary remains until this
-separate numerical policy is implemented and accepted.
+**S3b source candidate (original pressure/density quotient).** Active constant
+isotropic conduction now retains exact original stage `Q(pe)/Q(n)`. Each axis
+removes its own exact null background, prepares two normalized IEEE terms with
+residual at most `u²*abs(input)`, applies the full stored-k/Nyquist operator through
+the shared dyadic FFT owner, and subtracts the computed rational line mean.
+Only the complete signed pressure source is rounded and range-classified.
 
-- [ ] Specify the arbitrary-rational input representation, operator accuracy
-  budget, exact null/DC treatment and conditioning/range checks. The existing
-  scaled Laplacian requires grid-precision input; the original-product signed-digit
-  transform in `src/models/full_pic.jl::_em_dyadic_bit_range` explicitly accepts
-  dyadic inputs only. General pressure/density quotients require a reviewed extension.
-- [ ] Implement that path in the canonical pressure/transform owners, retaining
-  original quotient variation through coefficient and complete signed-source
-  evaluation. Keep final-rate/stage admissibility, rollback, zero-κ reduction and
-  density/timestep guards. Specify the restart policy before changing the map;
-  compose scalar/collection, hyperresistive and fixed collisional consumers.
-- [ ] Reuse the independent DFT controls for non-dyadic constant/null states,
-  variation lost by temperature rounding, overflow/underflow rescue, signed-source
-  cancellation, Nyquist, final-rate rejection/rollback and policy/resume behavior.
-  Accept the exact revision and complete-step costs on GitHub. Normalized-duration
-  rate storage and broader physical transport models retain separate gates.
+The preparation and projection have explicit mathematical bounds; FFTW accuracy
+still requires independent remote qualification. Severe cancellation and final
+range thresholds retain that limitation. The represented gamma-minus-one owner,
+finite stored rates/stages, pressure/density/rollback and scoped pure-conduction
+guards remain. No positivity, nonlinear stability, exact energy or speed theorem
+is inferred. See the [canonical model and checks](EVOLVING_ELECTRONS.md#constant-isotropic-conduction-source-candidate).
+
+- [x] Implement exact quotient storage, fresh per-axis null removal, bounded
+  dyadic preparation and post-transform rational projection in the canonical
+  pressure path. General quotients are prepared before entering the unchanged
+  dyadic-only transform; no arbitrary rational is silently accepted by it.
+- [x] Compose both hyperresistive branches, scalar/collection and fixed
+  collisional consumers. Preserve zero-κ reduction and derived-scratch retry;
+  required conduction policy 2 rejects policy 1. Transport policy 1, collision
+  outer schema 1 and archive container 4 retain their meanings.
+- [x] Add compact independent original-variation/null/Nyquist, quotient-range
+  rescue, complete signed-source cancellation, rejection/retry and policy/resume
+  controls while retaining existing tolerances and unsuppressed compiler gates.
+- [ ] Accept numerical/compiler/format and integration checks on the exact
+  GitHub revision; measure complete-step BigInt/FFT work, allocation and memory.
+- [ ] Extend conditioning qualification and broader transport models/backends.
+  Normalized-duration rate storage remains a separate implementation gate.
 
 ## Additional risks requiring tests, not assertions
 

@@ -274,7 +274,8 @@ end
 # Version of the TransportElectrons payload meaning (carried ion force E_force
 # with constant dissipative transport). It is required; old payloads carry no force.
 const _TRANSPORT_POLICY_VERSION = 1
-const _CONDUCTION_POLICY_VERSION = 1
+# Original pressure/density quotient preparation and projected conduction.
+const _CONDUCTION_POLICY_VERSION = 2
 
 _validate_checkpoint_conduction_state(s, ::ElectronClosure) = nothing
 function _validate_checkpoint_conduction_state(s, ::ConductingElectrons)
@@ -1306,8 +1307,9 @@ validated before mutation. Algebraic closures retain pressure-free payloads.
 `TransportElectrons` payloads also require `transport_policy_version = 1` and
 the carried ion force `Eforce` (three independent finite grid `Array`s); the
 force is restored verbatim, never rebuilt from half-time particle moments.
-`ConductingElectrons` additionally requires `conduction_policy_version = 1`;
-the saved model replaces γ/κ and derived temperature scratch is not persisted.
+`ConductingElectrons` additionally requires integer `conduction_policy_version = 2`,
+including when κ is zero; policy-1 payloads are rejected before mutation. The
+saved model replaces γ/κ and derived quotient/transform scratch is not persisted.
 Collection destinations require the same number of ordered populations and
 matching dimension/precision. Each population keeps its existing storage while
 saved charge, mass, provenance and phase space replace its values. Every

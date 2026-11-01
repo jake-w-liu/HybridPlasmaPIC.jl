@@ -41,22 +41,22 @@ mutable struct _PressureEvolutionWorkspace{D,T,F,C}
     clock::Tuple{T,Int,T}
     Eforce::F
     saved_Eforce::F
-    temperature::C
+    quotient::C
 end
 
 _transport_force_storage(::FourierGrid, ::ElectronClosure) = nothing
 _transport_force_storage(g::FourierGrid{D,T}, ::_ScalarTransportClosure) where {D,T} =
     ntuple(_ -> zeros(T, g.n), 3)
 
-_conduction_temperature_storage(::FourierGrid, ::ElectronClosure) = nothing
-_conduction_temperature_storage(g::FourierGrid{D,T}, ::ConductingElectrons) where {D,T} =
-    zeros(T, g.n)
+_conduction_quotient_storage(::FourierGrid, ::ElectronClosure) = nothing
+_conduction_quotient_storage(g::FourierGrid, ::ConductingElectrons) =
+    zeros(Rational{BigInt}, g.n)
 
 function _pressure_workspace(g::FourierGrid{D,T}, closure, count) where {D,T}
     _evolves_pressure(closure) || return nothing
     force = _transport_force_storage(g, closure)
-    temperature = _conduction_temperature_storage(g, closure)
-    return _PressureEvolutionWorkspace{D,T,typeof(force),typeof(temperature)}(
+    quotient = _conduction_quotient_storage(g, closure)
+    return _PressureEvolutionWorkspace{D,T,typeof(force),typeof(quotient)}(
         ntuple(_ -> zeros(T, g.n), 3),
         zeros(T, g.n),
         ntuple(_ -> zeros(T, g.n), 4),
@@ -67,7 +67,7 @@ function _pressure_workspace(g::FourierGrid{D,T}, closure, count) where {D,T}
         (zero(T), 0, zero(T)),
         force,
         _transport_force_storage(g, closure),
-        temperature,
+        quotient,
     )
 end
 
@@ -84,7 +84,7 @@ field in `stepper.fields.B`. With [`EvolvingElectrons`](@ref) or
 in `stepper.fields.pe`; initialization preserves it. Algebraic closures compute
 pressure from their constitutive law. Both transport closures additionally
 allocate the carried ion force and its rollback copy (six grid arrays).
-`ConductingElectrons` also owns one derived temperature scratch grid.
+`ConductingElectrons` also owns one derived exact pressure/density quotient grid.
 """
 mutable struct HybridStepper{D,T,SH<:ShapeFunction,M<:HybridModel,W}
     g::FourierGrid{D,T}
@@ -279,14 +279,14 @@ function _validate_pressure_storage(st::HybridStepper, ps)
             throw(ArgumentError("evolving pressure must not alias particle storage"))
     end
     _validate_transport_force_storage(st, ps, w.Eforce)
-    _validate_conduction_temperature_storage(st, ps, w.temperature)
+    _validate_conduction_quotient_storage(st, ps, w.quotient)
     return nothing
 end
 
-_validate_conduction_temperature_storage(st, ps, ::Nothing) = nothing
-function _validate_conduction_temperature_storage(st::HybridStepper, ps, temperature::Array)
+_validate_conduction_quotient_storage(st, ps, ::Nothing) = nothing
+function _validate_conduction_quotient_storage(st::HybridStepper, ps, quotient)
     f, w, g = st.fields, st.pressure_work, st.g
-    _require_grid_array(:temperature, temperature, g)
+    _require_conduction_quotient(quotient, g)
     grids = (f.n, f.ui..., f.B..., f.E..., f.J..., f.pe, f.gradp..., f.ninv,
         f.lapJ..., f.pforce..., f.cgl_dp, st.fn, st.fui..., st.Escr...,
         st.k1..., st.k2..., st.k3..., st.k4..., st.Btmp..., w.ue..., w.divue,
@@ -296,13 +296,13 @@ function _validate_conduction_temperature_storage(st::HybridStepper, ps, tempera
     scratch = (st.Ep..., st.Bp..., st.vpred..., st.xmid..., st.work, w.x0..., w.v0...,
         g.cbuf, g.tbuf, g.abuf, g.sbuf, g.kfull..., g.kvec..., g.ik..., g.midx...)
     for a in (grids..., scratch...)
-        _particle_arrays_mightalias(temperature, a) &&
-            throw(ArgumentError("electron temperature scratch must have independent storage"))
+        _particle_arrays_mightalias(quotient, a) &&
+            throw(ArgumentError("electron quotient scratch must have independent storage"))
     end
     for population in _pressure_populations(ps),
         a in (population.x..., population.v..., population.weight, population.id, population.tag)
-        _particle_arrays_mightalias(temperature, a) &&
-            throw(ArgumentError("electron temperature scratch must not alias particles"))
+        _particle_arrays_mightalias(quotient, a) &&
+            throw(ArgumentError("electron quotient scratch must not alias particles"))
     end
     return nothing
 end
@@ -334,11 +334,11 @@ function _validate_transport_force_storage(
             throw(ArgumentError("transport force arrays must have independent storage"))
     end
     # A wrapper can supply its outer rollback force here. Active stages reuse
-    # temperature scratch, so that snapshot must be independent of it too.
-    if w.temperature !== nothing
+    # quotient scratch, so that snapshot must be independent of it too.
+    if w.quotient !== nothing
         for a in carried
-            _particle_arrays_mightalias(a, w.temperature) &&
-                throw(ArgumentError("transport force must not alias electron temperature scratch"))
+            _particle_arrays_mightalias(a, w.quotient) &&
+                throw(ArgumentError("transport force must not alias electron quotient scratch"))
         end
     end
     grids = (
@@ -844,7 +844,7 @@ function _bpressure_rhs!(
     electron_velocity!(w.ue, st.fui, f.J, st.fn; nfloor = T(st.model.nfloor))
     κ = _electron_conductivity(st.model.closure, T)
     if !iszero(κ)
-        _conduction_temperature!(w.temperature, ptrial, st.fn, g)
+        _conduction_quotient!(w.quotient, ptrial, st.fn, g)
     end
     if _transports_electrons(st.model.closure) && !iszero(T(st.model.ηH))
         return _transport_hyperpressure_rhs!(outB, outp, Btrial, ptrial, st, g; κ)
@@ -853,7 +853,7 @@ function _bpressure_rhs!(
     if !iszero(κ)
         iszero(η) || _add_ohmic_field!(st.Escr, st.Escr, f.J, η)
         _complete_transport_pressure_rhs!(outp, ptrial, w.ue, f.J, γ, η, zero(T), g;
-            κ, temperature = w.temperature)
+            κ, quotient = w.quotient)
     else
         divergence!(w.divue, w.ue, g)
         derivative_risk = _transport_pressure_derivative_range_risk(
@@ -1105,7 +1105,7 @@ end
         T(model.ηH),
         g;
         κ,
-        temperature = w.temperature,
+        quotient = w.quotient,
     )
     _complete_transport_faraday_rhs!(outB, ideal, f.J, T(model.η), T(model.ηH), g)
     return nothing
@@ -1543,7 +1543,7 @@ matching positive Ohmic/hyperresistive heat; ions use the carried ideal force
 `E_force`. The midpoint, endpoint and predictor densities must
 stay finite and at least `nfloor`, and the transaction also restores the
 carried force. [`ConductingElectrons`](@ref) adds constant isotropic conduction
-of represented stage temperature, with its scoped pure-conduction timestep
+of original stage pressure/density quotients, with its scoped pure-conduction timestep
 guard and the same pressure rejection/rollback contract.
 
 A nonzero `dt` below `2*floatmin(T)` throws an `ArgumentError` before any state

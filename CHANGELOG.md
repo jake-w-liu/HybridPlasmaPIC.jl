@@ -24,15 +24,16 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 - Fixed-step `CollisionalHybridStepper` composes `ConductingElectrons` with
   ion-ion scattering through its existing field/pressure and force/RNG owners.
-  The inner conduction policy is required at restart; temperature scratch must
+  The inner conduction policy is required at restart; quotient scratch must
   be independent of the outer force snapshot. The [composition guide](docs/COLLISIONAL_HYBRID.md)
   records the first-order scope and pending GitHub acceptance.
 
-- `ConductingElectrons(γ; κ)` adds constant isotropic heat flux from represented
-  stage temperature `round(pe/n)` to the complete signed transport pressure
-  source, including full Nyquist modes. It retains pressure rollback and adds
-  a scoped pure-conduction timestep cap and required restart policy. The
-  serial periodic CPU scope and remaining acceptance are in the
+- `ConductingElectrons(γ; κ)` adds constant isotropic heat flux from original
+  stage `Q(pe)/Q(n)` through bounded two-term preparation, the full Nyquist
+  Fourier operator and exact per-axis line-mean projection. The complete signed
+  pressure rate retains its range and rollback guards. Required conduction
+  policy 2 rejects policy-1 checkpoints; FFT accuracy and complete-step cost
+  acceptance remain pending. The serial periodic CPU scope is in the
   [electron guide](docs/EVOLVING_ELECTRONS.md#constant-isotropic-conduction-source-candidate).
 
 - `YeeLongitudinalPIC` supplies event-free CPU 1D longitudinal electrostatic

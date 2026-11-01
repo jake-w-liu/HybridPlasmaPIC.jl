@@ -54,10 +54,12 @@ heat. S2's heat includes its stated Nyquist convention; see the
 [model and discrete balance](TRANSPORT_HYPERRESISTIVITY_PLAN.md).
 The collision substep adds no heat source.
 The bounded [conduction model](EVOLVING_ELECTRONS.md#constant-isotropic-conduction-source-candidate)
-adds its represented-temperature heat flux only in those field stages, retaining
-its physical-temperature admission, full Nyquist convention, strict pure-conduction
-guard and pressure rejection. κ is fixed as part of the wrapper's bound model.
-Derived temperature scratch must be independent of the outer force snapshot.
+adds its original-quotient heat flux only in those field stages, using bounded
+two-term preparation, full stored-k/Nyquist and exact per-axis line-mean
+projection. Its FFTW accuracy remains qualified, and finite stored-rate,
+strict pure-conduction and pressure admission still apply. κ is fixed as part
+of the wrapper's bound model. Derived quotient scratch must be independent of
+the outer force snapshot.
 
 The wrapper combines the existing reduced transport model with ion-ion Coulomb scattering;
 it does not reinterpret the transport terms as electron-ion Coulomb equilibration.
@@ -164,9 +166,10 @@ Transport uses the inner record's required `transport_policy_version=1` and
 must be finite, correctly shaped and independent of all saved fields and
 particles. The force is restored in place, and outer failures restore its
 entry value along with pressure and the RNG.
-Conducting state also requires the inner `conduction_policy_version=1`; the
-existing outer schema remains 1. The destination must match the saved κ as part
-of the fixed model, and temperature scratch is not persisted.
+Conducting state also requires integer inner `conduction_policy_version=2`,
+including for κ=0; missing, policy-1 or malformed versions reject before mutation.
+The existing outer schema remains 1. The destination must match the saved κ as
+part of the fixed model, and quotient/transform scratch is not persisted.
 
 `archive_run(path, st, ions; rng_seed=42)` uses the same state and existing
 checksum/provenance archive. Its seed is metadata, not a replacement for advanced

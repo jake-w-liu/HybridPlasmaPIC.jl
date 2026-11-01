@@ -109,24 +109,29 @@ electron_pressure!(::Any, ::Any, ::TransportElectrons) = throw(
     ConductingElectrons(γ=5/3; κ)
 
 Stored scalar pressure with constant isotropic Fourier heat flux
-`q_e = -κ*grad(Te)`, using the represented stage temperature
-`Te = round(pe/n)` from the original pressure and actual deposited density.
+`q_e = -κ*grad(Te)`, prepared from the exact quotient of the original stored
+pressure and actual deposited density, `Te = Q(pe)/Q(n)`.
 Use with a serial periodic CPU Float32/64 `HybridStepper` and
 `HybridModel(...; η, ηH, de2=0)`. It shares the ion-force/field split and
 Ohmic/hyperresistive heating of [`TransportElectrons`](@ref).
 
 Requires finite `γ>1`, `κ>=0`; nonzero κ must remain finite and nonzero at grid
 precision. Active conduction requires nearest hardware rounding and gradual
-underflow. A nonfinite temperature or nonzero quotient rounded to zero rejects
-with full public-step rollback. The complete signed pressure rate includes
-`(γ-1)*κ*laplacian(Te)` before final rounding, with the full Nyquist convention.
+underflow. Each axis removes an exact constant-line background, then prepares
+two normalized IEEE terms with residual bounded by `u²*abs(residual_input)`.
+The full stored-wavenumber Laplacian retains Nyquist and projects each axis's
+computed output to exact zero line mean before complete signed rate accumulation.
+FFTW accuracy remains qualified; arbitrary quotient differentiation is not exact.
+The existing grid-precision `γ-1` coefficient is retained. Only the complete
+computed rate is rounded and range-checked, with full public-step rollback.
 Pressure must remain nonnegative at every RK stage; spectral diffusion is not
-positivity preserving. This is a represented-temperature closure, not completion
-of an arbitrary unrounded quotient through the Fourier operator.
+positivity preserving. Stored rates and stages must fit grid precision, even
+when a duration-scaled update could fit.
 
 Set stored pressure before `init!`. `κ=0` retains the transport arithmetic and
-performs no temperature division or transform. Checkpoints retain pressure,
-carried ion force, κ and conduction policy 1. The fixed-step
+performs no quotient preparation, transform or projection. Checkpoints retain
+pressure, carried ion force, κ and required conduction policy 2, also for κ=0;
+policy-1 payloads are rejected. The fixed-step
 [`CollisionalHybridStepper`](@ref) composes it with ion-ion scattering, which
 leaves pressure fixed. No extra reservoir, wall flux, electron-ion exchange,
 MPI/device, CAM-CL or Hall-MHD support is implied.

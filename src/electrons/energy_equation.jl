@@ -294,29 +294,93 @@ function _publish_complete_rate!(out::Array{T}, exact, context) where {T}
     return nonzero, represented
 end
 
-# The physical temperature is a derived stage operand, not a carried reservoir.
-# Original division rounds once; reciprocal multiplication would define a
-# different represented source. Scratch may change on rejection.
-function _conduction_temperature!(temperature::Array{T,D}, pe, n, g::FourierGrid{D,T}) where {D,T}
+# Quotients are derived scratch, not a carried reservoir. Keep the original
+# stored p/n before removing an axis-null background or preparing FFT inputs.
+function _require_conduction_quotient(quotient, g::FourierGrid{D}) where {D}
+    quotient isa Array{Rational{BigInt},D} ||
+        throw(ArgumentError("active conduction requires exact quotient storage"))
+    size(quotient) == g.n ||
+        throw(DimensionMismatch("electron quotient size $(size(quotient)) does not match grid size $(g.n)"))
+    return nothing
+end
+
+function _conduction_quotient!(quotient, pe, n, g::FourierGrid{D,T}) where {D,T}
     _boris_accuracy_mode() ||
         throw(ArgumentError("active electron conduction requires nearest rounding and gradual underflow"))
-    _require_grid_array(:temperature, temperature, g)
+    _require_conduction_quotient(quotient, g)
     _require_grid_array(:pe, pe, g)
     _require_grid_array(:n, n, g)
-    (_particle_arrays_mightalias(temperature, pe) || _particle_arrays_mightalias(temperature, n)) &&
-        throw(ArgumentError("electron temperature scratch must be independent of pressure and density"))
-    for I in eachindex(temperature, pe, n)
+    (_particle_arrays_mightalias(quotient, pe) || _particle_arrays_mightalias(quotient, n)) &&
+        throw(ArgumentError("electron quotient scratch must be independent of pressure and density"))
+    for I in eachindex(quotient, pe, n)
         pressure, density = pe[I], n[I]
         isfinite(pressure) && pressure >= zero(T) && isfinite(density) && density > zero(T) ||
-            throw(ArgumentError("electron temperature requires finite nonnegative pressure and positive density"))
-        exact = _exact_rational(pressure) / _exact_rational(density)
-        value = _from_exact(T, exact)
-        isfinite(value) || throw(ArgumentError("electron temperature does not round finite"))
-        (!iszero(exact) && iszero(value)) &&
-            throw(ArgumentError("nonzero electron temperature rounds to zero"))
-        temperature[I] = value
+            throw(ArgumentError("electron quotient requires finite nonnegative pressure and positive density"))
+        quotient[I] = _exact_rational(pressure) / _exact_rational(density)
     end
-    return temperature
+    return quotient
+end
+
+# Two normalized nearest-even mantissas leave an exact residual <= u^2*abs(r),
+# u=2^-precision(T), without requiring r or its quotient background to fit T.
+# Only these dyadic approximations enter the unchanged banded FFT owner.
+function _conduction_dyadic(::Type{T}, value::Rational{BigInt}) where {T}
+    approximation = zero(value)
+    residual = value
+    for _ = 1:2
+        iszero(residual) && break
+        n, d = abs(numerator(residual)), denominator(residual)
+        e = ndigits(n; base = 2) - ndigits(d; base = 2)
+        (e >= 0 ? n < d << e : n << -e < d) && (e -= 1)
+        scale = _em_power_of_two(e)
+        term = _exact_rational(_from_exact(T, residual / scale)) * scale
+        approximation += term
+        residual -= term
+    end
+    return approximation
+end
+
+# Full stored-k Laplacian of original p/n, with qualified FFTW accuracy rather
+# than an exact-DFT claim. Remove each axis's exact null field independently;
+# after its last FFT, exact line-mean projection cannot increase l2 error.
+function _add_conduction_pressure!(exact, quotient, coefficient, g::FourierGrid{D,T}) where {D,T}
+    _require_conduction_quotient(quotient, g)
+    # Preserve SO's squared-gain admission, including for a null input. Its
+    # floating return may underflow, so only exact squares decide inactivity.
+    SpectralOperators._laplacian_gain(g.kfull)
+    Q = Rational{BigInt}
+    for d = 1:D
+        k2 = map(k -> _exact_rational(k)^2, g.kfull[d])
+        all(iszero, k2) && continue
+        input = Array{Complex{Q},D}(undef, g.n)
+        active = false
+        for I in CartesianIndices(quotient)
+            reference = CartesianIndex(ntuple(c -> c == d ? 1 : I[c], D))
+            residual = quotient[I] - quotient[reference]
+            active |= !iszero(residual)
+            input[I] = complex(_conduction_dyadic(T, residual))
+        end
+        active || continue
+        spectrum = _em_dyadic_transform(input, g)
+        for I in CartesianIndices(spectrum)
+            spectrum[I] *= -k2[I[d]]
+        end
+        values = _em_dyadic_transform(spectrum, g, true)
+        lines = CartesianIndices(ntuple(c -> c == d ? 1 : g.n[c], D))
+        for origin in lines
+            total = zero(Q)
+            for j = 1:g.n[d]
+                I = CartesianIndex(ntuple(c -> c == d ? j : origin[c], D))
+                total += real(values[I])
+            end
+            mean = total / g.n[d]
+            for j = 1:g.n[d]
+                I = CartesianIndex(ntuple(c -> c == d ? j : origin[c], D))
+                exact[I] += coefficient * (real(values[I]) - mean)
+            end
+        end
+    end
+    return nothing
 end
 
 @noinline function _complete_transport_pressure_rhs!(
@@ -330,7 +394,7 @@ end
     g::FourierGrid{D,T};
     context = "complete transport pressure rate",
     κ::T = zero(T),
-    temperature = nothing,
+    quotient = nothing,
 ) where {D,T}
     exact = zeros(Rational{BigInt}, size(out))
     gamma = _exact_rational(γ)
@@ -366,16 +430,8 @@ end
         end
     end
     if !iszero(κ)
-        temperature isa Array{T,D} ||
-            throw(ArgumentError("active conduction requires grid-precision temperature storage"))
-        data = SpectralOperators.laplacian_scaled_data!(g, temperature)
-        coefficient = gamma_minus_one * _exact_rational(κ) *
-            _exact_binary_scale(data.input_scale, data.exponent)
-        # Consume borrowed Fourier data before any other operator uses g.
-        # No physical Laplacian or partial conductive rate is rounded here.
-        for I in eachindex(exact, data.values)
-            exact[I] += coefficient * _exact_rational(real(data.values[I]))
-        end
+        coefficient = gamma_minus_one * _exact_rational(κ)
+        _add_conduction_pressure!(exact, quotient, coefficient, g)
     end
     nonzero, represented = _publish_complete_rate!(out, exact, context)
     nonzero && !represented && throw(ArgumentError("$context rounds entirely to zero in $T"))
