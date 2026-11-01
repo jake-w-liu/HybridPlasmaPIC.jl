@@ -638,11 +638,14 @@ function _bpressure_rhs!(
         _validate_pressure_finite(a, "evolving-pressure magnetic stage")
     end
     gradient!(f.gradp, ptrial, g)
-    source_risk = _ohm_Efield!(st.Escr, st.fui, Btrial, f.J, f.lapJ, f.gradp, f.ninv, zero(T), zero(T), g)
+    source_risk =
+        _ohm_Efield!(st.Escr, st.fui, Btrial, f.J, f.lapJ, f.gradp, f.ninv, zero(T), zero(T), g)
     # Capture original gradp before any pressure/heating owner reuses scratch.
     # The physical ideal force must fit independently of its Ohmic completion.
     source = nothing
-    if iszero(st.model.de2) && iszero(st.model.ηH) && _boris_accuracy_mode() &&
+    if iszero(st.model.de2) &&
+       iszero(st.model.ηH) &&
+       _boris_accuracy_mode() &&
        (source_risk || _ohm_ohmic_source_risk(f.J, T(st.model.η)))
         for component in st.Escr
             _validate_pressure_finite(component, "original-product ideal electric field")

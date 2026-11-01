@@ -25,8 +25,10 @@ function D4(field, g, axis)
 end
 
 @testset "Original product survives pointwise storage before Hybrid Faraday" begin
-    for T in (Float32, Float64), D = 1:3,
+    for T in (Float32, Float64),
+        D = 1:3,
         closure in (IsothermalElectrons(zero(T)), EvolvingElectrons(T(2)), TransportElectrons(T(2)))
+
         st, a = stage(T, D, closure)
         fill!(st.fields.B[2], a)
         for I in CartesianIndices(st.fn)
@@ -121,27 +123,57 @@ end
         overflow.fui[2] .= (floatmax(T) / 4) .* T[0, 1, 0, -1]
         @test_throws ArgumentError H._bfield_rhs!(overflow.k1, overflow.fields.B, overflow)
 
-        underflow = HybridStepper(FourierGrid((4,), (T(2pi),)), HybridModel(IsothermalElectrons(zero(T))), NGP(), 0)
+        underflow = HybridStepper(
+            FourierGrid((4,), (T(2pi),)),
+            HybridModel(IsothermalElectrons(zero(T))),
+            NGP(),
+            0,
+        )
         fill!(underflow.fields.ninv, one(T))
         fill!(underflow.fields.B[2], a)
         underflow.fui[1] .= a .* T[0, 1, 0, -1]
         @test_throws ArgumentError H._bfield_rhs!(underflow.k1, underflow.fields.B, underflow)
 
-        ordinary = HybridStepper(FourierGrid((4,), (T(2pi),)), HybridModel(IsothermalElectrons(zero(T))), NGP(), 0)
+        ordinary = HybridStepper(
+            FourierGrid((4,), (T(2pi),)),
+            HybridModel(IsothermalElectrons(zero(T))),
+            NGP(),
+            0,
+        )
         fill!(ordinary.fields.ninv, one(T))
         fill!(ordinary.fields.B[2], T(0.25))
         ordinary.fui[1] .= T[0, 0.125, 0, -0.125]
         field = ntuple(_ -> zeros(T, 4), 3)
         @test !H._ohm_Efield!(
-            field, ordinary.fui, ordinary.fields.B, ordinary.fields.J,
-            ordinary.fields.lapJ, ordinary.fields.gradp, ordinary.fields.ninv,
-            zero(T), zero(T), ordinary.g,
+            field,
+            ordinary.fui,
+            ordinary.fields.B,
+            ordinary.fields.J,
+            ordinary.fields.lapJ,
+            ordinary.fields.gradp,
+            ordinary.fields.ninv,
+            zero(T),
+            zero(T),
+            ordinary.g,
         )
         expected_rate = ntuple(_ -> zeros(T, 4), 3)
         faraday_rhs!(expected_rate, field, ordinary.g)
         H._bfield_rhs!(ordinary.k1, ordinary.fields.B, ordinary)
         @test isequal(ordinary.k1, expected_rate)
-        args = (T(NaN), zero(T), zero(T), one(T), zero(T), zero(T), one(T), zero(T), zero(T), zero(T), zero(T), nothing)
+        args = (
+            T(NaN),
+            zero(T),
+            zero(T),
+            one(T),
+            zero(T),
+            zero(T),
+            one(T),
+            zero(T),
+            zero(T),
+            zero(T),
+            zero(T),
+            nothing,
+        )
         value, risk = H._ohm_scalar_field_value(args..., Val(true))
         @test isnan(value) && !risk
     end

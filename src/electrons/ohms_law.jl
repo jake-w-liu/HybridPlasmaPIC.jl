@@ -164,12 +164,50 @@ function _ohm_Efield!(
         inv = ninv[I]
         # Complete each signed represented-factor expression on a range event.
         # Spatial pressure is absent, rather than a zero subtraction, off-axis.
-        e1, risk1 = _ohm_scalar_field_value(vy, vz, by, bz, jy, jz, inv, η, jx, ηH, LJx[I], gp[1][I], Val(true))
+        e1, risk1 = _ohm_scalar_field_value(
+            vy,
+            vz,
+            by,
+            bz,
+            jy,
+            jz,
+            inv,
+            η,
+            jx,
+            ηH,
+            LJx[I],
+            gp[1][I],
+            Val(true),
+        )
         e2, risk2 = _ohm_scalar_field_value(
-            vz, vx, bz, bx, jz, jx, inv, η, jy, ηH, LJy[I], D >= 2 ? gp[2][I] : nothing, Val(true),
+            vz,
+            vx,
+            bz,
+            bx,
+            jz,
+            jx,
+            inv,
+            η,
+            jy,
+            ηH,
+            LJy[I],
+            D >= 2 ? gp[2][I] : nothing,
+            Val(true),
         )
         e3, risk3 = _ohm_scalar_field_value(
-            vx, vy, bx, by, jx, jy, inv, η, jz, ηH, LJz[I], D >= 3 ? gp[3][I] : nothing, Val(true),
+            vx,
+            vy,
+            bx,
+            by,
+            jx,
+            jy,
+            inv,
+            η,
+            jz,
+            ηH,
+            LJz[I],
+            D >= 3 ? gp[3][I] : nothing,
+            Val(true),
         )
         Ex[I] = e1
         Ey[I] = e2
@@ -186,7 +224,21 @@ end
     return !isfinite(product) || abs(product) < floatmin(typeof(product))
 end
 
-@inline function _ohm_scalar_field_value(v1, v2, b1, b2, j1, j2, ninv, η, current, ηH, lap, pressure, ::Val{report} = Val(false)) where {report}
+@inline function _ohm_scalar_field_value(
+    v1,
+    v2,
+    b1,
+    b2,
+    j1,
+    j2,
+    ninv,
+    η,
+    current,
+    ηH,
+    lap,
+    pressure,
+    ::Val{report} = Val(false),
+) where {report}
     m1, m2 = v1 * b2, v2 * b1
     h1, h2 = j1 * b2, j2 * b1
     cross = h1 - h2
@@ -209,13 +261,43 @@ end
     end
     # Only finite original operands select source-aware Faraday. Raw nonfinite
     # inputs retain their native propagation and existing caller error policy.
-    risk = report && all(isfinite, (v1, v2, b1, b2, j1, j2, ninv, η, current, ηH, lap)) &&
-           (pressure === nothing || isfinite(pressure))
-    completed = _ohm_scalar_field_value_cold(value, v1, v2, b1, b2, j1, j2, ninv, η, current, ηH, lap, pressure)
+    risk =
+        report &&
+        all(isfinite, (v1, v2, b1, b2, j1, j2, ninv, η, current, ηH, lap)) &&
+        (pressure === nothing || isfinite(pressure))
+    completed = _ohm_scalar_field_value_cold(
+        value,
+        v1,
+        v2,
+        b1,
+        b2,
+        j1,
+        j2,
+        ninv,
+        η,
+        current,
+        ηH,
+        lap,
+        pressure,
+    )
     return report ? (completed, risk) : completed
 end
 
-@noinline function _ohm_scalar_field_value_cold(native, v1, v2, b1, b2, j1, j2, ninv, η, current, ηH, lap, pressure)
+@noinline function _ohm_scalar_field_value_cold(
+    native,
+    v1,
+    v2,
+    b1,
+    b2,
+    j1,
+    j2,
+    ninv,
+    η,
+    current,
+    ηH,
+    lap,
+    pressure,
+)
     operands = (v1, v2, b1, b2, j1, j2, ninv, η, current, ηH, lap)
     # Raw nonfinite inputs keep native propagation; model owners retain their
     # existing validation and transaction policy.
@@ -895,7 +977,15 @@ function _ohm_ohmic_source_risk(J, η)
     return false
 end
 
-@noinline function _ohm_original_source(ui, B, J, gradp, ninv, η::T, g::FourierGrid{D,T}) where {D,T}
+@noinline function _ohm_original_source(
+    ui,
+    B,
+    J,
+    gradp,
+    ninv,
+    η::T,
+    g::FourierGrid{D,T},
+) where {D,T}
     for a in (ui..., B..., J..., gradp..., ninv)
         _validate_pressure_finite(a, "original-product Ohm source")
     end
@@ -906,8 +996,18 @@ end
     @inbounds for I in eachindex(ninv)
         for (c, a, b) in ((1, 2, 3), (2, 3, 1), (3, 1, 2))
             value = _ohm_scalar_field_exact(
-                ui[a][I], ui[b][I], B[a][I], B[b][I], J[a][I], J[b][I], ninv[I],
-                η, J[c][I], z, z, c <= D ? gradp[c][I] : nothing,
+                ui[a][I],
+                ui[b][I],
+                B[a][I],
+                B[b][I],
+                J[a][I],
+                J[b][I],
+                ninv[I],
+                η,
+                J[c][I],
+                z,
+                z,
+                c <= D ? gradp[c][I] : nothing,
             )
             source[c][I] = complex(value)
         end
@@ -930,7 +1030,12 @@ end
 # Range completion through the existing finite signed-digit FFT owner. Each
 # FFT still rounds: this does not certify general-grid near-null accuracy.
 # Only callers with a finite product-range event and nearest/gradual mode enter.
-@noinline function _ohm_original_faraday_rhs!(out, source, physical_E, g::FourierGrid{D,T}) where {D,T}
+@noinline function _ohm_original_faraday_rhs!(
+    out,
+    source,
+    physical_E,
+    g::FourierGrid{D,T},
+) where {D,T}
     for c = 1:3
         size(out[c]) == g.n || throw(DimensionMismatch("Faraday output must match the grid"))
         _validate_pressure_finite(physical_E[c], "original-product electric field")
@@ -968,13 +1073,13 @@ end
             end
         end
         spatial = _em_dyadic_transform(rate_hat, g, true)
-        component_nonzero, component_represented = _publish_complete_rate!(
-            out[c], map(real, spatial), "original-product magnetic rate",
-        )
+        component_nonzero, component_represented =
+            _publish_complete_rate!(out[c], map(real, spatial), "original-product magnetic rate")
         nonzero |= component_nonzero
         represented |= component_represented
     end
-    nonzero && !represented &&
+    nonzero &&
+        !represented &&
         throw(ArgumentError("original-product magnetic rate rounds entirely to zero in $T"))
     return out
 end

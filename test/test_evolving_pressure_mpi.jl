@@ -152,9 +152,16 @@ end
             fill!(st.fields.ninv, one(T))
             fill!(st.fields.B[2], a)
             st.fui[1] .= a .* T[0, 1, 0, -1]
-            rate = () -> HybridPlasmaPIC._bpressure_rhs!(
-                st.k1, st.pressure_work.kp[1], st.fields.B, st.fields.pe, st, 1, 1,
-            )
+            rate =
+                () -> HybridPlasmaPIC._bpressure_rhs!(
+                    st.k1,
+                    st.pressure_work.kp[1],
+                    st.fields.B,
+                    st.fields.pe,
+                    st,
+                    1,
+                    1,
+                )
             HybridPlasmaPIC._mpi_hybrid_pressure_phase(rate, st, ctx)
             exact = -Rational{BigInt}(a)^2 * Rational{BigInt}(g.kvec[1][2])
             @test isequal(st.k1[2], T.(exact .* [1, 0, -1, 0]))
