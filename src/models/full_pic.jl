@@ -2685,6 +2685,11 @@ one kick over the full step; every mobile collection population kicks at each
 Maxwell substep and shares its fast velocity half level. The true zero-frequency
 mode is retained so a change in total charge contributes to the residual;
 only non-DC modes annihilated by every spectral derivative are excluded.
+The result divides the maximum absolute residual by the maximum represented
+charge increment, using one only when that increment is exactly zero. When the
+physical increment vanishes, deposition/FFT roundoff can make this relative norm
+ill-conditioned; assess its absolute residual against the population source
+scale instead of assuming a small relative value.
 Range-sensitive inputs retain the complete density and timestep-weighted
 current expression; spectral input validation and FFT accuracy limits still apply.
 """

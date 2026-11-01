@@ -141,6 +141,7 @@ end
     for T in (Float32, Float64), D = 1:2
         state, species = setup(T, D)
         fine, fine_species = setup(T, D)
+        source_density = sum(ps -> abs(ps.q) * sum(ps.weight), species) / prod(state.g.L)
         for (dt, ns) in ((T(0.03), 3), (T(0.02), 2), (T(0.012), 4))
             state.n_sub = ns
             step_empic!(state, species, dt)
@@ -149,11 +150,13 @@ end
             end
             @test physical(state, species) == physical(fine, fine_species)
             @test state.time[] == fine.time[]
+            scales = continuity_observation(state, dt / ns)
             println((observation = :relativistic_collection_continuity,
                 T = T, D = D, dt = dt, n_sub = ns,
-                relative_residual = charge_conservation_residual(state, dt / ns),
-                scales = continuity_observation(state, dt / ns)))
-            @test charge_conservation_residual(state, dt / ns) < 1024eps(T)
+                relative_residual = charge_conservation_residual(state, dt / ns), scales = scales))
+            # Uniform lattices have zero physical charge increment. Normalize
+            # absolute roundoff by the population sources before cancellation.
+            @test scales.absolute_residual < eps(T) * source_density
         end
         diagnostic = electromagnetic_diagnostics(state, species)
         @test diagnostic.kinetic == kinetic_energy_relativistic(species, state.c)
@@ -174,6 +177,28 @@ end
             step_empic!(legacy, e, ions, dt)
             step_empic!(collection, copied, dt)
             @test physical(legacy, [e, ions]) == physical(collection, copied)
+        end
+    end
+end
+
+@testset "Relativistic collection continuity with a resolved charge increment" begin
+    for T in (Float32, Float64), D = 1:2
+        state, species = setup(T, D)
+        # Preserve total charge and positive weights while creating a nonuniform
+        # mobile density; its changing charge resolves the relative-error norm.
+        species[1].weight[1] += T(0.25)
+        species[1].weight[2] -= T(0.25)
+        init_empic!(state, species)
+        source_density = sum(ps -> abs(ps.q) * sum(ps.weight), species) / prod(state.g.L)
+        for (dt, ns) in ((T(0.03), 3), (T(0.02), 2), (T(0.012), 4))
+            state.n_sub = ns
+            step_empic!(state, species, dt)
+            scales = continuity_observation(state, dt / ns)
+            println((observation = :relativistic_collection_resolved_continuity,
+                T = T, D = D, dt = dt, n_sub = ns,
+                relative_residual = charge_conservation_residual(state, dt / ns), scales = scales))
+            @test scales.projected_density_scale > 64eps(T) * source_density
+            @test charge_conservation_residual(state, dt / ns) < 1024eps(T)
         end
     end
 end

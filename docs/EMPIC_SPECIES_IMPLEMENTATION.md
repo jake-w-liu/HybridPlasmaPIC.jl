@@ -149,12 +149,21 @@ controls also verify that both destination states remain unchanged.
 
 The first relativistic essentials run at `7db86a9` passes the preceding
 nonrelativistic checkpoint/archive and strided-destination cases, then fails
-11 relative continuity assertions in the uniform fast-phase fixture. The
-physical fast/fine state comparisons pass. The fixed fixture now records its
-projected density scale and absolute residual on GitHub without changing the
-failed assertion. Whether the relative criterion is ill-conditioned remains
-an untested hypothesis until those measurements are reviewed; no numerical
-repair or continuity acceptance is inferred.
+11 relative continuity assertions in the uniform fast-phase fixture on each
+runtime. Physical fast/fine state comparisons pass. The subsequent
+[scale observation](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41283466552)
+records identical measurements on actual Julia 1.12.7 and 1.13.3: Float32
+projected charge increments are about 6e-8–7e-7 with absolute residuals at most
+5.75e-10; Float64 nonzero increments are about 1e-16–1.1e-15 with residuals at
+most 1.11e-18. One exactly zero increment has exactly zero residual.
+
+The uniform fixture has zero physical density change. Its absolute residual is
+now checked against one epsilon of the noncancelling population source-density
+scale. The unchanged `1024eps(T)` relative bound applies to a separate mobile
+nonuniform-density fixture, with an explicit resolved-increment guard and the
+same variable fast-step schedule. The correction and public diagnostic formulas
+are unchanged. These revised regressions and the previously unreached C1/restart
+sets require fresh GitHub acceptance; the earlier failures remain retained.
 
 The initial essential suite covers both precisions, dimensions and built-in shapes;
 summed original currents, fixed/neutral/empty populations, original-factor
