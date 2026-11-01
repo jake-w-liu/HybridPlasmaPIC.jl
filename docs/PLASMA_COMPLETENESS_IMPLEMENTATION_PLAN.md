@@ -802,6 +802,27 @@ source implementation is not acceptance. Original-quotient conditioning/range
 completion, anisotropic/limited conduction and other S3–S8 work remain open.
 See the [declared model and candidate checks](EVOLVING_ELECTRONS.md#constant-isotropic-conduction-source-candidate).
 
+**S3b planned (original pressure/density quotient).** The target is conduction
+from original stage `pe/n` through the full Fourier operator and complete signed
+pressure source. S3a's representable-temperature boundary remains until this
+separate numerical policy is implemented and accepted.
+
+- [ ] Specify the arbitrary-rational input representation, operator accuracy
+  budget, exact null/DC treatment and conditioning/range checks. The existing
+  scaled Laplacian requires grid-precision input; the original-product signed-digit
+  transform in `src/models/full_pic.jl::_em_dyadic_bit_range` explicitly accepts
+  dyadic inputs only. General pressure/density quotients require a reviewed extension.
+- [ ] Implement that path in the canonical pressure/transform owners, retaining
+  original quotient variation through coefficient and complete signed-source
+  evaluation. Keep final-rate/stage admissibility, rollback, zero-κ reduction and
+  density/timestep guards. Specify the restart policy before changing the map;
+  compose scalar/collection, hyperresistive and fixed collisional consumers.
+- [ ] Reuse the independent DFT controls for non-dyadic constant/null states,
+  variation lost by temperature rounding, overflow/underflow rescue, signed-source
+  cancellation, Nyquist, final-rate rejection/rollback and policy/resume behavior.
+  Accept the exact revision and complete-step costs on GitHub. Normalized-duration
+  rate storage and broader physical transport models retain separate gates.
+
 ## Additional risks requiring tests, not assertions
 
 | Candidate | Verified source observation | Exact settling work |

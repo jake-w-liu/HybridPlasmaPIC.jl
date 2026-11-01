@@ -419,6 +419,24 @@ These are source tests awaiting GitHub. No runtime, accuracy, allocation, latenc
 or peak-memory acceptance is claimed. Wall histories/events, additional boundary
 models, broader physical validation and parallel/device paths remain open.
 
+### Complete-step cost observation
+
+The existing manual `yee-electromagnetic-pic` essentials suite runs
+`benchmark/yee_coupled_steps.jl` before its unchanged regression assertions and
+retains the output in `implementation-essentials.log`. The script observes 13
+small scalar profiles: Float32/64 longitudinal and EM B=0/B!=0 ordinary states,
+plus the existing compact original-force range tracers. Three fresh matched
+samples each measure two complete public steps after one unmeasured step fixes
+the phase. Initialization, checkpoint-state checks, explicit GC and logging are
+outside timing; all production validation/current/field/diagnostic work stays in.
+
+Raw Base `@timed` seconds, allocation traffic, GC/compilation counters and actual
+Julia/source/CPU/thread metadata provide a baseline for future paired work.
+Allocation traffic is not live or peak memory. The observation has no resource
+threshold, numerical-map change or acceptance claim; its first remote results
+remain pending. Larger workloads, collection/view/backend scaling and peak
+memory remain unmeasured. Regression and compiler assertions retain their gates.
+
 ## Implementation tracker
 
 The optional static-cloud API, surface-tail model and canonical owners above

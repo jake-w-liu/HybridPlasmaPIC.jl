@@ -75,6 +75,9 @@ jobs:
                 println()
               end
             end
+            if ENV["IMPLEMENTATION_SUITE"] == "yee-electromagnetic-pic"
+              include(joinpath("benchmark", "yee_coupled_steps.jl"))
+            end
             println((julia = VERSION, suite = ENV["IMPLEMENTATION_SUITE"]))
             @testset verbose = true "Implementation essentials" begin
               for file in suites[ENV["IMPLEMENTATION_SUITE"]]

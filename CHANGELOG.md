@@ -11,6 +11,11 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Added
 
+- The existing manual Yee EM essentials suite records warmed complete-step
+  timing, allocation traffic and GC metadata for small ordinary and original-force
+  range profiles. Measurements run on GitHub; peak memory and performance
+  acceptance remain open in the [bounded plan](docs/BOUNDED_PARTICLE_COUPLING_PLAN.md#complete-step-cost-observation).
+
 - `YeeElectromagneticPIC` supplies a bounded nonrelativistic CPU 1D3V cloud
   source candidate with both transverse polarizations, compatible path currents,
   synchronized Boris/Yee stages, scoped rest/impact guards, diagnostics and a
