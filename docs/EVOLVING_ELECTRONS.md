@@ -68,6 +68,13 @@ floor. The explicit spectral method does not preserve positivity for all
 data and timesteps; a smaller timestep or better-resolved positive profile
 may be necessary.
 
+Coupled scalar pressure rates complete signed advection, compression and
+applicable Ohmic heat when derivative/product range checks request cold replay.
+Exact cancellation is valid; the complete required rate must fit its storage.
+A nonzero complete norm that rounds wholly to zero is rejected. See the
+[range contract and pending GitHub verification](SCALAR_PRESSURE_RATE_RANGE_PLAN.md).
+The standalone Euler pressure building block keeps its separate contract.
+
 A rejected serial `init!` or `step!` restores public field arrays, particle
 positions and velocities, the density-floor counter, and simulation clocks.
 Array identities are preserved, so existing views remain valid. Private
@@ -140,8 +147,11 @@ or electron–ion equilibration model. `E_force` is computed by the ideal Ohm
 kernel before `ηJ` is added; with `η = 0`, on states whose density stays at or
 above `nfloor`, every field, particle and clock value equals
 `EvolvingElectrons` bitwise. Each RK4 stage heats with its own current. The
-heat avoids intermediate overflow and underflow by power-of-two scaling when
-the ordinary product is not certified; a non-finite heat or rate rejects the step.
+heat uses power-of-two scaling when its ordinary product loses range. The
+coupled stage completes the signed ideal/Ohmic pressure equation before final
+range classification, so separately overflowing terms may cancel. A genuinely
+unrepresentable complete rate rejects the step; see the
+[shared scalar pressure plan](SCALAR_PRESSURE_RATE_RANGE_PLAN.md).
 
 The full S1 field combines represented `E_force + ηJ` exactly when the
 product overflows or enters the subnormal range, or the native sum is nonfinite.

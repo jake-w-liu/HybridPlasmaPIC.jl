@@ -58,6 +58,7 @@ using Test
     include("test_transport_hyperresistivity.jl")
     include("test_transport_hyperresistive_range.jl")
     include("test_transport_source_range.jl")
+    include("test_scalar_pressure_range.jl")
     include("transport_hyperresistivity/edge_modes.jl")
     include("test_cgl.jl")
     include("test_cgl_energy_range.jl")

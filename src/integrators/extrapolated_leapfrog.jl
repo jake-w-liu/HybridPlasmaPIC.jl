@@ -654,8 +654,17 @@ function _bpressure_rhs!(
         return _transport_hyperpressure_rhs!(outB, outp, Btrial, ptrial, st, g)
     end
     divergence!(w.divue, w.ue, g)
-    _electron_pressure_rhs!(outp, ptrial, w.ue, f.gradp, w.divue, T(st.model.closure.γ), Val(D))
+    γ, η = T(st.model.closure.γ), T(st.model.η)
+    derivative_risk = _transport_pressure_derivative_range_risk(
+        ptrial, w.ue, f.gradp, g, _transport_derivative_gains(g),
+    )
+    active = _transport_pressure_rhs_with_activity!(
+        outp, ptrial, w.ue, f.gradp, w.divue, γ, f.J, η, false, Val(D),
+    )
     _add_transport_stage_sources!(st, outp)
+    _complete_scalar_pressure_if_needed!(
+        outp, ptrial, w.ue, f.gradp, w.divue, f.J, γ, η, active, g; derivative_risk,
+    )
     if source === nothing
         faraday_rhs!(outB, st.Escr, g)
     else
@@ -720,18 +729,24 @@ function _transport_stage_range_risk(st, ptrial, g::FourierGrid{D,T}, gains) whe
             end
         end
     end
+    return _transport_pressure_derivative_range_risk(ptrial, w.ue, f.gradp, g, gains)
+end
+
+function _transport_pressure_derivative_range_risk(ptrial, ue, gradp, g::FourierGrid{D,T}, gains) where {D,T}
     velocity_max, symbol_gain = zero(T), zero(T)
     for d = 1:D
-        stats = _transport_input_stats(w.ue[d])
+        stats = _transport_input_stats(ue[d])
         _transport_channel_range_risk(stats, gains[d], g) && return true
         velocity_max = max(velocity_max, stats.magnitude)
         symbol_gain = max(symbol_gain, maximum(abs, g.kvec[d]))
     end
     safe = SpectralOperators._fft_safe_magnitude(T, length(g.cbuf), symbol_gain)
     isone(SpectralOperators._fft_input_scale(velocity_max, safe)) || return true
-    if _transport_input_stats(ptrial).varies
-        grad_max = maximum(maximum(abs, a) for a in f.gradp)
-        grad_max < 32floatmin(T) && return true
+    for d = 1:D
+        g.n[d] <= 2 && continue
+        if _transport_axis_varies(ptrial, d)
+            maximum(abs, gradp[d]) < 32floatmin(T) && return true
+        end
     end
     return false
 end

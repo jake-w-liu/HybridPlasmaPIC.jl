@@ -8,6 +8,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Coupled ideal and Ohmic scalar pressure stages request the existing complete
+  signed source owner when derivative or product range loss is detected. Exact
+  advection/compression/heating cancellation remains admissible; the complete
+  required rate retains explicit range checks. Ordinary stage order and public
+  rollback remain. Essential regressions await GitHub verification; see the
+  [pressure range plan](docs/SCALAR_PRESSURE_RATE_RANGE_PLAN.md).
+
 - The carried S1 Ohmic field completes `E_force + ηJ` before range loss can
   erase finite cancellation or a subnormal rounding tie. Ordinary order, the
   `η=0` copy and independent force storage remain; essential both-type,
@@ -26,7 +33,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   conditioning and other closures/operators remain open in the
   [source work order](docs/IDEAL_FORCE_SOURCE_RANGE_WORK_ORDER.md).
 
-
 - Scalar Ohm evaluation combines complete signed finite represented factors on
   intermediate overflow or subnormal products, preserving ordinary operation
   order and raw nonfinite propagation. This repairs motional/Hall cancellation
@@ -43,7 +49,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   before launch/mutation. True zero charge and normal ratios remain supported.
   Device factor recovery and priming remain open; see the
   [factor range plan](docs/PARTICLE_CHARGE_MASS_RANGE_PLAN.md).
-
 
 - Relativistic EMPIC priming and kicks retain original species charge and mass
   through range repair and finite-output publication, including overflowing or

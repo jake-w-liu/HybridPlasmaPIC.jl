@@ -88,7 +88,7 @@ Source names below resolve to these canonical files:
 | Kinetic species diversity | Arbitrary ES charge/mass collections landed; current EMPIC electron/ion model remains restricted | Arbitrary EM collection evolution and backend composition remain CAP-008 work |
 | Multidimensional shocks | shock3d:9–19,337–359 and shock2d:230–236 intentionally exclude Hall induction while retaining Hall particle forces | Documented reduced shock model; full-Hall multidimensional branch required for broader claims, CAP-009 |
 | Coupled sources and collisions | `CollisionalHybridStepper` and full RNG checkpoint/archive state (`2b2420b`) | Fixed-step first-order isothermal CPU composition exists; other models/closures/sources, schedules and backends remain CAP-010 work |
-| Electron transport | `EvolvingElectrons` covers ideal massless pressure; `TransportElectrons` provides constant Ohmic transport (S1), with the complete-source hyperresistive S2 candidate composed onto current main | [S2 integration and range gates](TRANSPORT_SOURCE_RANGE_PLAN.md) remain open; conduction, equilibration, anisotropy, inertia and backends remain CAP-011 S3–S8 |
+| Electron transport | `EvolvingElectrons` covers ideal massless pressure; `TransportElectrons` provides constant Ohmic transport (S1), with complete-source hyperresistive S2 and shared scalar pressure range routing composed onto current main | [S2 gates](TRANSPORT_SOURCE_RANGE_PLAN.md) and [scalar pressure verification](SCALAR_PRESSURE_RATE_RANGE_PLAN.md) remain open; conduction, equilibration, anisotropy, inertia and backends remain CAP-011 S3–S8 |
 
 The geometry integration finding also follows from a repository-wide symbol
 search: outside their defining files, `ToroidalGrid`, `AMRGrid`, `GuidingCentre`,

@@ -111,6 +111,9 @@ original represented constitutive products on finite product-range events,
 through the existing dyadic FFT owner. Broader source admission and FFT
 conditioning remain open in the
 [ideal-source implementation tracker](docs/IDEAL_FORCE_SOURCE_RANGE_WORK_ORDER.md).
+Coupled ideal and Ohmic scalar pressure stages share complete signed source
+recovery on derivative/product range events; see the
+[pressure contract and pending verification](docs/SCALAR_PRESSURE_RATE_RANGE_PLAN.md).
 
 | quantity | unit |
 |---|---|

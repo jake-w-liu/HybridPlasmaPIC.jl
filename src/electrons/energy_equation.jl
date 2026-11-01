@@ -93,6 +93,68 @@ function _transport_pressure_rhs_with_activity!(
     return active
 end
 
+# This scan requests complete signed replay; it never certifies a nonzero
+# source or rejects a derivative channel independently of the pressure equation.
+function _scalar_pressure_rhs_needs_completion(
+    out::Array{T}, pe, ue, gradpe, divu, J, γ::T, η::T, active::Bool, ::Val{D},
+) where {T,D}
+    magnitude = zero(T)
+    γm1 = _pressure_heat_gamma(γ)
+    coefficient = γm1 * η
+    @inbounds for I in eachindex(out, pe, divu)
+        isfinite(out[I]) && isfinite(divu[I]) || return true
+        magnitude = max(magnitude, abs(out[I]))
+        weighted = γ * pe[I]
+        _ohm_product_needs_completion(γ, pe[I], weighted) && return true
+        _ohm_product_needs_completion(weighted, divu[I], weighted * divu[I]) && return true
+        for d = 1:D
+            isfinite(gradpe[d][I]) || return true
+            _ohm_product_needs_completion(ue[d][I], gradpe[d][I], ue[d][I] * gradpe[d][I]) &&
+                return true
+        end
+        if !iszero(η)
+            square = zero(T)
+            nonzero_current = false
+            for c = 1:3
+                current = J[c][I]
+                nonzero_current |= !iszero(current)
+                term = current * current
+                _ohm_product_needs_completion(current, current, term) && return true
+                square += term
+            end
+            nonzero_current && _ohm_product_needs_completion(γm1, η, coefficient) && return true
+            isfinite(square) || return true
+            _ohm_product_needs_completion(coefficient, square, coefficient * square) && return true
+        end
+    end
+    return active && magnitude < 32floatmin(T)
+end
+
+function _complete_scalar_pressure_if_needed!(
+    out::Array{T,D}, pe, ue, gradpe, divu, J, γ::T, η::T, active::Bool, g::FourierGrid{D,T};
+    derivative_risk::Bool = false,
+) where {D,T}
+    derivative_risk ||
+        _scalar_pressure_rhs_needs_completion(out, pe, ue, gradpe, divu, J, γ, η, active, Val(D)) ||
+        return false
+    # Only original represented inputs enter exact extraction. Rounded
+    # derivative/rate scratch may be nonfinite and is recomputed by its owner.
+    _validate_pressure_finite(pe, "complete electron pressure input")
+    _validate_pressure_finite((γ, η), "complete electron pressure coefficients")
+    for d = 1:D
+        _validate_pressure_finite(ue[d], "complete electron pressure velocity")
+    end
+    if !iszero(η)
+        for component in J
+            _validate_pressure_finite(component, "complete electron pressure current")
+        end
+    end
+    _complete_transport_pressure_rhs!(
+        out, pe, ue, J, γ, η, zero(T), g; context = "complete electron pressure rate",
+    )
+    return true
+end
+
 # (γ−1)η|J|² from the exact power-of-two factors of the coefficient: the
 # largest current component is scaled to [1, 2), so only the final ldexp can
 # underflow (within one subnormal ulp) or overflow (rejected as non-finite).
@@ -214,7 +276,8 @@ end
     γ::T,
     η::T,
     ηH::T,
-    g::FourierGrid{D,T},
+    g::FourierGrid{D,T};
+    context = "complete transport pressure rate",
 ) where {D,T}
     exact = zeros(Rational{BigInt}, size(out))
     gamma = _exact_rational(γ)
@@ -249,10 +312,10 @@ end
             end
         end
     end
-    nonzero, represented = _publish_complete_rate!(out, exact, "complete transport pressure rate")
+    nonzero, represented = _publish_complete_rate!(out, exact, context)
     nonzero &&
         !represented &&
-        throw(ArgumentError("complete transport pressure rate rounds entirely to zero in $T"))
+        throw(ArgumentError("$context rounds entirely to zero in $T"))
     return nothing
 end
 

@@ -57,6 +57,9 @@ The [official downloads page](https://julialang.org/downloads/) identifies
 Julia **1.13.3** as stable (checked again 2026-11-01 Asia/Taipei). New campaigns run
 actual 1.12.7 and 1.13.3; a stale local `release` alias is not version evidence.
 The existing CI matrix selects minimum `1.12` and latest stable `1`.
+The latest fully accepted containing revision is `adb16c5`, including both
+complete compiler-tree reviews. New implementation pushes have their own
+pending checks; the accepted historical run does not validate those changes.
 
 | Work | Verified integration state | Remaining work |
 | --- | --- | --- |
@@ -82,7 +85,7 @@ The existing CI matrix selects minimum `1.12` and latest stable `1`.
 | Collision-aware hybrid/restart (CAP-010) | `2b2420b`: all six jobs and full compiler review. Fixed-step first-order CPU isothermal composition includes RNG-complete restart and whole-step rollback | Other closures/models, variable/higher-order splitting, additional sources, MPI/device RNG; [guide](COLLISIONAL_HYBRID.md) |
 | Scalar/CGL and S1 Ohm pointwise range | Complete signed represented-factor replay repairs overflowing/subnormal intermediate products, including the carried S1 force-plus-ηJ split, with ordinary order retained; canonical scalar and anisotropic callers and essential exact-vector/public controls reviewed | [Scope and remaining original-product derivative work](IDEAL_FORCE_SOURCE_RANGE_WORK_ORDER.md): exact GitHub CI pending; original J/gradp/tensor/density generation and broader source-aware Faraday remain open |
 | Bounded scalar Hybrid Faraday | Scalar `de2=ηH=0` stages retain original represented constitutive products on finite product-range events through the existing dyadic FFT owner; shared serial/replicated-MPI kernels retain their numerical-phase ownership | [Bounded scope and remaining source work](IDEAL_FORCE_SOURCE_RANGE_WORK_ORDER.md): exact GitHub CI pending; normal swallowed variation, general FFT conditioning, broader operators/backends, full lifecycle and resource acceptance remain open |
-
+| Scalar pressure source completion | Ideal and S1 Ohmic stages reuse the complete signed pressure owner on derivative/product range events; per-axis routing prevents a normal transverse gradient from hiding another axis's loss | [Pressure range plan](SCALAR_PRESSURE_RATE_RANGE_PLAN.md): exact GitHub CI, mixed-axis reconstruction and complete public resource acceptance remain pending. Standalone Euler and later RK scaling remain separate |
 | Electron transport S2 (hyperresistivity) | Serial periodic CPU implementation includes positive Nyquist-completed heat, complete represented field/pressure/Faraday sources and SO 0.1.7. Canonical owners, signed composition, scratch lifetimes and transaction paths were reviewed directly; essential DFT, range, energy and restart regressions are included | [Implementation and verification tracker](TRANSPORT_SOURCE_RANGE_PLAN.md): exact-revision GitHub CI and full resource acceptance remain pending. Original nonlinear ideal-product loss and later transport stages remain open |
 | Electron transport S1 (CAP-011) | `a6d20d3`: all six jobs and full compiler review. Serial constant-η `TransportElectrons` carries the matched force and heating | S2 verification and S3–S8 conduction, backends, anisotropy and inertia. Composition with `CollisionalHybridStepper` is unsupported; [contract](EVOLVING_ELECTRONS.md#constant-ohmic-transport) |
 | Bounded Maxwell / particle prerequisite | Vacuum/cavity and prescribed-current fields are landed. Closed 1D PEC nodal CIC charge, longitudinal endpoint impulse and scalar path voltage share canonical stencils; preflight, atomic output publication and exact mode routing are retained | [API and remaining stages](BOUNDED_PARTICLE_COUPLING_PLAN.md): exact-revision GitHub numerical/compiler/format/MPI validation is pending. Voltage uses exact arithmetic with native/resource acceptance open. Historical compiler and force failures remain retained; coupled force/pusher/walls, restart and backends remain open |
@@ -131,9 +134,10 @@ shock allocation failure remain recorded with their later corrections.
 | `80688ab` | [Pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40731208296) | 1,242,177 / 1,242,178 (1.12.7 / 1.13.3) |
 | `a29da03` | [Pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40751545173) | 1,246,963 / 1,246,964 (1.12.7 / 1.13.3); whole compiler forests byte-equal accepted C1 |
 | `8d7473f` | [Pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40753722133) | 1,249,543 / 1,249,544 (1.12.7 / 1.13.3); whole compiler forests byte-equal accepted C1 |
-| `8829c5e` | [8-rank timeout; run still active](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40764837006) | Distributed FFT step exceeded its unchanged 30-minute bound; raw log/artifact retained. Rerun request rejected with 403 while package jobs run; no rerun launched. No cause or billing exception established |
-| `8151ced` | [Pending](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40769542333) | Formatter and MPI 2/4/8 pass; package pair and complete compiler review remain open |
-| `7b8cbd3` | [Pending](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40772196744) | Formatter and MPI 2/4/8 pass; package pair and complete compiler review remain open |
+| `8829c5e` | [Pass after one targeted MPI8 retry](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40764837006) | 1,249,543 / 1,249,544 assertions; both whole compiler forests byte-equal accepted C1. Original 30-minute timeout and earlier rejected retry request remain retained; no cause or billing exception established |
+| `8151ced` | [Pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40769542333) | 1,249,543 / 1,249,544 assertions; both whole compiler forests byte-equal accepted C1 |
+| `7b8cbd3` | [Pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40772196744) | 1,249,543 / 1,249,544 assertions; both whole compiler forests byte-equal accepted C1 |
+| `adb16c5` | [Pass after one targeted MPI8 retry](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40780817426) | 1,249,543 / 1,249,544 assertions; both whole compiler forests byte-equal accepted C1. Original MPI8 timeout remains retained; no cause or billing exception established |
 
 Complete CI compiler reports are reviewed from unfiltered archives. Earlier
 runs match accepted `1097076` after source-backed line/path mappings. The

@@ -30,6 +30,9 @@ particle time error; it is not exact fully discrete conservation.
   before conversion, including cancellation of separately overflowing terms.
 - `src/electrons/energy_equation.jl` owns the complete signed pressure rate:
   advection, compression, Ohmic heat and Nyquist-completed hyperresistive heat.
+  The zero-`ηH` stage shares this owner with ideal evolving pressure; its
+  [range scan and essential regressions](SCALAR_PRESSURE_RATE_RANGE_PLAN.md)
+  retain ordinary ordering and skip inactive heat and Laplacian channels.
 - `src/integrators/extrapolated_leapfrog.jl` selects ordinary or cold stage
   evaluation and retains the existing RK arrays, stage order and transaction.
   Activity checks select a path; they do not prove a nonzero complete source.
@@ -43,7 +46,10 @@ particle time error; it is not exact fully discrete conservation.
 
 The ordinary branch retains the existing arithmetic order; `ηH = 0` takes the
 S1 branch, whose force-plus-ηJ publication also completes range-flagged products
-before final conversion. Its force remains independently carried. Risk routing
+before final conversion. Its force remains independently carried. Its signed
+pressure rate also requests the shared complete owner on derivative/product
+range risk; a separately overflowing heat is not rejected before signed
+completion. Risk routing
 considers source amplitudes and active curl axes rather
 than the norm of an already rounded total E. Cold completion differentiates the
 represented ideal source and composes transport terms before final publication.
@@ -73,6 +79,9 @@ the zero-`ηH` payload meaning is unchanged.
 - [x] Require registered SpectralOperators 0.1.7, whose four dependency CI jobs
   pass. [Dependency evidence](https://github.com/jake-w-liu/SpectralOperators.jl/blob/main/docs/SCALED_FOURIER_VERIFICATION.md)
   does not establish HPIC integration acceptance.
+- [x] Extend complete signed pressure routing to the zero-hyperresistivity
+  transport and ideal evolving-pressure stage, with essential cancellation,
+  underflow and derivative-rescue regressions prepared for GitHub.
 - [ ] Pass the existing minimum/latest Julia package/compiler, formatter and
   MPI checks on the exact composed revision in GitHub. Record failures and fix
   their causes without weakening existing gates.
