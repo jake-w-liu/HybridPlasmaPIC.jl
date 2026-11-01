@@ -42,7 +42,9 @@ particle time error; it is not exact fully discrete conservation.
   conversion. The transport addition retains the shared converter implementation.
 
 The ordinary branch retains the existing arithmetic order; `ηH = 0` takes the
-S1 branch. Risk routing considers source amplitudes and active curl axes rather
+S1 branch, whose force-plus-ηJ publication also completes range-flagged products
+before final conversion. Its force remains independently carried. Risk routing
+considers source amplitudes and active curl axes rather
 than the norm of an already rounded total E. Cold completion differentiates the
 represented ideal source and composes transport terms before final publication.
 It uses transient exact accumulators, with no new persistent arrays or schema.

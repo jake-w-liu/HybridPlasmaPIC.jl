@@ -74,3 +74,26 @@ end
         end
     end
 end
+
+@testset "Carried Ohmic field completes original represented terms" begin
+    for T in (Float32, Float64)
+        z, sub, M = zero(T), nextfloat(zero(T)), floatmax(T)
+        for (initial, η, current, expected) in (
+            (-M, T(2), M, M), (M, T(2), -M, -M),
+            (sub, sub, T(0.5), 2sub),
+            (z, T(2), M, T(Inf)), (T(0.25), T(0.5), T(0.5), T(0.5)),
+            (-z, z, T(NaN), -z),
+        ), inplace in (false, true)
+            force = ntuple(_ -> fill(initial, 2), 3)
+            currents = ntuple(_ -> fill(current, 2), 3)
+            before = map(copy, force)
+            output = inplace ? force : ntuple(_ -> zeros(T, 2), 3)
+            @test HybridPlasmaPIC._add_ohmic_field!(output, force, currents, η) === output
+            @test all(all(x -> isequal(x, expected), a) for a in output)
+            if !inplace
+                @test isequal(force, before)
+            end
+        end
+        @test isnan(HybridPlasmaPIC._ohmic_field_value(T(NaN), one(T), one(T)))
+    end
+end

@@ -8,6 +8,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- The carried S1 Ohmic field completes `E_force + ηJ` before range loss can
+  erase finite cancellation or a subnormal rounding tie. Ordinary order, the
+  `η=0` copy and independent force storage remain; essential both-type,
+  in-place and separate-output controls await GitHub CI.
+
 - CGL Ohm evaluation shares the scalar complete signed point-expression owner,
   applying its represented tensor force on all three components. Ordinary
   arithmetic/write order and tensor generation remain unchanged; public
@@ -17,7 +22,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   intermediate overflow or subnormal products, preserving ordinary operation
   order and raw nonfinite propagation. This repairs motional/Hall cancellation
   and inverse-density-rescued Hall fields. Original-product Faraday recovery
-  and the separate CGL kernel remain open; essential checks run on GitHub.
+  remains open; essential checks run on GitHub.
 
 - CPU hybrid/CAM-CL and electrostatic collection validation retains finite
   original charge and positive mass even when their derived quotient overflows

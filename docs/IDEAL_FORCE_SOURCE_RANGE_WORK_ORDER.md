@@ -30,8 +30,9 @@ would also reject valid constants and exact cancellation and is not a repair.
 
 ## Implemented pointwise prerequisite
 
-The scalar `_ohm_Efield!` and anisotropic `_ohm_Efield_aniso!` use one component owner that retains its ordinary
-operation order. A nonfinite result or a nonzero-factor product that overflows
+The scalar `_ohm_Efield!` and anisotropic `_ohm_Efield_aniso!` use one
+component owner that retains its ordinary operation order. A nonfinite result
+or a nonzero-factor product that overflows
 or enters the subnormal range requests exact completion of the entire signed
 motional/Hall/pressure/Ohmic/hyperresistive expression. Finite original point
 operands are extracted through the shared exact conversion owner and the final
@@ -44,7 +45,9 @@ This prerequisite uses represented J and gradp and the existing rounded `ninv`.
 It does not recover their original derivative/density factors, certify general
 normal-range error or perform an original-product Faraday derivative. The CGL
 point kernel shares the range owner with its represented three-component tensor
-force; original tensor generation is a separate boundary. A pointwise field below storage range can still round to
+force; original tensor generation is a separate boundary. The S1 force-plus-ηJ
+publication likewise completes range-flagged signed terms while retaining the
+separate physical force. A pointwise field below storage range can still round to
 zero before a later derivative rescues it. The retained four-point witnesses
 above remain open; the pointwise repair does not close this work order.
 

@@ -143,6 +143,13 @@ above `nfloor`, every field, particle and clock value equals
 heat avoids intermediate overflow and underflow by power-of-two scaling when
 the ordinary product is not certified; a non-finite heat or rate rejects the step.
 
+The full S1 field combines represented `E_force + ηJ` exactly when the
+product overflows or enters the subnormal range, or the native sum is nonfinite.
+Ordinary operation order and the `η=0` copy remain. True rounded overflow and raw
+nonfinite operands retain their existing caller validation policy. The force is
+never reconstructed by subtracting rounded fields. GitHub verification of this
+pointwise range update is pending.
+
 ```julia
 using HybridPlasmaPIC
 

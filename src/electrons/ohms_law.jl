@@ -250,11 +250,24 @@ function _add_ohmic_field!(E, Eforce, J, η::T) where {T}
             Ec === Fc || copyto!(Ec, Fc)
         else
             @inbounds for I in eachindex(Ec, Fc, Jc)
-                Ec[I] = Fc[I] + η * Jc[I]
+                Ec[I] = _ohmic_field_value(Fc[I], η, Jc[I])
             end
         end
     end
     return E
+end
+
+@inline function _ohmic_field_value(initial, η, current)
+    product = η * current
+    value = initial + product
+    isfinite(value) && !_ohm_product_needs_completion(η, current, product) && return value
+    return _ohmic_field_value_cold(value, initial, η, current)
+end
+
+@noinline function _ohmic_field_value_cold(native, initial, η, current)
+    all(isfinite, (initial, η, current)) || return native
+    exact = _exact_rational(initial) + _exact_rational(η) * _exact_rational(current)
+    return _from_exact(typeof(native), exact)
 end
 
 # Preserve the ordinary finite arithmetic; exact replay is only needed when an
