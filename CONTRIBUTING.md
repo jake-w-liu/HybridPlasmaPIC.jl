@@ -56,7 +56,10 @@ julia -e 'using Pkg; Pkg.add(PackageSpec(name="JuliaFormatter", version="1"))'  
 julia -e 'using JuliaFormatter; format(".")'
 ```
 
-CI runs a formatting check and will flag a diff if the tree is not formatted.
+CI runs a formatting check and uploads `formatter.patch` if formatting changes
+are needed. Download the artifact and review/apply it with `git apply` to keep
+Julia formatting work on the runner. The formatting failure stays red until the
+formatted revision passes.
 
 ## Adding a benchmark
 

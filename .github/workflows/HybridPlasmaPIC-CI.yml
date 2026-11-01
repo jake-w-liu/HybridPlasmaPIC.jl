@@ -1,14 +1,7 @@
 name: HybridPlasmaPIC CI
 
-# Test workflow for the HybridPlasmaPIC package.
-#
-# Ubuntu-only by design: this is a PRIVATE repo on the GitHub free tier
-# (2000 Actions-minutes/month), where macOS bills at 10x and Windows at 2x.
-# A multi-OS matrix exhausts the monthly minutes and then ALL jobs (every OS,
-# and the Documentation workflow too) fail at dispatch with no runner assigned.
-# Keeping CI to cheap 1x ubuntu runners stays within the free tier. Re-enable
-# macOS/Windows (and a scheduled run) only on a paid plan or a public repo
-# (public repos get unlimited Actions minutes).
+# CPU package, formatting and MPI checks run on GitHub-hosted Ubuntu runners.
+# Device-specific checks require a runner with the corresponding hardware.
 
 on:
   push:
@@ -149,3 +142,13 @@ jobs:
             if !format(".")
                 error("HybridPlasmaPIC is not formatted; run JuliaFormatter.format on the package")
             end'
+      - name: Capture formatting changes
+        if: failure()
+        run: git diff --output=formatter.patch
+      - name: Upload formatting changes
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: formatter-patch-${{ github.sha }}
+          path: formatter.patch
+          if-no-files-found: warn
