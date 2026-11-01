@@ -924,7 +924,16 @@ end
 # Well-conditioned outputs keep this native order; ill-conditioned or range-flagged IEEE back-ups
 # use the repair/publication tier, and a backed-up velocity that exceeds the type throws an ArgumentError
 # (kinematics_range.jl).
-@inline function _prime_leapfrog!(v, Ep, Bp, factor, h, np, rel::Bool = false, c = one(eltype(v[1])))
+@inline function _prime_leapfrog!(
+    v,
+    Ep,
+    Bp,
+    factor,
+    h,
+    np,
+    rel::Bool = false,
+    c = one(eltype(v[1])),
+)
     T = eltype(v[1])
     qm = _boris_native_factor(factor)
     if rel
@@ -945,7 +954,17 @@ end
     return v
 end
 
-function _prime_leapfrog_loop!(v, Ep, Bp, factor, h, np, c, ::Val{rel}, ::Val{guard}) where {rel,guard}
+function _prime_leapfrog_loop!(
+    v,
+    Ep,
+    Bp,
+    factor,
+    h,
+    np,
+    c,
+    ::Val{rel},
+    ::Val{guard},
+) where {rel,guard}
     vx, vy, vz = v
     T = eltype(vx)
     qm = _boris_native_factor(factor)

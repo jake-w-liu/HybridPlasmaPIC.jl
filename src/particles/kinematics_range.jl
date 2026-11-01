@@ -260,13 +260,8 @@ end
     (!(factor isa _BorisSpeciesFactors) && !isfinite(qm)) && return out
     W = factor isa _BorisSpeciesFactors ? _exact_rational : _kinematics_wide(T)
     coefficient = factor isa _BorisSpeciesFactors ? _boris_exact_factor(factor) : W(qm)
-    wide, _ = _euler_kick_parts(
-        map(W, u)...,
-        map(W, e)...,
-        map(W, b)...,
-        W(h) * coefficient,
-        Val(mode),
-    )
+    wide, _ =
+        _euler_kick_parts(map(W, u)..., map(W, e)..., map(W, b)..., W(h) * coefficient, Val(mode))
     kicked = map(x -> _kinematics_round(T, x), wide)
     mode === :prime &&
         !all(isfinite, kicked) &&

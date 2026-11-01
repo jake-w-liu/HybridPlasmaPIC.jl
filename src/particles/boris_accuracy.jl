@@ -18,8 +18,7 @@ _boris_exact_factor(f::_BorisSpeciesFactors) = _exact_rational(f.q) / _exact_rat
 # quotient rounded to zero. Normal quotients keep the historical native path.
 @inline _euler_factor_in_range(qm::Number, ::Type) = true
 @inline function _euler_factor_in_range(f::_BorisSpeciesFactors{T}, ::Type{T}) where {T}
-    return _boris_accuracy_mode() &&
-           (iszero(f.q) || (isfinite(f.qm) && abs(f.qm) >= floatmin(T)))
+    return _boris_accuracy_mode() && (iszero(f.q) || (isfinite(f.qm) && abs(f.qm) >= floatmin(T)))
 end
 
 @inline _boris_bound_operands(a, b) = isfinite(a) && isfinite(b) && a >= 0 && b >= 0

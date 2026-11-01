@@ -410,8 +410,12 @@ end
     for T in (Float16, Float32, Float64), kind in (:underflow, :overflow)
         z = (zero(T), zero(T), zero(T))
         q = kind === :underflow ? nextfloat(zero(T)) : one(T)
-        m = kind === :underflow ? ldexp(one(T), T === Float16 ? 10 : T === Float32 ? 80 : 600) : nextfloat(zero(T))
-        h = kind === :underflow ? ldexp(one(T), T === Float16 ? 10 : T === Float32 ? 60 : 400) : floatmin(T)
+        m =
+            kind === :underflow ? ldexp(one(T), T === Float16 ? 10 : T === Float32 ? 80 : 600) :
+            nextfloat(zero(T))
+        h =
+            kind === :underflow ? ldexp(one(T), T === Float16 ? 10 : T === Float32 ? 60 : 400) :
+            floatmin(T)
         E = (kind === :underflow ? h : one(T), kind === :underflow ? -h : -one(T), zero(T))
         B = (zero(T), zero(T), one(T))
         u = (zero(T), zero(T), T(0.25))
@@ -439,13 +443,25 @@ end
         zero_factor = H._BorisSpeciesFactors(-zero(T), T(2), -zero(T))
         signed = (-zero(T), zero(T), -zero(T))
         native = ntuple(c -> signed[c] - (one(T) * zero_factor.qm) * force[c], 3)
-        @test isequal(H._euler_kick(signed, force, z, one(T), zero_factor, -zero(T), Val(:prime)), native)
+        @test isequal(
+            H._euler_kick(signed, force, z, one(T), zero_factor, -zero(T), Val(:prime)),
+            native,
+        )
         empty = ntuple(_ -> T[], 3)
         @test H._prime_leapfrog!(empty, empty, empty, factor, h, 0) === empty
         @test H._predict_half_kick!(empty, empty, empty, empty, factor, h, 0) === empty
         huge = H._BorisSpeciesFactors(floatmax(T), nextfloat(zero(T)), T(Inf))
-        @test_throws ArgumentError H._euler_kick(z, (one(T), z[2], z[3]), z, one(T), huge, T(Inf), Val(:prime))
-        @test H._euler_kick(z, (one(T), z[2], z[3]), z, one(T), huge, T(Inf), Val(:predict))[1] == T(Inf)
+        @test_throws ArgumentError H._euler_kick(
+            z,
+            (one(T), z[2], z[3]),
+            z,
+            one(T),
+            huge,
+            T(Inf),
+            Val(:prime),
+        )
+        @test H._euler_kick(z, (one(T), z[2], z[3]), z, one(T), huge, T(Inf), Val(:predict))[1] ==
+              T(Inf)
         @test_throws ArgumentError H._es_prime_component(z[1], one(T), one(T), huge, T(Inf))
     end
 end
@@ -480,7 +496,8 @@ end
             step!(solver, population, 0.03125)
         end
         @test particles.x == ps.x && particles.v == ps.v
-        @test (restored.step[], restored.time[], restored.last_dt[]) == (st.step[], st.time[], st.last_dt[])
+        @test (restored.step[], restored.time[], restored.last_dt[]) ==
+              (st.step[], st.time[], st.last_dt[])
     end
 end
 end
