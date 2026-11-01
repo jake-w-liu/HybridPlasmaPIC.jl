@@ -11,6 +11,10 @@ and mass through their guards and exact cold replay. Euler/ES native admission
 also checks a sufficient four-ulp term-scale bound and finite exact margin;
 unresolved IEEE inputs classify nearest overflow exactly. GitHub verification
 remains pending in the [CPU particle tracker](BORIS_ACCURACY_IMPLEMENTATION.md).
+Relativistic EMPIC priming and kicks also retain original factors through range
+repair and publication. Their essential phase/restart/rollback checks await
+GitHub CI; full normal relativistic accuracy and hardware-mode pipelines remain
+open in the [factor range plan](PARTICLE_CHARGE_MASS_RANGE_PLAN.md).
 The implemented chain uses the
 [normwise standard](DEEP_DEBUG_TRACKER.md#numerical-accuracy-standard-user-decision-2026-10-26).
 
@@ -45,6 +49,10 @@ erasing half-step kicks and midpoints.
    stored number. Species certificates also require the rounded quotient to be
    normal, or the original charge to be zero. An underflowed quotient of a
    nonzero charge cannot certify a zero physical kick.
+   Relativistic species range replay converts original rational `q/m` inside
+   its BigFloat tier. Its scalar DD priming certificate is reused only for an
+   exactly represented quotient in the admitted EFT hardware context. Finite
+   output publication checks original factors, not a derived infinite quotient.
 3. Accuracy is a few ulps of the operation scale (`|v|`, `|h E|` for kicks,
    `|x| + |dt v|` for drifts); componentwise accuracy under cancellation is
    not certified in general. Euler/ES admission uses four ulps at

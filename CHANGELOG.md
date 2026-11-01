@@ -8,6 +8,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Relativistic EMPIC priming and kicks retain original species charge and mass
+  through range repair and finite-output publication, including overflowing or
+  subnormal derived quotients. Both model owners keep C1 rejection and whole-step
+  rollback. Essential phase/restart regressions await GitHub CI; full normal
+  relativistic accuracy remains open. See the
+  [factor range plan](docs/PARTICLE_CHARGE_MASS_RANGE_PLAN.md).
+
 - Particle kick and coordinate batch bypasses require known injective writable
   storage. Repeated-index views retain sequential guarded evaluation without
   narrowing the accepted particle containers. Uniform and gathered ordering
@@ -39,8 +46,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Nonrelativistic CPU Boris kicks retain original species charge and mass in
   public pushes and model kick owners. Joint range and accuracy certificates
   guard native batch bypasses; unresolved finite kicks use exact replay with
-  the existing four-ulp tolerance and nearest-even overflow rule. Relativistic
-  and device factor support remain separate follow-ons.
+  the existing four-ulp tolerance and nearest-even overflow rule. Device factors
+  and full normal relativistic accuracy remain separate follow-ons.
   See the [CPU Boris contract and tracker](docs/BORIS_ACCURACY_IMPLEMENTATION.md).
 
 - Distributed FFT CI prepares one environment and runs core and metadata

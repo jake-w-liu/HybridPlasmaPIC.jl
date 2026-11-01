@@ -320,16 +320,18 @@ end
     k,
     gm,
     h::T,
-    qm::T,
+    factor,
     c2::T,
     gap_resolved::Bool,
 ) where {T}
     T <: _RangeGuardedFloat || return true
+    qm = _boris_native_factor(factor)
     tiny = floatmin(T)
     S = max(abs(g[1]), abs(g[2]), abs(g[3]), abs(k[1]), abs(k[2]), abs(k[3]))
     βout = map(x -> x / sqrt(c2), out)
     publication_resolved = _lorentz_gap_in_range(sum(abs2, βout))
-    return gap_resolved &
+    return _euler_factor_in_range(factor, T) &
+           gap_resolved &
            publication_resolved &
            isfinite(c2) &
            (c2 >= tiny) &
@@ -345,14 +347,29 @@ end
            (iszero(S) | (S >= tiny * T(256) * (one(T) + abs(h)) * (one(T) + abs(qm))))
 end
 
+@inline _rel_prime_exact_coefficient(qm::Number) = true
+function _rel_prime_exact_coefficient(factor::_BorisSpeciesFactors)
+    qm = _boris_native_factor(factor)
+    return isfinite(qm) && _boris_exact_factor(factor) == _exact_rational(qm)
+end
+
 # Wide evaluation of the same back-up. (|u|/c)² can exceed the range of the
 # next IEEE format for extreme c, so every flagged type uses 256-bit BigFloat
-# with the exact Lorentz gap. Planar callers pass exact zeros for the absent
-# components. Physical components fit T; their separately rounded tuple may
+# with the exact Lorentz gap and original species ratio. Planar callers pass
+# exact zeros for absent components. The separately rounded output tuple may
 # lie outside the supported velocity domain. Callers check publication.
-@noinline function _rel_prime_repair(out::NTuple{3,T}, v0, e, b, qm::T, h::T, c::T) where {T}
-    all(isfinite, (v0..., e..., b..., qm, h, c)) || return out
-    if T <: _RangeGuardedFloat
+@noinline function _rel_prime_repair(
+    out::NTuple{3,T}, v0, e, b, factor, h::T, c::T, exact_coefficient = nothing,
+) where {T}
+    all(isfinite, (v0..., e..., b..., _boris_factor_operands(factor)..., h, c)) || return out
+    qm = _boris_native_factor(factor)
+    # The existing DD enclosure certifies the supplied scalar coefficient.
+    # A species may use it only for an exact quotient in the EFT's native
+    # context; otherwise retain the rational ratio in BigFloat replay.
+    exact_coefficient === nothing &&
+        (exact_coefficient = _rel_prime_exact_coefficient(factor))
+    dd_mode = !(factor isa _BorisSpeciesFactors) || _boris_accuracy_mode()
+    if T <: _RangeGuardedFloat && exact_coefficient && dd_mode
         candidate, resolved = _rel_prime_dd_attempt(out, v0, e, b, qm, h, c)
         resolved && return candidate
     end
@@ -364,7 +381,8 @@ end
         vx, vy, vz = map(W, v0)
         ex, ey, ez = map(W, e)
         bx, by, bz = map(W, b)
-        Qm, H = W(qm), W(h)
+        Qm = factor isa _BorisSpeciesFactors ? W(_boris_exact_factor(factor)) : W(qm)
+        H = W(h)
         ax = Qm * (ex + (vy * bz - vz * by))
         ay = Qm * (ey + (vz * bx - vx * bz))
         az = Qm * (ez + (vx * by - vy * bx))
@@ -484,7 +502,7 @@ end
 # Lorentz-gap conditioning guard.
 @inline function _boris_rel_batch_certificate(
     h::T,
-    qm::T,
+    factor,
     dt::T,
     c::T,
     vmax::T,
@@ -493,11 +511,13 @@ end
     smin::T,
 ) where {T}
     T <: _RangeGuardedFloat || return true
+    qm = _boris_native_factor(factor)
     c2 = c * c
     k = 2 * (abs(h) * emax)
     tau = 2 * (abs(h) * bmax)
     bound = 4 * (2 * sqrt(2 / eps(T)) * vmax + k) * (1 + 2tau)^2
-    return (vmax <= c / 4) &
+    return _euler_factor_in_range(factor, T) &
+           (vmax <= c / 4) &
            isfinite(c2) &
            (c2 >= floatmin(T)) &
            _kinematics_product_in_range(h, qm, dt) &
@@ -572,12 +592,14 @@ end
 # |um|²/c² <= w²/c² <= floatmax/32, so a, γ and the result (|v| < c) are finite;
 # γ0 >= 1 makes σ_p a lower bound of max(|γ0 v0|, |h a|). Requiring
 # umax <= c/4 also proves the Lorentz gap is well conditioned for every row.
-@inline function _rel_prime_batch_certificate(h::T, qm::T, c::T, umax, emax, bmax, smin) where {T}
+@inline function _rel_prime_batch_certificate(h::T, factor, c::T, umax, emax, bmax, smin) where {T}
     T <: _RangeGuardedFloat || return true
+    qm = _boris_native_factor(factor)
     c2 = c * c
     A = 2 * (abs(qm) * (emax + 2 * (umax * bmax)))
     w = 4 * (2 * sqrt(2 / eps(T)) * umax + abs(h) * A)
-    return (umax <= c / 4) &
+    return _euler_factor_in_range(factor, T) &
+           (umax <= c / 4) &
            isfinite(c2) &
            (c2 >= floatmin(T)) &
            isfinite(h) &

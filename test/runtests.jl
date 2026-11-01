@@ -17,6 +17,7 @@ using Test
     include("test_coordinate_range_endpoints.jl")
     include("test_relativistic_validation.jl")
     include("test_relativistic_output_closure.jl")
+    include("test_relativistic_species_factors.jl")
     include("test_boundary_edges.jl")
     include("test_interval_validation.jl")
     include("test_provenance.jl")

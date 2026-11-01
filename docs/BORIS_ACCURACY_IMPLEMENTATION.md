@@ -57,7 +57,14 @@ Otherwise the exact result rounds once. Cold replay throws when the rounded
 backed-up velocity overflows; a predictor returns signed infinity. Generic
 arithmetic and the relativistic numerical expressions are unchanged.
 
-Relativistic updates and priming still receive a rounded numerical `qm`.
+Relativistic EMPIC priming and kicks also carry original factors into range
+repair and finite-output publication. Their native expression still uses rounded
+`qm`; range admission requires a normal quotient or original zero charge.
+Cold replay uses the original rational ratio in the existing BigFloat tier.
+DD priming is reused only when its scalar coefficient is exact in its admitted
+hardware context. This range repair retains C1 output rejection and whole-step
+undo; it does not certify full normal-range relativistic accuracy. See the
+[factor stages](PARTICLE_CHARGE_MASS_RANGE_PLAN.md) for pending GitHub checks.
 Existing model input restrictions, including collection electrostatic rejection
 of an underflowed charged quotient, are unchanged. Device kernels retain their
 explicit-`qm` semantics and have no new original-factor guarantee.
@@ -89,6 +96,7 @@ Implementation tracker:
 - [x] Injective writable-storage checks for public particle kick/drift bypasses.
 - [ ] GitHub verification of Euler accuracy, native-bit compatibility and all
   neighboring phase, compiler and resource gates.
-- [ ] Original-factor relativistic and device follow-ons.
+- [x] Relativistic original-factor range and publication implementation.
+- [ ] GitHub relativistic phase/restart/rollback checks, normal accuracy and device follow-ons.
 - [ ] Complete public resource and compiler acceptance; prior bounded numerical
   checks do not establish these guarantees.

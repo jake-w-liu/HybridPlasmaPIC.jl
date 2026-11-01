@@ -4,8 +4,10 @@ P1 CPU kick code is implemented; final GitHub CI is pending. Its current
 contract and tracker live in [CPU Boris accuracy](BORIS_ACCURACY_IMPLEMENTATION.md).
 Nonrelativistic priming/predictor factor routing, sufficient term-scale accuracy
 admission and exact endpoint replay are implemented; GitHub acceptance remains
-open. Relativistic and device original-factor support remain open stages.
-This plan does not broaden C1's supported relativistic domain.
+open. Both relativistic EMPIC owners also retain original factors through priming,
+kick repair and output publication; GitHub verification is pending. Device
+support and full normal-range relativistic accuracy remain open. This plan does
+not broaden C1's supported relativistic domain.
 
 The physical expression uses the original stored q, positive m, dt and field
 operands. A rounded derived ratio must not silently erase a representable result.
@@ -49,7 +51,7 @@ probe SIGSEGV remains unexplained and is not attributed to a converter instructi
 | --- | --- | --- |
 | P1 CPU kicks | Implemented: immutable q,m,qm carrier, one native expression, scalar/batch accuracy admission, exact replay and CPU model kick threading | Essential regressions and complete package/compiler, formatter and MPI checks in GitHub; performance and backend guarantees remain separately unverified |
 | P2 CPU priming and prediction | Implemented factor routing, range/accuracy admission and exact endpoint replay through hybrid, electrostatic and EMPIC priming and the hybrid endpoint predictor | Essential factor, overflow endpoint, normal accuracy, phase and checkpoint regressions await GitHub CI; complete public resource acceptance remains open |
-| P3 relativistic factors | Preserve original ion factors through relativistic priming and kicks in both EMPIC owners, retaining C1 admission and whole-step undo | Both model owners, variable/subcycled clocks, supported and rejected stored outputs, checkpoint continuation and unchanged state on failure |
+| P3 relativistic factors | Implemented original-factor range replay through priming and kicks in both EMPIC owners, retaining C1 admission and whole-step undo | Essential axial-reference, variable/subcycled phase, restart and rollback checks await GitHub CI; full normal-range relativistic accuracy remains open |
 | P4 devices and parallel owners | Preserve original factors or reject unsupported factors explicitly before launch through the backend's existing owner | Suitable remote hardware, backend equivalence, launch/error behavior and documented native domain; no silent CPU fallback |
 
 Before each remaining stage, inspect its canonical callers, staggered time-level
@@ -63,6 +65,16 @@ relax a limit to obtain a pass. Add focused physical and boundary regressions,
 then run them and the existing suites in GitHub Actions. Large local protocol,
 provenance and replay campaigns are not prerequisites for code review.
 
+Relativistic native range admission requires a normal derived quotient (or an
+original zero charge) in the existing nearest/gradual context. Cold evaluation
+uses the original rational q/m in the existing 256-bit BigFloat expression.
+Priming reuses the scalar DD certificate only when that quotient is exact and
+its EFT context is admitted; the decision is cached on the first cold particle
+per species loop. Cold allocations and non-exact-quotient output-bit changes are
+not covered by a new resource guarantee. Explicit-qm scalar semantics remain.
+This range slice does not prove full normal relativistic accuracy, every hardware
+mode pipeline or trajectory-wide correctness.
+
 ## Progress
 
 - [x] Preserve the original-factor, normal-accuracy and overflow witnesses.
@@ -73,7 +85,9 @@ provenance and replay campaigns are not prerequisites for code review.
 - [x] Implement P2 original-factor nonrelativistic priming/predictor range replay.
 - [x] Implement sufficient Euler term-scale admission and exact overflow classification.
 - [ ] Verify P2 accuracy, endpoints and phase behavior in GitHub.
-- [ ] Complete P3–P4 and their public phase, restart and hardware checks.
+- [x] Implement P3 relativistic original-factor range routing and publication.
+- [ ] Verify P3 phase/restart/rollback in GitHub and audit normal accuracy.
+- [ ] Complete P4 device factors and their hardware checks.
 - [ ] Establish full public resource and comparative performance results.
 
 The [audit tracker](DEEP_DEBUG_TRACKER.md) owns current acceptance; the

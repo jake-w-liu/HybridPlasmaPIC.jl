@@ -12,10 +12,12 @@ end
 @inline _boris_zero_factor(f::_BorisSpeciesFactors) = iszero(f.q)
 _boris_exact_factor(qm::Number) = _exact_rational(qm)
 _boris_exact_factor(f::_BorisSpeciesFactors) = _exact_rational(f.q) / _exact_rational(f.m)
+@inline _boris_factor_operands(qm::Number) = (qm,)
+@inline _boris_factor_operands(f::_BorisSpeciesFactors) = (f.q, f.m)
 @inline _boris_accuracy_mode() = rounding(Float64) === RoundNearest && !get_zero_subnormals()
 
-# Euler range certificates must distinguish an original zero charge from a
-# quotient rounded to zero. Normal quotients keep the historical native path.
+# Euler and relativistic range certificates distinguish original zero charge
+# from a quotient rounded to zero. Normal quotients keep the native path.
 @inline _euler_factor_in_range(qm::Number, ::Type) = true
 @inline function _euler_factor_in_range(f::_BorisSpeciesFactors{T}, ::Type{T}) where {T}
     return _boris_accuracy_mode() && (iszero(f.q) || (isfinite(f.qm) && abs(f.qm) >= floatmin(T)))

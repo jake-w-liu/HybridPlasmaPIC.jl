@@ -690,11 +690,12 @@ end
 
 # Native-only relativistic push: the historical operation order, input
 # validation included (certified batch loops).
-@inline function _boris_rel_native(vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, qm, dt, c)
+@inline function _boris_rel_native(vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, factor, dt, c)
+    qm = _boris_native_factor(factor)
     out = first(_boris_rel_parts(vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, qm, dt, c, Val(false)))
     _supported_relativistic_output(out, c) && return out
     # The batch certificate bounds intermediates, not the rounded output cone.
-    return _boris_rel(vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, qm, dt, c)
+    return _boris_rel(vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, factor, dt, c)
 end
 
 @inline function _boris_rel(
@@ -707,24 +708,26 @@ end
     Bx::T,
     By::T,
     Bz::T,
-    qm::T,
+    factor,
     dt::T,
     c::T,
 ) where {T}
+    qm = _boris_native_factor(factor)
     out, parts, u, c2, gap_resolved =
         _boris_rel_parts(vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, qm, dt, c, Val(true))
     if T <: _RangeGuardedFloat
-        if _boris_rel_in_range(out, parts, u, qm, dt, c2, gap_resolved) &&
+        if _euler_factor_in_range(factor, T) &&
+           _boris_rel_in_range(out, parts, u, qm, dt, c2, gap_resolved) &&
            _supported_relativistic_output(out, c)
             return out
         end
-        out = _boris_rel_repair(out, vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, qm, dt, c)
+        out = _boris_rel_repair(out, vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, factor, dt, c)
     end
     return _publish_relativistic_velocity(
         out,
         c,
         "_boris_rel",
-        (vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, qm, dt, c),
+        (vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, _boris_factor_operands(factor)..., dt, c),
     )
 end
 
@@ -733,6 +736,8 @@ end
 # flagged types use BigFloat. The Lorentz gap 1 - |v|²/c² is formed exactly, so
 # its cancellation cannot vanish or change sign; an exactly superluminal input
 # that the rounded test accepted is rejected.
+# Species replay converts the original rational q/m here, never an overflowing
+# or underflowed IEEE quotient. Explicit scalar qm keeps its existing meaning.
 @noinline function _boris_rel_repair(
     out::NTuple{3,T},
     vx::T,
@@ -744,11 +749,14 @@ end
     Bx::T,
     By::T,
     Bz::T,
-    qm::T,
+    factor,
     dt::T,
     c::T,
 ) where {T}
-    all(isfinite, (vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, qm, dt, c)) || return out
+    all(
+        isfinite,
+        (vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, _boris_factor_operands(factor)..., dt, c),
+    ) || return out
     gap = _exact_lorentz_gap(vx, vy, vz, c)
     gap > 0 || throw(ArgumentError("_boris_rel: input velocity must be finite and satisfy |v| < c"))
     wide = _kinematics_bigfloat() do
@@ -756,7 +764,8 @@ end
         ginit = inv(sqrt(W(gap)))
         fields = map(W, (Ex, Ey, Ez, Bx, By, Bz))
         u = (ginit * W(vx), ginit * W(vy), ginit * W(vz))
-        first(_boris_rel_momentum(u..., fields..., W(qm), W(dt), W(c)^2))
+        coefficient = factor isa _BorisSpeciesFactors ? W(_boris_exact_factor(factor)) : W(factor)
+        first(_boris_rel_momentum(u..., fields..., coefficient, W(dt), W(c)^2))
     end
     return map(x -> _kinematics_round(T, x), wide)
 end
@@ -772,18 +781,21 @@ end
     dt::T,
 ) where {T}
     rel = es.relativistic
-    factor = rel ? s.q / s.m : _validated_boris_factor(s)
+    factor = _validated_boris_factor(s)
     qm = _boris_native_factor(factor)
     z = zero(T)
     h = qm * dt / 2
     scales = _boris_batch_scales(s.v, (Exp, Eyp, z), (z, z, Bzp), h, eachindex(s.weight))
-    certified =
-        rel ? _boris_rel_batch_certificate(h, qm, dt, es.c, scales...) :
+    certified = if rel
+        _euler_batch_storage_safe(s.v, s.v, (Exp, Eyp, z), (z, z, Bzp)) &&
+            _boris_rel_batch_certificate(h, factor, dt, es.c, scales...)
+    else
         first(_boris_batch_admission(s, h, factor, dt, scales...))
+    end
     E, B = (Exp, Eyp, nothing), (nothing, nothing, Bzp)
     if rel
-        certified ? _empic_kicks!(s, E, B, qm, dt, es.c, Val(true), Val(false)) :
-        _empic_kicks!(s, E, B, qm, dt, es.c, Val(true), Val(true))
+        certified ? _empic_kicks!(s, E, B, factor, dt, es.c, Val(true), Val(false)) :
+        _empic_kicks!(s, E, B, factor, dt, es.c, Val(true), Val(true))
     else
         certified ? _empic_kicks!(s, E, B, factor, dt, es.c, Val(false), Val(false)) :
         _empic_kicks!(s, E, B, factor, dt, es.c, Val(false), Val(true))
@@ -1439,10 +1451,10 @@ end
         storage_safe = !(T <: _RangeGuardedFloat) ||
                        _euler_batch_storage_safe(v, v, (Exp, Eyp, z), (z, z, Bzp))
         scales = _euler_batch_scales(v, (Exp, Eyp, z), (z, z, Bzp), (h, qm), 1:np, T)
-        if storage_safe && _rel_prime_batch_certificate(h, qm, c, scales...)
-            _prime_empic1d_loop!(v, Exp, Eyp, Bzp, qm, h, np, c, Val(true), Val(false))
+        if storage_safe && _rel_prime_batch_certificate(h, factor, c, scales...)
+            _prime_empic1d_loop!(v, Exp, Eyp, Bzp, factor, h, np, c, Val(true), Val(false))
         else
-            _prime_empic1d_loop!(v, Exp, Eyp, Bzp, qm, h, np, c, Val(true), Val(true))
+            _prime_empic1d_loop!(v, Exp, Eyp, Bzp, factor, h, np, c, Val(true), Val(true))
         end
     else
         hq = h * qm
@@ -1476,6 +1488,8 @@ function _prime_empic1d_loop!(
     T = eltype(vx)
     qm = _boris_native_factor(factor)
     if rel
+        # Cache the coefficient equality only if a particle needs cold priming.
+        exact_coefficient = nothing
         # the relativistic Boris push works in momentum u=γv, so back up MOMENTUM:
         # u^{-1/2}=γ^0 v^0 − h·qm(E+v^0×B^0), then v^{-1/2}=u^{-1/2}/γ(u^{-1/2}). Backing up v
         # directly (below) leaves an O(dt) momentum error ∝ the bulk drift → 1st order.
@@ -1520,28 +1534,31 @@ function _prime_empic1d_loop!(
                     (kx, ky, z),
                     gm,
                     h,
-                    qm,
+                    factor,
                     c2,
                     gap_resolved,
                 )
             ) || !_supported_relativistic_output(primed, c)
-                T <: _RangeGuardedFloat && (
+                if T <: _RangeGuardedFloat
+                    exact_coefficient === nothing &&
+                        (exact_coefficient = _rel_prime_exact_coefficient(factor))
                     primed = _rel_prime_repair(
                         primed,
                         (v0x, v0y, v0z),
                         (ex, ey, z),
                         (z, z, bz),
-                        qm,
+                        factor,
                         h,
                         c,
+                        exact_coefficient,
                     )
-                )
+                end
             end
             primed = _publish_relativistic_velocity(
                 primed,
                 c,
                 "_prime_empic1d!",
-                (v0x, v0y, v0z, ex, ey, bz, qm, h, c),
+                (v0x, v0y, v0z, ex, ey, bz, _boris_factor_operands(factor)..., h, c),
                 p,
             )
             vx[p], vy[p], vz[p] = primed
@@ -1672,7 +1689,7 @@ function _advance_empic_step!(
             es.Exp,
             es.Eyp,
             es.Bzp,
-            es.relativistic ? -one(T) : _validated_boris_factor(e),
+            _validated_boris_factor(e),
             dt_e / 2,
             nparticles(e),
             es.relativistic,
@@ -1688,7 +1705,7 @@ function _advance_empic_step!(
                 es.Exi,
                 es.Eyi,
                 es.Bzi,
-                es.relativistic ? ions.q / ions.m : _validated_boris_factor(ions),
+                _validated_boris_factor(ions),
                 dtT / 2,
                 nparticles(ions),
                 es.relativistic,
@@ -2314,14 +2331,15 @@ end
     Bp::NTuple{3,Vector{T}},
     dt::T,
 ) where {D,T}
-    factor = es.relativistic ? s.q / s.m : _validated_boris_factor(s)
+    factor = _validated_boris_factor(s)
     qm = _boris_native_factor(factor)
     h = qm * dt / 2
     scales = _boris_batch_scales(s.v, Ep, Bp, h, eachindex(s.weight))
     if es.relativistic
-        certified = _boris_rel_batch_certificate(h, qm, dt, es.c, scales...)
-        certified ? _empic_kicks!(s, Ep, Bp, qm, dt, es.c, Val(true), Val(false)) :
-        _empic_kicks!(s, Ep, Bp, qm, dt, es.c, Val(true), Val(true))
+        certified = _euler_batch_storage_safe(s.v, s.v, Ep, Bp) &&
+                    _boris_rel_batch_certificate(h, factor, dt, es.c, scales...)
+        certified ? _empic_kicks!(s, Ep, Bp, factor, dt, es.c, Val(true), Val(false)) :
+        _empic_kicks!(s, Ep, Bp, factor, dt, es.c, Val(true), Val(true))
     else
         certified = first(_boris_batch_admission(s, h, factor, dt, scales...))
         certified ? _empic_kicks!(s, Ep, Bp, factor, dt, es.c, Val(false), Val(false)) :
@@ -2553,7 +2571,7 @@ function _advance_empic_step!(
             e.v,
             es.Ep,
             es.Bp,
-            es.relativistic ? -one(T) : _validated_boris_factor(e),
+            _validated_boris_factor(e),
             h,
             nparticles(e),
             es.relativistic,
@@ -2566,7 +2584,7 @@ function _advance_empic_step!(
                 ions.v,
                 es.Epi,
                 es.Bpi,
-                es.relativistic ? ions.q / ions.m : _validated_boris_factor(ions),
+                _validated_boris_factor(ions),
                 dtT / 2,
                 nparticles(ions),
                 es.relativistic,

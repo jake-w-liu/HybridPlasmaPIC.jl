@@ -939,10 +939,10 @@ end
     storage_safe = !(T <: _RangeGuardedFloat) || _euler_batch_storage_safe(v, v, Ep, Bp)
     if rel
         scales = _euler_batch_scales(v, Ep, Bp, (h, qm), 1:np, T)
-        if storage_safe && _rel_prime_batch_certificate(h, qm, c, scales...)
-            _prime_leapfrog_loop!(v, Ep, Bp, qm, h, np, c, Val(true), Val(false))
+        if storage_safe && _rel_prime_batch_certificate(h, factor, c, scales...)
+            _prime_leapfrog_loop!(v, Ep, Bp, factor, h, np, c, Val(true), Val(false))
         else
-            _prime_leapfrog_loop!(v, Ep, Bp, qm, h, np, c, Val(true), Val(true))
+            _prime_leapfrog_loop!(v, Ep, Bp, factor, h, np, c, Val(true), Val(true))
         end
     else
         scales = _euler_batch_scales(v, Ep, Bp, h * qm, 1:np, T)
@@ -972,6 +972,8 @@ function _prime_leapfrog_loop!(
     ex, ey, ez = Ep
     bx, by, bz = Bp
     if rel
+        # Cache the coefficient equality only if a particle needs cold priming.
+        exact_coefficient = nothing
         c2 = c * c
         o = one(c)
         @inbounds for p = 1:np
@@ -1002,16 +1004,21 @@ function _prime_leapfrog_loop!(
             primed = (umx / gm, umy / gm, umz / gm)
             if (
                 guard &&
-                !_rel_prime_in_range(primed, g, (ax, ay, az), k, gm, h, qm, c2, gap_resolved)
+                !_rel_prime_in_range(primed, g, (ax, ay, az), k, gm, h, factor, c2, gap_resolved)
             ) || !_supported_relativistic_output(primed, c)
-                T <: _RangeGuardedFloat &&
-                    (primed = _rel_prime_repair(primed, (v0x, v0y, v0z), e, b, qm, h, c))
+                if T <: _RangeGuardedFloat
+                    exact_coefficient === nothing &&
+                        (exact_coefficient = _rel_prime_exact_coefficient(factor))
+                    primed = _rel_prime_repair(
+                        primed, (v0x, v0y, v0z), e, b, factor, h, c, exact_coefficient,
+                    )
+                end
             end
             primed = _publish_relativistic_velocity(
                 primed,
                 c,
                 "_prime_leapfrog!",
-                (v0x, v0y, v0z, e..., b..., qm, h, c),
+                (v0x, v0y, v0z, e..., b..., _boris_factor_operands(factor)..., h, c),
                 p,
             )
             vx[p], vy[p], vz[p] = primed
