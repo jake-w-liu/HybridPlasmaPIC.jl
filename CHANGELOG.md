@@ -8,6 +8,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Particle kick and coordinate batch bypasses require known injective writable
+  storage. Repeated-index views retain sequential guarded evaluation without
+  narrowing the accepted particle containers. Uniform and gathered ordering
+  remain distinct; focused exact-dyadic public controls run in GitHub CI.
+
 - Euler and electrostatic priming/prediction use joint range and normwise
   accuracy admission, including a finite exact-result margin. Exact cold replay
   resolves nearest-overflow ties and finite neighbors that widened arithmetic

@@ -628,4 +628,34 @@ end
         end
     end
 end
+
+@testset "Repeated particle storage retains sequential public pushes" begin
+    # Four small dyadic increments and every stored intermediate are exact in
+    # Float16 as well as the wider types. Uniform push kicks the whole batch
+    # before drifting; gathered push kicks and drifts each particle in order.
+    for T in (Float16, Float32, Float64), gathered in (false, true)
+        n, dt, amplitude = 4, T(1 / 16), T(1 / 8)
+        positions = view(T[1 / 4], fill(1, n))
+        velocity = ntuple(3) do c
+            view(T[c == 1 ? 1 / 2 : 0], fill(1, n))
+        end
+        ps = ParticleSet{1,T}(
+            (positions,), velocity, ones(T, n), UInt64.(1:n), zeros(UInt32, n), one(T), T(2),
+        )
+        if gathered
+            electric = (fill(amplitude, n), zeros(T, n), zeros(T, n))
+            magnetic = ntuple(_ -> zeros(T, n), 3)
+            push_gathered!(ps, electric, magnetic, dt)
+        else
+            push_uniform!(ps, (amplitude, zero(T), zero(T)), ntuple(_ -> zero(T), 3), dt)
+        end
+        increment = dt * amplitude / T(2)
+        expected_v = T(1 / 2) + T(n) * increment
+        velocity_sum = T(n) * T(1 / 2) + T(n * (n + 1) ÷ 2) * increment
+        expected_x = T(1 / 4) + dt * (gathered ? velocity_sum : T(n) * expected_v)
+        @test all(==(expected_v), ps.v[1])
+        @test all(iszero, ps.v[2]) && all(iszero, ps.v[3])
+        @test all(==(expected_x), ps.x[1])
+    end
+end
 end

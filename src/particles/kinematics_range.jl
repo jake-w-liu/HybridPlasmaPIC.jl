@@ -625,7 +625,7 @@ end
     !(T <: _RangeGuardedFloat) || (xmax + abs(dt) * vbound <= floatmax(T) / 2)
 
 # A pre-pass bound is valid only while earlier particle writes cannot change
-# later reads. Overlapping components keep their existing sequential semantics
+# later reads. Repeated-index views and overlapping components keep sequential semantics
 # and use the per-coordinate guard instead of rejecting the population.
 @inline function _coordinate_batch_certified(
     ps::ParticleSet{D,T},
@@ -634,7 +634,8 @@ end
     vbound::T,
 ) where {D,T}
     T <: _RangeGuardedFloat || return true
-    return _coordinate_batch_certified(xmax, dt, vbound) && !_particle_components_mightalias(ps)
+    return _coordinate_batch_certified(xmax, dt, vbound) &&
+           all(_particle_batch_injective, ps.x) && !_particle_components_mightalias(ps)
 end
 
 # Shock steppers gather fields inside their push loops with interpolation

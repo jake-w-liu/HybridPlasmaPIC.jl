@@ -778,5 +778,7 @@ end
 end
 @inline function _boris_batch_admission(ps::ParticleSet, h, factor, dt, vmax, emax, bmax, smin)
     admitted, vbound = _boris_batch_admission(h, factor, dt, vmax, emax, bmax, smin)
-    return admitted && !_particle_components_mightalias(ps), vbound
+    # Repeated-index storage can change later velocity samples within one component.
+    stable = admitted && all(_particle_batch_injective, ps.v) && !_particle_components_mightalias(ps)
+    return stable, vbound
 end

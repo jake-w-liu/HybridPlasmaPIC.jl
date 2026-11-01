@@ -62,6 +62,14 @@ Existing model input restrictions, including collection electrostatic rejection
 of an underflowed charged quotient, are unchanged. Device kernels retain their
 explicit-`qm` semantics and have no new original-factor guarantee.
 
+Native particle kick batches also require known injective velocity storage;
+coordinate batches require known injective position storage. Repeated-index
+views keep their sequential scalar guards and remain accepted inputs. This
+storage condition shares the Euler predicate and adds no persistent state.
+The essential public regression distinguishes uniform batch kick-then-drift
+ordering from gathered per-particle kick/drift ordering using exact dyadics.
+Its execution and performance checks remain pending on GitHub.
+
 Implementation tracker:
 
 - [x] Canonical expression, original-factor carrier, scalar and joint batch
@@ -78,6 +86,7 @@ Implementation tracker:
 - [x] Sufficient normal-range Euler term-scale admission and exact endpoint
   classification implementation, with retained endpoint and ordinary controls.
 - [x] Euler prepass storage safety and sequential-alias regression implementation.
+- [x] Injective writable-storage checks for public particle kick/drift bypasses.
 - [ ] GitHub verification of Euler accuracy, native-bit compatibility and all
   neighboring phase, compiler and resource gates.
 - [ ] Original-factor relativistic and device follow-ons.

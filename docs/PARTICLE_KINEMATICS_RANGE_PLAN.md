@@ -95,7 +95,7 @@ EMPIC1D priming, the predictor and the shock steppers) collect read-only maxima
 of |v|, |E|, |B| (|x| for drifts) and a nonzero scale lower bound. Native
 admission combines the range predicates in `kinematics_range.jl` with the
 accuracy bounds in `boris_accuracy.jl`; admitted batches retain the historical
-arithmetic order. Coordinate admission also checks
+arithmetic order. Coordinate admission also requires known injective position storage and checks
 that particle components are disjoint; shock admission checks field/particle
 storage overlap. Euler priming and predictor admission checks writes against
 future velocity and field reads. Only matching, known-injective velocity
