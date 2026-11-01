@@ -8,6 +8,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Euler and electrostatic priming/prediction use joint range and normwise
+  accuracy admission, including a finite exact-result margin. Exact cold replay
+  resolves nearest-overflow ties and finite neighbors that widened arithmetic
+  can merge, retaining valid native bits under the unchanged four-ulp term-scale
+  tolerance. Priming overflow errors and predictor infinities keep their
+  existing policy. Overlapping velocity/field storage and repeated-index views
+  retain sequential scalar guards when writes could invalidate a batch prepass.
+  See the [CPU particle tracker](docs/BORIS_ACCURACY_IMPLEMENTATION.md).
+
 - Complete represented transport sources before final range classification.
   Active hyperresistivity uses shared normalized Fourier channels for the
   ideal/Ohmic/hyperresistive field, signed pressure equation and source-aware
@@ -18,8 +27,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   hybrid Euler predictor retain stored species charge and mass through range
   guards and exact cold replay. A quotient rounded to zero no longer certifies
   a zero physical kick. Normal native arithmetic, priming overflow errors,
-  predictor infinities and leapfrog phase/history are retained. Full normal
-  Euler accuracy remains a separate audit in the
+  predictor infinities and leapfrog phase/history are retained. Verification
+  status is recorded in the
   [CPU particle tracker](docs/BORIS_ACCURACY_IMPLEMENTATION.md).
 
 - Nonrelativistic CPU Boris kicks retain original species charge and mass in

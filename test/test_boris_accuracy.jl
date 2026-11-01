@@ -466,6 +466,66 @@ end
     end
 end
 
+@testset "Euler priming and predictor preserve aliased sequential reads" begin
+    T, n = Float16, 14
+    h = T(3) / T(1024)
+    for route in (:prime, :planar, :predict)
+        backing = fill(T(96), n + 1)
+        v = (view(backing, 1:n), view(backing, 2:(n+1)), zeros(T, n))
+        E = ntuple(_ -> zeros(T, n), 3)
+        B = (zeros(T, n), zeros(T, n), v[1])
+        factor = route === :predict ? -one(T) : one(T)
+        sign = route === :predict ? 1 : -1
+        scales = H._euler_batch_scales(v, E, B, h * factor, 1:n, T)
+        @test H._euler_batch_certificate(h, factor, h * factor, scales...)
+        @test !H._euler_batch_storage_safe(v, v, E, B)
+
+        # Replay the historical particle/store order. Each scalar result is
+        # checked independently against exact stored-input Euler physics before
+        # it becomes the next particle's input through the shifted views.
+        expected = copy(backing)
+        sequential = (view(expected, 1:n), view(expected, 2:(n+1)), zeros(T, n))
+        witnessed = false
+        for p = 1:n
+            u = ntuple(c -> sequential[c][p], 3)
+            e, b = (zero(T), zero(T), zero(T)), (zero(T), zero(T), expected[p])
+            exact = euler_reference(u, e, b, factor, one(T), h, sign)
+            U, A, C = map(x -> Q.(collect(x)), (u, e, b))
+            scale2 = max(
+                sum(abs2, U),
+                Q(h * factor)^2 * sum(abs2, A),
+                Q(h * factor)^2 * sum(abs2, U) * sum(abs2, C),
+            )
+            mode = route === :predict ? Val(:predict) : Val(:prime)
+            actual = H._euler_kick(u, e, b, h, factor, h * factor, mode)
+            @test contract(actual, exact, scale2)
+            native = first(H._euler_kick_parts(u..., e..., b..., h * factor, mode))
+            if !all(isfinite, native)
+                rounded = map(x -> nearest(T, x), exact)
+                @test all(isfinite, rounded)
+                @test isequal(actual, rounded)
+                witnessed = true
+            end
+            sequential[1][p], sequential[2][p], sequential[3][p] = actual
+        end
+        @test witnessed
+        if route === :prime
+            H._prime_leapfrog!(v, E, B, factor, h, n)
+        elseif route === :planar
+            H._prime_empic1d!(v, E[1], E[2], B[3], factor, h, n, false, one(T))
+        else
+            H._predict_half_kick!(v, v, E, B, factor, h, n)
+        end
+        @test isequal(backing, expected)
+        @test isequal(v[3], sequential[3])
+    end
+    independent = ntuple(_ -> zeros(T, 2), 3)
+    fields = ntuple(_ -> zeros(T, 2), 3)
+    @test H._euler_batch_storage_safe(independent, independent, fields, fields)
+    repeated = view(T[1], [1, 1])
+    @test !H._euler_batch_storage_safe((repeated,), (repeated,), (), ())
+end
+
 @testset "Original-factor hybrid phase and checkpoint continuation" begin
     grid = FourierGrid((4,), (1.0,))
     ps = ParticleSet{1,Float64}(1; m = 2.0)
@@ -498,6 +558,74 @@ end
         @test particles.x == ps.x && particles.v == ps.v
         @test (restored.step[], restored.time[], restored.last_dt[]) ==
               (st.step[], st.time[], st.last_dt[])
+    end
+end
+
+@testset "Euler and ES nearest-overflow endpoints" begin
+    for T in (Float16, Float32, Float64), kind in (:finite_native, :overflowing_product)
+        ulp = Q(2)^(exponent(floatmax(T)) - precision(T) + 1)
+        threshold = Q(floatmax(T)) + ulp / 2
+        if kind === :finite_native
+            power = Q(2)^exponent(floatmax(T))
+            # Retained coordinate fixture: 3 divides 2^p+1 for p=11/53;
+            # 97 divides 2^24+1. Euler prediction is the same x+hE expression.
+            h = T === Float32 ? T(97) / T(64) : T(3) / T(2)
+            x, electric = T(power - ulp), (power + ulp / 2) / Q(h)
+        else
+            # The exact product is the overflow tie; ±one subnormal in u
+            # distinguishes it from its finite and overflowing neighbors.
+            h = T === Float32 ? T(31) : T(3)
+            x, electric = zero(T), threshold / Q(h)
+        end
+        E0 = T(electric)
+        @test Q(E0) == electric
+        z = zero(T)
+        for direction in (-one(T), one(T)), offset in (-1, 0, 1)
+            original = offset < 0 ? prevfloat(x) : offset > 0 ? nextfloat(x) : x
+            u, E = direction * original, direction * E0
+            exact = Q(u) + Q(h) * Q(E)
+            scale2 = max(Q(u)^2, (Q(h) * Q(E))^2)
+            native = u + (h * one(T)) * E
+            kind === :finite_native && offset == 0 && @test isfinite(native)
+            for factor in (one(T), H._BorisSpeciesFactors(one(T), one(T), one(T)))
+                predicted = H._euler_kick((u, z, z), (E, z, z), (z, z, z), h, factor, h, Val(:predict))
+                @test contract(predicted, (exact, Q(0), Q(0)), scale2)
+                if abs(exact) < threshold
+                    expected = isfinite(native) ? native : nearest(T, exact)
+                    @test isequal(predicted[1], expected)
+                    primed = H._euler_kick((u, z, z), (-E, z, z), (z, z, z), h, factor, h, Val(:prime))
+                    @test isequal(primed[1], expected)
+                    @test isequal(H._es_prime_component(u, -E, h, factor, h), expected)
+                    planar = ([u], [z], [T(0.25)])
+                    H._prime_empic1d!(planar, [-E], [z], [z], factor, h, 1, false, one(T))
+                    @test isequal(only(planar[1]), expected)
+                    @test only(planar[3]) == T(0.25)
+                else
+                    @test_throws ArgumentError H._euler_kick((u, z, z), (-E, z, z), (z, z, z), h, factor, h, Val(:prime))
+                    @test_throws ArgumentError H._es_prime_component(u, -E, h, factor, h)
+                    planar = ([u], [z], [T(0.25)])
+                    @test_throws ArgumentError H._prime_empic1d!(planar, [-E], [z], [z], factor, h, 1, false, one(T))
+                end
+            end
+        end
+    end
+end
+
+@testset "Euler ordinary accuracy admission retains native arithmetic" begin
+    for T in (Float16, Float32, Float64)
+        u, E, B = (T(0.5), T(-0.25), T(0.125)), (T(0.125), T(0.0625), T(-0.03125)), (T(0.25), T(-0.125), T(0.0625))
+        h = T(0.0625)
+        for factor in (one(T), H._BorisSpeciesFactors(one(T), one(T), one(T)))
+            native = ntuple(c -> u[c] - h * E[c], 3) # u and B are parallel; cross(u,B)=0 exactly.
+            actual = H._euler_kick(u, E, B, h, factor, h, Val(:prime))
+            @test isequal(actual, native)
+            scales = H._euler_batch_scales(map(x -> [x], u), E, B, h, 1:1, T)
+            @test H._euler_batch_certificate(h, factor, h, scales...)
+            exact = euler_reference(u, E, B, one(T), one(T), h, -1)
+            U, A, C = map(x -> Q.(collect(x)), (u, E, B))
+            scale2 = max(dot(U, U), Q(h)^2 * dot(A, A), Q(h)^2 * dot(U, U) * dot(C, C))
+            @test contract(actual, exact, scale2)
+        end
     end
 end
 end

@@ -1,6 +1,6 @@
-# Sufficient CPU accuracy bounds for the one canonical Boris expression.
+# Sufficient CPU accuracy bounds for the canonical Boris and Euler expressions.
 # All arithmetic below is positive Float64 outward bounding, not a general
-# interval API. The compile-time fixed nodes must stay DAG-equal to boris.jl.
+# interval API. The fixed Boris nodes must stay DAG-equal to boris.jl.
 struct _BorisSpeciesFactors{T<:_RangeGuardedFloat}
     q::T
     m::T
@@ -559,6 +559,66 @@ end
     R = (iszero(a[1]) || iszero(b[1])) ? 0.0 : _boris_upper_add(_boris_upper_mul(u, P), D)
     return _boris_upper_add(P, R), _boris_product_error(a[1], b[1], a[2], b[2], R)
 end
+
+# Fixed Euler magnitude/error pairs for u ± H(E + u×B). Maxima bound each
+# component; subtraction has the same absolute bound as addition. The native
+# coefficient is hq, and coefficient bounds its relative error against H.
+@inline function _euler_accuracy_bounds(hq::T, umax, emax, bmax, coefficient) where {T}
+    u, D = ldexp(1.0, -precision(T)), Float64(nextfloat(zero(T)))
+    velocity = (Float64(umax), 0.0)
+    electric = (Float64(emax), 0.0)
+    magnetic = (Float64(bmax), 0.0)
+    radius = _boris_upper_mul(coefficient, abs(Float64(hq)))
+    product = _boris_batch_product(velocity, magnetic, u, D)
+    cross = _boris_batch_sum(product, product, u, D)
+    force = _boris_batch_sum(electric, cross, u, D)
+    kick = _boris_batch_product((abs(Float64(hq)), radius), force, u, D)
+    output = _boris_batch_sum(velocity, kick, u, D)
+    return output, kick, radius
+end
+
+@inline function _euler_accuracy_finish(bound, lower, ::Type{T}) where {T}
+    all(x -> isfinite(x) && x >= 0, bound) || return false
+    isfinite(lower) && lower >= 0 || return false
+    e = iszero(lower) ? exponent(floatmin(T)) : max(exponent(lower), exponent(floatmin(T)))
+    tolerance = ldexp(1.0, e - precision(T) + 3)
+    return _boris_upper_add(bound[1], bound[2]) <= Float64(floatmax(T)) &&
+           bound[2] <= tolerance
+end
+
+@inline function _euler_accuracy_scalar(out, v, E, B, h::T, factor, hq::T) where {T}
+    T <: _RangeGuardedFloat || return true
+    _boris_accuracy_mode() || return false
+    eligible, coefficient, _ = _boris_coefficient(factor, h, hq)
+    eligible || return false
+    V, A, C = map(x -> maximum(abs, Float64.(x)), (v, E, B))
+    bound, _, radius = _euler_accuracy_bounds(hq, V, A, C, coefficient)
+    all(isfinite, bound) || return false
+    # Each term is a lower bound on the retained exact Euclidean term scale
+    # max(norm(v), |H|norm(E), |H|norm(v)norm(B)); no cancelled force is used.
+    lower_h = _boris_lower_difference(abs(Float64(hq)), radius)
+    lower = max(
+        V,
+        _boris_lower_product(lower_h, A),
+        _boris_lower_product(_boris_lower_product(lower_h, V), C),
+    )
+    return _euler_accuracy_finish((maximum(abs, Float64.(out)), bound[2]), lower, T)
+end
+
+@inline function _euler_batch_accuracy(h::T, factor, hq::T, umax, emax, bmax, smin) where {T}
+    T <: _RangeGuardedFloat || return true
+    _boris_accuracy_mode() || return false
+    eligible, coefficient, _ = _boris_coefficient(factor, h, hq)
+    eligible || return false
+    bound, kick, _ = _euler_accuracy_bounds(hq, umax, emax, bmax, coefficient)
+    # The Euler reduction chooses max|v| for a moving row. A resting row has
+    # v=0 exactly and chooses max|RN(hq*E)|, so subtracting the kick error gives
+    # a lower bound on |H|norm(E). ES chooses the max of these two quantities
+    # per component. Inf means no nonzero native scale: use the quantum floor.
+    lower = _boris_lower_difference(Float64(smin), kick[2])
+    return _euler_accuracy_finish(bound, lower, T)
+end
+
 @inline function _boris_batch_reciprocal(d::NTuple{2,Float64}, u, D)
     return 2.0,
     _boris_upper_add(_boris_upper_mul(2.0, d[2]), _boris_upper_add(_boris_upper_mul(2.0, u), D))

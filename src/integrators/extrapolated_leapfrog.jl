@@ -936,16 +936,17 @@ end
 )
     T = eltype(v[1])
     qm = _boris_native_factor(factor)
+    storage_safe = !(T <: _RangeGuardedFloat) || _euler_batch_storage_safe(v, v, Ep, Bp)
     if rel
         scales = _euler_batch_scales(v, Ep, Bp, (h, qm), 1:np, T)
-        if _rel_prime_batch_certificate(h, qm, c, scales...)
+        if storage_safe && _rel_prime_batch_certificate(h, qm, c, scales...)
             _prime_leapfrog_loop!(v, Ep, Bp, qm, h, np, c, Val(true), Val(false))
         else
             _prime_leapfrog_loop!(v, Ep, Bp, qm, h, np, c, Val(true), Val(true))
         end
     else
         scales = _euler_batch_scales(v, Ep, Bp, h * qm, 1:np, T)
-        if _euler_batch_certificate(h, factor, h * qm, scales...)
+        if storage_safe && _euler_batch_certificate(h, factor, h * qm, scales...)
             _prime_leapfrog_loop!(v, Ep, Bp, factor, h, np, c, Val(false), Val(false))
         else
             _prime_leapfrog_loop!(v, Ep, Bp, factor, h, np, c, Val(false), Val(true))
@@ -1050,8 +1051,9 @@ _carried_transport_ohms_law!(f, w, model, g) = _transport_ohms_law!(f, w.Eforce,
 @inline function _predict_half_kick!(vp, v, Ep, Bp, factor, h, np)
     qm = _boris_native_factor(factor)
     hq = h * qm
+    storage_safe = !(typeof(hq) <: _RangeGuardedFloat) || _euler_batch_storage_safe(vp, v, Ep, Bp)
     scales = _euler_batch_scales(v, Ep, Bp, hq, 1:np, typeof(hq))
-    if _euler_batch_certificate(h, factor, hq, scales...)
+    if storage_safe && _euler_batch_certificate(h, factor, hq, scales...)
         _predict_half_kick_loop!(vp, v, Ep, Bp, factor, h, np, Val(false))
     else
         _predict_half_kick_loop!(vp, v, Ep, Bp, factor, h, np, Val(true))

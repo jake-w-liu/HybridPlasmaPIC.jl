@@ -417,7 +417,10 @@ function _espic_push!(ps::ParticleSet{D,T}, Ep::NTuple{C}, g, dt::T, primed, las
     if !primed
         h = dt / 2
         hq = h * qm
-        if _es_prime_batch_certificate(ps.v, Ep, h, factor, hq, C, indices)
+        components = ntuple(c -> ps.v[c], Val(C))
+        storage_safe = !(T <: _RangeGuardedFloat) ||
+                       _euler_batch_storage_safe(components, components, Ep, ())
+        if storage_safe && _es_prime_batch_certificate(ps.v, Ep, h, factor, hq, C, indices)
             _espic_prime!(ps, Ep, h, factor, hq, Val(false))
         else
             _espic_prime!(ps, Ep, h, factor, hq, Val(true))

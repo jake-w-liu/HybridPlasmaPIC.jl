@@ -5,7 +5,7 @@
 #   those of the plain formulas.
 # - A cheap guard over the native intermediates flags intermediate overflow or
 #   underflow. Flagged Float16/Float32/Float64 expressions use wider or exact
-#   arithmetic; drift overflow classification is exact. Other number types keep
+#   arithmetic; drift and Euler overflow classification is exact. Other types keep
 #   native semantics, and non-finite inputs keep IEEE propagation.
 # - Accuracy is a few ulps of the operation scale (|v|, |h E| for kicks and
 #   |x| + |dt v| for drifts). Componentwise accuracy of a nearly cancelling
@@ -14,12 +14,6 @@
 #   finiteness policy; leapfrog priming instead raises an ArgumentError.
 
 const _RangeGuardedFloat = Union{Float16,Float32,Float64}
-
-# Wider formats for flagged rational expressions. Each expression comment
-# states why its wide evaluation cannot overflow; Float64 is evaluated exactly.
-_kinematics_wide(::Type{Float16}) = Float32
-_kinematics_wide(::Type{Float32}) = Float64
-_kinematics_wide(::Type{Float64}) = Rational{BigInt}
 
 # The single rounding back to T: an IEEE conversion or a correctly rounded
 # exact conversion, including subnormal results and overflow to ±Inf.
@@ -232,20 +226,14 @@ end
 
 @inline function _euler_kick(u::NTuple{3,T}, e, b, h::T, factor, hq::T, ::Val{mode}) where {T,mode}
     out, parts = _euler_kick_parts(u..., e..., b..., hq, Val(mode))
-    _euler_kick_in_range(out, parts, u, h, factor, hq) && return out
-    return _euler_kick_repair(out, u, e, b, h, factor, Val(mode))
+    range = _euler_kick_in_range(out, parts, u, h, factor, hq)
+    range && _euler_accuracy_scalar(out, u, e, b, h, factor, hq) && return out
+    return _euler_kick_repair(out, u, e, b, h, factor, Val(mode), range)
 end
 
-# The same expression in the wider format. Every term is below
-# 4*floatmax(T)^4 (2^514 for Float32 in Float64, 2^66 for Float16 in Float32).
-# Inputs are multiples of nextfloat(zero(T)), so h*qm and the u×B products are
-# exact and either zero or at least 2^-298 (2^-48), E + u×B is either zero or
-# at least 2^-350 (2^-71), and the kick product is either zero or at least
-# 2^-648 (2^-119), all normal; a sum landing in the subnormal range is exact.
-# The wide evaluation therefore has no overflow and no lossy underflow.
-# Missing planar components are exact zeros and leave the remaining terms exact.
-# Species carriers instead replay the original factors exactly; their quotient
-# need not fit any intermediate IEEE type.
+# Replay the canonical expression exactly. A wider intermediate alone cannot
+# distinguish nearest-overflow ties from finite neighbors. Retain an admitted
+# native result only within four ulps of the exact electric/magnetic term scale.
 @noinline function _euler_kick_repair(
     out::NTuple{3,T},
     u,
@@ -254,15 +242,20 @@ end
     h::T,
     factor,
     ::Val{mode},
+    retain_native::Bool = false,
 ) where {T,mode}
     all(isfinite, (u..., e..., b..., h)) || return out
     qm = _boris_native_factor(factor)
     (!(factor isa _BorisSpeciesFactors) && !isfinite(qm)) && return out
-    W = factor isa _BorisSpeciesFactors ? _exact_rational : _kinematics_wide(T)
-    coefficient = factor isa _BorisSpeciesFactors ? _boris_exact_factor(factor) : W(qm)
-    wide, _ =
-        _euler_kick_parts(map(W, u)..., map(W, e)..., map(W, b)..., W(h) * coefficient, Val(mode))
-    kicked = map(x -> _kinematics_round(T, x), wide)
+    U, E, B = map(x -> map(_exact_rational, x), (u, e, b))
+    H = _exact_rational(h) * _boris_exact_factor(factor)
+    exact, _ = _euler_kick_parts(U..., E..., B..., H, Val(mode))
+    u2 = sum(abs2, U)
+    scale2 = max(u2, H^2 * sum(abs2, E), H^2 * u2 * sum(abs2, B))
+    if retain_native && _boris_exact_native_ok(out, exact, scale2)
+        return out
+    end
+    kicked = map(x -> _kinematics_round(T, x), exact)
     mode === :prime &&
         !all(isfinite, kicked) &&
         throw(
@@ -274,30 +267,38 @@ end
 end
 
 # Electrostatic priming of one velocity component, v - (h*qm)*E, in the
-# historical order. Only the kick product can underflow; its error of at most
-# floatmin*eps/2 stays below eps*S/512 above the scale threshold. In the wider
-# format h*qm is exact and both products are zero or normal (at least 2^-447
-# for Float32 in Float64, 2^-72 for Float16 in Float32) and below 2*floatmax^3.
+# historical order. Joint range/accuracy admission uses the same bounds with
+# zero magnetic field. Unresolved finite inputs use exact stored operands.
 @inline function _es_prime_component(v::T, E::T, h::T, factor, hq::T) where {T}
     k = hq * E
     out = v - k
     T <: _RangeGuardedFloat || return out
     qm = _boris_native_factor(factor)
     S = max(abs(v), abs(k))
-    _euler_factor_in_range(factor, T) &
-    _kinematics_product_in_range(hq, h, qm) &
-    isfinite(out) &
-    (iszero(S) | (S >= floatmin(T) * T(256))) && return out
-    return _es_prime_component_repair(out, v, E, h, factor)
+    range =
+        _euler_factor_in_range(factor, T) &
+        _kinematics_product_in_range(hq, h, qm) &
+        isfinite(out) &
+        (iszero(S) | (S >= floatmin(T) * T(256)))
+    z = zero(T)
+    range && _euler_accuracy_scalar((out, z, z), (v, z, z), (E, z, z), (z, z, z), h, factor, hq) && return out
+    return _es_prime_component_repair(out, v, E, h, factor, range)
 end
 
-@noinline function _es_prime_component_repair(out::T, v::T, E::T, h::T, factor) where {T}
+@noinline function _es_prime_component_repair(out::T, v::T, E::T, h::T, factor, retain_native::Bool = false) where {T}
     all(isfinite, (v, E, h)) || return out
     qm = _boris_native_factor(factor)
     (!(factor isa _BorisSpeciesFactors) && !isfinite(qm)) && return out
-    W = factor isa _BorisSpeciesFactors ? _exact_rational : _kinematics_wide(T)
-    coefficient = factor isa _BorisSpeciesFactors ? _boris_exact_factor(factor) : W(qm)
-    primed = _kinematics_round(T, W(v) - (W(h) * coefficient) * W(E))
+    V, electric = _exact_rational(v), _exact_rational(E)
+    kick = (_exact_rational(h) * _boris_exact_factor(factor)) * electric
+    exact = V - kick
+    scale2 = max(V^2, kick^2)
+    z = zero(T)
+    qzero = zero(exact)
+    if retain_native && _boris_exact_native_ok((out, z, z), (exact, qzero, qzero), scale2)
+        return out
+    end
+    primed = _kinematics_round(T, exact)
     isfinite(primed) || throw(
         ArgumentError(
             "electrostatic priming: the half-step backed-up velocity exceeds the range of $T; rescale the units or reduce dt",
@@ -509,6 +510,24 @@ end
 @inline _batch_kick_magnitude(e, factor::Number) = abs(factor * e)
 @inline _batch_kick_magnitude(e, factor::Tuple) = abs(factor[1] * (factor[2] * e))
 
+# A prepass remains valid only if writes cannot change later velocity or field
+# reads. Matching injective velocity storage permits aligned in-place updates;
+# other overlap retains the existing guarded sequential loop. Cross-component
+# overlap is also unsafe for the component-first electrostatic priming loop.
+@inline function _euler_batch_storage_safe(output, v, E, B)
+    for (c, w) in enumerate(output)
+        for (k, a) in enumerate(v)
+            a isa AbstractArray || continue
+            c == k && w === a && _particle_batch_injective(w) && continue
+            _particle_arrays_mightalias(w, a) && return false
+        end
+        for fields in (E, B), a in fields
+            a isa AbstractArray && _particle_arrays_mightalias(w, a) && return false
+        end
+    end
+    return true
+end
+
 # Euler half-kick scales: max|u|, max|E|, max|B| and the smallest nonzero lower
 # bound σ_p of the guard scale S_p = max(|u_p|, |k_p|): |u_p| for a moving
 # particle and, for u_p = 0, exactly |k_p| = |factor E_p| because then
@@ -535,7 +554,8 @@ end
 
 # |E + u×B| <= max|E| + 2 max|u| max|B| and every intermediate and result of
 # u ∓ h qm (E + u×B) is below bound/4 <= floatmax/16 (the factor 4 covers the
-# roundings); S_p >= σ_p >= smin passes the threshold of _euler_kick_in_range.
+# roundings); S_p >= σ_p >= smin passes the range threshold. The final bound
+# independently admits full normwise accuracy and a finite exact margin.
 @inline function _euler_batch_certificate(h::T, factor, hq::T, umax, emax, bmax, smin) where {T}
     T <: _RangeGuardedFloat || return true
     qm = _boris_native_factor(factor)
@@ -543,7 +563,8 @@ end
     return _euler_factor_in_range(factor, T) &
            _kinematics_product_in_range(hq, h, qm) &
            (bound <= floatmax(T) / 4) &
-           (smin >= floatmin(T) * T(256) * (one(T) + abs(hq)))
+           (smin >= floatmin(T) * T(256) * (one(T) + abs(hq))) &&
+           _euler_batch_accuracy(h, factor, hq, umax, emax, bmax, smin)
 end
 
 # Relativistic back-up (guard _rel_prime_in_range): |a| <= A = 2|qm|(max|E| +
@@ -566,7 +587,8 @@ end
            (smin >= floatmin(T) * T(256) * (one(T) + abs(h)) * (one(T) + abs(qm)))
 end
 
-# Electrostatic priming v - (h*qm)*E: the guard's exact per-component scale.
+# Electrostatic priming v - (h*qm)*E: joint range/accuracy admission from one
+# reduction, retaining the guard's per-component scale lower bound.
 @inline function _es_prime_batch_certificate(v, E, h::T, factor, hq::T, C, indices) where {T}
     T <: _RangeGuardedFloat || return true
     qm = _boris_native_factor(factor)
@@ -581,7 +603,8 @@ end
     return _euler_factor_in_range(factor, T) &
            _kinematics_product_in_range(hq, h, qm) &
            (4 * (vmax + abs(hq) * emax) <= floatmax(T) / 4) &
-           (smin >= floatmin(T) * T(256))
+           (smin >= floatmin(T) * T(256)) &&
+           _euler_batch_accuracy(h, factor, hq, vmax, emax, zero(T), smin)
 end
 
 # max|a| over a tuple of arrays, each over its own indices (drift certificates).

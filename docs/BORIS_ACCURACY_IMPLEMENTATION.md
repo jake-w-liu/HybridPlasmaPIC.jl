@@ -27,13 +27,35 @@ particle or solver storage, and no new allocation or timing guarantee is made.
 
 Nonrelativistic leapfrog and electrostatic priming, including EMPIC ion priming,
 and the hybrid endpoint Euler predictor also retain the species factors. Their
-existing native range certificates require a normal rounded quotient or a truly
-zero charge; unresolved coefficients replay the same Euler expression exactly
-from stored `q,m`. Cold replay throws when the rounded backed-up velocity
-overflows; a predictor returns signed infinity. Explicit numerical `qm`
-and generic callers retain their previous native and widened arithmetic.
-This factor-routing correction does not establish a full normal-range Euler
-accuracy certificate; that requirement remains open for a separate audit.
+joint range/accuracy certificates require a normal rounded quotient or a truly
+zero charge and bound error at the exact term scale
+`max(norm(u), abs(H)*norm(E), abs(H)*norm(u)*norm(B))`, where `H=h*q/m`.
+The absolute tolerance is four ulps at that scale, with the same binade floor.
+Static magnitude/error pairs enclose each cross product, force, kick and output
+through the existing outward sum/product helpers. The native coefficient radius
+uses the separate explicit-`qm` or original-factor coefficient bound.
+
+Scalar admission uses lower bounds on the three separate scale terms. The
+batch reduction uses `max(abs(u))` for a moving particle; a resting particle
+uses its native electric kick, whose error is subtracted before using it as a
+scale lower bound. No cancelled combined force is treated as the term scale.
+An empty or all-zero native scale uses the subnormal quantum floor. Every
+certificate also requires a finite exact-result margin.
+
+Euler priming and prediction use batch admission only when writes cannot
+change later velocity or field reads. Matching in-place velocity components
+must have known injective storage; overlapping components, field aliases and
+repeated-index views retain the guarded sequential loop. The planar prime
+checks only its two active velocity components. These storage checks do not
+reject public containers or change the order of their reads and writes.
+
+Unresolved IEEE inputs replay the same Euler expression exactly, preserving
+the supplied `qm` meaning for explicit numerical callers and original `q,m`
+for species callers. A native result admitted by the range guard keeps its bits
+when exact comparison satisfies the tolerance and nearest-overflow rule.
+Otherwise the exact result rounds once. Cold replay throws when the rounded
+backed-up velocity overflows; a predictor returns signed infinity. Generic
+arithmetic and the relativistic numerical expressions are unchanged.
 
 Relativistic updates and priming still receive a rounded numerical `qm`.
 Existing model input restrictions, including collection electrostatic rejection
@@ -53,7 +75,11 @@ Implementation tracker:
 - [x] Original-factor nonrelativistic priming and predictor range/rounding
   implementation, with essential physical, phase and checkpoint regressions.
 - [ ] GitHub CI verification of the priming/predictor correction.
-- [ ] Full normal-range Euler accuracy audit and any required implementation.
+- [x] Sufficient normal-range Euler term-scale admission and exact endpoint
+  classification implementation, with retained endpoint and ordinary controls.
+- [x] Euler prepass storage safety and sequential-alias regression implementation.
+- [ ] GitHub verification of Euler accuracy, native-bit compatibility and all
+  neighboring phase, compiler and resource gates.
 - [ ] Original-factor relativistic and device follow-ons.
 - [ ] Complete public resource and compiler acceptance; prior bounded numerical
   checks do not establish these guarantees.

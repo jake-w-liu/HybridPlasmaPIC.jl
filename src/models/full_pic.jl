@@ -1429,15 +1429,17 @@ end
 # push expects v^{-1/2}; back it up a half step v^{-1/2} = v^0 − h·a^0, a^0 = qm(E + v×B) with
 # B = (0,0,Bz). `h` is the species' half-step (dt_e/2 for electrons, dt_ion/2 for ions). Restores
 # 2nd-order temporal accuracy (verified: rate 1 → 2 for both species). Ordinary inputs keep the
-# native order; range-flagged Float16/32/64 back-ups are evaluated wider and rounded once, and a
-# backed-up velocity that exceeds the type throws an ArgumentError (kinematics_range.jl).
+# native order when admitted; unresolved nonrelativistic IEEE back-ups use exact replay and
+# retain valid native bits. Overflowing backed-up velocity throws (kinematics_range.jl).
 @inline function _prime_empic1d!(v, Exp, Eyp, Bzp, factor, h, np, rel::Bool, c)
     T = typeof(h)
     z = zero(T)
     qm = _boris_native_factor(factor)
     if rel
+        storage_safe = !(T <: _RangeGuardedFloat) ||
+                       _euler_batch_storage_safe(v, v, (Exp, Eyp, z), (z, z, Bzp))
         scales = _euler_batch_scales(v, (Exp, Eyp, z), (z, z, Bzp), (h, qm), 1:np, T)
-        if _rel_prime_batch_certificate(h, qm, c, scales...)
+        if storage_safe && _rel_prime_batch_certificate(h, qm, c, scales...)
             _prime_empic1d_loop!(v, Exp, Eyp, Bzp, qm, h, np, c, Val(true), Val(false))
         else
             _prime_empic1d_loop!(v, Exp, Eyp, Bzp, qm, h, np, c, Val(true), Val(true))
@@ -1445,8 +1447,11 @@ end
     else
         hq = h * qm
         # The planar back-up reads and writes only u_x and u_y.
+        storage_safe = !(T <: _RangeGuardedFloat) || _euler_batch_storage_safe(
+            (v[1], v[2]), (v[1], v[2], z), (Exp, Eyp, z), (z, z, Bzp),
+        )
         scales = _euler_batch_scales((v[1], v[2], z), (Exp, Eyp, z), (z, z, Bzp), hq, 1:np, T)
-        if _euler_batch_certificate(h, factor, hq, scales...)
+        if storage_safe && _euler_batch_certificate(h, factor, hq, scales...)
             _prime_empic1d_loop!(v, Exp, Eyp, Bzp, factor, h, np, c, Val(false), Val(false))
         else
             _prime_empic1d_loop!(v, Exp, Eyp, Bzp, factor, h, np, c, Val(false), Val(true))
@@ -1553,18 +1558,36 @@ function _prime_empic1d_loop!(
             kx = hq * ax
             ky = hq * ay
             primed = (ux - kx, uy - ky, z)
-            if guard &&
-               !_euler_kick_in_range(primed, (ax, ay, z, kx, ky, z), (ux, uy, z), h, factor, hq)
+            if guard
+                range = _euler_kick_in_range(
+                    primed,
+                    (ax, ay, z, kx, ky, z),
+                    (ux, uy, z),
+                    h,
+                    factor,
+                    hq,
+                )
                 # The planar back-up is the 3-D one with u_z = E_z = B_x = B_y = 0.
-                primed = _euler_kick_repair(
+                if !(range && _euler_accuracy_scalar(
                     primed,
                     (ux, uy, z),
                     (ex, ey, z),
                     (z, z, bz),
                     h,
                     factor,
-                    Val(:prime),
-                )
+                    hq,
+                ))
+                    primed = _euler_kick_repair(
+                        primed,
+                        (ux, uy, z),
+                        (ex, ey, z),
+                        (z, z, bz),
+                        h,
+                        factor,
+                        Val(:prime),
+                        range,
+                    )
+                end
             end
             vx[p] = primed[1]
             vy[p] = primed[2]

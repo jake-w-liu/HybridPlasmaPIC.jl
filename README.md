@@ -276,8 +276,9 @@ and Metal; shared read-only fields and metadata remain supported. See the
 Nonrelativistic CPU Boris kicks preserve original species charge and mass in
 public pushes and model kick owners. Native admission checks range and the
 four-ulp accuracy bound; unresolved kicks use exact replay. Nonrelativistic
-priming and predictor range replay also retain the factors; full normal Euler
-accuracy, relativistic and device factor support have separate limits in the
+priming and predictors also retain the factors and check their electric/magnetic
+term-scale accuracy before native replay. Verification status, relativistic and
+device factor support have separate limits in the
 [CPU Boris contract and tracker](docs/BORIS_ACCURACY_IMPLEMENTATION.md).
 
 For finite inputs and charge snapshots, EM PIC with built-in NGP/CIC/TSC shapes

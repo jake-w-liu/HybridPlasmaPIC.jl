@@ -167,6 +167,11 @@ function _particle_arrays_mightalias(a::AbstractArray, b::AbstractArray)
     return (isempty(a) || isempty(b)) && _particle_backing_mightalias(a, b)
 end
 
+# Sufficient injectivity for identity-aligned batch reads and writes. An
+# arbitrary indexed view can visit the same backing location more than once.
+@inline _particle_batch_injective(a::AbstractVector) =
+    length(a) <= 1 || (a isa StridedVector && !iszero(stride(a, 1)))
+
 function _particle_components_mightalias(ps::ParticleSet, alias_test = _particle_arrays_mightalias)
     for (d, x) in enumerate(ps.x)
         for k = 1:(d-1)

@@ -7,9 +7,10 @@ overflow correction is implemented in this revision, with CI acceptance tracked
 separately.
 The historical range repair does not certify those later-discovered boundaries.
 Nonrelativistic species priming and predictor owners now retain original charge
-and mass through their range guards and exact cold replay. GitHub CI acceptance
-is pending; full normal-range Euler accuracy remains a separate open audit in
-the [CPU particle tracker](BORIS_ACCURACY_IMPLEMENTATION.md).
+and mass through their guards and exact cold replay. Euler/ES native admission
+also checks a sufficient four-ulp term-scale bound and finite exact margin;
+unresolved IEEE inputs classify nearest overflow exactly. GitHub verification
+remains pending in the [CPU particle tracker](BORIS_ACCURACY_IMPLEMENTATION.md).
 The implemented chain uses the
 [normwise standard](DEEP_DEBUG_TRACKER.md#numerical-accuracy-standard-user-decision-2026-10-26).
 
@@ -38,14 +39,18 @@ erasing half-step kicks and midpoints.
    CPU coordinate overflow classification instead uses exact rational arithmetic
    outside its conservative finite-result certificate, as described below.
    Other number types keep native semantics; non-finite inputs propagate.
-   Nonrelativistic species priming and predictor cold replay instead uses the
-   exact original `q/m` and the shared IEEE rounding owner for all three IEEE
-   types. Their native certificates also require the rounded quotient to be
+   Nonrelativistic IEEE priming and predictor cold replay instead uses exact
+   rational arithmetic and the shared IEEE rounding owner for all three types.
+   Species callers retain original `q/m`; explicit numerical `qm` means that
+   stored number. Species certificates also require the rounded quotient to be
    normal, or the original charge to be zero. An underflowed quotient of a
    nonzero charge cannot certify a zero physical kick.
 3. Accuracy is a few ulps of the operation scale (`|v|`, `|h E|` for kicks,
    `|x| + |dt v|` for drifts); componentwise accuracy under cancellation is
-   not certified in general. Relativistic priming whose native output has rounded normalized squared
+   not certified in general. Euler/ES admission uses four ulps at
+   `max(norm(u), abs(H)*norm(E), abs(H)*norm(u)*norm(B))`, `H=h*qm`;
+   exact cold comparison retains valid native bits under that same term scale.
+   Relativistic priming whose native output has rounded normalized squared
    speed `>1/2` uses the repair/publication tier: a normwise one-ulp stage
    error there can amplify the next Lorentz gap. Every admitted fast repair
    is certified to lie in one rounding cell; unresolved cells use BigFloat.
@@ -65,15 +70,16 @@ the same preflight check before any particle update.
 
 | Expression | Owner | Guard (beyond finite outputs) |
 | --- | --- | --- |
-| Boris kick | `boris_kick`, `src/particles/boris.jl` | `h` normal or legitimately zero, `|t|²` finite, `f ≥ floatmin`, `S = max(|v|,|hE|)` zero or `≥ 256 floatmin (1+τ)` |
-| Relativistic Boris | `_boris_rel`, `src/models/full_pic.jl` | as above on momentum, plus `c²` normal, finite `γ⁻`, `γ⁺`, and a resolved Lorentz factor |
-| Euler priming/predictor | `_euler_kick`, `src/particles/kinematics_range.jl` (used by `_prime_leapfrog!`, `_predict_half_kick!`, `_prime_empic1d!`) | `h*qm` normal or legitimately zero, finite `E + u×B`, scale `≥ 256 floatmin (1+|h qm|)` |
+| Boris kick | `boris_kick`, `src/particles/boris.jl` and `boris_accuracy.jl` | Joint scalar/batch range and four-ulp accuracy admission; unresolved finite IEEE inputs replay the canonical expression exactly ([contract](BORIS_ACCURACY_IMPLEMENTATION.md)) |
+| Relativistic Boris | `_boris_rel`, `src/models/full_pic.jl` | Native momentum range guards, normal `c²`, finite/resolved Lorentz factors and supported rounded velocity; original-factor and full accuracy follow-ons remain separate |
+| Euler priming/predictor | `_euler_kick`, `src/particles/kinematics_range.jl` (used by `_prime_leapfrog!`, `_predict_half_kick!`, `_prime_empic1d!`) | Range conditions plus a sufficient four-ulp term-scale error bound and finite exact margin |
 | Relativistic priming | `_rel_prime_in_range`/`_rel_prime_repair` | `c²` normal, `h` normal or zero, finite acceleration and `γ`, resolved Lorentz factor and output squared speed `≤ c²/2`, scale `≥ 256 floatmin (1+|h|)(1+|qm|)` |
-| ES priming | `_es_prime_component` | `h*qm` normal or zero, scale `≥ 256 floatmin` |
+| ES priming | `_es_prime_component` | Range conditions plus the electric-only four-ulp bound and finite exact margin |
 | Drift/midpoint | `_particle_coordinate` (push_uniform!/push_gathered!, hybrid, EMPIC1D/EMPIC, ES, 7 shock updates) | finite native result within half the maximum or with a zero displacement factor; unresolved finite inputs use exact nearest-even overflow classification |
 
-The wide-format claims (no overflow, harmless underflow) are derived in the
-comments next to each repair. `dt` validation is `_require_resolved_dt` in
+Boris, Euler and drift cold paths use the canonical exact conversion owners;
+relativistic paths retain their separately documented square-root tiers.
+`dt` validation is `_require_resolved_dt` in
 `src/utils/validation.jl`, called by `_validated_step_dt` (`step!`,
 `step_camcl!`, `mpi_step!`, `step_shock!`, `step_leroy_shock!`,
 `step_shock2d!`, `step_shock3d!`), `step_espic!` (three methods),
@@ -85,15 +91,19 @@ electron-pressure and face-injection callers have no half-step terms
 
 Batch owners (`push_uniform!`, `push_gathered!`, the hybrid kick/drift, EMPIC
 and EMPIC1D velocity pushes and drifts, ES priming/kick/drift, leapfrog and
-EMPIC1D priming, the predictor and the shock steppers) first run one fused
-reduction without calls or writes: max |v|, |E|, |B| (|x| for drifts) and the
-smallest nonzero guard scale. A global certificate derived from these bounds
-(comments at `_boris_batch_certificate` and siblings in `kinematics_range.jl`)
-proves that every particle passes its guard; the batch then runs the native
-historical loop with the same arithmetic order. Coordinate admission also checks
+EMPIC1D priming, the predictor and the shock steppers) collect read-only maxima
+of |v|, |E|, |B| (|x| for drifts) and a nonzero scale lower bound. Native
+admission combines the range predicates in `kinematics_range.jl` with the
+accuracy bounds in `boris_accuracy.jl`; admitted batches retain the historical
+arithmetic order. Coordinate admission also checks
 that particle components are disjoint; shock admission checks field/particle
-storage overlap. Overlapping storage keeps the existing sequential behavior
-through per-coordinate guards. Otherwise the guarded loop runs on the inputs. The scalar `boris_kick` keeps its per-call
+storage overlap. Euler priming and predictor admission checks writes against
+future velocity and field reads. Only matching, known-injective velocity
+storage is exempt from overlap checks, preserving aligned in-place updates.
+Overlapping components, field aliases and repeated-index views retain sequential
+scalar guards without rejecting the storage. Coordinate overlap likewise keeps
+its existing sequential behavior through per-coordinate guards. Otherwise the
+guarded loop runs on the inputs. The scalar `boris_kick` keeps its per-call
 guard. Shock loops gather per particle, so their certificate uses grid maxima
 (nonnegative interpolation weights) and conservatively rejects particles at rest
 in a nonzero electric field.
