@@ -1264,7 +1264,7 @@ end
 
 function _save_checkpoint(
     path::AbstractString,
-    st::Union{_CheckpointStepper,HallMHDState,CollisionalHybridStepper},
+    st::Union{_CheckpointStepper,HallMHDState,CollisionalHybridStepper,YeeLongitudinalPIC},
     state,
 )
     _validate_checkpoint_state(state, st)

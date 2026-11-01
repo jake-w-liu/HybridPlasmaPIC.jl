@@ -165,6 +165,126 @@ fixed-width cell-average force bounds and rejected publication/context controls.
 They have not run locally. GitHub runtime, formatting and full compiler review
 must pass on the integrated revision before this prerequisite is accepted.
 
+## Event-free longitudinal coupled source candidate
+
+`YeeLongitudinalPIC` adds a synchronized CPU Float32/64 longitudinal
+**electrostatic** model. Source implementation and essential tests are present;
+static-cloud and coupled exact-revision GitHub runtime, compiler and formatting
+acceptance remain pending. This does not accept full bounded electromagnetic
+PIC, point-sheet/contact behavior or wall reflection.
+
+```julia
+g = YeeGrid((32,), (1.0,))
+particles = ParticleSet{1,Float64}(1; q=-1, m=1)
+particles.x[1] .= 0.5
+particles.weight .= 0.1
+state = YeeLongitudinalPIC(g; shape=YeeTriangularCloud(0.1),
+    background_charge=0.1, left_plate_charge=0.02)
+init!(state, particles)
+step!(state, particles, 0.001)
+diagnostics = yee_longitudinal_diagnostics(state, particles)
+save_checkpoint("longitudinal.bin", state, particles)
+```
+
+One `ParticleSet` or an ordered one-based vector is admitted, including empty
+populations and empty collections. All populations move. Charges are finite and
+signed, masses positive and weights finite/nonnegative. Zero-weight tracers move
+without contributing source or weighted kinetic energy. Positions/velocities
+have grid precision and independent ordinary or strided CPU storage. Centers
+must lie strictly inside `(0,L)`; cloud tails may overlap the walls. All
+transverse velocities, transverse E and all B must have stored zero values.
+Initialization, stepping and restart require nearest hardware rounding and
+gradual underflow; other contexts reject before staging. Static cloud APIs keep
+their independent exact-arithmetic context contract.
+
+The constructor requires explicit cloud selection. Original Float32/64 width,
+background density `b` and left isolated free-plate charge `sigma` retain their
+own precision and bits; other real background/plate arguments resolve once to
+grid precision. With exact `h=L/N`, initialization evaluates each complete
+original-source expression and rounds once:
+
+```
+E_e = sigma + b*(e+1/2)*h + sum(q*w*(1-A_e(x)))
+right_free_plate = -sigma-b*L-sum(q*w)
+```
+
+The derived right free plate is retained exactly as `Rational{BigInt}`, even
+when it is outside grid floating-point range. Background endpoint node charges
+are `b*h/2`; interior nodes have `b*h`. Free plates and particle-bound endpoint
+tails remain distinct. No DC removal, voltage condition or Gauss projection is
+applied. Required initialized fields must round finite. Successful `init!`
+resets time, step and last-step diagnostics and binds particle objects, component
+identities, q/m, weights, IDs and tags. Changing that configuration requires
+explicit reinitialization. Particle positions, longitudinal velocities and Ex
+are evolving state; callers remain responsible for any deliberate external
+changes to them.
+
+`step!` uses the existing guarded original-factor B=0 kick, checked drift,
+canonical cloud impulse and sourced Yee row arithmetic:
+
+```
+u = v + (dt/2)*(q/m)*G(E,x)
+y = x + dt*u
+I = sum(q*w*(A(y)-A(x)))
+Enew = E-I
+vnew = u + (dt/2)*(q/m)*G(Enew,y)
+```
+
+The first successful step freezes the positive resolved dt. Each kick retains
+its exact original half duration when that half cannot be represented at grid
+precision. x, v and E remain at one integer-time phase. No Maxwell
+clock or transverse CFL is introduced. Before staging, exact original-operand
+arithmetic enforces both strict scoped guards:
+
+```
+dt^2*stored_dx*min(1/h,1/a)/h * sum(q^2*w/m) < 4
+Qsum = sum(abs(q*w)); Ebound = max(abs(E)) + Qsum
+Bparticle = abs(q/m)*(stored_dx/h)*Ebound
+abs(v)*dt + Bparticle*dt^2/2 < min(x,L-x)
+```
+
+The first guard bounds zero-field rest modes, not general nonlinear stability
+or accuracy. The second is a conservative exclusion of a first physical wall
+exit, not a temporal error bound. Rounded drift endpoints must also stay
+strictly interior. Risk/contact rejection is atomic; there is no reflection,
+clipping, wrapping or endpoint nudge. All particle/field/clock/diagnostic
+candidates are completed before public writes, retaining public array identities.
+Scratch may change on rejection and is reusable.
+
+`em_field_energy(state)` uses `stored_dx*sum(Ex^2)/2`. The coupled diagnostic
+uses the existing kinetic and field-energy owners and computes each complete
+signed original-source Gauss residual before one final rounding, including
+background and both free plates. Read-only energy/residual outputs can be
+infinite when their complete value exceeds scalar range. Both old/new kinetic
+diagnostic evaluations and the stored last-step impulse, source work and energy
+defect must be finite for a step to publish.
+`last_work[]` is positive for transfer out of the field and uses the old/new
+fields directly. `last_energy_defect[] = Knew-Kold-last_work[]` uses the existing
+rounded kinetic-energy diagnostics. Exact-arithmetic Verlet generally has a
+nonzero physical `DeltaH=DeltaK-work`; in floating point, field-source staging
+and diagnostic rounding also separate this defect from measured `DeltaH`.
+Neither exact energy nor bitwise Gauss conservation is claimed.
+
+Distinct checkpoint schema 1 saves initialized completed boundaries through
+`save_checkpoint` and `archive_run`: original configuration types/bits, closed
+grid including stored dx, policies, ordered phase space/provenance/q/m/weights,
+current fields, clock/fixed-step phase, exact derived right plate and all exposed
+last-step diagnostics. Restore validates and detaches the complete payload;
+current Ex is restored verbatim, without projection or reconstruction. Scalar
+and collection payloads cannot be interchanged. Matching configuration is
+required; saved particle values replace destinations and rebind their existing
+component identities. Ordinary vectors may resize; strided destinations must
+already have matching counts. Scratch is rebuilt. Archives reuse the existing
+metadata/checksum owner and checkpoints reuse atomic file publication.
+
+The `longitudinal-pic` implementation-essentials suite includes independent
+physical-volume initializer/time-map references, continuity/energy checks,
+nonzero oscillator temporal refinement, exact admission boundaries, source and
+alias failures, late diagnostic rollback, mixed shape/grid widths, and restart
+schema/continuation cases. These are pending GitHub execution; no local Julia,
+formatter, compiler, build or profiling result is claimed. Complete-step resource
+costs and broader nonlinear/long-time physical validation remain separate gates.
+
 ## Implementation tracker
 
 The optional static-cloud API, surface-tail model and canonical owners above
@@ -184,8 +304,13 @@ acceptance remains a separate gate.
 - [ ] Transverse current and a synchronized coupled particle/field method.
 - [ ] Event-local reflection with crossing, grazing/contact and repeated-impact
   rules, atomic coupled failure and wall momentum/charge/work ledgers.
-- [ ] Coupled energy/Gauss diagnostics, background and free plate-charge state.
-- [ ] Versioned checkpoint/restart of fields, species, phases and wall/history state.
+- [x] Source candidate for event-free longitudinal Verlet coupling, energy/Gauss
+  diagnostics, uniform background and exact isolated free plates.
+- [ ] Accept the coupled candidate on the exact integrated GitHub revision.
+- [ ] Full electromagnetic coupled diagnostics and wall/plate history.
+- [x] Distinct source checkpoint/archive schema for initialized event-free
+  longitudinal fields, ordered particles, fixed phase and exposed diagnostics.
+- [ ] Accept longitudinal restart regressions; add full EM/wall/history restart.
 - [ ] Absorption/injection/circuits, relativistic coupling, higher dimensions,
   GPU/MPI and broader physical validation.
 

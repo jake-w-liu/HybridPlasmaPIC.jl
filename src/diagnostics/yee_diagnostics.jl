@@ -445,3 +445,63 @@ function yee_modified_energy(model::MaxwellVacuum{1,T}, dt::Real) where {T}
     lost || return value
     return _yee_modified_energy_exact(model, dtT)
 end
+
+"""
+    em_field_energy(state::YeeLongitudinalPIC)
+
+Synchronized longitudinal field energy `stored_dx*sum(Ex^2)/2`, using the
+existing original-input field-energy owner. Values outside the grid scalar
+range are `Inf`; this read-only diagnostic does not change the model.
+"""
+function em_field_energy(st::YeeLongitudinalPIC{T}) where {T}
+    _yl_validate_longitudinal_fields(st, st.fields)
+    return _em_field_energy_exact(st.fields.E, st.fields.B, one(T), st.g.dx)
+end
+
+"""
+    yee_longitudinal_diagnostics(state, particles)
+
+Return kinetic/field energy, the exact derived free plate charges, and an
+original-source Gauss residual on every node (including particle-bound endpoint
+tails). Each complete signed node expression is rounded once; no overflowing
+rounded incidence or charge is subtracted. The residual is measured, never
+projected away or compared to an arbitrary tolerance. Independently rounded
+fields/current propagate rounding residuals, so bitwise Gauss conservation is
+not promised. A residual outside the scalar range is signed infinity.
+
+`last_work` transfers energy out of the field; `last_energy_defect` is the last
+step's rounded-diagnostic `DeltaK-last_work`, generally nonzero for Verlet.
+It differs from `DeltaH` by field-source staging and diagnostic rounding errors.
+"""
+function yee_longitudinal_diagnostics(st::YeeLongitudinalPIC{T}, particles) where {T}
+    species = _yl_species(particles)
+    st.initialized[] || throw(ArgumentError("call init! before longitudinal diagnostics"))
+    _yl_validate_phase(st)
+    _yl_validate_populations(st, species)
+    _yl_validate_bound(st, species)
+    _yl_validate_longitudinal_fields(st, st.fields)
+    n = st.g.n[1]
+    charge = zeros(Rational{BigInt}, n + 1)
+    _yee_charge_kernel!(charge, species, nothing, nothing, st.g, Val(true), Val(:charge), st.shape)
+    h = _exact_rational(st.g.L[1]) / n
+    background = _exact_rational(st.background_charge) * h
+    charge[1] += background / 2 + _exact_rational(st.left_plate_charge)
+    charge[end] += background / 2 + st.right_plate_charge[]
+    for i = 2:n
+        charge[i] += background
+    end
+    Ex = st.fields.E[1]
+    residual = Vector{T}(undef, n + 1)
+    residual[1] = _from_exact(T, _exact_rational(Ex[1]) - charge[1])
+    for i = 2:n
+        residual[i] = _from_exact(T, _exact_rational(Ex[i]) - _exact_rational(Ex[i-1]) - charge[i])
+    end
+    residual[end] = _from_exact(T, -_exact_rational(Ex[end]) - charge[end])
+    return (
+        kinetic_energy = _kinetic_energy_checked(species, T, Val(false)),
+        field_energy = _em_field_energy_exact(st.fields.E, st.fields.B, one(T), st.g.dx),
+        left_plate_charge = _exact_rational(st.left_plate_charge),
+        right_plate_charge = st.right_plate_charge[], gauss_residual = residual,
+        last_work = st.last_work[], last_energy_defect = st.last_energy_defect[],
+    )
+end

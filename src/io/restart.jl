@@ -115,7 +115,7 @@ end
 
 function _archive_run(
     path::AbstractString,
-    st::Union{_CheckpointStepper,HallMHDState,CollisionalHybridStepper},
+    st::Union{_CheckpointStepper,HallMHDState,CollisionalHybridStepper,YeeLongitudinalPIC},
     state;
     rng_seed::Integer,
     normalization::AbstractString = "Omega_ci",

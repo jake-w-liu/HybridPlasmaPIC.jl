@@ -14,10 +14,11 @@ The [Implementation essentials workflow](../.github/workflows/implementation-ess
 runs selected existing test files on minimum `1.12` and moving latest-stable `1`.
 Its fixed choices cover EM collections and adjacent legacy ES/EM behavior,
 collisional composition/restart, particle accuracy/publication, the focused EM
-continuity check, and bounded charge/Maxwell/source fields. It instantiates the
-ordinary package project, records the actual runtime and retains complete output.
-The bounded-fields choice also installs the already-declared JET test extra in
-the ephemeral runner checkout, subject to the package's existing compatibility.
+continuity check, bounded charge/Maxwell/source fields, and the event-free
+longitudinal coupled model. It instantiates the ordinary package project,
+records the actual runtime and retains complete output. The bounded-fields and
+longitudinal-pic choices also install the declared JET test extra in the ephemeral
+runner checkout, subject to the package's existing compatibility.
 A standard outer `Test` testset aggregates nested assertion failures, allowing
 later testsets/files to run while keeping the final job failed. Unexpected
 include/load errors may still stop later files. Dependency and test failures

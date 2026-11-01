@@ -14,6 +14,7 @@ on:
           - particle-accuracy
           - electromagnetic-continuity
           - bounded-fields
+          - longitudinal-pic
 
 permissions:
   contents: read
@@ -41,7 +42,7 @@ jobs:
           julia --project=. -e '
             using Pkg
             Pkg.instantiate()
-            if ENV["IMPLEMENTATION_SUITE"] == "bounded-fields"
+            if ENV["IMPLEMENTATION_SUITE"] in ("bounded-fields", "longitudinal-pic")
               Pkg.add("JET")
             end'
           julia --project=. -e '
@@ -51,6 +52,7 @@ jobs:
               "collisional-transport" => ("test_collisional_hybrid.jl", "test_collisional_checkpoint.jl", "test_collisional_physics.jl"),
               "particle-accuracy" => ("test_boris_accuracy.jl", "test_relativistic_species_factors.jl", "test_relativistic_output_closure.jl"),
               "electromagnetic-continuity" => ("test_empic_relativistic_species.jl",),
+              "longitudinal-pic" => ("test_yee_longitudinal_pic.jl", "test_yee_particle_charge.jl", "test_bounded_maxwell.jl", "test_sourced_yee.jl"),
               "bounded-fields" => ("test_yee_particle_charge.jl", "test_bounded_maxwell.jl", "test_sourced_yee.jl", "test_sourced_yee_modes.jl", "test_sourced_yee_additional.jl"),
             )
             println((julia = VERSION, suite = ENV["IMPLEMENTATION_SUITE"]))
