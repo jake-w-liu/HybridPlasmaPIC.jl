@@ -83,6 +83,7 @@ include("coupling/shapes.jl")
 include("coupling/deposit.jl")
 include("coupling/gather.jl")
 include("coupling/moments.jl")
+include("coupling/yee_charge.jl")
 
 # --- Electrons + hybrid model + field state ---
 include("electrons/closures.jl")
@@ -365,6 +366,9 @@ export YeeGrid,
     yee_curl!,
     yee_divergence!,
     yee_electric_charge!,
+    YeeChargeWorkspace,
+    yee_particle_charge!,
+    yee_longitudinal_impulse!,
     apply_yee_pec!,
     MaxwellVacuum,
     maxwell_cfl,

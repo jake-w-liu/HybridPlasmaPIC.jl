@@ -335,7 +335,7 @@ function _add_complete_transport_field!(E, ideal, J, lapJ, η::T, ηH::T, g) whe
 end
 
 # Full-Laplacian hyperresistivity shares the canonical operator with algebraic
-# closures. The public scratch retains unscaled physical ∇²J, so an
+# closures. The public scratch retains unscaled physical ∇²J, so a
 # nonfinite rounded Laplacian rejects even if multiplication by ηH could be finite.
 # The carried ideal force is already published independently.
 function _add_hyperresistive_field!(E, J, lapJ, ηH::T, g) where {T}

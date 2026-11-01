@@ -1,0 +1,394 @@
+"""
+    YeeChargeWorkspace(g::YeeGrid{1})
+
+Reusable CPU storage for [`yee_particle_charge!`](@ref) and
+[`yee_longitudinal_impulse!`](@ref) on a closed 1D PEC grid. The payload is one
+Float64 sum vector and one grid-precision candidate, each of length `n+1`.
+A workspace belongs to one call at a time; its arrays must remain independent
+of outputs and particle/endpoint storage.
+"""
+struct YeeChargeWorkspace{T<:Union{Float32,Float64}}
+    n::Int
+    L::T
+    sum::Vector{Float64}
+    candidate::Vector{T}
+end
+
+function YeeChargeWorkspace(g::YeeGrid{1,T}) where {T}
+    g.periodic[1] && throw(ArgumentError("Yee charge coupling requires a closed PEC grid"))
+    nodes = Base.checked_add(g.n[1], 1)
+    return YeeChargeWorkspace{T}(g.n[1], g.L[1], zeros(Float64, nodes), zeros(T, nodes))
+end
+
+YeeChargeWorkspace(g::YeeGrid) =
+    throw(ArgumentError("Yee charge coupling requires one spatial dimension"))
+
+# Only totals at or below this limit enter the native error bound. Larger
+# totals keep one replay sentinel, without narrowing array length to Int.
+const _YEE_CHARGE_NATIVE_COUNT_LIMIT = Int128(1) << 51
+
+@inline function _yee_charge_native_count(count::Int128, particles::Integer)
+    cap = _YEE_CHARGE_NATIVE_COUNT_LIMIT + one(Int128)
+    particles >= cap - count && return cap
+    # Here 0 <= particles < cap-count, so conversion is exact and in range.
+    return count + convert(Int128, particles)
+end
+
+_yee_charge_species(ps::ParticleSet) = (ps,)
+_yee_charge_species(species::Tuple) = species
+function _yee_charge_species(species::AbstractVector)
+    Base.require_one_based_indexing(species)
+    return species
+end
+_yee_charge_species(species) =
+    throw(ArgumentError("Yee charge particles must be a ParticleSet, tuple or vector of species"))
+
+function _yee_charge_endpoints(ps::ParticleSet, old, new)
+    return (old,), (new,)
+end
+function _yee_charge_endpoints(species, old, new)
+    old isa Union{Tuple,AbstractVector} && new isa Union{Tuple,AbstractVector} ||
+        throw(ArgumentError("Yee endpoint collections must be tuples or one-based vectors"))
+    old isa AbstractVector && Base.require_one_based_indexing(old)
+    new isa AbstractVector && Base.require_one_based_indexing(new)
+    length(old) == length(species) && length(new) == length(species) ||
+        throw(DimensionMismatch("one old/new position vector is required per Yee charge species"))
+    return old, new
+end
+
+function _yee_charge_positions(positions, count, ::Type{T}) where {T}
+    positions isa AbstractVector{T} ||
+        throw(ArgumentError("Yee charge positions must be vectors of grid precision $T"))
+    length(positions) == count ||
+        throw(DimensionMismatch("Yee endpoint count must equal its species particle count"))
+    _check_particle_vector_axes(:yee_position, positions, count)
+    return nothing
+end
+
+function _yee_charge_aliases(buffers, ps)
+    for buffer in buffers
+        _mightalias_particle_storage(buffer, ps) &&
+            throw(ArgumentError("Yee charge output and workspace must not alias particle storage"))
+    end
+    return nothing
+end
+
+function _yee_endpoint_aliases(buffers, positions)
+    for buffer in buffers
+        _particle_arrays_mightalias(buffer, positions) &&
+            throw(ArgumentError("Yee charge output and workspace must not alias endpoint storage"))
+    end
+    return nothing
+end
+
+function _yee_validate_charge_position(
+    x::Union{Float32,Float64}, length, species, particle, role, native_mode,
+)
+    inside = if !isfinite(x)
+        false
+    elseif native_mode
+        zero(x) <= x <= length
+    else
+        0 <= _exact_rational(x) <= _exact_rational(length)
+    end
+    inside || throw(
+        ArgumentError("Yee species $species $role position[$particle] must be finite in [0,L]"),
+    )
+    return nothing
+end
+
+@inline function _yee_charge_nonnegative(weight::Union{Float32,Float64}, native_mode)
+    return isfinite(weight) &&
+           (native_mode ? weight >= zero(weight) : _exact_rational(weight) >= 0)
+end
+
+# Every value/shape/alias is checked across all populations before either scratch
+# array is written. Unused mass/velocity/provenance values are not operands.
+function _yee_validate_charge(
+    out, species, old, new, g::YeeGrid{1,T}, work, mode, native_mode,
+) where {T}
+    g.periodic[1] && throw(ArgumentError("Yee charge coupling requires a closed PEC grid"))
+    work isa YeeChargeWorkspace{T} ||
+        throw(ArgumentError("Yee charge workspace must match grid precision $T"))
+    work.n == g.n[1] && work.L === g.L[1] ||
+        throw(ArgumentError("Yee charge workspace must match the grid cell count and length"))
+    nodes = Base.checked_add(g.n[1], 1)
+    out isa Vector{T} || throw(ArgumentError("Yee charge output must be an ordinary Vector{$T}"))
+    expected = mode isa Val{:charge} ? nodes : g.n[1]
+    length(out) == expected || throw(DimensionMismatch("Yee charge output has the wrong length"))
+    length(work.sum) == nodes && length(work.candidate) == nodes ||
+        throw(DimensionMismatch("Yee charge workspace arrays must have n+1 entries"))
+    buffers = (out, work.sum, work.candidate)
+    (
+        _particle_arrays_mightalias(work.sum, out) ||
+        _particle_arrays_mightalias(work.candidate, out) ||
+        _particle_arrays_mightalias(work.candidate, work.sum)
+    ) && throw(ArgumentError("Yee charge output and workspace arrays must be independent"))
+    count = Int128(0)
+    magnitude = 0.0
+    for k in eachindex(species)
+        ps = species[k]
+        ps isa ParticleSet{1,T} ||
+            throw(ArgumentError("Yee charge species must be one-dimensional at grid precision $T"))
+        count, magnitude = _yee_validate_charge_population(
+            buffers, ps, old, new, g, k, mode, count, magnitude, native_mode,
+        )
+    end
+    return count, magnitude
+end
+
+@noinline function _yee_validate_charge_population(
+    buffers,
+    ps::ParticleSet{1,T},
+    old,
+    new,
+    g,
+    k,
+    mode,
+    count::Int128,
+    magnitude::Float64,
+    native_mode,
+) where {T}
+    particles = _check_particle_storage_axes(ps)
+    count = _yee_charge_native_count(count, particles)
+    _yee_charge_aliases(buffers, ps)
+    if mode isa Val{:impulse}
+        before = old[k]
+        _yee_charge_positions(before, particles, T)
+        after = new[k]
+        _yee_charge_positions(after, particles, T)
+        _yee_endpoint_aliases(buffers, before)
+        _yee_endpoint_aliases(buffers, after)
+        before isa StridedVector{T} && after isa StridedVector{T} ||
+            throw(ArgumentError("Yee charge endpoints must use CPU strided vectors"))
+    else
+        before, after = nothing, nothing
+    end
+    all(a -> a isa StridedVector, (ps.x..., ps.v..., ps.weight, ps.id, ps.tag)) ||
+        throw(ArgumentError("Yee charge particle components must use CPU strided vectors"))
+    isfinite(ps.q) || throw(ArgumentError("Yee species $k charge q must be finite"))
+    magnitude = _yee_validate_charge_values(ps, before, after, g, k, mode, magnitude, native_mode)
+    return count, magnitude
+end
+
+@noinline function _yee_validate_charge_values(
+    ps::ParticleSet{1,T},
+    old,
+    new,
+    g,
+    k,
+    mode,
+    magnitude::Float64,
+    native_mode,
+) where {T}
+    for p in eachindex(ps.weight)
+        weight = ps.weight[p]
+        _yee_charge_nonnegative(weight, native_mode) ||
+            throw(ArgumentError("Yee species $k weight[$p] must be finite and nonnegative"))
+        if mode isa Val{:charge}
+            _yee_validate_charge_position(ps.x[1][p], g.L[1], k, p, :current, native_mode)
+        else
+            _yee_validate_charge_position(old[p], g.L[1], k, p, :old, native_mode)
+            _yee_validate_charge_position(new[p], g.L[1], k, p, :new, native_mode)
+        end
+        if native_mode
+            magnitude =
+                _eft_add_upper(magnitude, _eft_mul_upper(abs(Float64(ps.q)), Float64(weight)))
+        end
+    end
+    return magnitude
+end
+
+@inline _yee_macrocharge(ps, p, ::Val{false}) = Float64(ps.q) * Float64(ps.weight[p])
+@inline _yee_macrocharge(ps, p, ::Val{true}) = _exact_rational(ps.q) * _exact_rational(ps.weight[p])
+
+@inline _yee_macrocharge_admitted(value, ::Val{false}) =
+    isfinite(value) && abs(value) >= floatmin(Float64)
+@inline _yee_macrocharge_admitted(value, ::Val{true}) = true
+
+@inline function _yee_add_charge!(sums, i, charge, coefficient, ::Val{false})
+    iszero(coefficient) && return true
+    value = charge * coefficient
+    isfinite(value) && abs(value) >= floatmin(Float64) || return false
+    updated = sums[i] + value
+    isfinite(updated) || return false
+    sums[i] = updated
+    return true
+end
+@inline function _yee_add_charge!(sums, i, charge, coefficient, ::Val{true})
+    iszero(coefficient) || (sums[i] += charge * coefficient)
+    return true
+end
+
+function _yee_charge_kernel!(sums, species, old, new, g, exact, mode::Val{:charge})
+    for ps in species
+        _yee_charge_population!(sums, ps, nothing, nothing, g, exact, mode) || return false
+    end
+    return true
+end
+
+function _yee_charge_kernel!(sums, species, old, new, g, exact, mode::Val{:impulse})
+    for k in eachindex(species)
+        _yee_charge_population!(sums, species[k], old[k], new[k], g, exact, mode) || return false
+    end
+    return true
+end
+
+@noinline function _yee_charge_population!(sums, ps, old, new, g, exact, ::Val{:charge})
+    for p in eachindex(ps.weight)
+        if exact isa Val{false}
+            (iszero(ps.q) || iszero(ps.weight[p])) && continue
+        end
+        charge = _yee_macrocharge(ps, p, exact)
+        exact isa Val{true} && iszero(charge) && continue
+        _yee_macrocharge_admitted(charge, exact) || return false
+        cell, weights, admitted = _yee_cic_stencil(ps.x[1][p], g, exact)
+        admitted || return false
+        _yee_add_charge!(sums, cell + 1, charge, weights[1], exact) || return false
+        _yee_add_charge!(sums, cell + 2, charge, weights[2], exact) || return false
+    end
+    return true
+end
+
+@noinline function _yee_charge_population!(sums, ps, old, new, g, exact, ::Val{:impulse})
+    for p in eachindex(ps.weight)
+        if exact isa Val{false}
+            (iszero(ps.q) || iszero(ps.weight[p])) && continue
+            first, last = old[p], new[p]
+            first == last && continue
+            a, b = minmax(first, last)
+            charge = _yee_macrocharge(ps, p, exact)
+            _yee_macrocharge_admitted(charge, exact) || return false
+            first > last && (charge = -charge)
+        else
+            charge = _yee_macrocharge(ps, p, exact)
+            iszero(charge) && continue
+            first, last = old[p], new[p]
+            direction = cmp(_exact_rational(first), _exact_rational(last))
+            iszero(direction) && continue
+            a, b = direction < 0 ? (first, last) : (last, first)
+            direction > 0 && (charge = -charge)
+        end
+        lower, left, lower_ok = _yee_cic_stencil(a, g, exact)
+        upper, right, upper_ok = _yee_cic_stencil(b, g, exact)
+        lower_ok && upper_ok || return false
+        if lower == upper
+            displacement, admitted = _yee_cic_displacement(a, b, g, exact)
+            admitted || return false
+            _yee_add_charge!(sums, lower + 1, charge, displacement, exact) || return false
+        else
+            _yee_add_charge!(sums, lower + 1, charge, left[1], exact) || return false
+            for cell = (lower+1):(upper-1)
+                _yee_add_charge!(sums, cell + 1, charge, one(charge), exact) || return false
+            end
+            _yee_add_charge!(sums, upper + 1, charge, right[2], exact) || return false
+        end
+    end
+    return true
+end
+
+function _yee_charge_native_candidate!(work, count, magnitude, entries)
+    # Coefficient error <=8u, two products and P additions: gamma_(P+10).
+    eta = (Float64(count) + 10.0) * 0x1p-53
+    gamma = _eft_div_upper(eta, prevfloat(1.0 - eta))
+    error = _eft_mul_upper(gamma, magnitude)
+    T = eltype(work.candidate)
+    maximum = Float64(floatmax(T))
+    for i = 1:entries
+        value = work.sum[i]
+        isfinite(value) && !issubnormal(value) || return false
+        _eft_add_upper(abs(value), error) <= maximum || return false
+        candidate = T(value)
+        isfinite(candidate) && !issubnormal(candidate) || return false
+        work.candidate[i] = candidate
+    end
+    return true
+end
+
+@noinline function _yee_charge_exact_candidate!(work, species, old, new, g, mode, entries)
+    sums = fill(zero(Rational{BigInt}), Base.checked_add(g.n[1], 1))
+    _yee_charge_kernel!(sums, species, old, new, g, Val(true), mode)
+    T = eltype(work.candidate)
+    for i = 1:entries
+        candidate = _from_exact(T, sums[i])
+        isfinite(candidate) ||
+            throw(ArgumentError("Yee charge/impulse entry $i does not round to a finite $T value"))
+        work.candidate[i] = candidate
+    end
+    return nothing
+end
+
+function _yee_charge_apply!(out, species, old, new, g::YeeGrid{1}, work, mode)
+    # The native EFT bounds require nearest rounding and gradual underflow.
+    # Other contexts keep all zero/order/geometry decisions on stored rationals.
+    native_mode = _boris_accuracy_mode()
+    count, magnitude = _yee_validate_charge(out, species, old, new, g, work, mode, native_mode)
+    fill!(work.sum, 0.0)
+    fill!(work.candidate, zero(eltype(work.candidate)))
+    entries = length(out)
+    # The count bound makes eta<1/2. It selects replay, never rejects a population.
+    native = native_mode && count <= _YEE_CHARGE_NATIVE_COUNT_LIMIT && isfinite(magnitude)
+    native = native && _yee_charge_kernel!(work.sum, species, old, new, g, Val(false), mode)
+    native = native && _yee_charge_native_candidate!(work, count, magnitude, entries)
+    native || _yee_charge_exact_candidate!(work, species, old, new, g, mode, entries)
+    for i in eachindex(out)
+        out[i] = work.candidate[i]
+    end
+    return out
+end
+
+"""
+    yee_particle_charge!(out, particles, g::YeeGrid{1}, workspace)
+
+Overwrite `out` with extensive CIC particle charge on every node of a closed PEC
+interval `[0,L]`, including both wall nodes. Accept one ParticleSet or a tuple/
+one-based vector of species, with finite q and nonnegative finite weights. This
+is charge, without division by dx. Geometry is `s=n*x/L` from stored inputs.
+Only CPU strided particle components and ordinary grid-precision output vectors
+are supported. Inputs remain unchanged; output/workspace cannot alias them.
+Mass/velocity/provenance values are not operands. Validation precedes scratch
+writes; arithmetic failure preserves output. Complete nonfinite rounded output
+rejects before publication; intermediate range loss replays exact original inputs.
+Nondefault hardware rounding or subnormal flushing uses exact replay, including
+stored-input admission and geometry; final exact rounding remains nearest-even.
+See `docs/BOUNDED_PARTICLE_COUPLING_PLAN.md` for the normwise rounding boundary.
+"""
+function yee_particle_charge!(out, particles, g::YeeGrid{1}, workspace)
+    return _yee_charge_apply!(
+        out,
+        _yee_charge_species(particles),
+        nothing,
+        nothing,
+        g,
+        workspace,
+        Val(:charge),
+    )
+end
+
+"""
+    yee_longitudinal_impulse!(out, particles, xold, xnew, g::YeeGrid{1}, workspace)
+
+Overwrite `out` with the longitudinal integrated current compatible with CIC
+endpoint charge in a closed PEC interval, epsilon0=1 and unit transverse area.
+A single species takes two position vectors; a collection takes matching tuples/
+one-based vectors of position vectors. q/weight/identity belong to the same
+unchanged population. All consumed positions lie in `[0,L]`, with exact wall
+endpoints allowed. The particle set's current position values are not endpoints.
+
+No dt argument or additional dx normalization is needed. In exact arithmetic,
+`Qnew-Qold+[out[1],diff(out)...,-out[end]]=0`; independently rounded arrays have
+a normwise residual, not bitwise continuity. Reversed/retraced normal paths cancel
+and multiple-cell flux is included. No transverse current, force, reflection
+mover, absorbed charge, voltage constraint or coupled solver is supplied.
+Storage, range and atomic-publication rules follow [`yee_particle_charge!`](@ref).
+"""
+function yee_longitudinal_impulse!(out, particles, xold, xnew, g::YeeGrid{1}, workspace)
+    species = _yee_charge_species(particles)
+    old, new = _yee_charge_endpoints(particles, xold, xnew)
+    return _yee_charge_apply!(out, species, old, new, g, workspace, Val(:impulse))
+end
+
+yee_particle_charge!(out, particles, g::YeeGrid, workspace) =
+    throw(ArgumentError("Yee charge coupling requires one spatial dimension"))
+yee_longitudinal_impulse!(out, particles, old, new, g::YeeGrid, workspace) =
+    throw(ArgumentError("Yee charge coupling requires one spatial dimension"))

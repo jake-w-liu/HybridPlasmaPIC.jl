@@ -35,6 +35,7 @@ rerun by this documentation-only audit.
 - [docs/COLLISIONAL_HYBRID.md](COLLISIONAL_HYBRID.md)
 - [docs/EVOLVING_ELECTRONS.md](EVOLVING_ELECTRONS.md)
 - [docs/LOCAL_COULOMB.md](LOCAL_COULOMB.md)
+- [docs/BOUNDED_PARTICLE_COUPLING_PLAN.md](BOUNDED_PARTICLE_COUPLING_PLAN.md)
 - [docs/SOURCED_YEE_FIELDS.md](SOURCED_YEE_FIELDS.md)
 
 ## Implementation, audit and design records

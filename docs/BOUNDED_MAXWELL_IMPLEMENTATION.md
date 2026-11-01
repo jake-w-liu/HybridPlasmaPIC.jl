@@ -1,73 +1,31 @@
 # Bounded Maxwell implementation record
 
-Scope: CAP-002A, source-free Cartesian vacuum/cavity fields, plus the 1D
-[prescribed-current prerequisite](SOURCED_YEE_FIELDS.md) of 002B (see
-[below](#prescribed-current-slice)). This does not implement bounded particle
-coupling (002B), absorbing layers (002C), or restart, GPU/MPI and full
-production integration (002D). CAP-002 remains open.
+Updated: 2026-11-01. CAP-002A provides source-free Cartesian vacuum/cavity
+fields. The [prescribed-current slice](#prescribed-current-slice) adds 1D field
+advancement with a supplied impulse. CAP-002 remains incomplete: coupled
+particles and walls, absorbers, restart and GPU/MPI production integration are
+separate stages.
 
-The isolated B2a prerequisite now has extensive nodal charge and longitudinal
-endpoint-impulse source, tests and documentation. Its six-file formatter pass
-checks the complete executable AST under an explicit source-line metadata
-contract, idempotence and 12 checker controls. The immutable postformat source
-has 616 files. All seven environment/provider commands exit zero on actual
-Julia 1.12.7/1.13.3; full package/selected-provider records match per runtime.
-Root accepts the exact cache/native/header/embedded-source metadata proof on
-both runtimes (248/245 assertions). Both syntax parsers pass. The first normal
-minimum-runtime focused run retains 119,470 passes and 12 allocation failures:
-192 B against the unchanged 0 B gate. Its numerical/neighbor assertions pass.
-A separate paired diagnosis retains exit 1 and all 12 profiles / 48 traces:
-every Float32 direct/helper call allocates 192 B (including empty populations),
-while sampled Float64 calls allocate 0 B. All six 32 B tuple allocations per
-Float32 trace come from the heterogeneous-buffer indexing in alias admission.
-An isolated repair spells out the same three alias predicates in the same order.
-Both refreshed focused lanes pass all 119,482 assertions, including the unchanged
-48 allocation checks. Each paired diagnosis passes 87 checks; all 288 byte
-measurements are zero and all 48 production traces are empty, with four separate
-no-op records retained. The next CRC stage stops at evidence serialization:
-`TOML.print` rejects tuple-valued geometry weights at the external driver line 25
-(10 passes, zero failed assertions, four errors). That failure remains recorded;
-the serialization-only correction passes 90 controls on each runtime. The
-corrected CRC lanes each pass 1,806 assertions: 430 geometry records, 390
-displacement records and 66 separate public outcomes are retained. The next
-minimum compiler gate stops with 32 passes and four failed zero-report
-assertions. All 34 full captures are retained: the four abstract empty-vector
-charge/impulse roots each report two Base reinterpret/padding diagnostics; the
-other 30 roots are empty. Both normal runtime investigations complete: each
-retains 18 cases, 108 allocation measurements, 12 complete traces and 144 IR
-files. Independent exact charge/overlap checks, tuple parity and input/storage
-checks pass. Broad empty vectors allocate 160 B per operation; broad nonempty
-and mixed Array/view storage also allocate. Concrete controls remain 0 B.
-Complete raw/index/source review is done; allocation attribution does not prove
-every producer cause. Profile.Allocs.CorruptType is the installed decoder
-low-pointer sentinel, with the original type/pointer cause unresolved.
+The CPU Float32/64 B2a prerequisite adds extensive nodal CIC charge and compatible
+longitudinal endpoint impulse on a closed 1D PEC interval. Its
+[API, range and remaining implementation contract](BOUNDED_PARTICLE_COUPLING_PLAN.md)
+owns that scope. It accepts broad species collections and strided particle
+storage; the private stencil expresses the admitted IEEE coordinate domain.
+Nondefault rounding/flush modes route validation and kernel decisions through
+exact stored operands. Essential physical, range, atomic-failure, mode and
+concrete compiler checks are included for GitHub; changed-source runtime and
+performance acceptance is pending.
 
-A new isolated candidate now contains the reviewed population/endpoint method
-barriers and a count sentinel derived from the unchanged 2^51 native limit.
-Global validation order, shared native/exact particle arithmetic and final
-publication remain explicit invariants. Targeted broad/mixed/custom-container,
-count, rejection and liveness tests are written. Both runtime syntax checks and
-formatter AST/idempotence pass; all original test bytes remain. Seven fresh
-offline provider stages pass, with all 160/161 package and 440/444 loaded-library
-records reviewed. Both metadata decoders pass 248/245 assertions and match all
-203 embedded/live/frozen source records per runtime. Only the exact four fields
-of the observed package-image row differ per runtime; every other loaded row
-is equal. The fresh normal campaign passes 126,925 focused assertions, 87 ordinary
-allocation checks and 1,806 CRC assertions per runtime. Every one of the 288
-ordinary byte measurements per runtime is zero; all 48 production traces per
-runtime are empty. The minimum compiler stage then stops at 58 passes and 26
-failed zero-report assertions. All 82 full captures remain: the original 34
-roots have four failures, and the 48 added roots have 22. Latest compiler and
-later vector/quality/resource/full-package stages are unrun. This candidate
-remains unaccepted; all previous failures remain recorded. Diagnose the full
-reports and owning source before another repair or campaign. The separate
-minimum-runtime scalar diagnosis passes 230 assertions: root replays all
-17 matched Base/JET targets, 34 full optimized/unoptimized IR entries and
-34 independent half-cell/wall controls. Broad constructor and vector-load
-returns infer `Any`; the local typed-boundary experiment clears its narrow
-reports. No production boundary has been selected or accepted. It does not
-implement a coupled force, particle pusher, wall event or restart. The
-[audit tracker](DEEP_DEBUG_TRACKER.md) owns current acceptance.
+Earlier isolated B2a campaigns are historical evidence. Their population-barrier
+candidate passed 126,925 focused and 1,806 CRC assertions per runtime and sampled
+ordinary allocation checks, then failed 26 of 84 minimum-runtime compiler checks.
+The retained scalar diagnosis identified abstract coordinate loads reaching the
+untyped stencil; a typed-boundary experiment cleared its bounded reports. Those
+results motivated the current implementation and do not accept its final source.
+Original allocation, harness and compiler failures remain in the dated audit
+archive and Git history. No full coupled solver or global performance result is
+inherited from them. The [audit tracker](DEEP_DEBUG_TRACKER.md) owns publication
+and exact-revision CI status.
 
 ## Discrete contract and derivation
 
@@ -230,8 +188,9 @@ scalar normwise bounds in place of the componentwise ones.
 
 ## Remaining CAP-002 work
 
-002B must add trajectory-based current deposition and a wall charge/current
-ledger before this becomes bounded EM PIC. 002C needs actual absorbing-layer
+002B must add transverse trajectory current, a synchronized force/pusher and a
+wall charge/current ledger before this becomes bounded EM PIC. The endpoint
+longitudinal impulse alone does not supply that coupling. 002C needs actual absorbing-layer
 auxiliary evolution and a measured angle/frequency/refinement reflection suite.
 002D must register the synchronized fields, model clock and boundary state in
 checkpoint/restart and backend orchestration. None is supplied by this vacuum

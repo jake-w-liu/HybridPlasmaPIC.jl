@@ -115,6 +115,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   balance `Hnew - Hold = -work`; see `examples/sourced_maxwell_cavity.jl` and
   `docs/SOURCED_YEE_FIELDS.md`.
 
+- Closed PEC particle charge/current primitives: `YeeChargeWorkspace`,
+  `yee_particle_charge!` and `yee_longitudinal_impulse!` provide extensive CIC
+  nodal charge and compatible longitudinal path impulse in CPU 1D Float32/64.
+  All populations are validated before scratch writes and output is published
+  only after complete native/exact evaluation. Broad collections and strided
+  storage remain supported. Coupled force, reflection, transverse current,
+  wall ledgers, restart and GPU/MPI remain open; see
+  `docs/BOUNDED_PARTICLE_COUPLING_PLAN.md`.
+
 - `CollisionalHybridStepper(inner, species; dt, rng, coulomb_log, epsilon0,
   weight_to_number, u_floor)` composes `HybridStepper` with cell-local
   `collide_coulomb!` at a fixed step: after the push and magnetic advance, the

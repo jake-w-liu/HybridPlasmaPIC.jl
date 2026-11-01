@@ -55,3 +55,73 @@ end
     half = T(0.5)
     return (c - 1, (half * (half - δ)^2, T(0.75) - δ^2, half * (half + δ)^2))
 end
+
+# Bounded CIC uses the closed physical interval [0,L]. Its exact coordinate is
+# N*x/L, independently of the rounded stored dx used by the Maxwell field rows.
+# No force/particle-work pairing is supplied by these charge-only stencils.
+@inline function _yee_cic_fraction(terms::Tuple, denominator::Float64)
+    value = 0.0
+    for term in _eft_expansion(terms)
+        value += term
+    end
+    error = _eft_abs_sum_bound((terms..., -value))
+    iszero(value) && iszero(error) && return 0.0, true
+    threshold = max(0.0, prevfloat(0x1p-53 * abs(value)))
+    value > error && (iszero(error) || error <= threshold) || return 0.0, false
+    fraction = value / denominator
+    return fraction, floatmin(Float64) <= fraction <= 1.0
+end
+
+# Validation admits IEEE coordinates even when a collection or vector load is
+# abstractly typed. Express that scalar domain before conversion/scaling.
+@inline function _yee_cic_stencil(x::Union{Float32,Float64}, g::YeeGrid{1}, ::Val{false})
+    n, length = g.n[1], Float64(g.L[1])
+    iszero(x) && return 0, (1.0, 0.0), true
+    x == g.L[1] && return n - 1, (0.0, 1.0), true
+    n <= 0x1p53 || return 0, (0.0, 0.0), false
+    scale = exponent(length)
+    normalized_length = ldexp(length, -scale)
+    normalized_x = ldexp(Float64(x), -scale)
+    ldexp(normalized_x, scale) == x || return 0, (0.0, 0.0), false
+    product, product_error = _eft_two_product(normalized_x, Float64(n))
+    # Two 53-bit factors have at most 106 bits. At this floor their last
+    # possible product/residual bit is normal, so the FMA product is exact.
+    product >= 0x1p-916 || return 0, (0.0, 0.0), false
+    cell, _ = _stencil1d(CIC(), product / normalized_length)
+    0 <= cell <= n || return 0, (0.0, 0.0), false
+    cell == n && (cell -= 1)
+    lower, lower_error = _eft_two_product(Float64(cell), normalized_length)
+    upper, upper_error = _eft_two_product(Float64(cell + 1), normalized_length)
+    right, right_ok =
+        _yee_cic_fraction((product, product_error, -lower, -lower_error), normalized_length)
+    left, left_ok =
+        _yee_cic_fraction((upper, upper_error, -product, -product_error), normalized_length)
+    return cell, (left, right), left_ok && right_ok
+end
+
+@inline function _yee_cic_stencil(x::Union{Float32,Float64}, g::YeeGrid{1}, ::Val{true})
+    n = g.n[1]
+    s = _exact_rational(n) * _exact_rational(x) / _exact_rational(g.L[1])
+    if s == n
+        return n - 1, (zero(s), one(s)), true
+    end
+    cell, weights = _stencil1d(CIC(), s)
+    return cell, weights, true
+end
+
+@inline function _yee_cic_displacement(a, b, g::YeeGrid{1}, ::Val{false})
+    scale = exponent(Float64(g.L[1]))
+    difference = Float64(b) - Float64(a)
+    normalized = ldexp(difference, -scale)
+    ldexp(normalized, scale) == difference || return 0.0, false
+    product = normalized * Float64(g.n[1])
+    coefficient = product / ldexp(Float64(g.L[1]), -scale)
+    return coefficient, isfinite(coefficient) && floatmin(Float64) <= coefficient <= 1.0
+end
+
+@inline function _yee_cic_displacement(a, b, g::YeeGrid{1}, ::Val{true})
+    value =
+        _exact_rational(g.n[1]) * (_exact_rational(b) - _exact_rational(a)) /
+        _exact_rational(g.L[1])
+    return value, true
+end

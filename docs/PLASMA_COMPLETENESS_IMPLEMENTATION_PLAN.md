@@ -3,8 +3,8 @@
 Initial source assessment: **2026-10-23**, revision
 `bf2a8bc615f514f8d2868934849bf44814140bbb`. This document plans work; it does not
 certify the proposed implementations. Implementation status and CI were reconciled on
-**2026-10-29** against correctness `a29da03`, optimization `8d7473f`,
-accepted C1 `1bc618b` and the current isolated-candidate receipts;
+**2026-11-01** against the published IEEE, CPU particle-factor and transport
+implementations, accepted C1 `1bc618b` and the bounded-coupling source review;
 earlier line references remain pinned to the initial assessment. The
 [audit tracker](DEEP_DEBUG_TRACKER.md) owns accepted fixes, measured results and exact-revision CI status.
 
@@ -77,7 +77,7 @@ Source names below resolve to these canonical files:
 | ES/EM PIC | Periodic `ElectrostaticPIC`, `EMPIC` and `EMPIC1D`; ES collection implementation `d46029e` | Periodic CPU evolution and arbitrary ES species exist; arbitrary EM collections, coupled nonperiodic PIC and resident GPU/MPI solvers remain missing |
 | Hall-MHD | `HallMHDModel`, `HallMHDState`, `step_hall_mhd!`; `test_hall_mhd.jl`, `test_io_hall_mhd.jl` | A periodic solver exists; it is not a general geometry/closure solver |
 | Coulomb collisions | Canonical homogeneous and local collection `collide_coulomb!`; `CollisionalHybridStepper` | Local self/cross CPU operator and fixed-step isothermal hybrid/RNG restart exist; additional compositions and parallel/device support remain |
-| Nonperiodic EM | Periodic `EMPIC`; separate `MaxwellVacuum` on `YeeGrid` with prescribed 1D integrated current | Vacuum/cavity and prescribed-current fields exist; coupled particles/walls, absorbers and restart remain CAP-002 work |
+| Nonperiodic EM | Periodic `EMPIC`; separate Yee vacuum/prescribed-current fields; closed 1D PEC particle charge and longitudinal endpoint impulse | B2a source is implemented with GitHub acceptance pending. Coupled force/pusher/walls, absorbers and restart remain CAP-002 work |
 | Distributed evolution | Replicated-field MPI reference plus rank-owned Fourier storage and derivative/vector/filter operators (`4724947`) | Distributed operator primitives exist; coupled domain-owned solver, restart and cluster-scale acceptance remain CAP-003 work |
 | GPU | Metal extension has deposit/gather/push methods; CUDA extension:1–68 has storage/telemetry hooks; `HybridFields` uses `Array` at field_state:12–29 | Partial kernels, not complete resident solvers, CAP-004; device availability is not numerical acceptance |
 | Implicit evolution | Linear Fourier amplitudes in `semi_implicit.jl`; subsequent `ce52836` adds a residual-checked `ShockCNWorkspace` solve and full-step rollback ([contract](SHOCK_CN_SOLVE_PLAN.md)) | Limited field-only paths exist; nonlinear coupled particle/field solve remains missing, CAP-005 |
@@ -206,7 +206,7 @@ and quota failures describe historical work, not current ownership.
 | Slice | Implementation owner / canonical code | Dependencies | State and checked evidence | Next concrete action |
 | --- | --- | --- | --- | --- |
 | 001 local self/cross collisions | Canonical collision/sorting owners | Accepted sampler and particle arithmetic | CPU self/cross operator, normwise scheduling and fixed-step isothermal composition landed | MPI/device pairing and broader cost campaign; [live evidence](DEEP_DEBUG_TRACKER.md#current-progress) |
-| 002A/B bounded Maxwell + particles | Mesh/operator, field, boundary, model and diagnostic owners ([record](BOUNDED_MAXWELL_IMPLEMENTATION.md)) | Accepted bounded vacuum/prescribed-current fields; full particle/wall/DC contract required | Isolated alias repair passes 119,482 focused and 1,806 CRC assertions per runtime. The next compiler gate retains four abstract empty-vector failures and all 34 full captures. Complete paired 18-case runtime/allocation/IR investigations pass their unchanged scientific checks; broad vectors/mixed storage allocate. The canonical population-barrier candidate and targeted tests pass source/format/provider/image checks. Its fresh normal suites pass 126,925 focused, 87 ordinary-allocation and 1,806 CRC assertions per runtime; minimum compiler then retains 58 passes/26 failures and all 82 captures | Diagnose every failed compiler root; latest compiler and later vector/quality/resource/full-package stages remain unrun; coupled force/current/walls, restart and backends remain open |
+| 002A/B bounded Maxwell + particles | Canonical mesh/operator, field, boundary, coupling and diagnostic owners | Accepted vacuum/prescribed-current fields; full particle/wall/DC contract required | Closed 1D PEC nodal CIC charge and longitudinal endpoint impulse are implemented with broad CPU storage, explicit IEEE scalar boundaries and exact mode decisions. Essential physical, range, atomic-failure and compiler regressions are included | [B2a contract](BOUNDED_PARTICLE_COUPLING_PLAN.md): GitHub CI and complete resource acceptance remain pending; transverse current, force/pusher/walls, restart and backends remain open |
 | 002C/D open boundaries + production integration | Agent unassigned; boundaries, EM, I/O | 002A/B; 003/004 for parallel/device claims | Planned; no coupled open Maxwell path | Pre-register pulse reflection/charge-flux suite and absorber state schema |
 | 003A/B local storage + distributed operators | Distributed audit track; MPI/Pencil/SpectralOperators owners | Collective precision, shared kernels and owned storage | Rank-owned storage and derivative/vector/filter operators landed; `4724947` exact-SHA CI/compiler gates pass | Shared filter/inverse repairs are registered as 0.1.4/0.1.5; consumer and metadata repairs are pushed with local integration gates passed. Their exact-SHA CI is tracked separately; next complete [resources and integration](DISTRIBUTED_OPERATOR_IMPLEMENTATION_PLAN.md) |
 | 003C/D distributed coupled solvers | Agent unassigned; MPI orchestration + canonical solver owners | 003A/B and accepted serial solver | Planned; full-grid allreduce reference inspected | Compose a periodic hybrid step without replicated grids and test 2/4/8 ranks |
@@ -295,6 +295,10 @@ ledger satisfy the coupled method.
   compatible curl/divergence and field-energy/Poynting diagnostics. Gate cavity
   frequencies, analytic pulse transport, reflection phase and spatial/time order
   at multiple modes, incidence directions and corner configurations.
+- [x] **002B prerequisite: closed longitudinal charge/current.** Extensive nodal
+  CIC charge and endpoint path impulse are implemented for CPU Float32/64 with
+  exact range replay and atomic output publication. GitHub verification is
+  pending; see [the scoped contract](BOUNDED_PARTICLE_COUPLING_PLAN.md).
 - [ ] **002B: bounded particle coupling.** Deposit the complete trajectory before
   removal/injection; split multi-cell and multi-face crossings, preserve IDs and
   species charge, account for wall surface charge/current. Gate discrete local

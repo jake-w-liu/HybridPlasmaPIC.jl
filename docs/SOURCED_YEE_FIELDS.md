@@ -40,8 +40,23 @@ All-node charge is distinct from the existing interior-only electric
 transverse area. Each entry is a correctly rounded difference or boundary term.
 The unrounded incidence sums to zero, including both surfaces; summing the stored
 entries can retain rounding residuals. In exact arithmetic the source update is
-`Qnew-Qold = -incidence(impulse)`. No initial Gauss projection, particle charge
-deposition or automatic wall charge model is supplied.
+`Qnew-Qold = -incidence(impulse)`. The field step supplies no initial Gauss
+projection or automatic wall charge model. Separate
+[closed particle primitives](BOUNDED_PARTICLE_COUPLING_PLAN.md) provide extensive
+nodal CIC charge and longitudinal current impulse from caller-owned endpoints:
+
+```julia
+workspace = YeeChargeWorkspace(grid)
+charge = zeros(eltype(particles.weight), grid.n[1] + 1)
+longitudinal = zeros(eltype(charge), grid.n[1])
+yee_particle_charge!(charge, particles, grid, workspace)
+yee_longitudinal_impulse!(longitudinal, particles, xold, xnew, grid, workspace)
+```
+
+These operations require a closed 1D PEC grid. For a prescribed-source field
+step, place `longitudinal` in the first impulse component and supply independent
+zero transverse vectors matching the other two electric components. The caller
+still chooses the trajectory; this does not define a coupled particle advance.
 
 At fixed dt, exact arithmetic gives `Hnew-Hold = -source_work`; rounded stage
 results add numerical residuals. This follows by writing the two magnetic states
@@ -60,9 +75,10 @@ See [`examples/sourced_maxwell_cavity.jl`](../examples/sourced_maxwell_cavity.jl
 for a driven cavity and explicit work balance; verification is recorded in the
 [implementation record](BOUNDED_MAXWELL_IMPLEMENTATION.md#prescribed-current-slice).
 
-This capability is prescribed-source field evolution. Coupled particle motion,
-deposition/gather, particle absorption, wall-current ledgers and nonlinear event
-solves remain incomplete. The retained fixed-macrocharge self-force and coupled
+This capability is prescribed-source field evolution. Charge and longitudinal
+endpoint impulse are available separately; coupled particle motion, force gather,
+transverse current, particle absorption, wall ledgers and nonlinear event solves
+remain incomplete. The retained fixed-macrocharge self-force and coupled
 impact-velocity convergence failures are still open; this prerequisite does not
 resolve them. Higher-dimensional impressed sources, open/PML boundaries, circuits,
 particle injection, reflecting particles, GPU/MPI and restart remain later slices.
