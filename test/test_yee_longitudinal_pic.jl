@@ -387,13 +387,18 @@ end
         @test_throws ArgumentError init!(st, ps)
         @test isequal(snapshot(st, [ps]), before)
         st.fields.B[1][1] = zero(T)
+        U = T === Float32 ? UInt32 : UInt64
+        # Bit pattern 1 is the minimal positive IEEE subnormal. Store it before
+        # changing modes so this checks storage, independent of nextfloat.
+        subnormal = T[reinterpret(T, one(U))]
         for (roundmode, flush) in ((RoundNearest, true), (RoundDown, false))
             saved = Base.Rounding.rounding_raw(Float64), get_zero_subnormals()
             before = snapshot(st, [ps])
             try
                 Base.Rounding.setrounding_raw(Float64, Base.Rounding.to_fenv(roundmode))
                 Base.set_zero_subnormals(flush)
-                @test !H._yl_stored_zero(nextfloat(zero(T)))
+                @test reinterpret(U, subnormal[1]) == one(U)
+                @test !H._yl_stored_zero(subnormal[1])
                 @test_throws ArgumentError init!(st, ps)
                 @test_throws ArgumentError step!(st, ps, T(0.01))
             finally

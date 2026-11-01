@@ -97,6 +97,10 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Fixed
 
+- The closed Yee arithmetic-context control uses a pre-stored minimal subnormal
+  and verifies its bits under each mode before checking structural zero. The
+  production helper is unchanged; exact-revision GitHub verification is pending.
+
 - Collisional model binding compares original scalar coefficient values at the
   same concrete model/closure type, allowing matching BigFloat-backed state to
   resume after copying or serialization. The bound model is detached once;
