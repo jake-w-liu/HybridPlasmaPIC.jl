@@ -36,11 +36,15 @@ particle time error; it is not exact fully discrete conservation.
 - `src/integrators/extrapolated_leapfrog.jl` selects ordinary or cold stage
   evaluation and retains the existing RK arrays, stage order and transaction.
   Activity checks select a path; they do not prove a nonzero complete source.
-- SpectralOperators 0.1.7 owns normalized Fourier channels for Laplacian,
+- SpectralOperators owns normalized Fourier channels for Laplacian,
   derivative, Nyquist projection and derivative of Laplacian. HPIC consumes each
   borrowed result before calling another operator on that grid. Its physical
   value is `real(values) * input_scale * 2^exponent`; normalized scratch is never
   published as a physical field.
+  The registered 0.1.8 consumer floor adds certified axis-null subtraction to
+  directional cold preparation. Its exact binary scaling/subtraction gates leave
+  the full Laplacian and uncertified fallback unchanged. The dependency passes
+  all five checks; exact-revision HPIC GitHub acceptance remains pending.
 - `src/utils/exact_arithmetic.jl` owns exact binary rescaling and final IEEE
   conversion. The transport addition retains the shared converter implementation.
 
@@ -87,6 +91,9 @@ records essential regressions and pending exact-revision GitHub acceptance.
 - [x] Require registered SpectralOperators 0.1.7, whose four dependency CI jobs
   pass. [Dependency evidence](https://github.com/jake-w-liu/SpectralOperators.jl/blob/main/docs/SCALED_FOURIER_VERIFICATION.md)
   does not establish HPIC integration acceptance.
+- [x] Adopt registered 0.1.8 after all five dependency checks and General publication.
+- [ ] Pass HPIC's signed mixed-axis pressure and represented complete-Faraday
+  exact-matrix controls on GitHub. The previous 0.1.7 evidence does not certify this update; [bounded consumer scope](SCALAR_PRESSURE_RATE_RANGE_PLAN.md#spectraloperators-018-consumer-adoption).
 - [x] Extend complete signed pressure routing to the zero-hyperresistivity
   transport and ideal evolving-pressure stage, with essential cancellation,
   underflow and derivative-rescue regressions prepared for GitHub.

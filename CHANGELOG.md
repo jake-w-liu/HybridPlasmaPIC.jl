@@ -417,6 +417,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Require registered SpectralOperators 0.1.8 for certified directional axis-null
+  conditioning. The dependency passes all five CI jobs; signed mixed-axis
+  pressure and complete-Faraday consumer controls await HPIC GitHub checks.
+  General active-mode conditioning remains outside this certificate.
+
 - Moment deposition computes each particle's stencil once for density and all
   momentum or current components, wraps periodic indices without integer `mod`,
   and replaces per-stencil-point range checks with a per-particle normwise gate

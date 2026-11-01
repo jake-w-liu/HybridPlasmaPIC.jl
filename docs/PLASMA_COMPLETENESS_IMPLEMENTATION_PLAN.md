@@ -230,7 +230,7 @@ and quota failures describe historical work, not current ownership.
 | 008 ES/EM arbitrary species | Canonical electrostatic/EM owners; synchronous collection implementation track | Existing deposition, spectral Maxwell and phase owners | ES containing `4724947` passes all six jobs/compiler review. [Synchronous nonrelativistic EMPIC collections](EMPIC_SPECIES_IMPLEMENTATION.md) implemented, GitHub acceptance pending | Accept current sum/continuity, staged publication, diagnostics and restart; implement relativistic collections, species multirate and remaining backends |
 | 009 full-Hall multidimensional shocks | Scope proposal; root selects implementation agent | Full mixed-operator/field-boundary balance; 005 optional | Deliberate reduced induction verified | Derive full induction and SAT budget; build transverse-mode witness |
 | 010 composed sources and RNG restart | Integrator/checkpoint owners; independent collision audit track | 001 and phase/growth/checkpoint contracts | Fixed-step first-order isothermal CPU `CollisionalHybridStepper` landed; `2b2420b` exact-SHA CI/compiler gates pass. Ideal evolving and S1/S2 transport extensions implemented, CI pending | Accept the extensions, then extend schedules, other closures/models/sources and backends; preserve full pressure/force/RNG/phase/rollback contract |
-| 011 electron transport/energy | Electron/integrator owners and transport track | Term-specific balance and carried force contract | S1 is landed. SO 0.1.7 is registered and released; both Julia versions pass 26,886 dependency assertions and four exact-revision CI jobs pass. Earlier rejected candidates remain historical evidence | HPIC integration and CI, transport resource/peak-memory and restart checks, nonlinear ideal-product repair and S3–S8 remain open |
+| 011 electron transport/energy | Electron/integrator owners and transport track | Term-specific balance and carried force contract | S1 is landed. SO 0.1.8 is registered with all five exact-revision CI jobs passing, including 26,986 assertions on each Linux/macOS minimum/latest job. Earlier 0.1.7 and rejected-candidate evidence remains historical | HPIC integration and CI, transport resource/peak-memory and restart checks, nonlinear ideal-product repair and S3–S8 remain open |
 
 For every row, its detailed section below supplies the required conservation,
 accuracy/convergence, error/rollback, restart, parallel, hardware, performance and
@@ -742,7 +742,11 @@ is pushed as `a356c6b` and passes all six exact-SHA CI jobs and complete compile
 **S2 current-main candidate.** The hyperresistive implementation and complete represented-source repair
 are composed with the shared IEEE and CPU particle-factor changes without
 replacing newer unrelated source or documentation. The shared normalized
-Fourier API is supplied by SpectralOperators 0.1.7. The prepared earlier HPIC
+Fourier API is supplied by SpectralOperators; its registered 0.1.8 consumer floor
+adds certified directional axis-null conditioning. Exact-revision HPIC acceptance
+is pending in the
+[consumer tracker](SCALAR_PRESSURE_RATE_RANGE_PLAN.md#spectraloperators-018-consumer-adoption).
+The prepared earlier HPIC
 snapshot passed bounded 504-check and 48-profile ordinary-bit probes per runtime;
 these historical results do not accept this composition. Minimum/latest Julia package/compiler, formatter and MPI validation runs in
 GitHub, as recorded by the [S2 implementation tracker](TRANSPORT_SOURCE_RANGE_PLAN.md).

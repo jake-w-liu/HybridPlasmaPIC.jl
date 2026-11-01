@@ -3,8 +3,8 @@ using HybridPlasmaPIC, Test
 const H = HybridPlasmaPIC
 const Q = Rational{BigInt}
 
-function centered_four(g)
-    k = Q(g.kvec[1][2])
+function centered_four(g, axis = 1)
+    k = Q(g.kvec[axis][2])
     return [mod(j-i, 4) == 1 ? k/2 : mod(j-i, 4) == 3 ? -k/2 : zero(k) for i = 1:4, j = 1:4]
 end
 
@@ -149,7 +149,7 @@ end
 end
 
 @testset "Pressure derivative risk is checked in its consumed axis" begin
-    for T in (Float32, Float64), axis = 1:2
+    for T in (Float32, Float64), axis = 1:2, direction in (-one(T), one(T))
         a = T === Float32 ? 100 : 600
         tiny = ldexp(one(T), -a)
         lengths = ntuple(d -> d == axis ? ldexp(T(2pi), a) : T(2pi), 2)
@@ -165,8 +165,9 @@ end
         else
             f.pe[1, :] .= tiny .* T[2, 3, 2, 1]
         end
-        fill!(f.ui[axis], inv(tiny))
-        fill!(st.fui[axis], inv(tiny))
+        fill!(f.ui[axis], direction / tiny)
+        fill!(st.fui[axis], direction / tiny)
+        original_pressure = copy(f.pe)
         ohms_law!(f, st.model, g)
         electron_velocity!(w.ue, st.fui, f.J, st.fn)
         divergence!(w.divue, w.ue, g)
@@ -180,14 +181,41 @@ end
         @test H._transport_pressure_derivative_range_risk(
             f.pe, w.ue, f.gradp, g, H._transport_derivative_gains(g),
         )
-        k = Q(g.kvec[axis][2])
-        derivative = [mod(j-i, 4) == 1 ? k/2 : mod(j-i, 4) == 3 ? -k/2 : zero(k) for i = 1:4, j = 1:4]
+        derivative = centered_four(g, axis)
         original = Q.(f.pe)
-        reference = -(axis == 1 ? derivative * original : original * transpose(derivative)) ./ Q(tiny)
+        reference = -Q(direction) .* (axis == 1 ? derivative * original : original * transpose(derivative)) ./ Q(tiny)
         @test maximum(abs, reference) == Q(tiny) > Q(floatmin(T))
         H._bpressure_rhs!(st.k1, w.kp[1], f.B, f.pe, st, 1, 1)
         @test w.kp[1] == T.(reference)
         @test all(component -> all(iszero, component), st.k1)
+        @test isequal(f.pe, original_pressure)
+        @test all(==(direction / tiny), st.fui[axis])
+    end
+end
+
+@testset "Complete Faraday consumes a tiny axis-active field beneath a null background" begin
+    for T in (Float32, Float64), axis = 1:2
+        a = T === Float32 ? 60 : 300
+        tiny = ldexp(one(T), -a)
+        lengths = ntuple(d -> d == axis ? ldexp(T(2pi), -a) : T(2pi), 2)
+        g = FourierGrid((4, 4), lengths)
+        @test g.kvec[axis][2] == inv(tiny)
+        ideal, current, out = ntuple(_ -> ntuple(_ -> zeros(T, g.n), 3), 3)
+        # This component's curl consumes only `axis`. The normal transverse
+        # background is constant in that axis and contributes exactly zero.
+        field = ideal[3-axis]
+        fill!(field, one(T))
+        axis == 1 ? (field[:, 1] .= tiny .* T[0, 1, 0, -1]) :
+                    (field[1, :] .= tiny .* T[0, 1, 0, -1])
+        original = map(copy, ideal)
+        derivative = centered_four(g, axis)
+        exact = axis == 1 ? -derivative * Q.(field) : Q.(field) * transpose(derivative)
+        @test maximum(abs, exact) == 1
+        H._complete_transport_faraday_rhs!(out, ideal, current, zero(T), zero(T), g)
+        @test isequal(out[3], T.(exact))
+        @test all(iszero, out[1]) && all(iszero, out[2])
+        @test isequal(ideal, original)
+        @test all(component -> all(iszero, component), current)
     end
 end
 end

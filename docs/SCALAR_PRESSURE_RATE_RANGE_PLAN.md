@@ -65,12 +65,51 @@ checkpoint schema or model parameter is added.
 - [ ] Pass exact-revision GitHub package/compiler, formatting and MPI checks.
 - [ ] Measure complete public costs before allocation or performance claims.
 
-The D2 axis-permutation regression also checks reconstruction of a tiny consumed
-gradient alongside a normal transverse gradient. Its runtime result is pending:
-the shared scaled derivative currently transforms all axes before applying the
-directional symbol. Per-axis routing alone does not certify that reconstruction.
+The D2 axis-permutation regression checks reconstruction of a tiny consumed
+gradient alongside a normal transverse gradient, for both flow signs. The
+registered SpectralOperators 0.1.8 floor supplies certified axis-null subtraction
+before its directional cold FFT. In this four-point witness the exact active
+gradient has magnitude `tiny^2`, and multiplication by stored `±1/tiny` gives
+a normal pressure rate of magnitude `tiny`. The essential control requires
+ordinary stored `gradp` to lose that gradient and cold completion to read the
+original pressure. The exact matrix
+and input-preservation assertions remain GitHub-pending. Per-axis routing alone
+does not establish reconstruction, and this certificate covers only admitted
+axis-null subtraction, not arbitrary active-mode conditioning.
 
 General Fourier conditioning, generation of `ue` and other derivative sources,
 full hardware-mode pipelines and dt-scaled RK representations remain separate
 boundaries. This source review does not certify every extreme coupled trajectory.
 The [audit tracker](DEEP_DEBUG_TRACKER.md) owns integration and CI acceptance.
+
+## SpectralOperators 0.1.8 consumer adoption
+
+Pre-edit brief (2026-11-01, HPIC `6959031`, dependency candidate `1c3d0cc`):
+
+- Raise the consumer floor to 0.1.8 after dependency CI and General publication.
+  No HPIC numerical owner, state, public API or persistence change is needed.
+- The dependency can remove an exactly certified axis-line reference before a
+  directional cold FFT. That field is null for the consumed derivative, Nyquist
+  or derivative-Laplacian channel; the full Laplacian is unchanged. Certification
+  requires exact binary operand scaling and subtraction in nearest/gradual mode;
+  a failed certificate retains the previous preparation and its limits.
+- The existing D2 exact-matrix pressure witness lies in this bounded domain.
+  Retain its axis swaps and add signed flow/input-preservation controls. Add one
+  compact mixed-axis complete-Faraday control through its actual directional SO
+  consumer. The original-product dyadic Faraday transform remains separate.
+
+The [tested dependency revision `1c3d0cc`](https://github.com/jake-w-liu/SpectralOperators.jl/actions/runs/41276540274)
+passes all five jobs: formatter and four Linux/macOS package jobs, each with
+26,986 assertions on actual Julia 1.12.7 or 1.13.3. [General registration](https://github.com/JuliaRegistries/General/pull/174315)
+merged on November 1; [release v0.1.8](https://github.com/jake-w-liu/SpectralOperators.jl/releases/tag/v0.1.8)
+uses the same tested commit. Its version entry exactly matches tested tree
+`f768bbfa33c6b9e4eec6f03d3098b35be5c86928`. These dependency results do not
+accept HPIC's new consumer tests or establish comparative performance.
+
+- [x] Read dependency preparation/certification and pressure/Faraday consumers.
+- [x] Integrate the floor, essential regressions and current scope documentation.
+- [x] Verify all five dependency checks and General publication before integration.
+- [ ] Pass exact-revision HPIC minimum/latest Julia, formatting and compiler CI.
+
+General active-mode conditioning, uncertified subtraction, arbitrary cancellation
+and broader original-source accuracy remain open; this is not an exact-FFT theorem.

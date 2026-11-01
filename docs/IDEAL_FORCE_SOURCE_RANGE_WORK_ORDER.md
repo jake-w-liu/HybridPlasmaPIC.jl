@@ -87,6 +87,14 @@ retained conditioning failures in the
 [continuity plan](CONTINUITY_DIAGNOSTIC_RANGE_PLAN.md#preserved-failures-and-remaining-work)
 remain open.
 
+The registered SpectralOperators 0.1.8 consumer floor adds certified axis-null
+preparation in normalized directional pressure and represented transport
+Faraday channels. This original-product route retains its separate dyadic-band
+transform unchanged. The dependency update does not establish broader original-
+factor admission or active-mode FFT accuracy; its
+[consumer verification](SCALAR_PRESSURE_RATE_RANGE_PLAN.md#spectraloperators-018-consumer-adoption)
+remains pending HPIC GitHub checks.
+
 `_ohm_Efield!` reports the internal risk flag; its five callers were inspected.
 `_ohm_E!` still returns E, and CAM-CL ignores the internal flag. Only canonical
 Hybrid `_bfield_rhs!`/`_bpressure_rhs!` use it for this slice. The pressure stage
