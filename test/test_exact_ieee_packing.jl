@@ -24,9 +24,7 @@ function ieee_checks(::Type{T}, ::Type{U}, p, bias) where {T,U}
     infcode = ((one(U) << (8sizeof(T) - p)) - one(U)) << f
     minq = 1 - bias - f
     # IEEE format boundaries, derived from precision/exponent fields.
-    inputs = (
-        zero(U), one(U), normal - one(U), normal, onecode, twocode, infcode - one(U),
-    )
+    inputs = (zero(U), one(U), normal - one(U), normal, onecode, twocode, infcode - one(U))
     overflowtie = dyadic((BigInt(1) << (p + 1)) - 1, bias - p)
     outputs = (
         (dyadic(1, minq), one(U)),
@@ -48,8 +46,7 @@ function ieee_checks(::Type{T}, ::Type{U}, p, bias) where {T,U}
                 magnitude = dyadic(n, (field == 0 ? 1 : field) - bias - f)
                 exact = negative ? -magnitude : magnitude
                 value = reinterpret(T, code | sign)
-                @test observed(() -> H._exact_rational(value), raw, flush) ==
-                      (exact, raw, flush)
+                @test observed(() -> H._exact_rational(value), raw, flush) == (exact, raw, flush)
             end
             @test observed(
                 () -> reinterpret(U, H._pack_rounded_ieee(T, 0, minq, negative)),
@@ -59,11 +56,12 @@ function ieee_checks(::Type{T}, ::Type{U}, p, bias) where {T,U}
             for (magnitude, code) in outputs
                 exact = negative ? -magnitude : magnitude
                 scaled, square = exact / 8, exact * exact
+                @test observed(() -> reinterpret(U, H._from_exact(T, exact)), raw, flush) ==
+                      (code | sign, raw, flush)
                 @test observed(
-                    () -> reinterpret(U, H._from_exact(T, exact)), raw, flush,
-                ) == (code | sign, raw, flush)
-                @test observed(
-                    () -> reinterpret(U, H._from_exact(T, scaled, Int128(3))), raw, flush,
+                    () -> reinterpret(U, H._from_exact(T, scaled, Int128(3))),
+                    raw,
+                    flush,
                 ) == (code | sign, raw, flush)
                 @test observed(
                     () -> reinterpret(
@@ -89,11 +87,12 @@ function ieee_checks(::Type{T}, ::Type{U}, p, bias) where {T,U}
             end
             if T !== Float16
                 n = negative ? Int128(-1) : Int128(1)
+                @test observed(() -> reinterpret(U, H._from_exact(T, n, minq)), raw, flush) ==
+                      (one(U) | sign, raw, flush)
                 @test observed(
-                    () -> reinterpret(U, H._from_exact(T, n, minq)), raw, flush,
-                ) == (one(U) | sign, raw, flush)
-                @test observed(
-                    () -> reinterpret(U, H._from_exact(T, n, UInt64(1), minq)), raw, flush,
+                    () -> reinterpret(U, H._from_exact(T, n, UInt64(1), minq)),
+                    raw,
+                    flush,
                 ) == (one(U) | sign, raw, flush)
             end
         end
@@ -115,11 +114,8 @@ end
 
 @testset "Canonical IEEE exact conversion boundaries" begin
     # Binary16/32/64 precision and maximum unbiased exponent are format constants.
-    for (T, U, p, bias) in (
-        (Float16, UInt16, 11, 15),
-        (Float32, UInt32, 24, 127),
-        (Float64, UInt64, 53, 1023),
-    )
+    for (T, U, p, bias) in
+        ((Float16, UInt16, 11, 15), (Float32, UInt32, 24, 127), (Float64, UInt64, 53, 1023))
         ieee_checks(T, U, p, bias)
     end
     @test H._exact_rational(Int128(-17)) == BigInt(-17) // BigInt(1)
