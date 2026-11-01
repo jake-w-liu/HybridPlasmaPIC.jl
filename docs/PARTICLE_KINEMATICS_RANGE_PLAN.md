@@ -117,8 +117,12 @@ guard. Shock loops gather per particle, so their certificate uses grid maxima
 in a nonzero electric field.
 
 Metal kernels call the native-only `_boris_kick_native` and
-`_particle_coordinate_native` (no guard or fallback on the device). Before a
-uniform launch the host checks the velocity-independent part of the guard
+`_particle_coordinate_native` (no guard or fallback on the device). Both pushes
+validate original q,m and require a finite normal derived quotient for nonzero
+charge; true signed-zero charge remains supported. Unsupported factors reject
+before launch/mutation, even for empty populations or dt=0. This native admission
+does not add device original-factor recovery. Before a uniform launch the host
+also checks the velocity-independent part of the guard
 (`h` normal or zero, finite `h E`, finite `|t|²`, `f ≥ floatmin`); velocity
 dependent range loss on the device (which also flushes subnormals) is
 unsupported.

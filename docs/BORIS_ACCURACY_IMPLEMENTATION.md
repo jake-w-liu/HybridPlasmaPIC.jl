@@ -70,7 +70,9 @@ owner: finite original charge and positive finite mass no longer require their
 derived quotient to fit or remain nonzero. Hybrid collections still require
 positive charge; storage, density, neutrality, field/output range and transaction
 checks remain in force. Generic non-IEEE factors retain finite-quotient admission.
-Device kernels retain their separate admission and explicit-`qm` meaning.
+Native Metal push boundaries validate original q,m and reject unsupported
+charged quotients before launch; their kernels retain explicit-`qm` meaning.
+Device recovery and actual remote hardware verification remain open.
 
 Native particle kick batches also require known injective velocity storage;
 coordinate batches require known injective position storage. Repeated-index

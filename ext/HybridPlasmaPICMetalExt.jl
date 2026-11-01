@@ -633,7 +633,7 @@ function HybridPlasmaPIC.push_uniform!(
     G<:Metal.MtlArray{UInt32,1},
 }
     HybridPlasmaPIC.validate_particle_backend_eltype(Val(:metal), T)
-    qm = HybridPlasmaPIC._validated_qm(ps)
+    qm = HybridPlasmaPIC._validated_native_boris_qm(ps)
     dtT = HybridPlasmaPIC._require_resolved_dt(
         "push_uniform!",
         HybridPlasmaPIC._require_finite_real("dt", dt, T),
@@ -682,7 +682,7 @@ function HybridPlasmaPIC.push_gathered!(
             throw(ArgumentError("Metal gathered-field push requires Metal xmid storage"))
     end
 
-    qm = ps.q / ps.m
+    qm = HybridPlasmaPIC._validated_native_boris_qm(ps)
     dtT = HybridPlasmaPIC._require_resolved_dt(
         "push_gathered!",
         HybridPlasmaPIC._require_finite_real("dt", dt, T),

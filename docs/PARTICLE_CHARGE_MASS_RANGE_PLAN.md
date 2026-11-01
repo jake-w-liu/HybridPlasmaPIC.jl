@@ -5,13 +5,14 @@ contract and tracker live in [CPU Boris accuracy](BORIS_ACCURACY_IMPLEMENTATION.
 Nonrelativistic priming/predictor factor routing, sufficient term-scale accuracy
 admission and exact endpoint replay are implemented; GitHub acceptance remains
 open. Both relativistic EMPIC owners also retain original factors through priming,
-kick repair and output publication; GitHub verification is pending. Device
-support and full normal-range relativistic accuracy remain open. This plan does
-not broaden C1's supported relativistic domain. CPU hybrid/CAM-CL and
-ElectrostaticPIC collection validation now admits finite original charge and
-positive mass through the canonical factor owner, including derived quotient
-overflow and underflow. Sign, storage, neutrality and actual arithmetic limits
-remain enforced; the essential full-model and restart cases await GitHub.
+kick repair and output publication; GitHub verification is pending. Metal's
+native pushes now validate original factors and reject unsupported quotients
+before launch; verification is pending. Device factor recovery and full normal
+relativistic accuracy remain open. This plan does not broaden C1's domain.
+CPU hybrid/CAM-CL and ElectrostaticPIC collection validation admits finite
+original charge and positive mass through the canonical factor owner, including
+derived quotient overflow and underflow. Sign, storage, neutrality and actual
+arithmetic limits remain; essential full-model and restart checks await GitHub.
 
 The physical expression uses the original stored q, positive m, dt and field
 operands. A rounded derived ratio must not silently erase a representable result.
@@ -56,7 +57,8 @@ probe SIGSEGV remains unexplained and is not attributed to a converter instructi
 | P1 CPU kicks | Implemented: immutable q,m,qm carrier, one native expression, scalar/batch accuracy admission, exact replay and CPU model kick threading | Essential regressions and complete package/compiler, formatter and MPI checks in GitHub; performance and backend guarantees remain separately unverified |
 | P2 CPU priming and prediction | Implemented factor routing, range/accuracy admission and exact endpoint replay through hybrid, electrostatic and EMPIC priming and the hybrid endpoint predictor | Essential factor, overflow endpoint, normal accuracy, phase and checkpoint regressions await GitHub CI; complete public resource acceptance remains open |
 | P3 relativistic factors | Implemented original-factor range replay through priming and kicks in both EMPIC owners, retaining C1 admission and whole-step undo | Essential axial-reference, variable/subcycled phase, restart and rollback checks await GitHub CI; full normal-range relativistic accuracy remains open |
-| P4 devices and parallel owners | Preserve original factors or reject unsupported factors explicitly before launch through the backend's existing owner | Suitable remote hardware, backend equivalence, launch/error behavior and documented native domain; no silent CPU fallback |
+| P4a native Metal admission | Implemented shared host validation of original q,m and rejection of charged nonfinite/zero/subnormal quotients before either push | Essential portable admission and conditional device no-mutation controls await GitHub/suitable remote hardware; no device accuracy or cost acceptance |
+| P4b device recovery and priming | Preserve original factors through a device numerical owner, with explicit supported arithmetic and state ownership | Scaled/exact device arithmetic design, suitable remote hardware and backend equivalence; no silent CPU fallback |
 
 Before each remaining stage, inspect its canonical callers, staggered time-level
 contract, error/publication boundary and checkpoint ownership. Extend shared
@@ -79,6 +81,17 @@ not covered by a new resource guarantee. Explicit-qm scalar semantics remain.
 This range slice does not prove full normal relativistic accuracy, every hardware
 mode pipeline or trajectory-wide correctness.
 
+Metal uniform and gathered pushes remain native Float32 operations. Both validate
+finite original q and positive finite m, allowing true signed-zero charge or a
+finite normal quotient. A charged quotient rounded to zero, subnormal or infinity
+raises `ArgumentError` before launch/mutation, including empty populations and
+dt=0. Original q,m may be subnormal when their host ratio is normal. No device
+kernel, ordinary arithmetic or backend dispatch changes. Uniform coefficient
+range admission remains; complete gathered finite-field validation is still the
+separate [held preflight work](METAL_GATHERED_VALIDATION_PLAN.md). These checks
+do not recover unsupported factors. Device priming and GPU-resident coupled
+stepping remain unimplemented; CUDA still supplies storage/telemetry only.
+
 ## Progress
 
 - [x] Preserve the original-factor, normal-accuracy and overflow witnesses.
@@ -93,7 +106,9 @@ mode pipeline or trajectory-wide correctness.
 - [ ] Verify full-model factor range and checkpoint continuation in GitHub.
 - [x] Implement P3 relativistic original-factor range routing and publication.
 - [ ] Verify P3 phase/restart/rollback in GitHub and audit normal accuracy.
-- [ ] Complete P4 device factors and their hardware checks.
+- [x] Implement P4a shared native Metal original-factor admission.
+- [ ] Verify P4a portable and remote-device rejection/admission checks.
+- [ ] Complete P4b device factor recovery, priming and hardware checks.
 - [ ] Establish full public resource and comparative performance results.
 
 The [audit tracker](DEEP_DEBUG_TRACKER.md) owns current acceptance; the

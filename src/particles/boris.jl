@@ -135,7 +135,8 @@ end
 
 # Native device contract. Device pushes evaluate _boris_kick_native without a
 # wide fallback, and Metal flushes subnormals to zero. Before a uniform-field
-# launch the host checks the velocity-independent part of the range guard:
+# launch the host admits original q,m only when qm is normal or q is true zero,
+# then checks the velocity-independent part of the range guard:
 # h = qm*dt/2 finite and normal (or an exact zero from a zero factor), h*E
 # finite, and t = h*B with finite |t|² and f = 2/(1 + |t|²) >= floatmin.
 # Velocity-dependent range loss on the device (subnormal or overflowing
@@ -362,10 +363,17 @@ end
     return qm
 end
 
-@inline function _validated_qm(ps::ParticleSet{D,T}) where {D,T<:AbstractFloat}
+# Native device kernels have no original-factor replay, and their scalar
+# quotient argument must survive subnormal flushing. Keep CPU admission separate.
+@inline function _validated_native_boris_qm(ps::ParticleSet{D,T}) where {D,T<:_RangeGuardedFloat}
     q, m = _validated_charge_mass(ps)
     qm = q / m
-    isfinite(qm) || throw(ArgumentError("particle charge-to-mass ratio q/m must be finite"))
+    zero_charge = q === zero(T) || q === -zero(T)
+    zero_charge || (isfinite(qm) && abs(qm) >= floatmin(T)) || throw(
+        ArgumentError(
+            "native device Boris push requires finite normal q/m for nonzero charge",
+        ),
+    )
     return qm
 end
 

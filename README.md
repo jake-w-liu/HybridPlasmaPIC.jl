@@ -289,8 +289,9 @@ public pushes and model kick owners. Native admission checks range and the
 four-ulp accuracy bound; unresolved kicks use exact replay. Nonrelativistic
 priming and predictors also retain the factors and check their electric/magnetic
 term-scale accuracy before native replay. Relativistic EMPIC range repairs also
-retain original factors; full normal relativistic accuracy, device support and
-verification status have separate limits in the
+retain original factors. Native Metal pushes validate original factors and
+reject unsupported quotients before launch; device factor recovery, full normal
+relativistic accuracy and verification status have separate limits in the
 [CPU Boris contract and tracker](docs/BORIS_ACCURACY_IMPLEMENTATION.md).
 
 For finite inputs and charge snapshots, EM PIC with built-in NGP/CIC/TSC shapes

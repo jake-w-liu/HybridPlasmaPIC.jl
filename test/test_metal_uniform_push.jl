@@ -144,6 +144,55 @@ if Sys.isapple() && Base.find_package("Metal") !== nothing
             end
         end
 
+        @testset "Metal original-factor admission precedes either push" begin
+            sub = nextfloat(0.0f0)
+            invalid = (
+                (sub, 2.0f0), (sub, 1.0f0), (1.0f0, sub),
+                (Inf32, 1.0f0), (1.0f0, 0.0f0), (1.0f0, NaN32),
+            )
+            for count in (0, 2), (q, m) in invalid
+                cpu = population(1, count; q, m)
+                gpu = copy_particles_to_backend(Val(:metal), cpu)
+                E = ntuple(_ -> Metal.MtlArray(fill(0.125f0, count)), 3)
+                B = ntuple(_ -> Metal.MtlArray(zeros(Float32, count)), 3)
+                midpoint = (Metal.MtlArray(fill(99.0f0, count)),)
+                arrays = (gpu.x..., gpu.v..., gpu.weight, gpu.id, gpu.tag, E..., B..., midpoint...)
+                before = map(Array, arrays)
+                for gathered in (false, true)
+                    if gathered
+                        @test_throws ArgumentError push_gathered!(
+                            gpu, E, B, 0.125f0; xmid = midpoint,
+                        )
+                    else
+                        @test_throws ArgumentError push_uniform!(
+                            gpu, (0.125f0, 0.125f0, 0.125f0), (0.0f0, 0.0f0, 0.0f0), 0.125f0,
+                        )
+                    end
+                    Metal.synchronize()
+                    @test isequal(map(Array, arrays), before)
+                    @test isequal((gpu.q, gpu.m), (cpu.q, cpu.m))
+                end
+            end
+            for (q, ratio) in ((0.0f0, 0.0f0), (-0.0f0, -0.0f0), (sub, 1.0f0)),
+                gathered in (false, true)
+                cpu = population(1, 2; q, m = sub)
+                gpu = copy_particles_to_backend(Val(:metal), cpu)
+                E, B = (0.25f0, 0.0f0, 0.0f0), (0.0f0, 0.0f0, 0.0f0)
+                expected_v = ntuple(c -> cpu.v[c] .+ ratio * 0.125f0 * E[c], 3)
+                expected_x = (cpu.x[1] .+ 0.125f0 .* expected_v[1],)
+                if gathered
+                    fields = map(x -> Metal.MtlArray(fill(x, 2)), E)
+                    magnetic = map(x -> Metal.MtlArray(fill(x, 2)), B)
+                    push_gathered!(gpu, fields, magnetic, 0.125f0)
+                else
+                    push_uniform!(gpu, E, B, 0.125f0)
+                end
+                Metal.synchronize()
+                actual = copy_particles_to_host(gpu)
+                @test actual.v == expected_v && actual.x == expected_x
+            end
+        end
+
         @testset "Metal gathered push rejects unresolved timesteps before mutation" begin
             for dt in (nextfloat(0.0f0), floatmin(Float32), -prevfloat(2floatmin(Float32)), NaN32)
                 cpu = population(2, 4)

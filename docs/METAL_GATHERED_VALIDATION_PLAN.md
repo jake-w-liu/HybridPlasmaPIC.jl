@@ -1,5 +1,12 @@
 # Metal gathered-field preflight repair
 
+Current boundary note (2026-11-01): both native Metal pushes now share original
+charge/mass validation and reject unsupported nonfinite/zero/subnormal charged
+quotients before mutation. This [P4a slice](PARTICLE_CHARGE_MASS_RANGE_PLAN.md)
+adds no device field scan and does not accept the held full-preflight candidates
+or their resource gates below. Portable/device regressions for P4a await CI and
+suitable remote hardware.
+
 Status: baseline confirmed on Julia 1.12.7 and 1.13.2 with actual Metal 1.11.1;
 V1 rejected by the fixed allocation gate; V2, V3 and V4 rejected by latency;
 V5 fails its fixed latency gate. V6 passes native gates and minimum-Julia costs,
@@ -74,9 +81,10 @@ first samples misses late/block-edge invalid values; returning early before host
 validation accepts invalid empty inputs; copying complete fields to the host
 violates the traversal design and measured scaling requirement.
 
-The existing broadcast push still duplicates scalar Boris algebra and allocates
-intermediate device arrays. That is a separate optimization candidate; no
-performance claim is inferred before profiling and compatibility review.
+The current broadcast push calls the shared `_boris_kick_native` owner and still
+constructs intermediate device arrays. Optimizing that pipeline is a separate
+candidate; no performance claim is inferred before profiling and compatibility
+review.
 
 ## Retained revisions
 

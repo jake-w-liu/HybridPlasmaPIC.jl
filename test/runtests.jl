@@ -14,6 +14,7 @@ using Test
     include("test_gathered_field_storage.jl")
     include("test_particle_kinematics_range.jl")
     include("test_boris_accuracy.jl")
+    include("test_native_device_factors.jl")
     include("test_coordinate_range_endpoints.jl")
     include("test_relativistic_validation.jl")
     include("test_relativistic_output_closure.jl")

@@ -19,6 +19,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   or underflows. Existing sign, storage, neutrality and arithmetic output checks
   remain enforced. Essential full-model and restart cases await GitHub CI.
 
+- Native Metal uniform and gathered pushes validate original charge/mass and
+  reject nonfinite, zero or subnormal derived quotients for nonzero charge
+  before launch/mutation. True zero charge and normal ratios remain supported.
+  Device factor recovery and priming remain open; see the
+  [factor range plan](docs/PARTICLE_CHARGE_MASS_RANGE_PLAN.md).
+
 - Relativistic EMPIC priming and kicks retain original species charge and mass
   through range repair and finite-output publication, including overflowing or
   subnormal derived quotients. Both model owners keep C1 rejection and whole-step
