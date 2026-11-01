@@ -6,15 +6,26 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+Entries describe source changes. The [audit tracker](docs/DEEP_DEBUG_TRACKER.md)
+records scoped verification and remaining exact-revision acceptance gates.
+
 ### Added
+
+- `YeeLongitudinalPIC` supplies event-free CPU 1D longitudinal electrostatic
+  coupling with an explicit physical-width cloud, synchronized Verlet stages,
+  original-source background/free-plate initialization, energy/Gauss diagnostics
+  and distinct checkpoint/archive state. Strict impact and rest-mode guards
+  reject unsupported steps. Initialization builds Ex from exact cumulative
+  nodal charge before final rounding. Full transverse EM coupling and
+  wall events remain open in the [contract](docs/BOUNDED_PARTICLE_COUPLING_PLAN.md).
 
 - Optional `YeeTriangularCloud(a)` extends closed 1D Yee static charge, endpoint
   current and path voltage with a finite physical-width cloud and explicit
   particle-bound endpoint tails. `yee_longitudinal_field` requires that shape
   and returns its stationary work-adjoint field. Exact stored-input polynomials
   retain the original width precision and stored-dx work metric; point/CIC
-  defaults remain. The cloud has a declared distinct wall response. Essential
-  GitHub runtime/compiler/format acceptance is pending; coupled PIC remains open.
+  defaults remain. The cloud has a declared distinct wall response; full
+  bounded EM coupling and mechanical wall events remain open.
 
 - A manual GitHub workflow runs existing implementation essentials on minimum
   and latest Julia, supplementing the unchanged full CI matrix. Runtime checks
@@ -26,9 +37,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   optional relativistic motion, physical relativistic particle diagnostics,
   shared-field energy and distinct schema-1 checkpoint/archive. Saved mode and c
   restore together with their validated particles. Existing electron/ion and
-  `EMPIC1D` APIs remain. Essential regressions and full compiler acceptance await
-  GitHub; species multirate schedules and remaining intersections stay open in
-  the [scoped tracker](docs/EMPIC_SPECIES_IMPLEMENTATION.md).
+  `EMPIC1D` APIs remain. Scoped verification, species multirate schedules and
+  remaining intersections are recorded in the
+  [implementation tracker](docs/EMPIC_SPECIES_IMPLEMENTATION.md).
 
 - `total_momentum_relativistic` and collection `kinetic_energy_relativistic`
   complete physical moments across finite CPU Float32/Float64 populations with
@@ -51,6 +62,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- HybridStepper B-only and B/pressure RK4 stages share original-duration affine
+  range completion. Coefficient, product and weighted-sum range events retain
+  complete original h/rate operands before final conversion; ordinary admitted
+  expressions retain their operation order. Physical-rate storage and existing
+  candidate/rollback policies remain; [scope](docs/TRANSPORT_SOURCE_RANGE_PLAN.md#original-duration-rk4-affine-combinations).
+
+- Shared timestep preflight rejects a positive full step whose magnetic
+  substep `dt/NB` rounds to zero before evolution. True zero full timesteps and
+  resolved subnormal field steps retain their existing admission.
+
 - Metal gathered-field publication has a finite-sample status scan and guarded
   stores, with explicit native field storage admission even for empty batches.
   Disjoint updates call the shared native formulas; particle aliases retain the
@@ -60,19 +81,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Route EMPIC collection checkpoint payloads through their schema owner at the
   shared validation entry, following the existing electrostatic layout policy.
-  The first remote collection save entered legacy electron/ion validation;
-  corrected checkpoint/archive and adjacent scalar checks await GitHub.
+  Legacy electron/ion payloads retain their validator and cross-layout loads
+  reject before publication.
 
 - Bound normal IEEE relativistic Boris kick error at the scalar and both EMPIC
   batch owners, reusing the canonical momentum expression and residual arithmetic.
   Supported native tuples are retained when certified; bounded unresolved rows
-  attempt certified DD repair. The six observed kick witnesses and focused
-  compatibility controls await GitHub. Extreme replay, priming accuracy and full
-  resource acceptance remain open in the [work order](docs/RELATIVISTIC_NORMAL_ACCURACY_PLAN.md).
-
-- Apply the reviewed nine-file formatter artifact from the relativistic-factor
-  GitHub run. Changes are spacing, wrapping and optional trailing call-argument
-  commas; fresh exact-revision formatter and package checks remain required.
+  attempt certified DD repair. The [work order](docs/RELATIVISTIC_NORMAL_ACCURACY_PLAN.md)
+  records the corrected witness/compatibility results and remaining extreme
+  replay, priming, compiler and resource gates.
 
 - Scalar relativistic kinetic-energy contributions at high speeds require a
   physical error enclosure, including reference residuals, before retaining
@@ -84,7 +101,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Original-factor relativistic priming defines its typed coefficient method
   after the carrier type, removing the observed include-time undefined name.
   The coefficient test and numerical expressions are unchanged; the failed
-  initial remote observation is retained and corrected-source checks are pending.
+  initial remote observation is retained in the audit evidence.
 
 - IEEE bit publication binds each integer word width to a concrete scalar
   format, preserving the existing packing and rounding decisions. Completed
