@@ -102,21 +102,23 @@ function faraday_observation(st)
     H._add_ohmic_field!(field, field, J, η)
     # These existing fixtures are D1, so this is curl!'s actual one-axis gain.
     gain = maximum(abs, g.kvec[1])
-    scale = H.SpectralOperators._fft_input_scale(field, 3, g, gain)
+    all_source_scale = H.SpectralOperators._fft_input_scale(field, 3, g, gain)
+    transverse_scale = H.SpectralOperators._fft_input_scale((field[2], field[3]), 2, g, gain)
     native, dyadic, without_ex = ntuple(_ -> map(similar, f.B), 3)
     H.faraday_rhs!(native, field, g)
     H._ohm_original_faraday_rhs!(dyadic, source, field, g)
     field_without_ex = map(copy, field)
     fill!(field_without_ex[1], zero(T))
-    scale_without_ex = H.SpectralOperators._fft_input_scale(field_without_ex, 3, g, gain)
+    zero_ex_all_source_scale = H.SpectralOperators._fft_input_scale(field_without_ex, 3, g, gain)
     H.faraday_rhs!(without_ex, field_without_ex, g)
     return (
         canonical_replay = (
             field_risk = field_risk,
             ohmic_risk = ohmic_risk,
             nearest_gradual = H._boris_accuracy_mode(),
-            scale = scale,
-            scale_without_ex = scale_without_ex,
+            all_source_scale = all_source_scale,
+            transverse_scale = transverse_scale,
+            zero_ex_all_source_scale = zero_ex_all_source_scale,
         ),
         input = (
             pressure = copy(f.pe),
@@ -168,6 +170,7 @@ end
         print("PRESSURE_FARADAY_OBSERVATION ")
         show(IOContext(stdout, :limit => false), (
             julia = VERSION,
+            spectral_operators = Base.pkgversion(H.SpectralOperators),
             type = T,
             kind = kind,
             observation = observation,

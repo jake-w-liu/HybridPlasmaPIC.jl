@@ -212,7 +212,9 @@ without adding assertions: canonical replay risk flags/common scales, native and
 complete-source curl, a copied-E control with only longitudinal Ex zeroed, actual
 coupled-stage output and the existing independent exact four-point references.
 Replay flags are labeled separately because the private stage does not expose its
-local branch. Current, Laplacian, gradient and output arrays are private to the
+local branch. Actual installed SO version and all-source/transverse scale
+replays are recorded separately, so a changed dependency selector is not mistaken
+for the all-source replay. Current, Laplacian, gradient and output arrays are private to the
 probe; only sequential grid scratch is reused. Every original strict assertion
 remains. No kernel, admission policy or tolerance is changed by the observation.
 
