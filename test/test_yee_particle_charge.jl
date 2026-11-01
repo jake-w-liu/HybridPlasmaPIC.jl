@@ -293,6 +293,52 @@ end
     @test (Base.Rounding.rounding_raw(Float64), get_zero_subnormals()) == saved
 end
 
+@testset "Public Yee impulse with strided reinterpret endpoints" begin
+    for T in (Float32, Float64)
+        g = YeeGrid((4,), (one(T),))
+        ps = population(T, T[0.5, 0.5])
+        target = T[0.25, 0.75]
+        U = T === Float32 ? UInt32 : UInt64
+        same_size = reinterpret(T, U[reinterpret(U, target[1]), reinterpret(U, target[2])])
+        parent = Complex{T}[Complex{T}(target[1], target[2])]
+        scalar_view = view(parent, 1)
+        @test ndims(scalar_view) == 0
+        reshaped = reinterpret(reshape, T, scalar_view)
+        for after in (same_size, reshaped), collection in (ParticleSet{1,T}[ps], Any[ps])
+            @test after isa StridedVector{T}
+            @test collect(after) == target
+            old, new = AbstractVector{T}[T[0, 1]], AbstractVector{T}[after]
+            expected = O.impulse(collection, old, (target,), g.n[1], g.L[1])
+            work = YeeChargeWorkspace(g)
+            out, original = fill(T(7), g.n[1]), copy(after)
+            @test yee_longitudinal_impulse!(out, collection, old, new, g, work) === out
+            check_values(out, expected..., nparticles(ps))
+            @test after == original
+        end
+
+        # A scalar view drops its dimension; a range view retains it. The
+        # reshape-reinterpret constructor consequently makes a matrix here.
+        ranged = reinterpret(reshape, T, view(parent, 1:1))
+        @test size(ranged) == (2, 1)
+        for collection in (ParticleSet{1,T}[ps], Any[ps])
+            work = YeeChargeWorkspace(g)
+            out = fill(T(7), g.n[1])
+            work.sum .= 11.0
+            work.candidate .= T(13)
+            before = (copy(out), copy(work.sum), copy(work.candidate))
+            @test_throws ArgumentError yee_longitudinal_impulse!(
+                out,
+                collection,
+                (T[0, 1],),
+                (ranged,),
+                g,
+                work,
+            )
+            @test (out, work.sum, work.candidate) == before
+        end
+    end
+end
+
 @testset "Yee scalar domain through broad public collections" begin
     for T in (Float32, Float64)
         G, W = YeeGrid{1,T}, YeeChargeWorkspace{T}
