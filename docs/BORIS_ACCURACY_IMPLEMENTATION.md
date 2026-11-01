@@ -74,6 +74,19 @@ Native Metal push boundaries validate original q,m and reject unsupported
 charged quotients before launch; their kernels retain explicit-`qm` meaning.
 Device recovery and actual remote hardware verification remain open.
 
+The shared factor validator classifies stored IEEE mass sign and zero after
+its existing type conversion and finite check. Hybrid collection charge and
+Hybrid/ES/EM collection weight signs use the same stored classification, so
+arithmetic comparison under FTZ does not define these structural gates.
+Native zero charge returns its original signed zero before division; nonzero
+native quotients still require finite normal storage. Scalar Hybrid/CAM-CL
+checkpoint save and restore now require finite signed charge and positive finite
+mass through that factor owner, without a quotient restriction. Other legacy
+snapshot value policies are unchanged. Fixed-row actual-mode, stored-word,
+public push and checkpoint preservation controls are implemented but await
+GitHub; no measured scalar-admission FTZ failure or full hardware-mode guarantee
+is established.
+
 Native particle kick batches also require known injective velocity storage;
 coordinate batches require known injective position storage. Repeated-index
 views keep their sequential scalar guards and remain accepted inputs. This
@@ -103,6 +116,8 @@ Implementation tracker:
   neighboring phase, compiler and resource gates.
 - [x] Relativistic original-factor range and publication implementation.
 - [x] CPU hybrid/CAM-CL and electrostatic collection admission uses the original-factor owner.
+- [x] Stored IEEE factor/sign/zero admission and scalar Hybrid/CAM-CL checkpoint factor validation.
+- [ ] GitHub verification of fixed-row FTZ admission, unresolved dt and checkpoint atomicity controls.
 - [ ] GitHub verification of full-model factor endpoints and checkpoint continuation.
 - [ ] GitHub relativistic phase/restart/rollback checks, normal accuracy and device follow-ons.
 - [ ] Complete public resource and compiler acceptance; prior bounded numerical

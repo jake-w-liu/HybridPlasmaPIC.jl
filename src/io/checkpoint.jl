@@ -151,6 +151,7 @@ function _validate_checkpoint_particle_scalars(s, ::Type{T}) where {T}
     s.m isa T || throw(
         ArgumentError("checkpoint m type $(typeof(s.m)) ≠ $T (would silently convert on restore)"),
     )
+    _validated_charge_mass(s.q, s.m, T)
     return nothing
 end
 
@@ -1202,6 +1203,9 @@ Serialize the restartable state (model, shape, particles, B, carried E, time,
 step, and previous timestep for the staggered particle velocities) to `path`.
 Supports [`HybridStepper`](@ref) and [`CAMCLStepper`](@ref); CAM-CL checkpoints
 also preserve the persistent cyclic-leapfrog field copies and subcycle phase.
+Scalar Hybrid/CAM-CL save and restore require finite signed charge and positive
+finite mass through the stepping factor owner, without a quotient restriction.
+Other legacy snapshot field/weight value policies are unchanged.
 Hybrid species collections are stored in order, with each population's charge,
 mass, phase space, and provenance. Populations require independent storage and
 the positive-ion validation used by collection stepping.

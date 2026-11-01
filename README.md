@@ -523,9 +523,11 @@ for the same stepping inputs and numerical environment. Checkpoints preserve par
 timestep history, including CAM-CL's persistent magnetic copies and subcycle phase.
 Evolving-electron runs also preserve stored pressure through serial and MPI
 checkpoints and archives; missing or invalid saved pressure is rejected.
-Hybrid restores replace model/shape parameters with the saved values;
-electrostatic destinations require matching background density `n0`; ES
-collections also require the same neutrality policy and charge tolerance.
+Scalar Hybrid/CAM-CL checkpoints require finite signed charge and positive
+finite mass, including finite factors whose quotient overflows or underflows;
+other legacy snapshot value policies are unchanged. Hybrid restores replace
+model/shape parameters with the saved values; electrostatic destinations require
+matching background density `n0`; ES collections also require the same neutrality policy and charge tolerance.
 Model/shape parameters must be independent of evolving solver and particle
 storage; capture and restore reject retained links to that storage. Custom
 configuration uses Julia Serialization. Preflight rejects native FFT plans,

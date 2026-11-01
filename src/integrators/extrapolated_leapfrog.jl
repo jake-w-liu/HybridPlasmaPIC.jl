@@ -542,7 +542,7 @@ function _validate_hybrid_species(species::AbstractVector{<:ParticleSet{D,T}}) w
     total = 0
     for ps in species
         _validated_boris_factor(ps)
-        ps.q > zero(T) || throw(ArgumentError("hybrid ion charge must be positive"))
+        _stored_positive(ps.q) || throw(ArgumentError("hybrid ion charge must be positive"))
         n = nparticles(ps)
         for a in (ps.x..., ps.v..., ps.weight, ps.id, ps.tag)
             length(a) == n || throw(DimensionMismatch("hybrid particle arrays must have length $n"))
@@ -551,7 +551,7 @@ function _validate_hybrid_species(species::AbstractVector{<:ParticleSet{D,T}}) w
         _validate_particle_positions(ps)
         _require_finite_particle_velocities(ps, "hybrid stepping")
         for w in ps.weight
-            isfinite(w) && w >= zero(T) ||
+            isfinite(w) && _stored_nonnegative(w) ||
                 throw(ArgumentError("hybrid particle weights must be finite and nonnegative"))
         end
         n <= typemax(Int) - total || throw(ArgumentError("total particle count exceeds Int"))

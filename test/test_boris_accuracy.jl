@@ -686,4 +686,173 @@ end
         @test all(==(expected_x), ps.x[1])
     end
 end
+
+@testset "Stored scalar factor and timestep admission across flush modes" begin
+    for T in (Float16, Float32, Float64)
+        U = uinttype(T)
+        sign = one(U) << (8sizeof(T) - 1)
+        tiny, negative_tiny = reinterpret(T, one(U)), reinterpret(T, sign | one(U))
+        z, negative_zero = reinterpret(T, zero(U)), reinterpret(T, sign)
+        unresolved = T[tiny, negative_tiny, floatmin(T), prevfloat(2floatmin(T))]
+        invalid_mass = T[z, negative_zero, -one(T), negative_tiny, T(Inf), T(NaN)]
+        oldmode = get_zero_subnormals()
+        try
+            @test set_zero_subnormals(false)
+            ps = ParticleSet{1,T}(1; q = tiny, m = tiny)
+            fill!(ps.x[1], z)
+            electric = (T(0.125), z, z)
+            magnetic = (z, z, z)
+            gathered = map(x -> T[x], electric), map(x -> T[x], magnetic)
+            midpoint = (T[z],)
+            for flush in (false, true)
+                @test set_zero_subnormals(flush)
+                @test get_zero_subnormals() == flush
+                ps.q, ps.m = tiny, tiny
+                factor = H._validated_boris_factor(ps)
+                observation = (
+                    type = T,
+                    requested_flush = flush,
+                    active_flush = get_zero_subnormals(),
+                    charge_word = reinterpret(U, factor.q),
+                    mass_word = reinterpret(U, factor.m),
+                    quotient_word = reinterpret(U, factor.qm),
+                    unresolved_words = collect(reinterpret(U, unresolved)),
+                )
+                @info "Stored scalar admission" observation
+                @test reinterpret(U, factor.q) == one(U)
+                @test reinterpret(U, factor.m) == one(U)
+                @test H._validated_charge_mass(ps.q, ps.m, T) === (tiny, tiny)
+                @test H._stored_positive(tiny) && !H._stored_positive(negative_tiny)
+                @test !H._stored_nonnegative(negative_tiny)
+                for zero_charge in (z, negative_zero)
+                    ps.q = zero_charge
+                    @test H._validated_native_boris_qm(ps) === zero_charge
+                    @test H._particle_stored_zero(zero_charge)
+                    @test H._stored_nonnegative(zero_charge)
+                end
+                ps.q = one(T)
+                for mass in invalid_mass
+                    ps.m = mass
+                    @test_throws ArgumentError H._validated_boris_factor(ps)
+                    @test_throws ArgumentError H._validated_native_boris_qm(ps)
+                end
+                for (q, m) in ((tiny, floatmax(T)), (one(T), floatmax(T)), (floatmax(T), tiny))
+                    ps.q, ps.m = q, m
+                    @test_throws ArgumentError H._validated_native_boris_qm(ps)
+                end
+                ps.q, ps.m = one(T), one(T)
+                @test H._validated_native_boris_qm(ps) === one(T)
+                ps.q, ps.m = tiny, tiny
+                for use_gathered in (false, true)
+                    foreach(a -> fill!(a, z), (ps.x..., ps.v...))
+                    if use_gathered
+                        push_gathered!(ps, gathered..., one(T); xmid = midpoint)
+                        @test only(midpoint[1]) == T(0.0625)
+                    else
+                        push_uniform!(ps, electric, magnetic, one(T))
+                    end
+                    # Independent exact ratio tiny/tiny=1, E=1/8, dt=1.
+                    @test only(ps.v[1]) == T(0.125)
+                    @test only(ps.x[1]) == T(0.125)
+                    @test all(H._particle_stored_zero, ps.v[2])
+                    @test all(H._particle_stored_zero, ps.v[3])
+                end
+                arrays = (ps.x..., ps.v..., midpoint...)
+                before = map(a -> collect(reinterpret(U, a)), arrays)
+                for dt in unresolved
+                    @test_throws ArgumentError H._require_resolved_dt("stored dt", dt)
+                    @test_throws ArgumentError push_uniform!(ps, electric, magnetic, dt)
+                    @test_throws ArgumentError push_gathered!(ps, gathered..., dt; xmid = midpoint)
+                    @test all(collect(reinterpret(U, a)) == b for (a, b) in zip(arrays, before))
+                end
+                @test_throws ArgumentError H._validated_nonnegative_dt(
+                    T, negative_tiny; name = "stored dt",
+                )
+                @test H._validated_nonnegative_dt(T, tiny; name = "stored dt") === tiny
+                for zero_dt in (z, negative_zero)
+                    @test H._require_resolved_dt("stored dt", zero_dt) === zero_dt
+                    @test push_uniform!(ps, electric, magnetic, zero_dt) === ps
+                    @test all(collect(reinterpret(U, a)) == b for (a, b) in zip(arrays, before))
+                end
+                @test H._require_resolved_dt("stored dt", 2floatmin(T)) === 2floatmin(T)
+            end
+        finally
+            set_zero_subnormals(oldmode)
+        end
+        @test get_zero_subnormals() == oldmode
+    end
+    @test H._particle_stored_zero(BigFloat(0))
+    @test H._stored_positive(BigFloat(1)) && !H._stored_nonnegative(BigFloat(-1))
+end
+
+@testset "Stored collection charge and weight signs across flush modes" begin
+    for T in (Float32, Float64)
+        U = uinttype(T)
+        tiny = reinterpret(T, one(U))
+        negative_tiny = reinterpret(T, (one(U) << (8sizeof(T) - 1)) | one(U))
+        oldmode = get_zero_subnormals()
+        try
+            @test set_zero_subnormals(false)
+            g = FourierGrid((4,), (T(4),))
+            ps = ParticleSet{1,T}(4)
+            ps.x[1] .= T.(0:3)
+            species = [ps]
+            hybrid = HybridStepper(g, HybridModel(IsothermalElectrons(T(0.1))), CIC(), 4)
+            electrostatic = ElectrostaticPIC(g, species; neutrality = :neutralize)
+            electromagnetic = EMPIC(g, species; neutrality = :neutralize, c = one(T))
+            init!(hybrid, species)
+            init_espic!(electrostatic, species)
+            init_empic!(electromagnetic, species)
+            for flush in (false, true)
+                @test set_zero_subnormals(flush)
+                @test get_zero_subnormals() == flush
+                ps.q = tiny
+                @test H._validate_hybrid_species(species) == 4
+                for charge in (negative_tiny, zero(T), -zero(T))
+                    ps.q = charge
+                    @test_throws ArgumentError H._validate_hybrid_species(species)
+                end
+                ps.q = one(T)
+                ps.weight[2] = negative_tiny
+                observation = (
+                    type = T,
+                    requested_flush = flush,
+                    active_flush = get_zero_subnormals(),
+                    positive_charge_word = reinterpret(U, tiny),
+                    negative_weight_word = reinterpret(U, ps.weight[2]),
+                )
+                @info "Stored collection admission" observation
+                arrays = (
+                    hybrid.fields.B..., hybrid.fields.E..., hybrid.fields.J..., hybrid.fields.n,
+                    hybrid.fields.ui..., hybrid.fields.pe,
+                    electrostatic.E..., electrostatic.ne,
+                    electromagnetic.E..., electromagnetic.B..., electromagnetic.J...,
+                    electromagnetic.rho_n, electromagnetic.rho_np1,
+                    ps.x..., ps.v..., ps.weight,
+                )
+                before = map(a -> collect(reinterpret(U, a)), arrays)
+                phase = (
+                    hybrid.time[], hybrid.step[], hybrid.last_dt[],
+                    electrostatic.primed[], electrostatic.last_dt[],
+                    electromagnetic.time[], electromagnetic.step[],
+                    electromagnetic.last_dt[], electromagnetic.last_sub_dt[],
+                )
+                @test_throws ArgumentError init!(hybrid, species)
+                @test_throws ArgumentError init_espic!(electrostatic, species)
+                @test_throws ArgumentError init_empic!(electromagnetic, species)
+                @test all(collect(reinterpret(U, a)) == b for (a, b) in zip(arrays, before))
+                @test (
+                    hybrid.time[], hybrid.step[], hybrid.last_dt[],
+                    electrostatic.primed[], electrostatic.last_dt[],
+                    electromagnetic.time[], electromagnetic.step[],
+                    electromagnetic.last_dt[], electromagnetic.last_sub_dt[],
+                ) === phase
+                ps.weight[2] = one(T)
+            end
+        finally
+            set_zero_subnormals(oldmode)
+        end
+        @test get_zero_subnormals() == oldmode
+    end
+end
 end

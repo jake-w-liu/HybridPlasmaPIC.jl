@@ -350,11 +350,14 @@ end
     return _boris_kick_checked(vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, factor, dt)
 end
 
-@inline function _validated_charge_mass(ps::ParticleSet{D,T}) where {D,T<:AbstractFloat}
-    q = _require_finite_real("particle charge q", ps.q, T)
-    m = _require_finite_positive_real("particle mass m", ps.m, T)
+@inline function _validated_charge_mass(q::Real, m::Real, ::Type{T}) where {T<:AbstractFloat}
+    q = _require_finite_real("particle charge q", q, T)
+    m = _require_finite_real("particle mass m", m, T)
+    _stored_positive(m) || throw(ArgumentError("particle mass m must be finite and positive"))
     return q, m
 end
+@inline _validated_charge_mass(ps::ParticleSet{D,T}) where {D,T<:AbstractFloat} =
+    _validated_charge_mass(ps.q, ps.m, T)
 @inline function _validated_boris_factor(ps::ParticleSet{D,T}) where {D,T<:AbstractFloat}
     q, m = _validated_charge_mass(ps)
     qm = q / m
@@ -367,10 +370,9 @@ end
 # quotient argument must survive subnormal flushing. Keep CPU admission separate.
 @inline function _validated_native_boris_qm(ps::ParticleSet{D,T}) where {D,T<:_RangeGuardedFloat}
     q, m = _validated_charge_mass(ps)
+    _particle_stored_zero(q) && return q
     qm = q / m
-    zero_charge = q === zero(T) || q === -zero(T)
-    zero_charge ||
-        (isfinite(qm) && abs(qm) >= floatmin(T)) ||
+    (isfinite(qm) && abs(qm) >= floatmin(T)) ||
         throw(
             ArgumentError("native device Boris push requires finite normal q/m for nonzero charge"),
         )

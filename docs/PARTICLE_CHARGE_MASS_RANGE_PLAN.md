@@ -98,6 +98,34 @@ storage admission; remote correctness, compiler and unchanged cost gates remain
 open. These checks do not recover unsupported factors. Device priming and
 GPU-resident coupled stepping remain unimplemented; CUDA still supplies storage/telemetry only.
 
+## Stored scalar admission and checkpoint compatibility
+
+Original IEEE factor admission now reads stored sign/zero for Float16/32/64
+after the existing declared-type conversion and finite checks. The shared
+`_validated_charge_mass` owner accepts finite signed charge and positive finite
+mass; `ParticleSet` and checkpoint scalar checks delegate to it. Hybrid
+collections retain positive ion charge. Hybrid/ES/EM collection weights retain
+finite nonnegative admission, including signed zero, with negative subnormals
+classified by storage. Generic number types retain their comparison semantics;
+the global positive/nonnegative parameter validators are unchanged.
+
+Scalar Hybrid/CAM-CL save and restore now enforce that existing stepping factor
+domain. Previously type-correct nonfinite charge or nonpositive/nonfinite mass
+could pass this scalar checkpoint gate. This is an intentional compatibility
+tightening, with no new schema: valid signed charge and finite extreme ratios
+still restore verbatim. Collection positive-ion policy, normalized ES/EM,
+transport q=1, layout/phase rules and other legacy snapshot field/weight value
+policies are unchanged. Rejection precedes file or destination publication.
+
+Native zero charge returns the original signed zero before division, including
+with a positive subnormal mass. Nonzero native quotients still require finite
+normal storage; this adds no device recovery. Fixed-row tests record requested
+and active FTZ mode and original words, restore the caller's mode in `finally`,
+and cover public CPU pushes, collection rejection and checkpoint preservation.
+These controls are unrun on the candidate; all Julia checks remain GitHub-only.
+Source-level exposure to permitted FTZ comparison behavior is distinct from a
+measured hardware failure or support for every model pipeline under FTZ.
+
 ## Progress
 
 - [x] Preserve the original-factor, normal-accuracy and overflow witnesses.
@@ -109,6 +137,8 @@ GPU-resident coupled stepping remain unimplemented; CUDA still supplies storage/
 - [x] Implement sufficient Euler term-scale admission and exact overflow classification.
 - [ ] Verify P2 accuracy, endpoints and phase behavior in GitHub.
 - [x] Align CPU hybrid/CAM-CL and electrostatic collection factor admission.
+- [x] Share stored IEEE sign/zero factor admission and scalar Hybrid/CAM-CL checkpoint validation.
+- [ ] Verify actual-mode factor/sign/dt and checkpoint preservation essentials in GitHub.
 - [ ] Verify full-model factor range and checkpoint continuation in GitHub.
 - [x] Implement P3 relativistic original-factor range routing and publication.
 - [ ] Verify P3 phase/restart/rollback in GitHub and audit normal accuracy.

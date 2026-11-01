@@ -95,6 +95,14 @@ and Metal `push_uniform!`/`push_gathered!`. It is not added to
 `_validated_nonnegative_dt`, whose collision, ionization, radiation,
 electron-pressure and face-injection callers have no half-step terms
 (`test_inject.jl` exercises a subnormal injection `dt`).
+Both guards classify stored IEEE sign/zero after the existing conversion to T:
+true signed zero retains each caller's zero-step policy, while nonzero stored
+`|dt| < 2floatmin(T)` cannot take that branch through an arithmetic FTZ equality.
+The nonnegative-only guard rejects a stored negative subnormal without imposing
+a half-step threshold. Generic clocks and other numerical zero checks are
+unchanged. Fixed-row tests log requested/active FTZ mode and stored words, check
+public-push rejection before mutation and restore the previous mode; execution
+is pending on GitHub, with no claim of complete FTZ pipeline support.
 
 Batch owners (`push_uniform!`, `push_gathered!`, the hybrid kick/drift, EMPIC
 and EMPIC1D velocity pushes and drifts, ES priming/kick/drift, leapfrog and

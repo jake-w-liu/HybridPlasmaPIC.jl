@@ -221,7 +221,7 @@ function _empic_collection_validate_populations(
         _require_finite_particle_velocities(ps, "electromagnetic collection")
         _empic_collection_validate_polarization(es, ps, work.mobile[i])
         relativistic && _require_subluminal_velocities(ps, c, "electromagnetic collection")
-        all(w -> isfinite(w) && w >= zero(T), ps.weight) ||
+        all(w -> isfinite(w) && _stored_nonnegative(w), ps.weight) ||
             throw(ArgumentError("electromagnetic weights must be finite and nonnegative"))
         !work.mobile[i] &&
             !all(a -> all(_particle_stored_zero, a), ps.v) &&

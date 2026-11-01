@@ -603,3 +603,87 @@ include("test_io_configuration_ownership.jl")
 include("test_io_publication.jl")
 
 include("test_io_configuration_serialization.jl")
+
+@testset "Scalar Hybrid checkpoints share original-factor admission" begin
+    for T in (Float32, Float64), State in (HybridStepper, CAMCLStepper)
+        U = T === Float32 ? UInt32 : UInt64
+        sign = one(U) << (8sizeof(T) - 1)
+        tiny, negative_tiny = reinterpret(T, one(U)), reinterpret(T, sign | one(U))
+        negative_zero = reinterpret(T, sign)
+        invalid = (
+            (T(NaN), one(T)), (T(Inf), one(T)),
+            (one(T), zero(T)), (one(T), negative_zero),
+            (one(T), -one(T)), (one(T), negative_tiny),
+            (one(T), T(NaN)), (one(T), T(Inf)),
+        )
+        valid = (
+            (-one(T), T(2)), (floatmax(T), tiny),
+            (tiny, floatmax(T)), (negative_zero, tiny),
+        )
+        oldmode = get_zero_subnormals()
+        try
+            @test set_zero_subnormals(false)
+            g = FourierGrid((4,), (T(4),))
+            ps = ParticleSet{1,T}(4)
+            ps.x[1] .= T.(0:3)
+            st = State(g, HybridModel(IsothermalElectrons(T(0.1))), CIC(), 4)
+            (State === HybridStepper ? init! : init_camcl!)(st, ps)
+            target = State(g, st.model, CIC(), 1)
+            particles = ParticleSet{1,T}(1)
+            fill!(particles.x[1], zero(T))
+            mktempdir() do directory
+                path = joinpath(directory, "checkpoint.bin")
+                incoming = joinpath(directory, "incoming.bin")
+                save_checkpoint(path, st, ps)
+                saved = deserialize(path)
+                for flush in (false, true)
+                    @test set_zero_subnormals(flush)
+                    @test get_zero_subnormals() == flush
+                    observation = (
+                        type = T,
+                        integrator = State,
+                        requested_flush = flush,
+                        active_flush = get_zero_subnormals(),
+                        invalid_words = [(reinterpret(U, q), reinterpret(U, m)) for (q, m) in invalid],
+                        valid_words = [(reinterpret(U, q), reinterpret(U, m)) for (q, m) in valid],
+                    )
+                    @info "Scalar checkpoint stored-factor admission" observation
+                    preserved = read(path)
+                    before = deepcopy(HybridPlasmaPIC._checkpoint_state(target, particles))
+                    storage = (
+                        particles.x..., particles.v..., particles.weight, particles.id, particles.tag,
+                        target.Ep..., target.Bp..., target.vpred..., target.xmid..., target.work,
+                    )
+                    lengths = map(length, storage)
+                    for (q, m) in invalid
+                        ps.q, ps.m = q, m
+                        @test_throws ArgumentError save_checkpoint(path, st, ps)
+                        @test read(path) == preserved
+                        serialize(incoming, merge(saved, (q = q, m = m)))
+                        @test_throws ArgumentError load_checkpoint!(target, particles, incoming)
+                        @test isequal(HybridPlasmaPIC._checkpoint_state(target, particles), before)
+                        @test map(length, storage) == lengths
+                        @test all(a === b for (a, b) in zip(storage, (
+                            particles.x..., particles.v..., particles.weight, particles.id, particles.tag,
+                            target.Ep..., target.Bp..., target.vpred..., target.xmid..., target.work,
+                        )))
+                    end
+                    for (q, m) in valid
+                        ps.q, ps.m = q, m
+                        @test save_checkpoint(path, st, ps) == path
+                        @test load_checkpoint!(target, particles, path) === target
+                        @test reinterpret(U, particles.q) == reinterpret(U, q)
+                        @test reinterpret(U, particles.m) == reinterpret(U, m)
+                        @test isequal(
+                            HybridPlasmaPIC._checkpoint_state(target, particles),
+                            HybridPlasmaPIC._checkpoint_state(st, ps),
+                        )
+                    end
+                end
+            end
+        finally
+            set_zero_subnormals(oldmode)
+        end
+        @test get_zero_subnormals() == oldmode
+    end
+end

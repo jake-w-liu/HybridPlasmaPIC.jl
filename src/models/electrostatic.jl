@@ -664,7 +664,7 @@ function _espic_validate_species(es::ElectrostaticPIC{D,T}, species) where {D,T}
         _validated_boris_factor(ps)
         _validate_particle_positions(ps)
         _require_finite_particle_velocities(ps, "electrostatic stepping")
-        all(w -> isfinite(w) && w >= zero(T), ps.weight) ||
+        all(w -> isfinite(w) && _stored_nonnegative(w), ps.weight) ||
             throw(ArgumentError("electrostatic weights must be finite and nonnegative"))
     end
     charges = _espic_charges(es, species)

@@ -1,5 +1,17 @@
 # validation.jl - runtime guards that must remain active in optimized runs.
 
+# Structural zeros use stored IEEE bits even when the caller enables FTZ.
+_particle_stored_zero(x) = iszero(x)
+_particle_stored_zero(x::Float16) = iszero(reinterpret(UInt16, x) & 0x7fff)
+_particle_stored_zero(x::Float32) = iszero(reinterpret(UInt32, x) & 0x7fffffff)
+_particle_stored_zero(x::Float64) = iszero(reinterpret(UInt64, x) & 0x7fffffffffffffff)
+
+# Callers validate finiteness separately; these predicates classify stored sign/zero.
+_stored_positive(x) = x > zero(x)
+_stored_nonnegative(x) = x >= zero(x)
+_stored_positive(x::Union{Float16,Float32,Float64}) = !signbit(x) && !_particle_stored_zero(x)
+_stored_nonnegative(x::Union{Float16,Float32,Float64}) = !signbit(x) || _particle_stored_zero(x)
+
 function _require_all_finite(name::AbstractString, a, context::AbstractString)
     all(isfinite, a) || error("$(name) went non-finite ($(context))")
     return nothing
@@ -65,7 +77,7 @@ function _validated_nonnegative_dt(
 ) where {T<:AbstractFloat}
     dtT = T(dt)
     isfinite(dtT) || throw(ArgumentError("$name requires finite dt (got $dt)"))
-    dtT >= zero(T) || throw(ArgumentError("$name requires nonnegative dt (got $dt)"))
+    _stored_nonnegative(dtT) || throw(ArgumentError("$name requires nonnegative dt (got $dt)"))
     return dtT
 end
 
@@ -74,7 +86,7 @@ end
 # subnormal half step, which silently erases or truncates those terms, so it is
 # rejected before any state changes. dt = 0 keeps each caller's own semantics.
 function _require_resolved_dt(name::AbstractString, dt::T) where {T<:AbstractFloat}
-    iszero(dt) ||
+    _particle_stored_zero(dt) ||
         abs(dt) >= 2 * floatmin(T) ||
         throw(
             ArgumentError(

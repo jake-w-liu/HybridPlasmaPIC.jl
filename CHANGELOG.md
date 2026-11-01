@@ -122,6 +122,14 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Fixed
 
+- Original IEEE factor, targeted collection sign and timestep-zero admission use
+  stored bits after existing conversion and finite checks. Native zero charge
+  returns its signed zero before division; charged native quotient limits remain.
+  Scalar Hybrid/CAM-CL checkpoints now reject nonfinite charge and nonpositive or
+  nonfinite mass through the stepping factor owner, preserving finite signed
+  charge and extreme original ratios. Other legacy snapshot value policies and
+  schemas are unchanged. Essential actual-mode and atomicity checks await GitHub.
+
 - `apply_antenna!` rejects magnetic-field/workspace overlap, shared magnetic
   components and writable Fourier-metadata aliases before the curl can overwrite
   old state. Supported antenna-input sharing remains; essential GitHub checks
