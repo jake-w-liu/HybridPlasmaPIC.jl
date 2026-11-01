@@ -213,8 +213,10 @@ function _empic_collection_validate_populations(
         all(w -> isfinite(w) && w >= zero(T), ps.weight) ||
             throw(ArgumentError("electromagnetic weights must be finite and nonnegative"))
         !work.mobile[i] &&
-            !all(a -> all(iszero, a), ps.v) &&
-            throw(ArgumentError("fixed electromagnetic populations require zero velocity"))
+            !all(a -> all(_particle_stored_zero, a), ps.v) &&
+            throw(
+                ArgumentError("fixed electromagnetic populations require original stored zero velocity"),
+            )
     end
     charges = _pic_collection_charges(es.g, es.n0, species)
     _espic_check_neutrality(work, charges)
@@ -550,12 +552,8 @@ end
 
 _empic_collection_validate_polarization(::EMPIC, ps, mobile) = nothing
 function _empic_collection_validate_polarization(::EMPIC1D, ps, mobile)
-    all(_particle_stored_zero, ps.v[3]) ||
+    mobile && !all(_particle_stored_zero, ps.v[3]) &&
         throw(ArgumentError("EMPIC1D collections require original stored v_z = 0"))
-    if !mobile
-        all(a -> all(_particle_stored_zero, a), ps.v) ||
-            throw(ArgumentError("fixed EMPIC1D populations require original stored zero velocity"))
-    end
     return nothing
 end
 

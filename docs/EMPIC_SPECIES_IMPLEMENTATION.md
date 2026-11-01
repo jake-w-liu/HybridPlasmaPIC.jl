@@ -346,9 +346,12 @@ source handling. S1 does not implement charge injection or supply its current.
 Do not extend continuity/Gauss claims to arbitrary external particle/field edits.
 Inputs require independent writable CPU strided leaves and the shared canonical
 ordinary-store admission; known Const/AtomicMemory wrapper ancestry rejects.
-The existing generic EMPIC fixed-population `iszero` admission remains a separate
-mode-sensitive source gap; this slice's specialized planar/fixed checks inspect
-stored IEEE bits through the shared particle owner.
+Both model families validate fixed velocities once through the shared
+stored-IEEE-zero owner, including constructor, initialization, zero-step and
+saved-particle admission. Specialized mobile populations additionally require
+stored-zero `v_z`. Signed zeros remain valid. Essential pre-stored subnormal
+controls and arithmetic-zero observations await GitHub on both Julia versions.
+The source comparison alone does not establish a pre-patch runtime failure.
 
 The complete external operation stages particles, all specialized transaction
 arrays and clocks before publication. Expected input/arithmetic rejection leaves

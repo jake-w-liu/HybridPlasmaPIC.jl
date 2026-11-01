@@ -94,6 +94,11 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Changed
 
+- Fixed `EMPIC` and `EMPIC1D` collection populations share original stored-zero
+  velocity admission, independent of arithmetic zero comparison under FTZ.
+  Signed zeros remain accepted; essential lifecycle and restore checks await
+  GitHub. This changes admission only, with numerical kernels and schemas retained.
+
 - Closed Yee models retain concrete candidates with ordinary vector storage
   through the shared PIC staging owner. Public particle views and restart destinations
   retain their identities. Compiler and complete-step cost verification remains

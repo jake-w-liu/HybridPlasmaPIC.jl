@@ -94,6 +94,51 @@ end
     end
 end
 
+@testset "Fixed EM populations require original stored zero velocity" begin
+    for T in (Float32, Float64)
+        state, species = fixture(T, 1)
+        fixed = species[3]
+        fill!(fixed.v[1], -zero(T))
+        init_empic!(state, species)
+        saved = deepcopy(H._checkpoint_state(state, species))
+        U = T === Float32 ? UInt32 : UInt64
+        stored = reinterpret(T, one(U))
+        saved.species[3].v[1][1] = stored
+        @test reinterpret(U, saved.species[3].v[1][1]) == one(U)
+        oldmode = get_zero_subnormals()
+        try
+            for mode in (false, true)
+                set_zero_subnormals(mode)
+                fixed.v[1][1] = stored
+                @test reinterpret(U, fixed.v[1][1]) == one(U)
+                observation = (
+                    precision = T,
+                    requested_mode = mode,
+                    active_mode = get_zero_subnormals(),
+                    arithmetic_zero = all(a -> all(iszero, a), fixed.v),
+                )
+                @info "Fixed EM stored-zero admission" observation
+                before = snapshot(state, species)
+                @test_throws ArgumentError EMPIC(
+                    state.g,
+                    species;
+                    mobile = copy(state.collection.mobile),
+                )
+                @test_throws ArgumentError init_empic!(state, species)
+                @test_throws ArgumentError step_empic!(state, species, zero(T))
+                @test snapshot(state, species) == before
+                fixed.v[1][1] = zero(T)
+                before = snapshot(state, species)
+                @test_throws ArgumentError H._restore_checkpoint_state!(state, species, saved)
+                @test snapshot(state, species) == before
+            end
+        finally
+            fixed.v[1][1] = zero(T)
+            set_zero_subnormals(oldmode)
+        end
+    end
+end
+
 @testset "EM collection charge, summed midpoint current and fixed populations" begin
     for T in (Float32, Float64), D = 1:3, shape in (NGP(), CIC(), TSC())
         state, species = fixture(T, D; shape)
