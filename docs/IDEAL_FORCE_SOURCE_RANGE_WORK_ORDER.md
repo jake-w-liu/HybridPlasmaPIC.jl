@@ -196,3 +196,27 @@ silent clipping, broad catches or unrelated-source rejection certificate.
 The bounded product-range implementation does not close the complete source
 work order. The open admission, operator, accuracy and resource gates above
 remain separate from its source implementation and pending GitHub acceptance.
+
+## Remote pressure/Faraday diagnosis
+
+Historical [consumer run 41279917633](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41279917633),
+already using SpectralOperators 0.1.8, retains two exact-array Faraday assertion
+failures on each actual Julia 1.12.7 and 1.13.3. The current strict assertions and
+owning expressions still apply. A pressure-product overflow alone does not
+select the original-source field route described above. The native curl's shared
+input scale can be nonbinary and includes the D1 curl-null longitudinal field;
+its role in these measured discrepancies remains an untested hypothesis.
+
+The existing pressure essentials now emit one observation per existing fixture,
+without adding assertions: canonical replay risk flags/common scales, native and
+complete-source curl, a copied-E control with only longitudinal Ex zeroed, actual
+coupled-stage output and the existing independent exact four-point references.
+Replay flags are labeled separately because the private stage does not expose its
+local branch. Current, Laplacian, gradient and output arrays are private to the
+probe; only sequential grid scratch is reused. Every original strict assertion
+remains. No kernel, admission policy or tolerance is changed by the observation.
+
+All Julia execution remains on GitHub through the existing electron-conduction
+selector and full minimum/latest CI. Probe execution, actual numerical evidence,
+formatter/compiler acceptance and any causal or repair conclusion are pending.
+This observation supplies no generalized FFT accuracy or performance result.

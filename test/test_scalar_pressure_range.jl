@@ -85,6 +85,58 @@ function native_pressure!(st)
     return rate
 end
 
+function faraday_observation(st)
+    f, g = st.fields, st.g
+    T = eltype(f.pe)
+    η = T(st.model.η)
+    gradp = map(copy, f.gradp)
+    J, lapJ = map(copy, f.J), map(copy, f.lapJ)
+    gradient!(gradp, f.pe, g)
+    field = map(similar, f.B)
+    field_risk = H._ohm_Efield!(
+        field, st.fui, f.B, J, lapJ, gradp, f.ninv, zero(T), zero(T), g,
+    )
+    ohmic_risk = H._ohm_ohmic_source_risk(J, η)
+    # Capture before any other owner can reuse gradient scratch.
+    source = H._ohm_original_source(st.fui, f.B, J, gradp, f.ninv, η, g)
+    H._add_ohmic_field!(field, field, J, η)
+    # These existing fixtures are D1, so this is curl!'s actual one-axis gain.
+    gain = maximum(abs, g.kvec[1])
+    scale = H.SpectralOperators._fft_input_scale(field, 3, g, gain)
+    native, dyadic, without_ex = ntuple(_ -> map(similar, f.B), 3)
+    H.faraday_rhs!(native, field, g)
+    H._ohm_original_faraday_rhs!(dyadic, source, field, g)
+    field_without_ex = map(copy, field)
+    fill!(field_without_ex[1], zero(T))
+    scale_without_ex = H.SpectralOperators._fft_input_scale(field_without_ex, 3, g, gain)
+    H.faraday_rhs!(without_ex, field_without_ex, g)
+    return (
+        canonical_replay = (
+            field_risk = field_risk,
+            ohmic_risk = ohmic_risk,
+            nearest_gradual = H._boris_accuracy_mode(),
+            scale = scale,
+            scale_without_ex = scale_without_ex,
+        ),
+        input = (
+            pressure = copy(f.pe),
+            ui = map(copy, st.fui),
+            B = map(copy, f.B),
+            J = J,
+            lapJ = lapJ,
+            gradp = gradp,
+            ninv = copy(f.ninv),
+            η = η,
+            kvec = copy(g.kvec[1]),
+            ik = copy(g.ik[1]),
+        ),
+        physical_E = field,
+        native = native,
+        dyadic = dyadic,
+        without_ex = without_ex,
+    )
+end
+
 @testset "Complete ideal and Ohmic pressure before range classification" begin
     for T in (Float32, Float64),
         kind in
@@ -105,14 +157,26 @@ end
             @test all(iszero, exact)
             @test any(!isfinite, legacy)
         end
+        observation = faraday_observation(st)
         H._bpressure_rhs!(st.k1, st.pressure_work.kp[1], st.fields.B, st.fields.pe, st, 1, 1)
         @test st.pressure_work.kp[1] == T.(exact)
         @test all(a -> all(isfinite, a), (st.fields.E..., st.Escr..., st.fields.J..., st.k1...))
         # Independent original-product Faraday reference. Longitudinal pressure
         # force is curl-null; Bx=Jx=0 for these four-point fixtures.
         ez = -Q.(st.fui[1]) .* Q.(st.fields.B[2]) .+ Q(st.model.η) .* Q.(st.fields.J[3])
-        @test st.k1[2] == T.(centered_four(st.g) * ez)
         ey = Q.(st.fui[1]) .* Q.(st.fields.B[3]) .+ Q(st.model.η) .* Q.(st.fields.J[2])
+        print("PRESSURE_FARADAY_OBSERVATION ")
+        show(IOContext(stdout, :limit => false), (
+            julia = VERSION,
+            type = T,
+            kind = kind,
+            observation = observation,
+            stage = st.k1,
+            oracle_y = T.(centered_four(st.g) * ez),
+            oracle_z = T.(-centered_four(st.g) * ey),
+        ))
+        println()
+        @test st.k1[2] == T.(centered_four(st.g) * ez)
         @test st.k1[3] == T.(-centered_four(st.g) * ey)
         @test all(iszero, st.k1[1])
     end
