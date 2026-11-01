@@ -79,8 +79,11 @@ the zero-`ηH` payload meaning is unchanged.
 - [ ] Establish complete public resource costs and suitable hardware results
   before making allocation, peak-memory or comparative performance claims.
 - [ ] Complete [original-factor ideal fields and Faraday](IDEAL_FORCE_SOURCE_RANGE_WORK_ORDER.md).
-  Nonlinear pointwise products can vanish before a stiff derivative rescues a
-  representable rate. This implementation starts from represented ideal data.
+  The bounded scalar `ηH=0` Hybrid route now captures original represented
+  constitutive factors on finite product-range events and differentiates their
+  exact dyadic source through the existing FFT owner. GitHub verification is
+  pending. Hyperresistive completion still starts from represented ideal data;
+  normal swallowed variation and general FFT conditioning remain open.
 - [ ] Implement any required normalized dt-scaled RK storage, then conduction,
   equilibration, anisotropy, inertia and backend stages in the
   [capability plan](PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md#cap-011--electron-transport-and-complete-energy-accounting).

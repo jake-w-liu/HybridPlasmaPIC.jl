@@ -137,6 +137,39 @@ end
     end
 end
 
+@testset "replicated original-product Faraday and collective range rejection" begin
+    ensure_mpi_initialized!()
+    world = MPI.Comm_size(MPI.COMM_WORLD)
+    ctx = create_cartesian_communicator(LogicalRankLayout((world,)); reorder = false)
+    try
+        for T in (Float32, Float64)
+            ek, eu = T === Float32 ? (60, -100) : (300, -600)
+            g = FourierGrid((4,), (ldexp(T(2pi), -ek),))
+            st = HybridStepper(g, HybridModel(EvolvingElectrons(T(2))), NGP(), 0)
+            a = ldexp(one(T), eu)
+            fill!(st.fn, one(T))
+            fill!(st.fields.n, one(T))
+            fill!(st.fields.ninv, one(T))
+            fill!(st.fields.B[2], a)
+            st.fui[1] .= a .* T[0, 1, 0, -1]
+            rate = () -> HybridPlasmaPIC._bpressure_rhs!(
+                st.k1, st.pressure_work.kp[1], st.fields.B, st.fields.pe, st, 1, 1,
+            )
+            HybridPlasmaPIC._mpi_hybrid_pressure_phase(rate, st, ctx)
+            exact = -Rational{BigInt}(a)^2 * Rational{BigInt}(g.kvec[1][2])
+            @test isequal(st.k1[2], T.(exact .* [1, 0, -1, 0]))
+            @test any(!iszero, st.k1[2])
+            if ctx.mpi_rank == world - 1
+                fill!(st.fields.B[1], one(T))
+                st.fui[2] .= (floatmax(T) / 4) .* T[0, 1, 0, -1]
+            end
+            @test_throws ArgumentError HybridPlasmaPIC._mpi_hybrid_pressure_phase(rate, st, ctx)
+        end
+    finally
+        free_mpi_communicator!(ctx)
+    end
+end
+
 @testset "transport closure MPI rejection is collective" begin
     ensure_mpi_initialized!()
     world = MPI.Comm_size(MPI.COMM_WORLD)

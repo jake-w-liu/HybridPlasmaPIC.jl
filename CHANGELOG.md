@@ -18,11 +18,20 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   arithmetic/write order and tensor generation remain unchanged; public
   both-type D1–3 cancellation controls await GitHub CI.
 
+- Scalar CPU Hybrid Faraday stages with `de2=ηH=0` retain original represented
+  constitutive operands on finite product-range events, including Ohmic
+  sources. The existing dyadic FFT owner preserves sub-storage products until
+  their derivative is composed; physical E publication and ordinary native
+  paths are retained. Normal hidden-variation admission, general FFT
+  conditioning and other closures/operators remain open in the
+  [source work order](docs/IDEAL_FORCE_SOURCE_RANGE_WORK_ORDER.md).
+
+
 - Scalar Ohm evaluation combines complete signed finite represented factors on
   intermediate overflow or subnormal products, preserving ordinary operation
   order and raw nonfinite propagation. This repairs motional/Hall cancellation
-  and inverse-density-rescued Hall fields. Original-product Faraday recovery
-  remains open; essential checks run on GitHub.
+  and inverse-density-rescued Hall fields. Broader original-product derivative
+  admission remains open; essential checks run on GitHub.
 
 - CPU hybrid/CAM-CL and electrostatic collection validation retains finite
   original charge and positive mass even when their derived quotient overflows
@@ -34,6 +43,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   before launch/mutation. True zero charge and normal ratios remain supported.
   Device factor recovery and priming remain open; see the
   [factor range plan](docs/PARTICLE_CHARGE_MASS_RANGE_PLAN.md).
+
 
 - Relativistic EMPIC priming and kicks retain original species charge and mass
   through range repair and finite-output publication, including overflowing or

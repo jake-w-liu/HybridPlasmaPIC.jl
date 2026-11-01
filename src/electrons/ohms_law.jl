@@ -108,7 +108,8 @@ end
 
 # B-DEPENDENT part of Ohm's law: E from an explicit (trial) B, using the
 # pre-computed `gradp` and `ninv` from _ohm_prep!. Recomputes J = ∇×B (and ∇²J if
-# ηH≠0) each call — these genuinely depend on B. Writes E, J, lapJ.
+# ηH≠0) each call — these genuinely depend on B. Writes E, J, lapJ and
+# reports finite-original-operand product-range events for bounded Faraday routing.
 function _ohm_Efield!(
     E::NTuple{3,<:Array{T,D}},
     ui::NTuple{3,<:Array{T,D}},
@@ -149,6 +150,7 @@ function _ohm_Efield!(
     Ex, Ey, Ez = E
     gp = gradp
     LJx, LJy, LJz = lapJ
+    source_risk = false
     @inbounds for I in eachindex(ninv)
         bx = Bx[I]
         by = By[I]
@@ -162,18 +164,19 @@ function _ohm_Efield!(
         inv = ninv[I]
         # Complete each signed represented-factor expression on a range event.
         # Spatial pressure is absent, rather than a zero subtraction, off-axis.
-        e1 = _ohm_scalar_field_value(vy, vz, by, bz, jy, jz, inv, η, jx, ηH, LJx[I], gp[1][I])
-        e2 = _ohm_scalar_field_value(
-            vz, vx, bz, bx, jz, jx, inv, η, jy, ηH, LJy[I], D >= 2 ? gp[2][I] : nothing,
+        e1, risk1 = _ohm_scalar_field_value(vy, vz, by, bz, jy, jz, inv, η, jx, ηH, LJx[I], gp[1][I], Val(true))
+        e2, risk2 = _ohm_scalar_field_value(
+            vz, vx, bz, bx, jz, jx, inv, η, jy, ηH, LJy[I], D >= 2 ? gp[2][I] : nothing, Val(true),
         )
-        e3 = _ohm_scalar_field_value(
-            vx, vy, bx, by, jx, jy, inv, η, jz, ηH, LJz[I], D >= 3 ? gp[3][I] : nothing,
+        e3, risk3 = _ohm_scalar_field_value(
+            vx, vy, bx, by, jx, jy, inv, η, jz, ηH, LJz[I], D >= 3 ? gp[3][I] : nothing, Val(true),
         )
         Ex[I] = e1
         Ey[I] = e2
         Ez[I] = e3
+        source_risk |= risk1 | risk2 | risk3
     end
-    return E
+    return source_risk
 end
 
 # A true zero factor is harmless. A subnormal product requests completion even
@@ -183,7 +186,7 @@ end
     return !isfinite(product) || abs(product) < floatmin(typeof(product))
 end
 
-@inline function _ohm_scalar_field_value(v1, v2, b1, b2, j1, j2, ninv, η, current, ηH, lap, pressure)
+@inline function _ohm_scalar_field_value(v1, v2, b1, b2, j1, j2, ninv, η, current, ηH, lap, pressure, ::Val{report} = Val(false)) where {report}
     m1, m2 = v1 * b2, v2 * b1
     h1, h2 = j1 * b2, j2 * b1
     cross = h1 - h2
@@ -201,8 +204,15 @@ end
         _ohm_product_needs_completion(η, current, ohmic) ||
         _ohm_product_needs_completion(ηH, lap, hyper) ||
         (pressure !== nothing && _ohm_product_needs_completion(pressure, ninv, pressure_term))
-    cold || return value
-    return _ohm_scalar_field_value_cold(value, v1, v2, b1, b2, j1, j2, ninv, η, current, ηH, lap, pressure)
+    if !cold
+        return report ? (value, false) : value
+    end
+    # Only finite original operands select source-aware Faraday. Raw nonfinite
+    # inputs retain their native propagation and existing caller error policy.
+    risk = report && all(isfinite, (v1, v2, b1, b2, j1, j2, ninv, η, current, ηH, lap)) &&
+           (pressure === nothing || isfinite(pressure))
+    completed = _ohm_scalar_field_value_cold(value, v1, v2, b1, b2, j1, j2, ninv, η, current, ηH, lap, pressure)
+    return report ? (completed, risk) : completed
 end
 
 @noinline function _ohm_scalar_field_value_cold(native, v1, v2, b1, b2, j1, j2, ninv, η, current, ηH, lap, pressure)
@@ -210,10 +220,18 @@ end
     # Raw nonfinite inputs keep native propagation; model owners retain their
     # existing validation and transaction policy.
     all(isfinite, operands) && (pressure === nothing || isfinite(pressure)) || return native
-    qv1, qv2, qb1, qb2, qj1, qj2, qi, qη, qj, qηH, qlap = map(_exact_rational, operands)
+    exact = _ohm_scalar_field_exact(v1, v2, b1, b2, j1, j2, ninv, η, current, ηH, lap, pressure)
+    return _from_exact(typeof(native), exact)
+end
+
+# One unrounded constitutive expression serves scalar publication and the
+# original-product Faraday path. J/gradp and rounded ninv remain represented inputs.
+function _ohm_scalar_field_exact(v1, v2, b1, b2, j1, j2, ninv, η, current, ηH, lap, pressure)
+    qv1, qv2, qb1, qb2, qj1, qj2, qi, qη, qj, qηH, qlap =
+        map(_exact_rational, (v1, v2, b1, b2, j1, j2, ninv, η, current, ηH, lap))
     exact = -(qv1 * qb2 - qv2 * qb1) + (qj1 * qb2 - qj2 * qb1) * qi + qη * qj - qηH * qlap
     pressure === nothing || (exact -= _exact_rational(pressure) * qi)
-    return _from_exact(typeof(native), exact)
+    return exact
 end
 
 # Full Ohm's law (prep + field) in one call — used for the carried E (init! and
@@ -863,6 +881,102 @@ function faraday_rhs!(
         dB[c] .*= -one(T)
     end
     return dB
+end
+
+# Bounded source capture for scalar de2=etaH=0 Hybrid stages. Preserve the
+# collocation products, represented J/gradp and stored ninv, not a product rule
+# or division by original density. Capture precedes pressure/heating scratch reuse.
+function _ohm_ohmic_source_risk(J, η)
+    iszero(η) && return false
+    isfinite(η) || return false
+    for component in J, current in component
+        isfinite(current) && _ohm_product_needs_completion(η, current, η * current) && return true
+    end
+    return false
+end
+
+@noinline function _ohm_original_source(ui, B, J, gradp, ninv, η::T, g::FourierGrid{D,T}) where {D,T}
+    for a in (ui..., B..., J..., gradp..., ninv)
+        _validate_pressure_finite(a, "original-product Ohm source")
+    end
+    _validate_pressure_finite((η,), "original-product Ohm coefficient")
+    Q = Rational{BigInt}
+    source = ntuple(_ -> Array{Complex{Q},D}(undef, g.n), Val(3))
+    z = zero(T)
+    @inbounds for I in eachindex(ninv)
+        for (c, a, b) in ((1, 2, 3), (2, 3, 1), (3, 1, 2))
+            value = _ohm_scalar_field_exact(
+                ui[a][I], ui[b][I], B[a][I], B[b][I], J[a][I], J[b][I], ninv[I],
+                η, J[c][I], z, z, c <= D ? gradp[c][I] : nothing,
+            )
+            source[c][I] = complex(value)
+        end
+    end
+    return source
+end
+
+# A centered odd derivative annihilates a constant, and on an even axis also
+# its alternating Nyquist profile. Test exact line profiles before any FFT.
+function _ohm_source_axis_is_null(source::Array{C,D}, axis, g) where {C,D}
+    g.n[axis] <= 2 && return true
+    @inbounds for I in CartesianIndices(source)
+        anchor = iseven(g.n[axis]) && iseven(I[axis]) ? 2 : 1
+        reference = CartesianIndex(ntuple(d -> d == axis ? anchor : I[d], Val(D)))
+        source[I] == source[reference] || return false
+    end
+    return true
+end
+
+# Range completion through the existing finite signed-digit FFT owner. Each
+# FFT still rounds: this does not certify general-grid near-null accuracy.
+# Only callers with a finite product-range event and nearest/gradual mode enter.
+@noinline function _ohm_original_faraday_rhs!(out, source, physical_E, g::FourierGrid{D,T}) where {D,T}
+    for c = 1:3
+        size(out[c]) == g.n || throw(DimensionMismatch("Faraday output must match the grid"))
+        _validate_pressure_finite(physical_E[c], "original-product electric field")
+        for k = 1:(c-1)
+            Base.mightalias(out[c], out[k]) &&
+                throw(ArgumentError("curl! output components must not alias each other"))
+        end
+        for a in physical_E
+            Base.mightalias(out[c], a) &&
+                throw(ArgumentError("curl! output components must not alias input components"))
+        end
+    end
+    Q = Rational{BigInt}
+    hats = ntuple(3) do c
+        field = source[c]
+        # Global DC is an exact null of every curl channel. Removing it also
+        # keeps a large independent constant out of a tiny varying FFT band.
+        dc = first(field)
+        for I in eachindex(field)
+            field[I] -= dc
+        end
+        active = any(axis -> axis != c && !_ohm_source_axis_is_null(field, axis, g), 1:D)
+        return active ? _em_dyadic_transform(field, g) : nothing
+    end
+    nonzero, represented = false, false
+    for (c, plus, plus_axis, minus, minus_axis) in _TRANSPORT_FARADAY_CHANNELS
+        rate_hat = fill(zero(Complex{Q}), g.n)
+        for (component, axis, sign) in ((plus, plus_axis, -1), (minus, minus_axis, 1))
+            axis > D && continue
+            hat = hats[component]
+            hat === nothing && continue
+            _ohm_source_axis_is_null(source[component], axis, g) && continue
+            for I in CartesianIndices(rate_hat)
+                rate_hat[I] += sign * _spectral_exact_complex(g.ik[axis][I[axis]]) * hat[I]
+            end
+        end
+        spatial = _em_dyadic_transform(rate_hat, g, true)
+        component_nonzero, component_represented = _publish_complete_rate!(
+            out[c], map(real, spatial), "original-product magnetic rate",
+        )
+        nonzero |= component_nonzero
+        represented |= component_represented
+    end
+    nonzero && !represented &&
+        throw(ArgumentError("original-product magnetic rate rounds entirely to zero in $T"))
+    return out
 end
 
 # Complete the linear constitutive/operator expression before separately rounded

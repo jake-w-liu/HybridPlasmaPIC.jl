@@ -48,6 +48,7 @@ using Test
     include("test_empic_current_combination.jl")
     include("test_hybrid.jl")
     include("test_ohm_scalar_range.jl")
+    include("test_original_ideal_faraday_range.jl")
     include("test_evolving_pressure.jl")
     include("test_evolving_pressure_accuracy.jl")
     include("test_evolving_pressure_energy.jl")

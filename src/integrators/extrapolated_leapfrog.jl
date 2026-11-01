@@ -517,6 +517,7 @@ end
     st::HybridStepper{D,T},
 ) where {D,T}
     f = st.fields
+    source_risk = false
     # frozen pe/∇pe/ninv (scalar) or the frozen ∇·P_e force (anisotropic/CGL) were
     # precomputed once per step; only the B-dependent part is evaluated here each subcycle
     # stage. The `is_anisotropic` test is compile-time-resolved from the closure type, so
@@ -539,7 +540,7 @@ end
             st.g,
         )
     else
-        _ohm_Efield!(
+        source_risk = _ohm_Efield!(
             st.Escr,
             st.fui,
             Btrial,
@@ -553,7 +554,14 @@ end
         )
     end
     _apply_electron_inertia!(st.Escr, T(st.model.de2), st.g)   # E ← E/(1+d_e²k²) if de2>0
-    faraday_rhs!(out, st.Escr, st.g)
+    # This bounded route repairs finite product-range events, not general
+    # normal source rounding or FFT conditioning. CGL/inertia/hyper stay separate.
+    if source_risk && iszero(st.model.de2) && iszero(st.model.ηH) && _boris_accuracy_mode()
+        source = _ohm_original_source(st.fui, Btrial, f.J, f.gradp, f.ninv, T(st.model.η), st.g)
+        _ohm_original_faraday_rhs!(out, source, st.Escr, st.g)
+    else
+        faraday_rhs!(out, st.Escr, st.g)
+    end
     return out
 end
 
@@ -630,7 +638,17 @@ function _bpressure_rhs!(
         _validate_pressure_finite(a, "evolving-pressure magnetic stage")
     end
     gradient!(f.gradp, ptrial, g)
-    _ohm_Efield!(st.Escr, st.fui, Btrial, f.J, f.lapJ, f.gradp, f.ninv, zero(T), zero(T), g)
+    source_risk = _ohm_Efield!(st.Escr, st.fui, Btrial, f.J, f.lapJ, f.gradp, f.ninv, zero(T), zero(T), g)
+    # Capture original gradp before any pressure/heating owner reuses scratch.
+    # The physical ideal force must fit independently of its Ohmic completion.
+    source = nothing
+    if iszero(st.model.de2) && iszero(st.model.ηH) && _boris_accuracy_mode() &&
+       (source_risk || _ohm_ohmic_source_risk(f.J, T(st.model.η)))
+        for component in st.Escr
+            _validate_pressure_finite(component, "original-product ideal electric field")
+        end
+        source = _ohm_original_source(st.fui, Btrial, f.J, f.gradp, f.ninv, T(st.model.η), g)
+    end
     electron_velocity!(w.ue, st.fui, f.J, st.fn; nfloor = T(st.model.nfloor))
     if _transports_electrons(st.model.closure) && !iszero(T(st.model.ηH))
         return _transport_hyperpressure_rhs!(outB, outp, Btrial, ptrial, st, g)
@@ -638,7 +656,11 @@ function _bpressure_rhs!(
     divergence!(w.divue, w.ue, g)
     _electron_pressure_rhs!(outp, ptrial, w.ue, f.gradp, w.divue, T(st.model.closure.γ), Val(D))
     _add_transport_stage_sources!(st, outp)
-    faraday_rhs!(outB, st.Escr, g)
+    if source === nothing
+        faraday_rhs!(outB, st.Escr, g)
+    else
+        _ohm_original_faraday_rhs!(outB, source, st.Escr, g)
+    end
     _validate_pressure_finite(outp, "evolving-pressure rate")
     for a in outB
         _validate_pressure_finite(a, "evolving-pressure magnetic rate")

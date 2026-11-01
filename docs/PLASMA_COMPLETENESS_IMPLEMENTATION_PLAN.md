@@ -733,9 +733,12 @@ and coupled init/step rollback remain separate contracts. The confirmed
 [original-factor ideal-force loss](IDEAL_FORCE_SOURCE_RANGE_WORK_ORDER.md) is
 still open. Its scalar/CGL pointwise range prerequisite now combines complete
 represented factors on intermediate overflow/subnormal products, with essential
-GitHub checks pending. Neither that repair nor linear completion of represented
-ideal E recovers an original product lost before differentiation. CAP-011 remains
-incomplete.
+GitHub checks pending. Bounded scalar Hybrid Faraday with `de2=ηH=0` also retains
+original represented constitutive products on finite product-range events,
+through the existing dyadic FFT owner. Normal swallowed variation, severe FFT
+conditioning and broader source-aware operator/backend admission remain open.
+Linear completion of represented ideal E alone cannot recover an original
+product lost before differentiation. CAP-011 remains incomplete.
 
 ## Additional risks requiring tests, not assertions
 

@@ -106,8 +106,10 @@ Faraday:   ∂B/∂t = −∇×E,    ∇·B = 0  (spectrally enforced)
 
 Scalar and CGL Ohm evaluation complete finite represented-factor expressions exactly
 when intermediate products overflow or become subnormal, preserving the ordinary
-arithmetic order otherwise. This pointwise repair does not recover tiny ideal
-products lost before Faraday differentiation. See the
+arithmetic order otherwise. Scalar Hybrid Faraday with `de2=ηH=0` retains
+original represented constitutive products on finite product-range events,
+through the existing dyadic FFT owner. Broader source admission and FFT
+conditioning remain open in the
 [ideal-source implementation tracker](docs/IDEAL_FORCE_SOURCE_RANGE_WORK_ORDER.md).
 
 | quantity | unit |
