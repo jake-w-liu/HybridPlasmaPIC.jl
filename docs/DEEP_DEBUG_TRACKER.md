@@ -57,7 +57,7 @@ The [official downloads page](https://julialang.org/downloads/) identifies
 Julia **1.13.3** as stable (checked again 2026-11-01 Asia/Taipei). New campaigns run
 actual 1.12.7 and 1.13.3; a stale local `release` alias is not version evidence.
 The existing CI matrix selects minimum `1.12` and latest stable `1`.
-The latest fully accepted containing revision is `adb16c5`, including both
+The latest fully accepted containing revision is `d0d04f4`, including both
 complete compiler-tree reviews. New implementation pushes have their own
 pending checks; the accepted historical run does not validate those changes.
 
@@ -138,6 +138,7 @@ shock allocation failure remain recorded with their later corrections.
 | `8151ced` | [Pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40769542333) | 1,249,543 / 1,249,544 assertions; both whole compiler forests byte-equal accepted C1 |
 | `7b8cbd3` | [Pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40772196744) | 1,249,543 / 1,249,544 assertions; both whole compiler forests byte-equal accepted C1 |
 | `adb16c5` | [Pass after one targeted MPI8 retry](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40780817426) | 1,249,543 / 1,249,544 assertions; both whole compiler forests byte-equal accepted C1. Original MPI8 timeout remains retained; no cause or billing exception established |
+| `d0d04f4` | [All six jobs pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41266147063) | 1,249,543 / 1,249,544 assertions on actual Julia 1.12.7 / 1.13.3. Complete compiler trees retain 24/21 reports; every rendered difference was reviewed against the registry-matched JSON/StructUtils source updates. MPI 2/4/8 core and metadata phases pass without retries. This CI partition checkpoint does not accept subsequent numerical changes |
 
 Complete CI compiler reports are reviewed from unfiltered archives. Earlier
 runs match accepted `1097076` after source-backed line/path mappings. The

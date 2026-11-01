@@ -22,7 +22,15 @@ Setup, core and metadata logs are uploaded on failure. Metadata may run after a
 core failure; the failed core step keeps the job red. Plain `run(command)`
 propagates nonzero exits and signal termination. This partition does not
 establish a cause for earlier deadlines or a measured runtime improvement.
-Validation runs in GitHub CI.
+The partition checkpoint `d0d04f4` passes all six exact-SHA jobs in
+[run 41266147063](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41266147063)
+without retries. Actual Julia 1.12.7 / 1.13.3 pass 1,249,543 / 1,249,544
+assertions. Complete compiler trees retain 24/21 reports; differences from the
+previous checkpoint were reviewed against registry-matched JSON/StructUtils
+sources, with no diagnostic suppression or report-limit change. Full logs,
+unfiltered trees, diffs and source receipts are retained in
+`../HybridPlasmaPIC-audit-evidence/2026-10-27/takeover/ci/41266147063`.
+Later numerical implementations require their own exact-revision acceptance.
 
 ## Historical checkpoint at 61356f1
 
