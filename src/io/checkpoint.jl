@@ -1462,15 +1462,26 @@ function _restore_checkpoint_state!(
     for (ps, record) in zip(species, s.species)
         _validate_checkpoint_destination(ps, length(record.weight))
     end
-    for (ps, record) in zip(species, s.species)
+    # In-memory inputs may reference live destination fields or particles.
+    # Detach all leaves together before any copy can overwrite a later source.
+    saved = deepcopy(s)
+    _validate_checkpoint_state(saved, st)
+    for (ps, record) in zip(species, saved.species)
+        count = length(record.weight)
+        for a in (ps.x..., ps.v..., ps.weight, ps.id, ps.tag)
+            a isa Vector && length(a) != count && sizehint!(a, count)
+        end
+    end
+    sizehint!(work.owners, length(species))
+    for (ps, record) in zip(species, saved.species)
         _restore_checkpoint_particles!(ps, record)
     end
-    copyto!(st.ne, s.ne)
-    foreach(copyto!, st.E, s.E)
+    copyto!(st.ne, saved.ne)
+    foreach(copyto!, st.E, saved.E)
     empty!(work.owners)
     append!(work.owners, species)
-    work.initialized[] = s.initialized
-    st.primed[] = s.primed
-    st.last_dt[] = s.last_dt
+    work.initialized[] = saved.initialized
+    st.primed[] = saved.primed
+    st.last_dt[] = saved.last_dt
     return st
 end

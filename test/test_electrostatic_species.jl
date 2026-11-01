@@ -510,6 +510,31 @@ end
 physical_values(es, species) =
     (es.E, es.ne, es.primed[], es.last_dt[], [H._checkpoint_particle_state(ps) for ps in species])
 
+@testset "ES restore detaches live incoming field sources" begin
+    for T in (Float32, Float64)
+        g, source = populations(T, 1)
+        original = ElectrostaticPIC(g, source)
+        init_espic!(original, source)
+        saved = deepcopy(H._checkpoint_state(original, source))
+        @test !isequal(saved.ne, saved.E[1])
+        target = ElectrostaticPIC(FourierGrid(g.n, g.L), ParticleSet{1,T}[])
+        destination = ParticleSet{1,T}[ParticleSet{1,T}(0) for _ in source]
+        # Incoming values are the valid saved fields, but their references
+        # form a cycle through independent live destination buffers.
+        copyto!(target.ne, saved.E[1])
+        copyto!(target.E[1], saved.ne)
+        incoming = merge(saved, (; ne = target.E[1], E = (target.ne, saved.E[2], saved.E[3])))
+        expected = deepcopy(incoming)
+        identities = map(objectid, (target.ne, target.E...)),
+            [map(objectid, (p.x..., p.v..., p.weight, p.id, p.tag)) for p in destination]
+        @test H._restore_checkpoint_state!(target, destination, incoming) === target
+        @test physical_values(target, destination) ==
+            (expected.E, expected.ne, expected.primed, expected.last_dt, expected.species)
+        @test (map(objectid, (target.ne, target.E...)),
+            [map(objectid, (p.x..., p.v..., p.weight, p.id, p.tag)) for p in destination]) == identities
+    end
+end
+
 @testset "ES checkpoint copies across supported source and destination storage" begin
     for T in (Float32, Float64), D = 1:3
         g, arrays = populations(T, D)

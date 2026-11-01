@@ -79,6 +79,19 @@ are outside the staged-publication guarantee. This is not a universal writable
 array trait. The focused constructor/init/restore controls await GitHub on the
 composed source; historical functional/compiler counts below do not accept it.
 
+## Restore input ownership (2026-11-01)
+
+The ES collection restore owner validates and detaches the complete incoming
+payload before copying particles or fields. An in-memory payload may reference
+live destination fields; a cycle between `ne` and `E[1]` must preserve the
+original values of both. Ordinary file deserialization already produces fresh
+leaves, so this repair is not evidence of public file-loading corruption.
+Restore reserves ordinary Vector and owner-binding capacity before publication,
+retains existing resizing and matched writable-view behavior, and restores
+fields verbatim without a Poisson reconstruction. The essential live-input cycle
+case and existing ES suite run through the GitHub species selector; their new
+exact-revision runtime/compiler/format and resource acceptance remains pending.
+
 ## Physics and representation contract
 
 The [Smilei PIC algorithm specification](https://smileipic.github.io/Smilei/Understand/algorithms.html)

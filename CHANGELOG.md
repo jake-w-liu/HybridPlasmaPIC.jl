@@ -103,6 +103,11 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Fixed
 
+- Electrostatic collection restore detaches complete incoming state before
+  publication, preserving inputs that refer to live destination buffers. Stored
+  fields restore verbatim; particle and owner capacity is reserved beforehand.
+  The focused input-cycle case and existing ES suite await GitHub verification.
+
 - Periodic ES/EM collections and both closed Yee PIC models share rejection of
   read-only `Base.Experimental.Const` and atomic-only particle storage through
   standard wrappers before publication. All leaves, fixed populations and
