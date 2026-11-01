@@ -446,6 +446,82 @@ threshold, numerical-map change or acceptance claim; its first remote results
 remain pending. Larger workloads, collection/view/backend scaling and peak
 memory remain unmeasured. Regression and compiler assertions retain their gates.
 
+## Planned event-local reflection
+
+Design reviewed 2026-11-01; **not implemented or runtime-accepted**. The next
+bounded-wall candidate is a distinct longitudinal CPU Float32/64 model with
+at most one common contact cluster and two synchronized local KDK
+(kick-drift-kick) chunks per external step. Existing event-free models keep their methods and restart tags.
+Reflection acts on the cloud center; the current particle-bound cloud tails,
+isolated free plates and fixed source counts remain. This does not supply a
+material sheath, mirrored cloud, absorption, emission or transverse wall model.
+
+Complete the duration-s KDK, including its final electric half-kick, before
+reversing the incoming velocity. Then advance the exact remainder `tau-s` from
+that synchronized state. Internal durations and halves retain original rational
+values; conversion to a stored timestep or a dummy Maxwell duration is not
+allowed. Reflecting the initial whole-step half-kick has a first-order impact
+velocity error for an off-midpoint hit under constant acceleration: the exact
+one-hit velocity is `-v+a*(tau-2*tc)`, while that split gives `-v` when both endpoint
+accelerations equal a. This algebra rejects that split as the proposed map; it
+is not a measured convergence result. Event-local force centering has a
+conditional second-order route for isolated transversal impacts away from the representation floor;
+independent convergence evidence remains required.
+
+For every particle, examine both walls and every monotone branch of its
+quadratic predictor, including interior extrema. Endpoint-in-box checks alone
+miss exit-and-return trajectories. Exact rational brackets and finite refinement
+limits must identify the earliest outgoing branch. Every member of a common
+cluster must independently pass endpoint, timing, source-sensitivity and actual
+completed incoming-velocity gates; overlapping time intervals alone do not prove
+simultaneity. Grazing, unresolved ordering, terminal contacts, a second cluster
+or exhausted refinement reject the complete external candidate.
+
+At a represented contact, constrain the private endpoint to the exact wall and
+report the correction `r = wall - (x+s*u)`. Its proposed bound is four ulps of
+`|x|+|s*u|`, evaluated without first rounding that scale. If `u_star=v+s*a0/2`,
+the exact predictor residual is `r+s*(u-u_star)`; `r` alone does not bound the time
+error. Positive lower incoming-speed bounds and position/velocity/source-force
+sensitivity bounds must also admit the common time. This is an explicit
+constrained endpoint policy, not an unreported coordinate nudge.
+
+The canonical endpoint-current owner must deposit the actual constrained
+positions. Keep each accepted local current/field work contraction exact until
+the signed external sum is rounded once. Sum net-current history separately;
+it is not either stage current. Reflection leaves position, charge and field
+unchanged, transfers momentum from the completed incoming velocity, and has
+zero physical wall work and charge transfer. Track represented electric-kick
+momentum, wall impulse, all-node Gauss, physical energy change and generally
+nonzero particle-work defect without adding artificial wall heat. Stage the
+whole external operation, histories, clock and ledgers before public stores.
+A distinct versioned checkpoint must identify the method, endpoint policy,
+cluster scope and complete wall/history state.
+
+The first-contact physical tube can be derived from the existing triangular
+cloud and field-current owners. After an approximate event, a fresh tube from
+the numerical reflected state only bounds flow initialized at that state.
+**Original external-start trajectory coverage over the remainder is not
+implemented or accepted.**
+Carried position, velocity, acceleration, field-invariant and event-time errors
+must cover time alignment, reflection and the enlarged remaining horizon before
+this candidate can claim no hidden second physical contact. Refining a predictor
+root does not remove physical truncation error. This proof is a prerequisite
+for the stronger wall contract, not a runtime result or an impossibility claim.
+
+- [x] Specify the one-cluster map, rational durations, represented-contact
+  policy and local physical-tube bounds; independently review their limits.
+- [ ] Complete and review carried uncertainty through the event and remainder.
+- [x] Source extraction of the canonical duration-free exact longitudinal row
+  and unrounded work value, preserving existing methods by literal expansion.
+  Direct runtime/inference/format acceptance remains pending on GitHub.
+- [ ] Implement staged reflection, diagnostics and distinct restart policies.
+- [ ] On GitHub, run essential independent force-driven impact refinement,
+  branch/cluster failures, complete rollback and restart controls. Preserve
+  existing event-free and compiler assertions; measure complete-step cost.
+- [ ] Separately design absorption: removing a finite cloud at a wall needs its
+  remaining nodal charge-to-plate current, constitutive plate update and work
+  ledger. Reaching the wall does not turn this cloud into a point delta.
+
 ## Implementation tracker
 
 The optional static-cloud API, surface-tail model and canonical owners above
@@ -470,6 +546,11 @@ acceptance remains a separate gate.
   rounding only each final half-kick velocity; schema-2 force policy is explicit.
 - [ ] Accept the original-force map, schema transition and whole-step resource
   behavior on the exact integrated GitHub revision.
+- [x] Extract private duration-free exact source-row and unrounded rational
+  source-work owners; existing native, exact and public expressions are preserved
+  by helper expansion. This does not implement or reroute an event method.
+- [ ] Accept direct signed-zero/range/work and unchanged-caller controls on the
+  exact integrated GitHub revision before using these event prerequisites.
 - [ ] Event-local reflection with crossing, grazing/contact and repeated-impact
   rules, atomic coupled failure and wall momentum/charge/work ledgers.
 - [x] Source candidate for event-free longitudinal Verlet coupling, energy/Gauss

@@ -68,6 +68,51 @@ end
 
 @testset "Prescribed-current Yee fields" begin
     rng = MersenneTwister(260170)
+    @testset "Exact source-row and unrounded work owners" begin
+        H = HybridPlasmaPIC
+        for T in (Float32, Float64)
+            g = YeeGrid((2,), (T(2),); boundaries = (:periodic,))
+            m = MaxwellVacuum(g)
+            for old in (zero(T), -zero(T), one(T), T(3)), p in (nothing, T[0], T[-0.0], T[1])
+                exact = sy_rat(old) - (p === nothing ? zero(SY_Q) : sy_rat(p[1]))
+                value = H._yee_source_row_exact(sy_rat(old), p, 1, T)
+                @test isequal(value, T(exact))
+                @test isequal(H._yee_stage_exact(T[old], m.fields.B, p,
+                    CartesianIndex(1), 1, g, false, T(0.25), one(T)), value)
+            end
+            # Native zero impulse retains -0; the exact owner canonicalizes Q(0).
+            op = H._YeeStageOp{T,false}(one(T), one(T))
+            for impulse in (zero(T), -zero(T))
+                @test isequal(op((-zero(T), impulse), nothing, nothing), -zero(T))
+                @test isequal(H._yee_source_row_exact(zero(SY_Q), T[impulse], 1, T), zero(T))
+            end
+            tiny = -sy_rat(nextfloat(zero(T))) / 4
+            @test isequal(H._yee_source_row_exact(tiny, nothing, 1, T), -zero(T))
+            largest = sy_rat(floatmax(T))
+            @test H._yee_source_row_exact(2largest, T[floatmax(T)], 1, T) == floatmax(T)
+            @test_throws ArgumentError H._yee_source_row_exact(largest, T[-floatmax(T)], 1, T)
+            @test (@inferred H._yee_source_row_exact(sy_rat(one(T)), nothing, 1, T)) == one(T)
+
+            old = ntuple(_ -> zeros(T, 2), 3)
+            new, impulse = map(copy, old), map(copy, old)
+            old[1][1], new[1][1], impulse[1][1] = one(T), nextfloat(one(T)), one(T)
+            saved = (map(copy, old), map(copy, new), map(copy, impulse))
+            exact = SourcedYeeOracle.work(old, new, impulse, one(T))
+            @test exact == one(SY_Q) + sy_rat(eps(T)) / 2
+            @test exact != sy_rat(T(exact))
+            @test (@inferred H._yee_source_work_rational(old, new, impulse, one(T))) == exact
+            @test H._yee_source_work_exact(old, new, impulse, one(T)) == T(exact)
+            @test isequal((old, new, impulse), saved)
+            old[1] .= floatmax(T)
+            new[1] .= floatmax(T)
+            impulse[1] .= T[1, -1]
+            @test H._yee_source_work_rational(old, new, impulse, one(T)) == zero(SY_Q)
+            @test H._yee_source_work_exact(old, new, impulse, one(T)) == zero(T)
+            impulse[1][2] = one(T)
+            @test H._yee_source_work_rational(old, new, impulse, one(T)) == 2largest
+            @test H._yee_source_work_exact(old, new, impulse, one(T)) == T(Inf)
+        end
+    end
     @testset "Independent stages, charge and work" begin
         for T in (Float32, Float64), periodic in (false, true), n in (2, 3, 8, 17), trial = 1:12
             g = YeeGrid((n,), (T(2),); boundaries = (periodic ? :periodic : :pec,))

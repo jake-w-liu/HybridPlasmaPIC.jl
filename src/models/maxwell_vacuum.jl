@@ -152,14 +152,18 @@ function _yee_scaled_multipliers(g::YeeGrid{D,T}, electric::Bool, dt::T, speed::
     return mantissas, ldexp(one(T), first_shift), ldexp(one(T), second_shift)
 end
 
-function _yee_stage_exact(old, source, p, I, c, g, electric, dt::T, speed::T) where {T}
-    coefficient =
-        electric ? -_exact_rational(dt) / 2 : _exact_rational(dt) * _exact_rational(speed)^2
-    exact = _exact_rational(old[I]) + coefficient * _yee_curl_exact(source, I, c, g, electric)
+function _yee_source_row_exact(exact, p, I, ::Type{T}) where {T}
     p === nothing || (exact -= _exact_rational(p[I]))
     value = _from_exact(T, exact)
     isfinite(value) || throw(ArgumentError("Maxwell stage produces a nonfinite field"))
     return value
+end
+
+function _yee_stage_exact(old, source, p, I, c, g, electric, dt::T, speed::T) where {T}
+    coefficient =
+        electric ? -_exact_rational(dt) / 2 : _exact_rational(dt) * _exact_rational(speed)^2
+    exact = _exact_rational(old[I]) + coefficient * _yee_curl_exact(source, I, c, g, electric)
+    return _yee_source_row_exact(exact, p, I, T)
 end
 
 @inline function _yee_stage_component!(

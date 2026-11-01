@@ -11,6 +11,12 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Added
 
+- Private exact source-row and unrounded source-work owners provide prerequisites
+  for a future rational-duration longitudinal event method. Existing native,
+  exact and public callers retain their expressions and signed-zero behavior;
+  direct GitHub runtime/compiler/format checks remain pending. No wall method is
+  implemented by this extraction.
+
 - Specialized `EMPIC1D` collections add dividing per-species kick strides,
   every-fast drift/current and independent staged velocity histories. The atomic
   `set_empic1d_schedule!` setter preserves old phase; diagnostics report nominal

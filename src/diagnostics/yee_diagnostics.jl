@@ -321,14 +321,18 @@ end
 
 # ------------------------------------------------ prescribed-current diagnostics
 
-function _yee_source_work_exact(old, new, impulse, dx::T) where {T}
+function _yee_source_work_rational(old, new, impulse, dx)
     total = zero(Rational{BigInt})
     for c = 1:3, i in eachindex(old[c])
         total +=
             _exact_rational(impulse[c][i]) *
             (_exact_rational(old[c][i]) + _exact_rational(new[c][i]))
     end
-    return _from_exact(T, _exact_rational(dx) * total / 2)
+    return _exact_rational(dx) * total / 2
+end
+
+function _yee_source_work_exact(old, new, impulse, dx::T) where {T}
+    return _from_exact(T, _yee_source_work_rational(old, new, impulse, dx))
 end
 
 # Whether some product impulse*(old+new) has two nonzero factors.
