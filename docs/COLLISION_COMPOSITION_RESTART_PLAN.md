@@ -797,3 +797,13 @@ The [conduction model](EVOLVING_ELECTRONS.md#constant-isotropic-conduction-sourc
 retains its represented-temperature and pure-conduction guard limits. This
 composition adds no electron-ion heat exchange, positivity theorem, higher-order
 split or parallel/device support. Source publication is distinct from acceptance.
+
+### Fixed model value binding
+
+Live binding and checkpoint validation compare the same concrete model/closure
+type and original scalar coefficient values through one private owner. The bound
+model is detached once at construction. BigFloat coefficients therefore retain
+their numerical values across copying/serialization; changed original values
+still reject even if they round to the same grid coefficient. The existing
+restart matrix includes this stored-wide-value control on GitHub; numerical,
+compiler and resource acceptance remains pending.

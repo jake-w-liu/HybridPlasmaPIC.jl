@@ -75,6 +75,11 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Fixed
 
+- Collisional model binding compares original scalar coefficient values at the
+  same concrete model/closure type, allowing matching BigFloat-backed state to
+  resume after copying or serialization. The bound model is detached once;
+  changed original values still reject before publication.
+
 - HybridStepper B-only and B/pressure RK4 stages share original-duration affine
   range completion. Coefficient, product and weighted-sum range events retain
   complete original h/rate operands before final conversion; ordinary admitted

@@ -4,14 +4,21 @@ isdefined(@__MODULE__, :_composition_fixture) || include("collisional_fixtures.j
 
 @testset "Collisional checkpoint validation and failure ownership" begin
     H = HybridPlasmaPIC
-    @testset "transport force pressure and advanced RNG restart together $R etaH=$ηH conducting=$conducting" for R in (
+    @testset "transport force pressure and advanced RNG restart together $R etaH=$ηH kind=$kind" for R in (
             Xoshiro,
             MersenneTwister,
         ),
-        ηH in (0.0, 0.01), conducting in (false, true)
+        ηH in (0.0, 0.01), kind in (:transport, :conduction, :wide_conduction)
 
         # Matching particle/grid lengths allow a real force/particle alias control.
-        closure = conducting ? ConductingElectrons(5 / 3; κ = 0.07) : TransportElectrons()
+        conducting = kind !== :transport
+        closure = if kind === :wide_conduction
+            setprecision(BigFloat, 256) do
+                ConductingElectrons(BigFloat(5) / 3; κ = BigFloat(0.07))
+            end
+        else
+            conducting ? ConductingElectrons(5 / 3; κ = 0.07) : TransportElectrons()
+        end
         st, ps = _composition_transport_fixture(Float64, R; count = 4, ηH, closure)
         init!(st, ps)
         randn(st.rng, 3)
@@ -46,7 +53,13 @@ isdefined(@__MODULE__, :_composition_fixture) || include("collisional_fixtures.j
             merge(saved.inner, (Eforce = (saved.inner.species[1].x[1], force[2], force[3]),)),
         ]
         if conducting
-            changed_model = HybridModel(ConductingElectrons(5 / 3; κ = 0.08);
+            changed_κ = kind === :wide_conduction ? nextfloat(closure.κ) : 0.08
+            if kind === :wide_conduction
+                @test changed_κ != closure.κ
+                @test Float64(changed_κ) == Float64(closure.κ)
+            end
+            changed_closure = typeof(closure)(closure.γ; κ = changed_κ)
+            changed_model = HybridModel(changed_closure;
                 η = saved.inner.model.η, ηH)
             append!(corruptions, (
                 drop(:conduction_policy_version),

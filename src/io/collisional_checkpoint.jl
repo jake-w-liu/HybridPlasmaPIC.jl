@@ -57,7 +57,7 @@ function _validate_checkpoint_state(s, st::CollisionalHybridStepper{D,T}) where 
     _validate_checkpoint_state(s.inner, st.inner)
     haskey(s.inner, :particle_layout) && s.inner.particle_layout === :collection ||
         throw(ArgumentError("collisional checkpoint requires an ordered species collection"))
-    isequal(s.inner.model, st.model) && isequal(s.inner.shape, st.shape) ||
+    _collisional_model_matches(s.inner.model, st.model) && isequal(s.inner.shape, st.shape) ||
         throw(ArgumentError("collisional checkpoint model and shape must match the destination"))
     for name in (:dt, :epsilon0, :weight_to_number, :u_floor)
         value = getproperty(s, name)

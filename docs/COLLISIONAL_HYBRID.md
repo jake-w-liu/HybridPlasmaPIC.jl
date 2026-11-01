@@ -8,7 +8,9 @@ Vector particle storage, NGP/CIC/TSC, ideal massless isothermal or evolving
 scalar electrons (`eta=etaH=de2=0`), and `TransportElectrons` or
 `ConductingElectrons` with constant `eta>=0`, `etaH>=0`, `de2=0`. The ordered populations, counts, charges,
 masses, model, normalization and positive timestep are fixed for the wrapper's
-lifetime.
+lifetime. The bound model is detached at construction; comparisons retain the
+concrete model/closure type and original scalar values, including BigFloat
+coefficients, rather than scalar backing-storage identity.
 
 ## Step order and time levels
 

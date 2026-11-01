@@ -97,6 +97,19 @@ function _validate_collisional_model(inner::HybridStepper{D,T}) where {D,T}
     return nothing
 end
 
+_collisional_closure_values(c::IsothermalElectrons) = (c.Te,)
+_collisional_closure_values(c::Union{EvolvingElectrons,TransportElectrons}) = (c.γ,)
+_collisional_closure_values(c::ConductingElectrons) = (c.γ, c.κ)
+
+# Composite identity compares BigFloat backing storage, which changes on
+# checkpoint copy. Bind the original scalar values instead of their addresses.
+function _collisional_model_matches(a::HybridModel, b::HybridModel)
+    return typeof(a) === typeof(b) && isequal(
+        (a.η, a.ηH, a.nfloor, a.de2, _collisional_closure_values(a.closure)),
+        (b.η, b.ηH, b.nfloor, b.de2, _collisional_closure_values(b.closure)),
+    )
+end
+
 function _validate_collisional_rng(rng::Random.Xoshiro)
     iszero(rng.s0 | rng.s1 | rng.s2 | rng.s3) &&
         throw(ArgumentError("Xoshiro must have a nonzero recurrence state"))
@@ -181,7 +194,7 @@ function CollisionalHybridStepper(
         inner.g,
         populations,
         [(nparticles(ps), ps.q, ps.m) for ps in populations],
-        inner.model,
+        deepcopy(inner.model),
         inner.shape,
         h,
         logs,
@@ -264,7 +277,7 @@ function _validate_collisional_binding(st::CollisionalHybridStepper, species)
     end
     st.inner.g === st.grid || throw(ArgumentError("collisional grid is fixed"))
     _validate_collisional_model(st.inner)
-    isequal(st.inner.model, st.model) && isequal(st.inner.shape, st.shape) ||
+    _collisional_model_matches(st.inner.model, st.model) && isequal(st.inner.shape, st.shape) ||
         throw(ArgumentError("collisional model and shape are fixed"))
     isequal(st.coulomb_log, st.log_binding) ||
         throw(ArgumentError("collisional Coulomb logarithms are fixed"))
