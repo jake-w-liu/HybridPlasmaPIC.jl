@@ -58,18 +58,18 @@ end
         end
         @test isnan(HybridPlasmaPIC._ohm_scalar_field_value(T(NaN), z, z, o, z, z, o, z, z, z, z, nothing))
 
-        # The actual public scalar Ohm owner reaches the shared repair for
+        # The public scalar and CGL Ohm owners reach the shared repair for
         # uniform data in every supported spatial dimension.
-        for D = 1:3
+        for D = 1:3, closure in (IsothermalElectrons(z), CGLElectrons(z, z, o, o))
             n = ntuple(_ -> 4, D)
             g = FourierGrid(n, ntuple(_ -> T(2π), D))
-            f = HybridFields{D,T}(n)
+            f = HybridFields{D,T}(n; anisotropic = closure isa CGLElectrons)
             fill!(f.n, o)
             for c in (2, 3)
                 fill!(f.ui[c], large)
                 fill!(f.B[c], large)
             end
-            @test ohms_law!(f, HybridModel(IsothermalElectrons(z)), g) === f.E
+            @test ohms_law!(f, HybridModel(closure), g) === f.E
             @test all(all(iszero, component) for component in f.E)
         end
     end

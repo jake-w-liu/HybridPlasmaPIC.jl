@@ -712,13 +712,10 @@ function _ohm_Efield_aniso!(
         jy = Jy[I]
         jz = Jz[I]
         inv = ninv[I]
-        # −(u_i×B) + (J×B)/n + η J − ηH ∇²J − (∇·P_e)/n  (pressure on all 3 components)
-        Ex[I] =
-            -(vy * bz - vz * by) + (jy * bz - jz * by) * inv + η * jx - ηH * LJx[I] - Fx[I] * inv
-        Ey[I] =
-            -(vz * bx - vx * bz) + (jz * bx - jx * bz) * inv + η * jy - ηH * LJy[I] - Fy[I] * inv
-        Ez[I] =
-            -(vx * by - vy * bx) + (jx * by - jy * bx) * inv + η * jz - ηH * LJz[I] - Fz[I] * inv
+        # Same signed point expression, with tensor pressure on every component.
+        Ex[I] = _ohm_scalar_field_value(vy, vz, by, bz, jy, jz, inv, η, jx, ηH, LJx[I], Fx[I])
+        Ey[I] = _ohm_scalar_field_value(vz, vx, bz, bx, jz, jx, inv, η, jy, ηH, LJy[I], Fy[I])
+        Ez[I] = _ohm_scalar_field_value(vx, vy, bx, by, jx, jy, inv, η, jz, ηH, LJz[I], Fz[I])
     end
     return E
 end

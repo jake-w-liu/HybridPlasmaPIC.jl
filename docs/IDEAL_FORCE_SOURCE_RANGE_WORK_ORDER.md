@@ -1,6 +1,6 @@
 # Original-factor ideal field and Faraday completion
 
-Status: **pointwise scalar range prerequisite implemented; source-aware Faraday
+Status: **pointwise scalar/CGL range prerequisite implemented; source-aware Faraday
 completion remains planned and unimplemented**. GitHub verification of the
 pointwise repair is pending. The remaining source-aware work
 blocks any claim of complete exponent-range ideal plasma dynamics. The represented-source
@@ -30,7 +30,7 @@ would also reject valid constants and exact cancellation and is not a repair.
 
 ## Implemented pointwise prerequisite
 
-The scalar `_ohm_Efield!` uses a shared component owner that retains its ordinary
+The scalar `_ohm_Efield!` and anisotropic `_ohm_Efield_aniso!` use one component owner that retains its ordinary
 operation order. A nonfinite result or a nonzero-factor product that overflows
 or enters the subnormal range requests exact completion of the entire signed
 motional/Hall/pressure/Ohmic/hyperresistive expression. Finite original point
@@ -42,8 +42,9 @@ existing owners. No persistent storage or public API is added.
 
 This prerequisite uses represented J and gradp and the existing rounded `ninv`.
 It does not recover their original derivative/density factors, certify general
-normal-range error, change the separate CGL kernel or perform an original-product
-Faraday derivative. A pointwise field below storage range can still round to
+normal-range error or perform an original-product Faraday derivative. The CGL
+point kernel shares the range owner with its represented three-component tensor
+force; original tensor generation is a separate boundary. A pointwise field below storage range can still round to
 zero before a later derivative rescues it. The retained four-point witnesses
 above remain open; the pointwise repair does not close this work order.
 

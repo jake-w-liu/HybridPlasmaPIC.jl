@@ -8,6 +8,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- CGL Ohm evaluation shares the scalar complete signed point-expression owner,
+  applying its represented tensor force on all three components. Ordinary
+  arithmetic/write order and tensor generation remain unchanged; public
+  both-type D1–3 cancellation controls await GitHub CI.
+
 - Scalar Ohm evaluation combines complete signed finite represented factors on
   intermediate overflow or subnormal products, preserving ordinary operation
   order and raw nonfinite propagation. This repairs motional/Hall cancellation
