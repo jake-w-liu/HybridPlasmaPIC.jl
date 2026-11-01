@@ -45,7 +45,8 @@ function normal_kick_reference(bits, ::Type{T}, v, E, B, ratio, dt, c) where {T}
             C2 = BigFloat(c)^2
             t = h * BigFloat.(collect(B)) / sqrt(1 + dot(minus, minus) / C2)
             t2 = dot(t, t)
-            momentum = ((1 - t2) * minus + 2dot(t, minus) * t + 2cross(minus, t)) / (1 + t2) + electric
+            momentum =
+                ((1 - t2) * minus + 2dot(t, minus) * t + 2cross(minus, t)) / (1 + t2) + electric
             gamma = sqrt(1 + dot(momentum, momentum) / C2)
             values = Tuple(momentum / gamma)
             scale = max(norm(collect(values)), max(norm(initial), norm(electric)) / gamma)
@@ -56,16 +57,29 @@ function normal_kick_reference(bits, ::Type{T}, v, E, B, ratio, dt, c) where {T}
     end
 end
 
-normal_kick_ok(actual, reference) = all(1:3) do i
-    isfinite(actual[i]) && abs(BigFloat(actual[i]) - reference.values[i]) <= reference.budget
-end
+normal_kick_ok(actual, reference) =
+    all(1:3) do i
+        isfinite(actual[i]) && abs(BigFloat(actual[i]) - reference.values[i]) <= reference.budget
+    end
 
 @testset "Relativistic normal accuracy retains native bits or repairs the full kick" begin
     # Corrected GitHub observation: Float16 rows 3/4 and Float32 row 3 violate
     # four ulps for both coefficient meanings; the Float32 batch also admitted.
     rows = (
-        (0x3af5, 0x38c1, (0xbefd, 0x3fa6, 0x3ab6), (0xb8e1, 0x3e23, 0x3ebb), (0xbaf9, 0x3ec5, 0xbff8)),
-        (0x3f8f, 0x3ddb, (0xbd53, 0x3c71, 0xbeea), (0xbcad, 0x3f01, 0xbc14), (0x3e7c, 0x3d3e, 0x3fcf)),
+        (
+            0x3af5,
+            0x38c1,
+            (0xbefd, 0x3fa6, 0x3ab6),
+            (0xb8e1, 0x3e23, 0x3ebb),
+            (0xbaf9, 0x3ec5, 0xbff8),
+        ),
+        (
+            0x3f8f,
+            0x3ddb,
+            (0xbd53, 0x3c71, 0xbeea),
+            (0xbcad, 0x3f01, 0xbc14),
+            (0x3e7c, 0x3d3e, 0x3fcf),
+        ),
     )
     Q = Rational{BigInt}
     for T in (Float16, Float32, Float64), (index, row) in enumerate(rows)
@@ -78,7 +92,8 @@ end
             low = normal_kick_reference(512, T, v, E, B, ratio, dt, c)
             high = normal_kick_reference(1024, T, v, E, B, ratio, dt, c)
             @test T.(low.values) == T.(high.values) && low.budget == high.budget
-            raw, parts, u, c2, gap, ginit = H._boris_rel_parts(v..., E..., B..., q / m, dt, c, Val(true), Val(true))
+            raw, parts, u, c2, gap, ginit =
+                H._boris_rel_parts(v..., E..., B..., q / m, dt, c, Val(true), Val(true))
             @test H._boris_rel_in_range(raw, parts, u, q / m, dt, c2, gap)
             if T === Float16 || (T === Float32 && index == 1)
                 @test !normal_kick_ok(raw, high)
@@ -91,7 +106,8 @@ end
             @test accepted && normal_kick_ok(repaired, high)
             scales = H._boris_batch_scales(map(x -> T[x], v), E, B, (q / m) * dt / 2, 1:1)
             admitted = H._boris_rel_batch_admission((q / m) * dt / 2, factor, dt, c, scales...)
-            admitted && @test normal_kick_ok(H._boris_rel_native(v..., E..., B..., factor, dt, c), high)
+            admitted &&
+                @test normal_kick_ok(H._boris_rel_native(v..., E..., B..., factor, dt, c), high)
             !normal_kick_ok(raw, high) && @test !admitted
         end
         # Exercise both actual model callers; EMPIC1D consumes its planar
@@ -100,7 +116,8 @@ end
             for State in (EMPIC1D, EMPIC)
                 fields_E = State === EMPIC1D ? (E[1], E[2], zero(T)) : E
                 fields_B = State === EMPIC1D ? (zero(T), zero(T), B[3]) : B
-                reference = normal_kick_reference(1024, T, v, fields_E, fields_B, Q(q) / Q(m), dt, c)
+                reference =
+                    normal_kick_reference(1024, T, v, fields_E, fields_B, Q(q) / Q(m), dt, c)
                 ps = ParticleSet{1,T}(2; q, m)
                 ps.x[1] .= zero(T)
                 for i = 1:3
@@ -153,7 +170,8 @@ end
         admitted = H._boris_rel_batch_admission(h, one(T), dt, c, scales...)
         for p = 1:2
             vp, ee = ntuple(i -> velocities[i][p], 3), ntuple(i -> ep[i][p], 3)
-            actual = admitted ? H._boris_rel_native(vp..., ee..., B..., one(T), dt, c) :
+            actual =
+                admitted ? H._boris_rel_native(vp..., ee..., B..., one(T), dt, c) :
                 H._boris_rel(vp..., ee..., B..., one(T), dt, c)
             exact = normal_kick_reference(1024, T, vp, ee, B, Rational{BigInt}(1), dt, c)
             @test normal_kick_ok(actual, exact)

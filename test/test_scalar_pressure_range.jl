@@ -5,38 +5,56 @@ const Q = Rational{BigInt}
 
 function centered_four(g, axis = 1)
     k = Q(g.kvec[axis][2])
-    return [mod(j-i, 4) == 1 ? k/2 : mod(j-i, 4) == 3 ? -k/2 : zero(k) for i = 1:4, j = 1:4]
+    return [mod(j - i, 4) == 1 ? k / 2 : mod(j - i, 4) == 3 ? -k / 2 : zero(k) for i = 1:4, j = 1:4]
 end
 
 function fixture(::Type{T}, kind) where {T}
     large = T === Float32 ? 80 : 600
-    ek = kind in (:ohmic_cancel, :overflow) ? large ÷ 2 :
-         kind === :derivative_rescue ? (T === Float32 ? -100 : -600) : 0
+    ek =
+        kind in (:ohmic_cancel, :overflow) ? large ÷ 2 :
+        kind === :derivative_rescue ? (T === Float32 ? -100 : -600) : 0
     g = FourierGrid((4,), (ldexp(T(2pi), -ek),))
     @test g.kvec[1][2] == ldexp(one(T), ek)
     p, u, b, η = if kind in (:ohmic_cancel, :overflow)
-        (ldexp.(T[1, 2, 4, 8], large),
-         ldexp.(T[-4, 34, -16, 46], large - ek),
-         ldexp.(T[1, 0, -1, 0], large - ek), T(kind === :overflow ? 54 : 27))
+        (
+            ldexp.(T[1, 2, 4, 8], large),
+            ldexp.(T[-4, 34, -16, 46], large - ek),
+            ldexp.(T[1, 0, -1, 0], large - ek),
+            T(kind === :overflow ? 54 : 27),
+        )
     elseif kind in (:half_quantum, :half_quantum_mixed)
         e = exponent(floatmin(T)) - precision(T) + 1
         j = fld(e, 2)
-        (fill(ldexp(one(T), j), 4), ldexp.(T[0, 1, 0, -1], e - 2 - j),
-         ldexp.(T[0, 1, 0, -1], j), ldexp(one(T), e - 1 - 2j))
+        (
+            fill(ldexp(one(T), j), 4),
+            ldexp.(T[0, 1, 0, -1], e - 2 - j),
+            ldexp.(T[0, 1, 0, -1], j),
+            ldexp(one(T), e - 1 - 2j),
+        )
     elseif kind === :derivative_rescue
         (ldexp.(T[1, 2, 4, 8], ek), fill(ldexp(one(T), -ek), 4), zeros(T, 4), zero(T))
     elseif kind === :ideal_cancel
         (ldexp.(T[1, 2, 1, 4], large), ldexp.(T[2, 2, 2, 0], large), zeros(T, 4), zero(T))
     elseif kind === :all_underflow
-        (fill(ldexp(one(T), T === Float32 ? -100 : -800), 4),
-         ldexp.(T[0, 1, 0, -1], T === Float32 ? -60 : -400), zeros(T, 4), zero(T))
+        (
+            fill(ldexp(one(T), T === Float32 ? -100 : -800), 4),
+            ldexp.(T[0, 1, 0, -1], T === Float32 ? -60 : -400),
+            zeros(T, 4),
+            zero(T),
+        )
     elseif kind in (:ordinary, :ideal_ordinary)
-        (T[1, 2, 4, 8] ./ T(16), T[-4, 34, -16, 46] ./ T(256), T[1, 0, -1, 0] ./ T(8),
-         kind === :ideal_ordinary ? zero(T) : T(0.125))
+        (
+            T[1, 2, 4, 8] ./ T(16),
+            T[-4, 34, -16, 46] ./ T(256),
+            T[1, 0, -1, 0] ./ T(8),
+            kind === :ideal_ordinary ? zero(T) : T(0.125),
+        )
     else
         error("unknown pressure fixture: $kind")
     end
-    closure = kind in (:ideal_cancel, :ideal_ordinary, :derivative_rescue) ? EvolvingElectrons(T(2)) : TransportElectrons(T(2))
+    closure =
+        kind in (:ideal_cancel, :ideal_ordinary, :derivative_rescue) ? EvolvingElectrons(T(2)) :
+        TransportElectrons(T(2))
     st = HybridStepper(g, HybridModel(closure; η), CIC(), 0)
     fill!(st.fields.n, one(T))
     fill!(st.fn, one(T))
@@ -228,17 +246,32 @@ end
         divergence!(w.divue, w.ue, g)
         native = similar(f.pe)
         active = H._transport_pressure_rhs_with_activity!(
-            native, f.pe, w.ue, f.gradp, w.divue, T(2), f.J, zero(T), false, Val(2),
+            native,
+            f.pe,
+            w.ue,
+            f.gradp,
+            w.divue,
+            T(2),
+            f.J,
+            zero(T),
+            false,
+            Val(2),
         )
         @test all(iszero, f.gradp[axis])
         @test maximum(abs, f.gradp[3-axis]) >= T(0.25)
         @test !active && all(iszero, native)
         @test H._transport_pressure_derivative_range_risk(
-            f.pe, w.ue, f.gradp, g, H._transport_derivative_gains(g),
+            f.pe,
+            w.ue,
+            f.gradp,
+            g,
+            H._transport_derivative_gains(g),
         )
         derivative = centered_four(g, axis)
         original = Q.(f.pe)
-        reference = -Q(direction) .* (axis == 1 ? derivative * original : original * transpose(derivative)) ./ Q(tiny)
+        reference =
+            -Q(direction) .*
+            (axis == 1 ? derivative * original : original * transpose(derivative)) ./ Q(tiny)
         @test maximum(abs, reference) == Q(tiny) > Q(floatmin(T))
         H._bpressure_rhs!(st.k1, w.kp[1], f.B, f.pe, st, 1, 1)
         @test w.kp[1] == T.(reference)
@@ -261,7 +294,7 @@ end
         field = ideal[3-axis]
         fill!(field, one(T))
         axis == 1 ? (field[:, 1] .= tiny .* T[0, 1, 0, -1]) :
-                    (field[1, :] .= tiny .* T[0, 1, 0, -1])
+        (field[1, :] .= tiny .* T[0, 1, 0, -1])
         original = map(copy, ideal)
         derivative = centered_four(g, axis)
         exact = axis == 1 ? -derivative * Q.(field) : Q.(field) * transpose(derivative)

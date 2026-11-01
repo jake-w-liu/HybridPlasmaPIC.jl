@@ -340,7 +340,8 @@ end
                     # Unchanged tuples receive no accuracy classification.
                     reference, scale = boris_rel_reference(w, E, B, qm, dt, c)
                     old_ok = rel_ok(historical, reference, scale)
-                    new_ok = rel_ok(actual, reference, scale) && kinematics_supported_velocity(actual, c)
+                    new_ok =
+                        rel_ok(actual, reference, scale) && kinematics_supported_velocity(actual, c)
                     rel += old_ok || !new_ok
                     rel_accuracy_repaired += 1
                 end

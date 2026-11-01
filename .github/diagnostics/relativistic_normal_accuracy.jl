@@ -82,8 +82,9 @@ function observe(::Type{T}, index, q, m, v, E, B, dt, c, meaning) where {T}
     ratio = meaning === :original ? Q(q) / Q(m) : Q(qm)
     Ep, Bp = map(x -> [x], E), map(x -> [x], B)
     kick, parts, u, c2, gap = H._boris_rel_parts(v..., E..., B..., qm, dt, c, Val(false))
-    kick_range = H._euler_factor_in_range(factor, T) &&
-                 H._boris_rel_in_range(kick, parts, u, qm, dt, c2, gap)
+    kick_range =
+        H._euler_factor_in_range(factor, T) &&
+        H._boris_rel_in_range(kick, parts, u, qm, dt, c2, gap)
     scales = H._boris_batch_scales(map(x -> [x], v), E, B, qm * dt / 2, 1:1)
     kick_batch = H._boris_rel_batch_admission(qm * dt / 2, factor, dt, c, scales...)
     scalar = H._boris_rel(v..., E..., B..., factor, dt, c)

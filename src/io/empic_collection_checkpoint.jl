@@ -1,16 +1,35 @@
 # Collection payloads extend the existing checkpoint/archive owners. Workspaces,
 # gathers and FFT scratch remain recomputable and are not serialized.
 const _EMPIC_COLLECTION_CHECKPOINT_FIELDS = (
-    :integrator, :D, :T, :ncell, :L, :n0, :c, :shape, :n_sub,
-    :particle_layout, :schema_version, :relativistic, :mobile,
-    :neutrality, :charge_rtol, :initialized, :species, :fields,
-    :time, :step, :last_dt, :last_sub_dt,
+    :integrator,
+    :D,
+    :T,
+    :ncell,
+    :L,
+    :n0,
+    :c,
+    :shape,
+    :n_sub,
+    :particle_layout,
+    :schema_version,
+    :relativistic,
+    :mobile,
+    :neutrality,
+    :charge_rtol,
+    :initialized,
+    :species,
+    :fields,
+    :time,
+    :step,
+    :last_dt,
+    :last_sub_dt,
 )
 
 function _validate_empic_collection_checkpoint(s, st::EMPIC{D,T}) where {D,T}
     _validate_checkpoint_container(s, _EMPIC_COLLECTION_CHECKPOINT_FIELDS)
     _validate_checkpoint_grid(s, st.g)
-    s.integrator === :empic_collection && s.particle_layout === :collection &&
+    s.integrator === :empic_collection &&
+        s.particle_layout === :collection &&
         s.schema_version === 1 ||
         throw(ArgumentError("unsupported electromagnetic collection checkpoint schema"))
     work = _empic_collection(st)

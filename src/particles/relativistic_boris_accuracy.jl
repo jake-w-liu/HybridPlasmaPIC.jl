@@ -13,13 +13,11 @@ end
 @inline _rel_boris_dd_ball(a::_RelPrimeBall) = _RelBorisBound(a[1], a[2])
 @inline _rel_boris_valid(a) = _rel_prime_ball_valid(_rel_boris_ball(a))
 @inline _rel_boris_zero(a) = iszero(a.radius) && all(iszero, _rel_boris_ball(a)[1])
-@inline _rel_boris_upper(a) =
-    _eft_add_upper(_rel_prime_abs_upper(_rel_boris_ball(a)[1]), a.radius)
+@inline _rel_boris_upper(a) = _eft_add_upper(_rel_prime_abs_upper(_rel_boris_ball(a)[1]), a.radius)
 @inline _rel_boris_lower(a) =
     max(0.0, prevfloat(_rel_prime_abs_lower(_rel_boris_ball(a)[1]) - a.radius))
 
-@inline _rel_boris_constant(::Type{T}, x) where {T<:_RangeGuardedFloat} =
-    _RelBorisBound(T(x), 0.0)
+@inline _rel_boris_constant(::Type{T}, x) where {T<:_RangeGuardedFloat} = _RelBorisBound(T(x), 0.0)
 @inline _rel_boris_constant(::Type{_DoubleFloat64}, x) = _rel_boris_dd(x)
 Base.one(::Type{_RelBorisBound{T}}) where {T} = _rel_boris_constant(T, 1)
 
@@ -36,9 +34,7 @@ end
     (_rel_boris_zero(a) || _rel_boris_zero(b)) && return _RelBorisBound(z, 0.0)
     x, y = Float64(a.center), Float64(b.center)
     product = _eft_two_product(x, y)
-    residual = _eft_add_upper(
-        _eft_abs_sum_bound((product..., -Float64(z))), nextfloat(0.0),
-    )
+    residual = _eft_add_upper(_eft_abs_sum_bound((product..., -Float64(z))), nextfloat(0.0))
     return _RelBorisBound(z, _boris_product_error(x, y, a.radius, b.radius, residual))
 end
 
@@ -49,10 +45,12 @@ end
     _rel_boris_zero(a) && return _RelBorisBound(z, 0.0)
     product = _eft_two_product(Float64(b.center), Float64(z))
     residual = _eft_add_upper(
-        _eft_abs_sum_bound((Float64(a.center), -product[1], -product[2])), nextfloat(0.0),
+        _eft_abs_sum_bound((Float64(a.center), -product[1], -product[2])),
+        nextfloat(0.0),
     )
     numerator = _eft_add_upper(
-        residual, _eft_add_upper(a.radius, _eft_mul_upper(abs(Float64(z)), b.radius)),
+        residual,
+        _eft_add_upper(a.radius, _eft_mul_upper(abs(Float64(z)), b.radius)),
     )
     return _RelBorisBound(z, _eft_div_upper(numerator, lower))
 end
@@ -63,7 +61,8 @@ end
     z > 0 || return _RelBorisBound(z, Inf)
     product = _eft_two_product(Float64(z), Float64(z))
     residual = _eft_add_upper(
-        _eft_abs_sum_bound((Float64(a.center), -product[1], -product[2])), nextfloat(0.0),
+        _eft_abs_sum_bound((Float64(a.center), -product[1], -product[2])),
+        nextfloat(0.0),
     )
     # sqrt(A)-z = (A-z²)/(sqrt(A)+z), whose denominator is at least z.
     return _RelBorisBound(z, _eft_div_upper(_eft_add_upper(residual, a.radius), Float64(z)))
@@ -122,9 +121,8 @@ end
     native_lower > 0 && exact_lower > 0 || return (Inf, Inf)
     quotient = _boris_upper_div(a[1], native_lower)
     rounding = iszero(a[1]) ? 0.0 : _boris_upper_add(_boris_upper_mul(u, quotient), D)
-    propagated = _boris_upper_div(
-        _boris_upper_add(a[2], _boris_upper_mul(quotient, b[2])), exact_lower,
-    )
+    propagated =
+        _boris_upper_div(_boris_upper_add(a[2], _boris_upper_mul(quotient, b[2])), exact_lower)
     return _boris_upper_add(quotient, rounding), _boris_upper_add(propagated, rounding)
 end
 
@@ -134,10 +132,19 @@ end
     rounding = _boris_upper_add(_boris_upper_mul(u, upper), D)
     denominator = max(0.0, prevfloat(prevfloat(sqrt(native_lower)) + prevfloat(sqrt(exact_lower))))
     return _boris_upper_add(upper, rounding),
-        _boris_upper_add(_boris_upper_div(a[2], denominator), rounding)
+    _boris_upper_add(_boris_upper_div(a[2], denominator), rounding)
 end
 
-@inline function _boris_rel_batch_accuracy(h::T, factor, dt::T, c::T, vmax, emax, bmax, smin) where {T}
+@inline function _boris_rel_batch_accuracy(
+    h::T,
+    factor,
+    dt::T,
+    c::T,
+    vmax,
+    emax,
+    bmax,
+    smin,
+) where {T}
     _boris_accuracy_mode() || return false
     eligible, coefficient, _ = _boris_coefficient(factor, dt, h)
     eligible || return false
@@ -161,13 +168,13 @@ end
     # gaps are positive; subtraction rounds a value no larger than one.
     subtraction_rounding = _boris_upper_add(u, D)
     gap_radius = _boris_upper_add(beta_sum[2], subtraction_rounding)
-    native_gap_lower = _boris_lower_difference(
-        _boris_lower_difference(1.0, beta_sum[1]), subtraction_rounding,
-    )
+    native_gap_lower =
+        _boris_lower_difference(_boris_lower_difference(1.0, beta_sum[1]), subtraction_rounding)
     exact_gap_lower = _boris_lower_difference(native_gap_lower, gap_radius)
     root = _rel_boris_batch_sqrt((1.0, gap_radius), native_gap_lower, exact_gap_lower, u, D)
     native_root_lower = _boris_lower_difference(
-        _boris_lower_product(max(0.0, prevfloat(sqrt(native_gap_lower))), 1.0 - u), D,
+        _boris_lower_product(max(0.0, prevfloat(sqrt(native_gap_lower))), 1.0 - u),
+        D,
     )
     exact_root_lower = max(0.0, prevfloat(sqrt(exact_gap_lower)))
     gamma0 = _rel_boris_batch_divide((1.0, 0.0), root, native_root_lower, exact_root_lower, u, D)
@@ -179,7 +186,14 @@ end
     squares = _boris_batch_sum(_boris_batch_sum(square, square, u, D), square, u, D)
     ratio = _rel_boris_batch_divide(squares, C2, C2[1], exact_c2_lower, u, D)
     gamma_minus = _rel_boris_batch_sqrt(_boris_batch_sum((1.0, 0.0), ratio, u, D), 1.0, 1.0, u, D)
-    t = _rel_boris_batch_divide(_boris_batch_product(H, magnetic, u, D), gamma_minus, 1.0, 1.0, u, D)
+    t = _rel_boris_batch_divide(
+        _boris_batch_product(H, magnetic, u, D),
+        gamma_minus,
+        1.0,
+        1.0,
+        u,
+        D,
+    )
     t_square = _boris_batch_product(t, t, u, D)
     t2 = _boris_batch_sum(_boris_batch_sum(t_square, t_square, u, D), t_square, u, D)
     denominator = _boris_batch_sum((1.0, 0.0), t2, u, D)
@@ -188,26 +202,39 @@ end
     cross_product = _boris_batch_product(minus, t, u, D)
     prime = _boris_batch_sum(minus, _boris_batch_sum(cross_product, cross_product, u, D), u, D)
     rotated_product = _boris_batch_product(prime, s, u, D)
-    rotated = _boris_batch_sum(minus, _boris_batch_sum(rotated_product, rotated_product, u, D), u, D)
+    rotated =
+        _boris_batch_sum(minus, _boris_batch_sum(rotated_product, rotated_product, u, D), u, D)
     final = _boris_batch_sum(rotated, kick, u, D)
     final_square = _boris_batch_product(final, final, u, D)
-    final_squares = _boris_batch_sum(_boris_batch_sum(final_square, final_square, u, D), final_square, u, D)
+    final_squares =
+        _boris_batch_sum(_boris_batch_sum(final_square, final_square, u, D), final_square, u, D)
     final_ratio = _rel_boris_batch_divide(final_squares, C2, C2[1], exact_c2_lower, u, D)
-    gamma_final = _rel_boris_batch_sqrt(_boris_batch_sum((1.0, 0.0), final_ratio, u, D), 1.0, 1.0, u, D)
+    gamma_final =
+        _rel_boris_batch_sqrt(_boris_batch_sum((1.0, 0.0), final_ratio, u, D), 1.0, 1.0, u, D)
     output = _rel_boris_batch_divide(final, gamma_final, 1.0, 1.0, u, D)
     # smin bounds max(max|v|,max|RN(hE)|) for each nonzero row.
     # Exact gamma0>=1, so subtracting electric error gives a lower bound on
     # max(norm(gamma0*v),norm(hE)); divide by an upper exact gamma_final.
     lower_term = _boris_lower_difference(Float64(smin), kick[2])
     gamma_upper = _boris_upper_add(gamma_final[1], gamma_final[2])
-    lower = isfinite(gamma_upper) && gamma_upper > 0 && lower_term > 0 ?
+    lower =
+        isfinite(gamma_upper) && gamma_upper > 0 && lower_term > 0 ?
         max(0.0, prevfloat(lower_term / gamma_upper)) : 0.0
     return _euler_accuracy_finish(output, lower, T)
 end
 
 # Preserve the historical range predicate's truthful contract. Only this
 # joint owner authorizes native bypass in actual EMPIC kick loops.
-@inline function _boris_rel_batch_admission(h::T, factor, dt::T, c::T, vmax, emax, bmax, smin) where {T}
+@inline function _boris_rel_batch_admission(
+    h::T,
+    factor,
+    dt::T,
+    c::T,
+    vmax,
+    emax,
+    bmax,
+    smin,
+) where {T}
     _boris_rel_batch_certificate(h, factor, dt, c, vmax, emax, bmax, smin) || return false
     T <: _RangeGuardedFloat || return true
     return _boris_rel_batch_accuracy(h, factor, dt, c, vmax, emax, bmax, smin)
@@ -238,7 +265,8 @@ end
     tolerance = ldexp(1.0, e - precision(T) + 3)
     return all(1:3) do i
         error = _rel_boris_distance(values[i], out[i])
-        isfinite(error) && error <= tolerance &&
+        isfinite(error) &&
+            error <= tolerance &&
             _boris_upper_add(abs(Float64(out[i])), error) <= Float64(floatmax(T))
     end
 end
@@ -262,7 +290,11 @@ end
     # The adapter must preserve every native operation, including literal
     # promotion and the original three-term addition order.
     isequal(map(x -> x.center, values), out) || return false
-    return _rel_boris_accuracy_ok(out, values, _rel_boris_scale_lower(values, initial, parts, Val(false)))
+    return _rel_boris_accuracy_ok(
+        out,
+        values,
+        _rel_boris_scale_lower(values, initial, parts, Val(false)),
+    )
 end
 
 # This is a bounded, residual-certified repair; the inherited extreme replay
@@ -279,12 +311,15 @@ end
     fields = map(_rel_boris_dd, (E..., B...))
     coefficient = _rel_boris_factor(factor, _rel_boris_dd)
     C = _rel_boris_dd(c)
-    values, parts = _boris_rel_momentum(initial..., fields..., coefficient, _rel_boris_dd(dt), C * C)
+    values, parts =
+        _boris_rel_momentum(initial..., fields..., coefficient, _rel_boris_dd(dt), C * C)
     all(_rel_boris_valid, (initial..., values..., parts...)) || return out, false
     lower = _rel_boris_scale_lower(values, initial, parts, Val(true))
-    _supported_relativistic_output(out, c) && _rel_boris_accuracy_ok(out, values, lower) &&
+    _supported_relativistic_output(out, c) &&
+        _rel_boris_accuracy_ok(out, values, lower) &&
         return out, true
     candidate = map(x -> T(x.center[1] + x.center[2]), values)
     return candidate,
-        _supported_relativistic_output(candidate, c) && _rel_boris_accuracy_ok(candidate, values, lower)
+    _supported_relativistic_output(candidate, c) &&
+    _rel_boris_accuracy_ok(candidate, values, lower)
 end

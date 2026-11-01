@@ -720,7 +720,16 @@ end
     if T <: _RangeGuardedFloat
         if _euler_factor_in_range(factor, T) &&
            _boris_rel_in_range(out, parts, u, qm, dt, c2, gap_resolved) &&
-           _boris_rel_accuracy_native(out, ginit, (vx, vy, vz), (Ex, Ey, Ez), (Bx, By, Bz), factor, dt, c) &&
+           _boris_rel_accuracy_native(
+               out,
+               ginit,
+               (vx, vy, vz),
+               (Ex, Ey, Ez),
+               (Bx, By, Bz),
+               factor,
+               dt,
+               c,
+           ) &&
            _supported_relativistic_output(out, c)
             return out
         end
@@ -757,9 +766,8 @@ end
 ) where {T}
     all(isfinite, (vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, _boris_factor_operands(factor)..., dt, c)) ||
         return out
-    certified, accepted = _boris_rel_dd_attempt(
-        out, (vx, vy, vz), (Ex, Ey, Ez), (Bx, By, Bz), factor, dt, c,
-    )
+    certified, accepted =
+        _boris_rel_dd_attempt(out, (vx, vy, vz), (Ex, Ey, Ez), (Bx, By, Bz), factor, dt, c)
     accepted && return certified
     gap = _exact_lorentz_gap(vx, vy, vz, c)
     gap > 0 || throw(ArgumentError("_boris_rel: input velocity must be finite and satisfy |v| < c"))

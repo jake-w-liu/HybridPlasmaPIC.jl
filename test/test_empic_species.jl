@@ -275,8 +275,12 @@ end
             @test_throws ArgumentError load_checkpoint!(legacy, electrons, path)
             @test H._checkpoint_state(legacy, electrons) == legacy_before
             destination = [ParticleSet{2,T}(0) for _ = 1:4]
-            restored = EMPIC(FourierGrid(state.g.n, state.g.L), destination;
-                mobile = Bool[true, true, false, true], c = T(2))
+            restored = EMPIC(
+                FourierGrid(state.g.n, state.g.L),
+                destination;
+                mobile = Bool[true, true, false, true],
+                c = T(2),
+            )
             load_checkpoint!(restored, destination, path)
             @test physical(restored, destination) == physical(state, species)
             for (dt, ns) in ((T(0.02), 2), (zero(T), 4), (T(0.012), 3))
