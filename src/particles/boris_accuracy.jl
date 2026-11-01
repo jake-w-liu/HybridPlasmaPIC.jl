@@ -14,6 +14,14 @@ _boris_exact_factor(qm::Number) = _exact_rational(qm)
 _boris_exact_factor(f::_BorisSpeciesFactors) = _exact_rational(f.q) / _exact_rational(f.m)
 @inline _boris_factor_operands(qm::Number) = (qm,)
 @inline _boris_factor_operands(f::_BorisSpeciesFactors) = (f.q, f.m)
+
+# The carrier specialization is defined after its type; kinematics_range.jl is
+# included first and owns the scalar-coefficient priming method.
+function _rel_prime_exact_coefficient(factor::_BorisSpeciesFactors)
+    qm = _boris_native_factor(factor)
+    return isfinite(qm) && _boris_exact_factor(factor) == _exact_rational(qm)
+end
+
 @inline _boris_accuracy_mode() = rounding(Float64) === RoundNearest && !get_zero_subnormals()
 
 # Euler and relativistic range certificates distinguish original zero charge

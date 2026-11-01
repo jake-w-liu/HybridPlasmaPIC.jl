@@ -1,7 +1,9 @@
 # Relativistic normal-range accuracy
 
-Status: source audit and bounded manual diagnostic prepared. The diagnostic has
-not run. No numerical correction or normal-range accuracy acceptance is claimed.
+Status: the initial manual GitHub run failed during package precompilation on
+both Julia versions, before observing any candidates. The carrier specialization
+is now defined after its type; corrected-source loading and observations remain
+pending. No normal-range numerical correction or accuracy acceptance is claimed.
 The [factor plan](PARTICLE_CHARGE_MASS_RANGE_PLAN.md) owns P3 factor routing;
 [C1](RELATIVISTIC_OUTPUT_PUBLICATION_PLAN.md) owns supported output publication
 and public rollback. Neither establishes a full normal-range accuracy theorem.
@@ -27,6 +29,15 @@ rational `q/m` in the admitted IEEE context. Other cold cases retain the existin
 256-bit replay. Fixed replay precision is not a general rounding proof.
 
 ## Manual GitHub observation
+
+The [initial run at `14568b8`](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41277054066)
+fails on both actual Julia 1.12.7 and 1.13.3 at
+`src/particles/kinematics_range.jl`'s typed coefficient method. The module loads
+that file before `boris_accuracy.jl` defines `_BorisSpeciesFactors`. The
+specialization now lives beside that carrier's factor helpers with its body
+unchanged. The generic scalar method and include order are retained. The
+initial failure supplies no candidate accuracy result; loading and observations
+must run again against the corrected revision.
 
 Run the workflow **Relativistic normal accuracy observation**. It uses Julia
 `1.12` and moving latest-stable `1`, records the actual version and instantiates

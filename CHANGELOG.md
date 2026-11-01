@@ -24,6 +24,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Original-factor relativistic priming defines its typed coefficient method
+  after the carrier type, removing the observed include-time undefined name.
+  The coefficient test and numerical expressions are unchanged; the failed
+  initial remote observation is retained and corrected-source checks are pending.
+
 - IEEE bit publication binds each integer word width to a concrete scalar
   format, preserving the existing packing and rounding decisions. Completed
   numerical CI passes exposed an abstract-target compiler boundary; the new

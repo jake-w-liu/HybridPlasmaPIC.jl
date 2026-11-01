@@ -348,10 +348,6 @@ end
 end
 
 @inline _rel_prime_exact_coefficient(qm::Number) = true
-function _rel_prime_exact_coefficient(factor::_BorisSpeciesFactors)
-    qm = _boris_native_factor(factor)
-    return isfinite(qm) && _boris_exact_factor(factor) == _exact_rational(qm)
-end
 
 # Wide evaluation of the same back-up. (|u|/c)² can exceed the range of the
 # next IEEE format for extreme c, so every flagged type uses 256-bit BigFloat
