@@ -565,24 +565,88 @@ end
     return out
 end
 
+# Scalar RK affine arithmetic retains the original duration through range repair.
+# The divisor and weights are the fixed RK4 tableau, not rounded rate storage.
+struct _RK4Affine{T}
+    h::T
+    coefficient::T
+    divisor::Int
+    native_context::Bool
+end
+
+function _RK4Affine(h::T, divisor::Int) where {T}
+    coefficient = divisor == 1 ? h : h / divisor
+    native_context = !(T <: _RangeGuardedFloat) || _boris_accuracy_mode()
+    return _RK4Affine{T}(h, coefficient, divisor, native_context)
+end
+
+# Adding zero is exact in the admitted native context. Cancellation of two
+# nonzero rounded terms can conceal a smaller earlier contribution.
+@inline _rk4_sum_in_range(value::T, a::T, b::T) where {T} =
+    isfinite(value) & ((abs(value) >= floatmin(T)) | iszero(a) | iszero(b))
+
+@inline _rk4_coefficient_in_range(op::_RK4Affine{T}) where {T} =
+    isfinite(op.coefficient) & ((abs(op.coefficient) >= floatmin(T)) | iszero(op.h))
+
+@noinline function _rk4_affine_exact(op::_RK4Affine{T}, initial, rates, weights) where {T}
+    Q = _exact_rational
+    total = zero(Rational{BigInt})
+    for (rate, weight) in zip(rates, weights)
+        total += weight * Q(rate)
+    end
+    return _from_exact(T, Q(initial) + Q(op.h) * total / op.divisor)
+end
+
+@inline function (op::_RK4Affine{T})(initial::T, rate::T) where {T}
+    increment = op.coefficient * rate
+    value = initial + increment
+    T <: _RangeGuardedFloat || return value
+    all(isfinite, (initial, op.h, rate)) || return value
+    resolved = op.native_context & _rk4_coefficient_in_range(op) &
+        _kinematics_product_in_range(increment, op.coefficient, rate) &
+        _rk4_sum_in_range(value, initial, increment)
+    return resolved ? value : _rk4_affine_exact(op, initial, (rate,), (1,))
+end
+
+@inline function (op::_RK4Affine{T})(initial::T, k1::T, k2::T, k3::T, k4::T) where {T}
+    twice2, twice3 = 2 * k2, 2 * k3
+    sum12 = k1 + twice2
+    sum123 = sum12 + twice3
+    rate = sum123 + k4
+    increment = op.coefficient * rate
+    value = initial + increment
+    T <: _RangeGuardedFloat || return value
+    all(isfinite, (initial, op.h, k1, k2, k3, k4)) || return value
+    resolved = op.native_context & _rk4_coefficient_in_range(op) &
+        _kinematics_product_in_range(twice2, T(2), k2) &
+        _kinematics_product_in_range(twice3, T(2), k3) &
+        _rk4_sum_in_range(sum12, k1, twice2) &
+        _rk4_sum_in_range(sum123, sum12, twice3) &
+        _rk4_sum_in_range(rate, sum123, k4) &
+        _kinematics_product_in_range(increment, op.coefficient, rate) &
+        _rk4_sum_in_range(value, initial, increment)
+    return resolved ? value : _rk4_affine_exact(op, initial, (k1, k2, k3, k4), (1, 2, 2, 1))
+end
+
 # one RK4 substep of size h on canonical B (st.fields.B), frozen moments
 function _rk4_B!(st::HybridStepper{D,T}, h::T) where {D,T}
     B = st.fields.B
+    half, full, final = _RK4Affine(h, 2), _RK4Affine(h, 1), _RK4Affine(h, 6)
     _bfield_rhs!(st.k1, B, st)
     for c = 1:3
-        @. st.Btmp[c] = B[c] + (h / 2) * st.k1[c]
+        @. st.Btmp[c] = half(B[c], st.k1[c])
     end
     _bfield_rhs!(st.k2, st.Btmp, st)
     for c = 1:3
-        @. st.Btmp[c] = B[c] + (h / 2) * st.k2[c]
+        @. st.Btmp[c] = half(B[c], st.k2[c])
     end
     _bfield_rhs!(st.k3, st.Btmp, st)
     for c = 1:3
-        @. st.Btmp[c] = B[c] + h * st.k3[c]
+        @. st.Btmp[c] = full(B[c], st.k3[c])
     end
     _bfield_rhs!(st.k4, st.Btmp, st)
     for c = 1:3
-        @. B[c] += (h / 6) * (st.k1[c] + 2 * st.k2[c] + 2 * st.k3[c] + st.k4[c])
+        @. B[c] = final(B[c], st.k1[c], st.k2[c], st.k3[c], st.k4[c])
     end
     return B
 end
@@ -905,27 +969,28 @@ end
 
 function _rk4_Bp!(st::HybridStepper{D,T}, h::T, cycle) where {D,T}
     B, pe, w = st.fields.B, st.fields.pe, st.pressure_work
+    half, full, final = _RK4Affine(h, 2), _RK4Affine(h, 1), _RK4Affine(h, 6)
     _bpressure_rhs!(st.k1, w.kp[1], B, pe, st, cycle, 1)
     for c = 1:3
-        @. st.Btmp[c] = B[c] + (h / 2) * st.k1[c]
+        @. st.Btmp[c] = half(B[c], st.k1[c])
     end
-    @. w.ptmp = pe + (h / 2) * w.kp[1]
+    @. w.ptmp = half(pe, w.kp[1])
     _bpressure_rhs!(st.k2, w.kp[2], st.Btmp, w.ptmp, st, cycle, 2)
     for c = 1:3
-        @. st.Btmp[c] = B[c] + (h / 2) * st.k2[c]
+        @. st.Btmp[c] = half(B[c], st.k2[c])
     end
-    @. w.ptmp = pe + (h / 2) * w.kp[2]
+    @. w.ptmp = half(pe, w.kp[2])
     _bpressure_rhs!(st.k3, w.kp[3], st.Btmp, w.ptmp, st, cycle, 3)
     for c = 1:3
-        @. st.Btmp[c] = B[c] + h * st.k3[c]
+        @. st.Btmp[c] = full(B[c], st.k3[c])
     end
-    @. w.ptmp = pe + h * w.kp[3]
+    @. w.ptmp = full(pe, w.kp[3])
     _bpressure_rhs!(st.k4, w.kp[4], st.Btmp, w.ptmp, st, cycle, 4)
     for c = 1:3
-        @. st.Btmp[c] = B[c] + (h / 6) * (st.k1[c] + 2 * st.k2[c] + 2 * st.k3[c] + st.k4[c])
+        @. st.Btmp[c] = final(B[c], st.k1[c], st.k2[c], st.k3[c], st.k4[c])
         _validate_pressure_finite(st.Btmp[c], "evolving-pressure magnetic candidate")
     end
-    @. w.ptmp = pe + (h / 6) * (w.kp[1] + 2 * w.kp[2] + 2 * w.kp[3] + w.kp[4])
+    @. w.ptmp = final(pe, w.kp[1], w.kp[2], w.kp[3], w.kp[4])
     _validate_evolving_pressure(w.ptmp, st.g; subcycle = cycle, stage = 5)
     for c = 1:3
         copyto!(B[c], st.Btmp[c])
@@ -935,7 +1000,7 @@ function _rk4_Bp!(st::HybridStepper{D,T}, h::T, cycle) where {D,T}
 end
 
 # Serial and replicated MPI share preparation and every subcycle. Algebraic
-# closures retain their original pressure preparation and B-only RK arithmetic.
+# closures keep their pressure preparation and use the shared B-only RK stages.
 function _advance_hybrid_fields!(st::HybridStepper{D,T}, dtT::T, NB::Integer) where {D,T}
     f, g = st.fields, st.g
     if _evolves_pressure(st.model.closure)

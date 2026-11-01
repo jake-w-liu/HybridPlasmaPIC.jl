@@ -68,6 +68,32 @@ component rounds to zero is rejected. A finite update rescued only by multiplyin
 an unrepresentable rate by `dt` requires a different RK representation and remains
 unsupported.
 
+### Original-duration RK4 affine combinations
+
+The `_RK4Affine` source candidate in
+`src/integrators/extrapolated_leapfrog.jl` owns the scalar stage and final
+combinations shared by `_rk4_B!` and `_rk4_Bp!`. For finite represented rates,
+an unresolved coefficient, product or sum completes the original `h` expression
+before one final rounding through the shared IEEE converter. This includes a
+subnormal `h/2` or `h/6` and an overflowing weighted sum.
+Ordinary nearest/gradual arithmetic keeps the existing coefficient and operation
+order. Finite IEEE inputs outside that arithmetic context use exact completion;
+nonfinite operands retain IEEE propagation. Other scalar types retain their
+native arithmetic. Existing rate, pressure-candidate and rollback policies
+remain in force; no RK rate normalization or persistent array is added.
+
+The `rk4-affine` GitHub essentials suite includes independent rational affine
+controls, ordinary scalar/array bit comparisons, and public Ohmic heating at
+`dt=2*floatmin(T)`. The heating fixture has finite physical rates but an
+overflowing native RK weighted sum; its complete pressure update is finite.
+All new runtime, compiler, formatting and resource results remain pending.
+
+The separate `_validated_step_dt` preflight at
+[`7254c7e`](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/commit/7254c7e638df5ee6ca62e777397d4070f0cf3766)
+rejects a nonzero full timestep when `dt/NB` rounds to zero before evolution;
+its runtime acceptance remains pending. This affine candidate leaves that
+preflight and CAM-CL unchanged and supports represented subnormal field steps.
+
 Raw `ohms_law!` may leave partial work after a later error. Public `init!` and
 `step!` retain their existing rollback, carried force and clock ownership.
 Checkpoints and archives retain physical carried force and transport policy 1;
