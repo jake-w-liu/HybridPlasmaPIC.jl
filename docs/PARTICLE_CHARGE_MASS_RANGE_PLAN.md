@@ -86,11 +86,13 @@ finite original q and positive finite m, allowing true signed-zero charge or a
 finite normal quotient. A charged quotient rounded to zero, subnormal or infinity
 raises `ArgumentError` before launch/mutation, including empty populations and
 dt=0. Original q,m may be subnormal when their host ratio is normal. No device
-kernel, ordinary arithmetic or backend dispatch changes. Uniform coefficient
-range admission remains; complete gathered finite-field validation is still the
-separate [held preflight work](METAL_GATHERED_VALIDATION_PLAN.md). These checks
-do not recover unsupported factors. Device priming and GPU-resident coupled
-stepping remain unimplemented; CUDA still supplies storage/telemetry only.
+kernel, ordinary arithmetic or backend dispatch changes were needed for that
+host-factor slice. Uniform coefficient range admission remains. The separate
+[gathered preflight candidate](METAL_GATHERED_VALIDATION_PLAN.md) now adds a
+finite-field scan, guarded publication scheduling and explicit native field
+storage admission; remote correctness, compiler and unchanged cost gates remain
+open. These checks do not recover unsupported factors. Device priming and
+GPU-resident coupled stepping remain unimplemented; CUDA still supplies storage/telemetry only.
 
 ## Progress
 

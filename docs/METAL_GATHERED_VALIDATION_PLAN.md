@@ -15,6 +15,66 @@ but latest-Julia timing calibration fails; no gathered-push candidate is accepte
 Original parent: `ff4a973` (Julia sources match `df75656`); V3 starts from
 `61356f1`, with identical committed Julia sources. Persistent evidence: `../HybridPlasmaPIC-audit-evidence/2026-10-23/metal-gathered-validation`.
 
+## Current source candidate (2026-11-01)
+
+This candidate was developed on parent
+`7926fe8f25714659f9bba47c094f3c6528a44c00` and integrated onto `7db86a9` after
+root source/caller review and an independent barrier, queue and alias audit.
+It has not been executed. The historical
+V2 scan/readback approach is known to fail its latency gate and is not revived.
+The V6 scheduling design is adapted to the current canonical native kick and
+coordinate owners. Its old measurements do not accept this changed source.
+
+Pre-edit brief:
+
+- Mode: repair the gathered Metal validation/publication boundary.
+- Evidence: the parent Metal overload validates factors, dt, field lengths and
+  aliases, then publishes without a finite-field scan. The CPU owner checks
+  nonfinite gathered maxima before publication. The narrow Metal field signature
+  also lets host/mixed field tuples select the generic CPU method; an empty
+  population can return from that path without rejecting its storage.
+- Contract: reject nonfinite samples in all six fields before any particle or
+  midpoint store. Validate shapes, existing aliases, native field/midpoint
+  storage, original q/m and dt even for empty populations. Keep P4a's quotient
+  restrictions and the documented native device arithmetic limits.
+- Owner: `ext/HybridPlasmaPICMetalExt.jl`, using the existing
+  `_check_gathered_field_storage`, `_validated_native_boris_qm`,
+  `_boris_kick_native` and `_particle_coordinate_native` owners. No core Boris,
+  collection or CPU numerical path changes.
+- Strategy: one per-call initialized shared UInt32 flag; scan before guarded
+  publication and read only the status after queued work completes. A complete
+  one-group grid combines scan, device-memory barrier and disjoint update.
+  Larger disjoint grids scan then update. Particle-component overlap retains
+  the parent's materialized kick and global velocity/position order through
+  guarded, alias-prepared lazy commits. No copied Boris algebra or CPU fallback.
+- Compatibility: broaden the existing Metal overload's field tuple types so it
+  can explicitly reject unsupported host/mixed/wrong-eltype vector storage.
+  Valid native fields and read-only sharing remain supported. Shape/alias checks
+  still precede backend storage checks. Invalid fields raise `ArgumentError`;
+  valid nonempty calls synchronize at the final status transfer.
+- Verification: essential portable CPU admission controls plus conditional actual
+  device field/storage rejection, empty admission, parent-bit comparisons for
+  disjoint and overlapping arrays, successful reuse after rejection, and counted
+  stores for invalid barrier/ordered-commit paths. These tests are unexecuted.
+
+| Gate | Current status |
+| --- | --- |
+| Source implementation and essential regressions | Source-reviewed and integrated; no local Julia or device execution |
+| GitHub minimum/latest CPU regressions and formatter | Pending |
+| Actual remote Metal correctness and compiler checks | Pending |
+| Both fixed 30-profile allocation/latency matrices | Pending; original 8 KiB and 1.5 limits unchanged |
+| Device original-factor recovery, priming and coupled stepping | P4b remains planned/open |
+
+The ordinary parent broadcasts now already use the canonical scalar owners.
+Consequently V6's obsolete expanded Boris expressions are not copied. General
+native range/accuracy limits are unchanged; a finite-field scan does not certify
+velocity-dependent arithmetic or recover flushed/overflowed device factors.
+
+The repository runner inventory returned zero configured self-hosted runners at
+integration. CPU-only GitHub checks do not establish Metal acceptance; the device
+and cost gates require a suitable remote runner. Local device computation remains
+outside this work's execution policy.
+
 ## Historical pre-edit brief (2026-10-23)
 
 - Mode: repair backend validation at the gathered-push boundary.
@@ -84,10 +144,10 @@ first samples misses late/block-edge invalid values; returning early before host
 validation accepts invalid empty inputs; copying complete fields to the host
 violates the traversal design and measured scaling requirement.
 
-The current broadcast push calls the shared `_boris_kick_native` owner and still
-constructs intermediate device arrays. Optimizing that pipeline is a separate
-candidate; no performance claim is inferred before profiling and compatibility
-review.
+The committed parent broadcast push calls the shared `_boris_kick_native` owner
+and constructs intermediate device arrays. The current candidate fuses disjoint
+publication and retains the parent schedule for particle aliases. No performance
+claim follows before the fixed profiling and compatibility gates pass.
 
 ## Retained revisions
 

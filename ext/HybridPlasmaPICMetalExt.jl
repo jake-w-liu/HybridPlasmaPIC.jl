@@ -658,10 +658,162 @@ function HybridPlasmaPIC.push_uniform!(
     return ps
 end
 
+function _gathered_fields_finite_kernel!(flag, E, B, N::UInt64)
+    p = UInt64(Metal.thread_position_in_grid().x)
+    stride = UInt64(Metal.threads_per_grid().x)
+    while p <= N
+        @inbounds valid =
+            isfinite(E[1][p]) &
+            isfinite(E[2][p]) &
+            isfinite(E[3][p]) &
+            isfinite(B[1][p]) &
+            isfinite(B[2][p]) &
+            isfinite(B[3][p])
+        if !valid
+            Metal.atomic_store_explicit(pointer(flag, 1), UInt32(1))
+            return nothing
+        end
+        p += stride
+    end
+    return nothing
+end
+
+function _gathered_commit_kernel!(dest, expression, flag, N::UInt64)
+    iszero(Metal.atomic_load_explicit(pointer(flag, 1))) || return nothing
+    p = UInt64(Metal.thread_position_in_grid().x)
+    stride = UInt64(Metal.threads_per_grid().x)
+    while p <= N
+        @inbounds dest[Int(p)] = expression[Int(p)]
+        p += stride
+    end
+    return nothing
+end
+
+function _gathered_commit!(dest, expression, flag)
+    # Preserve Metal broadcast's alias preparation and each ordered expression.
+    expression = Base.Broadcast.preprocess(dest, Base.Broadcast.instantiate(expression))
+    N = length(dest)
+    threads, groups = _metal_launch_config(N)
+    groups = min(groups, Int(typemax(UInt32)) ÷ threads)
+    Metal.@metal threads = threads groups = groups _gathered_commit_kernel!(
+        dest,
+        expression,
+        flag,
+        UInt64(N),
+    )
+    return dest
+end
+
+function _push_gathered_disjoint_kernel!(
+    x::NTuple{D},
+    v::NTuple{3},
+    E,
+    B,
+    qm,
+    dt,
+    xmid,
+    flag,
+    N::UInt64,
+) where {D}
+    iszero(Metal.atomic_load_explicit(pointer(flag, 1))) || return nothing
+    p = UInt64(Metal.thread_position_in_grid().x)
+    stride = UInt64(Metal.threads_per_grid().x)
+    hx = dt / oftype(dt, 2)
+    while p <= N
+        index = Int(p)
+        @inbounds begin
+            nx, ny, nz = HybridPlasmaPIC._boris_kick_native(
+                v[1][index],
+                v[2][index],
+                v[3][index],
+                E[1][index],
+                E[2][index],
+                E[3][index],
+                B[1][index],
+                B[2][index],
+                B[3][index],
+                qm,
+                dt,
+            )
+            v[1][index] = nx
+            v[2][index] = ny
+            v[3][index] = nz
+            for d = 1:D
+                if xmid !== nothing
+                    xmid[d][index] = HybridPlasmaPIC._particle_coordinate_native(
+                        x[d][index],
+                        v[d][index],
+                        hx,
+                    )
+                end
+                x[d][index] =
+                    HybridPlasmaPIC._particle_coordinate_native(x[d][index], v[d][index], dt)
+            end
+        end
+        p += stride
+    end
+    return nothing
+end
+
+function _push_gathered_single_group_kernel!(x, v, E, B, qm, dt, xmid, flag, N::UInt64)
+    _gathered_fields_finite_kernel!(flag, E, B, N)
+    # Only a complete one-group grid takes this route. Every thread reaches the
+    # device-memory fence, including those whose scan returned early.
+    Metal.threadgroup_barrier(Metal.MemoryFlagDevice)
+    _push_gathered_disjoint_kernel!(x, v, E, B, qm, dt, xmid, flag, N)
+    return nothing
+end
+
+function _push_gathered_ordered!(
+    ps::HybridPlasmaPIC.ParticleSet{D,T},
+    E,
+    B,
+    qm,
+    dt,
+    xmid,
+    flag,
+) where {D,T}
+    vx, vy, vz = ps.v
+    Ex, Ey, Ez = E
+    Bx, By, Bz = B
+    # Keep the parent kick snapshot and global component order for overlapping
+    # particle arrays. Invalid fields may affect scratch but never public stores.
+    kicked = HybridPlasmaPIC._boris_kick_native.(vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, qm, dt)
+    for c = 1:3
+        _gathered_commit!(ps.v[c], Base.Broadcast.broadcasted(getindex, kicked, c), flag)
+    end
+    hx = dt / T(2)
+    for d = 1:D
+        if xmid !== nothing
+            _gathered_commit!(
+                xmid[d],
+                Base.Broadcast.broadcasted(
+                    HybridPlasmaPIC._particle_coordinate_native,
+                    ps.x[d],
+                    ps.v[d],
+                    hx,
+                ),
+                flag,
+            )
+        end
+        _gathered_commit!(
+            ps.x[d],
+            Base.Broadcast.broadcasted(
+                HybridPlasmaPIC._particle_coordinate_native,
+                ps.x[d],
+                ps.v[d],
+                dt,
+            ),
+            flag,
+        )
+    end
+    return ps
+end
+
 function HybridPlasmaPIC.push_gathered!(
     ps::HybridPlasmaPIC.ParticleSet{D,T,X,V,W,I,G},
-    E::Tuple{<:Metal.MtlArray{T,1},<:Metal.MtlArray{T,1},<:Metal.MtlArray{T,1}},
-    B::Tuple{<:Metal.MtlArray{T,1},<:Metal.MtlArray{T,1},<:Metal.MtlArray{T,1}},
+    E::Tuple{<:AbstractVector,<:AbstractVector,<:AbstractVector},
+    B::Tuple{<:AbstractVector,<:AbstractVector,<:AbstractVector},
     dt::Real;
     xmid = nothing,
 ) where {
@@ -675,9 +827,9 @@ function HybridPlasmaPIC.push_gathered!(
 }
     HybridPlasmaPIC.validate_particle_backend_eltype(Val(:metal), T)
     HybridPlasmaPIC._check_gathered_field_storage(ps, E, B, xmid)
+    all(field isa Metal.MtlArray{T,1} for field in (E..., B...)) ||
+        throw(ArgumentError("Metal gathered-field push requires Metal fields with particle eltype"))
     if xmid !== nothing
-        length(xmid) == D ||
-            throw(DimensionMismatch("xmid must have one component per spatial dimension"))
         all(xmid[d] isa Metal.MtlArray{T,1} for d = 1:D) ||
             throw(ArgumentError("Metal gathered-field push requires Metal xmid storage"))
     end
@@ -687,23 +839,56 @@ function HybridPlasmaPIC.push_gathered!(
         "push_gathered!",
         HybridPlasmaPIC._require_finite_real("dt", dt, T),
     )
-    hx = dtT / T(2)
-    Ex, Ey, Ez = E
-    Bx, By, Bz = B
-    vx, vy, vz = ps.v
-
-    # Native-only shared formulas: per-particle device fields have no host
-    # range admission or fallback (see the native device contract in boris.jl).
-    kicked = HybridPlasmaPIC._boris_kick_native.(vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, qm, dtT)
-    vx .= getindex.(kicked, 1)
-    vy .= getindex.(kicked, 2)
-    vz .= getindex.(kicked, 3)
-
-    for d = 1:D
-        xmid !== nothing &&
-            (xmid[d] .= HybridPlasmaPIC._particle_coordinate_native.(ps.x[d], ps.v[d], hx))
-        ps.x[d] .= HybridPlasmaPIC._particle_coordinate_native.(ps.x[d], ps.v[d], dtT)
+    N = HybridPlasmaPIC.nparticles(ps)
+    N == 0 && return ps
+    # One initialized status belongs to this call through synchronized readback.
+    # Queue the scan and guarded stores together instead of waiting between them.
+    flag = Metal.MtlArray{UInt32,1,Metal.SharedStorage}(UInt32[0])
+    threads, groups = _metal_launch_config(N)
+    groups = min(groups, Int(typemax(UInt32)) ÷ threads)
+    # Field/midpoint checks already exclude their overlap with written motion.
+    # Other particle overlap must retain the established global broadcast order.
+    aliases = HybridPlasmaPIC._particle_components_mightalias(ps)
+    if !aliases && groups == 1
+        Metal.@metal threads = threads groups = groups _push_gathered_single_group_kernel!(
+            ps.x,
+            ps.v,
+            E,
+            B,
+            qm,
+            dtT,
+            xmid,
+            flag,
+            UInt64(N),
+        )
+    else
+        Metal.@metal threads = threads groups = groups _gathered_fields_finite_kernel!(
+            flag,
+            E,
+            B,
+            UInt64(N),
+        )
+        if aliases
+            _push_gathered_ordered!(ps, E, B, qm, dtT, xmid, flag)
+        else
+            Metal.@metal threads = threads groups = groups _push_gathered_disjoint_kernel!(
+                ps.x,
+                ps.v,
+                E,
+                B,
+                qm,
+                dtT,
+                xmid,
+                flag,
+                UInt64(N),
+            )
+        end
     end
+    # Native-only arithmetic retains its documented range limits; only the
+    # four-byte validation status crosses to the host. This also waits for stores.
+    iszero(only(Array(flag))) || throw(
+        ArgumentError("gathered electric and magnetic fields must contain only finite values"),
+    )
     return ps
 end
 

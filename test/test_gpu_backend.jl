@@ -235,3 +235,5 @@ end
         end
     end
 end
+
+include("test_metal_gathered_validation.jl")

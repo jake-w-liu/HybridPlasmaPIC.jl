@@ -43,6 +43,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Metal gathered-field publication has a finite-sample status scan and guarded
+  stores, with explicit native field storage admission even for empty batches.
+  Disjoint updates call the shared native formulas; particle aliases retain the
+  ordered parent broadcast schedule. Source review is complete; actual remote
+  device, compiler and unchanged cost gates remain open in the
+  [preflight plan](docs/METAL_GATHERED_VALIDATION_PLAN.md).
+
 - Route EMPIC collection checkpoint payloads through their schema owner at the
   shared validation entry, following the existing electrostatic layout policy.
   The first remote collection save entered legacy electron/ion validation;

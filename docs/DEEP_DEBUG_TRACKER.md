@@ -504,11 +504,14 @@ integration state and remaining work are recorded above.
   (23 / 22 reports); all six log hashes and the archive hash are retained.
 - [ ] Repair Metal gathered-field preflight. Both actual-device runtimes retain
   114 passes and 51 failed assertions, with all 45 finite-input CPU/device
-  controls passing and no fixture errors. Invalid host parameters and late
-  nonfinite gathered samples bypass CPU rejection semantics and can mutate
-  particles and midpoint output. **VERIFIED:** the Metal owner uses raw `q/m`
-  and `T(dt)` and has no finite-sample preflight (`ext/HybridPlasmaPICMetalExt.jl:643-675`);
-  `metal-gathered-validation/baseline*.log` retains the public witnesses.
+  controls passing and no fixture errors. That historical owner used raw
+  `q/m`, `T(dt)` and no finite-sample preflight; retained public witnesses are
+  `metal-gathered-validation/baseline*.log`. P4a now validates original factors
+  and dt. The remaining finite-field/publication gap has a new source candidate
+  developed on `7926fe8` and integrated after independent source review: shared status, guarded canonical native updates and explicit
+  field storage admission, preserving ordered publication for particle aliases.
+  Essential tests and remote compiler/device/cost gates are pending. The older
+  implementation measurements below do not accept this changed source.
   V1 passes the original 165 and full 6,394 integration assertions on each
   runtime. Both parent differential preflights pass all 120 alias
   checks and retain 234 passes / six resource failures: the 262,144-particle
