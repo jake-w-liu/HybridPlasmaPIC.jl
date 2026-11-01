@@ -536,8 +536,9 @@ yee_longitudinal_voltage(Ex, xold, xnew, g::YeeGrid; shape = CIC()) =
     throw(ArgumentError("Yee path voltage requires one spatial dimension"))
 
 # A nonzero path contracts A(new)-A(old); a stationary field contracts g(x).
-# Both share original geometry/width, the stored-dx metric and one final round.
-function _yee_cloud_field_contraction(Ex, old, new, g::YeeGrid{1,T}, shape::YeeTriangularCloud) where {T}
+# Both share original geometry/width and the stored-dx metric. Coupled kicks
+# retain this complete value; static IEEE-valued APIs round it once below.
+function _yee_cloud_field_rational(Ex, old, new, g::YeeGrid{1}, shape::YeeTriangularCloud)
     h = _exact_rational(g.L[1]) / g.n[1]
     a = _exact_rational(shape.half_width)
     x = _exact_rational(old)
@@ -553,7 +554,11 @@ function _yee_cloud_field_contraction(Ex, old, new, g::YeeGrid{1,T}, shape::YeeT
         end
         total += _exact_rational(Ex[e+1]) * coefficient
     end
-    value = _from_exact(T, _exact_rational(g.dx[1]) * total)
+    return _exact_rational(g.dx[1]) * total
+end
+
+function _yee_cloud_field_contraction(Ex, old, new, g::YeeGrid{1,T}, shape::YeeTriangularCloud) where {T}
+    value = _from_exact(T, _yee_cloud_field_rational(Ex, old, new, g, shape))
     isfinite(value) || throw(ArgumentError("Yee cloud field contraction does not round to a finite $T value"))
     return value
 end

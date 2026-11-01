@@ -14,9 +14,8 @@ records scoped verification and remaining exact-revision acceptance gates.
 - `YeeElectromagneticPIC` supplies a bounded nonrelativistic CPU 1D3V cloud
   source candidate with both transverse polarizations, compatible path currents,
   synchronized Boris/Yee stages, scoped rest/impact guards, diagnostics and a
-  distinct checkpoint/archive schema. Required gathers round before Boris;
-  original geometry through the force remains open. Exact-revision GitHub
-  acceptance is pending; see the [contract](docs/BOUNDED_PARTICLE_COUPLING_PLAN.md#event-free-1d3v-electromagnetic-source-candidate).
+  distinct checkpoint/archive schema. Exact-revision GitHub acceptance is pending;
+  see the [contract](docs/BOUNDED_PARTICLE_COUPLING_PLAN.md#event-free-1d3v-electromagnetic-source-candidate).
 
 - Fixed-step `CollisionalHybridStepper` composes `ConductingElectrons` with
   ion-ion scattering through its existing field/pressure and force/RNG owners.
@@ -79,6 +78,17 @@ records scoped verification and remaining exact-revision acceptance gates.
   schema-1 reader checks agreement between its two stored pressure copies.
   Essential composition and continuation checks await GitHub CI; see the
   [scoped contract](docs/COLLISIONAL_HYBRID.md).
+
+### Changed
+
+- Both closed Yee coupled source candidates retain complete original-geometry
+  gathers, original q/m and the exact full-dt half through canonical Boris,
+  rounding only each final half-kick velocity. Intermediate gathers can lie outside
+  the grid type’s range when the completed velocity is finite. This changes ordinary
+  velocity bits and requires model checkpoint schema 2 with an explicit force
+  policy; schema 1 is rejected. Static IEEE-valued gathers and archive container
+  schema 4 retain their contracts. GitHub runtime/compiler/format and complete-step
+  resource acceptance remain pending.
 
 ### Fixed
 

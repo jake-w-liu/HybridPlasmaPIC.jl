@@ -37,12 +37,12 @@ end
 function step_reference(st, species, dt)
     T = eltype(st.g.L)
     old = [copy(ps.x[1]) for ps in species]
-    u = [T[T(O.rat(ps.v[1][p]) + O.rat(dt / 2) * O.rat(ps.q) / O.rat(ps.m) *
+    u = [T[T(O.rat(ps.v[1][p]) + O.rat(dt) / 2 * O.rat(ps.q) / O.rat(ps.m) *
         field_reference(st.fields.E[1], ps.x[1][p], st)) for p in eachindex(ps.weight)] for ps in species]
     y = [T[T(O.rat(x) + O.rat(dt) * O.rat(v)) for (x, v) in zip(xs, vs)] for (xs, vs) in zip(old, u)]
     impulse = T.(O.cloud_impulse(species, old, y, st.g.n[1], st.g.L[1], st.shape.half_width))
     field = T[T(O.rat(e) - O.rat(i)) for (e, i) in zip(st.fields.E[1], impulse)]
-    v = [T[T(O.rat(us[p]) + O.rat(dt / 2) * O.rat(ps.q) / O.rat(ps.m) *
+    v = [T[T(O.rat(us[p]) + O.rat(dt) / 2 * O.rat(ps.q) / O.rat(ps.m) *
         field_reference(field, ys[p], st)) for p in eachindex(ps.weight)]
         for (ps, us, ys) in zip(species, u, y)]
     return y, v, impulse, field
@@ -299,8 +299,17 @@ end
             loaded = load_archive(archive)
             @test loaded.state.integrator === :yee_longitudinal_pic
             original = deserialize(path)
+            @test original.schema_version === 2
+            @test original.force_policy === :original_geometry_boris_nearest_even
+            @test original.force_policy_version === 1
+            @test loaded.state.schema_version === 2
             for corrupt in (
-                merge(original, (; schema_version = 2)),
+                merge(original, (; schema_version = 1)),
+                merge(original, (; force_policy = :rounded_gather)),
+                merge(original, (; force_policy_version = 2)),
+                merge(original, (; force_policy_version = true)),
+                merge(original, (; force_policy_version = UInt(1))),
+                (; (key => value for (key, value) in pairs(original) if key !== :force_policy)...),
                 merge(original, (; shape_width_type = T)),
                 merge(original, (; shape_width_bits = original.shape_width_bits + one(original.shape_width_bits))),
                 merge(original, (; arithmetic_policy = :unrestricted)),

@@ -9,11 +9,11 @@ transverse E/B before `init!`; Ex is initialized from the existing cloud Gauss
 and isolated-plate convention. Bx must be stored zero; tangential E endpoints
 must be stored zero. Both transverse polarizations and velocities evolve.
 
-Each gathered GE/GB component rounds to grid precision and must be finite before
-Boris. A nonzero gather can round to zero; original geometry is not retained
-through the subsequent Lorentz expression. Original q/m and half duration are
-preserved after that represented-operand boundary. Full original-force range
-completion remains open.
+Each half-kick retains complete original-geometry GE/GB, original q/m and the
+original resolved full-dt half through canonical Boris. Only its final velocity
+components round to grid precision. A gathered component need not fit grid
+precision when the completed velocity is finite. Ordinary native velocity bits
+are not preserved; other stage quantities still use their existing IEEE owners.
 
 Explicitly select a fixed physical cloud width. Nearest rounding and gradual
 underflow, frozen source/provenance/storage identities, strict CFL/rest guards
@@ -159,11 +159,11 @@ function _ye_admit_step(st::YeeElectromagneticPIC, species, dt, energy)
     return nothing
 end
 function _ye_gather(fields, x, g, shape)
-    E = (_yee_cloud_field_contraction(fields.E[1], x, nothing, g, shape),
-        _yee_cloud_nodal_contraction(fields.E[2], x, g, shape),
-        _yee_cloud_nodal_contraction(fields.E[3], x, g, shape))
-    B = (zero(x), _yee_cloud_field_contraction(fields.B[2], x, nothing, g, shape),
-        _yee_cloud_field_contraction(fields.B[3], x, nothing, g, shape))
+    E = (_yee_cloud_field_rational(fields.E[1], x, nothing, g, shape),
+        _yee_cloud_nodal_rational(fields.E[2], x, g, shape),
+        _yee_cloud_nodal_rational(fields.E[3], x, g, shape))
+    B = (zero(E[1]), _yee_cloud_field_rational(fields.B[2], x, nothing, g, shape),
+        _yee_cloud_field_rational(fields.B[3], x, nothing, g, shape))
     return E, B
 end
 
@@ -185,11 +185,12 @@ function step!(st::YeeElectromagneticPIC{T}, particles, dt::Real) where {T}
     _ye_admit_step(st, species, tau, oldenergy)
     oldkinetic = _kinetic_energy_checked(species, T, Val(false))
     stage, g = st._stage[], st.g
-    factors = [_validated_boris_factor(ps) for ps in species]
+    half = _exact_rational(tau) / 2
+    factors = [_boris_exact_factor(_validated_boris_factor(ps)) for ps in species]
     for (ps, candidate, factor) in zip(species, stage.candidates, factors), p in eachindex(ps.weight)
         x = ps.x[1][p]
         E, B = _ye_gather(st.fields, x, g, st.shape)
-        u = _yee_particle_half_kick(ntuple(c -> ps.v[c][p], 3), E, B, factor, tau)
+        u = _yee_particle_half_kick(ntuple(c -> ps.v[c][p], 3), E, B, factor, half)
         all(isfinite, u) || throw(ArgumentError("electromagnetic first kick does not round finite"))
         y = _particle_coordinate(x, u[1], tau)
         isfinite(y) && 0 < _exact_rational(y) < _exact_rational(g.L[1]) ||
@@ -206,7 +207,7 @@ function step!(st::YeeElectromagneticPIC{T}, particles, dt::Real) where {T}
     _ye_validate_fields(st, st._candidate)
     for (candidate, factor) in zip(stage.candidates, factors), p in eachindex(candidate.weight)
         E, B = _ye_gather(st._candidate, candidate.x[1][p], g, st.shape)
-        v = _yee_particle_half_kick(ntuple(c -> candidate.v[c][p], 3), E, B, factor, tau)
+        v = _yee_particle_half_kick(ntuple(c -> candidate.v[c][p], 3), E, B, factor, half)
         all(isfinite, v) || throw(ArgumentError("electromagnetic final kick does not round finite"))
         for c = 1:3
             candidate.v[c][p] = v[c]

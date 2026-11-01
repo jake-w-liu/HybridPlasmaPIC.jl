@@ -25,6 +25,8 @@ const _YL_CHECKPOINT_FIELDS = (
     :velocity_phase,
     :timestep_policy,
     :arithmetic_policy,
+    :force_policy,
+    :force_policy_version,
     :particle_layout,
     :species,
     :fields,
@@ -54,8 +56,6 @@ function _yl_validate_checkpoint_ieee(name, value, scalar_type, bits, expected)
 end
 
 function _yl_validate_checkpoint_configuration(s, st::YeeLongitudinalPIC{T}) where {T}
-    s.integrator === :yee_longitudinal_pic && s.schema_version === 1 ||
-        throw(ArgumentError("unsupported Yee longitudinal checkpoint schema"))
     _yee_closed_validate_checkpoint_configuration(s, st)
     s.gauss_policy === :original_source_exact_rounded &&
         s.plate_policy === :isolated_left_derived_right &&
@@ -68,9 +68,20 @@ function _yl_validate_checkpoint_configuration(s, st::YeeLongitudinalPIC{T}) whe
     return nothing
 end
 
+# Check the numerical-map envelope before schema-specific required fields, so
+# an intact old payload is rejected as incompatible, rather than incomplete.
+function _yee_closed_validate_checkpoint_envelope(s, integrator)
+    _validate_checkpoint_container(s, (:integrator, :schema_version))
+    s.integrator === integrator && s.schema_version === 2 ||
+        throw(ArgumentError("unsupported closed Yee checkpoint integrator or schema"))
+    return nothing
+end
+
 # Identical closed-source configuration is checked once; each model owns its
 # distinct integrator and policy contract in its schema-specific wrapper.
 function _yee_closed_validate_checkpoint_configuration(s, st::_ClosedYeeCheckpointStepper)
+    s.force_policy === :original_geometry_boris_nearest_even && s.force_policy_version === 1 ||
+        throw(ArgumentError("unsupported closed Yee checkpoint force policy"))
     T = eltype(st.fields.E[1])
     s.D === 1 && s.T === T ||
         throw(ArgumentError("checkpoint dimension and precision must match destination"))
@@ -137,6 +148,7 @@ function _yl_validate_checkpoint_arrays(s, st::YeeLongitudinalPIC, populations)
 end
 
 function _validate_checkpoint_state(s, st::YeeLongitudinalPIC{T}) where {T}
+    _yee_closed_validate_checkpoint_envelope(s, :yee_longitudinal_pic)
     _validate_checkpoint_container(s, _YL_CHECKPOINT_FIELDS)
     _yl_validate_checkpoint_configuration(s, st)
     s.initialized === true && s.phase === :ready ||
@@ -171,7 +183,7 @@ function _yl_checkpoint_state(st::YeeLongitudinalPIC{T}, species, layout) where 
     _yl_validate_longitudinal_fields(st, st.fields)
     return (
         integrator = :yee_longitudinal_pic,
-        schema_version = 1,
+        schema_version = 2,
         D = 1,
         T = T,
         ncell = st.g.n,
@@ -194,6 +206,8 @@ function _yl_checkpoint_state(st::YeeLongitudinalPIC{T}, species, layout) where 
         velocity_phase = :synchronized,
         timestep_policy = :fixed_after_first_success,
         arithmetic_policy = :nearest_gradual,
+        force_policy = :original_geometry_boris_nearest_even,
+        force_policy_version = 1,
         particle_layout = layout,
         species = [_checkpoint_particle_state(ps) for ps in populations],
         fields = _yl_checkpoint_fields(st),

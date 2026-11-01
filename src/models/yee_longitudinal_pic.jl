@@ -26,9 +26,10 @@ separate from cloud endpoint tails. Initialization builds Gauss-consistent Ex
 with longitudinal DC and resets the clock/history. Source, provenance, particle
 objects and component identities are fixed until explicit reinitialization.
 
-The gathered field first rounds to grid precision, including possible loss of
-a nonzero gather to zero. Original q/m and half duration are retained after that
-represented operand; completing original geometry through the force is open.
+Each half-kick retains the complete original-geometry gather, original q/m and
+original resolved full-dt half through canonical Boris, rounding only its final
+velocity to grid precision. A gathered field need not fit grid precision when
+the completed kick is finite. Ordinary native velocity bits are not preserved.
 
 Velocity-Verlet advances integer-time x/v/Ex. The first accepted positive dt
 fixes the resolved timestep. The rest-mode guard is not a general nonlinear
@@ -327,21 +328,17 @@ function _yl_admit_step(st::YeeLongitudinalPIC, species, dt)
     return nothing
 end
 
-# Shared original-half owner. A scalar longitudinal wrapper keeps its original
-# checks and native order; the EM model supplies full gathered vectors.
-function _yee_particle_half_kick(v::NTuple{3,T}, E::NTuple{3,T}, B::NTuple{3,T}, factor, dt::T) where {T}
-    half = dt / T(2)
-    if half + half == dt
-        return _kick_eval(Val(true), v..., E..., B..., factor, half)
-    end
-    Q = _exact_rational
-    exact, _ = _boris_kick_parts(map(Q, v)..., map(Q, E)..., map(Q, B)...,
-        _boris_exact_factor(factor), Q(dt) / 2)
+# Shared original-force owner. The caller prepares the original q/m and full-dt
+# half once; gathered fields remain rational through the canonical Boris map.
+function _yee_particle_half_kick(v::NTuple{3,T}, E::NTuple{3,Rational{BigInt}},
+    B::NTuple{3,Rational{BigInt}}, factor::Rational{BigInt}, half::Rational{BigInt}) where {T}
+    exact, _ = _boris_kick_parts(map(_exact_rational, v)..., E..., B..., factor, half)
     return map(value -> _from_exact(T, value), exact)
 end
-function _yl_kick(v::T, field::T, factor, dt::T) where {T}
+function _yl_kick(v::T, field::Rational{BigInt}, factor, half) where {T}
     z = zero(T)
-    out = _yee_particle_half_kick((v, z, z), (field, z, z), (z, z, z), factor, dt)
+    qz = zero(field)
+    out = _yee_particle_half_kick((v, z, z), (field, qz, qz), (qz, qz, qz), factor, half)
     all(isfinite, out) && iszero(out[2]) && iszero(out[3]) ||
         throw(ArgumentError("longitudinal kick does not produce finite longitudinal velocity"))
     return out[1]
@@ -363,12 +360,13 @@ function step!(st::YeeLongitudinalPIC{T}, particles, dt::Real) where {T}
     _yl_admit_step(st, species, tau)
     stage, g = st._stage[], st.g
     oldkinetic = _kinetic_energy_checked(species, T, Val(false))
-    factors = [_validated_boris_factor(ps) for ps in species]
+    half = _exact_rational(tau) / 2
+    factors = [_boris_exact_factor(_validated_boris_factor(ps)) for ps in species]
     for (ps, candidate, factor) in zip(species, stage.candidates, factors)
         for p in eachindex(ps.weight)
             x = ps.x[1][p]
-            field = _yee_cloud_field_contraction(st.fields.E[1], x, nothing, g, st.shape)
-            u = _yl_kick(ps.v[1][p], field, factor, tau)
+            field = _yee_cloud_field_rational(st.fields.E[1], x, nothing, g, st.shape)
+            u = _yl_kick(ps.v[1][p], field, factor, half)
             y = _particle_coordinate(x, u, tau)
             isfinite(y) && 0 < _exact_rational(y) < _exact_rational(g.L[1]) ||
                 throw(ArgumentError("longitudinal drift leaves the strict interior"))
@@ -392,8 +390,8 @@ function step!(st::YeeLongitudinalPIC{T}, particles, dt::Real) where {T}
     _yl_validate_longitudinal_fields(st, st._candidate)
     for (ps, candidate, factor) in zip(species, stage.candidates, factors)
         for p in eachindex(ps.weight)
-            field = _yee_cloud_field_contraction(st._candidate.E[1], candidate.x[1][p], nothing, g, st.shape)
-            candidate.v[1][p] = _yl_kick(candidate.v[1][p], field, factor, tau)
+            field = _yee_cloud_field_rational(st._candidate.E[1], candidate.x[1][p], nothing, g, st.shape)
+            candidate.v[1][p] = _yl_kick(candidate.v[1][p], field, factor, half)
         end
     end
     newkinetic = kinetic_energy(stage.candidates)

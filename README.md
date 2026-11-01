@@ -261,6 +261,13 @@ in the [implementation plan](docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md).
 | **Fusion geometry / gyrokinetics / AMR** | toroidal metric operators, guiding-centre particle updates and finite-volume AMR primitives; a coupled gyrokinetic or adaptive plasma solver remains [planned](docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md#cap-006--geometry-gyrokinetics-and-adaptive-plasma-evolution) | `ToroidalGrid`, `metric_gradient`, `GuidingCentre`, `push_guiding_centre!`, `AMRGrid`, `refine` |
 | **KdV reference** | integrating-factor pseudo-spectral KdV solver + analytic soliton, used as a nonlinear-wave verification target | `kdv_solve`, `kdv_soliton` |
 
+Both closed Yee coupled source candidates retain exact original-geometry E/B
+gathers, q/m and full-dt half through canonical Boris, rounding only final
+half-kick velocities. Static IEEE-valued gather APIs keep their finite-output
+contract. Coupled schema 2 records the new force policy and rejects schema 1;
+ordinary native velocity bits are not preserved. Runtime/compiler/format and
+complete-step resource acceptance remain pending.
+
 The bounded vacuum model uses a constant-step Maxwell stability bound.
 Individually sub-CFL steps do not guarantee stability for an arbitrary variable
 step sequence; see its [centering and stability contract](docs/BOUNDED_MAXWELL_IMPLEMENTATION.md#discrete-contract-and-derivation).

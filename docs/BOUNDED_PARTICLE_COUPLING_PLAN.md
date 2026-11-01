@@ -234,15 +234,17 @@ Enew = E-I
 vnew = u + (dt/2)*(q/m)*G(Enew,y)
 ```
 
-The stationary gathered field is first rounded to grid precision and must be
-finite. A nonzero gather can round to zero even when original q/m and duration
-could rescue a finite kick. Completing original geometry through the force
-expression remains open; the existing original-factor Boris contract begins
-at this represented gathered operand.
+Each kick retains the complete rational stationary gather, original q/m and
+original resolved full-dt half through the canonical Boris expression. Only
+the final velocity rounds to grid precision, nearest-even. A gathered field
+need not fit grid precision if the completed kick is finite. This source
+completion changes the numerical map; ordinary native velocity bits are not
+preserved. Static public field/voltage APIs retain their once-rounded finite
+output contract. Runtime/compiler/format acceptance remains pending.
 
 The first successful step freezes the positive resolved dt. Each kick retains
-its exact original half duration when that half cannot be represented at grid
-precision. x, v and E remain at one integer-time phase. No Maxwell
+its exact original half duration, including an unrepresentable half. x, v and E
+remain at one integer-time phase. No Maxwell
 clock or transverse CFL is introduced. Before staging, exact original-operand
 arithmetic enforces both strict scoped guards:
 
@@ -275,7 +277,7 @@ nonzero physical `DeltaH=DeltaK-work`; in floating point, field-source staging
 and diagnostic rounding also separate this defect from measured `DeltaH`.
 Neither exact energy nor bitwise Gauss conservation is claimed.
 
-Distinct checkpoint schema 1 saves initialized completed boundaries through
+Distinct checkpoint schema 2 saves initialized completed boundaries through
 `save_checkpoint` and `archive_run`: original configuration types/bits, closed
 grid including stored dx, policies, ordered phase space/provenance/q/m/weights,
 current fields, clock/fixed-step phase, exact derived right plate and all exposed
@@ -286,6 +288,11 @@ required; saved particle values replace destinations and rebind their existing
 component identities. Ordinary vectors may resize; strided destinations must
 already have matching counts. Scratch is rebuilt. Archives reuse the existing
 metadata/checksum owner and checkpoints reuse atomic file publication.
+Both coupled schemas require `force_policy=:original_geometry_boris_nearest_even`
+and integer `force_policy_version=1`. Schema 1 belongs to the former
+rounded-gather/native map and is rejected before restore mutation; no silent
+migration or legacy mode is provided. The archive container remains schema 4:
+`load_archive` checks integrity, while model restoration checks numerical policy.
 
 The `longitudinal-pic` implementation-essentials suite includes independent
 physical-volume initializer/time-map references, continuity/energy checks,
@@ -341,13 +348,15 @@ masking them preserves the exact work contraction without removing endpoint
 particle-bound charge. A private quartic antiderivative of the original
 triangular density supplies exact path averages. Original q/weight/duration/
 velocity/metric factors and complete signed current sums round only at final
-entry publication. Required final impulses and gathered fields must be finite.
-Gathered GE/GB components round to grid precision before Boris, and a nonzero
-gather may round to zero. The kick retains original q/m and half duration only
-after that represented-operand boundary. A large q/m could rescue a response
-lost by gather underflow; original-geometry-through-Lorentz range completion
-remains open for both coupled models. Formal ideal-arithmetic order does not
-remove this finite-precision error floor.
+entry publication. Required final impulses must be finite. GE/GB remain complete
+rational contractions through canonical Boris with original q/m and exact
+resolved full-dt half. Only each half-kick's final three velocity components
+round to grid precision, nearest-even; an unrepresentable gathered component is
+admitted if that completed velocity is finite. The first rounded velocity still
+owns drift/current and the second kick. Original factors are prepared once per
+step/population, with no per-particle/grid matrices. Ordinary native bits are
+not preserved. This source completion awaits GitHub runtime/compiler/format
+acceptance; rational-kick latency, allocations and peak memory are unmeasured.
 Static point/CIC and existing cloud A/g arithmetic remain unchanged.
 
 The explicit map is a guarded full-vector Boris half-kick at old x/E/B,
@@ -391,16 +400,21 @@ No exact fully discrete energy or bitwise Gauss conservation is claimed.
 All candidates, late diagnostics and clocks stage before public writes. Rejection
 preserves particles, fields, histories, array identities and clock; scratch may
 change. One instance must not be mutated/stepped concurrently. The distinct EM
-schema 1 saves original config types/bits, resolved c, policies/versions, ordered
+schema 2 saves original config types/bits, resolved c, policies/versions, ordered
 particles/provenance, current E/B verbatim, synchronized fixed phase and histories.
 Restore validates/detaches everything before publication, with ordinary particle
 arrays resizable from empty storage and matched strided views retaining identity.
-Scalar/collection layouts and the old longitudinal schema remain distinct.
+Scalar/collection layouts and the longitudinal model's schema remain distinct.
+The required shared force policy and schema-1 rejection are described above;
+the EM spatial gather/current/PEC policies keep version 1.
 
 The `yee-electromagnetic-pic` essentials suite includes independent physical
 quadrature/current and matrix time-map/rest references, nonzero temporal/energy
 refinement, original-factor/half-duration and late-error controls, zero-transverse
 reduction, alias/context rejection and complete checkpoint/archive continuation.
+Compact independent original-gather underflow/overflow, signed cancellation,
+magnetic overflow rescue and final-half rejection/retry controls cover the new
+force policy in both coupled models.
 These are source tests awaiting GitHub. No runtime, accuracy, allocation, latency
 or peak-memory acceptance is claimed. Wall histories/events, additional boundary
 models, broader physical validation and parallel/device paths remain open.
@@ -424,8 +438,11 @@ acceptance remains a separate gate.
 - [x] Source candidate for exact PEC-masked transverse path currents and a
   synchronized event-free 1D3V Boris/Yee method.
 - [ ] Accept the EM candidate on the exact integrated GitHub revision.
-- [ ] Complete original-geometry-through-Lorentz range semantics for both
-  coupled models, with original gathered factors retained through the kick.
+- [x] Source completion of original-geometry-through-Lorentz semantics for both
+  coupled models, retaining exact gathers/factors through canonical Boris and
+  rounding only each final half-kick velocity; schema-2 force policy is explicit.
+- [ ] Accept the original-force map, schema transition and whole-step resource
+  behavior on the exact integrated GitHub revision.
 - [ ] Event-local reflection with crossing, grazing/contact and repeated-impact
   rules, atomic coupled failure and wall momentum/charge/work ledgers.
 - [x] Source candidate for event-free longitudinal Verlet coupling, energy/Gauss

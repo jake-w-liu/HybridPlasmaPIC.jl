@@ -18,16 +18,14 @@ end
 
 # Caller validates the complete field once. PEC endpoint E is stored zero;
 # G0 needs no delta/h factor and no wall renormalization.
-function _yee_cloud_nodal_contraction(E, x, g::YeeGrid{1,T}, shape::YeeTriangularCloud) where {T}
+function _yee_cloud_nodal_rational(E, x, g::YeeGrid{1}, shape::YeeTriangularCloud)
     h = _exact_rational(g.L[1]) / g.n[1]
     a, position = _exact_rational(shape.half_width), _exact_rational(x)
     total = zero(h)
     for node in _yee_cloud_node_span(position, position, h, a, g.n[1])
         total += _exact_rational(E[node + 1]) * _yee_cloud_node(position, node, h, a)
     end
-    value = _from_exact(T, total)
-    isfinite(value) || throw(ArgumentError("Yee nodal gather does not round finite"))
-    return value
+    return total
 end
 
 # Complete original signed current entries. No per-particle grid matrices or

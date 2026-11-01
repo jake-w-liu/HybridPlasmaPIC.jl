@@ -42,6 +42,8 @@ const _YE_CHECKPOINT_FIELDS = (
     :field_phase,
     :timestep_policy,
     :arithmetic_policy,
+    :force_policy,
+    :force_policy_version,
     _YE_CHECKPOINT_POLICY_FIELDS...,
     :particle_layout,
     :species,
@@ -59,8 +61,6 @@ const _YE_CHECKPOINT_FIELDS = (
 )
 
 function _ye_validate_checkpoint_configuration(s, st::YeeElectromagneticPIC)
-    s.integrator === :yee_electromagnetic_pic && s.schema_version === 1 ||
-        throw(ArgumentError("unsupported Yee electromagnetic checkpoint schema"))
     _yee_closed_validate_checkpoint_configuration(s, st)
     _yl_validate_checkpoint_ieee(:c, s.c, s.c_type, s.c_bits, st.c)
     s.gauss_policy === :original_source_exact_rounded &&
@@ -82,6 +82,7 @@ function _ye_validate_checkpoint_configuration(s, st::YeeElectromagneticPIC)
 end
 
 function _validate_checkpoint_state(s, st::YeeElectromagneticPIC{T}) where {T}
+    _yee_closed_validate_checkpoint_envelope(s, :yee_electromagnetic_pic)
     _validate_checkpoint_container(s, _YE_CHECKPOINT_FIELDS)
     _ye_validate_checkpoint_configuration(s, st)
     s.initialized === true && s.phase === :ready ||
@@ -113,7 +114,7 @@ function _ye_checkpoint_state(st::YeeElectromagneticPIC{T}, species, layout) whe
     _ye_validate_fields(st, st.fields)
     return (
         integrator = :yee_electromagnetic_pic,
-        schema_version = 1,
+        schema_version = 2,
         D = 1,
         T = T,
         ncell = st.g.n,
@@ -143,6 +144,8 @@ function _ye_checkpoint_state(st::YeeElectromagneticPIC{T}, species, layout) whe
         field_phase = :synchronized,
         timestep_policy = :fixed_after_first_success,
         arithmetic_policy = :nearest_gradual,
+        force_policy = :original_geometry_boris_nearest_even,
+        force_policy_version = 1,
         gather_policy_version = _YE_CHECKPOINT_POLICY_VERSION,
         current_policy_version = _YE_CHECKPOINT_POLICY_VERSION,
         pec_policy_version = _YE_CHECKPOINT_POLICY_VERSION,

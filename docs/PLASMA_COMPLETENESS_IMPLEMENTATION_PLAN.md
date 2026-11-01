@@ -77,7 +77,7 @@ Source names below resolve to these canonical files:
 | ES/EM PIC | Periodic `ElectrostaticPIC`, `EMPIC` and `EMPIC1D`; ES collection implementation `d46029e` | Periodic CPU ES collections are landed; synchronous EM collections with optional relativistic motion are implemented pending GitHub acceptance. Multirate EM collections, coupled nonperiodic PIC and resident GPU/MPI solvers remain open |
 | Hall-MHD | `HallMHDModel`, `HallMHDState`, `step_hall_mhd!`; `test_hall_mhd.jl`, `test_io_hall_mhd.jl` | A periodic solver exists; it is not a general geometry/closure solver |
 | Coulomb collisions | Canonical homogeneous and local collection `collide_coulomb!`; `CollisionalHybridStepper` | Local self/cross CPU operator and fixed-step isothermal hybrid/RNG restart exist; ideal evolving-scalar, S1/S2 transport and S3a conduction extensions await CI, additional compositions and parallel/device support remain |
-| Nonperiodic EM | Periodic `EMPIC`; separate Yee vacuum/prescribed-current fields; closed 1D PEC charge/impulse/path voltage plus optional finite physical-width cloud static coupling | B2a, optional cloud, event-free longitudinal and 1D3V EM coupling/restart source are implemented with GitHub acceptance pending. Original-force lifecycle completion, wall events, absorbers and broader bounded EM remain CAP-002 work |
+| Nonperiodic EM | Periodic `EMPIC`; separate Yee vacuum/prescribed-current fields; closed 1D PEC charge/impulse/path voltage plus optional finite physical-width cloud static coupling | B2a, optional cloud, event-free longitudinal and 1D3V EM coupling/restart source are implemented with GitHub acceptance pending. Original-force acceptance, wall events, absorbers and broader bounded EM remain CAP-002 work |
 | Distributed evolution | Replicated-field MPI reference plus rank-owned Fourier storage and derivative/vector/filter operators (`4724947`) | Distributed operator primitives exist; coupled domain-owned solver, restart and cluster-scale acceptance remain CAP-003 work |
 | GPU | Metal extension has deposit/gather/push methods; CUDA extension:1–68 has storage/telemetry hooks; `HybridFields` uses `Array` at field_state:12–29 | Partial kernels, not complete resident solvers, CAP-004; device availability is not numerical acceptance |
 | Implicit evolution | Linear Fourier amplitudes in `semi_implicit.jl`; subsequent `ce52836` adds a residual-checked `ShockCNWorkspace` solve and full-step rollback ([contract](SHOCK_CN_SOLVE_PLAN.md)) | Limited field-only paths exist; nonlinear coupled particle/field solve remains missing, CAP-005 |
@@ -320,11 +320,13 @@ ledger satisfy the coupled method.
   `YeeElectromagneticPIC` now adds a distinct event-free 1D3V source candidate:
   both polarizations, exact compatible transverse currents/PEC mask, synchronized
   Boris/Yee stages, scoped combined-rest/physical-H exit guards, diagnostics and
-  complete schema-1 restart. [Contract and pending GitHub gates](BOUNDED_PARTICLE_COUPLING_PLAN.md#event-free-1d3v-electromagnetic-source-candidate)
+  complete schema-2 restart. [Contract and pending GitHub gates](BOUNDED_PARTICLE_COUPLING_PLAN.md#event-free-1d3v-electromagnetic-source-candidate)
   do not accept general nonlinear stability, wall events or broader bounded EM.
-  Both coupled models round required gathered fields before Boris; a nonzero
-  gather can underflow even when original q/m and duration could rescue a kick.
-  Original-geometry-through-Lorentz completion remains open.
+  Both coupled source candidates now retain complete rational original-geometry
+  gathers, q/m and full-dt half through canonical Boris, rounding only final
+  half-kick velocities. Their schema-2 force policy rejects the former schema-1
+  rounded-gather map. Exact-revision runtime/compiler/format and complete-step
+  resource acceptance remain pending; ordinary native bits are not preserved.
 
 - [ ] **002C: absorbing/radiating boundaries.** Add a measured absorbing layer
   with configurable thickness/profile and accounted energy removal; inject

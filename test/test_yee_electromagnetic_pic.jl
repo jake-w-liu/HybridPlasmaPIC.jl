@@ -88,8 +88,7 @@ function reference(st,particles,dt)
     y = [zeros(T,length(ps.weight)) for ps in species]
     for (k,ps) in enumerate(species), p in eachindex(ps.weight)
         E,B = gather(st.fields.E,st.fields.B,ps.x[1][p],st)
-        # The production gather is a required rounded operand.
-        velocity = kick([ps.v[c][p] for c=1:3],Q.(T.(E)),Q.(T.(B)),ps.q,ps.m,Q(dt)/2)
+        velocity = kick([ps.v[c][p] for c=1:3],E,B,ps.q,ps.m,Q(dt)/2)
         for c=1:3
             u[k][c][p] = T(velocity[c])
         end
@@ -105,11 +104,12 @@ function reference(st,particles,dt)
         end
     end
     impulse = map(a -> T.(a),current)
-    En,Bn,_ = F.step(st.fields.E,st.fields.B,impulse,st.g.n[1],false,st.g.dx[1],dt,st.c)
+    speed = st isa YeeElectromagneticPIC ? st.c : one(T)
+    En,Bn,_ = F.step(st.fields.E,st.fields.B,impulse,st.g.n[1],false,st.g.dx[1],dt,speed)
     v = [ntuple(c -> zeros(T,length(ps.weight)),3) for ps in species]
     for (k,ps) in enumerate(species), p in eachindex(ps.weight)
         E,B = gather(En,Bn,y[k][p],st)
-        velocity = kick([u[k][c][p] for c=1:3],Q.(T.(E)),Q.(T.(B)),ps.q,ps.m,Q(dt)/2)
+        velocity = kick([u[k][c][p] for c=1:3],E,B,ps.q,ps.m,Q(dt)/2)
         for c=1:3
             v[k][c][p] = T(velocity[c])
         end
@@ -130,8 +130,8 @@ end
         for x in T[0.001,0.125,0.5,0.999]
             E,B = gather(st.fields.E,st.fields.B,x,st)
             actual = H._ye_gather(st.fields,x,st.g,st.shape)
-            @test all(O.rounded(value,exact) for (value,exact) in zip(actual[1],E))
-            @test all(O.rounded(value,exact) for (value,exact) in zip(actual[2],B))
+            @test actual[1] == Tuple(E)
+            @test actual[2] == Tuple(B)
         end
         candidate = H._yl_make_stage([ps],[ps],T).candidates
         candidate[1].x[1] .= T[0.01,0.81]
@@ -278,6 +278,108 @@ end
     end
 end
 
+@testset "Original geometry through both coupled electric maps" begin
+    T = Float32
+    eta = nextfloat(zero(T))
+    # Zero-weight tracers isolate the force lifecycle: fields/current remain
+    # unchanged, but both rounded velocity stages and the stored drift matter.
+    cases = (
+        (name=:underflow,n=2,a=ldexp(1.0,100),field=eta,x=T(0.25),v=zero(T),
+            q=ldexp(one(T),126),m=ldexp(one(T),-126),dt=ldexp(one(T),-56)),
+        (name=:overflow,n=7,a=ldexp(1.0,-10),field=floatmax(T),x=T(0.5),v=zero(T),
+            q=ldexp(one(T),-126),m=ldexp(one(T),126),dt=ldexp(one(T),-20)),
+        (name=:cancellation,n=7,a=ldexp(1.0,-10),field=one(T),x=T(0.5),v=-one(T),
+            q=T(256),m=one(T),dt=T(1/128)),
+    )
+    for Model in (YeeLongitudinalPIC,YeeElectromagneticPIC), case in cases
+        g = YeeGrid((case.n,),(one(T),))
+        ps = ParticleSet{1,T}(1;q=case.q,m=case.m)
+        ps.x[1][1],ps.v[1][1],ps.weight[1] = case.x,case.v,zero(T)
+        st = Model(g;shape=YeeTriangularCloud(case.a),left_plate_charge=case.field)
+        init!(st,ps)
+        E,B = gather(st.fields.E,st.fields.B,case.x,st)
+        first = kick([case.v,zero(T),zero(T)],E,B,ps.q,ps.m,Q(case.dt)/2)
+        if case.name === :underflow
+            @test 0 < E[1] < Q(eta)/2
+            @test yee_longitudinal_field(st.fields.E[1],case.x,g;shape=st.shape) === zero(T)
+            @test Q(ps.q)/Q(ps.m)*Q(case.dt)*E[1] > Q(floatmin(T))
+        elseif case.name === :overflow
+            midpoint = Q(floatmax(T))+Q(2)^(exponent(floatmax(T))-precision(T))
+            @test Q(7)*Q(g.dx[1]) == 1+3Q(2)^(-26)
+            @test E[1]-midpoint == Q(2)^78*(Q(2)^24-3) > 0
+            @test ps.q/ps.m === zero(T)
+            @test_throws ArgumentError yee_longitudinal_field(st.fields.E[1],case.x,g;shape=st.shape)
+            @test 0 < first[1] < Q(floatmin(T))
+        else
+            @test E[1] == 1+3Q(2)^(-26)
+            @test first[1] == 3Q(2)^(-26)
+        end
+        expected = reference(st,ps,case.dt)
+        step!(st,ps,case.dt)
+        @test isequal(ps.x[1],expected[1][1])
+        @test isequal(ps.v,expected[2][1])
+        @test isequal(st.last_impulse,expected[3])
+        @test isequal(st.fields.E,expected[4]) && isequal(st.fields.B,expected[5])
+        @test ps.x[1][1] === case.x && !iszero(ps.v[1][1])
+        if case.name === :cancellation
+            @test ps.v[1][1] === nextfloat(one(T))
+        end
+    end
+end
+
+@testset "Unrepresentable magnetic gather has a finite Cayley rotation" begin
+    T = Float32
+    g = YeeGrid((7,),(one(T),))
+    ps = ParticleSet{1,T}(1;q=ldexp(one(T),-100))
+    ps.x[1][1],ps.weight[1] = T(0.5),zero(T)
+    ps.v[1][1],ps.v[3][1] = one(T),one(T)
+    st = YeeElectromagneticPIC(g;shape=YeeTriangularCloud(ldexp(1.0,-10)))
+    st.fields.B[2] .= floatmax(T)
+    init!(st,ps)
+    E,B = gather(st.fields.E,st.fields.B,ps.x[1][1],st)
+    midpoint = Q(floatmax(T))+Q(2)^(exponent(floatmax(T))-precision(T))
+    @test B[2] > midpoint && all(iszero,E)
+    dt = ldexp(one(T),-40)
+    expected = reference(st,ps,dt)
+    before = copy(ps.v[3])
+    step!(st,ps,dt)
+    @test isequal(ps.v,expected[2][1]) && ps.v[3] != before
+    @test isequal(st.fields.E,expected[4]) && isequal(st.fields.B,expected[5])
+end
+
+@testset "Final rational half-kick overflow rolls back and permits retry" begin
+    for T in (Float32,Float64), Model in (YeeLongitudinalPIC,YeeElectromagneticPIC)
+        g = YeeGrid((2,),(one(T),))
+        ps = ParticleSet{1,T}(1;q=ldexp(one(T),-exponent(floatmin(T))),m=floatmin(T))
+        ps.x[1][1],ps.v[1][1],ps.weight[1] = T(0.5),prevfloat(floatmax(T)),zero(T)
+        st = Model(g;shape=YeeTriangularCloud(T(1/8)),left_plate_charge=T(4))
+        init!(st,ps)
+        dt = nextfloat(zero(T))
+        alpha = Q(ps.q)/Q(ps.m)
+        ulp = Q(floatmax(T))-Q(prevfloat(floatmax(T)))
+        @test alpha*Q(dt)*4/2 == ulp
+        # For this uniform N2 state, the EM dyadic field bound is exactly 8;
+        # it also bounds the longitudinal force. Stiffness is zero.
+        @test Q(dt)*Q(ps.v[1][1])+Q(dt)^2*alpha*8/2 < 1//2
+        @test Q(dt) < Q(g.dx[1])
+        E,B = gather(st.fields.E,st.fields.B,ps.x[1][1],st)
+        first = T.(kick([ps.v[c][1] for c=1:3],E,B,ps.q,ps.m,Q(dt)/2))
+        @test first[1] === floatmax(T)
+        y = T(Q(ps.x[1][1])+Q(dt)*Q(first[1]))
+        @test Q(1)/8 < Q(y) < Q(7)/8
+        En,Bn = gather(st.fields.E,st.fields.B,y,st)
+        final = kick(first,En,Bn,ps.q,ps.m,Q(dt)/2)
+        @test final[1] == Q(2)^(exponent(floatmax(T))+1)
+        before = deepcopy(H._checkpoint_state(st,ps))
+        @test_throws ArgumentError step!(st,ps,dt)
+        @test isequal(H._checkpoint_state(st,ps),before)
+        ps.v[1][1] = zero(T)
+        expected = reference(st,ps,dt)
+        step!(st,ps,dt)
+        @test isequal(ps.v,expected[2][1]) && st.step[] == 1
+    end
+end
+
 @testset "Admission and late failure preserve public state" begin
     for T in (Float32,Float64)
         st,ps = fixture(T)
@@ -350,7 +452,9 @@ end
             path,archive = joinpath(dir,"em.bin"),joinpath(dir,"archive.bin")
             save_checkpoint(path,st,ps); archive_run(archive,st,ps;rng_seed=23)
             saved = deserialize(path)
-            @test saved.integrator === :yee_electromagnetic_pic && saved.schema_version === 1
+            @test saved.integrator === :yee_electromagnetic_pic && saved.schema_version === 2
+            @test saved.force_policy === :original_geometry_boris_nearest_even
+            @test saved.force_policy_version === 1
             @test isequal(saved,load_archive(archive).state)
             restored,_ = fixture(T;collection)
             viewof(::Type{A},n) where {A} = view(zeros(A,2n),1:2:2n)
@@ -371,7 +475,12 @@ end
             load_checkpoint!(fresh,destination,path)
             @test isequal(snapshot(fresh,destination),snapshot(st,ps))
             @test all(pair -> pair[1]===pair[2],zip(ordinaryids,H._yl_particle_arrays(ordinary)))
-            for bad in (merge(saved,(schema_version=2,)),merge(saved,(c=nextfloat(saved.c),)),
+            for bad in (merge(saved,(schema_version=1,)),merge(saved,(c=nextfloat(saved.c),)),
+                merge(saved,(force_policy=:rounded_gather,)),
+                merge(saved,(force_policy_version=2,)),
+                merge(saved,(force_policy_version=true,)),
+                merge(saved,(force_policy_version=UInt(1),)),
+                (; (key => value for (key,value) in pairs(saved) if key !== :force_policy)...),
                 merge(saved,(last_physical_energy_change=T(Inf),)),
                 merge(saved,(right_plate_charge=saved.right_plate_charge+1,)),
                 merge(saved,(c_type=T===Float32 ? Float64 : Float32,)),
