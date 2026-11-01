@@ -17,6 +17,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- IEEE bit publication binds each integer word width to a concrete scalar
+  format, preserving the existing packing and rounding decisions. Completed
+  numerical CI passes exposed an abstract-target compiler boundary; the new
+  publication methods await full GitHub compiler and regression checks.
+
 - Coupled ideal and Ohmic scalar pressure stages request the existing complete
   signed source owner when derivative or product range loss is detected. Exact
   advection/compression/heating cancellation remains admissible; the complete

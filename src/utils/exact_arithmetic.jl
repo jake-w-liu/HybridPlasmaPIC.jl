@@ -3,6 +3,12 @@
 
 _exact_rational(value) = Rational{BigInt}(value)
 
+# Bind each bit word to its concrete IEEE format even when a caller's type
+# parameter is abstract during package-wide inference.
+@inline _ieee_from_bits(bits::UInt16) = reinterpret(Float16, bits)
+@inline _ieee_from_bits(bits::UInt32) = reinterpret(Float32, bits)
+@inline _ieee_from_bits(bits::UInt64) = reinterpret(Float64, bits)
+
 # Keep a binary scale outside floating-point range until its complete source
 # expression is composed. The finite conversion remains the canonical owner.
 function _exact_binary_scale(value, power::Int)
@@ -24,7 +30,7 @@ end
     U = T === Float16 ? UInt16 : T === Float32 ? UInt32 : UInt64
     sign = (negative ? one(U) : zero(U)) << (8sizeof(T) - 1)
     integer = UInt64(rounded)
-    iszero(integer) && return reinterpret(T, sign)
+    iszero(integer) && return _ieee_from_bits(sign)
     fraction_bits = precision(T) - 1
     exponent_bits = 8sizeof(T) - precision(T)
     bias = (1 << (exponent_bits - 1)) - 1
@@ -34,16 +40,16 @@ end
     if power > bias
         # A rounded carry at the last binade selects the Inf endpoint.
         exponent = U((1 << exponent_bits) - 1) << fraction_bits
-        return reinterpret(T, sign | exponent)
+        return _ieee_from_bits(sign | exponent)
     elseif power < 1 - bias
         fraction = U(integer << (Int(quantum) - minimum_quantum))
-        return reinterpret(T, sign | fraction)
+        return _ieee_from_bits(sign | fraction)
     end
     normalized =
         top <= fraction_bits ? integer << (fraction_bits - top) : integer >> (top - fraction_bits)
     fraction = U(normalized & ((UInt64(1) << fraction_bits) - 1))
     exponent = U(power + bias) << fraction_bits
-    return reinterpret(T, sign | exponent | fraction)
+    return _ieee_from_bits(sign | exponent | fraction)
 end
 
 # Compare positive integer dyadics without shifting by their absolute scale.

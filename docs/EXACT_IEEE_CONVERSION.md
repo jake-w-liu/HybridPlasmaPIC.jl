@@ -5,6 +5,8 @@ Cold numerical fallbacks share the private owners in
 significand and exponent with integer arithmetic. Rounded output conversion
 assembles the IEEE sign, exponent and fraction bits directly, including signed
 zero, subnormal boundaries, binade carries and infinity endpoints.
+The final bit publication dispatches on UInt16/32/64 storage to its concrete
+Float16/32/64 format. The packing equation and rounding decisions are shared.
 
 Integer quotient/remainder and exact-comparison owners choose rounding before
 packing. Packing performs no floating conversion or rescaling, so it preserves
