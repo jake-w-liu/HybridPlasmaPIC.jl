@@ -52,7 +52,7 @@ end
 function exact_pressure(st)
     p, u = Q.(st.fields.pe), Q.(st.fui[1])
     d = centered_four(st.g)
-    square = sum(component -> Q.(component).^2, st.fields.J)
+    square = sum(component -> Q.(component) .^ 2, st.fields.J)
     return -u .* (d * p) .- 2 * p .* (d * u) .+ Q(st.model.η) .* square
 end
 
@@ -62,19 +62,24 @@ function native_pressure!(st)
     divergence!(w.divue, w.ue, st.g)
     rate = similar(f.pe)
     H._electron_pressure_rhs!(rate, f.pe, w.ue, f.gradp, w.divue, eltype(rate)(2), Val(1))
-    iszero(st.model.η) || H._add_ohmic_pressure_heating!(rate, f.J, eltype(rate)(2), eltype(rate)(st.model.η))
+    iszero(st.model.η) ||
+        H._add_ohmic_pressure_heating!(rate, f.J, eltype(rate)(2), eltype(rate)(st.model.η))
     return rate
 end
 
 @testset "Complete ideal and Ohmic pressure before range classification" begin
-    for T in (Float32, Float64), kind in (:ohmic_cancel, :half_quantum, :half_quantum_mixed, :ideal_cancel, :derivative_rescue)
+    for T in (Float32, Float64),
+        kind in
+        (:ohmic_cancel, :half_quantum, :half_quantum_mixed, :ideal_cancel, :derivative_rescue)
+
         st = fixture(T, kind)
         exact = exact_pressure(st)
         legacy = native_pressure!(st)
         if kind in (:half_quantum, :half_quantum_mixed)
             @test exact[1] == 0 && exact[3] == Q(nextfloat(zero(T)))
             @test iszero(legacy[3])
-            kind === :half_quantum ? (@test all(iszero, legacy)) : (@test maximum(abs, legacy) >= floatmin(T))
+            kind === :half_quantum ? (@test all(iszero, legacy)) :
+            (@test maximum(abs, legacy) >= floatmin(T))
         elseif kind === :derivative_rescue
             @test all(iszero, st.fields.gradp[1]) && all(iszero, legacy)
             @test maximum(abs, exact) > Q(floatmin(T))
@@ -102,7 +107,16 @@ end
         before = copy(rate)
         f, w = st.fields, st.pressure_work
         @test !H._complete_scalar_pressure_if_needed!(
-            rate, f.pe, w.ue, f.gradp, w.divue, f.J, T(2), T(st.model.η), true, st.g,
+            rate,
+            f.pe,
+            w.ue,
+            f.gradp,
+            w.divue,
+            f.J,
+            T(2),
+            T(st.model.η),
+            true,
+            st.g,
         )
         @test isequal(rate, before)
         fill!(f.pe, one(T))
@@ -112,7 +126,16 @@ end
         foreach(a -> fill!(a, zero(T)), f.J)
         fill!(rate, -zero(T))
         @test !H._complete_scalar_pressure_if_needed!(
-            rate, f.pe, w.ue, f.gradp, w.divue, f.J, T(2), zero(T), false, st.g,
+            rate,
+            f.pe,
+            w.ue,
+            f.gradp,
+            w.divue,
+            f.J,
+            T(2),
+            zero(T),
+            false,
+            st.g,
         )
         @test all(signbit, rate)
         for c = 2:3
@@ -120,12 +143,30 @@ end
         end
         foreach(a -> fill!(a, T(NaN)), f.J)
         @test H._complete_scalar_pressure_if_needed!(
-            rate, f.pe, w.ue, f.gradp, w.divue, f.J, T(2), zero(T), false, st.g;
+            rate,
+            f.pe,
+            w.ue,
+            f.gradp,
+            w.divue,
+            f.J,
+            T(2),
+            zero(T),
+            false,
+            st.g;
             derivative_risk = true,
         )
         @test all(iszero, rate)
         @test_throws ArgumentError H._complete_scalar_pressure_if_needed!(
-            rate, f.pe, w.ue, f.gradp, w.divue, f.J, T(2), one(T), true, st.g;
+            rate,
+            f.pe,
+            w.ue,
+            f.gradp,
+            w.divue,
+            f.J,
+            T(2),
+            one(T),
+            true,
+            st.g;
             derivative_risk = true,
         )
         for kind in (:overflow, :all_underflow)
@@ -133,17 +174,31 @@ end
             exact = exact_pressure(rejected)
             @test any(!iszero, exact)
             kind === :overflow ? (@test any(x -> abs(x) > Q(floatmax(T)), exact)) :
-                (@test all(iszero, T.(exact)))
+            (@test all(iszero, T.(exact)))
             @test_throws ArgumentError H._bpressure_rhs!(
-                rejected.k1, rejected.pressure_work.kp[1], rejected.fields.B,
-                rejected.fields.pe, rejected, 1, 1,
+                rejected.k1,
+                rejected.pressure_work.kp[1],
+                rejected.fields.B,
+                rejected.fields.pe,
+                rejected,
+                1,
+                1,
             )
         end
         # A nonfinite original operand must be rejected before exact extraction.
         w.ue[1][1] = T(Inf)
         rate[1] = T(NaN)
         @test_throws ArgumentError H._complete_scalar_pressure_if_needed!(
-            rate, f.pe, w.ue, f.gradp, w.divue, f.J, T(2), zero(T), true, st.g,
+            rate,
+            f.pe,
+            w.ue,
+            f.gradp,
+            w.divue,
+            f.J,
+            T(2),
+            zero(T),
+            true,
+            st.g,
         )
     end
 end

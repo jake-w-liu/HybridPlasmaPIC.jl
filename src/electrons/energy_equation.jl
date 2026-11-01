@@ -96,7 +96,16 @@ end
 # This scan requests complete signed replay; it never certifies a nonzero
 # source or rejects a derivative channel independently of the pressure equation.
 function _scalar_pressure_rhs_needs_completion(
-    out::Array{T}, pe, ue, gradpe, divu, J, γ::T, η::T, active::Bool, ::Val{D},
+    out::Array{T},
+    pe,
+    ue,
+    gradpe,
+    divu,
+    J,
+    γ::T,
+    η::T,
+    active::Bool,
+    ::Val{D},
 ) where {T,D}
     magnitude = zero(T)
     γm1 = _pressure_heat_gamma(γ)
@@ -131,7 +140,16 @@ function _scalar_pressure_rhs_needs_completion(
 end
 
 function _complete_scalar_pressure_if_needed!(
-    out::Array{T,D}, pe, ue, gradpe, divu, J, γ::T, η::T, active::Bool, g::FourierGrid{D,T};
+    out::Array{T,D},
+    pe,
+    ue,
+    gradpe,
+    divu,
+    J,
+    γ::T,
+    η::T,
+    active::Bool,
+    g::FourierGrid{D,T};
     derivative_risk::Bool = false,
 ) where {D,T}
     derivative_risk ||
@@ -150,7 +168,15 @@ function _complete_scalar_pressure_if_needed!(
         end
     end
     _complete_transport_pressure_rhs!(
-        out, pe, ue, J, γ, η, zero(T), g; context = "complete electron pressure rate",
+        out,
+        pe,
+        ue,
+        J,
+        γ,
+        η,
+        zero(T),
+        g;
+        context = "complete electron pressure rate",
     )
     return true
 end
@@ -313,9 +339,7 @@ end
         end
     end
     nonzero, represented = _publish_complete_rate!(out, exact, context)
-    nonzero &&
-        !represented &&
-        throw(ArgumentError("$context rounds entirely to zero in $T"))
+    nonzero && !represented && throw(ArgumentError("$context rounds entirely to zero in $T"))
     return nothing
 end
 

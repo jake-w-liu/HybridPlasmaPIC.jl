@@ -132,12 +132,10 @@ isdefined(@__MODULE__, :_composition_fixture) || include("collisional_fixtures.j
         @test isequal(before, _composition_snapshot(st, ps))
     end
 
-    @testset "ideal evolving pressure uses the canonical split $T $R" for T in
-        (Float32, Float64), R in (Xoshiro, MersenneTwister)
+    @testset "ideal evolving pressure uses the canonical split $T $R" for T in (Float32, Float64),
+        R in (Xoshiro, MersenneTwister)
 
-        make(logs) = _composition_fixture(
-            Val(1), T, R; logs, closure = EvolvingElectrons(T(5 / 3)),
-        )
+        make(logs) = _composition_fixture(Val(1), T, R; logs, closure = EvolvingElectrons(T(5 / 3)))
         st, ps = make(T(0.05))
         reference, rps = make(T(0.05))
         for run in (st, reference)
@@ -152,7 +150,9 @@ isdefined(@__MODULE__, :_composition_fixture) || include("collisional_fixtures.j
             step!(reference.inner, rps, reference.dt)
             advanced_pressure = copy(reference.inner.fields.pe)
             collide_coulomb!(
-                rps, reference.grid, reference.dt;
+                rps,
+                reference.grid,
+                reference.dt;
                 coulomb_log = reference.coulomb_log,
                 epsilon0 = reference.epsilon0,
                 weight_to_number = reference.weight_to_number,
@@ -190,7 +190,11 @@ isdefined(@__MODULE__, :_composition_fixture) || include("collisional_fixtures.j
         @test !inactive.busy[]
 
         cold, cps = _composition_fixture(
-            Val(1), T, R; temperature = zero(T), closure = EvolvingElectrons(T(5 / 3)),
+            Val(1),
+            T,
+            R;
+            temperature = zero(T),
+            closure = EvolvingElectrons(T(5 / 3)),
         )
         init!(cold, cps)
         step!(cold, cps, cold.dt)
@@ -206,7 +210,10 @@ isdefined(@__MODULE__, :_composition_fixture) || include("collisional_fixtures.j
         rejected = 0
         for seed = 1:8
             st, ps = _composition_sampled_failure_fixture(
-                Float64, Xoshiro, seed; closure = EvolvingElectrons(),
+                Float64,
+                Xoshiro,
+                seed;
+                closure = EvolvingElectrons(),
             )
             init!(st, ps)
             entry = _composition_snapshot(st, ps)
@@ -224,7 +231,10 @@ isdefined(@__MODULE__, :_composition_fixture) || include("collisional_fixtures.j
             @test_throws typeof(failure) step!(st, ps, st.dt)
             @test isequal(entry, _composition_snapshot(st, ps))
             direct, dps = _composition_sampled_failure_fixture(
-                Float64, Xoshiro, seed; closure = EvolvingElectrons(),
+                Float64,
+                Xoshiro,
+                seed;
+                closure = EvolvingElectrons(),
             )
             init!(direct, dps)
             rng = _composition_rng_state(direct.rng)
@@ -245,8 +255,13 @@ isdefined(@__MODULE__, :_composition_fixture) || include("collisional_fixtures.j
         inner = HybridStepper(g, HybridModel(EvolvingElectrons(3.0)), CIC(), nparticles(p))
         fill!(inner.fields.pe, 1.0)
         st = CollisionalHybridStepper(
-            inner, [p]; dt = 0.8, rng = Xoshiro(712), coulomb_log = 0.05,
-            epsilon0 = 1.0, weight_to_number = 1.0,
+            inner,
+            [p];
+            dt = 0.8,
+            rng = Xoshiro(712),
+            coulomb_log = 0.05,
+            epsilon0 = 1.0,
+            weight_to_number = 1.0,
         )
         init!(st, [p])
         entry = _composition_snapshot(st, [p])

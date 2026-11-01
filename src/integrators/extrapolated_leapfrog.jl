@@ -659,14 +659,37 @@ function _bpressure_rhs!(
     divergence!(w.divue, w.ue, g)
     γ, η = T(st.model.closure.γ), T(st.model.η)
     derivative_risk = _transport_pressure_derivative_range_risk(
-        ptrial, w.ue, f.gradp, g, _transport_derivative_gains(g),
+        ptrial,
+        w.ue,
+        f.gradp,
+        g,
+        _transport_derivative_gains(g),
     )
     active = _transport_pressure_rhs_with_activity!(
-        outp, ptrial, w.ue, f.gradp, w.divue, γ, f.J, η, false, Val(D),
+        outp,
+        ptrial,
+        w.ue,
+        f.gradp,
+        w.divue,
+        γ,
+        f.J,
+        η,
+        false,
+        Val(D),
     )
     _add_transport_stage_sources!(st, outp)
     _complete_scalar_pressure_if_needed!(
-        outp, ptrial, w.ue, f.gradp, w.divue, f.J, γ, η, active, g; derivative_risk,
+        outp,
+        ptrial,
+        w.ue,
+        f.gradp,
+        w.divue,
+        f.J,
+        γ,
+        η,
+        active,
+        g;
+        derivative_risk,
     )
     if source === nothing
         faraday_rhs!(outB, st.Escr, g)
@@ -735,7 +758,13 @@ function _transport_stage_range_risk(st, ptrial, g::FourierGrid{D,T}, gains) whe
     return _transport_pressure_derivative_range_risk(ptrial, w.ue, f.gradp, g, gains)
 end
 
-function _transport_pressure_derivative_range_risk(ptrial, ue, gradp, g::FourierGrid{D,T}, gains) where {D,T}
+function _transport_pressure_derivative_range_risk(
+    ptrial,
+    ue,
+    gradp,
+    g::FourierGrid{D,T},
+    gains,
+) where {D,T}
     velocity_max, symbol_gain = zero(T), zero(T)
     for d = 1:D
         stats = _transport_input_stats(ue[d])

@@ -55,7 +55,10 @@ end
 # Finite inputs can yield an unrepresentable sampled velocity. No injection hook
 # or custom RNG is needed to exercise failure after field and random advancement.
 function _composition_sampled_failure_fixture(
-    ::Type{T}, R, seed; closure = IsothermalElectrons(zero(T)),
+    ::Type{T},
+    R,
+    seed;
+    closure = IsothermalElectrons(zero(T)),
 ) where {T}
     g = FourierGrid((1,), (one(T),))
     charge = floatmax(T) / T(2)

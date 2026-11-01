@@ -90,7 +90,9 @@ isdefined(@__MODULE__, :_composition_fixture) || include("collisional_fixtures.j
         end
         missing = NamedTuple{Tuple(k for k in keys(saved.inner) if k !== :pe)}(saved.inner)
         @test_throws ArgumentError H._restore_checkpoint_state!(
-            dest, dps, merge(saved, (inner = missing,)),
+            dest,
+            dps,
+            merge(saved, (inner = missing,)),
         )
         @test isequal(entry, _composition_snapshot(dest, dps))
         pressure_identity = dest.inner.fields.pe
