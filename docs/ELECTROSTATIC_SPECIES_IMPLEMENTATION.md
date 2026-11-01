@@ -9,7 +9,9 @@ below; coordinated timing acceptance remains open. The feature landed as
 [all six jobs and complete compiler review](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40325153253).
 That containing result does not relabel the original failure. Synchronous EM
 collections are now implemented with [acceptance pending](EMPIC_SPECIES_IMPLEMENTATION.md);
-specialized EMPIC1D, multirate and backend integrations remain open.
+[planar specialized EMPIC1D S1](EMPIC1D_SPECIES_IMPLEMENTATION_PLAN.md) source is
+also implemented pending GitHub acceptance; multirate and backend integrations
+remain open.
 
 ## Pre-edit brief (2026-10-25)
 

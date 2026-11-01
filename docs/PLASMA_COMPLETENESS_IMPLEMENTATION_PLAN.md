@@ -639,8 +639,9 @@ time levels. Never normalize away nonzero physical net charge silently.
   motion, physical diagnostics and restart are implemented; exact-revision GitHub
   checks and full compiler review remain.
 - [ ] Implement and accept [specialized EMPIC1D synchronous collections](EMPIC1D_SPECIES_IMPLEMENTATION_PLAN.md):
-  the reviewed S1 design is in implementation, with the actual Ex/Ey/Bz solver,
+  S1 source is implemented and reviewed, with the actual Ex/Ey/Bz solver,
   invariant planar inputs, staged publication and distinct persistence.
+  Exact-revision GitHub runtime/compiler/format acceptance remains pending.
 - [ ] Implement and accept S2 per-species dividing integer schedules, with
   independent velocity histories and explicit restart semantics. Synchronous
   `n_sub` alone does not supply species multirate stepping.

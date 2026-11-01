@@ -167,6 +167,10 @@ function _particle_arrays_mightalias(a::AbstractArray, b::AbstractArray)
     return (isempty(a) || isempty(b)) && _particle_backing_mightalias(a, b)
 end
 
+# Structural zeros use stored IEEE bits even when the caller enables FTZ.
+_particle_stored_zero(x::Float32) = iszero(reinterpret(UInt32, x) & 0x7fffffff)
+_particle_stored_zero(x::Float64) = iszero(reinterpret(UInt64, x) & 0x7fffffffffffffff)
+
 # Sufficient injectivity for identity-aligned batch reads and writes. An
 # arbitrary indexed view can visit the same backing location more than once.
 @inline _particle_batch_injective(a::AbstractVector) =

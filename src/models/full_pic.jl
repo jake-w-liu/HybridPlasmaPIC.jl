@@ -81,6 +81,17 @@
 #   (5) n_sub=1 vs n_sub=2 agree on the dispersion (convergence, few %);
 #   (6) a v≈0.9c relativistic electron beam does not blow up the field energy.
 
+struct _EMPICCollectionWork{D,T,P<:ParticleSet{D,T},S}
+    neutrality::Symbol
+    charge_rtol::T
+    mobile::BitVector
+    owners::Vector{P}
+    staged::Vector{_ElectrostaticHostParticle{D,T}}
+    midpoints::Vector{NTuple{D,Vector{T}}}
+    stage::S
+    initialized::Base.RefValue{Bool}
+end
+
 """
     EMPIC1D(g, Nparticles; n0=1.0, c=5.0, shape=CIC(), relativistic=false,
             mobile=false, mi=1836.0, n_sub=1)
@@ -99,7 +110,7 @@ split into `n_sub` electron/field substeps of `dt/n_sub`.
 Fields: `Ex, Ey, Bz` (length-`n` grid arrays), plus internal scratch. The
 canonical `Bz` is held at the half time level `n−1/2`.
 """
-mutable struct EMPIC1D{T,G,SH<:ShapeFunction}
+mutable struct EMPIC1D{T,G,SH<:ShapeFunction,W<:Union{Nothing,_EMPICCollectionWork{1,T}}}
     g::G
     n0::T
     c::T
@@ -138,6 +149,7 @@ mutable struct EMPIC1D{T,G,SH<:ShapeFunction}
     last_dt::Base.RefValue{T}       # preceding full ion drift interval
     last_sub_dt::Base.RefValue{T}   # preceding electron/field drift interval
     transaction::Union{Nothing,_EMPICTransaction{1,T}}
+    collection::W
 end
 
 function EMPIC1D(
@@ -156,10 +168,17 @@ function EMPIC1D(
     n0T = _require_finite_nonnegative_real("n0", n0, T)
     cT = _require_finite_positive_real("c", c, T)
     miT = _require_finite_positive_real("mi", mi, T)
+    return _new_empic1d_state(g, Np, n0T, cT, shape, relativistic, mobile, miT, Int(n_sub), nothing)
+end
+
+function _new_empic1d_state(
+    g::FourierGrid{1,T}, Np, n0T, cT, shape, relativistic, mobile, miT, ns,
+    collection::W,
+) where {T,W<:Union{Nothing,_EMPICCollectionWork{1,T}}}
     n = g.n[1]
     z() = zeros(T, n)
     vz() = zeros(T, Np)
-    EMPIC1D{T,typeof(g),typeof(shape)}(
+    EMPIC1D{T,typeof(g),typeof(shape),W}(
         g,
         n0T,
         cT,
@@ -167,7 +186,7 @@ function EMPIC1D(
         relativistic,
         mobile,
         miT,
-        Int(n_sub),
+        ns,
         z(),       # Ex
         z(),       # Ey
         z(),       # Bz
@@ -192,6 +211,7 @@ function EMPIC1D(
         Ref(zero(T)),
         Ref(zero(T)),
         nothing,
+        collection,
     )
 end
 
@@ -385,6 +405,15 @@ function _esirkepov_Jx!(
     tb = g.tbuf
     # direct-deposit current mean (k=0 physical net current): Jx0 = Σ_species q Σ w v_x / L
     Jx0 = _combined_Jx0(es, e, ions)
+    return _esirkepov_Jx!(es, g, n, cb, tb, Jx0, dt)
+end
+
+function _esirkepov_Jx!(es::EMPIC1D{T}, Jx0::T, dt::T) where {T}
+    g = es.g
+    return _esirkepov_Jx!(es, g, g.n[1], g.cbuf, g.tbuf, Jx0, dt)
+end
+
+function _esirkepov_Jx!(es::EMPIC1D{T}, g, n, cb, tb, Jx0::T, dt::T) where {T}
     # ρ̂^{n+1} − ρ̂^n
     @inbounds for i = 1:n
         cb[i] = Complex{T}(es.rho_np1[i] - es.rho_n[i])
@@ -890,6 +919,7 @@ function init_empic!(
     e::ParticleSet{1,T},
     ions::Union{Nothing,ParticleSet{1,T}} = nothing,
 ) where {T}
+    _require_scalar_empic(es)
     _require_empic_electrons(e)
     if es.mobile
         ions === nothing &&
@@ -906,6 +936,15 @@ function init_empic!(
     n = g.n[1]
     cb = g.cbuf
     _charge_density!(es.rho_n, es.ne, es, e, ions)
+    _empic1d_gauss!(es, g, n, cb)
+    es.time[] = zero(T)                 # (re)start at t=0; step==0 triggers leapfrog priming
+    es.step[] = 0
+    es.last_dt[] = zero(T)
+    es.last_sub_dt[] = zero(T)
+    return es
+end
+
+function _empic1d_gauss!(es::EMPIC1D{T}, g, n, cb) where {T}
     @inbounds for i = 1:n
         cb[i] = Complex{T}(es.rho_n[i])
     end
@@ -919,11 +958,7 @@ function init_empic!(
     @inbounds for i = 1:n
         es.Ex[i] = real(cb[i])
     end
-    es.time[] = zero(T)                 # (re)start at t=0; step==0 triggers leapfrog priming
-    es.step[] = 0
-    es.last_dt[] = zero(T)
-    es.last_sub_dt[] = zero(T)
-    return es
+    return nothing
 end
 
 # ---------------------------------------------------------------- substep
@@ -1319,8 +1354,7 @@ function _substep_em!(
 
     # (1) center B using the preceding substep's half interval, which is where
     # the stored field lies relative to the current integer time.
-    electric_parts = _em_derivative_parts!(es.dEy, es.Ey, g, 1)
-    _em_magnetic_update!(es.Bzc, es.Bz, es.dEy, electric_parts, dt_previous, z)
+    electric_parts = _empic1d_center_magnetic!(es, g, dt_previous, z)
 
     # (2) gather fields at time n and push electrons
     gather_scalar!(es.Exp, es.Ex, e, g, es.shape)
@@ -1354,6 +1388,18 @@ function _substep_em!(
     _charge_density!(es.rho_np1, es.ne, es, e, ions)
     _esirkepov_Jx!(es, e, ions, dt)
 
+    _empic1d_update_fields!(es, g, n, c2, electric_parts, dt_previous, dt)
+
+    return es
+end
+
+function _empic1d_center_magnetic!(es::EMPIC1D{T}, g, dt_previous, z) where {T}
+    electric_parts = _em_derivative_parts!(es.dEy, es.Ey, g, 1)
+    _em_magnetic_update!(es.Bzc, es.Bz, es.dEy, electric_parts, dt_previous, z)
+    return electric_parts
+end
+
+function _empic1d_update_fields!(es::EMPIC1D{T}, g, n, c2, electric_parts, dt_previous, dt) where {T}
     # (4) Advance B between its preceding and next half levels.
     _em_magnetic_update!(es.Bz, es.Bz, es.dEy, electric_parts, dt_previous, dt)
 
@@ -1622,6 +1668,12 @@ function _prime_empic1d_loop!(
     end
     return v
 end
+function _empic1d_prime_magnetic!(es::EMPIC1D{T}, g0, dt_e) where {T}
+    electric_parts = _em_derivative_parts!(es.dEy, es.Ey, g0, 1)
+    _em_magnetic_update!(es.Bz, es.Bz, es.dEy, electric_parts, dt_e, zero(T), true)
+    return es
+end
+
 """
     step_empic!(es, electrons[, ions], dt)
 
@@ -1647,6 +1699,7 @@ function step_empic!(
     ions::Union{Nothing,ParticleSet{1,T}},
     dt::Real,
 ) where {T}
+    _require_scalar_empic(es)
     _require_empic_electrons(e)
     if es.mobile
         ions === nothing &&
@@ -1725,8 +1778,7 @@ function _advance_empic_step!(
         # field priming: the seeded Bz is the physical Bz^0, but the Yee leapfrog carries Bz at
         # the half level Bz^{-1/2}. Back it up a half step: Bz^{-1/2} = Bz^0 + (dt_e/2) ∂xEy^0
         # (∂tBz = −∂xEy). Without this the integer-level fields (Ex, Ey) are only 1st-order in dt.
-        electric_parts = _em_derivative_parts!(es.dEy, es.Ey, g0, 1)
-        _em_magnetic_update!(es.Bz, es.Bz, es.dEy, electric_parts, dt_e, zero(T), true)
+        _empic1d_prime_magnetic!(es, g0, dt_e)
     end
     # The heavy ion is kicked ONCE (on the first substep) so that every substep drifts it with the
     # SAME post-kick velocity v^{n+1/2}; combined with the per-substep ion drift in _substep_em!,
@@ -2022,16 +2074,7 @@ end
 
 # ---------------------------------------------------------------- dimension-parametric EM PIC
 
-struct _EMPICCollectionWork{D,T,P<:ParticleSet{D,T},S}
-    neutrality::Symbol
-    charge_rtol::T
-    mobile::BitVector
-    owners::Vector{P}
-    staged::Vector{_ElectrostaticHostParticle{D,T}}
-    midpoints::Vector{NTuple{D,Vector{T}}}
-    stage::S
-    initialized::Base.RefValue{Bool}
-end
+
 
 
 """

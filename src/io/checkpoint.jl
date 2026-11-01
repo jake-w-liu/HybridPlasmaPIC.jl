@@ -837,15 +837,7 @@ end
 
 _empic_checkpoint_integrator(::EMPIC1D) = :empic1d
 _empic_checkpoint_integrator(::EMPIC) = :empic
-_empic_checkpoint_fields(st::EMPIC1D) = (
-    Ex = st.Ex,
-    Ey = st.Ey,
-    Bz = st.Bz,
-    Jx = st.Jx,
-    Jy = st.Jy,
-    rho_n = st.rho_n,
-    rho_np1 = st.rho_np1,
-)
+_empic_checkpoint_fields(st::EMPIC1D) = _empic_physical_fields(st)
 _empic_checkpoint_fields(st::EMPIC) = _empic_physical_fields(st)
 
 function _checkpoint_state(
@@ -879,13 +871,13 @@ end
 
 function _validate_checkpoint_state(s, st::_ElectromagneticCheckpointStepper)
     if s isa NamedTuple && haskey(s, :particle_layout)
-        st isa EMPIC && st.collection !== nothing ||
-            throw(ArgumentError("collection checkpoint requires a collection EMPIC destination"))
+        st.collection !== nothing || throw(
+            ArgumentError("collection checkpoint requires an electromagnetic collection destination"),
+        )
         return _validate_empic_collection_checkpoint(s, st)
     end
-    st isa EMPIC &&
-        st.collection !== nothing &&
-        throw(ArgumentError("collection EMPIC requires a collection checkpoint"))
+    st.collection !== nothing &&
+        throw(ArgumentError("electromagnetic collection requires a collection checkpoint"))
     _validate_checkpoint_container(s, _EMPIC_CHECKPOINT_REQUIRED_FIELDS)
     _validate_checkpoint_grid(s, st.g)
     expected = _empic_checkpoint_integrator(st)
@@ -1134,6 +1126,7 @@ function _restore_checkpoint_state!(
     ions::Union{Nothing,ParticleSet},
     s,
 )
+    _require_scalar_empic(st)
     _validate_checkpoint_state(s, st)
     D, T = s.D, s.T
     electrons isa ParticleSet{D,T} || throw(
@@ -1229,10 +1222,16 @@ history. Supply the ion `ParticleSet` exactly when `mobile=true`; electron and
 ion storage must be independent. Particle workspaces are resized on restore;
 scratch values are recomputed during stepping. `EMPIC` collection schema 1 stores
 ordered arbitrary species, per-population mobility, neutrality/background policy
-and the common fast velocity phase alongside these fields. Collection policy and
-mobility must match the destination. Saved relativistic mode, c, n_sub and
+and the common fast velocity phase alongside these fields. `EMPIC1D` collections
+use distinct schema 1 `:empic1d_collection` with required
+`polarization=:ex_ey_bz` and physical `Ex/Ey/Bz/Jx/Jy/rho_n/rho_np1` fields.
+Scalar, generic collection and specialized collection payloads cannot be
+interchanged. Collection policy, background, tolerance, mobility and shape type
+must match the destination. Saved relativistic mode, c, n_sub and
 physical species values replace destination values. The saved mode and c govern
-particle-domain validation before any restore publication.
+particle-domain validation, including the original planar EMPIC1D velocities,
+before any restore publication. Every incoming leaf is detached and revalidated,
+and destination capacity is reserved before physical values are copied in place.
 Mutable model/shape parameters must be independent of particle and evolving
 solver storage, including FFT plans, scratch arrays, and clock/phase references. Links to
 evolving storage are rejected before serialization can detach them. Array checks
@@ -1262,7 +1261,7 @@ end
 
 function save_checkpoint(
     path::AbstractString,
-    st::Union{_HybridCheckpointStepper,ElectrostaticPIC,EMPIC},
+    st::Union{_HybridCheckpointStepper,ElectrostaticPIC,EMPIC,EMPIC1D},
     species::AbstractVector{<:ParticleSet},
 )
     return _save_checkpoint(path, st, _checkpoint_state(st, species))
@@ -1325,7 +1324,9 @@ is immutable; their saved fields, density, and leapfrog phase are restored direc
 Electromagnetic destinations require the same ion mobility and concrete shape
 type; saved physics parameters replace the destination values. Supply independent
 electron and ion destinations for mobile runs. Both species are validated before
-either is changed.
+either is changed. Ordered EMPIC1D collections instead require their distinct
+collection tag and `:ex_ey_bz` polarization; all populations are validated using
+the saved c and relativistic mode, with exactly planar stored velocities.
 Hall-MHD destinations require the same concrete model/closure type; saved model
 parameters replace destination values while existing field arrays remain in place.
 Checkpoints missing fields required by their model family are rejected.
@@ -1342,7 +1343,7 @@ function load_checkpoint!(st::HallMHDState, path::AbstractString)
 end
 
 function load_checkpoint!(
-    st::Union{_HybridCheckpointStepper,ElectrostaticPIC,EMPIC},
+    st::Union{_HybridCheckpointStepper,ElectrostaticPIC,EMPIC,EMPIC1D},
     species::AbstractVector{<:ParticleSet},
     path::AbstractString,
 )

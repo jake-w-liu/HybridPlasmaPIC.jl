@@ -103,8 +103,8 @@ _yl_particle_arrays(ps::ParticleSet) = (ps.x..., ps.v..., ps.weight, ps.id, ps.t
 
 # Structural zero admission must inspect stored bits, including when the caller
 # has enabled flush-to-zero before entering an API that will reject that mode.
-_yl_stored_zero(x::Float32) = iszero(reinterpret(UInt32, x) & 0x7fffffff)
-_yl_stored_zero(x::Float64) = iszero(reinterpret(UInt64, x) & 0x7fffffffffffffff)
+_yl_stored_zero(x::Float32) = _particle_stored_zero(x)
+_yl_stored_zero(x::Float64) = _particle_stored_zero(x)
 function _yl_require_mode()
     _boris_accuracy_mode() ||
         throw(ArgumentError("closed Yee PIC requires nearest rounding and gradual underflow"))

@@ -41,3 +41,29 @@ import JET
         @test isempty(JET.get_reports(loader))
     end
 end
+
+@testset "Specialized EMPIC1D collection concrete compiler calls" begin
+    for T in (Float32, Float64)
+        ps = ParticleSet{1,T}(2; q = 0)
+        ps.x[1] .= T[0.25, 0.75]
+        species = [ps]
+        state = EMPIC1D(FourierGrid((4,), (one(T),)), species)
+        init_empic!(state, species)
+        saved = HybridPlasmaPIC._checkpoint_state(state, species)
+        calls = (
+            (init_empic!, Tuple{typeof(state),typeof(species)}),
+            (step_empic!, Tuple{typeof(state),typeof(species),T}),
+            (electromagnetic_diagnostics, Tuple{typeof(state),typeof(species)}),
+            (HybridPlasmaPIC._checkpoint_state, Tuple{typeof(state),typeof(species)}),
+            (HybridPlasmaPIC._restore_checkpoint_state!, Tuple{typeof(state),typeof(species),typeof(saved)}),
+        )
+        for (f, types) in calls
+            report = JET.report_call(f, types)
+            if !isempty(JET.get_reports(report))
+                show(stdout, MIME"text/plain"(), report)
+                println()
+            end
+            @test isempty(JET.get_reports(report))
+        end
+    end
+end

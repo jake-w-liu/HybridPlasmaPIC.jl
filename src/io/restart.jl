@@ -64,6 +64,10 @@ full/fast timestep history. Supply ions exactly when `mobile=true` for the legac
 electron/ion API. Synchronous `EMPIC` collections preserve their ordered arbitrary
 populations, mobility, neutrality/background policy, relativistic mode and c,
 and common fast velocity half level through collection checkpoint schema 1.
+`EMPIC1D` collections use distinct schema 1 `:empic1d_collection`, required
+`polarization=:ex_ey_bz`, and their seven specialized physical field arrays.
+Scalar, generic collection and specialized collection payloads cannot be
+interchanged; the surrounding archive container remains schema 4.
 Hall-MHD archives contain the model, fluid and public derived fields, retained
 stage `lapJ`, and clock; no particle argument or timestep history is needed.
 Collisional archives add the complete advanced RNG state and completed source
@@ -86,7 +90,7 @@ end
 
 function archive_run(
     path::AbstractString,
-    st::Union{_HybridCheckpointStepper,ElectrostaticPIC,EMPIC},
+    st::Union{_HybridCheckpointStepper,ElectrostaticPIC,EMPIC,EMPIC1D},
     species::AbstractVector{<:ParticleSet};
     kwargs...,
 )

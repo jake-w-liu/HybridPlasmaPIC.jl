@@ -11,6 +11,13 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Added
 
+- `EMPIC1D(g, species)` adds synchronous CPU collections in the specialized
+  Ex/Ey/Bz planar polarization, with optional relativistic motion, physical
+  diagnostics, complete staged publication and distinct schema-1 checkpoint/archive.
+  Legacy scalar/two-species numerical owners are shared; exact-revision GitHub
+  runtime/compiler/format and cost acceptance remain pending in the
+  [S1/S2 tracker](docs/EMPIC1D_SPECIES_IMPLEMENTATION_PLAN.md).
+
 - The existing manual Yee EM essentials suite records warmed complete-step
   timing, allocation traffic and GC metadata for small ordinary and original-force
   range profiles. Measurements run on GitHub; peak memory and performance

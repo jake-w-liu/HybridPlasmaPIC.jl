@@ -674,7 +674,8 @@ EM and comparative campaigns remain in the
   has longitudinal and 1D3V EM source implementations with diagnostics and restart,
   pending GitHub acceptance. Wall events, absorbing layers and broader coupling
   remain open.
-- Specialized `EMPIC1D` arbitrary-species collections are in implementation;
+- Specialized `EMPIC1D` arbitrary-species collections have a planar synchronous
+  CPU source implementation, pending GitHub acceptance;
   their [S1/S2 tracker](docs/EMPIC1D_SPECIES_IMPLEMENTATION_PLAN.md) separates
   planar synchronous stepping from later per-species multirate schedules.
 - Collision/field composition covers fixed-step, first-order `HybridStepper`

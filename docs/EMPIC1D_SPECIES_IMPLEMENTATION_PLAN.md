@@ -1,7 +1,7 @@
 # CAP-008 specialized EMPIC1D species implementation
 
-Updated 2026-11-01. **S1 is in implementation; no new solver behavior or runtime
-acceptance is claimed here.** The [audit tracker](DEEP_DEBUG_TRACKER.md) owns
+Updated 2026-11-01. **S1 source is implemented and reviewed; exact-revision
+GitHub acceptance remains pending.** The [audit tracker](DEEP_DEBUG_TRACKER.md) owns
 publication and CI status. This plan expands the specialized-model and multirate
 items in [CAP-008](PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md#cap-008--arbitrary-kinetic-species-in-esem).
 The [generic EMPIC collection contract](EMPIC_SPECIES_IMPLEMENTATION.md) remains
@@ -12,7 +12,7 @@ the source of its existing scope and pending acceptance.
 `src/models/full_pic.jl` carries a specialized `EMPIC1D` with `Ex/Ey/Bz`,
 longitudinal continuity current, midpoint transverse current, staggered magnetic
 and velocity phases, and legacy electron/optional coarse-ion stepping. Its
-collection overload is missing. Generic `EMPIC{1}` already carries both
+collection overload now uses those specialized owners. Generic `EMPIC{1}` already carries both
 transverse polarizations; it is not an adapter for this implementation.
 
 S1 adds actual specialized CPU Float32/64 collections with arbitrary finite
@@ -38,9 +38,9 @@ Private scratch may change on rejection; public destination identities remain.
 | Stage | Status | Required result |
 | --- | --- | --- |
 | S1 source design | Reviewed | Genuine specialized state; planar scope; synchronous fast phases; complete publication and distinct restart contract |
-| S1 construction and orchestration | In implementation | Ordered populations gather the same old fields, then sum currents before one specialized field update per fast interval |
-| S1 diagnostics and persistence | In implementation | Physical moments and verbatim field restore, complete graph detachment, saved-mode validation, identity/capacity handling and layout rejection |
-| S1 source review and essential checks | Pending | Legacy helper-expansion comparison; independent current/phase and failure/retry/restore controls; existing assertions retained |
+| S1 construction and orchestration | Source implemented | Ordered populations gather the same old fields, then sum currents before one specialized field update per fast interval |
+| S1 diagnostics and persistence | Source implemented | Physical moments and verbatim field restore, complete graph detachment, saved-mode validation, identity/capacity handling and layout rejection |
+| S1 source review and essential checks | Source reviewed; runtime pending | Legacy helper-expansion comparison and independent caller review; essential current/phase and failure/retry/restore controls registered; existing assertions retained |
 | S1 GitHub acceptance | Pending | Exact revision on minimum `1.12` and moving stable `1`; full neighboring tests, complete compiler review and formatter |
 | S1 resource acceptance | Pending | Remote complete init/step/restart cost versus specialized legacy path, actual hardware/runtime/threads, allocation traffic and peak memory distinguished |
 | S2 per-species schedules | Planned separately | Dividing integer strides, independent species phase/history, explicit restart version/migration and physical refinement |

@@ -25,10 +25,30 @@ const _EMPIC_COLLECTION_CHECKPOINT_FIELDS = (
     :last_sub_dt,
 )
 
-function _validate_empic_collection_checkpoint(s, st::EMPIC{D,T}) where {D,T}
+_empic_collection_checkpoint_integrator(::EMPIC) = :empic_collection
+_empic_collection_checkpoint_integrator(::EMPIC1D) = :empic1d_collection
+
+_empic_collection_checkpoint_arrays(::EMPIC, fields) =
+    (fields.E..., fields.B..., fields.J..., fields.rho_n, fields.rho_np1)
+_empic_collection_checkpoint_arrays(::EMPIC1D, fields) =
+    (fields.Ex, fields.Ey, fields.Bz, fields.Jx, fields.Jy, fields.rho_n, fields.rho_np1)
+
+_validate_empic_collection_checkpoint(s, st::_ElectromagneticCheckpointStepper) =
+    _validate_empic_collection_checkpoint(s, st, st.g)
+
+function _validate_empic_collection_checkpoint(
+    s,
+    st::_ElectromagneticCheckpointStepper,
+    ::FourierGrid{D,T},
+) where {D,T}
     _validate_checkpoint_container(s, _EMPIC_COLLECTION_CHECKPOINT_FIELDS)
+    if st isa EMPIC1D
+        _validate_checkpoint_container(s, (:polarization,))
+        s.polarization === :ex_ey_bz ||
+            throw(ArgumentError("unsupported EMPIC1D collection checkpoint polarization"))
+    end
     _validate_checkpoint_grid(s, st.g)
-    s.integrator === :empic_collection &&
+    s.integrator === _empic_collection_checkpoint_integrator(st) &&
         s.particle_layout === :collection &&
         s.schema_version === 1 ||
         throw(ArgumentError("unsupported electromagnetic collection checkpoint schema"))
@@ -65,7 +85,7 @@ function _validate_empic_collection_checkpoint(s, st::EMPIC{D,T}) where {D,T}
     populations = ParticleSet{D,T}[_checkpoint_species(record, Val(D), T) for record in s.species]
     _empic_collection_validate_populations(st, populations, s.c, s.relativistic)
     _validate_checkpoint_fields(s.fields, _empic_checkpoint_fields(st))
-    arrays = (s.fields.E..., s.fields.B..., s.fields.J..., s.fields.rho_n, s.fields.rho_np1)
+    arrays = _empic_collection_checkpoint_arrays(st, s.fields)
     for (i, a) in enumerate(arrays)
         all(isfinite, a) || throw(ArgumentError("checkpoint electromagnetic fields must be finite"))
         for j = 1:(i-1)
@@ -80,13 +100,22 @@ function _validate_empic_collection_checkpoint(s, st::EMPIC{D,T}) where {D,T}
     return nothing
 end
 
-function _checkpoint_state(st::EMPIC{D,T}, species::AbstractVector{<:ParticleSet}) where {D,T}
+_checkpoint_state(
+    st::_ElectromagneticCheckpointStepper,
+    species::AbstractVector{<:ParticleSet},
+) = _empic_collection_checkpoint_state(st, species, st.g)
+
+function _empic_collection_checkpoint_state(
+    st::_ElectromagneticCheckpointStepper,
+    species::AbstractVector{<:ParticleSet},
+    ::FourierGrid{D,T},
+) where {D,T}
     work = _empic_collection(st)
     _empic_collection_validate_species(st, species)
     _empic_collection_validate_phase(st)
     work.initialized[] && _empic_collection_bound(work, species)
-    return (
-        integrator = :empic_collection,
+    state = (
+        integrator = _empic_collection_checkpoint_integrator(st),
         D = D,
         T = T,
         ncell = st.g.n,
@@ -109,22 +138,31 @@ function _checkpoint_state(st::EMPIC{D,T}, species::AbstractVector{<:ParticleSet
         last_dt = st.last_dt[],
         last_sub_dt = st.last_sub_dt[],
     )
+    return st isa EMPIC1D ? merge(state, (polarization = :ex_ey_bz,)) : state
 end
 
-function _restore_checkpoint_state!(
-    st::EMPIC{D,T},
+_restore_checkpoint_state!(
+    st::_ElectromagneticCheckpointStepper,
     species::AbstractVector{<:ParticleSet},
     s,
+) = _restore_empic_collection_checkpoint!(st, species, s, st.g)
+
+function _restore_empic_collection_checkpoint!(
+    st::_ElectromagneticCheckpointStepper,
+    species::AbstractVector{<:ParticleSet},
+    s,
+    ::FourierGrid{D,T},
 ) where {D,T}
     work = _empic_collection(st)
     _validate_checkpoint_state(s, st)
     _empic_collection_validate_storage(st, species)
     length(species) == length(s.species) ||
         throw(ArgumentError("checkpoint population count does not match destination"))
-    all(ps -> ps isa eltype(work.owners), species) ||
-        throw(ArgumentError("population storage type changed; construct a new EMPIC state"))
+    all(ps -> ps isa eltype(work.owners), species) || throw(
+        ArgumentError("population storage type changed; construct a new electromagnetic collection state"),
+    )
     saved_populations = [_checkpoint_species(record, Val(D), T) for record in s.species]
-    saved_fields = (s.fields.E..., s.fields.B..., s.fields.J..., s.fields.rho_n, s.fields.rho_np1)
+    saved_fields = _empic_collection_checkpoint_arrays(st, s.fields)
     for (ps, record) in zip(species, s.species)
         _validate_checkpoint_destination(ps, length(record.weight))
         for saved in saved_populations

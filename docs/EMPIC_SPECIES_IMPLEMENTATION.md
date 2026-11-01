@@ -3,9 +3,10 @@
 Status: synchronous CPU `EMPIC` collections are implemented with optional
 relativistic motion. Both slices are integrated after independent root source
 and caller review; exact-revision GitHub runtime/compiler/format acceptance
-remains pending. Specialized
-`EMPIC1D` collections, species-specific multirate schedules, collisions,
-nonperiodic boundaries and resident MPI/GPU evolution remain open.
+remains pending. Specialized planar `EMPIC1D` S1 collections are now source
+implemented, with exact integrated acceptance pending; see the S1 section below.
+Species-specific multirate schedules, collisions, nonperiodic boundaries and
+resident MPI/GPU evolution remain open.
 
 ## Ordinary-store admission (2026-11-01)
 
@@ -201,7 +202,9 @@ neighboring checks, with complete compiler findings reviewed.
 CAP-008 remains incomplete. Pair/unequal-species dispersion and convergence,
 permutation/conservation campaigns, population growth and complete resource
 acceptance, exact-revision acceptance of relativistic collections, species-specific multirate evolution,
-EMPIC1D collections, collisions, boundaries and resident backends remain open.
+exact integrated acceptance of specialized EMPIC1D S1 collections, collisions,
+boundaries and resident backends remain open. S1's synchronous source path does
+not complete the separately planned per-species multirate schedule.
 
 ## Relativistic follow-on pre-edit brief (2026-11-01, historical)
 
@@ -315,3 +318,63 @@ FTZ replay preserving original subnormal factors,
 normalized legacy compatibility, a nonvacuous late C1 rollback and changed-mode/c
 checkpoint/archive continuation. No local Julia, formatter, build or benchmark
 was run. Neither full CAP-008 completion nor performance improvement is claimed.
+
+## Specialized planar EMPIC1D S1 source candidate
+
+`EMPIC1D(g, species; mobile, background_charge=0, neutrality=:require,
+charge_rtol=64eps(T), c=5, shape=CIC(), n_sub=1, relativistic=false)` now has
+an ordered CPU Float32/64 collection path using the actual specialized
+`Ex/Ey/Bz` solver. See the [dedicated S1/S2 plan](EMPIC1D_SPECIES_IMPLEMENTATION_PLAN.md).
+All original stored `v_z` values must be zero, including under FTZ; fixed
+populations require zero stored velocity. Generic `EMPIC{1}` already supplies
+both transverse polarizations. This specialized slice does not add `Ez/By`.
+
+Each mobile population gathers the same old fields, kicks and drifts at every
+fast interval `dt/n_sub`. Total charge and the physical DC longitudinal current
+include every applicable population; midpoint `Jy` is summed before the existing
+Nyquist treatment. First-step priming, preceding fast-step centering and zero-step
+phase retention use the canonical specialized owners. Changing `n_sub` preserves
+the previous resolved fast interval. S1 is synchronous: the unchanged legacy
+count API retains its distinct coarse-ion schedule. Compatibility checks use
+the common planar `n_sub=1` subspace.
+
+Initialization binds ordered identities and requires physical full-time
+velocities. In-place population growth or edits do not provide a source model:
+new/modified velocities must have the declared existing half phase after
+stepping, and external charge changes require physically consistent fields and
+source handling. S1 does not implement charge injection or supply its current.
+Do not extend continuity/Gauss claims to arbitrary external particle/field edits.
+Inputs require independent writable CPU strided leaves and the shared canonical
+ordinary-store admission; known Const/AtomicMemory wrapper ancestry rejects.
+The existing generic EMPIC fixed-population `iszero` admission remains a separate
+mode-sensitive source gap; this slice's specialized planar/fixed checks inspect
+stored IEEE bits through the shared particle owner.
+
+The complete external operation stages particles, all specialized transaction
+arrays and clocks before publication. Expected input/arithmetic rejection leaves
+public state unchanged; private scratch/FFT buffers may change and are refreshed
+on retry. Ordinary writable array/view identities remain. Resource exhaustion,
+OS-protected memory and arbitrary custom-array side effects are not new rollback
+guarantees. Concurrent calls require independent states, particles and grids.
+
+`electromagnetic_diagnostics` reports exact charge policy, physical stored-velocity
+particle moments (relativistic when selected), shared field energy counted once,
+and the explicit fast velocity/magnetic half offsets. No exact fully discrete
+energy, momentum, Gauss storage or general stability theorem is claimed. The
+spectral Nyquist null and finite-precision FFT/source range limits remain.
+
+Distinct schema-1 `:empic1d_collection` checkpoint/archive state requires
+`polarization=:ex_ey_bz` and stores physical fields/current/charge snapshots,
+ordered particles, mobility/background/neutrality policy and full/fast phase.
+Saved mode/c govern saved-particle admission. All incoming leaves are validated,
+detached and capacity-reserved before verbatim restoration. Legacy scalar and
+generic collection layouts cross-reject; archive container 4 is unchanged.
+Matched writable strided destinations retain identity and require saved counts.
+Derived gathers, midpoints, centered B and transaction scratch are not persisted.
+
+Source implementation and essential independent references are prepared; exact
+integrated GitHub numerical/compiler/formatter gates and complete-step cost
+acceptance remain pending. No local Julia or resource measurement ran. S2's
+per-species coarse-kick/every-fast-drift schedule, separate duration history and
+restart version/migration remain planned separately, as do broader CAP-008
+backend, collision and boundary intersections.
