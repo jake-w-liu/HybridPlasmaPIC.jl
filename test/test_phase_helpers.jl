@@ -2,6 +2,21 @@
 
 using HybridPlasmaPIC, Test, Random
 
+@testset "Magnetic substep resolution is checked before evolution" begin
+    for T in (Float32, Float64)
+        dt = 2 * floatmin(T)
+        @test iszero(dt / typemax(Int))
+        @test_throws r"magnetic substep dt/NB must remain nonzero" HybridPlasmaPIC._validated_step_dt(
+            T, dt, typemax(Int); min_NB = 1, name = "step!",
+        )
+        # A resolved subnormal field step remains admitted; only zero is rejected.
+        @test issubnormal(dt / 8)
+        @test HybridPlasmaPIC._validated_step_dt(T, dt, 8; min_NB = 1, name = "step!") === dt
+        @test HybridPlasmaPIC._validated_step_dt(T, zero(T), typemax(Int);
+            min_NB = 1, name = "step!") === zero(T)
+    end
+end
+
 @testset "§6.4 electron_velocity! u_e = u_i − J/n (array form, exact)" begin
     T = Float64
     nc = (6,)

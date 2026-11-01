@@ -179,8 +179,8 @@ source files match the candidate source exactly. Each captured log contains eigh
 passing testset summaries and no test/error markers. The final two changed
 Julia test files are unchanged by JuliaFormatter 1.0.62 at margin 100.
 
-Fresh manifest-free environments resolve JET **0.12.3** on both native Julia
-versions. The current General registry tree is
+At this CI-002 verification, manifest-free environments resolved JET **0.12.3**
+on both native Julia versions. The General registry tree used was
 `f182e4d8e8597200dd5e99cbb1ae4037d8e9c4fb`; JET's tree is
 `2c350a2325c19490c0e18ece0137366eafbc4733`.
 

@@ -980,7 +980,11 @@ function _validated_step_dt(
 ) where {T}
     NB >= min_NB ||
         throw(ArgumentError("$name requires NB >= $min_NB magnetic subcycles (got $NB)"))
-    return _require_resolved_dt(name, _validated_nonnegative_dt(T, dt; name))
+    dtT = _require_resolved_dt(name, _validated_nonnegative_dt(T, dt; name))
+    iszero(dtT) || !iszero(dtT / NB) || throw(
+        ArgumentError("$name magnetic substep dt/NB must remain nonzero at grid precision; reduce NB or increase dt"),
+    )
+    return dtT
 end
 
 # One-time leapfrog priming. The loaded velocity is the physical v^0, but the leapfrog Boris push

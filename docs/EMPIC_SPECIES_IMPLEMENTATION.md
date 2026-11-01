@@ -163,11 +163,12 @@ scale. The unchanged `1024eps(T)` relative bound applies to a separate mobile
 nonuniform-density fixture, with an explicit resolved-increment guard and the
 same variable fast-step schedule. The correction and public diagnostic formulas
 are unchanged. At `82a7499`, the [focused GitHub run](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41285023160)
-passes all 194 assertions on actual Julia 1.13.3: physical diagnostics, fast/legacy
+passes all 194 assertions on each actual Julia 1.12.7 and 1.13.3: physical diagnostics, fast/legacy
 phases, resolved continuity, C1 rollback and checkpoint/archive continuation.
 The 12 uniform measurements are identical to the earlier failed observation;
-all resolved-increment guards and unchanged relative bounds pass. Minimum-Julia,
-full-package/compiler/format and later-revision acceptance remain pending; the
+all 24 observation records also match across runtimes, including the resolved
+signal guards and unchanged relative bounds. Full-package/compiler/format and
+later-revision acceptance remain pending; the
 earlier failures remain retained.
 
 The initial essential suite covers both precisions, dimensions and built-in shapes;
