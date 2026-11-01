@@ -11,9 +11,16 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Added
 
+- Specialized `EMPIC1D` collections add dividing per-species kick strides,
+  every-fast drift/current and independent staged velocity histories. The atomic
+  `set_empic1d_schedule!` setter preserves old phase; diagnostics report nominal
+  offsets and copied schedule/history. Schema 2/policy 1 explicitly migrates
+  validated S1 state. Essential remote numerical/compiler/format and cost gates
+  remain pending; see the [S1/S2 tracker](docs/EMPIC1D_SPECIES_IMPLEMENTATION_PLAN.md).
+
 - `EMPIC1D(g, species)` adds synchronous CPU collections in the specialized
   Ex/Ey/Bz planar polarization, with optional relativistic motion, physical
-  diagnostics, complete staged publication and distinct schema-1 checkpoint/archive.
+  diagnostics, complete staged publication and distinct collection checkpoint/archive.
   Legacy scalar/two-species numerical owners are shared; exact-revision GitHub
   runtime/compiler/format and cost acceptance remain pending in the
   [S1/S2 tracker](docs/EMPIC1D_SPECIES_IMPLEMENTATION_PLAN.md).

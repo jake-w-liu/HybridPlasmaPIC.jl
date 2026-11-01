@@ -227,7 +227,7 @@ and quota failures describe historical work, not current ownership.
 | 006C adaptive plasma hierarchy | Agent unassigned; AMR/coupling/model/I/O | Composite field method; 002/003/004 only where claimed | Partial scalar-level primitives | Design static ES hierarchy and crossing/self-force oracle before dynamic refinement |
 | 007A/B reference provenance + production dispersion | Canonical validation/reference owners; next campaign agent unassigned | Source/network/toolchain; accepted production solver | Pinned provenance, parallel production histories and oblique Hall case 35 landed; CI state is in the audit tracker | Complete manual campaigns and broaden thermal/kinetic/EM regimes, uncertainty and matched-cost comparisons; [production plan](PRODUCTION_DISPERSION_PLAN.md) |
 | 007C–E profiles, new physics, comparative costs | Agent unassigned; validation/benchmark owners | Accepted corresponding capability; datasets/hardware | Existing scalar comparisons inspected; campaigns unrun here | Freeze matched inputs/diagnostics/uncertainty and preserve raw reference outputs |
-| 008 ES/EM arbitrary species | Canonical electrostatic/EM owners; synchronous collection implementation track | Existing deposition, spectral Maxwell and phase owners | ES containing `4724947` passes all six jobs/compiler review. [Synchronous EMPIC collections with optional relativistic motion](EMPIC_SPECIES_IMPLEMENTATION.md) implemented with shared known ordinary-store admission; GitHub acceptance pending | Accept current sum/continuity, staged publication, physical relativistic diagnostics and restart; implement species multirate and remaining backends |
+| 008 ES/EM arbitrary species | Canonical electrostatic/EM collection owners | Existing deposition, spectral Maxwell and phase owners | ES containing `4724947` passes all six jobs/compiler review. [EMPIC collections and specialized EMPIC1D dividing schedules](EMPIC_SPECIES_IMPLEMENTATION.md) implemented with shared ordinary-store admission, staged publication and persistence; new GitHub acceptance pending | Accept current sum/continuity, phase, physical diagnostics, restart/migration and matched cost; broader species schedules and backends remain open |
 | 009 full-Hall multidimensional shocks | Scope proposal; root selects implementation agent | Full mixed-operator/field-boundary balance; 005 optional | Deliberate reduced induction verified | Derive full induction and SAT budget; build transverse-mode witness |
 | 010 composed sources and RNG restart | Integrator/checkpoint owners; independent collision audit track | 001 and phase/growth/checkpoint contracts | Fixed-step first-order isothermal CPU `CollisionalHybridStepper` landed; `2b2420b` exact-SHA CI/compiler gates pass. Ideal evolving, S1/S2 transport and S3b conduction extensions implemented, CI pending | Accept the extensions, then extend schedules, other closures/models/sources and backends; preserve full pressure/force/RNG/phase/rollback contract |
 | 011 electron transport/energy | Electron/integrator owners and transport track | Term-specific balance and carried force contract | S1 is landed. The registered SO 0.1.8 consumer floor and bounded scalar original-product prerequisites are integrated; the dependency's five passing checks do not accept HPIC. Earlier 0.1.7 and rejected-candidate evidence remains historical | Exact-revision HPIC CI, transport resource/peak-memory and restart checks, general original-product admission and S3–S8 remain open |
@@ -638,17 +638,18 @@ time levels. Never normalize away nonzero physical net charge silently.
   summed charge-conserving currents, mobile/fixed populations, optional relativistic
   motion, physical diagnostics and restart are implemented; exact-revision GitHub
   checks and full compiler review remain.
-- [ ] Implement and accept [specialized EMPIC1D synchronous collections](EMPIC1D_SPECIES_IMPLEMENTATION_PLAN.md):
+- [ ] Accept [specialized EMPIC1D synchronous collections](EMPIC1D_SPECIES_IMPLEMENTATION_PLAN.md):
   S1 source is implemented and reviewed, with the actual Ex/Ey/Bz solver,
   invariant planar inputs, staged publication and distinct persistence.
   Exact-revision GitHub runtime/compiler/format acceptance remains pending.
-- [ ] Implement and accept S2 per-species dividing integer schedules, with
-  independent velocity histories and explicit restart semantics. The reviewed
-  setter/phase/schema-2 and tagged S1 migration design is now in implementation;
-  runtime and physical refinement gates remain. Synchronous `n_sub` alone does
-  not supply species multirate stepping.
-- [ ] Accept new EM collection checkpoint/archive (implemented with the synchronous
-  slice); extend CAP-001 interactions, CAP-002 boundaries, CAP-003 partitions and
+- [ ] Accept S2 per-species dividing integer schedules: source implementation
+  now includes independent velocity histories, an atomic future setter,
+  schema-2/policy-1 restart and explicit tagged S1 migration. Root/independent
+  source review and 59 core/IO source checks are complete; registered runtime,
+  physical refinement, compiler, formatter and resource gates remain pending.
+  Broader nondividing/adaptive/asynchronous schedules remain open.
+- [ ] Accept new EM collection checkpoint/archive, including specialized S2
+  phase/migration; extend CAP-001 interactions, CAP-002 boundaries, CAP-003 partitions and
   CAP-004 residency. Existing ES collection persistence remains landed.
 
 Gate scalar/two-species compatibility, species permutation of physical totals,

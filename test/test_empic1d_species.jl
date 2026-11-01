@@ -28,7 +28,8 @@ function snapshot(es, species)
     serialize(io, (fields = H._empic_transaction_fields(es),
         phase = (es.time[], es.step[], es.last_dt[], es.last_sub_dt[]),
         species = [H._checkpoint_particle_state(ps) for ps in species],
-        initialized = es.collection.initialized[], owners = objectid.(es.collection.owners)))
+        initialized = es.collection.initialized[], owners = objectid.(es.collection.owners),
+        schedule = (es.n_sub, copy(es.collection.schedule.stride), copy(es.collection.schedule.last_species_dt))))
     return take!(io)
 end
 
@@ -295,7 +296,7 @@ end
             saved = load_archive(archive).state
             @test saved.integrator === :empic1d_collection && saved.polarization === :ex_ey_bz
             before = snapshot(target, destination)
-            for changes in ((schema_version = 2,), (schema_version = true,), (polarization = :full,), (last_sub_dt = zero(T),), (relativistic = true, c = eps(T)))
+            for changes in ((schema_version = 3,), (schema_version = true,), (polarization = :full,), (last_sub_dt = zero(T),), (relativistic = true, c = eps(T)))
                 @test_throws ArgumentError H._restore_checkpoint_state!(target, destination, merge(saved, changes))
                 @test snapshot(target, destination) == before
             end
@@ -335,6 +336,262 @@ end
             entry = snapshot(viewed, views)
             @test_throws ArgumentError H._restore_checkpoint_state!(viewed, views, merge(saved, (species = records,)))
             @test snapshot(viewed, views) == entry
+        end
+    end
+end
+
+# Rational planar Boris oracle on constant represented fields; no production
+# gather, mover or derivative enters the interior-event reference.
+function planar_reference(v, alpha, duration, ex, ey, bz)
+    h = alpha * duration / 2
+    ux, uy = v[1] + h * ex, v[2] + h * ey
+    t = h * bz
+    twice = 2t / (1 + t^2)
+    return (ux + (uy - ux * t) * twice + h * ex,
+        uy - (ux + uy * t) * twice + h * ey)
+end
+
+@testset "Dividing species events and completed-boundary schedule changes" begin
+    for T in (Float32, Float64)
+        species = [ParticleSet{1,T}(1; q, m) for (q,m) in ((1,3),(-2,5))]
+        for ps in species
+            ps.x[1][1], ps.weight[1] = T(1/4), zero(T)
+            ps.v[1][1], ps.v[2][1] = T(1/32), T(-1/64)
+        end
+        es = EMPIC1D(FourierGrid((1,), (one(T),)), species; shape=NGP(),
+            n_sub=6, species_stride=[2,3])
+        fill!(es.Ey,T(1/16)); fill!(es.Bz,T(1/8))
+        init_empic!(es,species); fill!(es.Ex,T(1/8))
+        expected_v = [(Q(ps.v[1][1]),Q(ps.v[2][1])) for ps in species]
+        expected_x = [Q(ps.x[1][1]) for ps in species]
+        old_H = zeros(T,2)
+        ex,ey,bz = Q(es.Ex[1]),Q(es.Ey[1]),Q(es.Bz[1])
+        for (dt,M,strides) in ((T(1/32),6,[2,3]),(T(1/64),4,[4,2]))
+            before_H=copy(es.collection.schedule.last_species_dt)
+            set_empic1d_schedule!(es;n_sub=M,species_stride=strides)
+            @test es.collection.schedule.last_species_dt == before_H
+            h=dt/M
+            Hs=[dt/(M÷r) for r in strides]
+            if es.step[]==0
+                for (i,ps) in enumerate(species)
+                    alpha=Q(ps.q)/Q(ps.m); vx,vy=expected_v[i]
+                    expected_v[i]=(vx-alpha*Q(Hs[i])/2*(ex+vy*bz),
+                        vy-alpha*Q(Hs[i])/2*(ey-vx*bz))
+                end
+                old_H .= Hs
+            end
+            for j=0:(M-1), (i,ps) in enumerate(species)
+                if j%strides[i]==0
+                    expected_v[i]=planar_reference(expected_v[i],Q(ps.q)/Q(ps.m),
+                        Q(old_H[i])/2+Q(Hs[i])/2,ex,ey,bz)
+                    old_H[i]=Hs[i]
+                end
+                expected_x[i]+=Q(h)*expected_v[i][1]
+            end
+            step_empic!(es,species,dt)
+            for (i,ps) in enumerate(species)
+                @test isapprox(ps.x[1][1],T(expected_x[i]);rtol=128eps(T))
+                @test all(isapprox(ps.v[c][1],T(expected_v[i][c]);rtol=128eps(T)) for c=1:2)
+            end
+            @test es.collection.schedule.last_species_dt == Hs
+            d=electromagnetic_diagnostics(es,species)
+            @test d.velocity_time_offsets == -Hs ./ 2
+            @test d.magnetic_time_offset == -h/2
+            before=snapshot(es,species)
+            step_empic!(es,species,zero(T))
+            @test snapshot(es,species)==before
+        end
+        es,species=fixture(T;n_sub=4)
+        proposal=[1,2,0,4]
+        set_empic1d_schedule!(es;species_stride=proposal)
+        proposal[1]=4
+        @test es.collection.schedule.stride == [1,2,0,4]
+        for bad in ([1,3,0,4],[1,2,1,4],Bool[1,1,0,1],Int[])
+            before=snapshot(es,species)
+            @test_throws ArgumentError set_empic1d_schedule!(es;species_stride=bad)
+            @test snapshot(es,species)==before
+        end
+        init_empic!(es,species)
+        step_empic!(es,species,T(1/64))
+        history=copy(es.collection.schedule.last_species_dt)
+        set_empic1d_schedule!(es;n_sub=2,species_stride=[2,1,0,2])
+        @test es.collection.schedule.last_species_dt == history
+        es.n_sub=3
+        before=snapshot(es,species)
+        @test_throws ArgumentError step_empic!(es,species,zero(T))
+        @test snapshot(es,species)==before
+        set_empic1d_schedule!(es;n_sub=2)
+        es.collection.schedule.last_species_dt[1]=prevfloat(es.last_sub_dt[])
+        before=snapshot(es,species)
+        @test_throws ArgumentError step_empic!(es,species,zero(T))
+        @test snapshot(es,species)==before
+        es.collection.schedule.last_species_dt .= history
+        U=T===Float32 ? UInt32 : UInt64
+        es.collection.schedule.last_species_dt[3]=reinterpret(T,one(U))
+        @test reinterpret(U,es.collection.schedule.last_species_dt[3])==one(U)
+        before=snapshot(es,species);oldmode=get_zero_subnormals()
+        try
+            set_zero_subnormals(true)
+            @test_throws ArgumentError step_empic!(es,species,zero(T))
+        finally
+            set_zero_subnormals(oldmode)
+        end
+        @test snapshot(es,species)==before
+        # One last-H/candidate metadata alias rejects before materialization.
+        es.collection.schedule.last_species_dt .= history
+        es.collection.schedule.previous_species_dt=es.collection.schedule.last_species_dt
+        before=snapshot(es,species)
+        @test_throws ArgumentError step_empic!(es,species,T(1/64))
+        @test snapshot(es,species)==before
+        empty=ParticleSet{1,T}[]
+        vacuum=EMPIC1D(FourierGrid((1,), (one(T),)),empty)
+        set_empic1d_schedule!(vacuum;n_sub=3,species_stride=Int[])
+        init_empic!(vacuum,empty); step_empic!(vacuum,empty,T(1/32))
+        @test isempty(electromagnetic_diagnostics(vacuum,empty).last_species_dt)
+    end
+end
+
+@testset "Actual legacy electron-fast ion-full specialized schedule" begin
+    for T in (Float32,Float64)
+        e,ions=ParticleSet{1,T}(3;q=-1),ParticleSet{1,T}(3;q=1,m=7)
+        for ps in (e,ions)
+            ps.x[1] .= T[1/8,3/8,3/4]; ps.weight .= T[1,2,1]
+            fill!(ps.v[1],T(1/32)); fill!(ps.v[2],T(1/64))
+        end
+        species=deepcopy([e,ions])
+        legacy=EMPIC1D(FourierGrid((8,), (one(T),)),3;mobile=true,mi=7,n_sub=3)
+        es=EMPIC1D(FourierGrid((8,), (one(T),)),species;n_sub=3,species_stride=[1,3])
+        for state in (legacy,es)
+            state.Ey .= T[0,1/64,1/32,1/64,0,-1/64,-1/32,-1/64]
+            fill!(state.Bz,T(1/32))
+        end
+        init_empic!(legacy,e,ions); init_empic!(es,species)
+        for (dt,M) in ((T(1/64),3),(T(1/128),2))
+            legacy.n_sub=M
+            set_empic1d_schedule!(es;n_sub=M,species_stride=[1,M])
+            step_empic!(legacy,e,ions,dt); step_empic!(es,species,dt)
+            for key in keys(H._empic_physical_fields(es))
+                @test isapprox(getproperty(legacy,key),getproperty(es,key);rtol=256eps(T),atol=256eps(T))
+            end
+            for (old,ps) in zip((e,ions),species)
+                @test isapprox(old.x[1],ps.x[1];rtol=256eps(T),atol=256eps(T))
+                for a in 1:2
+                    @test isapprox(old.v[a],ps.v[a];rtol=256eps(T),atol=256eps(T))
+                end
+            end
+            @test es.collection.schedule.last_species_dt == T[dt/M,dt]
+        end
+    end
+end
+
+# Uniform cold E/J mode: omega^2=sum(n*q^2/m). A one-cell grid removes
+# spatial conditioning; dyadic coarse/fast intervals isolate temporal error.
+@testset "Scheduled neutral pair and unequal-mass physical refinement" begin
+    for mass in (1.0,7.0)
+        errors=Float64[]
+        for blocks in (4,8,16)
+            species=[ParticleSet{1,Float64}(1;q=-1),ParticleSet{1,Float64}(1;q=1,m=mass)]
+            for ps in species
+                ps.x[1][1],ps.weight[1]=0.25,1.0
+            end
+            es=EMPIC1D(FourierGrid((1,), (1.0,)),species;n_sub=4,species_stride=[2,4])
+            init_empic!(es,species); es.Ex[1]=1/16
+            dt=1/(8blocks)
+            for _=1:blocks
+                step_empic!(es,species,dt)
+            end
+            omega=sqrt(1+1/mass)
+            error=abs(es.Ex[1]-(1/16)*cos(omega*es.time[]))
+            for (i,ps) in enumerate(species)
+                phase=es.time[]-es.collection.schedule.last_species_dt[i]/2
+                expected=(ps.q/ps.m)*(1/16)*sin(omega*phase)/omega
+                error=max(error,abs(ps.v[1][1]-expected))
+            end
+            @test error > 128eps(Float64)
+            push!(errors,error)
+        end
+        @info "EMPIC1D dividing schedule cold refinement" mass errors observed_orders=log2.(errors[1:2]./errors[2:3])
+        @test errors[3]<errors[2]<errors[1]
+    end
+end
+
+function s1_payload(modern)
+    names=Tuple(k for k in keys(modern) if !(k in
+        (:schema_version,:schedule_policy,:species_stride,:last_species_dt)))
+    return merge(NamedTuple{names}(Tuple(getproperty(modern,k) for k in names)),(schema_version=1,))
+end
+
+@testset "Scheduled phase rollback, S1 migration and saved replacement" begin
+    for T in (Float32,Float64)
+        for initialized in (false,true)
+            pre,populations=fixture(T;n_sub=2)
+            initialized && init_empic!(pre,populations)
+            zero_state=s1_payload(deepcopy(H._checkpoint_state(pre,populations)))
+            restored,owned=fixture(T;n_sub=4)
+            H._restore_checkpoint_state!(restored,owned,zero_state)
+            @test restored.collection.initialized[]===initialized
+            @test all(H._particle_stored_zero,restored.collection.schedule.last_species_dt)
+            @test restored.collection.schedule.stride==[1,1,0,1]
+        end
+        ps=[ParticleSet{1,T}(1;m) for m in (one(T),reinterpret(T,T===Float32 ? UInt32(1) : UInt64(1)))]
+        for p in ps
+            p.x[1][1],p.weight[1]=zero(T),zero(T)
+        end
+        es=EMPIC1D(FourierGrid((4,), (T(4),)),ps;relativistic=true,c=one(T),n_sub=2,species_stride=[1,2])
+        init_empic!(es,ps);fill!(es.Ex,one(T))
+        before=snapshot(es,ps)
+        @test_throws ArgumentError step_empic!(es,ps,one(T))
+        @test snapshot(es,ps)==before
+        ps[2].m=one(T)
+        set_empic1d_schedule!(es;n_sub=4,species_stride=[2,4])
+        step_empic!(es,ps,T(1/8))
+        @test es.collection.schedule.last_species_dt == T[1/16,1/8]
+        source,species=fixture(T;n_sub=2)
+        init_empic!(source,species);step_empic!(source,species,T(1/64))
+        # S1 allowed changing the knob after the last advance. Migration must
+        # keep the actual saved fast interval, not infer it from current n_sub.
+        source.n_sub=3
+        modern=deepcopy(H._checkpoint_state(source,species))
+        s1=s1_payload(modern)
+        target,destination=fixture(T;n_sub=4)
+        target.n_sub=5;target.collection.schedule.stride[1]=0
+        target.collection.schedule.last_species_dt[1]=-one(T)
+        H._restore_checkpoint_state!(target,destination,s1)
+        @test target.n_sub==3 && target.collection.schedule.stride==[1,1,0,1]
+        @test target.collection.schedule.last_species_dt == T[modern.last_sub_dt,modern.last_sub_dt,0,modern.last_sub_dt]
+        set_empic1d_schedule!(source;n_sub=4,species_stride=[1,2,0,4])
+        saved=deepcopy(H._checkpoint_state(source,species))
+        # Valid current proposal differs from old completed H in this payload.
+        mktempdir() do dir
+            path=joinpath(dir,"scheduled.chk")
+            save_checkpoint(path,source,species)
+            load_checkpoint!(target,destination,path)
+            runpath=joinpath(dir,"scheduled.run")
+            archive_run(runpath,source,species;rng_seed=17)
+            archived=load_archive(runpath).state
+            @test archived.schema_version===2 && archived.schedule_policy===1
+            @test archived.species_stride==saved.species_stride
+            @test archived.last_species_dt==saved.last_species_dt
+        end
+        @test target.collection.schedule.stride==[1,2,0,4]
+        @test target.collection.schedule.last_species_dt==saved.last_species_dt
+        before=snapshot(target,destination)
+        for changes in ((schedule_policy=true,),(schedule_policy=2,),
+            (species_stride=[1,3,0,4],),(last_species_dt=fill(zero(T),4),),
+            (schema_version=1,))
+            @test_throws ArgumentError H._restore_checkpoint_state!(target,destination,merge(saved,changes))
+            @test snapshot(target,destination)==before
+        end
+        wrong=copy(saved.last_species_dt);wrong[1]=prevfloat(saved.last_sub_dt)
+        @test_throws ArgumentError H._restore_checkpoint_state!(target,destination,merge(saved,(last_species_dt=wrong,)))
+        @test snapshot(target,destination)==before
+        for (dt,M,rs) in ((T(1/128),4,[2,4,0,1]),(T(1/64),2,[2,1,0,2]))
+            for state in (source,target)
+                set_empic1d_schedule!(state;n_sub=M,species_stride=rs)
+            end
+            step_empic!(source,species,dt);step_empic!(target,destination,dt)
+            @test physical(source,species)==physical(target,destination)
+            @test source.collection.schedule.last_species_dt==target.collection.schedule.last_species_dt
         end
     end
 end

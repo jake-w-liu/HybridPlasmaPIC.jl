@@ -372,6 +372,7 @@ export GuidingCentre,
     exb_drift, gradb_drift, curvature_drift, drift_velocity, push_guiding_centre!, gyroaverage
 export CAMCLStepper, init_camcl!, step_camcl!
 export EMPIC, EMPIC1D, init_empic!, step_empic!, em_field_energy, charge_conservation_residual
+export set_empic1d_schedule!
 export electromagnetic_diagnostics
 export YeeLongitudinalPIC, yee_longitudinal_diagnostics
 export YeeElectromagneticPIC, yee_electromagnetic_diagnostics

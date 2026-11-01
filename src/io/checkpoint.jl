@@ -1223,11 +1223,14 @@ ion storage must be independent. Particle workspaces are resized on restore;
 scratch values are recomputed during stepping. `EMPIC` collection schema 1 stores
 ordered arbitrary species, per-population mobility, neutrality/background policy
 and the common fast velocity phase alongside these fields. `EMPIC1D` collections
-use distinct schema 1 `:empic1d_collection` with required
-`polarization=:ex_ey_bz` and physical `Ex/Ey/Bz/Jx/Jy/rho_n/rho_np1` fields.
+use distinct schema 2 `:empic1d_collection` with required
+`polarization=:ex_ey_bz`, integer `schedule_policy=1`, ordered `species_stride`
+and `last_species_dt`, and physical `Ex/Ey/Bz/Jx/Jy/rho_n/rho_np1` fields.
+Only a fully validated specialized schema-1 payload without schedule fields
+migrates to all-fast strides; advanced mobile history uses its saved fast interval.
 Scalar, generic collection and specialized collection payloads cannot be
 interchanged. Collection policy, background, tolerance, mobility and shape type
-must match the destination. Saved relativistic mode, c, n_sub and
+must match the destination. Saved relativistic mode, c, n_sub, species strides and
 physical species values replace destination values. The saved mode and c govern
 particle-domain validation, including the original planar EMPIC1D velocities,
 before any restore publication. Every incoming leaf is detached and revalidated,
@@ -1327,6 +1330,12 @@ electron and ion destinations for mobile runs. Both species are validated before
 either is changed. Ordered EMPIC1D collections instead require their distinct
 collection tag and `:ex_ey_bz` polarization; all populations are validated using
 the saved c and relativistic mode, with exactly planar stored velocities.
+Their saved n_sub and species strides replace destination configuration together;
+each stored species interval is restored independently of the current schedule.
+Specialized schema 1 migrates only from its validated original envelope, with
+all-fast strides and mobile history from its saved last_sub_dt. A schema-1 payload
+carrying any schema-2 schedule fields is rejected. Destination configuration and
+history values being replaced do not constrain an otherwise valid restore.
 Hall-MHD destinations require the same concrete model/closure type; saved model
 parameters replace destination values while existing field arrays remain in place.
 Checkpoints missing fields required by their model family are rejected.

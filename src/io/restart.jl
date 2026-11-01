@@ -64,8 +64,11 @@ full/fast timestep history. Supply ions exactly when `mobile=true` for the legac
 electron/ion API. Synchronous `EMPIC` collections preserve their ordered arbitrary
 populations, mobility, neutrality/background policy, relativistic mode and c,
 and common fast velocity half level through collection checkpoint schema 1.
-`EMPIC1D` collections use distinct schema 1 `:empic1d_collection`, required
-`polarization=:ex_ey_bz`, and their seven specialized physical field arrays.
+`EMPIC1D` collections use distinct schema 2 `:empic1d_collection`, required
+`polarization=:ex_ey_bz` and integer `schedule_policy=1`, ordered species strides
+and completed species intervals, and their seven specialized physical field arrays.
+Validated specialized schema-1 state migrates explicitly to all-fast strides;
+schema-1 payloads carrying schema-2 schedule fields are rejected.
 Scalar, generic collection and specialized collection payloads cannot be
 interchanged; the surrounding archive container remains schema 4.
 Hall-MHD archives contain the model, fluid and public derived fields, retained

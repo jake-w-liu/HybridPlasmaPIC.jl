@@ -81,7 +81,14 @@
 #   (5) n_sub=1 vs n_sub=2 agree on the dispersion (convergence, few %);
 #   (6) a v≈0.9c relativistic electron beam does not blow up the field energy.
 
-struct _EMPICCollectionWork{D,T,P<:ParticleSet{D,T},S}
+mutable struct _EMPIC1DSchedule{T}
+    stride::Vector{Int}
+    last_species_dt::Vector{T}
+    new_species_dt::Vector{T}
+    previous_species_dt::Vector{T}
+end
+
+struct _EMPICCollectionWork{D,T,P<:ParticleSet{D,T},S,R}
     neutrality::Symbol
     charge_rtol::T
     mobile::BitVector
@@ -90,6 +97,7 @@ struct _EMPICCollectionWork{D,T,P<:ParticleSet{D,T},S}
     midpoints::Vector{NTuple{D,Vector{T}}}
     stage::S
     initialized::Base.RefValue{Bool}
+    schedule::R
 end
 
 """

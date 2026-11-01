@@ -1,15 +1,16 @@
 # CAP-008 specialized EMPIC1D species implementation
 
-Updated 2026-11-01. **S1 source is implemented and reviewed; exact-revision
-GitHub acceptance remains pending.** The [audit tracker](DEEP_DEBUG_TRACKER.md) owns
+Updated 2026-11-01. **S1 and S2 sources are implemented and reviewed;
+exact-revision GitHub acceptance remains pending.** The [audit tracker](DEEP_DEBUG_TRACKER.md) owns
 publication and CI status. This plan expands the specialized-model and multirate
 items in [CAP-008](PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md#cap-008--arbitrary-kinetic-species-in-esem).
 The [generic EMPIC collection contract](EMPIC_SPECIES_IMPLEMENTATION.md) remains
 the source of its existing scope and pending acceptance.
 
-The concrete S2 schedule/phase/persistence design is reviewed and its source
-implementation is in progress. The S2 API below is planned behavior until that
-implementation is integrated and its gates pass.
+The concrete S2 schedule/phase/persistence implementation is integrated after
+root and independent source review. The API below is source-present; numerical,
+compiler, formatter and resource acceptance require its exact-revision remote
+checks. The original synchronous S1 schema is retained below as migration history.
 
 ## Scope and source owners
 
@@ -48,8 +49,9 @@ Private scratch may change on rejection; public destination identities remain.
 | S1 GitHub acceptance | Pending | Exact revision on minimum `1.12` and moving stable `1`; full neighboring tests, complete compiler review and formatter |
 | S1 resource acceptance | Pending | Remote complete init/step/restart cost versus specialized legacy path, actual hardware/runtime/threads, allocation traffic and peak memory distinguished |
 | S2 schedule/phase/schema design | Reviewed | Dividing strides, independent previous intervals, atomic future-configuration updates, nominal offsets and explicit S1 migration |
-| S2 construction and advance | In implementation | Due-event kicks with every-fast drift/current; whole-operation history staging; generic/scalar/all-fast compatibility |
-| S2 persistence, essential checks and acceptance | Pending | Schema 2/policy 1 and tagged S1 migration; independent phase/refinement, rejection/retry and restart controls; exact-revision remote runtime/compiler/format/resource gates |
+| S2 construction and advance | Source implemented and reviewed | Due-event kicks with every-fast drift/current, whole-operation history staging and atomic future schedule setter; generic/scalar/all-fast source reductions retained |
+| S2 persistence and essential checks | Source implemented and reviewed; runtime pending | Schema 2/policy 1 and tagged S1 migration; independent interior-event, legacy, pair/unequal-mass refinement, rejection/retry and restart controls registered |
+| S2 GitHub/resource acceptance | Pending | Exact revision on minimum/latest Julia; full neighboring tests, complete unsuppressed compiler review, formatter and remote complete-operation cost/peak-memory evidence |
 | Broader CAP-008 integration | Open | Collisions, boundaries, partition ownership, device residency and matched physical/cost validation |
 
 All Julia tests, compiler checks, formatter, builds and profiling run on GitHub
@@ -58,7 +60,7 @@ file checks. Add compact essential regressions through the existing test
 framework and `electromagnetic-species` selector; do not add a test campaign or
 replace neighboring checks with mocks.
 
-## S1 synchronous time and current contract
+## S1 synchronous baseline and migration history
 
 Every mobile population kicks and drifts on every field interval `h=dt/n_sub`.
 Total old/new charge includes fixed populations and the explicit background.
@@ -75,7 +77,7 @@ separately. A zero step validates inputs without consuming the prime or phase.
 S1 `n_sub>1` is synchronous; legacy ions remain coarse movers. Compare legacy
 and collection APIs on their common planar `n_sub=1` inputs.
 
-Use a distinct schema-1 `:empic1d_collection` payload with required
+S1 used a distinct schema-1 `:empic1d_collection` payload with required
 `polarization=:ex_ey_bz`, ordered particles, policy/mobility, initialization,
 physical `Ex/Ey/Bz/Jx/Jy/rho_n/rho_np1` and full/fast clocks. Do not persist
 gathers, centered B or other scratch. Protect actual scalar init/step/save
@@ -98,11 +100,11 @@ mobile species and deposit total charge and midpoint current on every fast
 interval. Update fields once after all species contributions. `r_s=1` recovers
 S1; electron stride 1 and ion stride M provide the legacy comparison target.
 
-The planned constructor keyword is `species_stride=nothing`: default mobile
+The constructor keyword is `species_stride=nothing`: default mobile
 rows use 1 and fixed rows use 0. Explicit rows must be one-based integers fitting
 Int, with Bool rejected. Mobile strides divide M; fixed rows are exactly 0.
 Typed-empty and zero-particle mobile populations retain their declared schedules.
-The planned `set_empic1d_schedule!` setter validates and copies M/strides together
+The `set_empic1d_schedule!` setter validates and copies M/strides together
 before publication. It works at completed boundaries, including step zero, and
 preserves prior phase histories. Direct `n_sub` edits are checked against current
 strides before init/step/diagnostics/save mutation; zero steps still validate.
@@ -115,7 +117,7 @@ saved previous H/2 plus new H/2. Interior events then use new halves. Gather and
 kick only due species, but drift and deposit current from every mobile species
 at every h. Preserve one common field update and the existing numerical owners.
 
-Each specialized collection will own strides, authoritative `last_species_dt`
+Each specialized collection owns strides, authoritative `last_species_dt`
 and private history candidates; generic EMPIC keeps synchronous behavior.
 Stage histories with the entire external operation and publish only after all
 candidate checks. At step zero histories are stored zero; afterward each mobile
@@ -124,7 +126,7 @@ fixed history zero. Do not reconstruct previous durations from current settings:
 the schedule may have changed after the last advance. Currents/rho still describe
 the last fast interval, so continuity diagnostics use last_sub_dt.
 
-Specialized S2 writes will use schema 2 with required Int `schedule_policy=1`,
+Specialized S2 writes use schema 2 with required Int `schedule_policy=1`,
 strides and per-species histories; archive container 4 stays. Only validated
 specialized schema-1 `:empic1d_collection`/`:ex_ey_bz` state migrates to all-fast:
 advanced mobile history comes from saved last_sub_dt, fixed/step-zero history

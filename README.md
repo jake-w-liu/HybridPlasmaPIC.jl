@@ -254,7 +254,7 @@ in the [implementation plan](docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md).
 |---|---|---|
 | **Hall-MHD** | periodic single-fluid Hall-MHD with algebraic electron closures; ion pressure `p_i = Ti·n`; the electron pressure force acts in both Ohm's law and the bulk momentum equation; explicit RK4 with divergence-free projection | `HallMHDModel`, `HallMHDState`, `step_hall_mhd!` |
 | **Electrostatic PIC** | arbitrary kinetic species on periodic CPU grids, explicit charge/background policy, shared spectral Poisson field and synchronized leapfrog in 1D/2D/3D; scalar electron compatibility | `ElectrostaticPIC` (or `Electrostatic1D`), `init_espic!`, `step_espic!` |
-| **Electromagnetic PIC** | periodic spectral current correction and Gauss initialization in 1D–3D; legacy electron/ion models; synchronous CPU arbitrary-species `EMPIC` collections with optional relativistic motion, mobile/fixed populations and explicit neutrality policy ([contract and pending CI](docs/EMPIC_SPECIES_IMPLEMENTATION.md)) | `EMPIC`, `EMPIC1D`, `init_empic!`, `step_empic!`, `charge_conservation_residual`, `electromagnetic_diagnostics`, `total_momentum_relativistic` |
+| **Electromagnetic PIC** | periodic spectral current correction and Gauss initialization in 1D–3D; legacy electron/ion models; synchronous CPU arbitrary-species `EMPIC` collections and planar `EMPIC1D` dividing species schedules, with optional relativity, mobile/fixed populations and explicit neutrality policy ([contract and pending CI](docs/EMPIC_SPECIES_IMPLEMENTATION.md)) | `EMPIC`, `EMPIC1D`, `set_empic1d_schedule!`, `init_empic!`, `step_empic!`, `charge_conservation_residual`, `electromagnetic_diagnostics`, `total_momentum_relativistic` |
 | **Bounded Maxwell vacuum** | staggered Yee fields in 1D–3D with periodic or homogeneous conducting axes, synchronized second-order stepping, CFL rejection, compatible divergence and energy/Poynting diagnostics; native stencils under the normwise accuracy contract; no particle coupling or absorbing layer | `YeeGrid`, `MaxwellVacuum`, `step_maxwell!`, `yee_divergence!`, `yee_poynting_flux` |
 | **Prescribed-current Yee fields** | 1D current impulses on electric lattices, all-node charge including conducting surfaces, source work and fixed-step modified energy; [scope and example](docs/SOURCED_YEE_FIELDS.md) | `step_maxwell!(model, dt, impulse)`, `yee_electric_charge!`, `yee_source_work`, `yee_modified_energy` |
 | **Closed Yee static particle coupling** | CPU 1D point/CIC charge, longitudinal endpoint impulse and path voltage; optional finite physical-width triangular-cloud family with stationary work-adjoint field ([contract and pending CI](docs/BOUNDED_PARTICLE_COUPLING_PLAN.md)); point-wall/contact model and wall events remain open | `YeeChargeWorkspace`, `YeeTriangularCloud`, `yee_particle_charge!`, `yee_longitudinal_impulse!`, `yee_longitudinal_voltage`, `yee_longitudinal_field` |
@@ -534,7 +534,7 @@ Independent views and shared Array/Ref parameters remain supported. Custom
 serializers own their reconstruction semantics; already-detached saved graphs
 cannot recover their original links. See the
 [configuration contract and limits](docs/CHECKPOINT_CONFIGURATION_PLAN.md).
-Hybrid, electrostatic and synchronous `EMPIC` collections use
+Hybrid, electrostatic, synchronous `EMPIC` and planar scheduled `EMPIC1D` collections use
 `save_checkpoint(path, st, species)` and
 `load_checkpoint!(st, species, path)`, preserving population order, charge, mass
 and particle data. Destination storage is retained; resizable arrays may change
@@ -547,7 +547,9 @@ diagnostics, configuration and electron/ion timestep history. For mobile ions, u
 `load_checkpoint!(es, electrons, ions, path)`; the destination must have matching
 ion mobility and independent species storage. `archive_run` accepts the same species.
 `EMPIC` collections retain ordered populations, per-population mobility and their
-shared fast phase. See [collection persistence and pending verification](docs/EMPIC_SPECIES_IMPLEMENTATION.md).
+shared fast phase. Specialized `EMPIC1D` collection schema 2 also preserves
+per-species strides and completed intervals, with explicit validated S1 migration.
+New collection acceptance is recorded in [collection persistence and pending verification](docs/EMPIC_SPECIES_IMPLEMENTATION.md).
 Hall-MHD uses `save_checkpoint(path, hall)`, `load_checkpoint!(hall, path)`, and
 `archive_run(path, hall; rng_seed=...)`. It preserves the model, fluid and derived
 fields, retained hyperresistive stage values, and clock without particle arguments.
@@ -674,11 +676,12 @@ EM and comparative campaigns remain in the
   has longitudinal and 1D3V EM source implementations with diagnostics and restart,
   pending GitHub acceptance. Wall events, absorbing layers and broader coupling
   remain open.
-- Specialized `EMPIC1D` arbitrary-species collections have a planar synchronous
-  CPU source implementation, pending GitHub acceptance;
-  their [S1/S2 tracker](docs/EMPIC1D_SPECIES_IMPLEMENTATION_PLAN.md) separates
-  planar synchronous stepping from the per-species multirate implementation
-  now in progress.
+- Specialized `EMPIC1D` arbitrary-species collections have a planar CPU source
+  implementation with dividing per-species kick schedules, every-fast drift/current
+  and independent phase histories. Schema 2 includes explicit S1 migration.
+  Exact-revision GitHub and resource acceptance remain pending in the
+  [S1/S2 tracker](docs/EMPIC1D_SPECIES_IMPLEMENTATION_PLAN.md); broader schedules
+  and backend/collision/boundary integrations remain open.
 - Collision/field composition covers fixed-step, first-order `HybridStepper`
   runs with ideal isothermal/evolving scalar electrons, S1/S2 transport or S3b
   original-quotient conduction on the CPU (stored-pressure extensions are CI-pending). Variable steps, higher-order

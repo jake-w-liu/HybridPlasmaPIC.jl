@@ -48,9 +48,11 @@ end
         ps.x[1] .= T[0.25, 0.75]
         species = [ps]
         state = EMPIC1D(FourierGrid((4,), (one(T),)), species)
+        set_empic1d_schedule!(state; n_sub = 2, species_stride = [2])
         init_empic!(state, species)
         saved = HybridPlasmaPIC._checkpoint_state(state, species)
         calls = (
+            (set_empic1d_schedule!, Tuple{typeof(state)}),
             (init_empic!, Tuple{typeof(state),typeof(species)}),
             (step_empic!, Tuple{typeof(state),typeof(species),T}),
             (electromagnetic_diagnostics, Tuple{typeof(state),typeof(species)}),

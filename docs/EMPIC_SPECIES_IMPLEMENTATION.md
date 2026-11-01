@@ -5,8 +5,9 @@ relativistic motion. Both slices are integrated after independent root source
 and caller review; exact-revision GitHub runtime/compiler/format acceptance
 remains pending. Specialized planar `EMPIC1D` S1 collections are now source
 implemented, with exact integrated acceptance pending; see the S1 section below.
-Species-specific multirate schedules, collisions, nonperiodic boundaries and
-resident MPI/GPU evolution remain open.
+Specialized S2 dividing per-species schedules are now source implemented with
+separate history and schema-2 migration; integrated acceptance remains pending.
+Collisions, nonperiodic boundaries and resident MPI/GPU evolution remain open.
 
 ## Ordinary-store admission (2026-11-01)
 
@@ -201,10 +202,11 @@ neighboring checks, with complete compiler findings reviewed.
 
 CAP-008 remains incomplete. Pair/unequal-species dispersion and convergence,
 permutation/conservation campaigns, population growth and complete resource
-acceptance, exact-revision acceptance of relativistic collections, species-specific multirate evolution,
-exact integrated acceptance of specialized EMPIC1D S1 collections, collisions,
-boundaries and resident backends remain open. S1's synchronous source path does
-not complete the separately planned per-species multirate schedule.
+acceptance, exact-revision acceptance of relativistic collections and specialized
+EMPIC1D S1/S2 collections, broader species multirate evolution, collisions,
+boundaries and resident backends remain open. S1's synchronous source path
+does not by itself complete S2's dividing schedule; the S2 source candidate below
+still requires integrated acceptance.
 
 ## Relativistic follow-on pre-edit brief (2026-11-01, historical)
 
@@ -319,7 +321,7 @@ normalized legacy compatibility, a nonvacuous late C1 rollback and changed-mode/
 checkpoint/archive continuation. No local Julia, formatter, build or benchmark
 was run. Neither full CAP-008 completion nor performance improvement is claimed.
 
-## Specialized planar EMPIC1D S1 source candidate
+## Specialized planar EMPIC1D S1 synchronous baseline (historical)
 
 `EMPIC1D(g, species; mobile, background_charge=0, neutrality=:require,
 charge_rtol=64eps(T), c=5, shape=CIC(), n_sub=1, relativistic=false)` now has
@@ -377,7 +379,61 @@ Derived gathers, midpoints, centered B and transaction scratch are not persisted
 
 Source implementation and essential independent references are prepared; exact
 integrated GitHub numerical/compiler/formatter gates and complete-step cost
-acceptance remain pending. No local Julia or resource measurement ran. S2's
-per-species coarse-kick/every-fast-drift schedule, separate duration history and
-restart version/migration remain planned separately, as do broader CAP-008
-backend, collision and boundary intersections.
+acceptance remain pending. No local Julia or resource measurement ran. The S2 source slice below extends
+this synchronous baseline; broader CAP-008 backend, collision and boundary
+intersections remain open.
+
+
+## Specialized EMPIC1D S2 dividing schedules: source candidate
+
+`EMPIC1D(g, species; n_sub=M, species_stride=...)` now gives each mobile
+population a positive integer stride r dividing M. Default mobile rows are 1;
+fixed rows are 0. Every specialized collection has concrete schedule metadata,
+including all-fast and empty states. Generic `EMPIC` remains synchronous and the
+legacy count API retains its scalar numerical owners.
+
+For h=dt/M and H_s=dt/(M÷r_s), species s kicks at zero-based fast indices
+0,r_s,2r_s,... . Every mobile population drifts and deposits charge/current at
+every h, including intervals without a kick. All populations use unchanged old
+fields before one Maxwell update. Each first-step velocity is primed by its own
+H_s/2; B uses h/2. At a later event the kick spans saved old H_s/2 plus new H_s/2;
+interior events use the new interval. B retains its independent fast history.
+
+`set_empic1d_schedule!(state; n_sub=state.n_sub, species_stride=nothing)` changes
+the future schedule at completed external boundaries. `nothing` keeps the
+current strides. The complete proposal is copied/validated before either
+configuration store; previous species/fast histories remain. Direct `n_sub`
+edits must leave the current strides valid before init/step/diagnostics/save.
+Zero steps validate and preserve phase. Fixed/step-zero histories use original
+stored-bit zero; advanced mobile histories satisfy last_sub_dt<=H_s<=last_dt.
+Physical arrays, particles, clocks and candidate histories publish only after
+the complete external operation succeeds. Metadata must have independent
+ordinary storage. Rejection may change private candidates and shared FFT work.
+
+Diagnostics retain physical moments and one shared field energy, with each
+mobile nominal velocity offset -last_species_dt[s]/2 and B offset
+-last_sub_dt/2. They also return copied `species_stride`/`last_species_dt`.
+These declared stage offsets are not exact timestamps relative to rounded
+`time`: H_s need not equal r_s*h and the clock retains repeated fast additions.
+No synchronization or energy projection is supplied. The planar, source-range,
+Nyquist/FFT, external source-edit and concurrency limits of S1 still apply.
+
+Specialized saves now use schema 2 and required integer `schedule_policy=1`,
+ordered strides and species history, with the same tag/polarization and archive
+container 4. Fully validated tagged S1 schema 1 migrates explicitly to all-fast:
+advanced mobile H inherits the saved actual last_sub_dt, fixed/step-zero H is
+zero. Reserved S2 fields in schema 1 reject. Saved M/strides replace destination
+configuration together, independently of old requested knobs/history values.
+Incoming complete graphs detach/revalidate before publication; physical fields
+restore verbatim and matched view identities remain. Scalar/generic layouts and
+generic schema 1 retain their meanings.
+
+Compact independent interior-event/current/field references, actual legacy
+coarse-ion comparisons, resolved uniform pair/unequal-mass refinements,
+relativistic rollback/retry and schema/migration/continuation checks are source
+implemented. All exact-integrated GitHub numerical/JET/Aqua/formatter and
+complete-step resource gates remain pending. No local Julia ran. Dividing
+schedules do not establish a general nonlinear stability, temporal-order or
+exact fully discrete energy theorem. Nondividing/adaptive/asynchronous phases,
+mid-step checkpoints and broader CAP-008 integrations remain open. See the
+[canonical S1/S2 plan](EMPIC1D_SPECIES_IMPLEMENTATION_PLAN.md) for acceptance.
