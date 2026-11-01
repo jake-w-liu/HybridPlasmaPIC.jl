@@ -669,8 +669,14 @@ EM and comparative campaigns remain in the
   upstream data).
 - Non-periodic EM-PIC particle coupling (`EMPIC` and `EMPIC1D` use periodic geometry).
   The separate [bounded Maxwell vacuum solver](docs/BOUNDED_MAXWELL_IMPLEMENTATION.md)
-  supplies conducting cavities and mixed periodic/conducting fields; charge-conserving
-  particle coupling, absorbing layers and restart integration remain open.
+  supplies conducting cavities and mixed periodic/conducting fields.
+  [Event-free closed 1D cloud coupling](docs/BOUNDED_PARTICLE_COUPLING_PLAN.md)
+  has longitudinal and 1D3V EM source implementations with diagnostics and restart,
+  pending GitHub acceptance. Wall events, absorbing layers and broader coupling
+  remain open.
+- Specialized `EMPIC1D` arbitrary-species collections are in implementation;
+  their [S1/S2 tracker](docs/EMPIC1D_SPECIES_IMPLEMENTATION_PLAN.md) separates
+  planar synchronous stepping from later per-species multirate schedules.
 - Collision/field composition covers fixed-step, first-order `HybridStepper`
   runs with ideal isothermal/evolving scalar electrons, S1/S2 transport or S3b
   original-quotient conduction on the CPU (stored-pressure extensions are CI-pending). Variable steps, higher-order

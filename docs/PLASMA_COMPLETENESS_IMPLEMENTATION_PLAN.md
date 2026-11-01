@@ -638,7 +638,12 @@ time levels. Never normalize away nonzero physical net charge silently.
   summed charge-conserving currents, mobile/fixed populations, optional relativistic
   motion, physical diagnostics and restart are implemented; exact-revision GitHub
   checks and full compiler review remain.
-- [ ] Implement an explicit per-species multirate schedule and EMPIC1D collections.
+- [ ] Implement and accept [specialized EMPIC1D synchronous collections](EMPIC1D_SPECIES_IMPLEMENTATION_PLAN.md):
+  the reviewed S1 design is in implementation, with the actual Ex/Ey/Bz solver,
+  invariant planar inputs, staged publication and distinct persistence.
+- [ ] Implement and accept S2 per-species dividing integer schedules, with
+  independent velocity histories and explicit restart semantics. Synchronous
+  `n_sub` alone does not supply species multirate stepping.
 - [ ] Accept new EM collection checkpoint/archive (implemented with the synchronous
   slice); extend CAP-001 interactions, CAP-002 boundaries, CAP-003 partitions and
   CAP-004 residency. Existing ES collection persistence remains landed.
