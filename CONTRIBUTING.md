@@ -6,8 +6,12 @@ contribution is held to.
 
 ## Running the tests
 
-The full suite lives in `test/runtests.jl` (one `include` per test file). From
-the repository root:
+The full suite lives in `test/runtests.jl` (one `include` per test file). Use the
+[GitHub Actions workflow](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/workflows/HybridPlasmaPIC-CI.yml) for package, formatting and 2/4/8-rank MPI checks when the development machine
+is busy. Every push runs it; **Run workflow** starts it manually. Keep new tests
+focused on the changed behavior and its boundary cases.
+
+Local testing is optional during development. From the repository root:
 
 ```bash
 # Instantiate the package environment once

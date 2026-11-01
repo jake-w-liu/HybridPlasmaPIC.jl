@@ -2,6 +2,7 @@ using Test
 
 @testset "HybridPlasmaPIC" begin
     include("test_exact_arithmetic.jl")
+    include("test_exact_ieee_packing.jl")
     include("test_linear_cn_range.jl")
     include("test_whistler_packet_allocation.jl")
     include("test_whistler_bigint_count.jl")

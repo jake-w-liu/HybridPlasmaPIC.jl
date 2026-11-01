@@ -621,8 +621,14 @@ EM and comparative campaigns remain in the
   does not establish range correctness of every compound RayCon expression.
   The shared BigFloat exact-conversion repair has passed its
   [local acceptance and exact-revision CI checks](docs/EXACT_BIGFLOAT_CONVERSION_PLAN.md).
+  IEEE cold-path conversion has a separate [stored-bit contract](docs/EXACT_IEEE_CONVERSION.md).
 
 ## Running the tests
+
+The [GitHub Actions workflow](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/workflows/HybridPlasmaPIC-CI.yml) runs the package suite on the minimum supported and latest stable Julia,
+formatting, and MPI checks at 2/4/8 ranks. Push a change or use **Run workflow**
+to run these checks without using the development machine. Device-specific tests
+require a remote runner with the corresponding GPU. Local commands remain available:
 
 ```bash
 julia --project=. -e 'using Pkg; Pkg.instantiate(); Pkg.test()'

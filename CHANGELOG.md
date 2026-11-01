@@ -12,6 +12,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   regressions in separate MPI processes. Launcher errors propagate as failures;
   both collections retain their existing tests and uploaded logs.
 
+- Exact cold-path Float16/32/64 conversions assemble the rounded IEEE bits
+  directly and extract stored inputs with integer arithmetic. Subnormal results
+  and inputs no longer depend on the caller's flush-to-zero setting; rounding
+  decisions and BigFloat precision/rounding semantics are retained.
+
 - Finite particle drifts with an exactly zero displacement factor retain native
   IEEE bits without exact range work. The measured near-boundary scalar and
   complete public profiles now allocate zero Julia bytes; signed zeros and

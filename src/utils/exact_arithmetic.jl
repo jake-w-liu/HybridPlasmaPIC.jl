@@ -3,6 +3,41 @@
 
 _exact_rational(value) = Rational{BigInt}(value)
 
+# Assemble an already-rounded IEEE grid point without a float conversion or
+# scaling operation. Callers supply 0 <= rounded <= 2^p and a quantum between
+# the minimum subnormal quantum and emax-p+1. The only p+1-bit value is the
+# exact carry 2^p; normalizing it discards a zero bit, never another rounding.
+@inline function _pack_rounded_ieee(
+    ::Type{T},
+    rounded::Integer,
+    quantum::Integer,
+    negative::Bool,
+) where {T<:Union{Float16,Float32,Float64}}
+    U = T === Float16 ? UInt16 : T === Float32 ? UInt32 : UInt64
+    sign = (negative ? one(U) : zero(U)) << (8sizeof(T) - 1)
+    integer = UInt64(rounded)
+    iszero(integer) && return reinterpret(T, sign)
+    fraction_bits = precision(T) - 1
+    exponent_bits = 8sizeof(T) - precision(T)
+    bias = (1 << (exponent_bits - 1)) - 1
+    minimum_quantum = 1 - bias - fraction_bits
+    top = 63 - leading_zeros(integer)
+    power = Int(quantum) + top
+    if power > bias
+        # A rounded carry at the last binade selects the Inf endpoint.
+        exponent = U((1 << exponent_bits) - 1) << fraction_bits
+        return reinterpret(T, sign | exponent)
+    elseif power < 1 - bias
+        fraction = U(integer << (Int(quantum) - minimum_quantum))
+        return reinterpret(T, sign | fraction)
+    end
+    normalized =
+        top <= fraction_bits ? integer << (fraction_bits - top) : integer >> (top - fraction_bits)
+    fraction = U(normalized & ((UInt64(1) << fraction_bits) - 1))
+    exponent = U(power + bias) << fraction_bits
+    return reinterpret(T, sign | exponent | fraction)
+end
+
 # Compare positive integer dyadics without shifting by their absolute scale.
 # Equal effective bit lengths imply the alignment is bounded by operand widths.
 function _compare_scaled(a::BigInt, ea::Int128, b::BigInt, eb::Int128)
@@ -74,6 +109,9 @@ function _round_exact_comparison(
     elseif away && compare(lower, quantum) > 0
         lower += 1
     end
+    if T <: Union{Float16,Float32,Float64}
+        return _pack_rounded_ieee(T, lower, quantum, negative)
+    end
     negative && (lower = -lower)
     if T === BigFloat
         result = zero(BigFloat)
@@ -101,13 +139,15 @@ function _from_exact(::Type{T}, value::Rational{BigInt}, power::Int128) where {T
     compare = (q, e) -> _compare_scaled(n, power, d * q, e)
     return _round_exact_comparison(T, binade, compare, negative)
 end
-function _exact_rational(value::BigFloat)
+function _exact_rational(value::Union{Float16,Float32,Float64,BigFloat})
     isfinite(value) || return Rational{BigInt}(value)
     # Read stored bits directly. Floating scaling can overflow under a compact
     # MPFR exponent range, even when both the input and rational are finite.
     # Integer scaling also preserves inputs wider than the caller's precision.
     significand, power, sign = Base.decompose(value)
-    n = BigInt(sign) * significand
+    # IEEE significands fit Int64; apply their sign before allocating.
+    # BigFloat retains its existing unbounded-significand arithmetic.
+    n = value isa BigFloat ? BigInt(sign) * significand : BigInt(Int64(significand) * Int64(sign))
     return power >= 0 ? (n << power) // BigInt(1) : n // (BigInt(1) << -power)
 end
 
@@ -187,10 +227,7 @@ function _from_exact(::Type{T}, value::Rational{BigInt}) where {T<:Union{Float16
     if twice_remainder > scaled_d || (twice_remainder == scaled_d && isodd(quotient))
         quotient += 1
     end
-    # The rounded integer is at most 2^p and therefore exactly representable.
-    # Rescaling is exact unless the rounded result is the overflow endpoint.
-    magnitude = ldexp(T(quotient), quantum)
-    return negative ? -magnitude : magnitude
+    return _pack_rounded_ieee(T, quotient, quantum, negative)
 end
 
 # Fixed-width dyadic conversion used by bounded exact diagnostic intervals.
@@ -216,8 +253,7 @@ function _from_exact(::Type{T}, value::Int128, exponent::Int) where {T<:Union{Fl
         half = UInt128(1) << (shift - 1)
         whole + (rest > half || (rest == half && isodd(whole)))
     end
-    result = ldexp(T(rounded), quantum)
-    return value < 0 ? -result : result
+    return _pack_rounded_ieee(T, rounded, quantum, value < 0)
 end
 
 # Round a bounded integer ratio and binary scale without a floating intermediate.
@@ -257,8 +293,7 @@ function _from_exact(
     whole, rest = divrem(numerator, scaled_denominator)
     complement = scaled_denominator - rest
     rounded = whole + (rest > complement || (rest == complement && isodd(whole)))
-    magnitude = ldexp(T(rounded), quantum)
-    return negative ? -magnitude : magnitude
+    return _pack_rounded_ieee(T, rounded, quantum, negative)
 end
 
 # Existing collision callers require nearest, ties to even, independently of
@@ -345,6 +380,9 @@ function _sqrt_from_exact(
             Base.MPFR.MPFRRoundNearest,
         )
         return result
+    end
+    if T <: Union{Float16,Float32,Float64}
+        return _pack_rounded_ieee(T, whole, quantum, negative)
     end
     magnitude = ldexp(T(whole), Int(quantum))
     return negative ? -magnitude : magnitude
