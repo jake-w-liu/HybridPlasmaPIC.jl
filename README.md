@@ -270,6 +270,12 @@ detectable overlap with particle positions or velocities before mutation on CPU
 and Metal; shared read-only fields and metadata remain supported. See the
 [field-storage contract](docs/GATHERED_FIELD_STORAGE_PLAN.md).
 
+Nonrelativistic CPU Boris kicks preserve original species charge and mass in
+public pushes and model kick owners. Native admission checks range and the
+four-ulp accuracy bound; unresolved kicks use exact replay. Priming, predictor,
+relativistic and device factor support have separate limits in the
+[CPU Boris contract and tracker](docs/BORIS_ACCURACY_IMPLEMENTATION.md).
+
 For finite inputs and charge snapshots, EM PIC with built-in NGP/CIC/TSC shapes
 applies a uniform correction based on actual signed particle weights, background
 charge and the complete product of stored cell widths. The final total differs

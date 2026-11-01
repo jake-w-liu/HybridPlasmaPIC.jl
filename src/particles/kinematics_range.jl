@@ -615,7 +615,7 @@ function _shock_batch_certified(ps::ParticleSet{D,T}, Egrid::Tuple, Bgrid::Tuple
         vmin_nonzero = _batch_nonzero_min(vmin_nonzero, av)
     end
     smin = iszero(emax) ? vmin_nonzero : vmin
-    kick, vbound = _boris_batch_certificate(one(T) * dt / 2, one(T), dt, vmax, emax, bmax, smin)
+    kick, vbound = _boris_batch_admission(ps, one(T) * dt / 2, one(T), dt, vmax, emax, bmax, smin)
     return kick &&
            _coordinate_batch_certified(ps, _coordinate_batch_max(ps.x, T), dt, vbound) &&
            !any(a -> _mightalias_particle_storage(a, ps), Egrid) &&

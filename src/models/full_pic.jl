@@ -771,21 +771,22 @@ end
     Bzp::Vector{T},
     dt::T,
 ) where {T}
-    qm = s.q / s.m
+    rel = es.relativistic
+    factor = rel ? s.q / s.m : _validated_boris_factor(s)
+    qm = _boris_native_factor(factor)
     z = zero(T)
     h = qm * dt / 2
     scales = _boris_batch_scales(s.v, (Exp, Eyp, z), (z, z, Bzp), h, eachindex(s.weight))
-    rel = es.relativistic
     certified =
         rel ? _boris_rel_batch_certificate(h, qm, dt, es.c, scales...) :
-        first(_boris_batch_certificate(h, qm, dt, scales...))
+        first(_boris_batch_admission(s, h, factor, dt, scales...))
     E, B = (Exp, Eyp, nothing), (nothing, nothing, Bzp)
     if rel
         certified ? _empic_kicks!(s, E, B, qm, dt, es.c, Val(true), Val(false)) :
         _empic_kicks!(s, E, B, qm, dt, es.c, Val(true), Val(true))
     else
-        certified ? _empic_kicks!(s, E, B, qm, dt, es.c, Val(false), Val(false)) :
-        _empic_kicks!(s, E, B, qm, dt, es.c, Val(false), Val(true))
+        certified ? _empic_kicks!(s, E, B, factor, dt, es.c, Val(false), Val(false)) :
+        _empic_kicks!(s, E, B, factor, dt, es.c, Val(false), Val(true))
     end
     return s
 end
@@ -801,7 +802,7 @@ function _empic_kicks!(
     s::ParticleSet{D,T},
     E,
     B,
-    qm::T,
+    factor,
     dt::T,
     c::T,
     ::Val{rel},
@@ -811,9 +812,11 @@ function _empic_kicks!(
     @inbounds for p in eachindex(s.weight)
         ex, ey, ez = _empic_sample(E[1], p, T), _empic_sample(E[2], p, T), _empic_sample(E[3], p, T)
         bx, by, bz = _empic_sample(B[1], p, T), _empic_sample(B[2], p, T), _empic_sample(B[3], p, T)
-        nx, ny, nz =
-            rel ? _rel_kick_eval(guard, vx[p], vy[p], vz[p], ex, ey, ez, bx, by, bz, qm, dt, c) :
-            _kick_eval(guard, vx[p], vy[p], vz[p], ex, ey, ez, bx, by, bz, qm, dt)
+        nx, ny, nz = if rel
+            _rel_kick_eval(guard, vx[p], vy[p], vz[p], ex, ey, ez, bx, by, bz, factor, dt, c)
+        else
+            _kick_eval(guard, vx[p], vy[p], vz[p], ex, ey, ez, bx, by, bz, factor, dt)
+        end
         vx[p] = nx
         vy[p] = ny
         vz[p] = nz
@@ -2286,7 +2289,8 @@ end
     Bp::NTuple{3,Vector{T}},
     dt::T,
 ) where {D,T}
-    qm = s.q / s.m
+    factor = es.relativistic ? s.q / s.m : _validated_boris_factor(s)
+    qm = _boris_native_factor(factor)
     h = qm * dt / 2
     scales = _boris_batch_scales(s.v, Ep, Bp, h, eachindex(s.weight))
     if es.relativistic
@@ -2294,9 +2298,9 @@ end
         certified ? _empic_kicks!(s, Ep, Bp, qm, dt, es.c, Val(true), Val(false)) :
         _empic_kicks!(s, Ep, Bp, qm, dt, es.c, Val(true), Val(true))
     else
-        certified = first(_boris_batch_certificate(h, qm, dt, scales...))
-        certified ? _empic_kicks!(s, Ep, Bp, qm, dt, es.c, Val(false), Val(false)) :
-        _empic_kicks!(s, Ep, Bp, qm, dt, es.c, Val(false), Val(true))
+        certified = first(_boris_batch_admission(s, h, factor, dt, scales...))
+        certified ? _empic_kicks!(s, Ep, Bp, factor, dt, es.c, Val(false), Val(false)) :
+        _empic_kicks!(s, Ep, Bp, factor, dt, es.c, Val(false), Val(true))
     end
     return s
 end

@@ -410,7 +410,8 @@ end
 # the normwise range contract of kinematics_range.jl; a primed velocity that
 # exceeds T throws an ArgumentError.
 function _espic_push!(ps::ParticleSet{D,T}, Ep::NTuple{C}, g, dt::T, primed, last_dt) where {D,T,C}
-    qm = ps.q / ps.m
+    factor = _validated_boris_factor(ps)
+    qm = _boris_native_factor(factor)
     kick_dt = primed ? last_dt / 2 + dt / 2 : dt
     indices = eachindex(ps.weight)
     if !primed
@@ -426,11 +427,11 @@ function _espic_push!(ps::ParticleSet{D,T}, Ep::NTuple{C}, g, dt::T, primed, las
     hk = qm * kick_dt / 2
     velocities = ntuple(c -> c <= C ? ps.v[c] : z, Val(3))
     scales = _boris_batch_scales(velocities, _espic_kick_fields(Ep, z), (z, z, z), hk, indices)
-    kick, vbound = _boris_batch_certificate(hk, qm, kick_dt, scales...)
+    kick, vbound = _boris_batch_admission(ps, hk, factor, kick_dt, scales...)
     if kick && _coordinate_batch_certified(ps, _coordinate_batch_max(ps.x, T), dt, vbound)
-        _espic_kick_drift!(ps, Ep, qm, dt, kick_dt, Val(false))
+        _espic_kick_drift!(ps, Ep, factor, dt, kick_dt, Val(false))
     else
-        _espic_kick_drift!(ps, Ep, qm, dt, kick_dt, Val(true))
+        _espic_kick_drift!(ps, Ep, factor, dt, kick_dt, Val(true))
     end
     _require_finite_particle_velocities(ps, "electrostatic stepping")
     # The boundary owner validates all proposed positions before wrapping any.
@@ -462,7 +463,7 @@ end
 function _espic_kick_drift!(
     ps::ParticleSet{D,T},
     Ep::NTuple{C},
-    qm,
+    factor,
     dt,
     kick_dt,
     guard::Val,
@@ -471,7 +472,7 @@ function _espic_kick_drift!(
         # Boris with B=0 retains the established two-half-kick rounding order.
         v = ntuple(c -> c <= C ? ps.v[c][p] : zero(T), 3)
         E = _espic_particle_field(Ep, p, T)
-        moved = _kick_eval(guard, v..., E..., zero(T), zero(T), zero(T), qm, kick_dt)
+        moved = _kick_eval(guard, v..., E..., zero(T), zero(T), zero(T), factor, kick_dt)
         for c = 1:C
             ps.v[c][p] = moved[c]
         end

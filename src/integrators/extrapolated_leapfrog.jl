@@ -896,7 +896,7 @@ end
 
 # Kick and drift of one population; `guard` selects the guarded (true) or the
 # native historical (false) evaluation.
-function _hybrid_kick_drift!(ps::ParticleSet{D,T}, ws, qm, dtT, kick_dt, guard::Val) where {D,T}
+function _hybrid_kick_drift!(ps::ParticleSet{D,T}, ws, factor, dtT, kick_dt, guard::Val) where {D,T}
     h = dtT / 2
     vx, vy, vz = ps.v
     @inbounds for p in eachindex(ps.weight)
@@ -911,7 +911,7 @@ function _hybrid_kick_drift!(ps::ParticleSet{D,T}, ws, qm, dtT, kick_dt, guard::
             ws.Bp[1][p],
             ws.Bp[2][p],
             ws.Bp[3][p],
-            qm,
+            factor,
             kick_dt,
         )
         vx[p] = nx
@@ -927,18 +927,19 @@ end
 
 # Shared gather/prime/kick/drift kernel. Fields stay fixed across populations.
 function _push_hybrid_population!(st, ws, ps::ParticleSet{D,T}, dtT::T, kick_dt::T) where {D,T}
-    qm = _validated_qm(ps)
+    factor = _validated_boris_factor(ps)
+    qm = _boris_native_factor(factor)
     h = dtT / 2
     gather_vector!(ws.Ep, _particle_electric_field(st), ps, st.g, st.shape)
     gather_vector!(ws.Bp, st.fields.B, ps, st.g, st.shape)
     st.step[] == 0 && _prime_leapfrog!(ps.v, ws.Ep, ws.Bp, qm, h, length(ps.weight))
     hk = qm * kick_dt / 2
     scales = _boris_batch_scales(ps.v, ws.Ep, ws.Bp, hk, eachindex(ps.weight))
-    kick, vbound = _boris_batch_certificate(hk, qm, kick_dt, scales...)
+    kick, vbound = _boris_batch_admission(ps, hk, factor, kick_dt, scales...)
     if kick && _coordinate_batch_certified(ps, _coordinate_batch_max(ps.x, T), dtT, vbound)
-        _hybrid_kick_drift!(ps, ws, qm, dtT, kick_dt, Val(false))
+        _hybrid_kick_drift!(ps, ws, factor, dtT, kick_dt, Val(false))
     else
-        _hybrid_kick_drift!(ps, ws, qm, dtT, kick_dt, Val(true))
+        _hybrid_kick_drift!(ps, ws, factor, dtT, kick_dt, Val(true))
     end
     lo = ntuple(_ -> zero(T), D)
     apply_periodic!(ps, lo, st.g.L)

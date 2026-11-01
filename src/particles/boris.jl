@@ -2,7 +2,7 @@
 
 # The plain Boris formula in the caller's arithmetic and historical operation
 # order. It is shared by the guarded CPU kick, its wide repair and the Metal
-# kernel; the intermediates are read by the CPU range guard only.
+# kernel; the optional compile-time trace supplies the CPU accuracy guard.
 @inline function _boris_kick_parts(
     vx::T,
     vy::T,
@@ -15,31 +15,118 @@
     Bz::T,
     qm::T,
     dt::T,
-) where {T}
-    h = qm * dt / 2
-    hEx = h * Ex
-    hEy = h * Ey
-    hEz = h * Ez
-    vmx = vx + hEx
-    vmy = vy + hEy
-    vmz = vz + hEz
-    tx = h * Bx
-    ty = h * By
-    tz = h * Bz
-    t2 = tx * tx + ty * ty + tz * tz
-    f = 2 / (1 + t2)
-    sx = f * tx
-    sy = f * ty
-    sz = f * tz
-    # v' = v⁻ + v⁻ × t
-    vpx = vmx + (vmy * tz - vmz * ty)
-    vpy = vmy + (vmz * tx - vmx * tz)
-    vpz = vmz + (vmx * ty - vmy * tx)
-    # v⁺ = v⁻ + v' × s
-    vnx = vmx + (vpy * sz - vpz * sy)
-    vny = vmy + (vpz * sx - vpx * sz)
-    vnz = vmz + (vpx * sy - vpy * sx)
-    return (vnx + hEx, vny + hEy, vnz + hEz), (h, hEx, hEy, hEz, tx, ty, tz, t2, f)
+    ::Val{trace} = Val(false),
+) where {T,trace}
+    n1 = qm * dt
+    n2 = n1 / 2
+    n3 = n2 * Ex
+    n4 = n2 * Ey
+    n5 = n2 * Ez
+    n6 = vx + n3
+    n7 = vy + n4
+    n8 = vz + n5
+    n9 = n2 * Bx
+    n10 = n2 * By
+    n11 = n2 * Bz
+    n12 = n9 * n9
+    n13 = n10 * n10
+    n14 = n11 * n11
+    if T <: _RangeGuardedFloat
+        n15 = n12 + n13
+        n16 = n15 + n14
+    else
+        # Generic arithmetic keeps its historical variadic operator dispatch.
+        # Only an explicitly requested generic diagnostic trace adds a prefix.
+        n15 = trace ? n12 + n13 : nothing
+        n16 = n12 + n13 + n14
+    end
+    n17 = 1 + n16
+    n18 = 2 / n17
+    n19 = n18 * n9
+    n20 = n18 * n10
+    n21 = n18 * n11
+    n22 = n7 * n11
+    n23 = n8 * n10
+    n24 = n22 - n23
+    n25 = n6 + n24
+    n26 = n8 * n9
+    n27 = n6 * n11
+    n28 = n26 - n27
+    n29 = n7 + n28
+    n30 = n6 * n10
+    n31 = n7 * n9
+    n32 = n30 - n31
+    n33 = n8 + n32
+    n34 = n29 * n21
+    n35 = n33 * n20
+    n36 = n34 - n35
+    n37 = n6 + n36
+    n38 = n33 * n19
+    n39 = n25 * n21
+    n40 = n38 - n39
+    n41 = n7 + n40
+    n42 = n25 * n20
+    n43 = n29 * n19
+    n44 = n42 - n43
+    n45 = n8 + n44
+    n46 = n37 + n3
+    n47 = n41 + n4
+    n48 = n45 + n5
+    out = (n46, n47, n48)
+    parts = (n2, n3, n4, n5, n9, n10, n11, n16, n18)
+    trace && return out,
+    parts,
+    (
+        n1,
+        n2,
+        n3,
+        n4,
+        n5,
+        n6,
+        n7,
+        n8,
+        n9,
+        n10,
+        n11,
+        n12,
+        n13,
+        n14,
+        n15,
+        n16,
+        n17,
+        n18,
+        n19,
+        n20,
+        n21,
+        n22,
+        n23,
+        n24,
+        n25,
+        n26,
+        n27,
+        n28,
+        n29,
+        n30,
+        n31,
+        n32,
+        n33,
+        n34,
+        n35,
+        n36,
+        n37,
+        n38,
+        n39,
+        n40,
+        n41,
+        n42,
+        n43,
+        n44,
+        n45,
+        n46,
+        n47,
+        n48,
+    )
+    return out, parts
 end
 
 # Native-only Boris kick: no range guard or fallback (device kernels).
@@ -103,16 +190,18 @@ end
 Boris velocity update over `dt` for charge-to-mass ratio `qm`: half electric
 kick, magnetic rotation with `t = (qm dt/2) B`, half electric kick.
 
-Ordinary inputs use the plain formula in its historical operation order. For
-`Float16`, `Float32` and `Float64`, a guard over its intermediates detects
-overflow or underflow (for example `qm*dt/2` overflowing in a zero field, an
-overflowing `|t|²`, or an underflowed `qm*dt` that would drop a representable
-kick). Only those evaluations repeat the same expression wider — `Float32` for
-`Float16`, `Float64` for `Float32`, exact `Rational{BigInt}` for `Float64` —
-rounded once. The result is within a few ulps of `max(|v|, |qm dt E/2|)`;
-componentwise accuracy of a nearly cancelling component is not certified. A
-result that exceeds the type is returned as `±Inf`, and non-finite inputs keep
-IEEE propagation. Other number types use the plain formula.
+For CPU `Float16`, `Float32` and `Float64`, the historical expression is used
+when sufficient range and accuracy bounds prove the result. Unresolved finite
+inputs evaluate that same expression exactly as `Rational{BigInt}`. A native
+result already within four ulps at the exact Euclidean scale
+`max(norm(v),norm(qm*dt*E/2))` keeps its bits when the old range guard admits it;
+otherwise the exact result is rounded once. This is an absolute tolerance at
+the operation scale, including nearly cancelling output components. Exact
+nearest-even overflow returns the corresponding `±Inf`. Nonfinite inputs keep
+IEEE propagation; other number types keep the plain formula. The explicit `qm`
+argument means that stored number. CPU species pushes retain their original
+stored charge and mass separately. Native device arithmetic retains its
+separately documented explicit-qm domain.
 """
 @inline function boris_kick(
     vx::T,
@@ -127,22 +216,47 @@ IEEE propagation. Other number types use the plain formula.
     qm::T,
     dt::T,
 ) where {T}
-    out, parts = _boris_kick_parts(vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, qm, dt)
-    T <: _RangeGuardedFloat || return out
-    _boris_kick_in_range(out, parts, vx, vy, vz, qm, dt) && return out
-    return _boris_kick_repair(out, vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, qm, dt)
+    T <: _RangeGuardedFloat || return _boris_kick_native(vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, qm, dt)
+    return _boris_kick_checked(vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, qm, dt)
 end
 
-# The same expression in the wider format, rounded once. For M = floatmax(T)
-# every intermediate is below 8*M^6 (|t| < M^3, |v⁻| < M^3, |v′| < 2*M^6 and
-# |s| <= 1): 2^771 for Float32 in Float64 and 2^99 for Float16 in Float32, so
-# nothing overflows. Inputs are multiples of nextfloat(zero(T)), so h, h*E, t
-# and s are zero or normal in the wide format. Underflow is possible only in
-# the rotation products v⁻×t (Float16) and v′×s and in |t|² (Float16, a
-# relative 2^-148 effect on f). Those products reach the result additively or
-# through |s| <= 1, below 2^-1070 (Float64) resp. 2^-145 (Float32) in absolute
-# value and far below the smallest subnormal of T, so one final rounding keeps
-# the normwise bound. Float64 inputs are evaluated exactly.
+@inline function _boris_kick_checked(
+    vx::T,
+    vy::T,
+    vz::T,
+    Ex::T,
+    Ey::T,
+    Ez::T,
+    Bx::T,
+    By::T,
+    Bz::T,
+    factor,
+    dt::T,
+) where {T}
+    qm = _boris_native_factor(factor)
+    out, parts, nodes = _boris_kick_parts(vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, qm, dt, Val(true))
+    # Stored nonfinite operands keep the historical IEEE expression. A species
+    # quotient can be nonfinite despite finite original q,m and must go cold.
+    all(isfinite, (vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, dt)) || return out
+    (!(factor isa _BorisSpeciesFactors) && !isfinite(qm)) && return out
+    range = _boris_kick_in_range(out, parts, vx, vy, vz, qm, dt)
+    range &&
+        _boris_accuracy_scalar(
+            out,
+            parts,
+            nodes,
+            (vx, vy, vz),
+            (Ex, Ey, Ez),
+            (Bx, By, Bz),
+            factor,
+            dt,
+        ) &&
+        return out
+    return _boris_kick_repair(out, vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, factor, dt, range)
+end
+
+# Exact replay uses the one canonical expression. No separately transcribed
+# rotation is used for the fallback or its native-retention decision.
 @noinline function _boris_kick_repair(
     out::NTuple{3,T},
     vx::T,
@@ -154,18 +268,102 @@ end
     Bx::T,
     By::T,
     Bz::T,
-    qm::T,
+    factor,
+    dt::T,
+    retain_native::Bool = false,
+) where {T}
+    inputs = (vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, dt)
+    all(isfinite, inputs) || return out
+    qm = _boris_native_factor(factor)
+    (!(factor isa _BorisSpeciesFactors) && !isfinite(qm)) && return out
+    Q = _exact_rational
+    exact, parts = _boris_kick_parts(
+        Q(vx),
+        Q(vy),
+        Q(vz),
+        Q(Ex),
+        Q(Ey),
+        Q(Ez),
+        Q(Bx),
+        Q(By),
+        Q(Bz),
+        _boris_exact_factor(factor),
+        Q(dt),
+    )
+    scale2 = max(Q(vx)^2 + Q(vy)^2 + Q(vz)^2, parts[2]^2 + parts[3]^2 + parts[4]^2)
+    if retain_native && _boris_exact_native_ok(out, exact, scale2)
+        return out
+    end
+    return map(x -> _from_exact(T, x), exact)
+end
+
+function _boris_exact_native_ok(out::NTuple{3,T}, exact, scale2::Rational{BigInt}) where {T}
+    Q = Rational{BigInt}
+    minimum = exponent(floatmin(T))
+    e = minimum
+    if !iszero(scale2)
+        n, d = numerator(scale2), denominator(scale2)
+        b = ndigits(n; base = 2) - ndigits(d; base = 2)
+        (b >= 0 ? n < d << b : n << -b < d) && (b -= 1)
+        e = max(fld(b, 2), minimum)
+    end
+    tolerance = 4Q(2)^(e - precision(T) + 1)
+    threshold = _exact_rational(floatmax(T)) + Q(2)^(exponent(floatmax(T)) - precision(T))
+    return all(1:3) do c
+        x = exact[c]
+        abs(x) >= threshold ? isinf(out[c]) && signbit(out[c]) == (x < 0) :
+        isfinite(out[c]) && abs(_exact_rational(out[c]) - x) <= tolerance
+    end
+end
+
+@inline function _kick_eval(
+    ::Val{false},
+    vx::T,
+    vy::T,
+    vz::T,
+    Ex::T,
+    Ey::T,
+    Ez::T,
+    Bx::T,
+    By::T,
+    Bz::T,
+    factor::_BorisSpeciesFactors{T},
     dt::T,
 ) where {T}
-    inputs = (vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, qm, dt)
-    all(isfinite, inputs) || return out
-    W = _kinematics_wide(T)
-    return map(x -> _kinematics_round(T, x), _boris_kick_native(map(W, inputs)...))
+    return _boris_kick_native(vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, factor.qm, dt)
+end
+@inline function _kick_eval(
+    ::Val{true},
+    vx::T,
+    vy::T,
+    vz::T,
+    Ex::T,
+    Ey::T,
+    Ez::T,
+    Bx::T,
+    By::T,
+    Bz::T,
+    factor::_BorisSpeciesFactors{T},
+    dt::T,
+) where {T}
+    return _boris_kick_checked(vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, factor, dt)
+end
+
+@inline function _validated_charge_mass(ps::ParticleSet{D,T}) where {D,T<:AbstractFloat}
+    q = _require_finite_real("particle charge q", ps.q, T)
+    m = _require_finite_positive_real("particle mass m", ps.m, T)
+    return q, m
+end
+@inline function _validated_boris_factor(ps::ParticleSet{D,T}) where {D,T<:AbstractFloat}
+    q, m = _validated_charge_mass(ps)
+    qm = q / m
+    T <: _RangeGuardedFloat && return _BorisSpeciesFactors(q, m, qm)
+    isfinite(qm) || throw(ArgumentError("particle charge-to-mass ratio q/m must be finite"))
+    return qm
 end
 
 @inline function _validated_qm(ps::ParticleSet{D,T}) where {D,T<:AbstractFloat}
-    q = _require_finite_real("particle charge q", ps.q, T)
-    m = _require_finite_positive_real("particle mass m", ps.m, T)
+    q, m = _validated_charge_mass(ps)
     qm = q / m
     isfinite(qm) || throw(ArgumentError("particle charge-to-mass ratio q/m must be finite"))
     return qm
@@ -232,7 +430,8 @@ common case, which then runs the native vectorized loops (bitwise unchanged);
 otherwise every particle takes the guarded evaluation.
 """
 function push_uniform!(ps::ParticleSet{D,T}, E::NTuple{3}, B::NTuple{3}, dt::Real) where {D,T}
-    qm = _validated_qm(ps)
+    factor = _validated_boris_factor(ps)
+    qm = _boris_native_factor(factor)
     dtT = _require_resolved_dt("push_uniform!", _require_finite_real("dt", dt, T))
     electric = _validated_uniform_field("E", E, T)
     magnetic = _validated_uniform_field("B", B, T)
@@ -247,12 +446,12 @@ function push_uniform!(ps::ParticleSet{D,T}, E::NTuple{3}, B::NTuple{3}, dt::Rea
         covered ? _uniform_batch_scales(ps.v, x, K, indices, Val(false)) :
         _uniform_batch_scales(ps.v, x, K, indices, Val(true))
     x === () && (xmax = _coordinate_batch_max(ps.x, T))
-    kick, vbound = _boris_batch_certificate(h, qm, dtT, vmax, emax, bmax, smin)
+    kick, vbound = _boris_batch_admission(ps, h, factor, dtT, vmax, emax, bmax, smin)
     drift = kick && _coordinate_batch_certified(ps, xmax, dtT, vbound)
     if kick
-        _uniform_kicks!(ps, electric, magnetic, qm, dtT, Val(false))
+        _uniform_kicks!(ps, electric, magnetic, factor, dtT, Val(false))
     else
-        _uniform_kicks!(ps, electric, magnetic, qm, dtT, Val(true))
+        _uniform_kicks!(ps, electric, magnetic, factor, dtT, Val(true))
     end
     drift ? _uniform_drifts!(ps, dtT, Val(false)) : _uniform_drifts!(ps, dtT, Val(true))
     return ps
@@ -357,7 +556,8 @@ function push_gathered!(
     xmid = nothing,
 ) where {D,T}
     _check_gathered_field_storage(ps, E, B, xmid)
-    qm = _validated_qm(ps)
+    factor = _validated_boris_factor(ps)
+    qm = _boris_native_factor(factor)
     dtT = _require_resolved_dt("push_gathered!", _require_finite_real("dt", dt, T))
     indices = eachindex(ps.weight)
     hk = qm * dtT / 2
@@ -365,12 +565,12 @@ function push_gathered!(
     # A non-finite field sample makes max|E| or max|B| non-finite; the original
     # validation then reports the first offending sample before any mutation.
     isfinite(scales[2]) & isfinite(scales[3]) || _require_finite_gathered_fields(E, B, indices, T)
-    kick, vbound = _boris_batch_certificate(hk, qm, dtT, scales...)
+    kick, vbound = _boris_batch_admission(ps, hk, factor, dtT, scales...)
     xmax = _coordinate_batch_max(ps.x, T)
     if kick && _coordinate_batch_certified(ps, xmax, dtT, vbound)
-        _gathered_push!(ps, E, B, qm, dtT, xmid, Val(false))
+        _gathered_push!(ps, E, B, factor, dtT, xmid, Val(false))
     else
-        _gathered_push!(ps, E, B, qm, dtT, xmid, Val(true))
+        _gathered_push!(ps, E, B, factor, dtT, xmid, Val(true))
     end
     return ps
 end

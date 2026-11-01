@@ -8,6 +8,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Nonrelativistic CPU Boris kicks retain original species charge and mass in
+  public pushes and model kick owners. Joint range and accuracy certificates
+  guard native batch bypasses; unresolved finite kicks use exact replay with
+  the existing four-ulp tolerance and nearest-even overflow rule. Priming,
+  predictor, relativistic and device factor support remain separate follow-ons.
+  See the [CPU Boris contract and tracker](docs/BORIS_ACCURACY_IMPLEMENTATION.md).
+
 - Distributed FFT CI prepares one environment and runs core and metadata
   regressions in separate MPI processes. Launcher errors propagate as failures;
   both collections retain their existing tests and uploaded logs.

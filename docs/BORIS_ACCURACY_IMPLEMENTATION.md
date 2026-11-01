@@ -1,0 +1,47 @@
+# CPU Boris accuracy
+
+The nonrelativistic CPU Boris kick uses one canonical expression. For finite
+`Float16`, `Float32` and `Float64` operands, its component tolerance is four ulps
+at the exact Euclidean scale `max(norm(v), norm((q/m)*(dt/2)*E))`, with the
+smallest-normal binade as the scale floor. Exact nearest-even overflow produces
+the corresponding signed infinity. The standalone `boris_kick` argument `qm`
+means that stored number; it cannot recover charge and mass already divided by
+the caller.
+
+CPU `push_uniform!`, `push_gathered!`, and nonrelativistic hybrid, electrostatic
+and electromagnetic model kick owners retain the original stored charge and
+mass in an immutable carrier constructed once per population call. Their
+native trial still uses the historical rounded quotient and operation order.
+Both scalar and batch admission require the range guard and a sufficient
+48-operation error bound. A failed certificate requests exact replay of the
+same expression with the original factors. Exact comparison retains valid
+native bits; unresolved output is rounded once. Aliased particle components
+cannot bypass the per-particle guard through a batch certificate.
+
+The sufficient certificates require nearest rounding and gradual underflow.
+Other arithmetic modes use the exact cold path and the shared IEEE conversion
+owners. Native-retention comparisons also extract the stored IEEE bits through
+that shared owner. Generic arithmetic keeps its historical variadic sum;
+nonfinite inputs keep native propagation. These rules do not add persistent
+particle or solver storage, and no new allocation or timing guarantee is made.
+
+Priming, the hybrid endpoint Euler predictor and relativistic updates still
+receive a rounded numerical `qm`; original-factor support for those owners
+remains follow-up work. Existing model input restrictions, including collection
+electrostatic rejection of an underflowed charged quotient, are unchanged.
+Device kernels retain their explicit-`qm` semantics and have no new
+original-factor guarantee.
+
+Implementation tracker:
+
+- [x] Canonical expression, original-factor carrier, scalar and joint batch
+  accuracy admission, and exact cold replay.
+- [x] CPU public and nonrelativistic model kick caller threading.
+- [x] Essential original-factor, generic-dispatch, public-storage, model-helper
+  and stored-subnormal retention regressions included in the package suite.
+- [x] Compose the shared IEEE conversion repair from `7300c4f`.
+- [ ] GitHub CI verification of the composed implementation on minimum and
+  latest Julia, formatting and MPI jobs.
+- [ ] Original-factor priming, predictor, relativistic and device follow-ons.
+- [ ] Complete public resource and compiler acceptance; prior bounded numerical
+  checks do not establish these guarantees.
