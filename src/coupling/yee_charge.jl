@@ -269,19 +269,16 @@ end
             a, b = direction < 0 ? (first, last) : (last, first)
             direction > 0 && (charge = -charge)
         end
-        lower, left, lower_ok = _yee_cic_stencil(a, g, exact)
-        upper, right, upper_ok = _yee_cic_stencil(b, g, exact)
-        lower_ok && upper_ok || return false
+        lower, upper, weights, admitted = _yee_cic_path_stencil(a, b, g, exact)
+        admitted || return false
         if lower == upper
-            displacement, admitted = _yee_cic_displacement(a, b, g, exact)
-            admitted || return false
-            _yee_add_charge!(sums, lower + 1, charge, displacement, exact) || return false
+            _yee_add_charge!(sums, lower + 1, charge, weights[1], exact) || return false
         else
-            _yee_add_charge!(sums, lower + 1, charge, left[1], exact) || return false
+            _yee_add_charge!(sums, lower + 1, charge, weights[1], exact) || return false
             for cell = (lower+1):(upper-1)
                 _yee_add_charge!(sums, cell + 1, charge, one(charge), exact) || return false
             end
-            _yee_add_charge!(sums, upper + 1, charge, right[2], exact) || return false
+            _yee_add_charge!(sums, upper + 1, charge, weights[2], exact) || return false
         end
     end
     return true
@@ -392,3 +389,60 @@ yee_particle_charge!(out, particles, g::YeeGrid, workspace) =
     throw(ArgumentError("Yee charge coupling requires one spatial dimension"))
 yee_longitudinal_impulse!(out, particles, old, new, g::YeeGrid, workspace) =
     throw(ArgumentError("Yee charge coupling requires one spatial dimension"))
+
+"""
+    yee_longitudinal_voltage(Ex, xold, xnew, g::YeeGrid{1})
+
+Return the oriented longitudinal path voltage paired with
+[`yee_longitudinal_impulse!`](@ref) on a closed 1D PEC interval. For the exact
+stored-coordinate cell overlaps `C[e]` in `s=n*x/L`, this is
+`g.dx[1] * sum(Ex[e]*C[e])`. It includes the longitudinal DC field without
+imposing a plate-voltage constraint. Reversing endpoints negates the exact
+voltage; a zero path returns zero after validation.
+
+`Ex` is a read-only CPU strided vector of grid precision with n finite entries;
+both endpoints have that precision and lie in `[0,L]`. The complete expression
+uses exact stored operands and rounds once to the grid precision, independently
+of hardware rounding or subnormal flushing. A nonfinite final rounding throws
+`ArgumentError`; inputs are unchanged on success or failure. Validation scans
+all n field entries; contraction costs O(crossed cells) rational operations.
+No allocation or latency bound is supplied.
+
+Before independent rounding, particle work is `q*weight*voltage`, the adjoint
+of the existing impulse under the stored-dx field-work metric. For a nonzero
+physical displacement the associated path average is `voltage/(xnew-xold)`;
+it includes `n*g.dx[1]/g.L[1]`, which need not equal one exactly. Supply a temporal
+mean field to pair with source work, allowing for that mean's own rounding.
+This operator selects no stationary-node force, particle mover or wall event,
+and does not establish coupled energy conservation or force accuracy.
+"""
+function yee_longitudinal_voltage(Ex, xold, xnew, g::YeeGrid{1,T}) where {T}
+    g.periodic[1] && throw(ArgumentError("Yee path voltage requires a closed PEC grid"))
+    Ex isa StridedVector{T} ||
+        throw(ArgumentError("Yee path voltage field must be a CPU strided vector of grid precision $T"))
+    length(Ex) == g.n[1] || throw(DimensionMismatch("Yee path voltage field must have n entries"))
+    Base.require_one_based_indexing(Ex)
+    xold isa T && xnew isa T ||
+        throw(ArgumentError("Yee path voltage endpoints must have grid precision $T"))
+    _yee_validate_charge_position(xold, g.L[1], 1, 1, :old, false)
+    _yee_validate_charge_position(xnew, g.L[1], 1, 1, :new, false)
+    all(isfinite, Ex) || throw(ArgumentError("Yee path voltage field must be finite"))
+    direction = cmp(_exact_rational(xold), _exact_rational(xnew))
+    iszero(direction) && return zero(T)
+    a, b = direction < 0 ? (xold, xnew) : (xnew, xold)
+    lower, upper, weights, _ = _yee_cic_path_stencil(a, b, g, Val(true))
+    total = _exact_rational(Ex[lower+1]) * weights[1]
+    if lower != upper
+        for cell = (lower+1):(upper-1)
+            total += _exact_rational(Ex[cell+1])
+        end
+        total += _exact_rational(Ex[upper+1]) * weights[2]
+    end
+    direction > 0 && (total = -total)
+    value = _from_exact(T, _exact_rational(g.dx[1]) * total)
+    isfinite(value) || throw(ArgumentError("Yee path voltage does not round to a finite $T value"))
+    return value
+end
+
+yee_longitudinal_voltage(Ex, xold, xnew, g::YeeGrid) =
+    throw(ArgumentError("Yee path voltage requires one spatial dimension"))

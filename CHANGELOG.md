@@ -90,6 +90,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- `yee_longitudinal_voltage` evaluates the closed Yee path-work contraction
+  using the same CIC overlap stencil as endpoint impulse and the existing
+  stored-dx Maxwell metric. It rounds the complete exact expression once,
+  preserves read-only inputs and rejects nonfinite rounded voltage. Force
+  selection, coupled stepping and wall ledgers remain separate stages.
+
 - Constant hyperresistive `TransportElectrons` (CAP-011 S2) for serial periodic
   CPU Float32/64 grids in one to three dimensions. Each stage pairs
   `ηJ − ηH∇²J` in Faraday with positive Ohmic and Nyquist-completed electron

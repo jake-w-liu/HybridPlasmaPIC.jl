@@ -1,9 +1,13 @@
-# Closed Yee particle charge and current
+# Closed Yee particle charge, current and path work
 
 `YeeChargeWorkspace`, `yee_particle_charge!` and `yee_longitudinal_impulse!`
 provide the CPU Float32/Float64 charge/current prerequisite of CAP-002B on a
 closed one-dimensional PEC interval. They do not select or advance a particle
 trajectory. Coupled bounded electromagnetic PIC remains incomplete.
+
+`yee_longitudinal_voltage(Ex,xold,xnew,g)` supplies the read-only scalar path
+work prerequisite on the same closed interval. It does not choose a force or
+advance particles.
 
 For N cells, nodal charge uses the CIC hats at the exact stored-input coordinate
 `s=N*x/L`, including both wall nodes. It is extensive charge, without division
@@ -34,7 +38,41 @@ entry whose canonical rounding is nonfinite raises `ArgumentError` before output
 publication. Scratch contents can change on arithmetic rejection and remain
 reusable; invalid-input preflight preserves scratch too.
 
-Workspace payload is `(8+sizeof(T))*(N+1)` bytes plus object headers. Charge costs
+## Longitudinal path voltage
+
+Let `C[p,e]` be the oriented normalized cell overlap already used by the impulse,
+and let `V[p]=dx*sum(Ex[e]*C[p,e])`. The exact contraction identity is
+`sum(q[p]*weight[p]*V[p])=dx*sum(Ex[e]*I[e])`. Supplying the exact temporal
+mean `(Eold+Enew)/2` makes this the longitudinal part of the existing field
+source-work expression. Constructing that mean, rounding the impulse and
+rounding each voltage introduce their own errors; no bitwise equality between
+independently rounded APIs is promised.
+
+The Maxwell work metric uses stored `dx`, while endpoint geometry uses exact
+`N*x/L`. For nonzero physical displacement, the derived work-adjoint average
+is `V/(xnew-xold)`, including `N*dx/L`. A constant field therefore gives
+`V=(N*dx/L)*Ex*(xnew-xold)` before rounding. The factor differs from one when
+stored `L/N` is rounded; the operator preserves this existing discrete metric.
+It includes longitudinal DC without imposing a fixed voltage or free plate
+charge. Wall endpoints remain geometric endpoints, not absorption events.
+
+The field is a CPU strided vector of grid precision with N finite entries.
+Both scalar endpoints have that precision and lie in `[0,L]`. Validation
+precedes calculation, including for a zero path. The complete expression uses
+exact stored operands and rounds once through the shared nearest-even IEEE
+owner, independently of hardware rounding/flush modes. A nonfinite final
+rounding raises `ArgumentError`; inputs remain unchanged on every outcome.
+A zero path returns zero voltage and does not select a stationary-node force.
+
+Charge/impulse and voltage share the canonical CIC path stencil. Path voltage
+scans N field entries for validation, then uses O(crossed cells) rational
+operations and scalar temporaries, without a new workspace. A native fast path,
+allocation and latency acceptance remain open.
+This work contraction does not resolve the retained first-order CIC point-force
+or discontinuous node-at-rest failures. A coupled force/pusher needs its own
+shape, time-centering, stability and wall contracts.
+
+The charge/impulse workspace payload is `(8+sizeof(T))*(N+1)` bytes plus object headers. Charge costs
 O(N+P); impulse costs O(N+P+crossed cells), at worst O(N+P*N). Exact replay owns
 O(N) temporary rational entries. No universal cold allocation or latency bound
 is claimed.
@@ -49,6 +87,8 @@ pending until those jobs pass.
 ## Remaining implementation
 
 - [x] Closed extensive charge and compatible longitudinal endpoint impulse.
+- [x] Canonical longitudinal path voltage and exact discrete work contraction.
+- [ ] GitHub validation of the path-voltage implementation and unchanged impulse.
 - [ ] Choose a force/current pairing that passes retained point-sheet force,
   isolated-plate/DC, work and semidiscrete stability controls.
 - [ ] Transverse current and a synchronized coupled particle/field method.

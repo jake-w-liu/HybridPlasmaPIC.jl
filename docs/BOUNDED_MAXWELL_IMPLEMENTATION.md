@@ -16,6 +16,14 @@ exact stored operands. Essential physical, range, atomic-failure, mode and
 concrete compiler checks are included for GitHub; changed-source runtime and
 performance acceptance is pending.
 
+`yee_longitudinal_voltage` adds a read-only path-work contraction with the same
+CIC overlaps and stored-dx metric. Its exact expression is the longitudinal
+adjoint of endpoint impulse, with a zero voltage for zero displacement; it does
+not define a stationary-node force. The scalar implementation rounds the exact
+stored-input expression once. Native-path/resource acceptance and GitHub
+verification remain pending. The particle coupling plan owns its metric and
+failure contract; point-sheet force, coupled time centering and walls stay open.
+
 Earlier isolated B2a campaigns are historical evidence. Their population-barrier
 candidate passed 126,925 focused and 1,806 CRC assertions per runtime and sampled
 ordinary allocation checks, then failed 26 of 84 minimum-runtime compiler checks.

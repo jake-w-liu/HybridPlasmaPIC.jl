@@ -140,6 +140,61 @@ end
     end
 end
 
+@testset "Longitudinal path voltage and current work" begin
+    for T in (Float32, Float64)
+        g = YeeGrid((3,), (T(0.1),))
+        field = T[2, -1, 3]
+        original = copy(field)
+        L = g.L[1]
+        for (a, b) in ((zero(T), L), (L, zero(T)), (L / 16, L / 8), (L / 8, 3L / 8),
+                       (L / 8, 7L / 8), (zero(T), zero(T)), (L / 2, L / 2),
+                       (L, L), (zero(T), nextfloat(zero(T))))
+            exact = O.voltage(field, a, b, 3, L, g.dx[1])
+            voltage = yee_longitudinal_voltage(field, a, b, g)
+            @test O.rounded(voltage, exact)
+            @test O.rounded(yee_longitudinal_voltage(view(field, :), b, a, g), -exact)
+        end
+        @test isequal(field, original)
+        # The stored Maxwell metric is not the exact physical cell length.
+        # A midpoint product makes omitting this factor change the rounding cell.
+        metric = 3 * O.rat(g.dx[1]) / O.rat(L)
+        @test metric != 1
+        constant = metric > 1 ? one(T) + 3eps(T) : nextfloat(one(T))
+        displacement = T(3) / T(64)
+        dc = fill(constant, 3)
+        exact = metric * O.rat(constant) * O.rat(displacement)
+        @test O.rounded(yee_longitudinal_voltage(dc, zero(T), displacement, g), exact)
+        @test !O.rounded(constant * displacement, exact)
+
+        # A full path has exactly unit normalized overlap on every edge, so
+        # both independently rounded APIs evaluate the same dyadic field work.
+        ps = population(T, T[0])
+        impulse = zeros(T, 3)
+        yee_longitudinal_impulse!(impulse, ps, T[0], T[L], g, YeeChargeWorkspace(g))
+        electric = (field, zeros(T, 4), zeros(T, 4))
+        source = (impulse, zeros(T, 4), zeros(T, 4))
+        @test isequal(yee_longitudinal_voltage(field, zero(T), L, g),
+                      yee_source_work(electric, electric, source, g))
+
+        wide = YeeGrid((4,), (T(8),))
+        extremes = T[floatmax(T), -floatmax(T), floatmax(T), -floatmax(T)]
+        @test iszero(yee_longitudinal_voltage(extremes, zero(T), T(8), wide))
+        @test_throws ArgumentError yee_longitudinal_voltage(fill(floatmax(T), 4), zero(T), T(8), wide)
+        @test_throws ArgumentError yee_longitudinal_voltage(field, -nextfloat(zero(T)), L, g)
+        @test_throws ArgumentError yee_longitudinal_voltage(field, zero(T), nextfloat(L), g)
+        @test_throws ArgumentError yee_longitudinal_voltage(field, T(NaN), L, g)
+        @test_throws ArgumentError yee_longitudinal_voltage(field, 0, L, g)
+        @test_throws ArgumentError yee_longitudinal_voltage([1, 2, 3], zero(T), L, g)
+        @test_throws ArgumentError yee_longitudinal_voltage(T[NaN, 0, 0], zero(T), zero(T), g)
+        @test_throws DimensionMismatch yee_longitudinal_voltage(field[1:2], zero(T), L, g)
+        @test_throws ArgumentError yee_longitudinal_voltage(field, zero(T), L,
+            YeeGrid((3,), (L,); boundaries = (:periodic,)))
+        @test_throws ArgumentError yee_longitudinal_voltage(field, zero(T), L,
+            YeeGrid((3, 3), (L, L)))
+        @test isequal(field, original)
+    end
+end
+
 @testset "Stored operands in nondefault IEEE contexts" begin
     saved = Base.Rounding.rounding_raw(Float64), get_zero_subnormals()
     for T in (Float32, Float64), (hardware, flush) in ((RoundUp, false), (RoundNearest, true))
@@ -149,6 +204,14 @@ end
         ps = abstract_storage(population(T, T[0]; q = sub))
         species = Any[ps]
         exact = O.rat(sub)
+        voltage_field = ones(T, 8)
+        voltage = in_mode(
+            () -> yee_longitudinal_voltage(voltage_field, zero(T), sub, g), hardware, flush,
+        )
+        @test O.rounded(voltage, exact)
+        @test_throws ArgumentError in_mode(
+            () -> yee_longitudinal_voltage(voltage_field, -sub, zero(T), g), hardware, flush,
+        )
         in_mode(() -> yee_particle_charge!(out, species, g, work), hardware, flush)
         @test O.rounded(out[1], exact) && all(iszero, out[2:end])
         ps.q = one(T)
@@ -201,6 +264,14 @@ end
 @testset "Yee scalar domain through broad public collections" begin
     for T in (Float32, Float64)
         G, W = YeeGrid{1,T}, YeeChargeWorkspace{T}
+        report = JET.report_call(
+            yee_longitudinal_voltage, Tuple{Vector{T},T,T,G};
+            sourceinfo = :full, stacktrace_types_limit = 0,
+        )
+        if !isempty(JET.get_reports(report))
+            show(IOContext(stdout, :limit => false), MIME"text/plain"(), report)
+        end
+        @test isempty(JET.get_reports(report))
         for P in (Vector{ParticleSet{1,T}}, Vector{Any})
             for (operation, types) in (
                 (yee_particle_charge!, Tuple{Vector{T},P,G,W}),

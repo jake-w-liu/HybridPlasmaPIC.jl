@@ -58,7 +58,7 @@ end
 
 # Bounded CIC uses the closed physical interval [0,L]. Its exact coordinate is
 # N*x/L, independently of the rounded stored dx used by the Maxwell field rows.
-# No force/particle-work pairing is supplied by these charge-only stencils.
+# These endpoint shapes do not select a particle force or trajectory.
 @inline function _yee_cic_fraction(terms::Tuple, denominator::Float64)
     value = 0.0
     for term in _eft_expansion(terms)
@@ -124,4 +124,18 @@ end
         _exact_rational(g.n[1]) * (_exact_rational(b) - _exact_rational(a)) /
         _exact_rational(g.L[1])
     return value, true
+end
+
+# Nonnegative normalized cell overlaps for an ordered path a <= b. Interior
+# crossed cells have weight one; the two returned weights own its endpoint
+# cells. When both endpoints share a cell, only the first weight is used.
+@inline function _yee_cic_path_stencil(a, b, g::YeeGrid{1}, exact)
+    lower, left, lower_ok = _yee_cic_stencil(a, g, exact)
+    upper, right, upper_ok = _yee_cic_stencil(b, g, exact)
+    lower_ok && upper_ok || return lower, upper, (zero(left[1]), zero(right[2])), false
+    if lower == upper
+        displacement, admitted = _yee_cic_displacement(a, b, g, exact)
+        return lower, upper, (displacement, zero(displacement)), admitted
+    end
+    return lower, upper, (left[1], right[2]), true
 end

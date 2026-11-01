@@ -31,6 +31,16 @@ function impulse(species, old, new, n, length)
     return values, magnitudes
 end
 
+function voltage(field, old, new, n, length, dx)
+    a, b = minmax(rat(old), rat(new))
+    total = zero(Q)
+    for e = 0:(n-1)
+        overlap = max(zero(Q), min(b, rat(length) * (e + 1) / n) - max(a, rat(length) * e / n))
+        total += rat(field[e+1]) * overlap * n / rat(length)
+    end
+    return rat(dx) * (new < old ? -total : total)
+end
+
 incidence(x) = [rat(x[1]); [rat(x[i]) - rat(x[i-1]) for i = 2:length(x)]; -rat(x[end])]
 
 rounding_error(::Type{T}, exact) where {T} =

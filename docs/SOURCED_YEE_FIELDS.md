@@ -58,6 +58,13 @@ step, place `longitudinal` in the first impulse component and supply independent
 zero transverse vectors matching the other two electric components. The caller
 still chooses the trajectory; this does not define a coupled particle advance.
 
+`yee_longitudinal_voltage(Ex,xold,xnew,g)` contracts that same endpoint path
+with a supplied longitudinal field. Before independent rounding, `q*weight`
+times this voltage equals the particle's contribution to `dx*sum(Ex*impulse)`.
+It retains the stored-dx metric, including `N*dx/L`, and returns zero for a zero
+path without choosing a stationary force. See the
+[path-work contract](BOUNDED_PARTICLE_COUPLING_PLAN.md#longitudinal-path-voltage).
+
 At fixed dt, exact arithmetic gives `Hnew-Hold = -source_work`; rounded stage
 results add numerical residuals. This follows by writing the two magnetic states
 around their common half-stage B: the curl/transpose work terms cancel the
@@ -76,7 +83,7 @@ for a driven cavity and explicit work balance; verification is recorded in the
 [implementation record](BOUNDED_MAXWELL_IMPLEMENTATION.md#prescribed-current-slice).
 
 This capability is prescribed-source field evolution. Charge and longitudinal
-endpoint impulse are available separately; coupled particle motion, force gather,
+endpoint impulse and path voltage are available separately; coupled particle motion, force gather,
 transverse current, particle absorption, wall ledgers and nonlinear event solves
 remain incomplete. The retained fixed-macrocharge self-force and coupled
 impact-velocity convergence failures are still open; this prerequisite does not
