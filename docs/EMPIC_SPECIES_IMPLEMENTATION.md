@@ -128,6 +128,23 @@ discarded: `_save_checkpoint` validates the payload before atomic serialization,
 and `_archive_run` applies the same validation before archive publication. No
 second writer-side finite-field validation pass or compiler suppression was added.
 
+## First remote checkpoint-routing failure
+
+The [first essentials run](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41278909886)
+at `213ed8c` reaches collection stepping and policy checks on both actual Julia
+1.12.7 and 1.13.3, then fails collection save: the shared checkpoint entry selects its legacy required
+fields (`mi`, `electrons`, `ions`). No persistence acceptance follows from the
+earlier passing groups. Both failed raw logs are retained; corrected-revision
+checks remain pending.
+
+The shared EM entry now routes by payload layout and destination collection
+workspace, following the existing ES checkpoint policy. A named private owner
+retains every collection schema/storage/phase check; the scalar validation body
+is unchanged. Scalar/collection layout mismatches reject before publication.
+The existing checkpoint/archive, malformed-payload and strided-view cases must
+pass remotely before this repair is accepted. Two public cross-layout load
+controls also verify that both destination states remain unchanged.
+
 ## Remaining acceptance
 
 The essential suite covers both precisions, dimensions and built-in shapes;

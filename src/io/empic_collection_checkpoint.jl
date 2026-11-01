@@ -7,9 +7,7 @@ const _EMPIC_COLLECTION_CHECKPOINT_FIELDS = (
     :time, :step, :last_dt, :last_sub_dt,
 )
 
-function _validate_checkpoint_state(
-    s, st::EMPIC{D,T,G,SH,W},
-) where {D,T,G,SH,W<:_EMPICCollectionWork}
+function _validate_empic_collection_checkpoint(s, st::EMPIC{D,T}) where {D,T}
     _validate_checkpoint_container(s, _EMPIC_COLLECTION_CHECKPOINT_FIELDS)
     _validate_checkpoint_grid(s, st.g)
     s.integrator === :empic_collection && s.particle_layout === :collection &&

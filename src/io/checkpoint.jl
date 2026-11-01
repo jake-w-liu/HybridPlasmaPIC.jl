@@ -863,6 +863,14 @@ function _checkpoint_state(
 end
 
 function _validate_checkpoint_state(s, st::_ElectromagneticCheckpointStepper)
+    if s isa NamedTuple && haskey(s, :particle_layout)
+        st isa EMPIC && st.collection !== nothing || throw(
+            ArgumentError("collection checkpoint requires a collection EMPIC destination"),
+        )
+        return _validate_empic_collection_checkpoint(s, st)
+    end
+    st isa EMPIC && st.collection !== nothing &&
+        throw(ArgumentError("collection EMPIC requires a collection checkpoint"))
     _validate_checkpoint_container(s, _EMPIC_CHECKPOINT_REQUIRED_FIELDS)
     _validate_checkpoint_grid(s, st.g)
     expected = _empic_checkpoint_integrator(st)

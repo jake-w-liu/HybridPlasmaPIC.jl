@@ -36,6 +36,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Route EMPIC collection checkpoint payloads through their schema owner at the
+  shared validation entry, following the existing electrostatic layout policy.
+  The first remote collection save entered legacy electron/ion validation;
+  corrected checkpoint/archive and adjacent scalar checks await GitHub.
+
 - Bound normal IEEE relativistic Boris kick error at the scalar and both EMPIC
   batch owners, reusing the canonical momentum expression and residual arithmetic.
   Supported native tuples are retained when certified; bounded unresolved rows

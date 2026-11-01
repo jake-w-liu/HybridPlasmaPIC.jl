@@ -255,6 +255,18 @@ end
         mktempdir() do dir
             path = joinpath(dir, "em.chk")
             save_checkpoint(path, state, species)
+            # Collection and legacy files must reject the opposite destination
+            # through public IO, before changing either physical state.
+            legacy = EMPIC(FourierGrid(state.g.n, state.g.L), 0)
+            electrons = ParticleSet{2,T}(0; q = -one(T))
+            legacy_path = joinpath(dir, "legacy.chk")
+            save_checkpoint(legacy_path, legacy, electrons)
+            collection_before = snapshot(state, species)
+            legacy_before = deepcopy(H._checkpoint_state(legacy, electrons))
+            @test_throws ArgumentError load_checkpoint!(state, species, legacy_path)
+            @test snapshot(state, species) == collection_before
+            @test_throws ArgumentError load_checkpoint!(legacy, electrons, path)
+            @test H._checkpoint_state(legacy, electrons) == legacy_before
             destination = [ParticleSet{2,T}(0) for _ = 1:4]
             restored = EMPIC(FourierGrid(state.g.n, state.g.L), destination;
                 mobile = Bool[true, true, false, true], c = T(2))
