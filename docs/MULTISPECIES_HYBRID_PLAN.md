@@ -30,7 +30,11 @@ the collection calls have no applicable method; log:
   charge and mass before mutation. CPU IEEE movers retain those original factors
   when the derived quotient overflows or underflows; actual moment, field and
   output limits remain separate checks. Full-model range and restart regressions
-  for this admission update await GitHub CI. Validate
+  for this admission update await GitHub CI. The collection restart essentials
+  now explicitly accept saved finite factors whose quotient overflows or rounds
+  to zero, and retain complete no-mutation checks for nonfinite factors. These
+  restore controls preserve saved fields; they do not assert that an arbitrary
+  extreme state can advance. Validate
   every population's array lengths, axes, finite phase space, nonnegative
   weights, and independent storage before advancing any population. Keep
   existing single-population behavior compatible.

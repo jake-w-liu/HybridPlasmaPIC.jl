@@ -172,12 +172,30 @@ end
             save_checkpoint(path, st, species)
             saved = deserialize(path)
             record = saved.species[2]
+            # CPU movers retain finite original factors even when their quotient
+            # is infinite or rounds to zero. Restore preserves stored state;
+            # subsequent field/output range checks are a separate contract.
+            for (q, m) in (
+                (floatmax(Float64), eps(Float64)),
+                (floatmin(Float64), floatmax(Float64)),
+            )
+                expected = deepcopy(species)
+                expected[2].q = q
+                expected[2].m = m
+                valid = merge(record, (; q, m))
+                serialize(
+                    path,
+                    merge(saved, (species = Any[saved.species[1], valid, saved.species[3]],)),
+                )
+                @test load_checkpoint!(target, destinations, path) === target
+                @test io_multi_bytes(target, destinations) == io_multi_bytes(st, expected)
+            end
             bad_records = (
                 merge(record, (q = -1.0,)),
                 merge(record, (q = NaN,)),
                 merge(record, (m = 0.0,)),
                 merge(record, (m = 2.0f0,)),
-                merge(record, (q = floatmax(Float64), m = eps(Float64))),
+                merge(record, (q = floatmax(Float64), m = Inf)),
                 merge(record, (x = (fill(Inf, length(record.weight)),),)),
                 merge(record, (v = (record.v[1], record.v[2], fill(NaN, length(record.weight))),)),
                 merge(record, (weight = fill(-1.0, length(record.weight)),)),

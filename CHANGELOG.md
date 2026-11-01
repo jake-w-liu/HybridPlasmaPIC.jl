@@ -115,6 +115,11 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Fixed
 
+- Hybrid collection checkpoint essentials now follow CPU original charge/mass
+  admission: finite factors may have an overflowing or zero-rounded quotient.
+  Nonfinite mass still rejects with complete persistent-state and storage
+  checks; production validation and checkpoint schema are unchanged.
+
 - Electrostatic collection restore detaches complete incoming state before
   publication, preserving inputs that refer to live destination buffers. Stored
   fields restore verbatim; particle and owner capacity is reserved beforehand.
