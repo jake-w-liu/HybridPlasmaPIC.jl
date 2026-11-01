@@ -12,7 +12,18 @@ function _ohm_range_components(u, B, J, ninv, η, ηH, lap, gradp)
     return ntuple(3) do c
         a, b = ((2, 3), (3, 1), (1, 2))[c]
         HybridPlasmaPIC._ohm_scalar_field_value(
-            u[a], u[b], B[a], B[b], J[a], J[b], ninv, η, J[c], ηH, lap[c], gradp[c],
+            u[a],
+            u[b],
+            B[a],
+            B[b],
+            J[a],
+            J[b],
+            ninv,
+            η,
+            J[c],
+            ηH,
+            lap[c],
+            gradp[c],
         )
     end
 end
@@ -56,7 +67,9 @@ end
             pressure === nothing || (native -= pressure * ni)
             @test isequal(HybridPlasmaPIC._ohm_scalar_field_value(args..., pressure), native)
         end
-        @test isnan(HybridPlasmaPIC._ohm_scalar_field_value(T(NaN), z, z, o, z, z, o, z, z, z, z, nothing))
+        @test isnan(
+            HybridPlasmaPIC._ohm_scalar_field_value(T(NaN), z, z, o, z, z, o, z, z, z, z, nothing),
+        )
 
         # The public scalar and CGL Ohm owners reach the shared repair for
         # uniform data in every supported spatial dimension.
@@ -79,11 +92,15 @@ end
     for T in (Float32, Float64)
         z, sub, M = zero(T), nextfloat(zero(T)), floatmax(T)
         for (initial, η, current, expected) in (
-            (-M, T(2), M, M), (M, T(2), -M, -M),
-            (sub, sub, T(0.5), 2sub),
-            (z, T(2), M, T(Inf)), (T(0.25), T(0.5), T(0.5), T(0.5)),
-            (-z, z, T(NaN), -z),
-        ), inplace in (false, true)
+                (-M, T(2), M, M),
+                (M, T(2), -M, -M),
+                (sub, sub, T(0.5), 2sub),
+                (z, T(2), M, T(Inf)),
+                (T(0.25), T(0.5), T(0.5), T(0.5)),
+                (-z, z, T(NaN), -z),
+            ),
+            inplace in (false, true)
+
             force = ntuple(_ -> fill(initial, 2), 3)
             currents = ntuple(_ -> fill(current, 2), 3)
             before = map(copy, force)

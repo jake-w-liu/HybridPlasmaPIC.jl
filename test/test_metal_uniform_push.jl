@@ -147,8 +147,12 @@ if Sys.isapple() && Base.find_package("Metal") !== nothing
         @testset "Metal original-factor admission precedes either push" begin
             sub = nextfloat(0.0f0)
             invalid = (
-                (sub, 2.0f0), (sub, 1.0f0), (1.0f0, sub),
-                (Inf32, 1.0f0), (1.0f0, 0.0f0), (1.0f0, NaN32),
+                (sub, 2.0f0),
+                (sub, 1.0f0),
+                (1.0f0, sub),
+                (Inf32, 1.0f0),
+                (1.0f0, 0.0f0),
+                (1.0f0, NaN32),
             )
             for count in (0, 2), (q, m) in invalid
                 cpu = population(1, count; q, m)
@@ -161,11 +165,18 @@ if Sys.isapple() && Base.find_package("Metal") !== nothing
                 for gathered in (false, true)
                     if gathered
                         @test_throws ArgumentError push_gathered!(
-                            gpu, E, B, 0.125f0; xmid = midpoint,
+                            gpu,
+                            E,
+                            B,
+                            0.125f0;
+                            xmid = midpoint,
                         )
                     else
                         @test_throws ArgumentError push_uniform!(
-                            gpu, (0.125f0, 0.125f0, 0.125f0), (0.0f0, 0.0f0, 0.0f0), 0.125f0,
+                            gpu,
+                            (0.125f0, 0.125f0, 0.125f0),
+                            (0.0f0, 0.0f0, 0.0f0),
+                            0.125f0,
                         )
                     end
                     Metal.synchronize()
@@ -175,6 +186,7 @@ if Sys.isapple() && Base.find_package("Metal") !== nothing
             end
             for (q, ratio) in ((0.0f0, 0.0f0), (-0.0f0, -0.0f0), (sub, 1.0f0)),
                 gathered in (false, true)
+
                 cpu = population(1, 2; q, m = sub)
                 gpu = copy_particles_to_backend(Val(:metal), cpu)
                 E, B = (0.25f0, 0.0f0, 0.0f0), (0.0f0, 0.0f0, 0.0f0)

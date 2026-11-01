@@ -438,8 +438,9 @@ and does not establish coupled energy conservation or force accuracy.
 """
 function yee_longitudinal_voltage(Ex, xold, xnew, g::YeeGrid{1,T}) where {T}
     g.periodic[1] && throw(ArgumentError("Yee path voltage requires a closed PEC grid"))
-    Ex isa StridedVector{T} ||
-        throw(ArgumentError("Yee path voltage field must be a CPU strided vector of grid precision $T"))
+    Ex isa StridedVector{T} || throw(
+        ArgumentError("Yee path voltage field must be a CPU strided vector of grid precision $T"),
+    )
     length(Ex) == g.n[1] || throw(DimensionMismatch("Yee path voltage field must have n entries"))
     Base.require_one_based_indexing(Ex)
     xold isa T && xnew isa T ||

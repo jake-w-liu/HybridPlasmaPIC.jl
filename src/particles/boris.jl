@@ -369,11 +369,11 @@ end
     q, m = _validated_charge_mass(ps)
     qm = q / m
     zero_charge = q === zero(T) || q === -zero(T)
-    zero_charge || (isfinite(qm) && abs(qm) >= floatmin(T)) || throw(
-        ArgumentError(
-            "native device Boris push requires finite normal q/m for nonzero charge",
-        ),
-    )
+    zero_charge ||
+        (isfinite(qm) && abs(qm) >= floatmin(T)) ||
+        throw(
+            ArgumentError("native device Boris push requires finite normal q/m for nonzero charge"),
+        )
     return qm
 end
 

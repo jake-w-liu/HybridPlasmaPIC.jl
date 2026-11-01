@@ -154,9 +154,17 @@ end
         field = T[2, -1, 3]
         original = copy(field)
         L = g.L[1]
-        for (a, b) in ((zero(T), L), (L, zero(T)), (L / 16, L / 8), (L / 8, 3L / 8),
-                       (L / 8, 7L / 8), (zero(T), zero(T)), (L / 2, L / 2),
-                       (L, L), (zero(T), nextfloat(zero(T))))
+        for (a, b) in (
+            (zero(T), L),
+            (L, zero(T)),
+            (L / 16, L / 8),
+            (L / 8, 3L / 8),
+            (L / 8, 7L / 8),
+            (zero(T), zero(T)),
+            (L / 2, L / 2),
+            (L, L),
+            (zero(T), nextfloat(zero(T))),
+        )
             exact = O.voltage(field, a, b, 3, L, g.dx[1])
             voltage = yee_longitudinal_voltage(field, a, b, g)
             @test O.rounded(voltage, exact)
@@ -181,13 +189,20 @@ end
         yee_longitudinal_impulse!(impulse, ps, T[0], T[L], g, YeeChargeWorkspace(g))
         electric = (field, zeros(T, 4), zeros(T, 4))
         source = (impulse, zeros(T, 4), zeros(T, 4))
-        @test isequal(yee_longitudinal_voltage(field, zero(T), L, g),
-                      yee_source_work(electric, electric, source, g))
+        @test isequal(
+            yee_longitudinal_voltage(field, zero(T), L, g),
+            yee_source_work(electric, electric, source, g),
+        )
 
         wide = YeeGrid((4,), (T(8),))
         extremes = T[floatmax(T), -floatmax(T), floatmax(T), -floatmax(T)]
         @test iszero(yee_longitudinal_voltage(extremes, zero(T), T(8), wide))
-        @test_throws ArgumentError yee_longitudinal_voltage(fill(floatmax(T), 4), zero(T), T(8), wide)
+        @test_throws ArgumentError yee_longitudinal_voltage(
+            fill(floatmax(T), 4),
+            zero(T),
+            T(8),
+            wide,
+        )
         @test_throws ArgumentError yee_longitudinal_voltage(field, -nextfloat(zero(T)), L, g)
         @test_throws ArgumentError yee_longitudinal_voltage(field, zero(T), nextfloat(L), g)
         @test_throws ArgumentError yee_longitudinal_voltage(field, T(NaN), L, g)
@@ -195,10 +210,18 @@ end
         @test_throws ArgumentError yee_longitudinal_voltage([1, 2, 3], zero(T), L, g)
         @test_throws ArgumentError yee_longitudinal_voltage(T[NaN, 0, 0], zero(T), zero(T), g)
         @test_throws DimensionMismatch yee_longitudinal_voltage(field[1:2], zero(T), L, g)
-        @test_throws ArgumentError yee_longitudinal_voltage(field, zero(T), L,
-            YeeGrid((3,), (L,); boundaries = (:periodic,)))
-        @test_throws ArgumentError yee_longitudinal_voltage(field, zero(T), L,
-            YeeGrid((3, 3), (L, L)))
+        @test_throws ArgumentError yee_longitudinal_voltage(
+            field,
+            zero(T),
+            L,
+            YeeGrid((3,), (L,); boundaries = (:periodic,)),
+        )
+        @test_throws ArgumentError yee_longitudinal_voltage(
+            field,
+            zero(T),
+            L,
+            YeeGrid((3, 3), (L, L)),
+        )
         @test isequal(field, original)
     end
 end
@@ -213,12 +236,13 @@ end
         species = Any[ps]
         exact = O.rat(sub)
         voltage_field = ones(T, 8)
-        voltage = in_mode(
-            () -> yee_longitudinal_voltage(voltage_field, zero(T), sub, g), hardware, flush,
-        )
+        voltage =
+            in_mode(() -> yee_longitudinal_voltage(voltage_field, zero(T), sub, g), hardware, flush)
         @test O.rounded(voltage, exact)
         @test_throws ArgumentError in_mode(
-            () -> yee_longitudinal_voltage(voltage_field, -sub, zero(T), g), hardware, flush,
+            () -> yee_longitudinal_voltage(voltage_field, -sub, zero(T), g),
+            hardware,
+            flush,
         )
         in_mode(() -> yee_particle_charge!(out, species, g, work), hardware, flush)
         @test O.rounded(out[1], exact) && all(iszero, out[2:end])
@@ -273,8 +297,10 @@ end
     for T in (Float32, Float64)
         G, W = YeeGrid{1,T}, YeeChargeWorkspace{T}
         report = JET.report_call(
-            yee_longitudinal_voltage, Tuple{Vector{T},T,T,G};
-            sourceinfo = :full, stacktrace_types_limit = 0,
+            yee_longitudinal_voltage,
+            Tuple{Vector{T},T,T,G};
+            sourceinfo = :full,
+            stacktrace_types_limit = 0,
         )
         if !isempty(JET.get_reports(report))
             show(IOContext(stdout, :limit => false), MIME"text/plain"(), report)
