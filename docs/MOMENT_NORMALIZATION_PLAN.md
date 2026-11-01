@@ -98,9 +98,11 @@ analysis. Earlier failed diagnostics remain available in the handoff.
 
 ## Remaining boundaries
 
-- Complete EMPIC charge and current combinations are separate repairs, now
-  pushed and awaiting their own GitHub acceptance: [MOMENT-002](EMPIC_CHARGE_COMBINATION_PLAN.md)
-  and [MOMENT-003](EMPIC_CURRENT_COMBINATION_PLAN.md).
+- Complete EMPIC charge and current combinations are separately integrated
+  repairs with their own acceptance records:
+  [MOMENT-002](EMPIC_CHARGE_COMBINATION_PLAN.md) and
+  [MOMENT-003](EMPIC_CURRENT_COMBINATION_PLAN.md). This per-species slice does
+  not certify those combinations.
 - Hybrid bulk-velocity ratios, other charge-weighted species combinations and
   MPI cross-rank reductions retain their separate complete-expression boundaries.
   Those consumers are not certified by this per-species repair.

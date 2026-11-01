@@ -4,7 +4,8 @@
 Dimension-parametric (1D3V/2D3V/3D3V) hybrid particle-in-cell plasma solver:
 kinetic ions, massless fluid electrons, spectral fields. Built on the standalone
 SpectralOperators.jl package (no global mutable state; configuration is passed
-explicitly). See the implementation checklist in the repository root.
+explicitly). See `docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md` for the
+implementation checklist.
 """
 module HybridPlasmaPIC
 

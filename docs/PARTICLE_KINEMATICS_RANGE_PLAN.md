@@ -2,9 +2,9 @@
 
 Status: the normwise Boris/phase/coordinate range chain landed in `cd55831`.
 The [audit tracker](DEEP_DEBUG_TRACKER.md) records subsequent near-light fixes
-and the open normal-accuracy and original-factor findings. The coordinate
-overflow correction is implemented in this revision, with CI acceptance tracked
-separately.
+and the remaining normal-accuracy and original-factor boundaries. The coordinate
+overflow correction and zero-product optimization have separate accepted
+records below.
 The historical range repair does not certify those later-discovered boundaries.
 Nonrelativistic species priming and predictor owners now retain original charge
 and mass through their guards and exact cold replay. Euler/ES native admission
@@ -30,12 +30,13 @@ erasing half-step kicks and midpoints.
 
 ## Contract
 
-1. Well-conditioned ordinary inputs keep the native operation order: results are bitwise those
-   of the previous formulas.
-2. A guard over the native intermediates flags range loss; only flagged
-   Float16/Float32/Float64 evaluations repeat the same expression wider and
-   round once to `T`: Float16 → Float32, Float32 → Float64, Float64 → exact
-   `Rational{BigInt}`. Relativistic expressions (square roots) use 256-bit
+1. Inputs admitted by the native range and accuracy guards keep the previous
+   operation order and result bits.
+2. Unresolved Float16/Float32/Float64 Boris, Euler and ES evaluations repeat the
+   canonical expression over exact `Rational{BigInt}` operands. The shared
+   converter rounds once to `T`; the exact comparison retains native bits
+   when the range and accuracy contract permits them. Relativistic expressions
+   (square roots) use 256-bit
    BigFloat for unresolved flagged inputs with the exact Lorentz gap
    `1 - |v|²/c²`, because `(|u|/c)²` can exceed the next IEEE format for
    extreme `c`. Bounded IEEE priming first attempts a residual-certified
@@ -43,9 +44,7 @@ erasing half-step kicks and midpoints.
    CPU coordinate overflow classification instead uses exact rational arithmetic
    outside its conservative finite-result certificate, as described below.
    Other number types keep native semantics; non-finite inputs propagate.
-   Nonrelativistic IEEE priming and predictor cold replay instead uses exact
-   rational arithmetic and the shared IEEE rounding owner for all three types.
-   Species callers retain original `q/m`; explicit numerical `qm` means that
+   Species callers retain original `q` and `m`; explicit numerical `qm` means that
    stored number. Species certificates also require the rounded quotient to be
    normal, or the original charge to be zero. An underflowed quotient of a
    nonzero charge cannot certify a zero physical kick.
@@ -79,7 +78,7 @@ the same preflight check before any particle update.
 | Expression | Owner | Guard (beyond finite outputs) |
 | --- | --- | --- |
 | Boris kick | `boris_kick`, `src/particles/boris.jl` and `boris_accuracy.jl` | Joint scalar/batch range and four-ulp accuracy admission; unresolved finite IEEE inputs replay the canonical expression exactly ([contract](BORIS_ACCURACY_IMPLEMENTATION.md)) |
-| Relativistic Boris | `_boris_rel`, `src/models/full_pic.jl` | Native momentum range guards, normal `c²`, finite/resolved Lorentz factors and supported rounded velocity; original-factor and full accuracy follow-ons remain separate |
+| Relativistic Boris | `_boris_rel`, `src/models/full_pic.jl` | Native momentum range guards, normal `c²`, finite/resolved Lorentz factors and supported rounded velocity; original-factor range replay retains the publication contract, while full normal accuracy remains open |
 | Euler priming/predictor | `_euler_kick`, `src/particles/kinematics_range.jl` (used by `_prime_leapfrog!`, `_predict_half_kick!`, `_prime_empic1d!`) | Range conditions plus a sufficient four-ulp term-scale error bound and finite exact margin |
 | Relativistic priming | `_rel_prime_in_range`/`_rel_prime_repair` | `c²` normal, `h` normal or zero, finite acceleration and `γ`, resolved Lorentz factor and output squared speed `≤ c²/2`, scale `≥ 256 floatmin (1+|h|)(1+|qm|)` |
 | ES priming | `_es_prime_component` | Range conditions plus the electric-only four-ulp bound and finite exact margin |

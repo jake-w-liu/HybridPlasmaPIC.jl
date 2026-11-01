@@ -1,10 +1,17 @@
 # Particle kinematics takeover audit (2026-10-27)
 
+Historical V5 audit. The later
+[integration record](KINEMATICS_V5_INTEGRATION_20261027.md) records its accepted
+main integration. Subsequent
+[output publication](RELATIVISTIC_OUTPUT_PUBLICATION_PLAN.md) and
+[gathered-midpoint storage](GATHERED_MIDPOINT_STORAGE_PLAN.md) repairs have
+their own acceptance records. The trajectory-wide contract below remains open.
+
 Base: `cd558315956df0debb14b4a2fb7790eaef2821e6`. Work is isolated from the
 primary checkout. The existing normwise contract in `DEEP_DEBUG_TRACKER.md`
 remains the acceptance standard.
 
-## Current progress
+## Historical V5 progress before integration
 
 - [x] Reproduce the accepted near-light Lorentz-gap error on Julia 1.12.7/1.13.3.
 - [x] Preserve correctness-only and optimized V1/V2 candidates, including their

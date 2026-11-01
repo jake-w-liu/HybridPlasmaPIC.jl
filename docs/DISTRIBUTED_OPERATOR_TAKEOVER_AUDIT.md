@@ -1,8 +1,15 @@
 # Distributed operator takeover audit (2026-10-27)
 
+Historical audit record. Subsequent integration and acceptance are recorded in
+the [inverse-headroom repair](DISTRIBUTED_INVERSE_HEADROOM_REPAIR.md) and
+[metadata-admission repair](DISTRIBUTED_METADATA_ADMISSION_REPAIR.md).
+The [audit tracker](DEEP_DEBUG_TRACKER.md) owns current distributed support and
+the remaining full-model and scaling boundaries.
+
 Baseline: HPIC `cd558315956df0debb14b4a2fb7790eaef2821e6`; registry-resolved
 SpectralOperators 0.1.3, tree `036881a8627ae86e285825891bb427dd66508c08`.
-Latest stable Julia checked at the official downloads page: 1.13.3.
+At this audit, the latest stable Julia checked at the official downloads page
+was 1.13.3.
 
 ## Pre-edit repair brief
 
@@ -20,15 +27,15 @@ accepted infinite strength, fixing only one large power, adding a consumer-only
 formula, or accepting only the one-rank result. No production orchestration has
 been changed in this consumer patch.
 
-## Audit matrix
+## Historical audit matrix
 
 | Surface | Checked owner/invariant | Status |
 | --- | --- | --- |
 | Dependency/runtime | Registry source tree, minimum/latest Julia | 0.1.4 registered tree `1286d89fc8b05aa95639d6be5c432208f7296183` verified; registry-only 1.12.7/1.13.3 resolution passed |
 | Logical indices/layout | Physical copies share storage order; mode kernels consume global logical views | Source traced and MPI1/2/4/8 analytic/serial/uneven-grid suites passed |
-| Scaling | Global maximum over ranks/components, global transform volume, canonical gain | Boundary/global-scale suites passed; independent inverse-overflow defect repaired and registered in 0.1.5; its consumer regression is a separate integration |
-| Aliases/publication | Exact physical pencil, CPU backing, private workspace disjointness; all components staged | Existing MPI1/2/4/8 vector/publication failures and later liveness passed; geometry-metadata alias admission is a separate confirmed repair in progress |
-| Numerical operators | Shared derivative/curl/Laplacian/projection/filter kernels | Infinite-strength defect repaired in registered 0.1.4; inverse-range consumer integration and metadata alias admission remain separate |
+| Scaling | Global maximum over ranks/components, global transform volume, canonical gain | Boundary/global-scale suites passed; independent inverse-overflow defect repaired and registered in 0.1.5; consumer integration was tracked separately in the repair linked above |
+| Aliases/publication | Exact physical pencil, CPU backing, private workspace disjointness; all components staged | Existing MPI1/2/4/8 vector/publication failures and later liveness passed; geometry-metadata alias admission was a separate confirmed repair, subsequently integrated as linked above |
+| Numerical operators | Shared derivative/curl/Laplacian/projection/filter kernels | Infinite-strength defect repaired in registered 0.1.4; subsequent inverse-range and metadata-admission acceptance belongs to the linked repair records |
 | Resources/compiler | Reused buffers, direct-transform allocation control; full compiler trees | MPI allocation controls passed;128 shared-kernel profiles/runtime have baseline-identical hashes/0B;22 full compiler blocks/runtime match baseline |
 | Bounded Maxwell integration | Vacuum and prescribed 1D current remain separate CPU Yee storage | Docs and call chain read; particle coupling, MPI/GPU and restart explicitly open |
 
@@ -86,5 +93,6 @@ unnormalized inverse overflows before its final1/N normalization, although exact
 certify every output representable. Both serial and actual two-rank backends reproduce it. This has
 a separate shared-headroom repair and version 0.1.5 campaign. That dependency repair has all four CI
 jobs green, is registered with tree `12831f35e5026cded6879554f3001dc1b614d01b`, and has a tagged
-release. Its HPIC consumer regression will be integrated separately. CAP003 is not complete, and no
+release. Its HPIC consumer regression was subsequently integrated; the linked
+inverse-headroom record owns that acceptance. CAP003 is not complete, and no
 controlled latency or multi-node scaling result is claimed.

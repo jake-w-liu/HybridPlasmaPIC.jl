@@ -109,17 +109,17 @@ match. The complete matrix and exact sources remain in `rejected-v4`; the
 latest cost lane and subsequent full neighbors/compiler gates have not run.
 The unchanged 1.5 gate remains unsatisfied.
 
-## V5 direct component guards
+## V5 direct component guards (historical proposal)
 
 V5 replaces `min(abs(first), abs(second)) >= floatmin(T)` with the conjunction
 of the two direct comparisons. For finite operands these predicates are
 equivalent; the existing finite guards reject nonfinite intermediates before
 accepting the ordinary path. The zero-source exemptions, eligibility guard,
-quotient arithmetic and exact completion remain unchanged. This is a proposed
-cost reduction, not an established timing cause or measured improvement.
-Repeat the independent decision matrix and numerical regressions on both
-runtimes, then the unchanged 40-profile cost gate once on this source. Retain
-all failures; only a passing candidate may proceed to full neighboring gates.
+quotient arithmetic and exact completion remain unchanged. The proposal was a
+cost reduction, without an established timing cause or measured improvement.
+It required repeating the independent decision matrix and numerical regressions
+on both runtimes, followed by the unchanged 40-profile cost gate, before full
+neighboring gates. All rejected candidates remain retained.
 
 V5 passes the decision/numerical matrices again on both runtimes and all 200
 ordinary output, state, allocation and latency assertions on each runtime.
@@ -127,8 +127,9 @@ All 40 profiles per runtime retain identical outputs and zero measured bytes
 in all 120 warmed samples per owner. Maximum observed median ratios are
 1.4821 on Julia 1.12.7 and 1.4626 on 1.13.2, within the unchanged 1.5 gate.
 `cost-commands-v5.json`, both complete TOML matrices and `source-v5.json` retain
-the frozen source and every sample. Full neighboring/compiler/exceptional gates
-remain pending; this candidate is not yet promoted.
+the frozen source and every sample. At that intermediate stage the full
+neighboring/compiler/exceptional gates were still pending; the final acceptance
+below records their later completion.
 
 ## Final local acceptance
 

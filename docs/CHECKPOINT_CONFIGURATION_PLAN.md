@@ -191,9 +191,10 @@ Its initial launch failed before tests because the frozen environment lacked a
 Manifest; native environments were then instantiated independently. Its recursive
 `all` predicate also produced concrete compiler findings. An explicit boolean
 field loop preserves predicate results and removes those findings (10 isolated
-checks; `/tmp/hybrid-io010-predicate-jet112.log`). Frozen v2 passes all 16 concrete
-Julia 1.12 validator analyses and the package ceiling; latest-version and final
-integration gates remain pending. These are intermediate results, not readiness.
+checks; `/tmp/hybrid-io010-predicate-jet112.log`). Frozen v2 passed all 16 concrete
+Julia 1.12 validator analyses and the package ceiling. Latest-version and final
+integration gates were pending at that intermediate snapshot; the final v5
+acceptance below supersedes that status without accepting the rejected revisions.
 
 ### Mutable value-codec alias extension — pre-edit brief
 

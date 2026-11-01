@@ -97,7 +97,7 @@ The core solver integrates the standard massless-electron hybrid model in
 **Ω_ci-normalized units** (proton `q/m = 1`, `μ0 = 1`):
 
 ```
-ions:      dx/dt = v,   dv/dt = E + v×B          (Boris macroparticles)
+ions:      dx_s/dt = v_s,   dv_s/dt = (q_s/m_s)(E + v_s×B)
 current:   J   = ∇×B
 electrons: u_e = u_i − J/n
 Ohm's law: E   = −u_i×B + (J×B)/n − ∇p_e/n + ηJ − ηH∇²J

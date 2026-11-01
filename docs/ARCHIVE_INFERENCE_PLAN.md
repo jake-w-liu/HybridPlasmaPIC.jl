@@ -88,7 +88,8 @@ Frozen source/test hashes: `/tmp/hybrid-jet002-final-hashes.json`.
   only binds and reuses the already validated payload; serialization, error
   messages/order, schemas, exports, dependencies and report ceiling are unchanged.
 
-Full-package runs now use immutable `6341c4b` on both native versions, including
-the later checkpoint and continuity changes. Logs:
+The historical full-package launch used immutable `6341c4b` on both native
+versions, including the later checkpoint and continuity changes. Logs:
 `/tmp/hybrid-full-6341c4b-julia{112,113}.log`; initial source/environment hashes:
-`/tmp/hybrid-full-6341c4b-manifest.json`. Completion remains pending.
+`/tmp/hybrid-full-6341c4b-manifest.json`. The disposition at the top of this page
+records the completed native suites and cancelled GitHub run separately.

@@ -9,14 +9,14 @@ test and an end-to-end simulator are separate milestones.
 The inventory below covers all 128 Markdown files tracked at audit baseline
 `cd8b94d8a9737f68ed63fe0a64cb4c8d3196d70b`; this map is the additional audit entry
 point. It is a dated inventory, not a claim that every historical experiment
-was rerun. Root additionally adds the C1 publication contract and
-original charge/mass factor work order; the resulting inventory has 131 files.
+was rerun. Later contracts and work orders are linked below as they land;
+the current tracked set is available with `git ls-files '*.md'`.
 Versioned plans retain baseline failures, candidate checklists and
 older runtime results as evidence history. Read their named revision and current
 tracker before treating a pending or completed gate as present-day acceptance.
 
-Local links and heading anchors were checked across the inventory. External
-website availability, historical `/tmp` files and untracked generated artifacts
+At that baseline, local links and heading anchors were checked across the
+inventory. External website availability, historical `/tmp` files and untracked generated artifacts
 are separate evidence boundaries; commands and scientific results were not
 rerun by this documentation-only audit.
 
@@ -44,6 +44,8 @@ rerun by this documentation-only audit.
 - [docs/BACKEND_MEMORY_CONSTRUCTOR_PLAN.md](BACKEND_MEMORY_CONSTRUCTOR_PLAN.md)
 - [docs/BIGFLOAT_TIMESTEP_CONTEXT_PLAN.md](BIGFLOAT_TIMESTEP_CONTEXT_PLAN.md)
 - [docs/BOUNDED_MAXWELL_IMPLEMENTATION.md](BOUNDED_MAXWELL_IMPLEMENTATION.md)
+- [docs/BOUNDED_PARTICLE_COUPLING_PLAN.md](BOUNDED_PARTICLE_COUPLING_PLAN.md)
+- [docs/BORIS_ACCURACY_IMPLEMENTATION.md](BORIS_ACCURACY_IMPLEMENTATION.md)
 - [docs/CHARGE_DEPOSITION_CONSERVATION_PLAN.md](CHARGE_DEPOSITION_CONSERVATION_PLAN.md)
 - [docs/CHECKPOINT_CONFIGURATION_PLAN.md](CHECKPOINT_CONFIGURATION_PLAN.md)
 - [docs/CI_RELIABILITY_PLAN.md](CI_RELIABILITY_PLAN.md)
@@ -69,12 +71,14 @@ rerun by this documentation-only audit.
 - [docs/EMPIC_RANGE_PLAN.md](EMPIC_RANGE_PLAN.md)
 - [docs/ENERGY_RANGE_PLAN.md](ENERGY_RANGE_PLAN.md)
 - [docs/EXACT_BIGFLOAT_CONVERSION_PLAN.md](EXACT_BIGFLOAT_CONVERSION_PLAN.md)
+- [docs/EXACT_IEEE_CONVERSION.md](EXACT_IEEE_CONVERSION.md)
 - [docs/EXTERNAL_REFERENCE_PROVENANCE_PLAN.md](EXTERNAL_REFERENCE_PROVENANCE_PLAN.md)
 - [docs/GATHERED_FIELD_STORAGE_PLAN.md](GATHERED_FIELD_STORAGE_PLAN.md)
 - [docs/GATHERED_MIDPOINT_STORAGE_PLAN.md](GATHERED_MIDPOINT_STORAGE_PLAN.md)
 - [docs/GYRO_RING_PLAN.md](GYRO_RING_PLAN.md)
 - [docs/HYBRID_DIAGNOSTIC_RANGE_PLAN.md](HYBRID_DIAGNOSTIC_RANGE_PLAN.md)
 - [docs/HYBRID_ENERGY_MODEL_PLAN.md](HYBRID_ENERGY_MODEL_PLAN.md)
+- [docs/IDEAL_FORCE_SOURCE_RANGE_WORK_ORDER.md](IDEAL_FORCE_SOURCE_RANGE_WORK_ORDER.md)
 - [docs/INTERVAL_VALIDATION_ALLOCATION_PLAN.md](INTERVAL_VALIDATION_ALLOCATION_PLAN.md)
 - [docs/IONIZATION_ARITHMETIC_PLAN.md](IONIZATION_ARITHMETIC_PLAN.md)
 - [docs/ISOTHERMAL_ENERGY_ACCURACY_PLAN.md](ISOTHERMAL_ENERGY_ACCURACY_PLAN.md)
@@ -113,10 +117,13 @@ rerun by this documentation-only audit.
 - [docs/RESISTIVE_DIAGNOSTIC_RANGE_AUDIT.md](RESISTIVE_DIAGNOSTIC_RANGE_AUDIT.md)
 - [docs/RK4_MIXED_STABILITY_PLAN.md](RK4_MIXED_STABILITY_PLAN.md)
 - [docs/SERIAL_PUBLICATION_PLAN.md](SERIAL_PUBLICATION_PLAN.md)
+- [docs/SCALAR_PRESSURE_RATE_RANGE_PLAN.md](SCALAR_PRESSURE_RATE_RANGE_PLAN.md)
 - [docs/SHOCK_CN_SOLVE_PLAN.md](SHOCK_CN_SOLVE_PLAN.md)
 - [docs/SHOCK_ENERGY_FLUX_RANGE_PLAN.md](SHOCK_ENERGY_FLUX_RANGE_PLAN.md)
 - [docs/TEST_SUBPROCESS_ENVIRONMENT_PLAN.md](TEST_SUBPROCESS_ENVIRONMENT_PLAN.md)
 - [docs/THREADED_DEPOSITION_PLAN.md](THREADED_DEPOSITION_PLAN.md)
+- [docs/TRANSPORT_HYPERRESISTIVITY_PLAN.md](TRANSPORT_HYPERRESISTIVITY_PLAN.md)
+- [docs/TRANSPORT_SOURCE_RANGE_PLAN.md](TRANSPORT_SOURCE_RANGE_PLAN.md)
 - [docs/VALIDATION_FREQUENCY_PLAN.md](VALIDATION_FREQUENCY_PLAN.md)
 - [docs/WHISTLER_ALLOCATION_CI_DIAGNOSIS.md](WHISTLER_ALLOCATION_CI_DIAGNOSIS.md)
 - [docs/WHISTLER_BIGINT_COUNTER_PLAN.md](WHISTLER_BIGINT_COUNTER_PLAN.md)

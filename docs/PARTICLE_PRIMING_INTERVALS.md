@@ -7,8 +7,13 @@ a resolved input Lorentz factor and a rounded native-output normalized squared
 speed `<=1/2`. This is a comparison of the computed native output, including
 its rounded normalization; it is not an exact physical speed classifier.
 Other IEEE cases enter the
-existing repair owner, which first attempts the bounded interval evaluation
-below, then retains the existing BigFloat replay if the interval is unresolved.
+existing repair owner. For a supplied numerical `qm`, it first attempts the
+bounded interval evaluation below, then retains BigFloat replay if the interval
+is unresolved. Species callers use that interval only when the stored quotient
+equals exact original `q/m` and the EFT hardware context is admitted; otherwise
+they retain original factors in BigFloat replay. See the
+[factor range plan](PARTICLE_CHARGE_MASS_RANGE_PLAN.md) for that separate range
+repair and its remaining accuracy and hardware-mode boundaries.
 
 The physical expression is unchanged:
 

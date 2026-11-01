@@ -7,14 +7,15 @@ adds no device field scan and does not accept the held full-preflight candidates
 or their resource gates below. Portable/device regressions for P4a await CI and
 suitable remote hardware.
 
-Status: baseline confirmed on Julia 1.12.7 and 1.13.2 with actual Metal 1.11.1;
+Historical full-preflight status: baseline confirmed on Julia 1.12.7 and 1.13.2
+with actual Metal 1.11.1;
 V1 rejected by the fixed allocation gate; V2, V3 and V4 rejected by latency;
 V5 fails its fixed latency gate. V6 passes native gates and minimum-Julia costs,
 but latest-Julia timing calibration fails; no gathered-push candidate is accepted.
 Original parent: `ff4a973` (Julia sources match `df75656`); V3 starts from
 `61356f1`, with identical committed Julia sources. Persistent evidence: `../HybridPlasmaPIC-audit-evidence/2026-10-23/metal-gathered-validation`.
 
-## Pre-edit brief
+## Historical pre-edit brief (2026-10-23)
 
 - Mode: repair backend validation at the gathered-push boundary.
 - Requirement: the public Metal overload rejects invalid charge/mass/timestep
@@ -29,9 +30,11 @@ Original parent: `ff4a973` (Julia sources match `df75656`); V3 starts from
   a finite-field scan. CPU `src/particles/boris.jl:165-177` preflights these
   values; `test/test_particles.jl:246-290` explicitly exercises rejection and
   late-invalid-field rollback. Actual public baseline logs prove the mismatch.
-- Canonical owners: existing `_validated_qm`, `_require_finite_real`, gathered
-  length validation and scalar finiteness policy. Implement the device traversal
-  at the Metal overload; reuse host policy rather than re-derive it.
+- Historical owners: `_validated_qm`, `_require_finite_real`, gathered length
+  validation and scalar finiteness policy in that baseline. Current host factor
+  admission is `_validated_native_boris_qm` in `src/particles/boris.jl`.
+  The held full-preflight design puts device traversal at the Metal overload
+  and reuses host policy.
 - Compatibility: preserve signatures, ordinary broadcast arithmetic, storage,
   midpoint behavior and shape/backend error ordering. Invalid inputs now throw
   `ArgumentError` before mutation. The field error names the combined fields;
