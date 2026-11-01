@@ -117,6 +117,8 @@ simulator goal. No full original-factor trajectory or global optimization claim
 is established.
 
 The [normal relativistic accuracy work order](RELATIVISTIC_NORMAL_ACCURACY_PLAN.md)
-maps the remaining native-admission certificate and prepares a small manual
-GitHub observation. Its finite-c candidates remain unverified until that run;
-no production arithmetic change or accuracy acceptance follows from its presence.
+records the corrected minimum/latest GitHub observation: all 60 stage
+classifications are stable at both reference precisions, with six production
+kick violations per runtime. A bounded native/DD residual correction and joint
+batch admission are implemented; exact-revision GitHub verification is pending.
+The inherited extreme 256-bit replay does not gain a general accuracy proof.

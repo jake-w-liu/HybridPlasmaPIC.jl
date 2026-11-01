@@ -36,6 +36,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Bound normal IEEE relativistic Boris kick error at the scalar and both EMPIC
+  batch owners, reusing the canonical momentum expression and residual arithmetic.
+  Supported native tuples are retained when certified; bounded unresolved rows
+  attempt certified DD repair. The six observed kick witnesses and focused
+  compatibility controls await GitHub. Extreme replay, priming accuracy and full
+  resource acceptance remain open in the [work order](docs/RELATIVISTIC_NORMAL_ACCURACY_PLAN.md).
+
 - Apply the reviewed nine-file formatter artifact from the relativistic-factor
   GitHub run. Changes are spacing, wrapping and optional trailing call-argument
   commas; fresh exact-revision formatter and package checks remain required.

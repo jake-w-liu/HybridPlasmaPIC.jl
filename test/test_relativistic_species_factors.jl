@@ -1,5 +1,5 @@
 module RelativisticSpeciesFactorTests
-using HybridPlasmaPIC, Test, Serialization
+using HybridPlasmaPIC, Test, Serialization, LinearAlgebra
 const H = HybridPlasmaPIC
 
 # Independent axial E-only solution: momentum translates by q*duration*E/m.
@@ -30,6 +30,136 @@ function transverse!(es, value)
 end
 
 field_values(es) = es isa EMPIC1D ? (es.Ex, es.Ey, es.Bz) : (es.E..., es.B...)
+
+# Independent Cayley rotation, from the original Lorentz gap and coefficient.
+# Agreement at two widths is a regression check, not a production certificate.
+function normal_kick_reference(bits, ::Type{T}, v, E, B, ratio, dt, c) where {T}
+    Q = Rational{BigInt}
+    return setprecision(BigFloat, bits) do
+        setrounding(BigFloat, RoundNearest) do
+            gap = 1 - sum(x -> Q(x)^2, v) / Q(c)^2
+            initial = BigFloat.(collect(v)) / sqrt(BigFloat(gap))
+            h = BigFloat(Q(dt) * ratio / 2)
+            electric = h * BigFloat.(collect(E))
+            minus = initial + electric
+            C2 = BigFloat(c)^2
+            t = h * BigFloat.(collect(B)) / sqrt(1 + dot(minus, minus) / C2)
+            t2 = dot(t, t)
+            momentum = ((1 - t2) * minus + 2dot(t, minus) * t + 2cross(minus, t)) / (1 + t2) + electric
+            gamma = sqrt(1 + dot(momentum, momentum) / C2)
+            values = Tuple(momentum / gamma)
+            scale = max(norm(collect(values)), max(norm(initial), norm(electric)) / gamma)
+            binade = max(exponent(scale), exponent(floatmin(T)))
+            budget = BigFloat(2)^(binade - precision(T) + 3)
+            return (; values, budget)
+        end
+    end
+end
+
+normal_kick_ok(actual, reference) = all(1:3) do i
+    isfinite(actual[i]) && abs(BigFloat(actual[i]) - reference.values[i]) <= reference.budget
+end
+
+@testset "Relativistic normal accuracy retains native bits or repairs the full kick" begin
+    # Corrected GitHub observation: Float16 rows 3/4 and Float32 row 3 violate
+    # four ulps for both coefficient meanings; the Float32 batch also admitted.
+    rows = (
+        (0x3af5, 0x38c1, (0xbefd, 0x3fa6, 0x3ab6), (0xb8e1, 0x3e23, 0x3ebb), (0xbaf9, 0x3ec5, 0xbff8)),
+        (0x3f8f, 0x3ddb, (0xbd53, 0x3c71, 0xbeea), (0xbcad, 0x3f01, 0xbc14), (0x3e7c, 0x3d3e, 0x3fcf)),
+    )
+    Q = Rational{BigInt}
+    for T in (Float16, Float32, Float64), (index, row) in enumerate(rows)
+        cv(x) = T(reinterpret(Float16, x))
+        q, m = cv(row[1]), cv(row[2])
+        v, E, B = cv.(row[3]) ./ T(4), cv.(row[4]) ./ T(4), cv.(row[5])
+        dt, c = T(2), T(128)
+        for factor in (H._BorisSpeciesFactors(q, m, q / m), q / m)
+            ratio = factor isa Number ? Q(factor) : Q(q) / Q(m)
+            low = normal_kick_reference(512, T, v, E, B, ratio, dt, c)
+            high = normal_kick_reference(1024, T, v, E, B, ratio, dt, c)
+            @test T.(low.values) == T.(high.values) && low.budget == high.budget
+            raw, parts, u, c2, gap, ginit = H._boris_rel_parts(v..., E..., B..., q / m, dt, c, Val(true), Val(true))
+            @test H._boris_rel_in_range(raw, parts, u, q / m, dt, c2, gap)
+            if T === Float16 || (T === Float32 && index == 1)
+                @test !normal_kick_ok(raw, high)
+                @test !H._boris_rel_accuracy_native(raw, ginit, v, E, B, factor, dt, c)
+            end
+            actual = H._boris_rel(v..., E..., B..., factor, dt, c)
+            @test normal_kick_ok(actual, low) && normal_kick_ok(actual, high)
+            normal_kick_ok(raw, high) && @test isequal(actual, raw)
+            repaired, accepted = H._boris_rel_dd_attempt(raw, v, E, B, factor, dt, c)
+            @test accepted && normal_kick_ok(repaired, high)
+            scales = H._boris_batch_scales(map(x -> T[x], v), E, B, (q / m) * dt / 2, 1:1)
+            admitted = H._boris_rel_batch_admission((q / m) * dt / 2, factor, dt, c, scales...)
+            admitted && @test normal_kick_ok(H._boris_rel_native(v..., E..., B..., factor, dt, c), high)
+            !normal_kick_ok(raw, high) && @test !admitted
+        end
+        # Exercise both actual model callers; EMPIC1D consumes its planar
+        # polarization, whereas general EMPIC consumes all original fields.
+        if T !== Float16
+            for State in (EMPIC1D, EMPIC)
+                fields_E = State === EMPIC1D ? (E[1], E[2], zero(T)) : E
+                fields_B = State === EMPIC1D ? (zero(T), zero(T), B[3]) : B
+                reference = normal_kick_reference(1024, T, v, fields_E, fields_B, Q(q) / Q(m), dt, c)
+                ps = ParticleSet{1,T}(2; q, m)
+                ps.x[1] .= zero(T)
+                for i = 1:3
+                    ps.v[i] .= v[i]
+                end
+                ep, bp = map(x -> fill(x, 2), fields_E), map(x -> fill(x, 2), fields_B)
+                es = State(FourierGrid((4,), (T(4),)), 2; relativistic = true, c)
+                if State === EMPIC1D
+                    H._push_velocities!(es, ps, ep[1], ep[2], bp[3], dt)
+                else
+                    H._push_velocities!(es, ps, ep, bp, dt)
+                end
+                @test all(p -> normal_kick_ok(ntuple(i -> ps.v[i][p], 3), reference), 1:2)
+                @test all(i -> all(==(fields_E[i]), ep[i]) && all(==(fields_B[i]), bp[i]), 1:3)
+            end
+        end
+    end
+end
+
+@testset "Relativistic ordinary nonzero batches retain certified native results" begin
+    for T in (Float16, Float32, Float64)
+        z, dt, c = zero(T), T(0.125), T(8)
+        v, fields = (T(0.3), z, z), (z, z, z)
+        h = dt / 2
+        scales = H._boris_batch_scales(map(x -> T[x], v), fields, fields, h, 1:1)
+        @test H._boris_rel_batch_admission(h, one(T), dt, c, scales...)
+        native = H._boris_rel_native(v..., fields..., fields..., one(T), dt, c)
+        reference = normal_kick_reference(1024, T, v, fields, fields, Rational{BigInt}(1), dt, c)
+        @test normal_kick_ok(native, reference)
+        @test isequal(H._boris_rel(v..., fields..., fields..., one(T), dt, c), native)
+    end
+end
+
+@testset "Relativistic zero native scale has its own quantum budget" begin
+    for T in (Float16, Float32, Float64)
+        z, c = zero(T), one(T)
+        dt, electric = 2floatmin(T), ldexp(one(T), -precision(T))
+        h = dt / 2
+        v, E, B = (z, z, z), (electric, z, z), (z, z, z)
+        scales = H._boris_batch_scales(map(x -> T[x], v), E, B, h, 1:1)
+        @test isinf(scales[4]) && iszero(h * electric)
+        @test H._boris_rel_batch_admission(h, one(T), dt, c, scales...)
+        reference = normal_kick_reference(1024, T, v, E, B, Rational{BigInt}(1), dt, c)
+        @test normal_kick_ok(H._boris_rel_native(v..., E..., B..., one(T), dt, c), reference)
+        # Add a nonzero-scale row: it cannot donate its larger budget to row 1.
+        velocities = (T[0, 0.25], T[0, 0], T[0, 0])
+        ep = (T[electric, 0], T[0, 0], T[0, 0])
+        bp = ntuple(_ -> zeros(T, 2), 3)
+        scales = H._boris_batch_scales(velocities, ep, bp, h, 1:2)
+        admitted = H._boris_rel_batch_admission(h, one(T), dt, c, scales...)
+        for p = 1:2
+            vp, ee = ntuple(i -> velocities[i][p], 3), ntuple(i -> ep[i][p], 3)
+            actual = admitted ? H._boris_rel_native(vp..., ee..., B..., one(T), dt, c) :
+                H._boris_rel(vp..., ee..., B..., one(T), dt, c)
+            exact = normal_kick_reference(1024, T, vp, ee, B, Rational{BigInt}(1), dt, c)
+            @test normal_kick_ok(actual, exact)
+        end
+    end
+end
 
 @testset "Relativistic stages retain original species factors" begin
     for (T, mass_power, field_power) in ((Float16, 10, 10), (Float32, 80, 60), (Float64, 600, 400))

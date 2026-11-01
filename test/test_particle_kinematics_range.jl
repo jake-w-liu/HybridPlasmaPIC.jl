@@ -301,7 +301,7 @@ end
         s = spans(T)
         boris = rel = 0
         flagged = 0
-        rel_valid_parent = rel_repaired = rel_rejected = rel_invalid_input = 0
+        rel_valid_parent = rel_repaired = rel_rejected = rel_invalid_input = rel_accuracy_repaired = 0
         for _ = 1:NORDINARY
             v = ntuple(_ -> ordinary(rng, T, s), 3)
             E = ntuple(_ -> ordinary(rng, T, s), 3)
@@ -324,7 +324,18 @@ end
                 @test_throws ArgumentError H._boris_rel(w..., E..., B..., qm, dt, c)
             elseif kinematics_supported_velocity(historical, c)
                 rel_valid_parent += 1
-                rel += !isequal(H._boris_rel(w..., E..., B..., qm, dt, c), historical)
+                actual = H._boris_rel(w..., E..., B..., qm, dt, c)
+                if !isequal(actual, historical)
+                    # Check every changed tuple against the independent
+                    # physical oracle. Difference selects verification work;
+                    # only the oracle decides whether a change is permitted.
+                    # Unchanged tuples receive no accuracy classification.
+                    reference, scale = boris_rel_reference(w, E, B, qm, dt, c)
+                    old_ok = rel_ok(historical, reference, scale)
+                    new_ok = rel_ok(actual, reference, scale) && kinematics_supported_velocity(actual, c)
+                    rel += old_ok || !new_ok
+                    rel_accuracy_repaired += 1
+                end
             else
                 # Preserve every original input. Only the independently
                 # inadmissible old publication needs a physical cold oracle;
@@ -345,7 +356,7 @@ end
         @test boris == 0
         @test rel == 0
         @test rel_valid_parent + rel_repaired + rel_rejected + rel_invalid_input == NORDINARY
-        @info "C1 ordinary relativistic domain coverage" type = T rel_valid_parent rel_repaired rel_rejected rel_invalid_input
+        @info "C1 ordinary relativistic domain coverage" type = T rel_valid_parent rel_repaired rel_rejected rel_invalid_input rel_accuracy_repaired
 
         n = NORDINARY
         gen(f) = ntuple(_ -> [f() for _ = 1:n], 3)

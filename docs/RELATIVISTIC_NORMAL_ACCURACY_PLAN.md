@@ -1,17 +1,53 @@
 # Relativistic normal-range accuracy
 
 Status: the corrected [GitHub observation at `7189d75`](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41278586898)
-completed on actual Julia 1.12.7 and 1.13.3. All 60 stage classifications agree
-between independent 512/1024-bit references on each runtime. Six production kick
-violations were observed on each version; canonical repair is in progress.
-No numerical accuracy acceptance is claimed.
+completes on actual Julia 1.12.7 and 1.13.3. All 60 stage classifications agree
+between the independent 512/1024-bit references on each runtime. Six production
+kick violations occur on each version. The bounded canonical correction below
+is implemented and source reviewed; its GitHub verification remains pending.
+
+## Bounded kick correction: pre-edit brief
+
+The corrected GitHub observation at `7189d75` completes all 60 stages on Julia
+1.12.7 and 1.13.3. Each runtime records the same six kick violations: Float16
+rows 3/4 and Float32 row 3, each for original q,m and explicit stored qm. The
+Float32 row is also admitted by the range-only batch predicate. Both independent
+512/1024-bit references agree; none of these 60 observations finds a prime
+violation. The earlier package-load failures remain failures.
+
+This repair targets those scalar and actual EMPIC batch kick paths. One private
+native/DD residual adapter will evaluate the existing `_boris_rel_momentum`
+body, preserving its historical native order. Original factors, the retained
+four-ulp Euclidean scale, finite-result margin, C1 publication and public undo
+remain required. A joint batch admission will combine the existing range owner
+with a sufficient finite-c error bound; range-only callers cannot bypass it.
+Residual-certified DD repair is bounded by its working range and nearest/gradual
+context. Unresolved extreme replay still uses the inherited 256-bit owner and
+does not gain a general accuracy theorem. Generic arithmetic, nonfinite
+propagation, priming and unsupported hardware modes retain their existing paths.
+
+Every original 100,000 legacy input per type remains. Every changed tuple is
+checked against the existing independent 4096-bit Cayley reference: its old
+value must exceed the unchanged budget and its replacement must satisfy it and
+C1. A difference selects verification work; only that physical reference decides
+whether the change is permitted. Unchanged tuples receive no accuracy label.
+Fixed independent regressions exercise the confirmed rows, original/explicit
+meanings and both EMPIC callers. All new runtime, formatter and compiler
+verification runs on GitHub only.
+
+- [x] Read canonical scalar/native/batch/cold owners, callers and retained tests.
+- [x] Review both corrected remote observations and the weak-gamma design limit.
+- [x] Implement and source-review canonical bounded scalar/DD and batch admission.
+- [ ] Pass focused independent regressions and retained legacy gates remotely.
+- [ ] Review exact-revision package/compiler/formatter/MPI results and costs.
+
 The [factor plan](PARTICLE_CHARGE_MASS_RANGE_PLAN.md) owns P3 factor routing;
 [C1](RELATIVISTIC_OUTPUT_PUBLICATION_PLAN.md) owns supported output publication
 and public rollback. Neither establishes a full normal-range accuracy theorem.
 
 ## Checked owners and remaining certificate
 
-On source revision `ebad36e733a41dcc4d720542dfa3ee6d814d3b0d`, scalar
+Before this correction, on source revision `ebad36e733a41dcc4d720542dfa3ee6d814d3b0d`, scalar
 `_boris_rel` admits native results through factor, range and supported-output
 checks. `_boris_rel_native` returns a supported native tuple after the batch
 range route. Both EMPIC kick owners use that route. Their canonical expression
@@ -37,8 +73,8 @@ fails on both actual Julia 1.12.7 and 1.13.3 at
 that file before `boris_accuracy.jl` defines `_BorisSpeciesFactors`. The
 specialization now lives beside that carrier's factor helpers with its body
 unchanged. The generic scalar method and include order are retained. The
-initial failure supplies no candidate accuracy result. The subsequent corrected
-run loads the package and supplies the separate numerical findings below.
+initial failure supplies no candidate accuracy result. The corrected run loads
+the package and supplies the separate numerical findings below.
 
 Run the workflow **Relativistic normal accuracy observation**. It uses Julia
 `1.12` and moving latest-stable `1`, records the actual version and instantiates
@@ -76,27 +112,46 @@ requires correction. Complete inputs, actual results and both references remain
 in the workflow artifacts; the four-ulp contract is unchanged. All Float64 fixed
 cases are within budget; that observation is not a general Float64 theorem.
 
-## Bounded implementation decision
+## Bounded implementation and limits
 
-The confirmed kick witnesses require repair at the canonical owner and both
-scalar and batch bypasses. Retain valid native bits, original q,m, explicit-qm meaning,
-the existing four-ulp normalized Euclidean scale, C1 domain and public undo.
-Do not duplicate the Boris kernel, clip a limiting velocity, widen a budget or
-use an unproved cold result as an accuracy certificate.
+`relativistic_boris_accuracy.jl` adds a private arithmetic payload for the single
+unchanged `_boris_rel_momentum` expression. Native centers use historical IEEE
+operations; error radii use exact-sum/product residual bounds and the identities
+`A/B-z=(A-B*z)/B` and `sqrt(A)-z=(A-z²)/(sqrt(A)+z)`. The positive denominator
+contracts come from this Boris expression, not from a general interval API.
+The initial gamma is enclosed from original v,c. Original q/m is enclosed by
+division of stored q and m; an explicit supplied qm is an exact scalar input.
 
-For a priming-owned defect, the existing residual-ball expression can enclose
-original q/m by division of stored q and m. An outward residual bound can compare
-native output with the physical component interval at a conservative lower
-bound of the existing normalized term scale. Derive a cheap sufficient native
-batch bound first; blanket DD evaluation of ordinary particles adds unmeasured
-cost and is not an optimization. Keep the existing operand/working range and
-nearest/gradual assumptions explicit. A full Boris or trajectory theorem is a
-separate remaining task.
+Scalar admission requires the output error bound, a finite exact-result margin
+and C1. The scale lower bound is below
+`max(norm(out), max(norm(gamma0*v), norm(hE))/gamma_final)`. A separate aggregate
+finite-c bound combines with the retained range predicate in the joint batch
+admission used by both EMPIC kick owners. Storage/alias guards remain required.
+Unresolved batches use the scalar route; no all-particle MPFR replay is imposed.
+Rows omitted by the nonzero-scale reduction have a separate quantum-floor
+proof: native v=0 and RN(hE)=0 imply an exact final norm below
+`sqrt(3)(1+kappa)D < 4D`, by magnetic-rotation orthogonality and gamma>=1.
+
+The DD tier evaluates the same body through the existing priming residual-ball
+owners. It first preserves a supported native tuple when enclosed within the
+same budget, then attempts a supported corrected tuple. Both must satisfy the
+unchanged normwise and finite-margin tests. The native gamma seed retains the
+existing nonzero v,c window `2^-100 .. 2^100`; the DD attempt applies that window
+to every nonzero original operand. All residual tiers require nearest rounding
+and gradual underflow. No new persistent storage or numerical public API is added.
+
+Outside those sufficient contexts, or if an enclosure is unresolved, the
+inherited exact-gap 256-bit replay remains. This patch does not prove its
+arbitrary-extreme rounding or accuracy, full normal-range coverage, unsupported
+hardware-mode accuracy, priming accuracy, trajectories, or resource/performance
+targets. Generic/nonfinite behavior, C1 domain, publication, rollback and restart
+remain unchanged. Directed extreme replay and further admission optimization
+remain open work; no fixed-precision convergence is called a proof.
 
 - [x] Inspect native/cold relativistic kick, both EMPIC callers and both primes.
 - [x] Prepare a compact independent, two-precision remote observation.
 - [x] Run the observation on actual minimum/latest Julia and inspect every row.
 - [x] Confirm concrete scalar and batch kick witnesses under both factor meanings.
-- [ ] Derive and implement a sufficient canonical owner correction if supported.
+- [x] Implement a bounded canonical native/DD correction and joint batch admission.
 - [ ] Add the confirmed essential regression and verify exact-revision package,
   compiler, formatter and MPI checks in GitHub; measure applicable cost changes.

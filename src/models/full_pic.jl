@@ -650,8 +650,8 @@ end
 # Relativistic Boris push for a single particle (Birdsall & Langdon / Vay-free
 # classic Boris): works in momentum u = γv. Returns updated (vx,vy,vz). c is the
 # speed of light. Reduces to the non-relativistic boris_kick as c→∞. Ordinary
-# inputs keep the native operation order; Float16/32/64 evaluations flagged by
-# the range guard are repeated in 256-bit BigFloat (see _boris_rel_repair).
+# inputs keep the native operation order. IEEE range/accuracy admission uses
+# residual enclosures; unresolved extreme replay remains a separate tier.
 @inline function _boris_rel_parts(
     vx::T,
     vy::T,
@@ -666,7 +666,8 @@ end
     dt::T,
     c::T,
     ::Val{guard},
-) where {T,guard}
+    ::Val{trace} = Val(false),
+) where {T,guard,trace}
     c2 = c * c
     βx = vx / c
     βy = vy / c
@@ -685,6 +686,7 @@ end
     uy = ginit * vy
     uz = ginit * vz
     out, parts = _boris_rel_momentum(ux, uy, uz, Ex, Ey, Ez, Bx, By, Bz, qm, dt, c2)
+    trace && return out, parts, (ux, uy, uz), c2, gap_resolved, ginit
     return out, parts, (ux, uy, uz), c2, gap_resolved
 end
 
@@ -713,11 +715,12 @@ end
     c::T,
 ) where {T}
     qm = _boris_native_factor(factor)
-    out, parts, u, c2, gap_resolved =
-        _boris_rel_parts(vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, qm, dt, c, Val(true))
+    out, parts, u, c2, gap_resolved, ginit =
+        _boris_rel_parts(vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, qm, dt, c, Val(true), Val(true))
     if T <: _RangeGuardedFloat
         if _euler_factor_in_range(factor, T) &&
            _boris_rel_in_range(out, parts, u, qm, dt, c2, gap_resolved) &&
+           _boris_rel_accuracy_native(out, ginit, (vx, vy, vz), (Ex, Ey, Ez), (Bx, By, Bz), factor, dt, c) &&
            _supported_relativistic_output(out, c)
             return out
         end
@@ -755,6 +758,10 @@ end
 ) where {T}
     all(isfinite, (vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, _boris_factor_operands(factor)..., dt, c)) ||
         return out
+    certified, accepted = _boris_rel_dd_attempt(
+        out, (vx, vy, vz), (Ex, Ey, Ez), (Bx, By, Bz), factor, dt, c,
+    )
+    accepted && return certified
     gap = _exact_lorentz_gap(vx, vy, vz, c)
     gap > 0 || throw(ArgumentError("_boris_rel: input velocity must be finite and satisfy |v| < c"))
     wide = _kinematics_bigfloat() do
@@ -787,7 +794,7 @@ end
     scales = _boris_batch_scales(s.v, (Exp, Eyp, z), (z, z, Bzp), h, eachindex(s.weight))
     certified = if rel
         _euler_batch_storage_safe(s.v, s.v, (Exp, Eyp, z), (z, z, Bzp)) &&
-            _boris_rel_batch_certificate(h, factor, dt, es.c, scales...)
+            _boris_rel_batch_admission(h, factor, dt, es.c, scales...)
     else
         first(_boris_batch_admission(s, h, factor, dt, scales...))
     end
@@ -2355,7 +2362,7 @@ end
     if es.relativistic
         certified =
             _euler_batch_storage_safe(s.v, s.v, Ep, Bp) &&
-            _boris_rel_batch_certificate(h, factor, dt, es.c, scales...)
+            _boris_rel_batch_admission(h, factor, dt, es.c, scales...)
         certified ? _empic_kicks!(s, Ep, Bp, factor, dt, es.c, Val(true), Val(false)) :
         _empic_kicks!(s, Ep, Bp, factor, dt, es.c, Val(true), Val(true))
     else

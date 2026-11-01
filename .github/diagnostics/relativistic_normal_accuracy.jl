@@ -100,7 +100,7 @@ function observe(::Type{T}, index, q, m, v, E, B, dt, c, meaning) where {T}
     kick_range = H._euler_factor_in_range(factor, T) &&
                  H._boris_rel_in_range(kick, parts, u, qm, dt, c2, gap)
     scales = H._boris_batch_scales(map(x -> [x], v), E, B, qm * dt / 2, 1:1)
-    kick_batch = H._boris_rel_batch_certificate(qm * dt / 2, factor, dt, c, scales...)
+    kick_batch = H._boris_rel_batch_admission(qm * dt / 2, factor, dt, c, scales...)
     scalar = H._boris_rel(v..., E..., B..., factor, dt, c)
     native_published = H._boris_rel_native(v..., E..., B..., factor, dt, c)
     prime, prime_range = native_prime(v, E, B, factor, dt / 2, c)
