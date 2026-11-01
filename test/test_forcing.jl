@@ -143,3 +143,48 @@ end
     Bbad = ntuple(_ -> zeros(T, (N[1] + 1, N[2])), 3)   # B not matching the grid ⇒ guarded
     @test_throws DimensionMismatch apply_antenna!(Bbad, Eant, 0.1, g)
 end
+
+@testset "ANT-003 antenna preserves old field and grid storage" begin
+    for T in (Float32, Float64)
+        g = FourierGrid((4,), (T(2π),))
+        @test g.kvec[1][2] == one(T)
+        wave, slope = T[0, 1, 0, -1], T[1, 0, -1, 0]
+        Eant = (zeros(T, 4), copy(wave), copy(wave))
+        curlE = (zeros(T, 4), -slope, slope)
+        B = ntuple(c -> fill(T(c), 4), 3)
+        work = ntuple(_ -> fill(T(7), 4), 3)
+        dt = T(0.125)
+        expected = ntuple(c -> B[c] .- dt .* curlE[c], 3)
+        @test apply_antenna!(B, Eant, dt, g; work) === B
+        @test all(isapprox(B[c], expected[c]; rtol = 8eps(T), atol = 8eps(T)) for c = 1:3)
+        # Input sharing is safe: the curl finishes before the field update.
+        shared = map(copy, Eant)
+        expected = ntuple(c -> shared[c] .- dt .* curlE[c], 3)
+        apply_antenna!(shared, shared, dt, g; work)
+        @test all(isapprox(shared[c], expected[c]; rtol = 8eps(T), atol = 8eps(T)) for c = 1:3)
+        for (badB, badwork) in (
+            (B, B),
+            (B, (work[1], B[3], work[3])),
+            ((B[1], B[1], B[3]), work),
+            ((g.kfull[1], B[2], B[3]), work),
+            (B, (work[1], g.kvec[1], work[3])),
+        )
+            storage = (
+                badB...,
+                badwork...,
+                Eant...,
+                g.cbuf,
+                g.tbuf,
+                g.abuf,
+                g.sbuf,
+                g.midx...,
+                g.kfull...,
+                g.ik...,
+                g.kvec...,
+            )
+            before = copy.(storage)
+            @test_throws ArgumentError apply_antenna!(badB, Eant, dt, g; work = badwork)
+            @test isequal(storage, before)
+        end
+    end
+end

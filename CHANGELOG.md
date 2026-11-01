@@ -122,6 +122,11 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Fixed
 
+- `apply_antenna!` rejects magnetic-field/workspace overlap, shared magnetic
+  components and writable Fourier-metadata aliases before the curl can overwrite
+  old state. Supported antenna-input sharing remains; essential GitHub checks
+  are pending.
+
 - Hybrid collection checkpoint essentials now follow CPU original charge/mass
   admission: finite factors may have an overflowing or zero-rounded quotient.
   Nonfinite mass still rejects with complete persistent-state and storage
