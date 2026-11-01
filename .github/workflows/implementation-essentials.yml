@@ -54,9 +54,11 @@ jobs:
               "bounded-fields" => ("test_yee_particle_charge.jl", "test_bounded_maxwell.jl", "test_sourced_yee.jl", "test_sourced_yee_modes.jl", "test_sourced_yee_additional.jl"),
             )
             println((julia = VERSION, suite = ENV["IMPLEMENTATION_SUITE"]))
-            for file in suites[ENV["IMPLEMENTATION_SUITE"]]
-              @info "existing regression" file
-              include(joinpath("test", file))
+            @testset verbose = true "Implementation essentials" begin
+              for file in suites[ENV["IMPLEMENTATION_SUITE"]]
+                @info "existing regression" file
+                include(joinpath("test", file))
+              end
             end' 2>&1 | tee implementation-essentials.log
       - name: Retain full test output
         if: always()

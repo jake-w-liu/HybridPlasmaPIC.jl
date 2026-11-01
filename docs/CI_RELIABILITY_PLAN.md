@@ -18,7 +18,10 @@ continuity check, and bounded charge/Maxwell/source fields. It instantiates the
 ordinary package project, records the actual runtime and retains complete output.
 The bounded-fields choice also installs the already-declared JET test extra in
 the ephemeral runner checkout, subject to the package's existing compatibility.
-A failed dependency install or included test fails the job through bash pipefail.
+A standard outer `Test` testset aggregates nested assertion failures, allowing
+later testsets/files to run while keeping the final job failed. Unexpected
+include/load errors may still stop later files. Dependency and test failures
+propagate through bash pipefail.
 
 This provides focused remote feedback without running Julia on the development
 machine or adding another test implementation. It supplements the unchanged
