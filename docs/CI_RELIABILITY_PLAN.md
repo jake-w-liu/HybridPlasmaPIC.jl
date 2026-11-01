@@ -25,6 +25,15 @@ machine or adding another test implementation. It supplements the unchanged
 six-job per-revision package/compiler/formatter/MPI workflow. Focused success is
 not full CI, compiler, hardware or performance acceptance.
 
+The broad EM choice includes the existing legacy wave suites. At the
+[checkpoint-routing revision](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41280753354),
+both runtime jobs reach their explicit 30-minute limit after 52 passing testset
+summaries and 19,522 assertions. Remaining tests are incomplete; this is not a
+successful suite or evidence of a numerical failure in the unfinished work.
+The focused continuity choice runs the existing relativistic collection file,
+including its rollback and restart cases, without those long legacy files.
+Full automatic CI continues to include all package tests.
+
 ## Distributed FFT process partition
 
 The default [aggregate driver](../test/test_distributed_fft.jl) includes the
