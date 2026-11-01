@@ -60,11 +60,8 @@ if Sys.isapple() && Base.find_package("Metal") !== nothing
             vz .= getindex.(kicked, 3)
             for d = 1:length(ps.x)
                 if xmid !== nothing
-                    xmid[d] .= HybridPlasmaPIC._particle_coordinate_native.(
-                        ps.x[d],
-                        ps.v[d],
-                        dt / 2.0f0,
-                    )
+                    xmid[d] .=
+                        HybridPlasmaPIC._particle_coordinate_native.(ps.x[d], ps.v[d], dt / 2.0f0)
                 end
                 ps.x[d] .= HybridPlasmaPIC._particle_coordinate_native.(ps.x[d], ps.v[d], dt)
             end
@@ -121,7 +118,12 @@ if Sys.isapple() && Base.find_package("Metal") !== nothing
                 rejects_unchanged(ps, Eg, Bg, ntuple(_ -> zeros(Float32, count), 2), 0.125f0)
                 short = Metal.MtlArray(zeros(Float32, count + 1))
                 rejects_unchanged(
-                    ps, Base.setindex(Eg, short, 1), Bg, mid, 0.125f0, DimensionMismatch,
+                    ps,
+                    Base.setindex(Eg, short, 1),
+                    Bg,
+                    mid,
+                    0.125f0,
+                    DimensionMismatch,
                 )
             end
         end
@@ -185,7 +187,15 @@ if Sys.isapple() && Base.find_package("Metal") !== nothing
                 # Three threads force repeated strides and inactive lanes while
                 # the entire scan remains inside the required one-group grid.
                 Metal.@metal threads = 3 groups = 1 ext._push_gathered_single_group_kernel!(
-                    x, v, Eg, Bg, 0.75f0, 0.0f0, mid, flag, UInt64(count),
+                    x,
+                    v,
+                    Eg,
+                    Bg,
+                    0.75f0,
+                    0.0f0,
+                    mid,
+                    flag,
+                    UInt64(count),
                 )
                 @test only(Array(flag)) == UInt32(invalid)
                 expected_stores = invalid ? 0 : count * (5 + (midpoint ? 2 : 0))
@@ -206,7 +216,10 @@ if Sys.isapple() && Base.find_package("Metal") !== nothing
                 expression =
                     Base.Broadcast.instantiate(Base.Broadcast.broadcasted(identity, source))
                 Metal.@metal threads = 3 groups = 1 ext._gathered_commit_kernel!(
-                    dest, expression, flag, UInt64(7),
+                    dest,
+                    expression,
+                    flag,
+                    UInt64(7),
                 )
                 @test only(Array(stores)) == (iszero(status) ? UInt32(7) : UInt32(0))
                 @test bits((values,)) == bits((fill(iszero(status) ? 1.0f0 : -0.0f0, 7),))

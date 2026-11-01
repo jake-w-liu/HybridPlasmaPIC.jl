@@ -740,11 +740,8 @@ function _push_gathered_disjoint_kernel!(
             v[3][index] = nz
             for d = 1:D
                 if xmid !== nothing
-                    xmid[d][index] = HybridPlasmaPIC._particle_coordinate_native(
-                        x[d][index],
-                        v[d][index],
-                        hx,
-                    )
+                    xmid[d][index] =
+                        HybridPlasmaPIC._particle_coordinate_native(x[d][index], v[d][index], hx)
                 end
                 x[d][index] =
                     HybridPlasmaPIC._particle_coordinate_native(x[d][index], v[d][index], dt)
