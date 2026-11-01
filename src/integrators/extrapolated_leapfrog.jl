@@ -1655,38 +1655,48 @@ function _finish_relativistic_energy(
     end
 end
 
-function _kinetic_energy_relativistic_exact(ps::ParticleSet{D,T}, c::Real) where {D,T}
-    cT = _require_finite_positive_real("c", c, T)
+# Component zero is kinetic energy; components 1:3 are physical momenta.
+# All complete moments share the existing rational-radical rounding owner.
+function _relativistic_moment_exact(species, cT::T, ::Val{component}) where {T,component}
     c2 = _exact_rational(cT)^2
-    mc2 = _exact_rational(ps.m) * c2
     rational = zero(Rational{BigInt})
     radicands, coefficients = Rational{BigInt}[], Rational{BigInt}[]
     indices = Dict{Rational{BigInt},Int}()
-    for p in eachindex(ps.weight)
-        all(isfinite(ps.v[d][p]) for d = 1:3) ||
-            throw(ArgumentError("particle $p velocity must be finite"))
-        v2 = sum(_exact_rational(ps.v[d][p])^2 for d = 1:3)
-        v2 < c2 || throw(ArgumentError("particle $p has |v| ≥ c"))
-        iszero(v2) && continue
-        a = mc2 * _exact_rational(ps.weight[p])
-        iszero(a) && continue
-        rational -= a
-        r = c2 / (c2 - v2)
-        index = get(indices, r, 0)
-        if index != 0
-            coefficients[index] += a
-        else
-            root = _relativistic_rational_sqrt(r)
-            if root === nothing
-                push!(radicands, r)
-                push!(coefficients, a)
-                indices[r] = length(radicands)
+    for ps in species
+        mass = _exact_rational(ps.m)
+        for p in eachindex(ps.weight)
+            all(isfinite(ps.v[d][p]) for d = 1:3) ||
+                throw(ArgumentError("particle $p velocity must be finite"))
+            velocity = ntuple(d -> _exact_rational(ps.v[d][p]), Val(3))
+            v2 = sum(x -> x^2, velocity)
+            v2 < c2 || throw(ArgumentError("particle $p has |v| ≥ c"))
+            iszero(v2) && continue
+            weighted_mass = mass * _exact_rational(ps.weight[p])
+            a = weighted_mass * (component == 0 ? c2 : velocity[component])
+            iszero(a) && continue
+            component == 0 && (rational -= a)
+            r = c2 / (c2 - v2)
+            index = get(indices, r, 0)
+            if index != 0
+                coefficients[index] += a
             else
-                rational += a * root
+                root = _relativistic_rational_sqrt(r)
+                if root === nothing
+                    push!(radicands, r)
+                    push!(coefficients, a)
+                    indices[r] = length(radicands)
+                else
+                    rational += a * root
+                end
             end
         end
     end
     return _finish_relativistic_energy(T, rational, radicands, coefficients)
+end
+
+function _kinetic_energy_relativistic_exact(ps::ParticleSet{D,T}, c::Real) where {D,T}
+    cT = _require_finite_positive_real("c", c, T)
+    return _relativistic_moment_exact((ps,), cT, Val(0))
 end
 
 @inline _relativistic_range_lost(value::T) where {T<:AbstractFloat} =
@@ -1755,7 +1765,11 @@ represent a finite Lorentz factor. Uncertain comparisons use the exact stored
 components; the pusher has a separate, narrower supported range. For finite mass
 and weights, intermediate overflow or underflow triggers evaluation of the
 complete weighted expression before final rounding. Ordinary inputs retain
-their original arithmetic order; signed and nonfinite factors remain visible.
+their original arithmetic order at well-conditioned speeds. Faster IEEE
+contributions retain historical values only within four adjacent spacings of a
+certified physical enclosure; unresolved cases use the complete exact owner.
+This point bound does not change the scalar summation order or certify a new
+whole-sum accuracy bound. Signed and nonfinite factors remain visible.
 """
 function kinetic_energy_relativistic(ps::ParticleSet{D,T}, c::Real) where {D,T}
     cT = _require_finite_positive_real("c", c, T)
@@ -1763,6 +1777,48 @@ function kinetic_energy_relativistic(ps::ParticleSet{D,T}, c::Real) where {D,T}
         return _kinetic_energy_relativistic(ps, cT, Val(false))
     end
     return _kinetic_energy_relativistic(ps, cT, Val(true))
+end
+
+"""
+    kinetic_energy_relativistic(species::AbstractVector, c) -> Real
+
+Whole-collection relativistic kinetic energy for CPU Float32/Float64 particles
+with finite masses, weights and subluminal stored velocities. Signed finite
+source factors retain their algebraic meaning; typed empty collections give zero.
+Original factors share the certified moment and exact radical owners with
+[`total_momentum_relativistic`](@ref). Velocities use their stored time level.
+"""
+function kinetic_energy_relativistic(
+    species::AbstractVector{<:ParticleSet{D,T}}, c::Real,
+) where {D,T<:Union{Float32,Float64}}
+    cT = _require_finite_positive_real("c", c, T)
+    return first(_relativistic_particle_moments(species, cT))
+end
+
+# Retain the historical high-speed contribution only with a complete physical
+# enclosure. Four adjacent T spacings is the point-retention contract; reference
+# gamma and all subtraction/product residuals are included in the error ball.
+function _relativistic_energy_contribution(native::T, velocity, c::T, weight::T) where {T}
+    _boris_accuracy_mode() || return native, false
+    iszero(weight) && return native, true
+    all(_rel_prime_dd_operand, (velocity..., c, weight)) || return native, false
+    gamma = _rel_prime_gamma_ball(velocity, c)
+    physical = _rel_prime_ball_mul(
+        _rel_prime_ball(weight), _rel_prime_ball_sub(gamma, _rel_prime_ball(1.0)),
+    )
+    _rel_prime_ball_valid(physical) || return native, false
+    if isfinite(native)
+        below, above = prevfloat(native), nextfloat(native)
+        if isfinite(below) && isfinite(above)
+            lower_spacing = Float64(native) - Float64(below)
+            upper_spacing = Float64(above) - Float64(native)
+            budget = ldexp(min(lower_spacing, upper_spacing), 2)
+            difference = _rel_prime_ball_sub(physical, _rel_prime_ball(native))
+            error = _eft_add_upper(_rel_prime_abs_upper(difference[1]), difference[2])
+            isfinite(error) && error <= budget && return native, true
+        end
+    end
+    return _rel_prime_round_cell(T, physical[1], physical[2])
 end
 
 function _kinetic_energy_relativistic(
@@ -1777,6 +1833,7 @@ function _kinetic_energy_relativistic(
     end
     s = zero(T)
     range_lost = false
+    checked = check_range
     vx, vy, vz = ps.v
     @inbounds for p in eachindex(ps.weight)
         x, y, z = vx[p], vy[p], vz[p]
@@ -1808,20 +1865,30 @@ function _kinetic_energy_relativistic(
         end
         weighted = ps.weight[p] * beta2
         denominator = r * (one(T) + r)
-        contribution = weighted / denominator
-        next_sum = s + contribution
-        if check_range
+        native_contribution = weighted / denominator
+        contribution = native_contribution
+        high_speed = finite_factors && T <: _RangeGuardedFloat && !_lorentz_gap_in_range(beta2)
+        if high_speed
+            contribution, resolved = _relativistic_energy_contribution(
+                native_contribution, (x, y, z), cT, ps.weight[p],
+            )
+            resolved || return _kinetic_energy_relativistic_exact(ps, cT)
+            checked = true
+        end
+        if checked
             range_lost |=
                 _relativistic_product_lost(ps.weight[p], beta2, weighted) |
-                _relativistic_range_lost(contribution) |
-                (iszero(contribution) & !iszero(weighted)) |
-                _relativistic_range_lost(next_sum)
+                _relativistic_range_lost(native_contribution) |
+                (iszero(native_contribution) & !iszero(weighted)) |
+                _relativistic_range_lost(contribution)
         end
+        next_sum = s + contribution
+        checked && (range_lost |= _relativistic_range_lost(next_sum))
         s = next_sum
     end
     mc2 = ps.m * c2
     value = mc2 * s
-    if check_range &&
+    if checked &&
        finite_factors &&
        (
            range_lost ||

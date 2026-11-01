@@ -159,6 +159,7 @@ using Test
     include("test_electrostatic_species_diversity.jl")
     include("test_empic.jl")
     include("test_empic_species.jl")
+    include("test_empic_relativistic_species.jl")
     include("test_empic1d.jl")
     include("test_bounded_maxwell.jl")
     include("test_sourced_yee.jl")

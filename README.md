@@ -247,7 +247,7 @@ in the [implementation plan](docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md).
 |---|---|---|
 | **Hall-MHD** | periodic single-fluid Hall-MHD with algebraic electron closures; ion pressure `p_i = Ti·n`; the electron pressure force acts in both Ohm's law and the bulk momentum equation; explicit RK4 with divergence-free projection | `HallMHDModel`, `HallMHDState`, `step_hall_mhd!` |
 | **Electrostatic PIC** | arbitrary kinetic species on periodic CPU grids, explicit charge/background policy, shared spectral Poisson field and synchronized leapfrog in 1D/2D/3D; scalar electron compatibility | `ElectrostaticPIC` (or `Electrostatic1D`), `init_espic!`, `step_espic!` |
-| **Electromagnetic PIC** | periodic spectral current correction and Gauss initialization in 1D–3D; legacy electron/ion and relativistic models; synchronous nonrelativistic CPU arbitrary-species `EMPIC` collections with mobile/fixed populations and explicit neutrality policy ([contract and pending CI](docs/EMPIC_SPECIES_IMPLEMENTATION.md)) | `EMPIC`, `EMPIC1D`, `init_empic!`, `step_empic!`, `charge_conservation_residual`, `electromagnetic_diagnostics` |
+| **Electromagnetic PIC** | periodic spectral current correction and Gauss initialization in 1D–3D; legacy electron/ion models; synchronous CPU arbitrary-species `EMPIC` collections with optional relativistic motion, mobile/fixed populations and explicit neutrality policy ([contract and pending CI](docs/EMPIC_SPECIES_IMPLEMENTATION.md)) | `EMPIC`, `EMPIC1D`, `init_empic!`, `step_empic!`, `charge_conservation_residual`, `electromagnetic_diagnostics`, `total_momentum_relativistic` |
 | **Bounded Maxwell vacuum** | staggered Yee fields in 1D–3D with periodic or homogeneous conducting axes, synchronized second-order stepping, CFL rejection, compatible divergence and energy/Poynting diagnostics; native stencils under the normwise accuracy contract; no particle coupling or absorbing layer | `YeeGrid`, `MaxwellVacuum`, `step_maxwell!`, `yee_divergence!`, `yee_poynting_flux` |
 | **Prescribed-current Yee fields** | 1D current impulses on electric lattices, all-node charge including conducting surfaces, source work and fixed-step modified energy; [scope and example](docs/SOURCED_YEE_FIELDS.md); particle coupling remains open | `step_maxwell!(model, dt, impulse)`, `yee_electric_charge!`, `yee_source_work`, `yee_modified_energy` |
 | **Closed Yee particle charge/current** | CPU 1D extensive CIC nodal charge, compatible longitudinal endpoint impulse and its scalar path voltage from caller-owned trajectories; [coupled force, wall events and restart remain open](docs/BOUNDED_PARTICLE_COUPLING_PLAN.md) | `YeeChargeWorkspace`, `yee_particle_charge!`, `yee_longitudinal_impulse!`, `yee_longitudinal_voltage` |
@@ -422,7 +422,10 @@ A self-contained perpendicular collisionless-shock laboratory:
   For `EvolvingElectrons` and `TransportElectrons`, supply `pe = st.fields.pe` explicitly. Budgets use
   the supplied particle velocities, which are staggered in hybrid runs;
   energy-convergence comparisons need reservoirs at a common time.
-  `kinetic_energy_relativistic(ps, c)` covers relativistic EMPIC runs.
+  `kinetic_energy_relativistic(ps_or_species, c)` covers relativistic EMPIC runs;
+  `total_momentum_relativistic(ps_or_species, c)` gives physical particle momentum.
+  Collection forms retain finite CPU Float32/Float64 original sources through
+  whole-population moments before final rounding.
   `resistive_dissipation` reports the Ohmic quadratic form, retaining representable
   finite Float32/Float64 results across intermediate range loss;
   `jdotE_density`, `electric_work`, and `momentum_budget` report work and momentum.

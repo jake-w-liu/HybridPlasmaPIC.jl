@@ -187,7 +187,7 @@ end
         init_empic!(neutralized, [ps])
         @test electromagnetic_diagnostics(neutralized, [ps]).neutralizing_charge == -2
         @test electromagnetic_diagnostics(neutralized, [ps]).net_charge == 0
-        @test_throws ArgumentError EMPIC(g, [ps]; relativistic = true)
+        @test EMPIC(g, [ps]; relativistic = true, neutrality = :neutralize).relativistic
         @test_throws ArgumentError EMPIC(g, [ps]; mobile = Bool[])
         ps.v[1][1] = one(T)
         @test_throws ArgumentError EMPIC(g, [ps]; mobile = Bool[false], neutrality = :neutralize)

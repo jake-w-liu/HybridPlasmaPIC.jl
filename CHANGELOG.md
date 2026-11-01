@@ -15,10 +15,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Periodic CPU `EMPIC` collections support arbitrary finite charge/positive mass,
   mobile and fixed populations, one charge-conserving current/Maxwell update,
   synchronous fast velocity phases, explicit neutrality/background policy,
-  shared-field diagnostics and distinct schema-1 checkpoint/archive. Existing
-  electron/ion and `EMPIC1D` APIs remain. Essential regressions and full compiler
-  acceptance await GitHub; relativistic collections and species multirate
-  schedules remain open in the [scoped tracker](docs/EMPIC_SPECIES_IMPLEMENTATION.md).
+  optional relativistic motion, physical relativistic particle diagnostics,
+  shared-field energy and distinct schema-1 checkpoint/archive. Saved mode and c
+  restore together with their validated particles. Existing electron/ion and
+  `EMPIC1D` APIs remain. Essential regressions and full compiler acceptance await
+  GitHub; species multirate schedules and remaining intersections stay open in
+  the [scoped tracker](docs/EMPIC_SPECIES_IMPLEMENTATION.md).
+
+- `total_momentum_relativistic` and collection `kinetic_energy_relativistic`
+  complete physical moments across finite CPU Float32/Float64 populations with
+  original mass, weight and velocity operands. Existing residual balls certify
+  final rounding; unresolved cases use the existing exact radical owner.
 
 - Fixed-step `CollisionalHybridStepper` accepts constant Ohmic/hyperresistive
   `TransportElectrons` with `η >= 0`, `ηH >= 0`, `de2 = 0`. An optional outer force snapshot
@@ -51,6 +58,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Apply the reviewed nine-file formatter artifact from the relativistic-factor
   GitHub run. Changes are spacing, wrapping and optional trailing call-argument
   commas; fresh exact-revision formatter and package checks remain required.
+
+- Scalar relativistic kinetic-energy contributions at high speeds require a
+  physical error enclosure, including reference residuals, before retaining
+  historical arithmetic. The point bound is four adjacent spacings; low-speed
+  operation order, nonfinite-factor propagation and complete range replay remain.
+  The existing scalar sum retains its summation order. Runtime acceptance is
+  pending GitHub alongside the collection diagnostic tests.
 
 - Original-factor relativistic priming defines its typed coefficient method
   after the carrier type, removing the observed include-time undefined name.

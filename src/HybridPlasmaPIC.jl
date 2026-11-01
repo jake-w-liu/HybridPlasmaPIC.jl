@@ -130,6 +130,7 @@ include("models/gyrokinetics.jl")
 include("diagnostics/pressure_tensor.jl")
 include("diagnostics/phase_space.jl")
 include("diagnostics/spectra.jl")
+include("diagnostics/relativistic_moments.jl")
 include("diagnostics/conservation.jl")        # energy/momentum budgets (needs kinetic_energy)
 include("diagnostics/shock_surface.jl")       # shock diag (needs PerpShock2D/3D)
 include("diagnostics/synthetic_spacecraft.jl")
@@ -258,7 +259,7 @@ export LeroyBoundary, step_leroy_shock!
 export Electrostatic1D,
     ElectrostaticPIC, init_espic!, step_espic!, poisson_E!, field_energy, electrostatic_diagnostics
 export flux_speed, flux_per_density, inject_face_1d!
-export total_momentum,
+export total_momentum, total_momentum_relativistic,
     electric_work,
     temperatures_par_perp,
     velocity_histogram,

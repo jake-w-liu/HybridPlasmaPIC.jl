@@ -1215,8 +1215,9 @@ ion storage must be independent. Particle workspaces are resized on restore;
 scratch values are recomputed during stepping. `EMPIC` collection schema 1 stores
 ordered arbitrary species, per-population mobility, neutrality/background policy
 and the common fast velocity phase alongside these fields. Collection policy and
-mobility must match the destination. Saved c, n_sub and physical species values
-replace destination values; relativistic collections are not supported.
+mobility must match the destination. Saved relativistic mode, c, n_sub and
+physical species values replace destination values. The saved mode and c govern
+particle-domain validation before any restore publication.
 Mutable model/shape parameters must be independent of particle and evolving
 solver storage, including FFT plans, scratch arrays, and clock/phase references. Links to
 evolving storage are rejected before serialization can detach them. Array checks

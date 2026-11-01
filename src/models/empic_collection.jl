@@ -10,7 +10,8 @@ Periodic CPU Float32/Float64 electromagnetic PIC with arbitrary finite species
 charges and positive masses. `mobile` selects populations that kick and drift at
 every Maxwell substep `dt/n_sub`. Fixed populations require zero stored velocity,
 deposit charge only and remain unchanged. NGP, CIC and TSC are supported.
-Relativistic collections and independent species timesteps are not implemented.
+`relativistic=true` uses the existing relativistic prime/kick and supported
+stored-output domain. Independent species timesteps are not implemented.
 
 `background_charge` is a fixed uniform charge density. `:require` uses the same
 exact physical-charge tolerance as electrostatic collections; `:neutralize`
@@ -35,7 +36,6 @@ function EMPIC(
     1 <= D <= 3 || throw(ArgumentError("EMPIC supports D = 1, 2, or 3"))
     T in (Float32, Float64) ||
         throw(ArgumentError("electromagnetic collections require Float32 or Float64"))
-    relativistic && throw(ArgumentError("relativistic EMPIC collections are not implemented"))
     shape isa Union{NGP,CIC,TSC} ||
         throw(ArgumentError("electromagnetic collections require NGP, CIC or TSC"))
     neutrality in (:require, :neutralize) ||
@@ -48,13 +48,13 @@ function EMPIC(
     background = _require_finite_real("background_charge", background_charge, T)
     rtol = _require_finite_nonnegative_real("charge_rtol", charge_rtol, T)
     cT = _require_finite_positive_real("c", c, T)
-    stage = _new_empic_state(g, 0, background, cT, shape, false, false, one(T), ns, nothing)
+    stage = _new_empic_state(g, 0, background, cT, shape, relativistic, false, one(T), ns, nothing)
     P = eltype(species)
     work = _EMPICCollectionWork{D,T,P,typeof(stage)}(
         neutrality, rtol, BitVector(mobile), P[], _ElectrostaticHostParticle{D,T}[],
         NTuple{D,Vector{T}}[], stage, Ref(false),
     )
-    es = _new_empic_state(g, 0, background, cT, shape, false, false, one(T), ns, work)
+    es = _new_empic_state(g, 0, background, cT, shape, relativistic, false, one(T), ns, work)
     _empic_collection_validate_species(es, species)
     return es
 end
@@ -92,6 +92,7 @@ end
 
 function _empic_collection_validate_storage(es::EMPIC{D,T}, species) where {D,T}
     work = _empic_collection(es)
+    es.mobile && throw(ArgumentError("collection EMPIC mobility is specified per population"))
     _espic_validate_collection_type(species, es.g)
     length(work.mobile) == length(species) ||
         throw(ArgumentError("electromagnetic population count must match mobility flags"))
@@ -154,18 +155,15 @@ function _empic_collection_validate_storage(es::EMPIC{D,T}, species) where {D,T}
     return nothing
 end
 
-function _empic_collection_validate_species(es::EMPIC{D,T}, species) where {D,T}
+function _empic_collection_validate_populations(es::EMPIC{D,T}, species, c::T, relativistic::Bool) where {D,T}
     _empic_collection_validate_storage(es, species)
     work = _empic_collection(es)
-    es.relativistic && throw(ArgumentError("relativistic EMPIC collections are not implemented"))
-    es.mobile && throw(ArgumentError("collection EMPIC mobility is specified per population"))
     _require_finite_real("background_charge", es.n0, T)
-    _require_finite_positive_real("c", es.c, T)
-    es.n_sub >= 1 || throw(ArgumentError("n_sub must be ≥ 1"))
     for (i, ps) in enumerate(species)
         _validated_boris_factor(ps)
         _validate_particle_positions(ps)
         _require_finite_particle_velocities(ps, "electromagnetic collection")
+        relativistic && _require_subluminal_velocities(ps, c, "electromagnetic collection")
         all(w -> isfinite(w) && w >= zero(T), ps.weight) ||
             throw(ArgumentError("electromagnetic weights must be finite and nonnegative"))
         !work.mobile[i] && !all(a -> all(iszero, a), ps.v) &&
@@ -174,6 +172,12 @@ function _empic_collection_validate_species(es::EMPIC{D,T}, species) where {D,T}
     charges = _pic_collection_charges(es.g, es.n0, species)
     _espic_check_neutrality(work, charges)
     return charges
+end
+
+function _empic_collection_validate_species(es::EMPIC{D,T}, species) where {D,T}
+    _require_finite_positive_real("c", es.c, T)
+    es.n_sub >= 1 || throw(ArgumentError("n_sub must be ≥ 1"))
+    return _empic_collection_validate_populations(es, species, es.c, es.relativistic)
 end
 
 function _empic_collection_prepare!(es::EMPIC{D,T}, species) where {D,T}
@@ -188,6 +192,7 @@ function _empic_collection_prepare!(es::EMPIC{D,T}, species) where {D,T}
     end
     stage = work.stage
     stage.n0, stage.c, stage.shape, stage.n_sub = es.n0, es.c, es.shape, es.n_sub
+    stage.relativistic = es.relativistic
     foreach(copyto!, _empic_transaction_fields(stage), _empic_transaction_fields(es))
     stage.time[], stage.step[] = es.time[], es.step[]
     stage.last_dt[], stage.last_sub_dt[] = es.last_dt[], es.last_sub_dt[]
@@ -296,7 +301,7 @@ function _empic_collection_prime!(stage::EMPIC{D,T}, work, sub_dt::T) where {D,T
         gather_vector!(stage.Ep, stage.E, ps, stage.g, stage.shape)
         gather_vector!(stage.Bp, stage.B, ps, stage.g, stage.shape)
         _prime_leapfrog!(ps.v, stage.Ep, stage.Bp, _validated_boris_factor(ps),
-            sub_dt / 2, nparticles(ps), false, stage.c)
+            sub_dt / 2, nparticles(ps), stage.relativistic, stage.c)
     end
     _empic_prime_magnetic!(stage, stage.g, sub_dt)
     return stage
@@ -314,6 +319,8 @@ function _empic_collection_substep!(stage::EMPIC{D,T}, work, dt::T, previous::T,
         _drift_record_mid!(ps, work.midpoints[i], dt, stage.g.L)
         apply_periodic!(ps, ntuple(_ -> zero(T), Val(D)), stage.g.L)
         _require_finite_particle_velocities(ps, "electromagnetic collection output")
+        stage.relativistic &&
+            _require_subluminal_velocities(ps, stage.c, "electromagnetic collection output")
     end
     _empic_collection_current!(stage, work)
     _empic_collection_charge!(stage.rho_np1, stage, work, target)
@@ -369,7 +376,7 @@ end
     electromagnetic_diagnostics(state::EMPIC, species)
 
 Exact represented particle/background/neutralizing charge, deposited charge,
-ordinary particle momentum/kinetic energy, shared electromagnetic field energy
+particle momentum/kinetic energy (relativistic when configured), shared electromagnetic field energy
 (counted once) and their total. Particle velocities and B use the preceding fast
 half level; E is at full time. This explicit mover does not conserve discrete
 total energy exactly. Fixed populations have no velocity time offset.
@@ -381,8 +388,8 @@ function electromagnetic_diagnostics(es::EMPIC{D,T}, species::AbstractVector) wh
     _empic_collection_bound(work, species)
     _empic_collection_validate_phase(es)
     _empic_collection_require_finite_fields(es)
-    kinetic = kinetic_energy(species)
-    momentum = total_momentum(species)
+    kinetic, momentum = es.relativistic ? _relativistic_particle_moments(species, es.c) :
+        (kinetic_energy(species), total_momentum(species))
     field = em_field_energy(es)
     neutralizing = work.neutrality === :neutralize ? -charges.net : zero(charges.net)
     offset = es.step[] == 0 ? zero(T) : -es.last_sub_dt[] / 2

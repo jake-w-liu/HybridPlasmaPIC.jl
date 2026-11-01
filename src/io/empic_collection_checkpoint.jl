@@ -23,8 +23,8 @@ function _validate_empic_collection_checkpoint(s, st::EMPIC{D,T}) where {D,T}
     s.mobile isa AbstractVector{Bool} &&
         axes(s.mobile, 1) == Base.OneTo(length(work.mobile)) && s.mobile == work.mobile ||
         throw(ArgumentError("checkpoint per-population mobility does not match destination"))
-    s.relativistic === false ||
-        throw(ArgumentError("relativistic electromagnetic collection checkpoints are unsupported"))
+    s.relativistic isa Bool ||
+        throw(ArgumentError("checkpoint relativistic flag must be Bool"))
     typeof(s.shape) === typeof(st.shape) && s.shape isa Union{NGP,CIC,TSC} ||
         throw(ArgumentError("checkpoint shape does not match destination"))
     s.c isa T || throw(ArgumentError("checkpoint c precision does not match destination"))
@@ -42,7 +42,7 @@ function _validate_empic_collection_checkpoint(s, st::EMPIC{D,T}) where {D,T}
     s.species isa AbstractVector && axes(s.species, 1) == Base.OneTo(length(s.species)) ||
         throw(ArgumentError("checkpoint species must be an ordered one-based vector"))
     populations = ParticleSet{D,T}[_checkpoint_species(record, Val(D), T) for record in s.species]
-    _empic_collection_validate_species(st, populations)
+    _empic_collection_validate_populations(st, populations, s.c, s.relativistic)
     _validate_checkpoint_fields(s.fields, _empic_checkpoint_fields(st))
     arrays = (s.fields.E..., s.fields.B..., s.fields.J..., s.fields.rho_n, s.fields.rho_np1)
     for (i, a) in enumerate(arrays)
@@ -67,7 +67,7 @@ function _checkpoint_state(st::EMPIC{D,T}, species::AbstractVector{<:ParticleSet
     return (
         integrator = :empic_collection, D = D, T = T, ncell = st.g.n, L = st.g.L,
         n0 = st.n0, c = st.c, shape = st.shape, n_sub = st.n_sub,
-        particle_layout = :collection, schema_version = 1, relativistic = false,
+        particle_layout = :collection, schema_version = 1, relativistic = st.relativistic,
         mobile = copy(work.mobile), neutrality = work.neutrality, charge_rtol = work.charge_rtol,
         initialized = work.initialized[], species = [_checkpoint_particle_state(ps) for ps in species],
         fields = _empic_checkpoint_fields(st), time = st.time[], step = st.step[],
@@ -120,6 +120,7 @@ function _restore_checkpoint_state!(
     end
     _restore_checkpoint_fields!(_empic_checkpoint_fields(st), saved.fields)
     st.c, st.shape, st.n_sub = saved.c, saved.shape, saved.n_sub
+    st.relativistic = saved.relativistic
     st.time[], st.step[] = saved.time, saved.step
     st.last_dt[], st.last_sub_dt[] = saved.last_dt, saved.last_sub_dt
     empty!(work.owners)

@@ -57,9 +57,9 @@ tolerance through the same collection checkpoint schema.
 Electromagnetic archives include both species for mobile runs, their physics
 configuration, electric/magnetic fields, continuity diagnostic snapshots, and
 full/fast timestep history. Supply ions exactly when `mobile=true` for the legacy
-electron/ion API. Synchronous nonrelativistic `EMPIC` collections preserve their
-ordered arbitrary populations, mobility, neutrality/background policy and common
-fast velocity half level through collection checkpoint schema 1.
+electron/ion API. Synchronous `EMPIC` collections preserve their ordered arbitrary
+populations, mobility, neutrality/background policy, relativistic mode and c,
+and common fast velocity half level through collection checkpoint schema 1.
 Hall-MHD archives contain the model, fluid and public derived fields, retained
 stage `lapJ`, and clock; no particle argument or timestep history is needed.
 Collisional archives add the complete advanced RNG state and completed source
