@@ -54,6 +54,16 @@ explicit because periodic Poisson cannot support a nonzero mean source. The
 legacy scalar schema remains readable; collection payloads cannot be loaded as
 scalar payloads. No fallback catches or weakened test gates are planned.
 
+## Original-factor admission update (2026-11-01)
+
+CPU collection validation now uses the same original charge/mass owner as
+priming and kicks. A finite charge and positive finite mass are accepted even
+when their derived quotient overflows or rounds to zero. Neutrality, strided
+independent storage, finite deposited charge/fields/outputs, synchronized phase
+and staged publication remain required. Essential nonzero-force range and
+checkpoint continuation regressions await GitHub CI; the historical results
+below predate this update.
+
 ## Physics and representation contract
 
 The [Smilei PIC algorithm specification](https://smileipic.github.io/Smilei/Understand/algorithms.html)

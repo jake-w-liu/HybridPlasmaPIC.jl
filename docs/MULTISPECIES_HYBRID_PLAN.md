@@ -27,7 +27,10 @@ the collection calls have no applicable method; log:
   Apply the density floor after summing populations. Push each population with
   its own `q_s/m_s`.
 - The collection interface represents positive ions; validate positive finite
-  charge and mass and a finite charge-to-mass ratio before mutation. Validate
+  charge and mass before mutation. CPU IEEE movers retain those original factors
+  when the derived quotient overflows or underflows; actual moment, field and
+  output limits remain separate checks. Full-model range and restart regressions
+  for this admission update await GitHub CI. Validate
   every population's array lengths, axes, finite phase space, nonnegative
   weights, and independent storage before advancing any population. Keep
   existing single-population behavior compatible.

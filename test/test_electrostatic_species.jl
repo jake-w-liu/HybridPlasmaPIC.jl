@@ -420,7 +420,10 @@ end
         )
         @test snapshot(es, views) == before
         underflow = ParticleSet{1,T}(0; q = nextfloat(zero(T)), m = floatmax(T))
-        @test_throws ArgumentError ElectrostaticPIC(g, [underflow])
+        empty_es = ElectrostaticPIC(g, [underflow])
+        init_espic!(empty_es, [underflow])
+        step_espic!(empty_es, [underflow], T(0.125))
+        @test empty_es.primed[] && empty_es.last_dt[] == T(0.125)
     end
 end
 

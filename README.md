@@ -255,6 +255,11 @@ the hybrid stepper. Their species and time-level contracts differ;
 neutral pair plasma. Hall-MHD shares the grid and field machinery, and the KdV
 solver is a standalone verification tool.
 
+CPU hybrid/CAM-CL and electrostatic collection movers retain original finite
+charge and positive mass when their derived ratio loses range. Their storage,
+charge/density, field and output checks still apply; see the
+[factor contract and pending GitHub verification](docs/PARTICLE_CHARGE_MASS_RANGE_PLAN.md).
+
 For an initialized ES collection, call `poisson_E!(state)` after manually changing
 positions, weights or charges, or adding particles, to refresh the self-field
 without resetting the velocity phase. New velocities must use the existing

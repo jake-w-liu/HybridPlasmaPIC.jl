@@ -65,9 +65,12 @@ DD priming is reused only when its scalar coefficient is exact in its admitted
 hardware context. This range repair retains C1 output rejection and whole-step
 undo; it does not certify full normal-range relativistic accuracy. See the
 [factor stages](PARTICLE_CHARGE_MASS_RANGE_PLAN.md) for pending GitHub checks.
-Existing model input restrictions, including collection electrostatic rejection
-of an underflowed charged quotient, are unchanged. Device kernels retain their
-explicit-`qm` semantics and have no new original-factor guarantee.
+CPU hybrid/CAM-CL and electrostatic collection admission uses the same factor
+owner: finite original charge and positive finite mass no longer require their
+derived quotient to fit or remain nonzero. Hybrid collections still require
+positive charge; storage, density, neutrality, field/output range and transaction
+checks remain in force. Generic non-IEEE factors retain finite-quotient admission.
+Device kernels retain their separate admission and explicit-`qm` meaning.
 
 Native particle kick batches also require known injective velocity storage;
 coordinate batches require known injective position storage. Repeated-index
@@ -97,6 +100,8 @@ Implementation tracker:
 - [ ] GitHub verification of Euler accuracy, native-bit compatibility and all
   neighboring phase, compiler and resource gates.
 - [x] Relativistic original-factor range and publication implementation.
+- [x] CPU hybrid/CAM-CL and electrostatic collection admission uses the original-factor owner.
+- [ ] GitHub verification of full-model factor endpoints and checkpoint continuation.
 - [ ] GitHub relativistic phase/restart/rollback checks, normal accuracy and device follow-ons.
 - [ ] Complete public resource and compiler acceptance; prior bounded numerical
   checks do not establish these guarantees.

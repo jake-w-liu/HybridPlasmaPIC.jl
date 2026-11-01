@@ -14,6 +14,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   and inverse-density-rescued Hall fields. Original-product Faraday recovery
   and the separate CGL kernel remain open; essential checks run on GitHub.
 
+- CPU hybrid/CAM-CL and electrostatic collection validation retains finite
+  original charge and positive mass even when their derived quotient overflows
+  or underflows. Existing sign, storage, neutrality and arithmetic output checks
+  remain enforced. Essential full-model and restart cases await GitHub CI.
+
 - Relativistic EMPIC priming and kicks retain original species charge and mass
   through range repair and finite-output publication, including overflowing or
   subnormal derived quotients. Both model owners keep C1 rejection and whole-step

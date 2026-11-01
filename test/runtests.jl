@@ -152,6 +152,7 @@ using Test
     include("test_evolving_pressure_mpi.jl")
     include("test_espic.jl")
     include("test_electrostatic_species.jl")
+    include("test_model_factor_admission.jl")
     include("test_electrostatic_species_diversity.jl")
     include("test_empic.jl")
     include("test_empic1d.jl")

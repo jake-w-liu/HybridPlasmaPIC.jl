@@ -495,8 +495,10 @@ _espic_require_scalar(es::ElectrostaticPIC) =
                      neutrality=:require, charge_rtol=64eps(T))
 
 Periodic CPU electrostatic PIC for ordered `ParticleSet{D,T}` populations, with
-finite arbitrary charges, positive masses, representable nonzero q/m for charged
-populations, and independent strided storage.
+finite arbitrary charges, positive masses and independent strided storage.
+The CPU mover retains original charge and mass when their derived quotient
+overflows or underflows; deposited charge, fields and particle outputs must
+still satisfy their documented range checks.
 `T` is Float32 or Float64. All populations share one electric field and one
 leapfrog time level; call `init_espic!(es, species)` before stepping.
 
@@ -652,10 +654,7 @@ end
 function _espic_validate_species(es::ElectrostaticPIC{D,T}, species) where {D,T}
     _espic_validate_storage(es, species)
     for ps in species
-        qm = _validated_qm(ps)
-        !iszero(ps.q) &&
-            iszero(qm) &&
-            throw(ArgumentError("electrostatic charge-to-mass ratio underflows; rescale the units"))
+        _validated_boris_factor(ps)
         _validate_particle_positions(ps)
         _require_finite_particle_velocities(ps, "electrostatic stepping")
         all(w -> isfinite(w) && w >= zero(T), ps.weight) ||

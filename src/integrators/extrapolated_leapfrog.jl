@@ -395,7 +395,7 @@ function _resize_hybrid_particle_workspaces!(st, n::Integer)
 end
 
 function _validate_hybrid_species(ps::ParticleSet)
-    _validated_qm(ps)
+    _validated_boris_factor(ps)
     return nparticles(ps)
 end
 
@@ -416,7 +416,7 @@ function _validate_hybrid_species(species::AbstractVector{<:ParticleSet{D,T}}) w
     _require_independent_hybrid_species(species)
     total = 0
     for ps in species
-        _validated_qm(ps)
+        _validated_boris_factor(ps)
         ps.q > zero(T) || throw(ArgumentError("hybrid ion charge must be positive"))
         n = nparticles(ps)
         for a in (ps.x..., ps.v..., ps.weight, ps.id, ps.tag)

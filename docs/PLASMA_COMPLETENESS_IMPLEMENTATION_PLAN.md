@@ -737,6 +737,11 @@ GitHub checks pending. Neither that repair nor linear completion of represented
 ideal E recovers an original product lost before differentiation. CAP-011 remains
 incomplete.
 
+CPU hybrid/CAM-CL and electrostatic collection admission now retains original
+finite charge and positive mass when the derived quotient loses range. Their
+physical, storage and transaction checks remain; full-model and restart GitHub
+verification is pending in the [factor tracker](PARTICLE_CHARGE_MASS_RANGE_PLAN.md).
+
 ## Additional risks requiring tests, not assertions
 
 | Candidate | Verified source observation | Exact settling work |

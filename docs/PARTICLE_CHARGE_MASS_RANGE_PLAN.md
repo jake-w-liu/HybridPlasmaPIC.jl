@@ -7,7 +7,11 @@ admission and exact endpoint replay are implemented; GitHub acceptance remains
 open. Both relativistic EMPIC owners also retain original factors through priming,
 kick repair and output publication; GitHub verification is pending. Device
 support and full normal-range relativistic accuracy remain open. This plan does
-not broaden C1's supported relativistic domain.
+not broaden C1's supported relativistic domain. CPU hybrid/CAM-CL and
+ElectrostaticPIC collection validation now admits finite original charge and
+positive mass through the canonical factor owner, including derived quotient
+overflow and underflow. Sign, storage, neutrality and actual arithmetic limits
+remain enforced; the essential full-model and restart cases await GitHub.
 
 The physical expression uses the original stored q, positive m, dt and field
 operands. A rounded derived ratio must not silently erase a representable result.
@@ -85,6 +89,8 @@ mode pipeline or trajectory-wide correctness.
 - [x] Implement P2 original-factor nonrelativistic priming/predictor range replay.
 - [x] Implement sufficient Euler term-scale admission and exact overflow classification.
 - [ ] Verify P2 accuracy, endpoints and phase behavior in GitHub.
+- [x] Align CPU hybrid/CAM-CL and electrostatic collection factor admission.
+- [ ] Verify full-model factor range and checkpoint continuation in GitHub.
 - [x] Implement P3 relativistic original-factor range routing and publication.
 - [ ] Verify P3 phase/restart/rollback in GitHub and audit normal accuracy.
 - [ ] Complete P4 device factors and their hardware checks.

@@ -134,7 +134,7 @@ function CollisionalHybridStepper(
 ) where {D,T}
     _validate_collisional_model(inner)
     _validate_collisional_populations(species, inner.g)
-    # Charge, q/m and total count are bound here; repeated calls check their
+    # Charge, mass and total count are bound here; repeated calls check their
     # identity and delegate changing storage/values to the local collision guard.
     count = _validate_hybrid_species(species)
     (iszero(inner.time[]) && iszero(inner.step[]) && iszero(inner.last_dt[])) ||
