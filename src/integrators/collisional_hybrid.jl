@@ -75,11 +75,12 @@ function _validate_collisional_model(inner::HybridStepper{D,T}) where {D,T}
         throw(ArgumentError("CollisionalHybridStepper requires Float32 or Float64"))
     model = inner.model
     model.closure isa Union{IsothermalElectrons,EvolvingElectrons,TransportElectrons} || throw(
-        ArgumentError("CollisionalHybridStepper requires IsothermalElectrons, EvolvingElectrons or TransportElectrons"),
+        ArgumentError(
+            "CollisionalHybridStepper requires IsothermalElectrons, EvolvingElectrons or TransportElectrons",
+        ),
     )
     if _transports_electrons(model.closure)
-        iszero(model.de2) ||
-            throw(ArgumentError("collisional TransportElectrons requires de2 = 0"))
+        iszero(model.de2) || throw(ArgumentError("collisional TransportElectrons requires de2 = 0"))
     else
         (iszero(model.η) && iszero(model.ηH) && iszero(model.de2)) ||
             throw(ArgumentError("ideal collisional electrons require η = ηH = de2 = 0"))
@@ -228,8 +229,7 @@ function _validate_collisional_fields(st::CollisionalHybridStepper)
     f.floor_count[] >= 0 || throw(ArgumentError("density floor count must be nonnegative"))
     # Pressure is persistent state for this closure. Reuse the inner owner's
     # positivity and independence checks before saving or mutating either state.
-    _evolves_pressure(st.model.closure) &&
-        _validate_pressure_step_state(st.inner, st.species)
+    _evolves_pressure(st.model.closure) && _validate_pressure_step_state(st.inner, st.species)
     _validate_collisional_force_storage(st, st.transaction.Eforce)
     return nothing
 end

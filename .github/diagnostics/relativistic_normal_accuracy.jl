@@ -6,22 +6,10 @@ const Q = Rational{BigInt}
 # Existing normal-range nonrelativistic failures from test_boris_accuracy.jl.
 # This finite-c adaptation is an unverified candidate until this script runs.
 const ROWS = (
-    (
-        0x3e80, 0x39d7, (0x38b0, 0x3d4c, 0xbe81),
-        (0x3a90, 0xb8e1, 0xbdc8), (0x3e7a, 0x3eb6, 0x3ffc),
-    ),
-    (
-        0x3c93, 0x3cea, (0x3ba7, 0xbe0d, 0x3fbb),
-        (0x3def, 0xbfad, 0x3a42), (0xbac0, 0x39bb, 0x3e47),
-    ),
-    (
-        0x3af5, 0x38c1, (0xbefd, 0x3fa6, 0x3ab6),
-        (0xb8e1, 0x3e23, 0x3ebb), (0xbaf9, 0x3ec5, 0xbff8),
-    ),
-    (
-        0x3f8f, 0x3ddb, (0xbd53, 0x3c71, 0xbeea),
-        (0xbcad, 0x3f01, 0xbc14), (0x3e7c, 0x3d3e, 0x3fcf),
-    ),
+    (0x3e80, 0x39d7, (0x38b0, 0x3d4c, 0xbe81), (0x3a90, 0xb8e1, 0xbdc8), (0x3e7a, 0x3eb6, 0x3ffc)),
+    (0x3c93, 0x3cea, (0x3ba7, 0xbe0d, 0x3fbb), (0x3def, 0xbfad, 0x3a42), (0xbac0, 0x39bb, 0x3e47)),
+    (0x3af5, 0x38c1, (0xbefd, 0x3fa6, 0x3ab6), (0xb8e1, 0x3e23, 0x3ebb), (0xbaf9, 0x3ec5, 0xbff8)),
+    (0x3f8f, 0x3ddb, (0xbd53, 0x3c71, 0xbeea), (0xbcad, 0x3f01, 0xbc14), (0x3e7c, 0x3d3e, 0x3fcf)),
 )
 
 # Independent Cayley rotation, not the production two-cross-product kernel.
@@ -42,18 +30,15 @@ function reference(bits, ::Type{T}, v, E, B, ratio, duration, c, prime) where {T
                 gamma_minus = sqrt(1 + dot(minus, minus) / BigFloat(c)^2)
                 t = (coefficient / 2) .* C / gamma_minus
                 t2 = dot(t, t)
-                rotated =
-                    ((1 - t2) .* minus + 2dot(t, minus) .* t + 2cross(minus, t)) / (1 + t2)
+                rotated = ((1 - t2) .* minus + 2dot(t, minus) .* t + 2cross(minus, t)) / (1 + t2)
                 momentum = rotated + electric
                 impulse = electric
             end
             gamma_final = sqrt(1 + dot(momentum, momentum) / BigFloat(c)^2)
             values = Tuple(momentum / gamma_final)
             scale = max(norm(collect(values)), max(norm(initial), norm(impulse)) / gamma_final)
-            power = max(
-                iszero(scale) ? exponent(floatmin(T)) : exponent(scale),
-                exponent(floatmin(T)),
-            )
+            power =
+                max(iszero(scale) ? exponent(floatmin(T)) : exponent(scale), exponent(floatmin(T)))
             budget = BigFloat(2)^(power - precision(T) + 3)
             (; values, scale, budget, rounded = T.(values))
         end
@@ -109,10 +94,20 @@ function observe(::Type{T}, index, q, m, v, E, B, dt, c, meaning) where {T}
     primed = map(x -> [x], v)
     H._prime_leapfrog!(primed, Ep, Bp, factor, dt / 2, 1, true, c)
     observed = (
-        (:kick, dt, kick_range, kick_batch,
-         (raw_native = kick, guarded = scalar, batch_native = native_published)),
-        (:prime, dt / 2, prime_range, prime_batch,
-         (raw_native = prime, guarded = map(only, primed))),
+        (
+            :kick,
+            dt,
+            kick_range,
+            kick_batch,
+            (raw_native = kick, guarded = scalar, batch_native = native_published),
+        ),
+        (
+            :prime,
+            dt / 2,
+            prime_range,
+            prime_batch,
+            (raw_native = prime, guarded = map(only, primed)),
+        ),
     )
     violations = unresolved = 0
     for (stage, duration, range_admitted, batch_admitted, actual) in observed
@@ -120,28 +115,55 @@ function observe(::Type{T}, index, q, m, v, E, B, dt, c, meaning) where {T}
         high = reference(1024, T, v, E, B, ratio, duration, c, stage === :prime)
         comparisons = map(x -> comparison(x, low), actual)
         refined = map(x -> comparison(x, high), actual)
-        stable = isequal(low.rounded, high.rounded) && low.budget == high.budget &&
-                 map(x -> x.violation, comparisons) == map(x -> x.violation, refined)
-        status = !stable ? :UNRESOLVED :
-                 any(x -> x.violation, refined) ? :OBSERVED_VIOLATION : :NO_VIOLATION_OBSERVED
+        stable =
+            isequal(low.rounded, high.rounded) &&
+            low.budget == high.budget &&
+            map(x -> x.violation, comparisons) == map(x -> x.violation, refined)
+        status =
+            !stable ? :UNRESOLVED :
+            any(x -> x.violation, refined) ? :OBSERVED_VIOLATION : :NO_VIOLATION_OBSERVED
         raw_admission_violation = stable && range_admitted && refined.raw_native.violation
-        production_violation = stable && (
-            refined.guarded.violation ||
-            (stage === :kick && batch_admitted && refined.batch_native.violation)
-        )
+        production_violation =
+            stable && (
+                refined.guarded.violation ||
+                (stage === :kick && batch_admitted && refined.batch_native.violation)
+            )
         unresolved += !stable
         violations += production_violation
         println((;
-            T, index, meaning, stage, q, m, qm, v, E, B, dt, c, ratio, duration,
-            range_admitted, batch_admitted, actual, reference_512 = low,
-            reference_1024 = high, errors_512 = comparisons, errors_1024 = refined,
-            stable, raw_admission_violation, production_violation, status,
+            T,
+            index,
+            meaning,
+            stage,
+            q,
+            m,
+            qm,
+            v,
+            E,
+            B,
+            dt,
+            c,
+            ratio,
+            duration,
+            range_admitted,
+            batch_admitted,
+            actual,
+            reference_512 = low,
+            reference_1024 = high,
+            errors_512 = comparisons,
+            errors_1024 = refined,
+            stable,
+            raw_admission_violation,
+            production_violation,
+            status,
         ))
     end
     return violations, unresolved
 end
 
-println("Observation only. Raw kick/scalar/native publication and raw/shared priming are separate outputs. A raw native violation outside its admission is not a production admission failure.")
+println(
+    "Observation only. Raw kick/scalar/native publication and raw/shared priming are separate outputs. A raw native violation outside its admission is not a production admission failure.",
+)
 println((; julia = VERSION, rounding = rounding(Float64), zero_subnormals = get_zero_subnormals()))
 let violations = 0, unresolved = 0, cases = 0
     for T in (Float16, Float32, Float64), meaning in (:original, :explicit)
@@ -155,19 +177,30 @@ let violations = 0, unresolved = 0, cases = 0
             cases += 1
         end
         found, undecided = observe(
-            T, :ordinary, one(T), one(T), T.((0.5, -0.25, 0.125)),
-            T.((0.125, 0.0625, -0.03125)), T.((0.25, -0.125, 0.0625)),
-            T(0.125), T(128), meaning,
+            T,
+            :ordinary,
+            one(T),
+            one(T),
+            T.((0.5, -0.25, 0.125)),
+            T.((0.125, 0.0625, -0.03125)),
+            T.((0.25, -0.125, 0.0625)),
+            T(0.125),
+            T(128),
+            meaning,
         )
         violations += found
         unresolved += undecided
         cases += 1
     end
     println((;
-        cases, observed_production_stage_violations = violations, unresolved_stages = unresolved,
+        cases,
+        observed_production_stage_violations = violations,
+        unresolved_stages = unresolved,
     ))
     iszero(unresolved) || error(
         "Independent 512/1024-bit references disagree; no accuracy classification accepted for unresolved stages",
     )
 end
-println("Completed observation; successful job status is not accuracy acceptance. Review each admission flag and each actual result separately.")
+println(
+    "Completed observation; successful job status is not accuracy acceptance. Review each admission flag and each actual result separately.",
+)

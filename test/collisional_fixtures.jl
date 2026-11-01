@@ -44,7 +44,13 @@ function _composition_fixture(
 end
 
 function _composition_transport_fixture(
-    ::Type{T}, R; η = T(0.03), ηH = zero(T), logs = T(0.05), closure = TransportElectrons(T(5 / 3)), count = 8,
+    ::Type{T},
+    R;
+    η = T(0.03),
+    ηH = zero(T),
+    logs = T(0.05),
+    closure = TransportElectrons(T(5 / 3)),
+    count = 8,
 ) where {T}
     st, ps = _composition_fixture(Val(1), T, R; η, ηH, logs, closure, count)
     st.inner.fields.B[3] .= T[0, 0.1, 0, -0.1]
@@ -93,8 +99,8 @@ function _composition_snapshot(st, species)
     return deepcopy((
         particles = [H._checkpoint_particle_state(p) for p in species],
         fields = H._hybrid_field_state(st.inner.fields),
-        Eforce = H._transports_electrons(st.inner.model.closure) ?
-                 st.inner.pressure_work.Eforce : nothing,
+        Eforce = H._transports_electrons(st.inner.model.closure) ? st.inner.pressure_work.Eforce :
+                 nothing,
         floor = st.inner.fields.floor_count[],
         clock = (st.inner.time[], st.inner.step[], st.inner.last_dt[]),
         ledger = (st.source_time, st.source_count, st.phase),

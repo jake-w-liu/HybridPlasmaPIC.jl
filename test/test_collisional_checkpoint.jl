@@ -4,8 +4,11 @@ isdefined(@__MODULE__, :_composition_fixture) || include("collisional_fixtures.j
 
 @testset "Collisional checkpoint validation and failure ownership" begin
     H = HybridPlasmaPIC
-    @testset "transport force pressure and advanced RNG restart together $R etaH=$ηH" for R in
-        (Xoshiro, MersenneTwister), ηH in (0.0, 0.01)
+    @testset "transport force pressure and advanced RNG restart together $R etaH=$ηH" for R in (
+            Xoshiro,
+            MersenneTwister,
+        ),
+        ηH in (0.0, 0.01)
 
         # Matching particle/grid lengths allow a real force/particle alias control.
         st, ps = _composition_transport_fixture(Float64, R; count = 4, ηH)
@@ -26,15 +29,26 @@ isdefined(@__MODULE__, :_composition_fixture) || include("collisional_fixtures.j
             drop(:Eforce),
             drop(:transport_policy_version),
             merge(saved.inner, (transport_policy_version = 2,)),
-            merge(saved.inner, (model = HybridModel(
-                saved.inner.model.closure; η = saved.inner.model.η, ηH = ηH + 0.01,
-            ),)),
+            merge(
+                saved.inner,
+                (
+                    model = HybridModel(
+                        saved.inner.model.closure;
+                        η = saved.inner.model.η,
+                        ηH = ηH + 0.01,
+                    ),
+                ),
+            ),
             merge(saved.inner, (Eforce = (fill(NaN, 4), force[2], force[3]),)),
             merge(saved.inner, (Eforce = (saved.fields.ui[1], force[2], force[3]),)),
             merge(saved.inner, (Eforce = (saved.inner.species[1].x[1], force[2], force[3]),)),
         ]
         for inner in corruptions
-            @test_throws ArgumentError H._restore_checkpoint_state!(dest, dps, merge(saved, (; inner)))
+            @test_throws ArgumentError H._restore_checkpoint_state!(
+                dest,
+                dps,
+                merge(saved, (; inner)),
+            )
             @test isequal(entry, _composition_snapshot(dest, dps))
         end
         corrupt = merge(saved, (fields = merge(saved.fields, (pe = 2 .* saved.inner.pe,)),))
@@ -67,12 +81,12 @@ isdefined(@__MODULE__, :_composition_fixture) || include("collisional_fixtures.j
         end
     end
 
-    @testset "evolving pressure and advanced RNG continue together $R" for R in
-        (Xoshiro, MersenneTwister)
+    @testset "evolving pressure and advanced RNG continue together $R" for R in (
+        Xoshiro,
+        MersenneTwister,
+    )
 
-        make() = _composition_fixture(
-            Val(1), Float64, R; closure = EvolvingElectrons(),
-        )
+        make() = _composition_fixture(Val(1), Float64, R; closure = EvolvingElectrons())
         st, ps = make()
         st.inner.fields.pe .= [0.02, 0.022, 0.02, 0.018]
         init!(st, ps)

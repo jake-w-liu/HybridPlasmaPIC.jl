@@ -279,8 +279,11 @@ isdefined(@__MODULE__, :_composition_fixture) || include("collisional_fixtures.j
         @test !st.busy[]
     end
 
-    @testset "transport keeps the carried force and heat schedule $T etaH=$ηH" for T in
-        (Float32, Float64), ηH in (zero(T), T(0.01))
+    @testset "transport keeps the carried force and heat schedule $T etaH=$ηH" for T in (
+            Float32,
+            Float64,
+        ),
+        ηH in (zero(T), T(0.01))
 
         st, ps = _composition_transport_fixture(T, Xoshiro; ηH)
         reference, rps = _composition_transport_fixture(T, Xoshiro; ηH)
@@ -307,8 +310,8 @@ isdefined(@__MODULE__, :_composition_fixture) || include("collisional_fixtures.j
             ux, uy, uz = (a[I] for a in f.ui)
             bx, by, bz = (a[I] for a in f.B)
             jx, jy, jz = (a[I] for a in f.J)
-            ideal[1][I] = -(uy * bz - uz * by) + (jy * bz - jz * by) * f.ninv[I] -
-                          f.gradp[1][I] * f.ninv[I]
+            ideal[1][I] =
+                -(uy * bz - uz * by) + (jy * bz - jz * by) * f.ninv[I] - f.gradp[1][I] * f.ninv[I]
             ideal[2][I] = -(uz * bx - ux * bz) + (jz * bx - jx * bz) * f.ninv[I]
             ideal[3][I] = -(ux * by - uy * bx) + (jx * by - jy * bx) * f.ninv[I]
         end
@@ -329,7 +332,11 @@ isdefined(@__MODULE__, :_composition_fixture) || include("collisional_fixtures.j
         unsupported = st.inner.model
         for (bad_etaH, bad_de2) in ((-0.01, 0.0), (Float64(ηH), 0.01))
             st.inner.model = HybridModel(
-                unsupported.closure, unsupported.η, bad_etaH, unsupported.nfloor, bad_de2,
+                unsupported.closure,
+                unsupported.η,
+                bad_etaH,
+                unsupported.nfloor,
+                bad_de2,
             )
             @test_throws ArgumentError step!(st, ps, st.dt)
             @test isequal(entry, _composition_snapshot(st, ps))
@@ -347,7 +354,10 @@ isdefined(@__MODULE__, :_composition_fixture) || include("collisional_fixtures.j
         zero_eta, zps = _composition_transport_fixture(T, Xoshiro; η = zero(T), ηH)
         if iszero(ηH)
             evolving, epspecies = _composition_transport_fixture(
-                T, Xoshiro; η = zero(T), closure = EvolvingElectrons(T(5 / 3)),
+                T,
+                Xoshiro;
+                η = zero(T),
+                closure = EvolvingElectrons(T(5 / 3)),
             )
             init!(zero_eta, zps)
             init!(evolving, epspecies)
@@ -355,7 +365,8 @@ isdefined(@__MODULE__, :_composition_fixture) || include("collisional_fixtures.j
             for _ = 1:2
                 step!(zero_eta, zps, zero_eta.dt)
                 step!(evolving, epspecies, evolving.dt)
-                a, b = _composition_snapshot(zero_eta, zps), _composition_snapshot(evolving, epspecies)
+                a, b =
+                    _composition_snapshot(zero_eta, zps), _composition_snapshot(evolving, epspecies)
                 @test isequal(a.fields, b.fields)
                 @test isequal(a.particles, b.particles)
                 @test isequal((a.floor, a.clock, a.rng), (b.floor, b.clock, b.rng))
@@ -367,12 +378,15 @@ isdefined(@__MODULE__, :_composition_fixture) || include("collisional_fixtures.j
             init!(pure_hyper, hps)
             step!(zero_eta, zps, zero_eta.dt)
             _composition_component!(pure_hyper, hps)
-            @test isequal(_composition_physical(zero_eta, zps), _composition_physical(pure_hyper, hps))
+            @test isequal(
+                _composition_physical(zero_eta, zps),
+                _composition_physical(pure_hyper, hps),
+            )
         end
     end
 
-    @testset "outer transport transaction survives a completed inner step etaH=$ηH" for
-        ηH in (0.0, 0.01)
+    @testset "outer transport transaction survives a completed inner step etaH=$ηH" for ηH in
+                                                                                        (0.0, 0.01)
 
         st, ps = _composition_transport_fixture(Float64, Xoshiro; ηH)
         init!(st, ps)

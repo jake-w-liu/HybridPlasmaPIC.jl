@@ -117,8 +117,9 @@ function _validate_checkpoint_state(s, st::CollisionalHybridStepper{D,T}) where 
                     throw(ArgumentError("collisional checkpoint force must not alias saved fields"))
             end
             for ps in s.inner.species, array in (ps.x..., ps.v..., ps.weight, ps.id, ps.tag)
-                _particle_arrays_mightalias(force, array) &&
-                    throw(ArgumentError("collisional checkpoint force must not alias saved particles"))
+                _particle_arrays_mightalias(force, array) && throw(
+                    ArgumentError("collisional checkpoint force must not alias saved particles"),
+                )
             end
         end
     end
