@@ -61,6 +61,20 @@ jobs:
               "rk4-affine" => ("test_rk4_original_duration.jl", "test_rk4_mixed_stability.jl", "test_transport_electrons.jl", "test_phase_helpers.jl"),
               "bounded-fields" => ("test_yee_particle_charge.jl", "test_bounded_maxwell.jl", "test_sourced_yee.jl", "test_sourced_yee_modes.jl", "test_sourced_yee_additional.jl"),
             )
+            if ENV["IMPLEMENTATION_SUITE"] == "bounded-fields"
+              import JET
+              println((julia = VERSION, purpose = :base_indexing_observation, acceptance = false))
+              for (label, operation, types) in (
+                (:strided_getindex_f32, getindex, Tuple{StridedVector{Float32},Int}),
+                (:strided_getindex_f64, getindex, Tuple{StridedVector{Float64},Int}),
+                (:range_reindex_without_subindices, Base.reindex, Tuple{Tuple{UnitRange{Int}},Tuple{}}),
+              )
+                report = JET.report_call(operation, types; sourceinfo = :full, stacktrace_types_limit = 0)
+                println((probe = label, input_types = types, possible_errors = length(JET.get_reports(report))))
+                show(IOContext(stdout, :limit => false), MIME"text/plain"(), report)
+                println()
+              end
+            end
             println((julia = VERSION, suite = ENV["IMPLEMENTATION_SUITE"]))
             @testset verbose = true "Implementation essentials" begin
               for file in suites[ENV["IMPLEMENTATION_SUITE"]]
