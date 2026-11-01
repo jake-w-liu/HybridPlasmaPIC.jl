@@ -44,14 +44,17 @@ function _relativistic_particle_moments(species, c::T) where {T}
             # avoids a small-speed subtraction and never squares a large gamma.
             ratio = _rel_prime_ball_div(gamma, _rel_prime_ball_add(gamma, _rel_prime_ball(1.0)))
             energy = _rel_prime_ball_mul(
-                _rel_prime_ball_mul(weighted_mass, speed2), _rel_prime_ball_mul(gamma, ratio),
+                _rel_prime_ball_mul(weighted_mass, speed2),
+                _rel_prime_ball_mul(gamma, ratio),
             )
             sums = Base.setindex(sums, _rel_prime_ball_add(sums[1], energy), 1)
             active = Base.setindex(active, true, 1)
             for d = 1:3
                 iszero(velocity[d]) && continue
-                term = _rel_prime_ball_mul(weighted_mass,
-                    _rel_prime_ball_mul(gamma, _rel_prime_ball(velocity[d])))
+                term = _rel_prime_ball_mul(
+                    weighted_mass,
+                    _rel_prime_ball_mul(gamma, _rel_prime_ball(velocity[d])),
+                )
                 sums = Base.setindex(sums, _rel_prime_ball_add(sums[d+1], term), d + 1)
                 active = Base.setindex(active, true, d + 1)
             end
@@ -81,13 +84,17 @@ radical owner as kinetic energy. Overflowing population momenta can cancel
 before final rounding. Velocities use their stored time level; this function
 does not synchronize particles or fields.
 """
-function total_momentum_relativistic(ps::ParticleSet{D,T}, c::Real) where {D,T<:Union{Float32,Float64}}
+function total_momentum_relativistic(
+    ps::ParticleSet{D,T},
+    c::Real,
+) where {D,T<:Union{Float32,Float64}}
     cT = _require_finite_positive_real("c", c, T)
     return last(_relativistic_particle_moments((ps,), cT))
 end
 
 function total_momentum_relativistic(
-    species::AbstractVector{<:ParticleSet{D,T}}, c::Real,
+    species::AbstractVector{<:ParticleSet{D,T}},
+    c::Real,
 ) where {D,T<:Union{Float32,Float64}}
     cT = _require_finite_positive_real("c", c, T)
     return last(_relativistic_particle_moments(species, cT))

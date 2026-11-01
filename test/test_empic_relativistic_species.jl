@@ -4,8 +4,7 @@ const H = HybridPlasmaPIC
 
 function setup(::Type{T}, D; relativistic = true, c = T(5), n_sub = 1) where {T}
     g = FourierGrid(ntuple(_ -> 4, D), ntuple(_ -> T(4), D))
-    species = [ParticleSet{D,T}(prod(g.n); q, m)
-        for (q, m) in ((-2, 3), (1, 5), (0, 7))]
+    species = [ParticleSet{D,T}(prod(g.n); q, m) for (q, m) in ((-2, 3), (1, 5), (0, 7))]
     for (i, ps) in enumerate(species)
         load_lattice!(ps, ntuple(_ -> zero(T), D), g.L, g.n)
         set_density_weight!(ps, i == 2 ? T(2) : one(T), g)
@@ -21,14 +20,29 @@ function setup(::Type{T}, D; relativistic = true, c = T(5), n_sub = 1) where {T}
 end
 
 function physical(state, species)
-    return deepcopy((fields = H._empic_checkpoint_fields(state),
-        particles = [H._checkpoint_particle_state(ps) for ps in species]))
+    return deepcopy((
+        fields = H._empic_checkpoint_fields(state),
+        particles = [H._checkpoint_particle_state(ps) for ps in species],
+    ))
 end
 function snapshot(state, species)
     io = IOBuffer()
-    serialize(io, (H._empic_transaction_fields(state),
-        (state.time[], state.step[], state.last_dt[], state.last_sub_dt[], state.c, state.relativistic),
-        [H._checkpoint_particle_state(ps) for ps in species], state.collection.initialized[]))
+    serialize(
+        io,
+        (
+            H._empic_transaction_fields(state),
+            (
+                state.time[],
+                state.step[],
+                state.last_dt[],
+                state.last_sub_dt[],
+                state.c,
+                state.relativistic,
+            ),
+            [H._checkpoint_particle_state(ps) for ps in species],
+            state.collection.initialized[],
+        ),
+    )
     return take!(io)
 end
 
@@ -119,8 +133,10 @@ end
         # One particle with m=c=weight=1 isolates the scalar contribution's
         # explicit four-adjacent-spacing retention contract. Compare against
         # the wide physical reference, including its unrounded low bits.
-        spacing = min(BigFloat(native_energy) - BigFloat(prevfloat(native_energy)),
-            BigFloat(nextfloat(native_energy)) - BigFloat(native_energy))
+        spacing = min(
+            BigFloat(native_energy) - BigFloat(prevfloat(native_energy)),
+            BigFloat(nextfloat(native_energy)) - BigFloat(native_energy),
+        )
         @test abs(BigFloat(native_energy) - expected_energy) <= 4spacing
         @test kinetic_energy_relativistic([fast], one(T)) === T(expected_energy)
         @test total_momentum_relativistic([fast], one(T))[1] === T(expected_momentum[1])
@@ -162,13 +178,20 @@ end
         @test diagnostic.kinetic == kinetic_energy_relativistic(species, state.c)
         @test diagnostic.momentum == total_momentum_relativistic(species, state.c)
         @test diagnostic.field == em_field_energy(state)
-        @test diagnostic.velocity_time_offsets == [-state.last_sub_dt[] / 2, -state.last_sub_dt[] / 2, zero(T)]
+        @test diagnostic.velocity_time_offsets ==
+              [-state.last_sub_dt[] / 2, -state.last_sub_dt[] / 2, zero(T)]
         # Normalized two-species compatibility uses the same prime/kick owner.
         e, ions = deepcopy(species[1]), deepcopy(species[2])
         e.q, e.m, ions.m = -one(T), one(T), T(7)
         fill!(ions.weight, one(T))
-        legacy = EMPIC(FourierGrid(state.g.n, state.g.L), nparticles(e);
-            mobile = true, mi = T(7), c = T(5), relativistic = true)
+        legacy = EMPIC(
+            FourierGrid(state.g.n, state.g.L),
+            nparticles(e);
+            mobile = true,
+            mi = T(7),
+            c = T(5),
+            relativistic = true,
+        )
         copied = deepcopy([e, ions])
         collection = EMPIC(FourierGrid(state.g.n, state.g.L), copied; c = T(5), relativistic = true)
         init_empic!(legacy, e, ions)
@@ -232,8 +255,13 @@ end
         fill!(species[1].v[1], mode ? T(4) : T(6))
         init_empic!(state, species)
         destination = [ParticleSet{1,T}(0) for _ = 1:3]
-        restored = EMPIC(FourierGrid(state.g.n, state.g.L), destination;
-            mobile = Bool[true, true, false], relativistic = !mode, c = one(T))
+        restored = EMPIC(
+            FourierGrid(state.g.n, state.g.L),
+            destination;
+            mobile = Bool[true, true, false],
+            relativistic = !mode,
+            c = one(T),
+        )
         mktempdir() do dir
             path = joinpath(dir, "rel.chk")
             save_checkpoint(path, state, species)
@@ -246,8 +274,12 @@ end
                 step_empic!(state, species, dt)
                 step_empic!(restored, destination, dt)
                 @test physical(restored, destination) == physical(state, species)
-                @test (restored.time[], restored.step[], restored.last_dt[], restored.last_sub_dt[]) ==
-                    (state.time[], state.step[], state.last_dt[], state.last_sub_dt[])
+                @test (
+                    restored.time[],
+                    restored.step[],
+                    restored.last_dt[],
+                    restored.last_sub_dt[],
+                ) == (state.time[], state.step[], state.last_dt[], state.last_sub_dt[])
             end
             archive = joinpath(dir, "rel.run")
             archive_run(archive, state, species; rng_seed = 19)
@@ -262,11 +294,19 @@ end
             restored.mobile = false
             before = snapshot(restored, destination)
             malformed = merge(deepcopy(payload), (relativistic = 1,))
-            @test_throws ArgumentError H._restore_checkpoint_state!(restored, destination, malformed)
+            @test_throws ArgumentError H._restore_checkpoint_state!(
+                restored,
+                destination,
+                malformed,
+            )
             @test snapshot(restored, destination) == before
             if !mode
                 malformed = merge(deepcopy(payload), (relativistic = true,))
-                @test_throws ArgumentError H._restore_checkpoint_state!(restored, destination, malformed)
+                @test_throws ArgumentError H._restore_checkpoint_state!(
+                    restored,
+                    destination,
+                    malformed,
+                )
                 @test snapshot(restored, destination) == before
             end
         end

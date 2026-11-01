@@ -265,7 +265,8 @@ export LeroyBoundary, step_leroy_shock!
 export Electrostatic1D,
     ElectrostaticPIC, init_espic!, step_espic!, poisson_E!, field_energy, electrostatic_diagnostics
 export flux_speed, flux_per_density, inject_face_1d!
-export total_momentum, total_momentum_relativistic,
+export total_momentum,
+    total_momentum_relativistic,
     electric_work,
     temperatures_par_perp,
     velocity_histogram,

@@ -56,8 +56,14 @@ function EMPIC(
     stage = _new_empic_state(g, 0, background, cT, shape, relativistic, false, one(T), ns, nothing)
     P = eltype(species)
     work = _EMPICCollectionWork{D,T,P,typeof(stage)}(
-        neutrality, rtol, BitVector(mobile), P[], _ElectrostaticHostParticle{D,T}[],
-        NTuple{D,Vector{T}}[], stage, Ref(false),
+        neutrality,
+        rtol,
+        BitVector(mobile),
+        P[],
+        _ElectrostaticHostParticle{D,T}[],
+        NTuple{D,Vector{T}}[],
+        stage,
+        Ref(false),
     )
     es = _new_empic_state(g, 0, background, cT, shape, relativistic, false, one(T), ns, work)
     _empic_collection_validate_species(es, species)
@@ -182,7 +188,12 @@ function _empic_collection_validate_storage(es::EMPIC{D,T}, species) where {D,T}
     return nothing
 end
 
-function _empic_collection_validate_populations(es::EMPIC{D,T}, species, c::T, relativistic::Bool) where {D,T}
+function _empic_collection_validate_populations(
+    es::EMPIC{D,T},
+    species,
+    c::T,
+    relativistic::Bool,
+) where {D,T}
     _empic_collection_validate_storage(es, species)
     work = _empic_collection(es)
     _require_finite_real("background_charge", es.n0, T)
@@ -193,7 +204,8 @@ function _empic_collection_validate_populations(es::EMPIC{D,T}, species, c::T, r
         relativistic && _require_subluminal_velocities(ps, c, "electromagnetic collection")
         all(w -> isfinite(w) && w >= zero(T), ps.weight) ||
             throw(ArgumentError("electromagnetic weights must be finite and nonnegative"))
-        !work.mobile[i] && !all(a -> all(iszero, a), ps.v) &&
+        !work.mobile[i] &&
+            !all(a -> all(iszero, a), ps.v) &&
             throw(ArgumentError("fixed electromagnetic populations require zero velocity"))
     end
     charges = _pic_collection_charges(es.g, es.n0, species)
@@ -331,8 +343,16 @@ function _empic_collection_prime!(stage::EMPIC{D,T}, work, sub_dt::T) where {D,T
         _ensure_empic_electron_buffers!(stage, nparticles(ps))
         gather_vector!(stage.Ep, stage.E, ps, stage.g, stage.shape)
         gather_vector!(stage.Bp, stage.B, ps, stage.g, stage.shape)
-        _prime_leapfrog!(ps.v, stage.Ep, stage.Bp, _validated_boris_factor(ps),
-            sub_dt / 2, nparticles(ps), stage.relativistic, stage.c)
+        _prime_leapfrog!(
+            ps.v,
+            stage.Ep,
+            stage.Bp,
+            _validated_boris_factor(ps),
+            sub_dt / 2,
+            nparticles(ps),
+            stage.relativistic,
+            stage.c,
+        )
     end
     _empic_prime_magnetic!(stage, stage.g, sub_dt)
     return stage

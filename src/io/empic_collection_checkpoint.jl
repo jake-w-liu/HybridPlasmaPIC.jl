@@ -40,10 +40,10 @@ function _validate_empic_collection_checkpoint(s, st::EMPIC{D,T}) where {D,T}
     s.charge_rtol isa T && isequal(s.charge_rtol, work.charge_rtol) ||
         throw(ArgumentError("checkpoint charge_rtol does not match destination"))
     s.mobile isa AbstractVector{Bool} &&
-        axes(s.mobile, 1) == Base.OneTo(length(work.mobile)) && s.mobile == work.mobile ||
+        axes(s.mobile, 1) == Base.OneTo(length(work.mobile)) &&
+        s.mobile == work.mobile ||
         throw(ArgumentError("checkpoint per-population mobility does not match destination"))
-    s.relativistic isa Bool ||
-        throw(ArgumentError("checkpoint relativistic flag must be Bool"))
+    s.relativistic isa Bool || throw(ArgumentError("checkpoint relativistic flag must be Bool"))
     typeof(s.shape) === typeof(st.shape) && s.shape isa Union{NGP,CIC,TSC} ||
         throw(ArgumentError("checkpoint shape does not match destination"))
     s.c isa T || throw(ArgumentError("checkpoint c precision does not match destination"))
@@ -86,18 +86,35 @@ function _checkpoint_state(st::EMPIC{D,T}, species::AbstractVector{<:ParticleSet
     _empic_collection_validate_phase(st)
     work.initialized[] && _empic_collection_bound(work, species)
     return (
-        integrator = :empic_collection, D = D, T = T, ncell = st.g.n, L = st.g.L,
-        n0 = st.n0, c = st.c, shape = st.shape, n_sub = st.n_sub,
-        particle_layout = :collection, schema_version = 1, relativistic = st.relativistic,
-        mobile = copy(work.mobile), neutrality = work.neutrality, charge_rtol = work.charge_rtol,
-        initialized = work.initialized[], species = [_checkpoint_particle_state(ps) for ps in species],
-        fields = _empic_checkpoint_fields(st), time = st.time[], step = st.step[],
-        last_dt = st.last_dt[], last_sub_dt = st.last_sub_dt[],
+        integrator = :empic_collection,
+        D = D,
+        T = T,
+        ncell = st.g.n,
+        L = st.g.L,
+        n0 = st.n0,
+        c = st.c,
+        shape = st.shape,
+        n_sub = st.n_sub,
+        particle_layout = :collection,
+        schema_version = 1,
+        relativistic = st.relativistic,
+        mobile = copy(work.mobile),
+        neutrality = work.neutrality,
+        charge_rtol = work.charge_rtol,
+        initialized = work.initialized[],
+        species = [_checkpoint_particle_state(ps) for ps in species],
+        fields = _empic_checkpoint_fields(st),
+        time = st.time[],
+        step = st.step[],
+        last_dt = st.last_dt[],
+        last_sub_dt = st.last_sub_dt[],
     )
 end
 
 function _restore_checkpoint_state!(
-    st::EMPIC{D,T}, species::AbstractVector{<:ParticleSet}, s,
+    st::EMPIC{D,T},
+    species::AbstractVector{<:ParticleSet},
+    s,
 ) where {D,T}
     work = _empic_collection(st)
     _validate_checkpoint_state(s, st)

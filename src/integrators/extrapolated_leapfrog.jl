@@ -2040,7 +2040,8 @@ Original factors share the certified moment and exact radical owners with
 [`total_momentum_relativistic`](@ref). Velocities use their stored time level.
 """
 function kinetic_energy_relativistic(
-    species::AbstractVector{<:ParticleSet{D,T}}, c::Real,
+    species::AbstractVector{<:ParticleSet{D,T}},
+    c::Real,
 ) where {D,T<:Union{Float32,Float64}}
     cT = _require_finite_positive_real("c", c, T)
     return first(_relativistic_particle_moments(species, cT))
@@ -2055,7 +2056,8 @@ function _relativistic_energy_contribution(native::T, velocity, c::T, weight::T)
     all(_rel_prime_dd_operand, (velocity..., c, weight)) || return native, false
     gamma = _rel_prime_gamma_ball(velocity, c)
     physical = _rel_prime_ball_mul(
-        _rel_prime_ball(weight), _rel_prime_ball_sub(gamma, _rel_prime_ball(1.0)),
+        _rel_prime_ball(weight),
+        _rel_prime_ball_sub(gamma, _rel_prime_ball(1.0)),
     )
     _rel_prime_ball_valid(physical) || return native, false
     if isfinite(native)
@@ -2120,9 +2122,8 @@ function _kinetic_energy_relativistic(
         contribution = native_contribution
         high_speed = finite_factors && T <: _RangeGuardedFloat && !_lorentz_gap_in_range(beta2)
         if high_speed
-            contribution, resolved = _relativistic_energy_contribution(
-                native_contribution, (x, y, z), cT, ps.weight[p],
-            )
+            contribution, resolved =
+                _relativistic_energy_contribution(native_contribution, (x, y, z), cT, ps.weight[p])
             resolved || return _kinetic_energy_relativistic_exact(ps, cT)
             checked = true
         end
