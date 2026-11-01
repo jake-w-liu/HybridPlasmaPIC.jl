@@ -29,7 +29,10 @@ physical K+U at the two stored states. Stepping requires finite old/new rounded
 kinetic diagnostics, source work and stored histories. Neither defect is forced
 to zero. This model
 has a distinct checkpoint schema and one clock; all arrays retain identity.
-Concurrent mutation or stepping of one instance is unsupported.
+Supplied particle storage must support ordinary Julia writes and alias detection.
+Read-only `Base.Experimental.Const` and atomic-only storage, including standard
+wrappers, reject during preflight. The rejection guarantee excludes OS protection
+changes, custom setter failures and concurrent mutation or stepping.
 """
 struct YeeElectromagneticPIC{T,S<:YeeTriangularCloud,B,P}
     g::YeeGrid{1,T}

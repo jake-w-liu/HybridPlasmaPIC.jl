@@ -36,8 +36,12 @@ fixes the resolved timestep. The rest-mode guard is not a general nonlinear
 stability or accuracy certificate. `last_energy_defect[]` is measured
 `Knew-Kold-last_work[]`, not an exactly conserved energy; kinetic energies use
 the existing rounded diagnostic owner. Physical arrays retain their identities.
-A rejected operation leaves physical state and diagnostics unchanged; private
-scratch may change. One instance must not be stepped concurrently.
+A rejected operation leaves physical state and diagnostics unchanged for writable
+host storage supporting ordinary Julia writes and alias detection. Read-only
+`Base.Experimental.Const` and atomic-only storage, including standard wrappers,
+reject during preflight. OS protection changes, custom setter failures and
+concurrent mutation are outside this guarantee. Private scratch may change.
+One instance must not be stepped concurrently.
 """
 struct YeeLongitudinalPIC{T,S<:YeeTriangularCloud,B,P}
     g::YeeGrid{1,T}
@@ -117,8 +121,19 @@ function _yl_make_stage(species, sources, ::Type{T}) where {T}
     return _YeeLongitudinalStage{T}(owners, components, candidates)
 end
 
+# Dense/strided storage does not imply ordinary writes: Const is read-only,
+# and AtomicMemory requires atomic stores. Inspect standard wrapper parents
+# before alias checks too, because Const does not expose its backing dataids.
+# Other supplied storage must meet the documented writable-host contract.
+_yl_requires_special_stores(::AbstractArray) = false
+_yl_requires_special_stores(::Union{Base.Experimental.Const,AtomicMemory}) = true
+_yl_requires_special_stores(a::Union{SubArray,Base.ReshapedArray,Base.ReinterpretArray}) =
+    _yl_requires_special_stores(parent(a))
+
 function _yl_check_particle_storage(ps::ParticleSet)
     _check_particle_storage_axes(ps)
+    any(_yl_requires_special_stores, _yl_particle_arrays(ps)) &&
+        throw(ArgumentError("closed Yee PIC particles require storage supporting ordinary writes"))
     all(a -> a isa StridedVector && _particle_batch_injective(a), _yl_particle_arrays(ps)) ||
         throw(ArgumentError("closed Yee PIC particles require injective CPU strided storage"))
     return nothing

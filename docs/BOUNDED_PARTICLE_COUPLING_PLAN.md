@@ -190,11 +190,18 @@ One `ParticleSet` or an ordered one-based vector is admitted, including empty
 populations and empty collections. All populations move. Charges are finite and
 signed, masses positive and weights finite/nonnegative. Zero-weight tracers move
 without contributing source or weighted kinetic energy. Positions/velocities
-have grid precision and independent ordinary or strided CPU storage. Centers
+have grid precision and independent writable ordinary or strided CPU storage. Centers
 must lie strictly inside `(0,L)`; cloud tails may overlap the walls. All
 transverse velocities, transverse E and all B must have stored zero values.
 Private particle candidates own ordinary vector storage through the shared PIC
 staging owner; public particle objects, views and component identities remain bound.
+All particle leaves, including frozen weights and provenance, must support
+ordinary Julia writes and expose aliases: checkpoint restore writes every leaf.
+Shared preflight rejects `Base.Experimental.Const` and `AtomicMemory` ancestry
+through standard views, reshapes and reinterpretations. Writable views and
+ordinary reinterpretations retain their admission. This is a bounded storage
+check, not a universal writability trait; OS protection changes, arbitrary custom
+setter failures and concurrent mutation are outside the rejection guarantee.
 Initialization, stepping and restart require nearest hardware rounding and
 gradual underflow; other contexts reject before staging. Static cloud APIs keep
 their independent exact-arithmetic context contract.
@@ -399,9 +406,9 @@ return infinity; stepping requires finite old/new rounded kinetic diagnostics,
 source work and stored last-step values before commit.
 No exact fully discrete energy or bitwise Gauss conservation is claimed.
 
-All candidates, late diagnostics and clocks stage before public writes. Rejection
-preserves particles, fields, histories, array identities and clock; scratch may
-change. One instance must not be mutated/stepped concurrently. The distinct EM
+All candidates, late diagnostics and clocks stage before public writes. For admitted
+writable host storage, rejection preserves particles, fields, histories, array
+identities and clock; scratch may change. One instance must not be mutated/stepped concurrently. The distinct EM
 schema 2 saves original config types/bits, resolved c, policies/versions, ordered
 particles/provenance, current E/B verbatim, synchronized fixed phase and histories.
 Restore validates/detaches everything before publication, with ordinary particle

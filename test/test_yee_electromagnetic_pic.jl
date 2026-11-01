@@ -43,6 +43,48 @@ function snapshot(st, particles)
         st.last_modified_energy_defect[],st.last_physical_energy_change[]))
 end
 
+@testset "Closed Yee ordinary-store admission before publication" begin
+    atomic_storage(a) = begin
+        storage = AtomicMemory{eltype(a)}(undef, length(a))
+        for i in eachindex(a)
+            Base.setindex_atomic!(storage, :monotonic, a[i], i)
+        end
+        storage
+    end
+    # Copy values into ordinary arrays, without invoking an unsupported
+    # wrapper's copy/deepcopy behavior or relying on its mutable identity.
+    particle_values(particles) = [(map(collect, p.x), map(collect, p.v), collect(p.weight),
+        collect(p.id), collect(p.tag), p.q, p.m) for p in particles]
+    for T in (Float32, Float64), Model in (YeeLongitudinalPIC, YeeElectromagneticPIC)
+        g, shape = YeeGrid((4,), (one(T),)), YeeTriangularCloud(T(0.2))
+        source = [ParticleSet{1,T}(1; q = zero(T)) for _ = 1:2]
+        source[1].x[1][1], source[2].x[1][1] = T(0.25), T(0.75)
+        original = Model(g; shape)
+        init!(original, source)
+        saved = H._checkpoint_state(original, source)
+        for wrap in (Base.Experimental.Const,
+            a -> view(Base.Experimental.Const(a), 1:length(a)), atomic_storage),
+            component in (:position, :weight)
+            firstps, secondps = ParticleSet{1,T}(1), ParticleSet{1,T}(1)
+            firstps.x[1][1], secondps.x[1][1] = T(0.125), T(0.875)
+            x = component === :position ? (wrap(secondps.x[1]),) : secondps.x
+            weight = component === :weight ? wrap(secondps.weight) : secondps.weight
+            blocked = ParticleSet{1,T}(x, secondps.v, weight, secondps.id, secondps.tag,
+                secondps.q, secondps.m)
+            destination = ParticleSet{1,T}[firstps, blocked]
+            @test all(a -> a isa StridedVector, H._yl_particle_arrays(blocked))
+            target = Model(g; shape)
+            identities = [map(objectid, H._yl_particle_arrays(p)) for p in destination]
+            before = snapshot(target, ParticleSet{1,T}[]), particle_values(destination)
+            @test_throws ArgumentError init!(target, destination)
+            @test isequal((snapshot(target, ParticleSet{1,T}[]), particle_values(destination)), before)
+            @test_throws ArgumentError H._restore_checkpoint_state!(target, destination, saved)
+            @test isequal((snapshot(target, ParticleSet{1,T}[]), particle_values(destination)), before)
+            @test [map(objectid, H._yl_particle_arrays(p)) for p in destination] == identities
+        end
+    end
+end
+
 function energy_reference(st,particles,fields)
     kinetic = sum((Q(p.m)*Q(p.weight[i])*sum(Q(p.v[c][i])^2 for c=1:3)/2
         for p in pops(particles) for i in eachindex(p.weight));init=zero(Q))

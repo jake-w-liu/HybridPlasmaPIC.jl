@@ -103,6 +103,13 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Fixed
 
+- Both closed Yee PIC models reject read-only `Base.Experimental.Const` and
+  atomic-only particle storage, including standard wrapper ancestry, before
+  publication. This shared lifecycle check covers checkpoint destinations and
+  frozen metadata as well as positions and velocities. Writable host arrays,
+  views and ordinary reinterpretations retain their storage contract; exact
+  GitHub runtime and compiler verification is pending.
+
 - The closed Yee arithmetic-context control uses a pre-stored minimal subnormal
   and verifies its bits under each mode before checking structural zero. The
   production helper is unchanged; exact-revision GitHub verification is pending.
