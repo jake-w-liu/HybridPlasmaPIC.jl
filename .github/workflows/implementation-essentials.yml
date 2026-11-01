@@ -12,6 +12,7 @@ on:
           - electromagnetic-species
           - collisional-transport
           - particle-accuracy
+          - electromagnetic-continuity
 
 permissions:
   contents: read
@@ -43,6 +44,7 @@ jobs:
               "electromagnetic-species" => ("test_empic_species.jl", "test_empic_relativistic_species.jl", "test_relativistic_energy_range.jl", "test_empic.jl", "test_empic1d.jl", "test_electrostatic_species_diversity.jl"),
               "collisional-transport" => ("test_collisional_hybrid.jl", "test_collisional_checkpoint.jl", "test_collisional_physics.jl"),
               "particle-accuracy" => ("test_boris_accuracy.jl", "test_relativistic_species_factors.jl", "test_relativistic_output_closure.jl"),
+              "electromagnetic-continuity" => ("test_empic_relativistic_species.jl",),
             )
             println((julia = VERSION, suite = ENV["IMPLEMENTATION_SUITE"]))
             for file in suites[ENV["IMPLEMENTATION_SUITE"]]

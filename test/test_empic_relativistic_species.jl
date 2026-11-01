@@ -32,6 +32,28 @@ function snapshot(state, species)
     return take!(io)
 end
 
+function continuity_observation(state, sub_dt)
+    g = state.g
+    density = complex.(state.rho_np1 .- state.rho_n)
+    g.plan * density
+    dc = first(CartesianIndices(density))
+    for I in CartesianIndices(density)
+        I != dc && H._spectral_mode_is_null(H._spectral_wavevector(g, I)) &&
+            (density[I] = zero(eltype(density)))
+    end
+    g.iplan * density
+    divergence = similar(state.rho_n)
+    divergence!(divergence, state.J, g)
+    return (
+        projected_density_scale = maximum(x -> abs(real(x)), density),
+        absolute_residual = maximum(
+            I -> abs(real(density[I]) + sub_dt * divergence[I]), eachindex(density),
+        ),
+        density_scale = max(maximum(abs, state.rho_n), maximum(abs, state.rho_np1)),
+        current_scale = maximum(a -> maximum(abs, a), state.J),
+    )
+end
+
 function reference(species, c)
     return setprecision(BigFloat, 512) do
         C = BigFloat(c)
@@ -127,6 +149,10 @@ end
             end
             @test physical(state, species) == physical(fine, fine_species)
             @test state.time[] == fine.time[]
+            println((observation = :relativistic_collection_continuity,
+                T = T, D = D, dt = dt, n_sub = ns,
+                relative_residual = charge_conservation_residual(state, dt / ns),
+                scales = continuity_observation(state, dt / ns)))
             @test charge_conservation_residual(state, dt / ns) < 1024eps(T)
         end
         diagnostic = electromagnetic_diagnostics(state, species)

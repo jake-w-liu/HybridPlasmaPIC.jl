@@ -147,6 +147,15 @@ controls also verify that both destination states remain unchanged.
 
 ## Remaining acceptance
 
+The first relativistic essentials run at `7db86a9` passes the preceding
+nonrelativistic checkpoint/archive and strided-destination cases, then fails
+11 relative continuity assertions in the uniform fast-phase fixture. The
+physical fast/fine state comparisons pass. The fixed fixture now records its
+projected density scale and absolute residual on GitHub without changing the
+failed assertion. Whether the relative criterion is ill-conditioned remains
+an untested hypothesis until those measurements are reviewed; no numerical
+repair or continuity acceptance is inferred.
+
 The initial essential suite covers both precisions, dimensions and built-in shapes;
 summed original currents, fixed/neutral/empty populations, original-factor
 priming, shared old fields, synchronous fast-step equivalence, legacy two-species
