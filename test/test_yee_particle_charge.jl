@@ -328,4 +328,175 @@ end
         end
     end
 end
+
+@testset "Optional physical-width triangular Yee cloud" begin
+    for T in (Float32, Float64)
+        g = YeeGrid((4,), (one(T),))
+        # Width precision is an original operand, independent of grid precision.
+        a = T === Float32 ? Float64(0.3) : Float32(0.3)
+        cloud = YeeTriangularCloud(a)
+        ps = population(T, T[0, 0.25, 0.5, 0.5, 1]; q = T(2))
+        second = abstract_storage(population(T, reverse(ps.x[1]); q = -one(T)))
+        second.x = (view(second.x[1], :),)
+        species = Any[ps, second]
+        original = map(state, species)
+        old = [copy(p.x[1]) for p in species]
+        new = [T[0.125, 0.375, 0.5, 0.75, 0.875], T[1, 0.75, 0.625, 0.25, 0]]
+        q0 = O.cloud_charge(species, old, 4, g.L[1], a)
+        q1 = O.cloud_charge(species, new, 4, g.L[1], a)
+        flux = O.cloud_impulse(species, old, new, 4, g.L[1], a)
+        @test any(!iszero, flux)
+        @test sum(q0) == sum(O.rat(p.q) * sum(O.rat, p.weight) for p in species)
+        @test q1 - q0 + O.incidence(flux) == zeros(O.Q, 5)
+        work = YeeChargeWorkspace(g)
+        charge, impulse = zeros(T, 5), zeros(T, 4)
+        yee_particle_charge!(charge, species, g, work; shape = cloud)
+        yee_longitudinal_impulse!(impulse, species, old, new, g, work; shape = cloud)
+        @test all(O.rounded(v, q) for (v, q) in zip(charge, q0))
+        @test all(O.rounded(v, q) for (v, q) in zip(impulse, flux))
+        reversed = similar(impulse)
+        yee_longitudinal_impulse!(reversed, species, new, old, g, work; shape = cloud)
+        @test reversed == -impulse
+        field = T[1, -2, 3, 4]
+        particle_work, work_error = zero(O.Q), zero(O.Q)
+        for (pop, x0, x1) in zip(species, old, new), p in eachindex(pop.weight)
+            reference = O.rat(g.dx[1]) * sum(O.rat(field[e+1]) *
+                O.cloud_path(x0[p], x1[p], e, 4, g.L[1], a) for e = 0:3)
+            voltage = yee_longitudinal_voltage(field, x0[p], x1[p], g; shape = cloud)
+            @test O.rounded(voltage, reference)
+            source = O.rat(pop.q) * O.rat(pop.weight[p])
+            particle_work += source * O.rat(voltage)
+            work_error += abs(source) * O.rounding_error(T, reference)
+        end
+        mesh_work = O.rat(g.dx[1]) * sum(O.rat(v) * O.rat(i) for (v, i) in zip(field, impulse))
+        mesh_error = O.rat(g.dx[1]) * sum(abs(O.rat(field[e])) * O.rounding_error(T, flux[e]) for e = 1:4)
+        @test abs(particle_work - mesh_work) <= work_error + mesh_error
+        for x in T[0, prevfloat(T(0.5)), 0.5, nextfloat(T(0.5)), 1]
+            expected = O.rat(g.dx[1]) * sum(O.rat(field[e+1]) *
+                O.cloud_edge(x, e, 4, g.L[1], a) for e = 0:3)
+            @test O.rounded(yee_longitudinal_field(field, x, g; shape = cloud), expected)
+        end
+        for (x, y) in ((zero(T), one(T)), (T(0.25), T(0.5)), (T(0.5), T(0.5)))
+            expected = O.rat(g.dx[1]) * sum(O.rat(field[e+1]) *
+                O.cloud_path(x, y, e, 4, g.L[1], a) for e = 0:3)
+            @test O.rounded(yee_longitudinal_voltage(field, x, y, g; shape = cloud), expected)
+        end
+        @test isequal(map(state, species), original)
+        # Global preflight still precedes scratch/output writes in the new mode.
+        second.weight[end] = -one(T)
+        before = (copy(charge), copy(work.sum), copy(work.candidate))
+        @test_throws ArgumentError yee_particle_charge!(charge, species, g, work; shape = cloud)
+        @test (charge, work.sum, work.candidate) == before
+        second.weight[end] = one(T)
+        @test_throws ArgumentError yee_particle_charge!(work.candidate, ps, g, work; shape = cloud)
+        bad = copy(field)
+        bad[end] = T(NaN)
+        @test_throws ArgumentError yee_longitudinal_voltage(bad, T(0.5), T(0.5), g; shape = cloud)
+        @test_throws ArgumentError yee_longitudinal_field(field, -one(T), g; shape = cloud)
+        for width in T[0, -1, Inf, NaN]
+            @test_throws ArgumentError YeeTriangularCloud(width)
+        end
+        # Exact whole-entry completion retains overflowing q*weight cancellation.
+        positive = population(T, T[0.5]; q = floatmax(T), weight = T(2))
+        negative = population(T, T[0.5]; q = -floatmax(T), weight = T(2))
+        yee_particle_charge!(charge, (positive, negative), g, work; shape = cloud)
+        @test all(iszero, charge)
+        before = copy(charge)
+        @test_throws ArgumentError yee_particle_charge!(charge, positive, g, work; shape = cloud)
+        @test charge == before
+        yee_particle_charge!(charge, ParticleSet{1,T}[], g, work; shape = cloud)
+        @test all(iszero, charge)
+        # Use the existing context helper; width admission itself must retain
+        # positive stored subnormal bits under FTZ, before any field operation.
+        tiny = nextfloat(zero(T))
+        result = in_mode(RoundUp, true) do
+            narrow = YeeTriangularCloud(tiny)
+            yee_longitudinal_field(ones(T, 4), T(0.5), g; shape = narrow)
+        end
+        @test result === one(T)
+    end
+end
+
+@testset "Cloud work metric, wall response and stationary Gram pairing" begin
+    for T in (Float32, Float64)
+        g = YeeGrid((11,), (T(0.1),))
+        cloud = YeeTriangularCloud(T(0.01))
+        constant = fill(T(3), 11)
+        eta = 11 * O.rat(g.dx[1]) / O.rat(g.L[1])
+        @test O.rounded(yee_longitudinal_field(constant, T(0.05), g; shape = cloud), 3eta)
+        @test O.rounded(yee_longitudinal_field(constant, zero(T), g; shape = cloud), 3eta / 2)
+        @test O.rounded(yee_longitudinal_field(constant, g.L[1], g; shape = cloud), 3eta / 2)
+        # A midpoint fixture makes omission of the nonunit stored-dx metric
+        # observable after final rounding, rather than merely checking its formula.
+        metric_grid = YeeGrid((10,), (T(0.1),))
+        metric = 10 * O.rat(metric_grid.dx[1]) / O.rat(metric_grid.L[1])
+        @test metric != 1
+        left = metric > 1 ? one(T) : nextfloat(one(T))
+        right = nextfloat(left)
+        sampled = zeros(T, 10)
+        sampled[5], sampled[6] = left, right
+        midpoint = (O.rat(left) + O.rat(right)) / 2
+        U = T === Float32 ? UInt32 : UInt64
+        omitted = iseven(reinterpret(U, left)) ? left : right
+        expected = metric * midpoint
+        @test !O.rounded(omitted, expected)
+        @test O.rounded(yee_longitudinal_field(sampled, metric_grid.L[1] / 2, metric_grid;
+            shape = YeeTriangularCloud(metric_grid.dx[1] / 4)), expected)
+        # Reuse the retained unstable geometry, now with the matching cloud pair.
+        n, length, width = 2, O.Q(1), O.Q(1//4)
+        basis = [[O.cloud_edge(x, e, n, length, width) for e = 0:1] for x in (O.Q(1//8), O.Q(5//8))]
+        matrix = [sum(w * b[e] * b[f] / 2 for (w, b) in zip((O.Q(1), O.Q(5//3)), basis)) for e = 1:2, f = 1:2]
+        @test matrix[1,2] == matrix[2,1]
+        @test matrix[1,1] >= 0 && matrix[2,2] >= 0
+        @test matrix[1,1] * matrix[2,2] >= matrix[1,2]^2
+        symmetric = T[-1, 1]
+        two = YeeGrid((2,), (one(T),))
+        for (x, b) in zip(T[0.125, 0.625], basis), e = 1:2
+            unit = zeros(T, 2)
+            unit[e] = one(T)
+            @test O.rounded(yee_longitudinal_field(unit, x, two; shape = YeeTriangularCloud(T(0.25))), b[e] / 2)
+        end
+        @test yee_longitudinal_field(symmetric, T(0.5), two; shape = YeeTriangularCloud(T(0.25))) === zero(T)
+        # An exact volume quadrature checks the declared finite cloud wall law.
+        a = O.Q(1//4)
+        @test O.polynomial_integral(r -> r * O.density(r, O.Q(0), a), [O.Q(0), a]) == a / 6
+        # Widths larger than L retain endpoint tails; the continuum a/6 wall
+        # formula no longer applies. Check the actual sampled-field contraction.
+        wide = YeeTriangularCloud(T(2))
+        sampled = T[0.25, 0.75] # exact cell averages of E=r on this grid
+        expected = O.rat(two.dx[1]) * sum(O.rat(sampled[e+1]) *
+            O.cloud_edge(0, e, 2, 1, 2) for e = 0:1)
+        @test O.rounded(yee_longitudinal_field(sampled, zero(T), two; shape = wide), expected)
+        @test O.polynomial_integral(r -> r * O.density(r, O.Q(0), O.Q(2)), O.Q[0, 1]) == 1//6
+    end
+end
+
+@testset "Fixed physical cloud width force bound" begin
+    # Independent volume quadrature, not a mesh-shaped point-sheet substitute.
+    x, a = O.rat(0.3), O.rat(0.13)
+    physical(r) = -r + O.cloud_mass(r, x, a)
+    force = O.polynomial_integral(r -> O.density(r, x, a) * physical(r), [x-a, x, x+a])
+    for n in (32, 64, 128)
+        g = YeeGrid((n,), (1.0,))
+        h = O.Q(1) / n
+        exact_field = [begin
+            lo, hi = e * h, (e + 1) * h
+            knots = [lo, hi]
+            append!(knots, filter(r -> lo < r < hi, [x-a, x, x+a]))
+            O.polynomial_integral(physical, knots) / h
+        end for e = 0:(n-1)]
+        field = Float64.(exact_field)
+        result = yee_longitudinal_field(field, Float64(x), g; shape = YeeTriangularCloud(Float64(a)))
+        represented = O.rat(g.dx[1]) * sum(O.rat(field[e+1]) * O.cloud_edge(x, e, n, 1, a) for e = 0:(n-1))
+        @test O.rounded(result, represented)
+        eta = O.rat(g.dx[1]) / h
+        spatial_bound = eta * (1 / a^2) * (1 + 1 / a) * h^2
+        if n == 128
+            @test spatial_bound < abs(force)
+        end
+        # Separately enclose initial cell-average publication and final rounding.
+        field_error = maximum(O.rounding_error(Float64, v) for v in exact_field)
+        @test abs(O.rat(result) - eta * force) <= spatial_bound + eta * field_error + O.rounding_error(Float64, represented)
+    end
+end
 end

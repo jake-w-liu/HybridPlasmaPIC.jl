@@ -8,6 +8,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Optional `YeeTriangularCloud(a)` extends closed 1D Yee static charge, endpoint
+  current and path voltage with a finite physical-width cloud and explicit
+  particle-bound endpoint tails. `yee_longitudinal_field` requires that shape
+  and returns its stationary work-adjoint field. Exact stored-input polynomials
+  retain the original width precision and stored-dx work metric; point/CIC
+  defaults remain. The cloud has a declared distinct wall response. Essential
+  GitHub runtime/compiler/format acceptance is pending; coupled PIC remains open.
+
 - A manual GitHub workflow runs existing implementation essentials on minimum
   and latest Julia, supplementing the unchanged full CI matrix. Runtime checks
   remain remote; no additional numerical tests are introduced by this workflow.

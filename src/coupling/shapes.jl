@@ -11,6 +11,47 @@ struct NGP <: ShapeFunction end
 struct CIC <: ShapeFunction end
 struct TSC <: ShapeFunction end
 
+"""
+    YeeTriangularCloud(half_width)
+
+Optional finite physical-width triangular charge cloud for the closed 1D Yee
+charge/current/voltage operators and [`yee_longitudinal_field`](@ref). The
+positive finite Float32/Float64 half-width is retained without conversion to
+grid precision. Hold it fixed under mesh refinement. This is a separate shape
+from the default point/CIC model, with particle-bound endpoint tail support;
+it is not a periodic deposit/gather or device shape. See the bounded-particle
+contract for its distinct wall response and remaining coupled-model work.
+"""
+struct YeeTriangularCloud{T<:Union{Float32,Float64}}
+    half_width::T
+    function YeeTriangularCloud(a::T) where {T<:Union{Float32,Float64}}
+        isfinite(a) && _exact_rational(a) > 0 ||
+            throw(ArgumentError("Yee cloud half-width must be finite and positive"))
+        return new{T}(a)
+    end
+end
+
+# Exact primitive R and cumulative P of the triangular density. Every cloud
+# operator uses this same cumulative A and derivative g, in physical geometry.
+@inline function _yee_cloud_primitives(t, a)
+    if t <= -a
+        return zero(t), zero(t)
+    elseif t <= 0
+        r = (t + a)^2 / (2a^2)
+        return r * (t + a) / 3, r
+    elseif t < a
+        r = (a - t)^2 / (2a^2)
+        return t + r * (a - t) / 3, one(t) - r
+    end
+    return t, one(t)
+end
+
+@inline function _yee_cloud_edge(x, lower, h, a)
+    left = _yee_cloud_primitives(x - lower, a)
+    right = _yee_cloud_primitives(x - lower - h, a)
+    return (left[1] - right[1]) / h, (left[2] - right[2]) / h
+end
+
 @inline width(::NGP) = 1
 @inline width(::CIC) = 2
 @inline width(::TSC) = 3

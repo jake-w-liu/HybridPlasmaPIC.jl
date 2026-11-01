@@ -65,6 +65,15 @@ It retains the stored-dx metric, including `N*dx/L`, and returns zero for a zero
 path without choosing a stationary force. See the
 [path-work contract](BOUNDED_PARTICLE_COUPLING_PLAN.md#longitudinal-path-voltage).
 
+The same static operators accept `shape=YeeTriangularCloud(a)` for an optional
+finite physical-width cloud. Its cumulative also supplies
+`yee_longitudinal_field(Ex,x,g; shape=cloud)`, a stationary work-adjoint field.
+Point/CIC remains the default. Cloud tails are particle-bound endpoint support;
+their width-dependent wall response is a declared physical-shape convention,
+with details in the cloud contract. This source implementation awaits GitHub acceptance and
+does not choose a coupled particle advance; see the
+[cloud contract](BOUNDED_PARTICLE_COUPLING_PLAN.md#optional-physical-width-triangular-cloud).
+
 At fixed dt, exact arithmetic gives `Hnew-Hold = -source_work`; rounded stage
 results add numerical residuals. This follows by writing the two magnetic states
 around their common half-stage B: the curl/transpose work terms cancel the

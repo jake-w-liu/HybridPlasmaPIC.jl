@@ -322,9 +322,54 @@ function _yee_charge_native_candidate!(work, count, magnitude, entries)
     return true
 end
 
-@noinline function _yee_charge_exact_candidate!(work, species, old, new, g, mode, entries)
+_yee_validate_charge_shape(::CIC) = nothing
+_yee_validate_charge_shape(::YeeTriangularCloud) = nothing
+_yee_validate_charge_shape(shape) =
+    throw(ArgumentError("Yee charge shape must be CIC() or YeeTriangularCloud"))
+
+_yee_charge_kernel!(sums, species, old, new, g, exact, mode, ::CIC) =
+    _yee_charge_kernel!(sums, species, old, new, g, exact, mode)
+
+function _yee_charge_kernel!(sums, species, old, new, g, ::Val{true}, mode, shape::YeeTriangularCloud)
+    for k in eachindex(species)
+        before = mode isa Val{:charge} ? nothing : old[k]
+        after = mode isa Val{:charge} ? nothing : new[k]
+        _yee_charge_population!(sums, species[k], before, after, g, Val(true), mode, shape)
+    end
+    return true
+end
+
+@noinline function _yee_charge_population!(sums, ps::ParticleSet{1,T}, old, new, g, ::Val{true}, mode, shape::YeeTriangularCloud) where {T}
+    h = _exact_rational(g.L[1]) / g.n[1]
+    a = _exact_rational(shape.half_width)
+    for p in eachindex(ps.weight)
+        charge = _yee_macrocharge(ps, p, Val(true))
+        iszero(charge) && continue
+        if mode isa Val{:charge}
+            x = _exact_rational(ps.x[1][p])
+            previous = one(h)
+            for e = 0:(g.n[1]-1)
+                cumulative, _ = _yee_cloud_edge(x, e * h, h, a)
+                sums[e+1] += charge * (previous - cumulative)
+                previous = cumulative
+            end
+            sums[end] += charge * previous
+        else
+            before = _exact_rational(old[p])
+            after = _exact_rational(new[p])
+            for e = 0:(g.n[1]-1)
+                left, _ = _yee_cloud_edge(before, e * h, h, a)
+                right, _ = _yee_cloud_edge(after, e * h, h, a)
+                sums[e+1] += charge * (right - left)
+            end
+        end
+    end
+    return true
+end
+
+@noinline function _yee_charge_exact_candidate!(work, species, old, new, g, mode, entries, shape)
     sums = fill(zero(Rational{BigInt}), Base.checked_add(g.n[1], 1))
-    _yee_charge_kernel!(sums, species, old, new, g, Val(true), mode)
+    _yee_charge_kernel!(sums, species, old, new, g, Val(true), mode, shape)
     T = eltype(work.candidate)
     for i = 1:entries
         candidate = _from_exact(T, sums[i])
@@ -335,10 +380,11 @@ end
     return nothing
 end
 
-function _yee_charge_apply!(out, species, old, new, g::YeeGrid{1}, work, mode)
+function _yee_charge_apply!(out, species, old, new, g::YeeGrid{1}, work, mode, shape)
+    _yee_validate_charge_shape(shape)
     # The native EFT bounds require nearest rounding and gradual underflow.
     # Other contexts keep all zero/order/geometry decisions on stored rationals.
-    native_mode = _boris_accuracy_mode()
+    native_mode = shape isa CIC && _boris_accuracy_mode()
     count, magnitude = _yee_validate_charge(out, species, old, new, g, work, mode, native_mode)
     fill!(work.sum, 0.0)
     fill!(work.candidate, zero(eltype(work.candidate)))
@@ -347,7 +393,7 @@ function _yee_charge_apply!(out, species, old, new, g::YeeGrid{1}, work, mode)
     native = native_mode && count <= _YEE_CHARGE_NATIVE_COUNT_LIMIT && isfinite(magnitude)
     native = native && _yee_charge_kernel!(work.sum, species, old, new, g, Val(false), mode)
     native = native && _yee_charge_native_candidate!(work, count, magnitude, entries)
-    native || _yee_charge_exact_candidate!(work, species, old, new, g, mode, entries)
+    native || _yee_charge_exact_candidate!(work, species, old, new, g, mode, entries, shape)
     for i in eachindex(out)
         out[i] = work.candidate[i]
     end
@@ -355,7 +401,7 @@ function _yee_charge_apply!(out, species, old, new, g::YeeGrid{1}, work, mode)
 end
 
 """
-    yee_particle_charge!(out, particles, g::YeeGrid{1}, workspace)
+    yee_particle_charge!(out, particles, g::YeeGrid{1}, workspace; shape=CIC())
 
 Overwrite `out` with extensive CIC particle charge on every node of a closed PEC
 interval `[0,L]`, including both wall nodes. Accept one ParticleSet or a tuple/
@@ -369,8 +415,13 @@ rejects before publication; intermediate range loss replays exact original input
 Nondefault hardware rounding or subnormal flushing uses exact replay, including
 stored-input admission and geometry; final exact rounding remains nearest-even.
 See `docs/BOUNDED_PARTICLE_COUPLING_PLAN.md` for the normwise rounding boundary.
+Select `shape=YeeTriangularCloud(a)` for the optional finite physical-width
+cloud, retaining its original width precision. Its tails are particle-bound
+endpoint support. That shape uses exact whole-entry evaluation and one final
+rounding, with the same preflight and publication contracts; the point/CIC native
+bound does not apply to cloud polynomials.
 """
-function yee_particle_charge!(out, particles, g::YeeGrid{1}, workspace)
+function yee_particle_charge!(out, particles, g::YeeGrid{1}, workspace; shape = CIC())
     return _yee_charge_apply!(
         out,
         _yee_charge_species(particles),
@@ -379,11 +430,12 @@ function yee_particle_charge!(out, particles, g::YeeGrid{1}, workspace)
         g,
         workspace,
         Val(:charge),
+        shape,
     )
 end
 
 """
-    yee_longitudinal_impulse!(out, particles, xold, xnew, g::YeeGrid{1}, workspace)
+    yee_longitudinal_impulse!(out, particles, xold, xnew, g::YeeGrid{1}, workspace; shape=CIC())
 
 Overwrite `out` with the longitudinal integrated current compatible with CIC
 endpoint charge in a closed PEC interval, epsilon0=1 and unit transverse area.
@@ -398,20 +450,33 @@ a normwise residual, not bitwise continuity. Reversed/retraced normal paths canc
 and multiple-cell flux is included. No transverse current, force, reflection
 mover, absorbed charge, voltage constraint or coupled solver is supplied.
 Storage, range and atomic-publication rules follow [`yee_particle_charge!`](@ref).
+Use the same optional `YeeTriangularCloud` shape as the endpoint charges and
+path voltage. Cloud impulse is the exact cumulative difference, with all
+populations accumulated before one final entry rounding.
 """
-function yee_longitudinal_impulse!(out, particles, xold, xnew, g::YeeGrid{1}, workspace)
+function yee_longitudinal_impulse!(out, particles, xold, xnew, g::YeeGrid{1}, workspace; shape = CIC())
     species = _yee_charge_species(particles)
     old, new = _yee_charge_endpoints(particles, xold, xnew)
-    return _yee_charge_apply!(out, species, old, new, g, workspace, Val(:impulse))
+    return _yee_charge_apply!(out, species, old, new, g, workspace, Val(:impulse), shape)
 end
 
-yee_particle_charge!(out, particles, g::YeeGrid, workspace) =
+yee_particle_charge!(out, particles, g::YeeGrid, workspace; shape = CIC()) =
     throw(ArgumentError("Yee charge coupling requires one spatial dimension"))
-yee_longitudinal_impulse!(out, particles, old, new, g::YeeGrid, workspace) =
+yee_longitudinal_impulse!(out, particles, old, new, g::YeeGrid, workspace; shape = CIC()) =
     throw(ArgumentError("Yee charge coupling requires one spatial dimension"))
 
+function _yee_validate_longitudinal_storage(Ex, g::YeeGrid{1,T}) where {T}
+    g.periodic[1] && throw(ArgumentError("Yee longitudinal coupling requires a closed PEC grid"))
+    Ex isa StridedVector{T} || throw(
+        ArgumentError("Yee longitudinal field must be a CPU strided vector of grid precision $T"),
+    )
+    length(Ex) == g.n[1] || throw(DimensionMismatch("Yee longitudinal field must have n entries"))
+    Base.require_one_based_indexing(Ex)
+    return nothing
+end
+
 """
-    yee_longitudinal_voltage(Ex, xold, xnew, g::YeeGrid{1})
+    yee_longitudinal_voltage(Ex, xold, xnew, g::YeeGrid{1}; shape=CIC())
 
 Return the oriented longitudinal path voltage paired with
 [`yee_longitudinal_impulse!`](@ref) on a closed 1D PEC interval. For the exact
@@ -435,14 +500,14 @@ it includes `n*g.dx[1]/g.L[1]`, which need not equal one exactly. Supply a tempo
 mean field to pair with source work, allowing for that mean's own rounding.
 This operator selects no stationary-node force, particle mover or wall event,
 and does not establish coupled energy conservation or force accuracy.
+The optional `shape=YeeTriangularCloud(a)` instead contracts that cloud's exact
+cumulative differences over all n cells. Its stationary derivative is available
+separately through [`yee_longitudinal_field`](@ref), requiring explicit cloud
+selection. Point/CIC geometry and default behavior remain unchanged.
 """
-function yee_longitudinal_voltage(Ex, xold, xnew, g::YeeGrid{1,T}) where {T}
-    g.periodic[1] && throw(ArgumentError("Yee path voltage requires a closed PEC grid"))
-    Ex isa StridedVector{T} || throw(
-        ArgumentError("Yee path voltage field must be a CPU strided vector of grid precision $T"),
-    )
-    length(Ex) == g.n[1] || throw(DimensionMismatch("Yee path voltage field must have n entries"))
-    Base.require_one_based_indexing(Ex)
+function yee_longitudinal_voltage(Ex, xold, xnew, g::YeeGrid{1,T}; shape = CIC()) where {T}
+    _yee_validate_charge_shape(shape)
+    _yee_validate_longitudinal_storage(Ex, g)
     xold isa T && xnew isa T ||
         throw(ArgumentError("Yee path voltage endpoints must have grid precision $T"))
     _yee_validate_charge_position(xold, g.L[1], 1, 1, :old, false)
@@ -450,6 +515,7 @@ function yee_longitudinal_voltage(Ex, xold, xnew, g::YeeGrid{1,T}) where {T}
     all(isfinite, Ex) || throw(ArgumentError("Yee path voltage field must be finite"))
     direction = cmp(_exact_rational(xold), _exact_rational(xnew))
     iszero(direction) && return zero(T)
+    shape isa YeeTriangularCloud && return _yee_cloud_field_contraction(Ex, xold, xnew, g, shape)
     a, b = direction < 0 ? (xold, xnew) : (xnew, xold)
     lower, upper, weights, _ = _yee_cic_path_stencil(a, b, g, Val(true))
     total = _exact_rational(Ex[lower+1]) * weights[1]
@@ -465,5 +531,57 @@ function yee_longitudinal_voltage(Ex, xold, xnew, g::YeeGrid{1,T}) where {T}
     return value
 end
 
-yee_longitudinal_voltage(Ex, xold, xnew, g::YeeGrid) =
+yee_longitudinal_voltage(Ex, xold, xnew, g::YeeGrid; shape = CIC()) =
     throw(ArgumentError("Yee path voltage requires one spatial dimension"))
+
+# A nonzero path contracts A(new)-A(old); a stationary field contracts g(x).
+# Both share original geometry/width, the stored-dx metric and one final round.
+function _yee_cloud_field_contraction(Ex, old, new, g::YeeGrid{1,T}, shape::YeeTriangularCloud) where {T}
+    h = _exact_rational(g.L[1]) / g.n[1]
+    a = _exact_rational(shape.half_width)
+    x = _exact_rational(old)
+    y = new === nothing ? nothing : _exact_rational(new)
+    total = zero(h)
+    for e = 0:(g.n[1]-1)
+        cumulative, derivative = _yee_cloud_edge(x, e * h, h, a)
+        coefficient = if y === nothing
+            derivative
+        else
+            following, _ = _yee_cloud_edge(y, e * h, h, a)
+            following - cumulative
+        end
+        total += _exact_rational(Ex[e+1]) * coefficient
+    end
+    value = _from_exact(T, _exact_rational(g.dx[1]) * total)
+    isfinite(value) || throw(ArgumentError("Yee cloud field contraction does not round to a finite $T value"))
+    return value
+end
+
+"""
+    yee_longitudinal_field(Ex, x, g::YeeGrid{1}; shape::YeeTriangularCloud)
+
+Stationary work-adjoint longitudinal field for the explicitly selected finite
+physical-width cloud. Returns `dx*sum(Ex[e]*g_e(x))`, where `g_e` is the same
+cloud cumulative's derivative used by charge/current/path voltage. This is a
+field, without charge/mass, acceleration or a particle mover. Mesh-node and
+overlapping-cloud states have a continuous force basis. No point/CIC stationary
+force is selected.
+
+The width retains its original IEEE precision; field and coordinate have grid
+precision. Inputs are read-only and validated before calculation. Exact stored
+operands round once to grid precision, nearest-even independently of arithmetic
+context; nonfinite final rounding rejects. Interior DC includes `n*dx/L`.
+Particle-bound endpoint tails give half that DC response at either wall when
+the half-width is at most L. This is the declared cloud/surface shape, not an
+absorbed/free plate charge or a point-wall force. Coupled PIC remains incomplete.
+"""
+function yee_longitudinal_field(Ex, x, g::YeeGrid{1,T}; shape::YeeTriangularCloud) where {T}
+    _yee_validate_longitudinal_storage(Ex, g)
+    x isa T || throw(ArgumentError("Yee cloud coordinate must have grid precision $T"))
+    _yee_validate_charge_position(x, g.L[1], 1, 1, :current, false)
+    all(isfinite, Ex) || throw(ArgumentError("Yee cloud field must be finite"))
+    return _yee_cloud_field_contraction(Ex, x, nothing, g, shape)
+end
+
+yee_longitudinal_field(Ex, x, g::YeeGrid; shape::YeeTriangularCloud) =
+    throw(ArgumentError("Yee cloud field requires one spatial dimension"))
