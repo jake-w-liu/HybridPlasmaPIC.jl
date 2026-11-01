@@ -171,9 +171,10 @@ a separate state/schema and method design. Their [C2/C3 work orders](RELATIVISTI
 - [x] Finish source/docs review and push separately as `1bc618b`.
 - [x] Pass all six exact-SHA CI jobs and review both complete compiler reports.
 
-A separate inherited nonrelativistic Float16 arithmetic gap remains open:
-four normal-ratio native/scalar/public witnesses on both runtimes exceed the
-unchanged four-ulp bound against original-factor and explicit-qm exact references.
-Root independently checks their rational 3×3 rotation oracle. C1 does not repair
-that gap or the original charge/mass-factor range defect. See the
-[factor and accuracy work order](PARTICLE_CHARGE_MASS_RANGE_PLAN.md).
+A separate inherited nonrelativistic Float16 arithmetic gap motivated four
+normal-ratio native/scalar/public witnesses on both runtimes and an independent
+rational 3×3 rotation oracle. CPU original-factor and accuracy repairs are now
+implemented separately from C1; their exact-revision GitHub validation remains
+pending in the [factor and accuracy work order](PARTICLE_CHARGE_MASS_RANGE_PLAN.md).
+The [normal relativistic accuracy work order](RELATIVISTIC_NORMAL_ACCURACY_PLAN.md)
+tracks the remaining certificate and remote candidate checks.

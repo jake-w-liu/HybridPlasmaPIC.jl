@@ -1,0 +1,35 @@
+name: Relativistic normal accuracy observation
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  observe:
+    name: Observe Julia ${{ matrix.julia-version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        julia-version: ['1.12', '1']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: ${{ matrix.julia-version }}
+      - uses: julia-actions/cache@v2
+      - name: Observe fixed candidates
+        shell: bash
+        run: |
+          julia --project=. -e 'using Pkg; Pkg.instantiate()'
+          julia --project=. .github/diagnostics/relativistic_normal_accuracy.jl 2>&1 | tee relativistic-normal-observation.log
+      - name: Retain full observations
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relativistic-normal-observation-${{ matrix.julia-version }}-${{ github.sha }}
+          path: relativistic-normal-observation.log
+          if-no-files-found: warn

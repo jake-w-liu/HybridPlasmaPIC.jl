@@ -115,3 +115,8 @@ The [audit tracker](DEEP_DEBUG_TRACKER.md) owns current acceptance; the
 [completeness plan](PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md) retains the wider
 simulator goal. No full original-factor trajectory or global optimization claim
 is established.
+
+The [normal relativistic accuracy work order](RELATIVISTIC_NORMAL_ACCURACY_PLAN.md)
+maps the remaining native-admission certificate and prepares a small manual
+GitHub observation. Its finite-c candidates remain unverified until that run;
+no production arithmetic change or accuracy acceptance follows from its presence.
