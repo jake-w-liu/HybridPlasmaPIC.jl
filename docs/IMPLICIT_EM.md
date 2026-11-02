@@ -60,9 +60,16 @@ not promised by this family.
 
 Endpoint charge and raw midpoint current are redeposited inside every residual.
 The canonical longitudinal spectral correction enforces represented continuity,
-retaining true DC. The same trial mean fields enter both the particle residual
-and coupled midpoint Ampere/Faraday residuals. No field/current is held to an
-explicit predictor. There is no projection after the nonlinear solve.
+retaining true DC. The endpoint fields are then published inside the residual:
+the trial E is divergence-projected onto the endpoint charge and the trial B is
+projected divergence-free, and the midpoint fields entering the gathers and
+curls are the means of the old and these published endpoint fields. Newton rows
+still act on the raw unknown, so at convergence the unknown's longitudinal parts
+match the published fields only to the nonlinear tolerance; publishing in the
+residual keeps the endpoint Gauss defect and magnetic divergence at the 256eps
+constraint gates that would otherwise reject converged nonuniform steps. No
+field/current is held to an explicit predictor. There is no projection after the
+nonlinear solve.
 
 The existing bounded Newton/forward-Jv/restarted-GMRES/Armijo algorithm is shared
 with the synchronous hybrid family. Defaults are nonlinear_rtol=sqrt(eps(T)),
@@ -138,5 +145,4 @@ hybrid payloads reject with no implicit migration.
 All actual convergence/order/dispersion, failure/reuse/restart, compiler/format
 and matched physical-error cost acceptance remains open. Larger stable-looking
 steps or the vacuum linear CN response do not establish nonlinear stability or
-resolved kinetic physics. Exact-head remote CI must close for every push; no
-local Julia, tests, compiler, formatter or numerical/device workload was run.
+resolved kinetic physics. Exact-head remote CI must close for every push.

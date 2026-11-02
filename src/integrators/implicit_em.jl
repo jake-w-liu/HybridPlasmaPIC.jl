@@ -582,7 +582,6 @@ function _implicit_em_residual!(
         for c = 1:3, I in eachindex(old[c])
             i += 1
             endpoint[c][I] = z[i]
-            mid[c][I] = _implicit_em_mean(old[c][I], z[i])
         end
     end
     _implicit_em_charge!(w.endpoint.rho_np1, st, w.endpoint_species)
@@ -599,6 +598,16 @@ function _implicit_em_residual!(
     )
     _empic_correct_current!(w.endpoint.J, w.endpoint.Jraw, w.old.rho_n, w.endpoint.rho_np1, g, w.h)
     all(a -> all(isfinite, a), w.endpoint.J) || throw(_ImplicitEMTrialError(:current_range))
+    _empic_gauss!(w.endpoint.E, w.endpoint.rho_np1, g)
+    _spectral_divergence_project!(w.endpoint.B, nothing, g)
+    all(a -> all(isfinite, a), (w.endpoint.E..., w.endpoint.B...)) ||
+        throw(_ImplicitEMTrialError(:field_range))
+    for (old, mid, endpoint) in
+        ((w.old.E, w.midpoint.E, w.endpoint.E), (w.old.B, w.midpoint.B, w.endpoint.B))
+        for c = 1:3, I in eachindex(old[c])
+            mid[c][I] = _implicit_em_mean(old[c][I], endpoint[c][I])
+        end
+    end
     curl!(w.curlE, w.midpoint.E, g)
     curl!(w.curlB, w.midpoint.B, g)
     all(a -> all(isfinite, a), (w.curlE..., w.curlB...)) ||

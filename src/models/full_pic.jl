@@ -2266,20 +2266,26 @@ function _enforce_gauss!(es::EMPIC{D,T}) where {D,T}
     return _empic_gauss!(es.E, es.rho_n, es.g)
 end
 
-function _empic_gauss!(E, rho_n, g::FourierGrid{D,T}) where {D,T}
-    rhohat = g.sbuf
-    rhohat .= rho_n
-    g.plan * rhohat
+@inline function _spectral_divergence_source!(g::FourierGrid{D,T}, source) where {D,T}
+    srchat = g.sbuf
+    srchat .= source
+    g.plan * srchat
+    return srchat
+end
+@inline _spectral_divergence_source!(g::FourierGrid{D,T}, ::Nothing) where {D,T} =
+    fill!(g.sbuf, zero(Complex{T}))
+function _spectral_divergence_project!(F, source, g::FourierGrid{D,T}) where {D,T}
+    srchat = _spectral_divergence_source!(g, source)
     buffers = (g.cbuf, g.tbuf, g.abuf)
     for c = 1:3
-        buffers[c] .= E[c]
+        buffers[c] .= F[c]
         g.plan * buffers[c]
     end
-    @inbounds for I in CartesianIndices(rhohat)
+    @inbounds for I in CartesianIndices(srchat)
         k = _spectral_wavevector(g, I)
         if !_spectral_mode_is_null(k)
             original = ntuple(d -> buffers[d][I], Val(D))
-            corrected = _spectral_project_mode(original, k, rhohat[I], one(T))
+            corrected = _spectral_project_mode(original, k, srchat[I], one(T))
             for d = 1:D
                 buffers[d][I] = corrected[d]
             end
@@ -2287,10 +2293,13 @@ function _empic_gauss!(E, rho_n, g::FourierGrid{D,T}) where {D,T}
     end
     for c = 1:3
         g.iplan * buffers[c]
-        E[c] .= real.(buffers[c])
+        F[c] .= real.(buffers[c])
     end
-    return E
+    return F
 end
+
+_empic_gauss!(E, rho_n, g::FourierGrid{D,T}) where {D,T} =
+    _spectral_divergence_project!(E, rho_n, g)
 
 function _charge_density!(
     rho::Array{T,D},

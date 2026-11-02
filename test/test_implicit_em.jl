@@ -113,3 +113,46 @@ end
         end
     end
 end
+
+@testset "Gauss- and divergence-consistent published fields" begin
+    for T in (Float32, Float64)
+        gate = T(256) * eps(T)
+        @testset "nonuniform 1D $T" begin
+            for (amp, dt) in ((T(0.05), T(0.1)), (T(0.3), T(0.1)), (T(0.3), T(0.5)))
+                g = FourierGrid((15,), (T(15),))
+                np, L = 60, T(15)
+                xs = [(T(i) - T(1) / 2) * L / np for i = 1:np]
+                electrons = ParticleSet{1,T}(np; q = -one(T), m = one(T))
+                ions = ParticleSet{1,T}(np; q = one(T), m = T(100))
+                electrons.x[1] .= mod.(xs .+ amp .* sin.(2 * T(pi) .* xs ./ L), L)
+                ions.x[1] .= xs
+                species = [electrons, ions]
+                state = ImplicitEMPICStepper(g, CIC(), species; c = T(10))
+                init!(state, species)
+                for k = 1:3
+                    step!(state, species, dt)
+                    r = state.last_report
+                    @test r.continuity <= gate
+                    @test r.gauss <= gate
+                    @test r.magnetic_divergence <= gate
+                    @test r.energy_change == sum(r.defects)
+                end
+            end
+        end
+        @testset "2D vacuum $T" begin
+            g = FourierGrid((7, 7), (T(7), T(7)))
+            species = typeof(ParticleSet{2,T}(0))[]
+            state = ImplicitEMPICStepper(g, CIC(), species; c = T(2))
+            for i = 1:7, j = 1:7
+                state.fields.E[3][i, j] = cospi(2 * T(i - 1) / 7 + 2 * T(j - 1) / 7)
+            end
+            init!(state, species)
+            for k = 1:4
+                step!(state, species, T(1 / 8))
+                r = state.last_report
+                @test r.gauss <= gate
+                @test r.magnetic_divergence <= gate
+            end
+        end
+    end
+end
