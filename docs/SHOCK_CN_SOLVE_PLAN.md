@@ -4,6 +4,10 @@ Owner: `/root/completeness_architecture`; integration and exact-SHA CI: `/root`.
 Baseline: `df75656390ed416f7b0a37cb1173058cd9465e71`. This is CAP-005A:
 repair the existing reduced 3-D shock induction solve. It does not complete
 CAP-005's nonlinear particle–field coupling or add Hall induction to this model.
+A separate [synchronous coupled hybrid source](IMPLICIT_HYBRID.md) now implements
+a bounded periodic CPU isothermal family; it has its own deferred acceptance.
+The shared GMRES storage/inventory extraction preserves this whole ShockCN
+source by literal expansion and changes no shock equations or solver policy.
 
 ## Progress and evidence
 

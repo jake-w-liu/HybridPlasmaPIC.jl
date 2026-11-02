@@ -11,6 +11,17 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Added
 
+- `ImplicitHybridStepper` adds a separate synchronous CPU periodic isothermal
+  collection family. Joint original-factor Boris-map/Faraday residuals feed
+  bounded Newton–GMRES with fresh inner/outer gates and explicit typed failure;
+  complete endpoints and represented pressure/continuity/work-defect reports
+  prepare before publication. Distinct complete checkpoint/archive preserves
+  full public fields, particles, fixed policy, clock and report. Canonical
+  physical owners are reused; shared GMRES storage leaves the old whole ShockCN
+  source recoverable by literal expansion. No tests added or run; convergence,
+  accuracy, restart, compiler and resource acceptance remain open. See the
+  [scope and equations](docs/IMPLICIT_HYBRID.md).
+
 - `distributed_collisional_empic` composes the canonical actual-pencil EM
   candidate with local Coulomb scattering at new positions/carried-half
   velocities. All eleven fields and preceding drift current persist unchanged;

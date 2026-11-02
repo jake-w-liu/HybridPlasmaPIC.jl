@@ -162,30 +162,16 @@ function _validate_shock_cn_workspace(
     _validate_shock_cn_particles(ws.particles; check_values = false)
     n = 3length(sh.n)
     s = ws.solver
-    k = length(s.V)
-    s.m == n &&
-        s.n == n &&
-        1 <= k <= n &&
-        length(s.c) == k &&
-        length(s.s) == k &&
-        length(s.z) == k &&
-        length(s.R) == k * (k + 1) ÷ 2 &&
-        isempty(s.p) &&
-        isempty(s.q) || throw(DimensionMismatch("CN Krylov workspace dimensions differ"))
-    buffers = (ws.rhs, ws.guess, ws.residual, s.x, s.w, s.Δx, s.V...)
+    _validate_gmres_workspace_layout(s, n; name = "CN Krylov")
+    buffers = (ws.rhs, ws.guess, ws.residual, _gmres_workspace_vectors(s)...)
     all(a -> length(a) == n, buffers) || throw(DimensionMismatch("CN solver vector lengths differ"))
     # Krylov resets every statistics vector even with history collection off.
     # Their backing storage must be independent before any solver call.
     storage = (
-        buffers...,
-        s.c,
-        s.s,
-        s.z,
-        s.R,
-        s.stats.residuals,
-        s.stats.Aresiduals,
-        s.stats.qvals,
-        s.stats.Acond,
+        ws.rhs,
+        ws.guess,
+        ws.residual,
+        _gmres_workspace_arrays(s)...,
         _shock_cn_arrays(ws.trial)...,
         _shock_cn_geometry(ws.trial)...,
         _shock_cn_arrays(sh)...,

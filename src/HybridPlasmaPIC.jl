@@ -101,6 +101,7 @@ include("electrons/energy_equation.jl")
 
 # --- Integrators ---
 include("integrators/abstract_integrator.jl")
+include("integrators/gmres_storage.jl")
 include("integrators/extrapolated_leapfrog.jl")
 include("integrators/collisional_hybrid.jl")
 include("integrators/camcl.jl")
@@ -125,6 +126,7 @@ include("models/full_pic.jl")
 include("models/empic_collection.jl")
 include("integrators/collisional_empic.jl")
 include("integrators/collisional_electrostatic.jl")
+include("integrators/implicit_hybrid.jl")
 include("models/maxwell_vacuum.jl")
 include("models/yee_conductive_layer.jl")
 include("models/yee_pml.jl")
@@ -155,6 +157,7 @@ include("parallel/mpi.jl")
 # --- IO ---
 include("io/publication.jl")
 include("io/checkpoint.jl")
+include("io/implicit_hybrid_checkpoint.jl")
 include("io/maxwell_vacuum_checkpoint.jl")
 include("io/yee_conductive_layer_checkpoint.jl")
 include("io/yee_pml_checkpoint.jl")
@@ -244,6 +247,10 @@ export ElectronClosure,
     advance_electron_pressure!,
     electron_velocity!
 export HybridStepper,
+    ImplicitHybridStepper,
+    ImplicitHybridSolveReport,
+    ImplicitHybridConvergenceError,
+    implicit_hybrid_diagnostics,
     CollisionalHybridStepper,
     CollisionalEMPICStepper,
     CollisionalElectrostaticPIC,

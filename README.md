@@ -189,9 +189,10 @@ block; it does not provide the coupled stepper's validation or rollback.
 
 ## Time integration
 
-The two collision-free hybrid steppers are explicit and second order. They
-subcycle `B` through the stiff whistler branch with frozen midpoint ion moments;
-the separately composed collisional stepper has the first-order contract below:
+`HybridStepper` and `CAMCLStepper` are explicit and second order. They subcycle
+`B` through the stiff whistler branch with frozen midpoint ion moments. The
+separate synchronous implicit family has the bounded solve contract below;
+collisional composition has its stated first-order contract:
 
 - **`HybridStepper`** (`init!`, `step!(st, ps, dt; NB)`) — the default.
   Boris leapfrog for particles; `B` advanced `n → n+1` by `NB` RK4 substeps;
@@ -203,6 +204,14 @@ the separately composed collisional stepper has the first-order contract below:
   across particle steps (neutrally stable, non-dissipative, for whistler
   `ω·h < 2` per substep; two Ohm evaluations per substep instead of RK4's
   four). Algebraic scalar closures only.
+- **`ImplicitHybridStepper(g, model, CIC(), species; ...)`** (`init!`, `step!`) —
+  synchronous CPU Float32/64 periodic isothermal positive-ion collections. All
+  velocities and B enter one bounded Newton–GMRES Boris-map/Faraday solve.
+  Strict density, fresh residual gates, endpoint/report staging and complete
+  checkpoint/archive are source-implemented. Load full-time velocities; no
+  leapfrog priming or hidden timestep retry occurs. Numerical convergence,
+  temporal order, conservation error and cost remain untested; see the
+  [represented equations and limitations](docs/IMPLICIT_HYBRID.md).
 - **`CollisionalHybridStepper`** (`init!`, `step!(st, species, dt; NB)`) —
   `HybridStepper` composed with cell-local Coulomb collisions: each fixed step
   scatters the half-level velocities at the new positions for the full step,
@@ -245,7 +254,9 @@ for compatibility and validation. Hardware floating timesteps with fixed-width
 counts or positive BigInt counts fitting Int reuse each mode's multiplier while
 preserving its ordered history. The [packet allocation plan](docs/WHISTLER_PACKET_ALLOCATION_PLAN.md)
 and [bounded-counter follow-up](docs/WHISTLER_BIGINT_COUNTER_PLAN.md) record the
-compatibility and measured allocation gates. Nonlinear coupled implicit evolution remains
+compatibility and measured allocation gates. The separate coupled
+[implicit hybrid source](docs/IMPLICIT_HYBRID.md) has its own residual, phase and
+work-defect contract. Its runtime acceptance and broader implicit models remain
 in the [implementation plan](docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md).
 
 ## Beyond the hybrid model
@@ -557,7 +568,12 @@ The actual-pencil
 matching-layout source schemas and checksummed generations; their runtime/restart
 acceptance is deferred.
 
-**I/O.** Field-only `MaxwellVacuum` has [checkpoint/archive source support](docs/MAXWELL_VACUUM_CHECKPOINT.md)
+**I/O.** The synchronous [implicit hybrid](docs/IMPLICIT_HYBRID.md#checkpoint-and-archive)
+has distinct schema-1 checkpoint/archive source support: full fields/particles,
+fixed configuration, integer-time clock/history and last report. Restore permits
+stale destination values and prepares replacements before publication; runtime
+continuation acceptance remains deferred.
+Field-only `MaxwellVacuum` has [checkpoint/archive source support](docs/MAXWELL_VACUUM_CHECKPOINT.md)
 with distinct synchronized field/clock state and deferred runtime acceptance.
 `save_checkpoint` / `load_checkpoint!` restart `HybridStepper`,
 `CAMCLStepper`, `Electrostatic1D`, `ElectrostaticPIC`, `EMPIC1D`, `EMPIC`, and `HallMHDState` runs bitwise-identically

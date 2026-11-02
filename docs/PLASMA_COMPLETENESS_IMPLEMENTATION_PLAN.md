@@ -92,7 +92,7 @@ Source names below resolve to these canonical files:
 | Nonperiodic EM | Periodic `EMPIC`; separate Yee vacuum/prescribed-current fields; closed 1D PEC charge/impulse/path voltage plus optional finite physical-width cloud static coupling | B2a, optional cloud, event-free longitudinal/1D3V EM, one-cluster reflection and one isolated passive longitudinal capture/restart source are implemented. Exact-head GitHub numerical/JET/CI and resource acceptance, general capture laws, multiple clusters/captures, transverse walls, measured absorber behavior/stability, general CPML and backends remain CAP-002 work; separate scalar-conductivity and causal directional ADE PML field layers with full budget/restart are source-implemented |
 | Distributed evolution | Replicated-field MPI reference, rank-owned Fourier operators, static Poisson/vacuum Maxwell, coupled ES/EM and isothermal hybrid physical-pencil source | Ownership, complete CIC transport, direct migration, canonical movers/field expressions and scalar diagnostics are source-implemented; Maxwell, ES, EM and complete eighteen-field hybrid matching-layout restart are source-implemented; exact-head runtime/restart/resource acceptance, broader closures/EM families and cluster scaling remain CAP-003 work |
 | GPU | Metal extension has deposit/gather/push methods; CUDA extension:1–68 has storage/telemetry hooks; `HybridFields` uses `Array` at field_state:12–29 | Partial kernels, not complete resident solvers, CAP-004; device availability is not numerical acceptance |
-| Implicit evolution | Linear Fourier amplitudes in `semi_implicit.jl`; subsequent `ce52836` adds a residual-checked `ShockCNWorkspace` solve and full-step rollback ([contract](SHOCK_CN_SOLVE_PLAN.md)) | Limited field-only paths exist; nonlinear coupled particle/field solve remains missing, CAP-005 |
+| Implicit evolution | Linear Fourier reference and residual-checked reduced shock CN; separate [synchronous coupled hybrid source](IMPLICIT_HYBRID.md) | CPU periodic isothermal collections now have joint velocity/B residual, bounded Newton–GMRES, work-defect report and complete persistence source. Runtime/method acceptance, evolving pressure/orbit averages, EM and backends remain CAP-005 work |
 | Geometry | `ToroidalGrid`, metric gradient/divergence in curvilinear_mesh:20–49,90–235 | Geometry operators exist; no coupled toroidal plasma stepper, CAP-006A |
 | Gyrokinetics | `GuidingCentre`, local-field push and `gyroaverage` in gyrokinetics:559–645,823–876 | Single-particle/local sampling utilities; no self-consistent gyrokinetic distribution/field solve, CAP-006B |
 | AMR | `AMRGrid` is a single 1D scalar level, adaptive_mesh_refinement:8–23; prolong/restrict/refine:322–366 | Transfer primitives; no adaptive plasma hierarchy, particle crossing or coupled timestep, CAP-006C |
@@ -232,7 +232,7 @@ and quota failures describe historical work, not current ownership.
 | Original species charge/mass factors | Canonical kick, validation, prime/model/backend owners | Original q,m,dt and complete stored-input references | CPU public and nonrelativistic model kick threading, scalar/batch accuracy certificates and exact replay are implemented with the shared IEEE converter. Nonrelativistic priming/prediction include range/accuracy admission and exact endpoints. Both relativistic EMPIC owners retain factors through range replay and C1 publication; essential boundary, phase and checkpoint regressions are included | GitHub CI and complete resource/compiler acceptance remain open. [CPU implementation](BORIS_ACCURACY_IMPLEMENTATION.md); [CPU verification, normal relativistic accuracy and device follow-ons](PARTICLE_CHARGE_MASS_RANGE_PLAN.md) |
 | Coordinate exact-range closure | Canonical coordinate owner and full/midpoint/native-batch callers | Exact stored-input overflow classification plus unchanged four-ulp/finite-bit contract | Canonical CPU correction passes 4,786 new and 46,725 legacy assertions per runtime; 108 paired resource profiles retain all 36 ordinary 0 B profiles; full compiler/Aqua, formatting and 3,543 actual-Metal assertions per runtime pass | [Contract, proof and costs](PARTICLE_KINEMATICS_RANGE_PLAN.md#coordinate-overflow-follow-on): both broader model lanes pass 117,819 / 117,820 assertions; correctness commit `a29da03` passes all six exact-SHA jobs and complete compiler review (1,246,963 / 1,246,964 assertions on actual Julia 1.12.7 / 1.13.3; whole forests byte-equal accepted C1). The separate zero-product optimization passes 7,366 focused assertions and all 108 paired profiles per runtime, including all 36 affected profiles at 0 B; actual Metal passes 3,543 and legacy 46,725 per runtime; complete compiler/Aqua captures match both parents and composition preserves every tested source byte. Optimization `8d7473f` passes all six exact-SHA jobs and complete compiler review: 1,249,543 / 1,249,544 assertions, with whole forests byte-equal accepted C1 |
 | BigFloat timestep contexts | Root; canonical recommendation core | Independent positive-rate geometry, exact endpoint controls and production-mode witness | [Directed context repair](BIGFLOAT_TIMESTEP_CONTEXT_PLAN.md) passes isolated minimum/latest package, native bit/allocation, complete compiler/Aqua and formatting gates | `36d1794` CI completed: minimum Julia/formatting/MPI pass, latest Julia fails the separate packet allocation gate. Containing `fd0a168` is green with complete compiler review. NUM-001 runtime integration remains open |
-| 005B/C implicit hybrid | Agent unassigned; integrator + moment/Ohm owners | Derived discrete conservation and solve contract | Planned | Freeze unknowns/residual, independent small-system oracle and failed-solve transaction |
+| 005B/C implicit hybrid | Root integration; canonical integrator + moment/Ohm owners | Explicit represented Boris-map/Faraday and work-defect contract | Full bounded synchronous CPU isothermal collection core/report/checkpoint/archive source implemented; [guide](IMPLICIT_HYBRID.md) | Exact-revision numerical, residual/convergence, failure/restart, compiler and cost acceptance; broader pressure/orbit-averaged models remain open |
 | 005D implicit EM / parallel geometry | Agent unassigned; EM/parallel/geometry owners | 005B/C method evidence; accepted relevant operators | Planned | Derive EM-specific continuity/work residual before adding a public method |
 | 006A curvilinear solver | Agent unassigned; mesh/coupling/model/I/O | Compatible geometry operators, chosen physical model | Partial primitives; no production callers found | Specify coordinate/component/volume conventions and coupled manufactured problem |
 | 006B self-consistent gyrokinetics | Agent unassigned; gyrokinetics/coupling/field/I/O | Explicit model choice; 006A for toroidal claim | Partial primitives; no distribution/field integration found | Fix electrostatic model, marker/weight state and polarization equation |
@@ -535,8 +535,13 @@ overhead. Multi-node GPU efficiency remains open until actually measured.
 The [shock CN solve](SHOCK_CN_SOLVE_PLAN.md) now uses restarted GMRES for the
 frozen-moment reduced induction equation, recomputes its true linear residual
 and rejects failed convergence before public state publication. This replaced
-the former four-iterate approximation. Neither path implements an implicit
-coupled kinetic-ion/fluid-electron step.
+the former four-iterate approximation. Those two field-only paths retain their
+limited scope. A separate [coupled implicit hybrid source](IMPLICIT_HYBRID.md) now
+implements synchronous CPU isothermal positive-ion collections in D1–3, using
+canonical moments/Ohm/Boris/Faraday, bounded joint velocity/B Newton–GMRES, fresh
+residual gates, staged endpoint/report publication and complete persistence.
+Its represented work-defect report makes no exact energy theorem; numerical,
+convergence, continuation, compiler and cost acceptance remain unexecuted.
 The [Stanier–Chacón–Chen method](https://arxiv.org/abs/1803.07158) provides a
 primary-source design reference for compatible cell-centered spatial operators,
 implicit midpoint, ion subcycling/orbit averages and conservation. Its properties
@@ -550,16 +555,20 @@ must be re-derived for the selected implementation rather than inherited by name
   amplification/timestep-range and assembled-system acceptance; align
   `recommended_dt` with the actual coupled resolution limits. This broader
   milestone remains open.
-- [ ] **005B: residual and transaction.** Define the nonlinear unknowns, discrete
-  equations, normalization, residual norms, absolute/relative tolerances,
-  iteration limits and candidate-state ownership. Failed convergence returns a
-  diagnostic error with no physical state/clock commit; any timestep retry is
-  explicit and bounded, not silent acceptance of the last iterate.
-- [ ] **005C: coupled hybrid.** Start periodic scalar-electron hybrid with one
-  population, then collections, evolving pressure, orbit averaging and selected
-  dissipative terms. Put residual/linearization/preconditioner in integrators and
-  reuse force/moment owners. Derive adjoint work and momentum cancellations for
-  the actual spatial/particle discretization before claiming exact conservation.
+- [ ] **005B: residual and transaction.** The new synchronous family implements
+  joint velocity/B represented residuals, frozen dimensionless block scales,
+  absolute/relative tolerance, bounded Newton/GMRES/probe/backtracking budgets
+  and private candidate ownership. Fresh final gates precede full publication;
+  typed failures preserve public state and prior report by source dataflow. No
+  timestep retry occurs. Independent numerical and transaction acceptance remain
+  open; see the [complete contract](IMPLICIT_HYBRID.md).
+- [ ] **005C: coupled hybrid.** Periodic isothermal CPU collections, full-time
+  fields/particles and complete fixed-policy/report persistence are source-
+  implemented. Strict density and canonical original-factor Boris/moment/field
+  owners are reused. Evolving pressure, orbit averaging, selected dissipative
+  terms and preconditioning remain open. Accept the actual spatial/particle
+  residual, phase/order, work and momentum errors and restart before advancing
+  this milestone; the represented defect report is not exact conservation.
 - [ ] **005D: implicit EM and broader geometry.** EM requires its own coupled
   Maxwell/charge-current equations; it is not an automatic hybrid mode. Integrate
   compatible boundaries, domain ownership and device execution only after the

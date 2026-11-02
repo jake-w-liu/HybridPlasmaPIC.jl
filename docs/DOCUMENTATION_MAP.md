@@ -32,6 +32,10 @@ rerun by this documentation-only audit.
 
 ## Physics and API guides
 
+- [docs/IMPLICIT_HYBRID.md](IMPLICIT_HYBRID.md) — synchronous joint velocity/B
+  residual, bounded Newton–GMRES, represented work defects, distinct full
+  checkpoint/archive and deferred runtime acceptance.
+
 - [docs/COLLISIONAL_HYBRID.md](COLLISIONAL_HYBRID.md)
 - [docs/COLLISIONAL_ELECTROSTATIC.md](COLLISIONAL_ELECTROSTATIC.md) — fixed-step
   electrostatic PIC/local-Coulomb source composition, sole clock and RNG restart.

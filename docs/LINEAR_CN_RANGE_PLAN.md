@@ -11,7 +11,9 @@ shared Apple M5 core); this reference helper is not a solver hot path.
 This is the linear-reference
 part of CAP-005A. The accepted
 [shock field solve](SHOCK_CN_SOLVE_PLAN.md) is a separate owner. Nonlinear
-particle–field coupling and general implicit solvers remain CAP-005B/C.
+particle–field coupling has a separate bounded [CPU isothermal source](IMPLICIT_HYBRID.md),
+with runtime/method acceptance and broader models still open under CAP-005B–D.
+The historical evidence below applies to this linear reference only.
 
 ## Checked behavior and ownership
 

@@ -193,7 +193,7 @@ end
 
 function _archive_run(
     path::AbstractString,
-    st::Union{_CheckpointStepper,HallMHDState,MaxwellVacuum,YeeConductiveLayer,YeePML,CollisionalHybridStepper,CollisionalEMPICStepper,CollisionalElectrostaticPIC,_ClosedYeeCheckpointStepper},
+    st::Union{_CheckpointStepper,HallMHDState,MaxwellVacuum,YeeConductiveLayer,YeePML,CollisionalHybridStepper,CollisionalEMPICStepper,CollisionalElectrostaticPIC,ImplicitHybridStepper,_ClosedYeeCheckpointStepper},
     state;
     rng_seed::Integer,
     normalization::AbstractString = "Omega_ci",

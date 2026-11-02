@@ -1330,7 +1330,7 @@ end
 
 function _save_checkpoint(
     path::AbstractString,
-    st::Union{_CheckpointStepper,HallMHDState,MaxwellVacuum,YeeConductiveLayer,YeePML,CollisionalHybridStepper,CollisionalEMPICStepper,CollisionalElectrostaticPIC,_ClosedYeeCheckpointStepper},
+    st::Union{_CheckpointStepper,HallMHDState,MaxwellVacuum,YeeConductiveLayer,YeePML,CollisionalHybridStepper,CollisionalEMPICStepper,CollisionalElectrostaticPIC,ImplicitHybridStepper,_ClosedYeeCheckpointStepper},
     state,
 )
     _validate_checkpoint_state(state, st)
