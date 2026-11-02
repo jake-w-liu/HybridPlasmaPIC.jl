@@ -155,6 +155,7 @@ include("boundaries/open_hall_reservoir.jl")
 include("models/gyrokinetics.jl")
 include("models/slab_gyrokinetic_pic.jl")
 include("models/sheared_periodic_hybrid_pic.jl")
+include("models/cuda_hybrid.jl")
 include("initial_conditions/sheared_hybrid.jl")
 
 # --- Diagnostics ---
@@ -287,6 +288,10 @@ export HybridStepper,
     ImplicitYeeEMPICStepper,
     CompatibleYeeSolveReport,
     implicit_yee_em_diagnostics,
+    CUDAHybridStepper,
+    cuda_hybrid_stepper,
+    cuda_hybrid_host_snapshot,
+    cuda_hybrid_host_diagnostics,
     CollisionalHybridStepper,
     CollisionalEMPICStepper,
     CollisionalElectrostaticPIC,
