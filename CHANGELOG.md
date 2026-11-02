@@ -133,6 +133,11 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Fixed
 
+- The absent conduction-quotient validator now specializes on `HybridStepper`,
+  resolving a dispatch ambiguity that blocked nonconducting evolving-pressure
+  initialization, stepping and restart preflight. Real quotient-grid validation
+  is unchanged; existing regression suites await GitHub revalidation.
+
 - Original IEEE factor, targeted collection sign and timestep-zero admission use
   stored bits after existing conversion and finite checks. Native zero charge
   returns its signed zero before division; charged native quotient limits remain.

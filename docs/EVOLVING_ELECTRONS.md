@@ -380,6 +380,12 @@ zero-κ legacy reduction, malformed checkpoint policies and unchanged resume.
 They await GitHub acceptance on the composed source. Complete-step BigInt/FFT
 cost and broader conditioning are unmeasured; no optimized-cost claim is made.
 
+The `617707c` GitHub runs exposed an ambiguous absent-quotient validator for
+nonconducting evolving-pressure closures on both Julia versions. Its `Nothing`
+specialization now also constrains the stepper type; existing quotient-grid
+validation is retained. The existing initialization, zero-κ reduction, restart
+and collision-composition regressions require remote revalidation of this fix.
+
 Historical S3a used `round_T(Q(pe)/Q(n))`, required a representable nonzero
 physical temperature and saved conduction policy 1. Its dated source/CI evidence
 remains history; S3b replaces that numerical policy rather than silently

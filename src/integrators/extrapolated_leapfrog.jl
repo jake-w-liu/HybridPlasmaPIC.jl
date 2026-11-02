@@ -283,7 +283,7 @@ function _validate_pressure_storage(st::HybridStepper, ps)
     return nothing
 end
 
-_validate_conduction_quotient_storage(st, ps, ::Nothing) = nothing
+_validate_conduction_quotient_storage(st::HybridStepper, ps, ::Nothing) = nothing
 function _validate_conduction_quotient_storage(st::HybridStepper, ps, quotient)
     f, w, g = st.fields, st.pressure_work, st.g
     _require_conduction_quotient(quotient, g)
