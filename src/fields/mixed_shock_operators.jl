@@ -26,9 +26,8 @@ end
 
 function _mixed_mode(::Type{T}) where {T}
     T in (Float32, Float64) || throw(ArgumentError("mixed operators require Float32 or Float64"))
-    rounding(T) === RoundNearest && !get_zero_subnormals() || throw(
-        ArgumentError("mixed operators require nearest rounding and gradual underflow"),
-    )
+    rounding(T) === RoundNearest && !get_zero_subnormals() ||
+        throw(ArgumentError("mixed operators require nearest rounding and gradual underflow"))
     return nothing
 end
 
@@ -40,7 +39,10 @@ function _mixed_count(n)
     return count
 end
 
-function MixedShockOperators(n::NTuple{D,Integer}, L::NTuple{D,T}) where {D,T<:Union{Float32,Float64}}
+function MixedShockOperators(
+    n::NTuple{D,Integer},
+    L::NTuple{D,T},
+) where {D,T<:Union{Float32,Float64}}
     D in (2, 3) || throw(ArgumentError("mixed operators require two or three spatial dimensions"))
     _mixed_mode(T)
     nn = ntuple(d -> _require_positive_intlike("n[$d]", n[d]), Val(D))
@@ -59,19 +61,39 @@ function MixedShockOperators(n::NTuple{D,Integer}, L::NTuple{D,T}) where {D,T<:U
     end
     all(a -> all(isfinite, a), coordinates) ||
         throw(ArgumentError("mixed coordinates must be finite"))
-    transverse = ntuple(i -> FourierDerivYWorkspace(count ÷ nn[i+1], nn[i+1], lengths[i+1]), Val(D - 1))
+    transverse =
+        ntuple(i -> FourierDerivYWorkspace(count ÷ nn[i+1], nn[i+1], lengths[i+1]), Val(D - 1))
     packed = ntuple(i -> zeros(T, count ÷ nn[i+1], nn[i+1]), Val(D - 1))
     differentiated = map(a -> similar(a), packed)
     A() = zeros(T, nn)
-    op = MixedShockOperators(nn, lengths, dx, sbp, coordinates, transverse,
-        packed, differentiated, (A(), A(), A()), A(), A())
+    op = MixedShockOperators(
+        nn,
+        lengths,
+        dx,
+        sbp,
+        coordinates,
+        transverse,
+        packed,
+        differentiated,
+        (A(), A(), A()),
+        A(),
+        A(),
+    )
     _mixed_storage(op)
     return op
 end
 
-_mixed_operator_arrays(op) = (op.coordinates..., op.sbp.H,
-    (w.ky for w in op.transverse)..., (w.cbuf for w in op.transverse)...,
-    op.packed..., op.differentiated..., op.stage..., op.temp, op.weighted)
+_mixed_operator_arrays(op) = (
+    op.coordinates...,
+    op.sbp.H,
+    (w.ky for w in op.transverse)...,
+    (w.cbuf for w in op.transverse)...,
+    op.packed...,
+    op.differentiated...,
+    op.stage...,
+    op.temp,
+    op.weighted,
+)
 
 function _mixed_noalias(arrays, context)
     for i = 1:length(arrays), j = (i+1):length(arrays)
@@ -90,15 +112,17 @@ function _mixed_array(a, op::MixedShockOperators{D,T}, context; finite = false) 
 end
 
 function _mixed_finite(a, context)
-    all(isfinite, a) || throw(ArgumentError(
-        "$context crosses a finite materialized mixed-operator boundary; later scaling is unsupported"))
+    all(isfinite, a) || throw(
+        ArgumentError(
+            "$context crosses a finite materialized mixed-operator boundary; later scaling is unsupported",
+        ),
+    )
     return nothing
 end
 
 function _mixed_storage(op::MixedShockOperators{D,T}) where {D,T}
     _mixed_mode(T)
-    D in (2, 3) && op.n[1] >= 3 && all(>(0), op.n) ||
-        throw(ArgumentError("invalid mixed geometry"))
+    D in (2, 3) && op.n[1] >= 3 && all(>(0), op.n) || throw(ArgumentError("invalid mixed geometry"))
     count = _mixed_count(op.n)
     all(x -> isfinite(x) && x > zero(T), op.L) || throw(ArgumentError("invalid mixed lengths"))
     expected_dx = ntuple(d -> op.L[d] / (d == 1 ? op.n[1] - 1 : op.n[d]), Val(D))
@@ -115,26 +139,35 @@ function _mixed_storage(op::MixedShockOperators{D,T}) where {D,T}
             throw(ArgumentError("mixed SBP norm cache changed"))
     end
     for d = 1:D
-        length(op.coordinates[d]) == op.n[d] || throw(DimensionMismatch("mixed coordinate shape changed"))
+        length(op.coordinates[d]) == op.n[d] ||
+            throw(DimensionMismatch("mixed coordinate shape changed"))
         expected = d == 1 ? range(zero(T), op.L[d]; length = op.n[d]) : nothing
         for i = 1:op.n[d]
             x = d == 1 ? expected[i] : (i - 1) * op.L[d] / op.n[d]
-            isfinite(x) && op.coordinates[d][i] == x || throw(ArgumentError("mixed coordinates changed"))
+            isfinite(x) && op.coordinates[d][i] == x ||
+                throw(ArgumentError("mixed coordinates changed"))
         end
     end
-    length(op.transverse) == D - 1 && length(op.packed) == D - 1 && length(op.differentiated) == D - 1 ||
+    length(op.transverse) == D - 1 &&
+        length(op.packed) == D - 1 &&
+        length(op.differentiated) == D - 1 ||
         throw(DimensionMismatch("mixed transverse workspace count changed"))
     for d = 2:D
         w = op.transverse[d-1]
         dims = (count ÷ op.n[d], op.n[d])
-        (w.nx, w.ny) == dims && w.Ly == op.L[d] && size(w.cbuf) == dims &&
-            size(op.packed[d-1]) == dims && size(op.differentiated[d-1]) == dims ||
+        (w.nx, w.ny) == dims &&
+            w.Ly == op.L[d] &&
+            size(w.cbuf) == dims &&
+            size(op.packed[d-1]) == dims &&
+            size(op.differentiated[d-1]) == dims ||
             throw(DimensionMismatch("mixed transverse workspace shape/config changed"))
-        length(w.ky) == op.n[d] || throw(DimensionMismatch("mixed Fourier coefficient count changed"))
+        length(w.ky) == op.n[d] ||
+            throw(DimensionMismatch("mixed Fourier coefficient count changed"))
         for m = 0:(op.n[d]-1)
             mp = m <= op.n[d] ÷ 2 ? m : m - op.n[d]
             k = iseven(op.n[d]) && m == op.n[d] ÷ 2 ? zero(T) : T(2π) * mp / op.L[d]
-            isfinite(k) && w.ky[m+1] == k || throw(ArgumentError("mixed Fourier coefficients changed"))
+            isfinite(k) && w.ky[m+1] == k ||
+                throw(ArgumentError("mixed Fourier coefficients changed"))
         end
     end
     for a in (op.stage..., op.temp, op.weighted)
@@ -226,7 +259,11 @@ function _mixed_divergence!(out, vector, op::MixedShockOperators{D}) where {D}
 end
 
 "Stage the D-component mixed gradient before copying any public output."
-function mixed_gradient!(out::NTuple{D,Array{T,D}}, f::Array{T,D}, op::MixedShockOperators{D,T}) where {D,T}
+function mixed_gradient!(
+    out::NTuple{D,Array{T,D}},
+    f::Array{T,D},
+    op::MixedShockOperators{D,T},
+) where {D,T}
     _mixed_preflight(op, out, (f,))
     for d = 1:D
         _mixed_derivative!(op.stage[d], f, op, d)
@@ -238,7 +275,11 @@ function mixed_gradient!(out::NTuple{D,Array{T,D}}, f::Array{T,D}, op::MixedShoc
 end
 
 "Stage all three curl components; absent spatial derivatives vanish in D2."
-function mixed_curl!(out::NTuple{3,Array{T,D}}, vector::NTuple{3,Array{T,D}}, op::MixedShockOperators{D,T}) where {D,T}
+function mixed_curl!(
+    out::NTuple{3,Array{T,D}},
+    vector::NTuple{3,Array{T,D}},
+    op::MixedShockOperators{D,T},
+) where {D,T}
     _mixed_preflight(op, out, vector)
     _mixed_curl!(op.stage, vector, op)
     for c = 1:3
@@ -248,7 +289,11 @@ function mixed_curl!(out::NTuple{3,Array{T,D}}, vector::NTuple{3,Array{T,D}}, op
 end
 
 "Stage mixed divergence; all three supplied components must be finite, including inactive ones."
-function mixed_divergence!(out::Array{T,D}, vector::NTuple{3,Array{T,D}}, op::MixedShockOperators{D,T}) where {D,T}
+function mixed_divergence!(
+    out::Array{T,D},
+    vector::NTuple{3,Array{T,D}},
+    op::MixedShockOperators{D,T},
+) where {D,T}
     _mixed_preflight(op, (out,), vector)
     _mixed_divergence!(op.stage[1], vector, op)
     copyto!(out, op.stage[1])
@@ -256,7 +301,12 @@ function mixed_divergence!(out::Array{T,D}, vector::NTuple{3,Array{T,D}}, op::Mi
 end
 
 "Stage the represented ordinary Euclidean derivative transpose (not the weighted adjoint)."
-function mixed_derivative_transpose!(out::Array{T,D}, f::Array{T,D}, op::MixedShockOperators{D,T}, axis::Integer) where {D,T}
+function mixed_derivative_transpose!(
+    out::Array{T,D},
+    f::Array{T,D},
+    op::MixedShockOperators{D,T},
+    axis::Integer,
+) where {D,T}
     1 <= axis <= D || throw(ArgumentError("mixed transpose axis must be between 1 and $D"))
     _mixed_preflight(op, (out,), (f,))
     _mixed_transpose!(op.stage[1], f, op, axis)
@@ -286,8 +336,15 @@ end
 
 _mixed_hall_arrays(w) = (w.pe, w.gradp..., w.ninv, w.E..., w.J..., w.lapJ..., w.rate...)
 
-function _mixed_hall_electric!(B, n, ui, physics::HybridModel,
-    op::MixedShockOperators{D,T}, work::MixedHallWorkspace{D,T}; out = ()) where {D,T}
+function _mixed_hall_electric!(
+    B,
+    n,
+    ui,
+    physics::HybridModel,
+    op::MixedShockOperators{D,T},
+    work::MixedHallWorkspace{D,T};
+    out = (),
+) where {D,T}
     physics.closure isa IsothermalElectrons{T} ||
         throw(ArgumentError("mixed Hall requires isothermal electrons at grid precision"))
     _require_finite_nonnegative_real("Te", physics.closure.Te, T)
@@ -299,7 +356,8 @@ function _mixed_hall_electric!(B, n, ui, physics::HybridModel,
         _mixed_array(a, op, "mixed Hall workspace")
     end
     _mixed_preflight(op, out, (B..., n, ui...); extra = _mixed_hall_arrays(work))
-    all(x -> x >= floor, n) || throw(ArgumentError("mixed Hall density must be at least nfloor; clipping is unsupported"))
+    all(x -> x >= floor, n) ||
+        throw(ArgumentError("mixed Hall density must be at least nfloor; clipping is unsupported"))
     electron_pressure!(work.pe, n, physics.closure)
     _mixed_finite(work.pe, "mixed Hall pressure")
     for d = 1:D
@@ -312,7 +370,8 @@ function _mixed_hall_electric!(B, n, ui, physics::HybridModel,
     for a in work.lapJ
         fill!(a, zero(T))
     end
-    risk = _ohm_field_rows!(work.E, ui, B, work.J, work.lapJ, work.gradp, work.ninv, zero(T), zero(T))
+    risk =
+        _ohm_field_rows!(work.E, ui, B, work.J, work.lapJ, work.gradp, work.ninv, zero(T), zero(T))
     foreach(a -> _mixed_finite(a, "mixed Hall electric field"), work.E)
     return risk
 end
@@ -327,17 +386,35 @@ reject before publication. Return private borrowed E/J/pressure/reciprocal/rate
 and an exact stored-source face-work budget, valid until workspace reuse.
 No SAT, projection or time step is implicitly performed.
 """
-function mixed_hall_rhs!(out::NTuple{3,Array{T,D}}, B::NTuple{3,Array{T,D}}, n::Array{T,D},
-    ui::NTuple{3,Array{T,D}}, physics::HybridModel, op::MixedShockOperators{D,T}, work::MixedHallWorkspace{D,T}) where {D,T}
+function mixed_hall_rhs!(
+    out::NTuple{3,Array{T,D}},
+    B::NTuple{3,Array{T,D}},
+    n::Array{T,D},
+    ui::NTuple{3,Array{T,D}},
+    physics::HybridModel,
+    op::MixedShockOperators{D,T},
+    work::MixedHallWorkspace{D,T},
+) where {D,T}
     risk = _mixed_hall_electric!(B, n, ui, physics, op, work; out)
-    risk && throw(ArgumentError(
-        "mixed Hall original-product Faraday range recovery is unsupported; a finite local Ohm field does not settle its differentiated source"))
+    risk && throw(
+        ArgumentError(
+            "mixed Hall original-product Faraday range recovery is unsupported; a finite local Ohm field does not settle its differentiated source",
+        ),
+    )
     _mixed_curl!(work.rate, work.E, op)
     _faraday_negate!(work.rate)
     foreach(a -> _mixed_finite(a, "mixed Hall magnetic rate"), work.rate)
     budget = _mixed_magnetic_budget(B, work.E, work.J, work.rate, op)
-    report = (E = work.E, J = work.J, pe = work.pe, gradp = work.gradp,
-        ninv = work.ninv, rate = work.rate, source_risk = risk, budget = budget)
+    report = (
+        E = work.E,
+        J = work.J,
+        pe = work.pe,
+        gradp = work.gradp,
+        ninv = work.ninv,
+        rate = work.rate,
+        source_risk = risk,
+        budget = budget,
+    )
     for c = 1:3
         copyto!(out[c], work.rate[c])
     end
@@ -360,18 +437,32 @@ function _mixed_magnetic_budget(B, E, J, rate, op::MixedShockOperators{D}) where
     for side in (1, op.n[1]), I in CartesianIndices(Base.tail(op.n))
         K = CartesianIndex((side, Tuple(I)...))
         normal = side == 1 ? -1 : 1
-        poynting += normal * area * (_exact_rational(E[2][K]) * _exact_rational(B[3][K]) -
-            _exact_rational(E[3][K]) * _exact_rational(B[2][K]))
+        poynting +=
+            normal *
+            area *
+            (
+                _exact_rational(E[2][K]) * _exact_rational(B[3][K]) -
+                _exact_rational(E[3][K]) * _exact_rational(B[2][K])
+            )
     end
     power = volume * _mixed_qdot(B, rate, op)
     current_work = volume * _mixed_qdot(J, E, op)
-    return (magnetic_power = power, current_work = current_work, outward_poynting = poynting,
-        identity_residual = power + current_work + poynting)
+    return (
+        magnetic_power = power,
+        current_work = current_work,
+        outward_poynting = poynting,
+        identity_residual = power + current_work + poynting,
+    )
 end
 
 "Exact rational stored-source mixed magnetic power, current work and two-face Poynting ledger."
-function mixed_magnetic_rate_budget(B::NTuple{3,Array{T,D}}, E::NTuple{3,Array{T,D}},
-    J::NTuple{3,Array{T,D}}, rate::NTuple{3,Array{T,D}}, op::MixedShockOperators{D,T}) where {D,T}
+function mixed_magnetic_rate_budget(
+    B::NTuple{3,Array{T,D}},
+    E::NTuple{3,Array{T,D}},
+    J::NTuple{3,Array{T,D}},
+    rate::NTuple{3,Array{T,D}},
+    op::MixedShockOperators{D,T},
+) where {D,T}
     _mixed_preflight(op, (), (B..., E..., J..., rate...))
     return _mixed_magnetic_budget(B, E, J, rate, op)
 end

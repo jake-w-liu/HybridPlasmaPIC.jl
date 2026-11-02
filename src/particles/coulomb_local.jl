@@ -309,8 +309,17 @@ function _coulomb_channel_rate(
     number_scale,
     logarithm,
 ) where {D,T}
-    fraction, power =
-        _coulomb_scaled_channel(dt, number_scale, logarithm, pa.q, pb.q, pa.m, pb.m, epsilon, widths)
+    fraction, power = _coulomb_scaled_channel(
+        dt,
+        number_scale,
+        logarithm,
+        pa.q,
+        pb.q,
+        pa.m,
+        pb.m,
+        epsilon,
+        widths,
+    )
     # Preserve the existing native coefficient and its rounding point.
     native, extra = frexp(T(fraction))
     return _CoulombLocalRate{D,T}(
@@ -691,8 +700,18 @@ function collide_coulomb!(
     _coulomb_active(species, coulomb_log, T) || return species
     work = workspace === nothing ? CoulombCollisionWorkspace(species, g) : workspace
     strides = _particle_cell_strides(g)
-    return _collide_coulomb_prepared!(species, g.dx, dtT, epsilon, number_scale, uf,
-        coulomb_log, rng, work, (ps, p) -> _particle_linear_cell(ps, g, p, strides))
+    return _collide_coulomb_prepared!(
+        species,
+        g.dx,
+        dtT,
+        epsilon,
+        number_scale,
+        uf,
+        coulomb_log,
+        rng,
+        work,
+        (ps, p) -> _particle_linear_cell(ps, g, p, strides),
+    )
 end
 
 function _coulomb_active(species, coulomb_log, ::Type{T}) where {T}
@@ -707,8 +726,18 @@ function _coulomb_active(species, coulomb_log, ::Type{T}) where {T}
 end
 
 # Validated geometry and work are supplied by the serial or rank-local owner.
-function _collide_coulomb_prepared!(species, widths::NTuple{D,T}, dtT, epsilon,
-    number_scale, uf, coulomb_log, rng, work, cell_index) where {D,T}
+function _collide_coulomb_prepared!(
+    species,
+    widths::NTuple{D,T},
+    dtT,
+    epsilon,
+    number_scale,
+    uf,
+    coulomb_log,
+    rng,
+    work,
+    cell_index,
+) where {D,T}
     for a in eachindex(species)
         _bin_coulomb_particles!(work.populations[a], species[a], p -> cell_index(species[a], p))
     end

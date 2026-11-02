@@ -2,14 +2,16 @@
 # algorithm. Physics residuals, scales, trial-domain errors and reports stay in
 # their owning models; this is not a public solver callback interface.
 _implicit_pic_residual!(out, st::ImplicitHybridStepper, z) = _implicit_hybrid_residual!(out, st, z)
-_implicit_pic_failure(st::ImplicitHybridStepper, reason, cause = nothing) = _implicit_hybrid_failure(st, reason, cause)
+_implicit_pic_failure(st::ImplicitHybridStepper, reason, cause = nothing) =
+    _implicit_hybrid_failure(st, reason, cause)
 _implicit_pic_trial(::ImplicitHybridStepper, reason) = _ImplicitHybridTrialError(reason)
 _implicit_pic_trial_error(::ImplicitHybridStepper, err) = err isa _ImplicitHybridTrialError
-_implicit_pic_scale(st::ImplicitHybridStepper, i, nv) = i <= nv ? st.work.velocity_scale : st.work.magnetic_scale
-_implicit_pic_set_metrics!(st::ImplicitHybridStepper, metrics) = _implicit_hybrid_set_metrics!(st, metrics)
+_implicit_pic_scale(st::ImplicitHybridStepper, i, nv) =
+    i <= nv ? st.work.velocity_scale : st.work.magnetic_scale
+_implicit_pic_set_metrics!(st::ImplicitHybridStepper, metrics) =
+    _implicit_hybrid_set_metrics!(st, metrics)
 
-function _implicit_pic_jv!(out::Vector{T}, A::_ImplicitHybridJacobian,
-    p::Vector{T}) where {T}
+function _implicit_pic_jv!(out::Vector{T}, A::_ImplicitHybridJacobian, p::Vector{T}) where {T}
     st, w = A.state, A.state.work
     all(isfinite, p) || throw(_implicit_pic_failure(st, :nonfinite_jv_direction))
     all(iszero, p) && return fill!(out, zero(T))
@@ -54,7 +56,10 @@ function _implicit_pic_jv!(out::Vector{T}, A::_ImplicitHybridJacobian,
     throw(_implicit_pic_failure(st, :jv_domain, cause))
 end
 
-function _implicit_pic_solve!(st::Union{ImplicitHybridStepper,ImplicitEMPICStepper}, ::Type{T}) where {T}
+function _implicit_pic_solve!(
+    st::Union{ImplicitHybridStepper,ImplicitEMPICStepper},
+    ::Type{T},
+) where {T}
     w, controls = st.work, st.controls
     initial = try
         _implicit_pic_residual!(w.residual, st, w.z)
@@ -92,9 +97,18 @@ function _implicit_pic_solve!(st::Union{ImplicitHybridStepper,ImplicitEMPICStepp
         delta = if zero_residual <= target
             w.zero
         else
-            Krylov.gmres!(w.solver, A, w.rhs, w.zero; restart = true,
-                reorthogonalization = true, atol = estimated_target, rtol = zero(T),
-                itmax = controls.max_linear, callback = _ -> _implicit_hybrid_linear_tick!(st))
+            Krylov.gmres!(
+                w.solver,
+                A,
+                w.rhs,
+                w.zero;
+                restart = true,
+                reorthogonalization = true,
+                atol = estimated_target,
+                rtol = zero(T),
+                itmax = controls.max_linear,
+                callback = _ -> _implicit_hybrid_linear_tick!(st),
+            )
             Krylov.solution(w.solver)
         end
         all(isfinite, delta) || throw(_implicit_pic_failure(st, :nonfinite_linear_solution))
@@ -156,20 +170,32 @@ function _implicit_pic_solve!(st::Union{ImplicitHybridStepper,ImplicitEMPICStepp
 end
 
 
-function _implicit_pic_controls(::Type{T}, rtol, atol, max_newton, max_linear,
-    memory, max_backtrack, max_jv_shrink, context) where {T}
+function _implicit_pic_controls(
+    ::Type{T},
+    rtol,
+    atol,
+    max_newton,
+    max_linear,
+    memory,
+    max_backtrack,
+    max_jv_shrink,
+    context,
+) where {T}
     r = _require_finite_nonnegative_real("nonlinear_rtol", rtol, T)
     a = _require_finite_nonnegative_real("nonlinear_atol", atol, T)
     r < one(T) && (r > zero(T) || a > zero(T)) ||
         throw(ArgumentError("$context requires rtol < 1 and a positive tolerance"))
     (iszero(rtol) || !iszero(r)) && (iszero(atol) || !iszero(a)) ||
         throw(ArgumentError("$context positive tolerances must survive conversion"))
-    return _ImplicitHybridControls(r, a,
+    return _ImplicitHybridControls(
+        r,
+        a,
         _implicit_hybrid_nonnegative_limit("max_newton", max_newton),
         _require_positive_intlike("max_linear", max_linear),
         _require_positive_intlike("memory", memory),
         _implicit_hybrid_nonnegative_limit("max_backtrack", max_backtrack),
-        _implicit_hybrid_nonnegative_limit("max_jv_shrink", max_jv_shrink))
+        _implicit_hybrid_nonnegative_limit("max_jv_shrink", max_jv_shrink),
+    )
 end
 
 _implicit_pic_mean_value(a::T, b::T) where {T} =

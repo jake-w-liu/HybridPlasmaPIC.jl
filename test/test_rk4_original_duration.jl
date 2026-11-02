@@ -34,11 +34,8 @@ end
         h, rate = T(0.1), T(0.2)
         initial = -(h * rate)
         @test affine_reference(initial, h, (rate,), (1,), 1) != 0
-        for (x, duration, k, divisor) in (
-            (-largest, T(2), largest, 1),
-            (quantum, T(0.5), quantum, 1),
-            (initial, h, rate, 1),
-        )
+        for (x, duration, k, divisor) in
+            ((-largest, T(2), largest, 1), (quantum, T(0.5), quantum, 1), (initial, h, rate, 1))
             measured = H._RK4Affine(duration, divisor)(x, k)
             @test O.rounded(measured, affine_reference(x, duration, (k,), (1,), divisor))
         end
@@ -113,9 +110,8 @@ end
         native_sum = @. k1 + 2 * k2 + 2 * k3 + k4
         @test all(!isfinite, native_sum)
         for i in eachindex(initialp)
-            reference = affine_reference(
-                initialp[i], h, (k1[i], k2[i], k3[i], k4[i]), (1, 2, 2, 1), 6,
-            )
+            reference =
+                affine_reference(initialp[i], h, (k1[i], k2[i], k3[i], k4[i]), (1, 2, 2, 1), 6)
             @test O.rounded(st.fields.pe[i], reference)
         end
         # Independent physical Beltrami rate: J=-k B, gamma-1=eta=1.

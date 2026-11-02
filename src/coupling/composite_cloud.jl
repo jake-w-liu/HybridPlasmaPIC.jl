@@ -130,7 +130,8 @@ function _sce_validate_bins(bins::_CompositeParticleBins, species, mesh)
     tail = Base.checked_add(total, 1)
     length(bins.offsets) == length(mesh.widths) + 1 &&
         length(bins.species) == length(bins.particle) == total &&
-        bins.offsets[1] == 1 && bins.offsets[end] == tail ||
+        bins.offsets[1] == 1 &&
+        bins.offsets[end] == tail ||
         throw(ArgumentError("composite ownership bins have inconsistent sizes"))
     for cell in eachindex(mesh.widths)
         lo, stop = bins.offsets[cell], bins.offsets[cell+1]
@@ -140,7 +141,11 @@ function _sce_validate_bins(bins::_CompositeParticleBins, species, mesh)
             1 <= s <= length(species) && 1 <= p <= length(species[s].weight) ||
                 throw(ArgumentError("invalid composite ownership particle index"))
             !seen[s][p] && _static_amr_leaf(mesh, _exact_rational(species[s].x[1][p])) == cell ||
-                throw(ArgumentError("composite ownership must contain each particle once in its actual leaf"))
+                throw(
+                    ArgumentError(
+                        "composite ownership must contain each particle once in its actual leaf",
+                    ),
+                )
             seen[s][p] = true
         end
     end

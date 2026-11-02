@@ -60,10 +60,13 @@ end
     _moment_factor_product_ops(Base.tail(factors), p, _moment_factor_value(first(factors), p), ops)
 @inline _moment_factor_product_ops(::Tuple{}, p, value, ops::_ScalarOps) = value
 @inline _moment_factor_product_ops(factors::Tuple, p, value, ops::_ScalarOps) =
-    _moment_factor_product_ops(Base.tail(factors), p,
-        _scalar_mul(ops, value, _moment_factor_value(first(factors), p)), ops)
-@inline _moment_factor_product(factors::Tuple, p) =
-    _moment_factor_product_ops(factors, p)
+    _moment_factor_product_ops(
+        Base.tail(factors),
+        p,
+        _scalar_mul(ops, value, _moment_factor_value(first(factors), p)),
+        ops,
+    )
+@inline _moment_factor_product(factors::Tuple, p) = _moment_factor_product_ops(factors, p)
 @inline _moment_factor_product(::Tuple{}, p, value) =
     _moment_factor_product_ops((), p, value, _DefaultScalarOps())
 @inline _moment_factor_product(factors::Tuple, p, value) =
@@ -73,8 +76,11 @@ end
 @inline _moment_factors_nonzero(factors::Tuple, p) =
     all(values -> !iszero(_moment_factor_value(values, p)), factors)
 
-@inline function _moment_stencil_minimum(st::Tuple, ::Type{T},
-    ops::_ScalarOps = _DefaultScalarOps()) where {T}
+@inline function _moment_stencil_minimum(
+    st::Tuple,
+    ::Type{T},
+    ops::_ScalarOps = _DefaultScalarOps(),
+) where {T}
     smin = one(T)
     for d = 1:length(st)
         smin = _scalar_mul(ops, smin, minimum(w -> iszero(w) ? one(T) : w, st[d][2]))
@@ -82,15 +88,25 @@ end
     return smin
 end
 
-@inline function _moment_particle_replay(value::T, factors_eligible::Bool,
-    factors_nonzero::Bool, smin, ops::_ScalarOps = _DefaultScalarOps()) where {T}
-    lost = _deposition_value_lost(value) || (iszero(value) && factors_nonzero) ||
+@inline function _moment_particle_replay(
+    value::T,
+    factors_eligible::Bool,
+    factors_nonzero::Bool,
+    smin,
+    ops::_ScalarOps = _DefaultScalarOps(),
+) where {T}
+    lost =
+        _deposition_value_lost(value) ||
+        (iszero(value) && factors_nonzero) ||
         (!iszero(value) && _scalar_mul(ops, abs(value), smin) < floatmin(T))
     return (eligible = factors_eligible, lost = lost)
 end
 
-@inline function _moment_stencil_value(value, sfactors::Tuple,
-    ops::_ScalarOps = _DefaultScalarOps())
+@inline function _moment_stencil_value(
+    value,
+    sfactors::Tuple,
+    ops::_ScalarOps = _DefaultScalarOps(),
+)
     w = value
     for d = 1:length(sfactors)
         w = _scalar_mul(ops, w, sfactors[d])

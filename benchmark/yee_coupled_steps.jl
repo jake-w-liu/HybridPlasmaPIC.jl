@@ -14,8 +14,11 @@ function ordinary(Model, ::Type{T}, transverse) where {T}
     ps.x[1] .= T[0.34, 0.63]
     ps.weight .= T[0.02, 0.03]
     ps.v[1] .= T[0.012, -0.017]
-    config = (; shape = YeeTriangularCloud(T(0.19)),
-        background_charge = T(-0.015), left_plate_charge = T(0.01))
+    config = (;
+        shape = YeeTriangularCloud(T(0.19)),
+        background_charge = T(-0.015),
+        left_plate_charge = T(0.01),
+    )
     st = Model === YeeElectromagneticPIC ? Model(g; config..., c = T(0.7)) : Model(g; config...)
     if transverse
         ps.v[2] .= T[0.04, -0.02]
@@ -37,17 +40,41 @@ function range_case(Model, name)
     T = Float32
     # These are the existing directed original-force fixtures, not a size sweep.
     n, a, field, x, v, q, m, dt = if name === :underflow
-        (2, ldexp(1.0, 100), nextfloat(zero(T)), T(0.25), zero(T),
-            ldexp(one(T), 126), ldexp(one(T), -126), ldexp(one(T), -56))
+        (
+            2,
+            ldexp(1.0, 100),
+            nextfloat(zero(T)),
+            T(0.25),
+            zero(T),
+            ldexp(one(T), 126),
+            ldexp(one(T), -126),
+            ldexp(one(T), -56),
+        )
     elseif name === :overflow
-        (7, ldexp(1.0, -10), floatmax(T), T(0.5), zero(T),
-            ldexp(one(T), -126), ldexp(one(T), 126), ldexp(one(T), -20))
+        (
+            7,
+            ldexp(1.0, -10),
+            floatmax(T),
+            T(0.5),
+            zero(T),
+            ldexp(one(T), -126),
+            ldexp(one(T), 126),
+            ldexp(one(T), -20),
+        )
     elseif name === :cancellation
         (7, ldexp(1.0, -10), one(T), T(0.5), -one(T), T(256), one(T), T(1 / 128))
     elseif name === :magnetic_overflow
         @assert Model === YeeElectromagneticPIC
-        (7, ldexp(1.0, -10), zero(T), T(0.5), one(T),
-            ldexp(one(T), -100), one(T), ldexp(one(T), -40))
+        (
+            7,
+            ldexp(1.0, -10),
+            zero(T),
+            T(0.5),
+            one(T),
+            ldexp(one(T), -100),
+            one(T),
+            ldexp(one(T), -40),
+        )
     else
         error("unknown directed range case: $name")
     end
@@ -107,28 +134,56 @@ function observe(factory, name, bclass)
         push!(traffic, measured.bytes)
         gc = measured.gcstats
         println((;
-            purpose = :closed_yee_complete_step_cost, acceptance = false,
-            profile = name, model = nameof(typeof(st)), T = eltype(ps.weight), layout = :scalar,
-            ncell = st.g.n[1], particles = length(ps.weight),
+            purpose = :closed_yee_complete_step_cost,
+            acceptance = false,
+            profile = name,
+            model = nameof(typeof(st)),
+            T = eltype(ps.weight),
+            layout = :scalar,
+            ncell = st.g.n[1],
+            particles = length(ps.weight),
             weight_class = all(iszero, ps.weight) ? :zero_weight_tracer : :positive_weight,
-            initial_B = bclass, width_type = typeof(st.shape.half_width),
-            width_bits = bits(st.shape.half_width), dt_type = typeof(dt), dt_bits = bits(dt),
-            sample = repetition, measured_steps = 2, start_step = 1, end_step = st.step[],
-            start_time, end_time = st.time[], seconds = measured.time,
-            allocated_traffic_bytes = measured.bytes, gc_seconds = measured.gctime,
-            compile_seconds = measured.compile_time, recompile_seconds = measured.recompile_time,
-            lock_conflicts = measured.lock_conflicts, malloc = gc.malloc, realloc = gc.realloc,
-            poolalloc = gc.poolalloc, bigalloc = gc.bigalloc, freecall = gc.freecall,
-            gc_pauses = gc.pause, gc_full_sweeps = gc.full_sweep,
+            initial_B = bclass,
+            width_type = typeof(st.shape.half_width),
+            width_bits = bits(st.shape.half_width),
+            dt_type = typeof(dt),
+            dt_bits = bits(dt),
+            sample = repetition,
+            measured_steps = 2,
+            start_step = 1,
+            end_step = st.step[],
+            start_time,
+            end_time = st.time[],
+            seconds = measured.time,
+            allocated_traffic_bytes = measured.bytes,
+            gc_seconds = measured.gctime,
+            compile_seconds = measured.compile_time,
+            recompile_seconds = measured.recompile_time,
+            lock_conflicts = measured.lock_conflicts,
+            malloc = gc.malloc,
+            realloc = gc.realloc,
+            poolalloc = gc.poolalloc,
+            bigalloc = gc.bigalloc,
+            freecall = gc.freecall,
+            gc_pauses = gc.pause,
+            gc_full_sweeps = gc.full_sweep,
         ))
         flush(stdout)
     end
     # Exactly three raw samples are retained, including any compilation or GC.
-    println((; purpose = :closed_yee_cost_summary, acceptance = false, profile = name,
-        model = nameof(typeof(warm)), T = eltype(particles.weight), initial_B = bclass,
-        samples = 3, measured_steps = 2,
-        minimum_seconds = minimum(times), median_seconds = sort(times)[2],
-        median_allocated_traffic_bytes = sort(traffic)[2]))
+    println((;
+        purpose = :closed_yee_cost_summary,
+        acceptance = false,
+        profile = name,
+        model = nameof(typeof(warm)),
+        T = eltype(particles.weight),
+        initial_B = bclass,
+        samples = 3,
+        measured_steps = 2,
+        minimum_seconds = minimum(times),
+        median_seconds = sort(times)[2],
+        median_allocated_traffic_bytes = sort(traffic)[2],
+    ))
     flush(stdout)
     return nothing
 end
@@ -139,39 +194,65 @@ function run_observation()
     github_sha = get(ENV, "GITHUB_SHA", nothing)
     @assert github_sha === nothing || github_sha == revision
     println((;
-        purpose = :closed_yee_complete_step_cost, acceptance = false,
-        source_sha = revision, github_sha, script_sha256 = bytes2hex(sha256(read(@__FILE__))),
-        julia = VERSION, julia_build_commit = Base.GIT_VERSION_INFO.commit,
-        machine = Sys.MACHINE, architecture = Sys.ARCH, kernel = Sys.KERNEL,
-        cpu_name = Sys.CPU_NAME, cpu_models = unique([cpu.model for cpu in Sys.cpu_info()]),
-        logical_cpus = Sys.CPU_THREADS, default_threads = Threads.nthreads(:default),
-        interactive_threads = Threads.nthreads(:interactive), gc_threads = Threads.ngcthreads(),
+        purpose = :closed_yee_complete_step_cost,
+        acceptance = false,
+        source_sha = revision,
+        github_sha,
+        script_sha256 = bytes2hex(sha256(read(@__FILE__))),
+        julia = VERSION,
+        julia_build_commit = Base.GIT_VERSION_INFO.commit,
+        machine = Sys.MACHINE,
+        architecture = Sys.ARCH,
+        kernel = Sys.KERNEL,
+        cpu_name = Sys.CPU_NAME,
+        cpu_models = unique([cpu.model for cpu in Sys.cpu_info()]),
+        logical_cpus = Sys.CPU_THREADS,
+        default_threads = Threads.nthreads(:default),
+        interactive_threads = Threads.nthreads(:interactive),
+        gc_threads = Threads.ngcthreads(),
         julia_num_threads = get(ENV, "JULIA_NUM_THREADS", nothing),
         julia_num_gc_threads = get(ENV, "JULIA_NUM_GC_THREADS", nothing),
-        rounding = rounding(Float64), flush_to_zero = get_zero_subnormals(),
-        runner_os = get(ENV, "RUNNER_OS", nothing), runner_arch = get(ENV, "RUNNER_ARCH", nothing),
-        suite = get(ENV, "IMPLEMENTATION_SUITE", nothing), phase = :warmed_matched_fixed_dt,
-        profiles = 13, samples = 3, measured_steps = 2, unmeasured_steps = 1,
-        bytes_meaning = :allocation_traffic, peak_memory = :unmeasured,
+        rounding = rounding(Float64),
+        flush_to_zero = get_zero_subnormals(),
+        runner_os = get(ENV, "RUNNER_OS", nothing),
+        runner_arch = get(ENV, "RUNNER_ARCH", nothing),
+        suite = get(ENV, "IMPLEMENTATION_SUITE", nothing),
+        phase = :warmed_matched_fixed_dt,
+        profiles = 13,
+        samples = 3,
+        measured_steps = 2,
+        unmeasured_steps = 1,
+        bytes_meaning = :allocation_traffic,
+        peak_memory = :unmeasured,
     ))
     flush(stdout)
     count = 0
-    for T in (Float32, Float64), (Model, transverse) in (
-        (YeeLongitudinalPIC, false), (YeeElectromagneticPIC, false), (YeeElectromagneticPIC, true),
-    )
+    for T in (Float32, Float64),
+        (Model, transverse) in
+        ((YeeLongitudinalPIC, false), (YeeElectromagneticPIC, false), (YeeElectromagneticPIC, true))
+
         observe(() -> ordinary(Model, T, transverse), :ordinary, transverse ? :nonzero : :zero)
         count += 1
     end
-    for Model in (YeeLongitudinalPIC, YeeElectromagneticPIC), name in (
-        :underflow, :overflow, :cancellation,
-    )
+    for Model in (YeeLongitudinalPIC, YeeElectromagneticPIC),
+        name in (:underflow, :overflow, :cancellation)
+
         observe(() -> range_case(Model, name), name, :zero)
         count += 1
     end
-    observe(() -> range_case(YeeElectromagneticPIC, :magnetic_overflow), :magnetic_overflow, :nonzero)
+    observe(
+        () -> range_case(YeeElectromagneticPIC, :magnetic_overflow),
+        :magnetic_overflow,
+        :nonzero,
+    )
     @assert count + 1 == 13
-    println((; purpose = :closed_yee_complete_step_cost_complete, profiles = 13, raw_samples = 39,
-        acceptance = false, peak_memory = :unmeasured))
+    println((;
+        purpose = :closed_yee_complete_step_cost_complete,
+        profiles = 13,
+        raw_samples = 39,
+        acceptance = false,
+        peak_memory = :unmeasured,
+    ))
     flush(stdout)
 end
 run_observation()

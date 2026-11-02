@@ -373,10 +373,9 @@ end
     q, m = _validated_charge_mass(ps)
     _particle_stored_zero(q) && return q
     qm = q / m
-    (isfinite(qm) && abs(qm) >= floatmin(T)) ||
-        throw(
-            ArgumentError("native device Boris push requires finite normal q/m for nonzero charge"),
-        )
+    (isfinite(qm) && abs(qm) >= floatmin(T)) || throw(
+        ArgumentError("native device Boris push requires finite normal q/m for nonzero charge"),
+    )
     return qm
 end
 

@@ -6,8 +6,11 @@ using HybridPlasmaPIC
 function _static_composite_snapshot(state, species)
     saved = HybridPlasmaPIC._checkpoint_state(state, species)
     report = saved.last_report
-    values = report === nothing ? nothing : NamedTuple{fieldnames(typeof(report))}(
-        ntuple(i -> getfield(report, i), fieldcount(typeof(report))))
+    values =
+        report === nothing ? nothing :
+        NamedTuple{fieldnames(typeof(report))}(
+            ntuple(i -> getfield(report, i), fieldcount(typeof(report))),
+        )
     return merge(saved, (last_report = values,))
 end
 
@@ -26,24 +29,25 @@ end
             particle = ParticleSet{1,T}(1)
             particle.x[1][1], particle.v[1][1] = T(7 / 2), T(3)
             species = [particle, ParticleSet{1,T}(0)]
-            state = StaticCompositeElectrostaticPIC(mesh, species; shape = YeeTriangularCloud(T(1 / 4)))
+            state =
+                StaticCompositeElectrostaticPIC(mesh, species; shape = YeeTriangularCloud(T(1 / 4)))
             init!(state, species)
             # The symmetric cloud lies wholly in [3,4]. Assemble the mixed
             # Neumann matrix independently from the leaf incidence and widths.
-            source = T[0, 0, 1 / 2, 1 / 2, 0, -1]
+            source = T[0, 0, 1/2, 1/2, 0, -1]
             matrix = zeros(T, 6, 6)
             for cell in eachindex(mesh.widths)
                 conductance = inv(T(mesh.widths[cell]))
                 matrix[cell, cell] += conductance
-                matrix[cell + 1, cell + 1] += conductance
-                matrix[cell, cell + 1] -= conductance
-                matrix[cell + 1, cell] -= conductance
+                matrix[cell+1, cell+1] += conductance
+                matrix[cell, cell+1] -= conductance
+                matrix[cell+1, cell] -= conductance
             end
             potential = vcat(zero(T), matrix[2:end, 2:end] \ source[2:end])
             @test isapprox(state.phi, potential; rtol = T(16) * eps(T), atol = T(16) * eps(T))
-            @test state.phi == T[0, 0, 0, -1 / 2, -5 / 2, -9 / 2]
-            @test state.E == T[0, 0, 1 / 2, 1, 1]
-            @test patch_electric_field(state, 1) == T[0, 1 / 4, 1, 1]
+            @test state.phi == T[0, 0, 0, -1/2, -5/2, -9/2]
+            @test state.E == T[0, 0, 1/2, 1, 1]
+            @test patch_electric_field(state, 1) == T[0, 1/4, 1, 1]
             diagnostics = composite_electrostatic_diagnostics(state, species)
             @test diagnostics.nodal_source == source
             @test diagnostics.particle_charge == 1 && diagnostics.right_plate_charge == -1
@@ -60,23 +64,26 @@ end
             @test particle.x[1][1] == T(273 / 64)
             @test particle.v[1][1] == T(3247 / 1024)
             @test particle.x[1] === position_leaf
-            @test state.E == T[0, 0, 0, 111 / 128, 1]
+            @test state.E == T[0, 0, 0, 111/128, 1]
             @test state.last_impulse == [0, 0, 1 // 2, 17 // 128, 0]
             @test state.last_report[].interface_crossings == [0, 1]
             report = state.last_report[]
             @test report.field_solve_defect == 0
-            @test report.total_energy_defect == report.field_solve_defect + report.particle_work_defect
+            @test report.total_energy_defect ==
+                  report.field_solve_defect + report.particle_work_defect
             saved = _static_composite_snapshot(state, species)
             bad = merge(H._checkpoint_state(state, species), (time = h / T(2),))
             @test_throws ArgumentError H._restore_checkpoint_state!(state, species, bad)
             @test isequal(_static_composite_snapshot(state, species), saved)
             mktempdir() do directory
-                checkpoint, archive = joinpath(directory, "composite.chk"), joinpath(directory, "composite.run")
+                checkpoint, archive =
+                    joinpath(directory, "composite.chk"), joinpath(directory, "composite.run")
                 save_checkpoint(checkpoint, state, species)
                 step!(state, species, h)
                 particle.x[1][1], particle.v[1][1], particle.weight[1] = T(NaN), T(NaN), T(NaN)
                 particle.q, particle.m = T(NaN), -one(T)
-                fill!(state.E, T(NaN)); fill!(state.phi, T(NaN))
+                fill!(state.E, T(NaN))
+                fill!(state.phi, T(NaN))
                 load_checkpoint!(state, species, checkpoint)
                 @test isequal(_static_composite_snapshot(state, species), saved)
                 archive_run(archive, state, species; rng_seed = 0)
@@ -87,7 +94,11 @@ end
             # A positive subnormal duration keeps an exact half duration, even
             # though that half cannot itself be stored in the field precision.
             empty_species = [ParticleSet{1,T}(0)]
-            vacuum = StaticCompositeElectrostaticPIC(mesh, empty_species; shape = YeeTriangularCloud(T(1 / 4)))
+            vacuum = StaticCompositeElectrostaticPIC(
+                mesh,
+                empty_species;
+                shape = YeeTriangularCloud(T(1 / 4)),
+            )
             init!(vacuum, empty_species)
             tiny = nextfloat(zero(T))
             step!(vacuum, empty_species, tiny)

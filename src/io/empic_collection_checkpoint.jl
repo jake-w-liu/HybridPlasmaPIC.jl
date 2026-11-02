@@ -47,7 +47,9 @@ function _normalize_empic_collection_checkpoint(s, st::EMPIC)
     _validate_checkpoint_container(s, (:schema_version,))
     if _empic_collection(st).schedule === nothing
         any(k -> haskey(s, k), _EMPIC_SPECIES_SCHEDULE_CHECKPOINT_FIELDS) && throw(
-            ArgumentError("an unscheduled generic checkpoint cannot contain species schedule fields"),
+            ArgumentError(
+                "an unscheduled generic checkpoint cannot contain species schedule fields",
+            ),
         )
         return s
     end
@@ -93,20 +95,26 @@ function _validate_normalized_empic_collection_checkpoint(
             throw(ArgumentError("unsupported electromagnetic checkpoint schedule policy"))
         _empic_validate_species_schedule(s.mobile, s.n_sub, s.species_stride)
         _empic_validate_species_history(
-            s.mobile, s.last_species_dt, s.step, s.last_dt, s.last_sub_dt, T,
+            s.mobile,
+            s.last_species_dt,
+            s.step,
+            s.last_dt,
+            s.last_sub_dt,
+            T,
         )
         metadata = (s.species_stride, s.last_species_dt)
         fields = _empic_collection_checkpoint_arrays(st, s.fields)
         for (i, a) in enumerate(metadata)
             for b in (fields..., metadata[1:(i-1)]...)
                 Base.mightalias(a, b) && throw(
-                    ArgumentError("checkpoint schedule storage must be independent of fields and history"),
+                    ArgumentError(
+                        "checkpoint schedule storage must be independent of fields and history",
+                    ),
                 )
             end
             for ps in populations
-                _mightalias_particle_storage(a, ps) && throw(
-                    ArgumentError("checkpoint schedule storage must not alias particles"),
-                )
+                _mightalias_particle_storage(a, ps) &&
+                    throw(ArgumentError("checkpoint schedule storage must not alias particles"))
             end
         end
     end
@@ -179,10 +187,8 @@ function _validate_empic_collection_checkpoint_envelope(
     return populations
 end
 
-_checkpoint_state(
-    st::_ElectromagneticCheckpointStepper,
-    species::AbstractVector{<:ParticleSet},
-) = _empic_collection_checkpoint_state(st, species, st.g)
+_checkpoint_state(st::_ElectromagneticCheckpointStepper, species::AbstractVector{<:ParticleSet}) =
+    _empic_collection_checkpoint_state(st, species, st.g)
 
 function _empic_collection_checkpoint_state(
     st::_ElectromagneticCheckpointStepper,
@@ -251,7 +257,9 @@ function _restore_empic_collection_checkpoint!(
     length(species) == length(s.species) ||
         throw(ArgumentError("checkpoint population count does not match destination"))
     all(ps -> ps isa eltype(work.owners), species) || throw(
-        ArgumentError("population storage type changed; construct a new electromagnetic collection state"),
+        ArgumentError(
+            "population storage type changed; construct a new electromagnetic collection state",
+        ),
     )
     saved_populations = [_checkpoint_species(record, Val(D), T) for record in s.species]
     saved_fields = _empic_collection_checkpoint_arrays(st, s.fields)
@@ -272,8 +280,9 @@ function _restore_empic_collection_checkpoint!(
     # copying one directly would overwrite a later source leaf.
     saved = deepcopy(s)
     _validate_normalized_empic_collection_checkpoint(saved, st, st.g)
-    stride = work.schedule === nothing ? nothing :
-             _empic_species_stride_values(saved.mobile, saved.n_sub, saved.species_stride)
+    stride =
+        work.schedule === nothing ? nothing :
+        _empic_species_stride_values(saved.mobile, saved.n_sub, saved.species_stride)
     history = work.schedule === nothing ? nothing : T[value for value in saved.last_species_dt]
     # Reserve ordinary Vector capacity before any values or lengths publish.
     # Fixed strided views have already passed the exact-count preflight above.

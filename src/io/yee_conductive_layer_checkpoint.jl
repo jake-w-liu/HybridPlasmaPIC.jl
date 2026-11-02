@@ -1,6 +1,16 @@
 const _YEE_LAYER_CHECKPOINT_FIELDS = (
-    :integrator, :schema_version, :layer_policy, :profile_policy, :inner,
-    :dt, :cells, :peak_rate, :profile, :initialized, :phase, :ledger_step,
+    :integrator,
+    :schema_version,
+    :layer_policy,
+    :profile_policy,
+    :inner,
+    :dt,
+    :cells,
+    :peak_rate,
+    :profile,
+    :initialized,
+    :phase,
+    :ledger_step,
     _YEE_LAYER_LEDGER_FIELDS...,
 )
 
@@ -36,7 +46,8 @@ function _validate_checkpoint_state(s, model::YeeConductiveLayer{D,T}) where {D,
     _validate_checkpoint_container(s, _YEE_LAYER_CHECKPOINT_FIELDS)
     length(keys(s)) == length(_YEE_LAYER_CHECKPOINT_FIELDS) ||
         throw(ArgumentError("conductive layer checkpoint contains unsupported fields"))
-    s.integrator === :yee_conductive_absorber && s.schema_version === 1 &&
+    s.integrator === :yee_conductive_absorber &&
+        s.schema_version === 1 &&
         s.layer_policy === :scalar_matched_midpoint_strang_original_dt_v1 &&
         s.profile_policy === :index_staggered_polynomial_v1 ||
         throw(ArgumentError("unsupported conductive layer checkpoint schema or policy"))
@@ -63,7 +74,8 @@ function _restore_checkpoint_state!(model::YeeConductiveLayer, s)
     _validate_checkpoint_state(s, model)
     saved = deepcopy(s)
     _validate_checkpoint_state(saved, model)
-    cache = _yee_layer_axis_cache(model.inner.g, saved.dt, saved.cells, saved.peak_rate, saved.profile)
+    cache =
+        _yee_layer_axis_cache(model.inner.g, saved.dt, saved.cells, saved.peak_rate, saved.profile)
     # Canonical nested restore detaches again and completes all finite/shape/
     # alias/PEC checks before its first ordinary field copy. Only typed stores
     # of already prepared metadata and caches follow that publication.
@@ -131,14 +143,21 @@ function archive_run(
     path::AbstractString,
     model::YeeConductiveLayer;
     normalization::AbstractString = "epsilon0=1;mu0=1/c^2;scalar_matched_conductivity",
-    boundary_desc::AbstractString = join(map(p -> p ? "periodic" : "pec", model.inner.g.periodic), ",") * ";scalar_conductivity",
+    boundary_desc::AbstractString = join(
+        map(p -> p ? "periodic" : "pec", model.inner.g.periodic),
+        ",",
+    ) * ";scalar_conductivity",
     kwargs...,
 )
     _yee_layer_acquire!(model)
     try
         return _archive_run(
-            path, model, _checkpoint_state(model);
-            normalization, boundary_desc, kwargs...,
+            path,
+            model,
+            _checkpoint_state(model);
+            normalization,
+            boundary_desc,
+            kwargs...,
         )
     finally
         model.busy[] = false

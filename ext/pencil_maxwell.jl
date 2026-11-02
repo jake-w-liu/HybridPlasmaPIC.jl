@@ -20,13 +20,7 @@ function _distributed_maxwell_cfl(g::DistributedFourierGrid{T}, c::T) where {T}
     Q = HybridPlasmaPIC._exact_rational
     frequency_squared = Q(c)^2 * sum(gain -> Q(gain)^2, g.gain)
     iszero(frequency_squared) && return T(Inf)
-    return HybridPlasmaPIC._sqrt_from_exact(
-        T,
-        4 / frequency_squared,
-        Int128(0),
-        RoundDown,
-        false,
-    )
+    return HybridPlasmaPIC._sqrt_from_exact(T, 4 / frequency_squared, Int128(0), RoundDown, false)
 end
 
 """
@@ -95,8 +89,11 @@ function _distributed_maxwell_storage(model::DistributedMaxwellVacuum)
     for i in eachindex(arrays)
         _require_physical_field("Maxwell storage", arrays[i], model.g, i)
         for j = 1:(i-1)
-            Base.mightalias(arrays[i], arrays[j]) &&
-                throw(ArgumentError("distributed Maxwell physical and private fields must be independent"))
+            Base.mightalias(arrays[i], arrays[j]) && throw(
+                ArgumentError(
+                    "distributed Maxwell physical and private fields must be independent",
+                ),
+            )
         end
     end
     return nothing
@@ -114,8 +111,7 @@ function _distributed_maxwell_state_agreement(model::DistributedMaxwellVacuum{T}
         HybridPlasmaPIC._require_finite_positive_real("c", model.c, T)
         isfinite(model.time[]) && model.time[] >= zero(T) ||
             throw(ArgumentError("distributed Maxwell time must be finite and nonnegative"))
-        model.step[] >= 0 ||
-            throw(ArgumentError("distributed Maxwell step must be nonnegative"))
+        model.step[] >= 0 || throw(ArgumentError("distributed Maxwell step must be nonnegative"))
         model.g.n, model.g.L, model.g.dx, model.c, model.time[], model.step[], T
     end
 end
@@ -138,12 +134,7 @@ function _distributed_maxwell_affine!(out, old, curl, coefficients)
             value = if HybridPlasmaPIC._particle_stored_zero(derivative)
                 source[I]
             else
-                HybridPlasmaPIC._em_exact_electric_update(
-                    source[I],
-                    derivative,
-                    zero(T),
-                    coefficients,
-                )
+                HybridPlasmaPIC._em_exact_electric_update(source[I], derivative, zero(T), coefficients)
             end
             isfinite(value) ||
                 throw(ArgumentError("complete distributed Maxwell stage is not finite in $T"))
@@ -173,9 +164,11 @@ function HybridPlasmaPIC.step_maxwell!(model::DistributedMaxwellVacuum{T}, dt) w
         HybridPlasmaPIC._require_finite_positive_real("c", model.c, T)
         dt isa Real || throw(ArgumentError("dt must be real"))
         h = HybridPlasmaPIC._require_finite_positive_real("dt", dt, T)
-        h < HybridPlasmaPIC.maxwell_cfl(model) ||
-            throw(ArgumentError("dt must be strictly below the distributed spectral Maxwell CFL limit"))
-        next_time, next_step = HybridPlasmaPIC._validated_step_clock(model.time[], model.step[], h)
+        h < HybridPlasmaPIC.maxwell_cfl(model) || throw(
+            ArgumentError("dt must be strictly below the distributed spectral Maxwell CFL limit"),
+        )
+        next_time, next_step =
+            HybridPlasmaPIC._validated_step_clock(model.time[], model.step[], h)
         next_time > model.time[] ||
             throw(ArgumentError("distributed Maxwell time must advance finitely"))
         h, model.c, model.time[], model.step[], next_time, next_step, g.n, g.L, g.dx, T

@@ -391,7 +391,13 @@ function _moment_volume(g)
 end
 
 function _foreach_exact_moment_contribution(visit, ps, factors, g, shape)
-    return _foreach_exact_particle_contribution(ps, factors, g, shape, Val(:periodic)) do idx, value, p
+    return _foreach_exact_particle_contribution(
+        ps,
+        factors,
+        g,
+        shape,
+        Val(:periodic),
+    ) do idx, value, p
         visit(idx, value)
     end
 end
@@ -439,8 +445,13 @@ end
 # Preserve the two existing ordinary evaluation orders: public moments divide
 # the raw sum then multiply by charge; EMPIC multiplies by charge/volume. Both
 # use the same complete expression if an intermediate loses range.
-@inline function _moment_candidate(raw, coefficient, volume, ::Val{:postscale},
-    ops::_ScalarOps = _DefaultScalarOps())
+@inline function _moment_candidate(
+    raw,
+    coefficient,
+    volume,
+    ::Val{:postscale},
+    ops::_ScalarOps = _DefaultScalarOps(),
+)
     density = _scalar_div(ops, raw, volume)
     value = _scalar_mul(ops, density, coefficient)
     lost =
@@ -450,8 +461,13 @@ end
     return value, lost
 end
 
-@inline function _moment_candidate(raw, coefficient, volume, ::Val{:prescale},
-    ops::_ScalarOps = _DefaultScalarOps())
+@inline function _moment_candidate(
+    raw,
+    coefficient,
+    volume,
+    ::Val{:prescale},
+    ops::_ScalarOps = _DefaultScalarOps(),
+)
     scale = _scalar_div(ops, coefficient, volume)
     value = _scalar_mul(ops, scale, raw)
     lost =

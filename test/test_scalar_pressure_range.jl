@@ -93,9 +93,7 @@ function faraday_observation(st)
     J, lapJ = map(copy, f.J), map(copy, f.lapJ)
     gradient!(gradp, f.pe, g)
     field = map(similar, f.B)
-    field_risk = H._ohm_Efield!(
-        field, st.fui, f.B, J, lapJ, gradp, f.ninv, zero(T), zero(T), g,
-    )
+    field_risk = H._ohm_Efield!(field, st.fui, f.B, J, lapJ, gradp, f.ninv, zero(T), zero(T), g)
     ohmic_risk = H._ohm_ohmic_source_risk(J, η)
     # Capture before any other owner can reuse gradient scratch.
     source = H._ohm_original_source(st.fui, f.B, J, gradp, f.ninv, η, g)
@@ -168,16 +166,19 @@ end
         ez = -Q.(st.fui[1]) .* Q.(st.fields.B[2]) .+ Q(st.model.η) .* Q.(st.fields.J[3])
         ey = Q.(st.fui[1]) .* Q.(st.fields.B[3]) .+ Q(st.model.η) .* Q.(st.fields.J[2])
         print("PRESSURE_FARADAY_OBSERVATION ")
-        show(IOContext(stdout, :limit => false), (
-            julia = VERSION,
-            spectral_operators = Base.pkgversion(H.SpectralOperators),
-            type = T,
-            kind = kind,
-            observation = observation,
-            stage = st.k1,
-            oracle_y = T.(centered_four(st.g) * ez),
-            oracle_z = T.(-centered_four(st.g) * ey),
-        ))
+        show(
+            IOContext(stdout, :limit => false),
+            (
+                julia = VERSION,
+                spectral_operators = Base.pkgversion(H.SpectralOperators),
+                type = T,
+                kind = kind,
+                observation = observation,
+                stage = st.k1,
+                oracle_y = T.(centered_four(st.g) * ez),
+                oracle_z = T.(-centered_four(st.g) * ey),
+            ),
+        )
         println()
         @test st.k1[2] == T.(centered_four(st.g) * ez)
         @test st.k1[3] == T.(-centered_four(st.g) * ey)

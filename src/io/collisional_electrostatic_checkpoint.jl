@@ -50,11 +50,11 @@ function _validate_checkpoint_state(s, st::CollisionalElectrostaticPIC{D,T}) whe
     _validate_checkpoint_container(s, _COLLISIONAL_ESPIC_CHECKPOINT_FIELDS)
     s.integrator === :collisional_espic && s.schema === 1 && s.split_policy === 1 ||
         throw(ArgumentError("unsupported collisional ES checkpoint schema or split policy"))
-    s.collision_position_policy === :new_integer &&
-        s.collision_velocity_policy === :carried_half ||
+    s.collision_position_policy === :new_integer && s.collision_velocity_policy === :carried_half ||
         throw(ArgumentError("collisional ES checkpoint collision phase does not match"))
-    isequal(s.runtime, _collisional_runtime()) ||
-        throw(ArgumentError("collisional ES checkpoint requires the same Julia runtime and platform"))
+    isequal(s.runtime, _collisional_runtime()) || throw(
+        ArgumentError("collisional ES checkpoint requires the same Julia runtime and platform"),
+    )
     s.phase === :ready && s.initialized === true ||
         throw(ArgumentError("collisional ES checkpoint must be an initialized completed boundary"))
     _validate_checkpoint_state(s.inner, st.inner)
@@ -64,47 +64,65 @@ function _validate_checkpoint_state(s, st::CollisionalElectrostaticPIC{D,T}) whe
         s.inner.initialized === true &&
         _particle_stored_zero(s.inner.n0) &&
         s.inner.neutrality === :require &&
-        isequal(s.inner.charge_rtol, st.charge_rtol) ||
-        throw(ArgumentError("collisional ES checkpoint requires its fixed electrostatic collection policy"))
+        isequal(s.inner.charge_rtol, st.charge_rtol) || throw(
+        ArgumentError(
+            "collisional ES checkpoint requires its fixed electrostatic collection policy",
+        ),
+    )
     for name in (:dt, :epsilon0, :weight_to_number, :u_floor)
         value = getproperty(s, name)
         value isa T && isequal(value, getfield(st, name)) ||
             throw(ArgumentError("collisional ES checkpoint $name must match the destination"))
     end
     # Poisson and field energy use unit coefficients for stored weights.
-    isfinite(s.epsilon0) && s.epsilon0 > zero(T) &&
-        isequal(s.epsilon0, s.weight_to_number) ||
-        throw(ArgumentError("collisional ES checkpoint requires equal positive epsilon0 and weight_to_number"))
+    isfinite(s.epsilon0) && s.epsilon0 > zero(T) && isequal(s.epsilon0, s.weight_to_number) ||
+        throw(
+            ArgumentError(
+                "collisional ES checkpoint requires equal positive epsilon0 and weight_to_number",
+            ),
+        )
     typeof(s.coulomb_log) === typeof(st.coulomb_log) && isequal(s.coulomb_log, st.log_binding) ||
-        throw(ArgumentError("collisional ES checkpoint Coulomb logarithms must match the destination"))
+        throw(
+            ArgumentError(
+                "collisional ES checkpoint Coulomb logarithms must match the destination",
+            ),
+        )
     # ES has no inner clock. The wrapper clock is authoritative; do not infer
     # time from count*h, whose rounding history differs from stored additions.
     _validate_checkpoint_clock_state((time = s.source_time, step = s.source_count), T)
     (
         s.source_count == 0 ?
-        _particle_stored_zero(s.source_time) && !s.inner.primed &&
+        _particle_stored_zero(s.source_time) &&
+        !s.inner.primed &&
         _particle_stored_zero(s.inner.last_dt) :
-        s.source_time > zero(T) && s.inner.primed && isequal(s.inner.last_dt, st.dt) &&
+        s.source_time > zero(T) &&
+        s.inner.primed &&
+        isequal(s.inner.last_dt, st.dt) &&
         st.dt <= s.source_time
     ) || throw(ArgumentError("collisional ES checkpoint source clock and velocity phase disagree"))
     length(s.inner.species) == length(st.identities) &&
-        axes(s.inner.species, 1) == Base.OneTo(length(st.identities)) ||
-        throw(ArgumentError("collisional ES checkpoint requires matching ordered population records"))
+        axes(s.inner.species, 1) == Base.OneTo(length(st.identities)) || throw(
+        ArgumentError("collisional ES checkpoint requires matching ordered population records"),
+    )
     for a in eachindex(st.identities)
         p = s.inner.species[a]
         isequal((length(p.weight), p.q, p.m), st.identities[a]) || throw(
-            ArgumentError("collisional ES checkpoint particle counts, charges and masses must match"),
+            ArgumentError(
+                "collisional ES checkpoint particle counts, charges and masses must match",
+            ),
         )
-        all(array -> array isa Vector, (p.x..., p.v..., p.weight, p.id, p.tag)) ||
-            throw(ArgumentError("collisional ES checkpoint requires standard Vector particle storage"))
+        all(array -> array isa Vector, (p.x..., p.v..., p.weight, p.id, p.tag)) || throw(
+            ArgumentError("collisional ES checkpoint requires standard Vector particle storage"),
+        )
     end
     fields = (s.inner.E..., s.inner.ne)
     for (i, array) in enumerate(fields)
         array isa Array ||
             throw(ArgumentError("collisional ES checkpoint requires standard Array field storage"))
         for j = 1:(i-1)
-            _particle_arrays_mightalias(array, fields[j]) &&
-                throw(ArgumentError("collisional ES checkpoint physical fields must be independent"))
+            _particle_arrays_mightalias(array, fields[j]) && throw(
+                ArgumentError("collisional ES checkpoint physical fields must be independent"),
+            )
         end
     end
     s.rng_algorithm === typeof(st.rng) && typeof(s.rng) === typeof(st.rng) ||

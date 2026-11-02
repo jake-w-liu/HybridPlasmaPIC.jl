@@ -37,9 +37,18 @@ function gather_scalar!(
 end
 
 # One canonical vector gather row; distributed ownership supplies only the lookup.
-@inline function _gather_vector_stencil(field_at, st, n, stamp, ::Type{T},
-    boundary = Val(:periodic), complete = Val(false), ops::_ScalarOps = _DefaultScalarOps()) where {T}
-    complete isa Val{true} && return _gather_vector_stencil_exact(field_at, st, n, stamp, T, boundary)
+@inline function _gather_vector_stencil(
+    field_at,
+    st,
+    n,
+    stamp,
+    ::Type{T},
+    boundary = Val(:periodic),
+    complete = Val(false),
+    ops::_ScalarOps = _DefaultScalarOps(),
+) where {T}
+    complete isa Val{true} &&
+        return _gather_vector_stencil_exact(field_at, st, n, stamp, T, boundary)
     ax = ay = az = zero(T)
     for c in stamp
         o = Tuple(c)
@@ -70,7 +79,8 @@ function _gather_vector_stencil_exact(field_at, st, n, stamp, ::Type{T}, boundar
         sums = ntuple(i -> sums[i] + Q(values[i]) * weight, 3)
     end
     out = map(x -> _from_exact(T, x), sums)
-    all(isfinite, out) || throw(ArgumentError("complete vector gather exceeds its materialized field range"))
+    all(isfinite, out) ||
+        throw(ArgumentError("complete vector gather exceeds its materialized field range"))
     return out
 end
 

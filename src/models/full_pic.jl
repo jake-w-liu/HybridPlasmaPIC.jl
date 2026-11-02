@@ -180,7 +180,15 @@ function EMPIC1D(
 end
 
 function _new_empic1d_state(
-    g::FourierGrid{1,T}, Np, n0T, cT, shape, relativistic, mobile, miT, ns,
+    g::FourierGrid{1,T},
+    Np,
+    n0T,
+    cT,
+    shape,
+    relativistic,
+    mobile,
+    miT,
+    ns,
     collection::W,
 ) where {T,W<:Union{Nothing,_EMPICCollectionWork{1,T}}}
     n = g.n[1]
@@ -1407,7 +1415,15 @@ function _empic1d_center_magnetic!(es::EMPIC1D{T}, g, dt_previous, z) where {T}
     return electric_parts
 end
 
-function _empic1d_update_fields!(es::EMPIC1D{T}, g, n, c2, electric_parts, dt_previous, dt) where {T}
+function _empic1d_update_fields!(
+    es::EMPIC1D{T},
+    g,
+    n,
+    c2,
+    electric_parts,
+    dt_previous,
+    dt,
+) where {T}
     # (4) Advance B between its preceding and next half levels.
     _em_magnetic_update!(es.Bz, es.Bz, es.dEy, electric_parts, dt_previous, dt)
 
@@ -2297,9 +2313,15 @@ function _add_species_current!(
     return _empic_add_species_current!(J, s, work, scratch, es.g, es.shape, accumulate)
 end
 
-function _empic_add_species_current!(J::NTuple{3,Array{T,D}}, s::ParticleSet{D,T},
-    work::Vector{T}, scratch::Array{T,D}, g::FourierGrid{D,T}, shape,
-    accumulate::Bool) where {D,T}
+function _empic_add_species_current!(
+    J::NTuple{3,Array{T,D}},
+    s::ParticleSet{D,T},
+    work::Vector{T},
+    scratch::Array{T,D},
+    g::FourierGrid{D,T},
+    shape,
+    accumulate::Bool,
+) where {D,T}
     length(work) == nparticles(s) ||
         throw(DimensionMismatch("current work length must equal particle count"))
     return ntuple(Val(3)) do c

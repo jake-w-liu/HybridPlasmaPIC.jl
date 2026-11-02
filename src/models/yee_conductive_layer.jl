@@ -1,8 +1,6 @@
 const _YeeLayerQ = Rational{BigInt}
-const _YEE_LAYER_LEDGER_FIELDS = (
-    :initial_energy, :last_loss, :total_loss, :last_work, :total_work,
-    :last_defect, :total_defect,
-)
+const _YEE_LAYER_LEDGER_FIELDS =
+    (:initial_energy, :last_loss, :total_loss, :last_work, :total_work, :last_defect, :total_defect)
 
 """
     YeeConductiveLayer(vacuum::MaxwellVacuum; dt, cells, peak_rate,
@@ -65,7 +63,9 @@ end
 function _yee_layer_config(g::YeeGrid{D,T}, dt, cells, rates, profile) where {D,T}
     h = _require_finite_positive_real("dt", dt, T)
     widths, peaks = _yee_profile_config(g, cells, rates, profile)
-    bound = _exact_rational(h) * sum(d -> max(_exact_rational(peaks[d][1]), _exact_rational(peaks[d][2])), 1:D) / 4
+    bound =
+        _exact_rational(h) *
+        sum(d -> max(_exact_rational(peaks[d][1]), _exact_rational(peaks[d][2])), 1:D) / 4
     bound < 1 ||
         throw(ArgumentError("layer dt*sum(maximum face rate)/4 must be strictly below one"))
     return h, widths, peaks
@@ -80,8 +80,9 @@ function _yee_profile_config(g::YeeGrid{D,T}, cells, rates, profile) where {D,T}
         pair = cells[d]
         pair isa Tuple && length(pair) == 2 ||
             throw(ArgumentError("each layer thickness must be a (lower,upper) pair"))
-        all(n -> n isa Integer && !(n isa Bool) && 0 <= n < g.n[d], pair) ||
-            throw(ArgumentError("layer cell counts must be nonnegative integers smaller than the axis"))
+        all(n -> n isa Integer && !(n isa Bool) && 0 <= n < g.n[d], pair) || throw(
+            ArgumentError("layer cell counts must be nonnegative integers smaller than the axis"),
+        )
         low, high = Int(pair[1]), Int(pair[2])
         low < g.n[d] - high ||
             throw(ArgumentError("layer thicknesses must retain at least one interior cell"))
@@ -96,9 +97,13 @@ function _yee_profile_config(g::YeeGrid{D,T}, cells, rates, profile) where {D,T}
         ntuple(2) do side
             rate = _require_finite_nonnegative_real("peak_rate", pair[side], T)
             active = widths[d][side] > 0
-            (active ? rate > zero(T) : _particle_stored_zero(rate)) ||
-                throw(ArgumentError("positive layer thickness requires positive rate; disabled faces require zero rate"))
-            !g.periodic[d] || !active ||
+            (active ? rate > zero(T) : _particle_stored_zero(rate)) || throw(
+                ArgumentError(
+                    "positive layer thickness requires positive rate; disabled faces require zero rate",
+                ),
+            )
+            !g.periodic[d] ||
+                !active ||
                 throw(ArgumentError("periodic axes cannot have conductive layers"))
             rate
         end
@@ -131,14 +136,22 @@ end
 function _yee_profile_axis_cache(g::YeeGrid{D}, cells, peaks, profile, hquarter) where {D}
     return ntuple(D) do d
         nodes = g.n[d] + Int(!g.periodic[d])
-        nodal = _YeeLayerQ[_yee_layer_axis_value(g, cells, peaks, profile, hquarter, d, true, i) for i = 1:nodes]
-        centered = _YeeLayerQ[_yee_layer_axis_value(g, cells, peaks, profile, hquarter, d, false, i) for i = 1:g.n[d]]
+        nodal = _YeeLayerQ[
+            _yee_layer_axis_value(g, cells, peaks, profile, hquarter, d, true, i) for i = 1:nodes
+        ]
+        centered = _YeeLayerQ[
+            _yee_layer_axis_value(g, cells, peaks, profile, hquarter, d, false, i) for i = 1:g.n[d]
+        ]
         (nodal, centered)
     end
 end
 
 function YeeConductiveLayer(
-    vacuum::MaxwellVacuum{D,T}; dt, cells, peak_rate, profile::Symbol = :quadratic,
+    vacuum::MaxwellVacuum{D,T};
+    dt,
+    cells,
+    peak_rate,
+    profile::Symbol = :quadratic,
 ) where {D,T}
     _yee_layer_mode()
     h, widths, peaks = _yee_layer_config(vacuum.g, dt, cells, peak_rate, profile)
@@ -152,10 +165,24 @@ function YeeConductiveLayer(
         throw(ArgumentError("construct a conductive layer from an unadvanced vacuum"))
     z = zero(_YeeLayerQ)
     model = YeeConductiveLayer(
-        vacuum, h, widths, peaks, profile, YeeFields(vacuum.g),
+        vacuum,
+        h,
+        widths,
+        peaks,
+        profile,
+        YeeFields(vacuum.g),
         _yee_layer_axis_cache(vacuum.g, h, widths, peaks, profile),
-        Threads.Atomic{Bool}(false), :uninitialized, false, 0,
-        z, z, z, z, z, z, z,
+        Threads.Atomic{Bool}(false),
+        :uninitialized,
+        false,
+        0,
+        z,
+        z,
+        z,
+        z,
+        z,
+        z,
+        z,
     )
     _yee_layer_validate_storage(model)
     return model
@@ -179,7 +206,16 @@ function _yee_layer_validate_config(model::YeeConductiveLayer; cache::Bool = tru
             length(table) == g.n[d] + Int(slot == 1 && !g.periodic[d]) ||
                 throw(DimensionMismatch("conductive layer axis cache has the wrong length"))
             for i in eachindex(table)
-                expected = _yee_layer_axis_value(g, model.cells, model.peak_rate, model.profile, hquarter, d, slot == 1, i)
+                expected = _yee_layer_axis_value(
+                    g,
+                    model.cells,
+                    model.peak_rate,
+                    model.profile,
+                    hquarter,
+                    d,
+                    slot == 1,
+                    i,
+                )
                 isequal(table[i], expected) ||
                     throw(ArgumentError("conductive layer cache does not match its fixed profile"))
             end
@@ -188,15 +224,24 @@ function _yee_layer_validate_config(model::YeeConductiveLayer; cache::Bool = tru
     return nothing
 end
 
-function _yee_layer_validate_storage(model::YeeConductiveLayer; check_pec::Bool = true, cache::Bool = true)
+function _yee_layer_validate_storage(
+    model::YeeConductiveLayer;
+    check_pec::Bool = true,
+    cache::Bool = true,
+)
     inner, g = model.inner, model.inner.g
     _yee_validate_storage(inner; check_pec)
     _yee_check_shape(model._predamped.E, g, true)
     _yee_check_shape(model._predamped.B, g, false)
     caches = cache ? Tuple(a for pair in model._axis_r for a in pair) : ()
     _yee_check_independent_arrays((
-        inner.fields.E..., inner.fields.B..., inner._candidate.E..., inner._candidate.B...,
-        model._predamped.E..., model._predamped.B..., caches...,
+        inner.fields.E...,
+        inner.fields.B...,
+        inner._candidate.E...,
+        inner._candidate.B...,
+        model._predamped.E...,
+        model._predamped.B...,
+        caches...,
     ))
     return nothing
 end
@@ -218,12 +263,15 @@ function _yee_layer_validate_budget(s, energy, time, step, dt::T, ::Type{T}) whe
     0 <= s.last_loss <= s.total_loss && s.initial_energy >= 0 ||
         throw(ArgumentError("conductive layer losses and initial energy must be nonnegative"))
     if step == 0
-        _particle_stored_zero(time) && all(name -> iszero(getproperty(s, name)), _YEE_LAYER_LEDGER_FIELDS[2:end]) ||
+        _particle_stored_zero(time) &&
+            all(name -> iszero(getproperty(s, name)), _YEE_LAYER_LEDGER_FIELDS[2:end]) ||
             throw(ArgumentError("unadvanced layer clock and loss/work/defect ledgers must be zero"))
     else
         time > zero(T) && dt <= time || throw(ArgumentError("advanced layer time must be positive"))
         if step == 1
-            s.last_loss == s.total_loss && s.last_work == s.total_work && s.last_defect == s.total_defect ||
+            s.last_loss == s.total_loss &&
+                s.last_work == s.total_work &&
+                s.last_defect == s.total_defect ||
                 throw(ArgumentError("first-step layer ledgers must match their cumulative values"))
         end
     end
@@ -252,7 +300,13 @@ function init!(model::YeeConductiveLayer{D,T}) where {D,T}
         _yee_layer_validate_storage(model; cache = false)
         _yee_validate_fields(model.inner.fields, model.inner.g)
         energy = _yee_layer_energy(model.inner.fields, model.inner)
-        cache = _yee_layer_axis_cache(model.inner.g, model.dt, model.cells, model.peak_rate, model.profile)
+        cache = _yee_layer_axis_cache(
+            model.inner.g,
+            model.dt,
+            model.cells,
+            model.peak_rate,
+            model.profile,
+        )
         z = zero(_YeeLayerQ)
         model.inner.time[] = zero(T)
         model.inner.step[] = 0
@@ -274,7 +328,8 @@ function init!(model::YeeConductiveLayer{D,T}) where {D,T}
 end
 
 function _yee_layer_damp!(destination, original, model::YeeConductiveLayer{D,T}) where {D,T}
-    for (electric, output, input) in ((true, destination.E, original.E), (false, destination.B, original.B))
+    for (electric, output, input) in
+        ((true, destination.E, original.E), (false, destination.B, original.B))
         for c = 1:3, I in CartesianIndices(input[c])
             r = zero(_YeeLayerQ)
             for d = 1:D
@@ -283,8 +338,9 @@ function _yee_layer_damp!(destination, original, model::YeeConductiveLayer{D,T})
             end
             old = input[c][I]
             # Preserve original signed zeros and exact zero-profile identity.
-            value = iszero(r) || _particle_stored_zero(old) ? old :
-                    _from_exact(T, (1 - r) * _exact_rational(old) / (1 + r))
+            value =
+                iszero(r) || _particle_stored_zero(old) ? old :
+                _from_exact(T, (1 - r) * _exact_rational(old) / (1 + r))
             isfinite(value) || throw(ArgumentError("conductive layer produces a nonfinite field"))
             output[c][I] = value
         end
@@ -310,13 +366,20 @@ function _yee_layer_step!(model::YeeConductiveLayer{D,T}, dt::Real, impulse) whe
         original_energy = _yee_layer_boundary(model)
         inner = model.inner
         next_time, next_step = _validated_step_clock(inner.time[], inner.step[], h)
-        next_time > inner.time[] || throw(ArgumentError("conductive layer time must advance finitely"))
+        next_time > inner.time[] ||
+            throw(ArgumentError("conductive layer time must advance finitely"))
         if impulse !== nothing
             _yee_validate_impulse(impulse, inner.g)
             caches = Tuple(a for pair in model._axis_r for a in pair)
             _yee_check_independent_arrays((
-                inner.fields.E..., inner.fields.B..., inner._candidate.E..., inner._candidate.B...,
-                model._predamped.E..., model._predamped.B..., caches..., impulse...,
+                inner.fields.E...,
+                inner.fields.B...,
+                inner._candidate.E...,
+                inner._candidate.B...,
+                model._predamped.E...,
+                model._predamped.B...,
+                caches...,
+                impulse...,
             ))
         end
         previous_phase = model.phase
@@ -332,8 +395,9 @@ function _yee_layer_step!(model::YeeConductiveLayer{D,T}, dt::Real, impulse) whe
             candidate = inner._candidate
             _yee_candidate_step!(candidate, before, inner.g, h, inner.c, impulse)
             middle_energy = _yee_layer_energy(candidate, inner)
-            work = impulse === nothing ? zero(_YeeLayerQ) :
-                   _yee_source_work_rational(before.E, candidate.E, impulse, inner.g.dx[1])
+            work =
+                impulse === nothing ? zero(_YeeLayerQ) :
+                _yee_source_work_rational(before.E, candidate.E, impulse, inner.g.dx[1])
             if active
                 _yee_layer_damp!(candidate, candidate, model)
             end
@@ -345,11 +409,16 @@ function _yee_layer_step!(model::YeeConductiveLayer{D,T}, dt::Real, impulse) whe
             total_work = model.total_work + work
             total_defect = model.total_defect + defect
             budget = (
-                phase = :ready, initialized = true, ledger_step = next_step,
+                phase = :ready,
+                initialized = true,
+                ledger_step = next_step,
                 initial_energy = model.initial_energy,
-                last_loss = loss, total_loss = total_loss,
-                last_work = work, total_work = total_work,
-                last_defect = defect, total_defect = total_defect,
+                last_loss = loss,
+                total_loss = total_loss,
+                last_work = work,
+                total_work = total_work,
+                last_defect = defect,
+                total_defect = total_defect,
             )
             _yee_layer_validate_budget(budget, final_energy, next_time, next_step, model.dt, T)
             # All field arithmetic, exact budgets and clock calculations passed.
@@ -403,13 +472,19 @@ function absorber_diagnostics(model::YeeConductiveLayer)
         _yee_layer_validate_storage(model)
         energy = _yee_layer_boundary(model)
         return (
-            time = model.inner.time[], step = model.inner.step[],
-            field_energy = em_field_energy(model.inner), field_energy_exact = energy,
+            time = model.inner.time[],
+            step = model.inner.step[],
+            field_energy = em_field_energy(model.inner),
+            field_energy_exact = energy,
             initial_energy = model.initial_energy,
-            last_loss = model.last_loss, total_loss = model.total_loss,
-            last_source_work = model.last_work, total_source_work = model.total_work,
-            last_field_defect = model.last_defect, total_field_defect = model.total_defect,
-            bookkeeping_residual = energy + model.total_loss + model.total_work - model.initial_energy - model.total_defect,
+            last_loss = model.last_loss,
+            total_loss = model.total_loss,
+            last_source_work = model.last_work,
+            total_source_work = model.total_work,
+            last_field_defect = model.last_defect,
+            total_field_defect = model.total_defect,
+            bookkeeping_residual = energy + model.total_loss + model.total_work -
+                                   model.initial_energy - model.total_defect,
         )
     finally
         model.busy[] = false

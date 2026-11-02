@@ -46,10 +46,23 @@ function _pencil_empic_checkpoint_common(record, model::DistributedEMPIC{T}, nra
         typeof(value) === typeof(reference) && isequal(value, reference) ||
             throw(ArgumentError("Pencil electromagnetic checkpoint $name does not match the model"))
     end
-    record.initialized === true && record.primed isa Bool &&
-        record.last_dt isa T && record.time isa T && record.step isa Int ||
-        throw(ArgumentError("Pencil electromagnetic checkpoint requires typed initialized phase and clock"))
-    _pencil_empic_phase_values(record.initialized, record.primed, record.last_dt, record.time, record.step, model._cfl)
+    record.initialized === true &&
+        record.primed isa Bool &&
+        record.last_dt isa T &&
+        record.time isa T &&
+        record.step isa Int || throw(
+        ArgumentError(
+            "Pencil electromagnetic checkpoint requires typed initialized phase and clock",
+        ),
+    )
+    _pencil_empic_phase_values(
+        record.initialized,
+        record.primed,
+        record.last_dt,
+        record.time,
+        record.step,
+        model._cfl,
+    )
     return nothing
 end
 
@@ -65,15 +78,30 @@ end
 
 _pencil_empic_generation_name(name) =
     _pencil_checkpoint_generation_name(name, _PENCIL_EMPIC_GENERATION, "Pencil electromagnetic")
-_pencil_empic_generation_path(dir, name) =
-    _pencil_checkpoint_generation_path(dir, name, _PENCIL_EMPIC_GENERATION, "Pencil electromagnetic")
+_pencil_empic_generation_path(dir, name) = _pencil_checkpoint_generation_path(
+    dir,
+    name,
+    _PENCIL_EMPIC_GENERATION,
+    "Pencil electromagnetic",
+)
 _pencil_empic_digest(value) = _pencil_checkpoint_digest(value, "Pencil electromagnetic")
 _pencil_empic_file_digest(path) = _pencil_checkpoint_file_digest(path, "Pencil electromagnetic")
-_pencil_empic_broadcast_generation(name, comm, rank) =
-    _pencil_checkpoint_broadcast_generation(name, comm, rank, _PENCIL_EMPIC_GENERATION, "Pencil electromagnetic")
-_pencil_empic_remove_generation(dir, generation, nranks) =
-    _pencil_checkpoint_remove_generation(dir, generation, nranks, _PENCIL_EMPIC_GENERATION, "Pencil electromagnetic")
-_pencil_empic_rank_state(path, digest) = _pencil_checkpoint_rank_state(path, digest, "Pencil electromagnetic")
+_pencil_empic_broadcast_generation(name, comm, rank) = _pencil_checkpoint_broadcast_generation(
+    name,
+    comm,
+    rank,
+    _PENCIL_EMPIC_GENERATION,
+    "Pencil electromagnetic",
+)
+_pencil_empic_remove_generation(dir, generation, nranks) = _pencil_checkpoint_remove_generation(
+    dir,
+    generation,
+    nranks,
+    _PENCIL_EMPIC_GENERATION,
+    "Pencil electromagnetic",
+)
+_pencil_empic_rank_state(path, digest) =
+    _pencil_checkpoint_rank_state(path, digest, "Pencil electromagnetic")
 
 function _pencil_empic_manifest(path, model, nranks)
     envelope = HybridPlasmaPIC.Serialization.deserialize(path)
@@ -98,8 +126,9 @@ function _pencil_empic_manifest(path, model, nranks)
     record.generation isa String || throw(ArgumentError("checkpoint generation must be a String"))
     _pencil_empic_generation_name(record.generation)
     expected_files = ntuple(r -> HybridPlasmaPIC._mpi_checkpoint_rank_filename(r), nranks)
-    record.rank_files isa Tuple && isequal(record.rank_files, expected_files) ||
-        throw(ArgumentError("Pencil electromagnetic manifest requires canonical ordered rank filenames"))
+    record.rank_files isa Tuple && isequal(record.rank_files, expected_files) || throw(
+        ArgumentError("Pencil electromagnetic manifest requires canonical ordered rank filenames"),
+    )
     record.rank_sha256 isa Tuple && length(record.rank_sha256) == nranks ||
         throw(ArgumentError("Pencil electromagnetic manifest requires one digest per rank"))
     foreach(_pencil_empic_digest, record.rank_sha256)
@@ -121,8 +150,12 @@ function _pencil_empic_checkpoint_snapshot(model, rank, nranks)
     merge(
         _pencil_empic_checkpoint_config(model, nranks),
         (
-            initialized = model.initialized[], primed = model.primed[], last_dt = model.last_dt[],
-            time = model.time[], step = model.step[], rank = rank,
+            initialized = model.initialized[],
+            primed = model.primed[],
+            last_dt = model.last_dt[],
+            time = model.time[],
+            step = model.step[],
+            rank = rank,
         ),
         _pencil_empic_checkpoint_layout(model),
         (
@@ -130,9 +163,12 @@ function _pencil_empic_checkpoint_snapshot(model, rank, nranks)
                 E = map(a -> copy(parent(a)), model.E),
                 B = map(a -> copy(parent(a)), model.B),
                 J = map(a -> copy(parent(a)), model.J),
-                rho_n = copy(parent(model.rho_n)), rho_np1 = copy(parent(model.rho_np1)),
+                rho_n = copy(parent(model.rho_n)),
+                rho_np1 = copy(parent(model.rho_np1)),
             ),
-            species = deepcopy([HybridPlasmaPIC._checkpoint_particle_state(ps) for ps in model.owners]),
+            species = deepcopy([
+                HybridPlasmaPIC._checkpoint_particle_state(ps) for ps in model.owners
+            ]),
         ),
     )
 end
@@ -173,21 +209,29 @@ function HybridPlasmaPIC.save_mpi_checkpoint(dir, model::DistributedEMPIC)
         (realpath(raw_dir),)
     end)
     manifest_path = joinpath(directory, _PENCIL_EMPIC_MANIFEST)
-    previous, owned_generation = HybridPlasmaPIC._mpi_collective_stage(comm, context, "generation setup") do
-        if rank == 0
-            old = ispath(manifest_path) ? _pencil_empic_manifest(manifest_path, model, nranks) : nothing
-            if old !== nothing
-                location = _pencil_empic_generation_path(directory, old.generation)
-                for r = 1:nranks
-                    _pencil_empic_file_digest(joinpath(location, old.rank_files[r])) == old.rank_sha256[r] ||
-                        throw(ArgumentError("superseded Pencil electromagnetic checkpoint rank checksum mismatch"))
+    previous, owned_generation =
+        HybridPlasmaPIC._mpi_collective_stage(comm, context, "generation setup") do
+            if rank == 0
+                old =
+                    ispath(manifest_path) ? _pencil_empic_manifest(manifest_path, model, nranks) :
+                    nothing
+                if old !== nothing
+                    location = _pencil_empic_generation_path(directory, old.generation)
+                    for r = 1:nranks
+                        _pencil_empic_file_digest(joinpath(location, old.rank_files[r])) ==
+                        old.rank_sha256[r] || throw(
+                            ArgumentError(
+                                "superseded Pencil electromagnetic checkpoint rank checksum mismatch",
+                            ),
+                        )
+                    end
                 end
+                old,
+                basename(mktempdir(directory; prefix = _PENCIL_EMPIC_GENERATION, cleanup = false))
+            else
+                nothing, ""
             end
-            old, basename(mktempdir(directory; prefix = _PENCIL_EMPIC_GENERATION, cleanup = false))
-        else
-            nothing, ""
         end
-    end
     try
         generation = _pencil_empic_broadcast_generation(owned_generation, comm, rank)
         HybridPlasmaPIC._mpi_collective_stage(comm, context, "rank write") do
@@ -205,110 +249,181 @@ function HybridPlasmaPIC.save_mpi_checkpoint(dir, model::DistributedEMPIC)
                 manifest = merge(
                     _pencil_empic_checkpoint_config(model, nranks),
                     (
-                        initialized = state.initialized, primed = state.primed, last_dt = state.last_dt,
-                        time = state.time, step = state.step, generation = owned_generation,
-                        rank_files = files, rank_sha256 = digests,
+                        initialized = state.initialized,
+                        primed = state.primed,
+                        last_dt = state.last_dt,
+                        time = state.time,
+                        step = state.step,
+                        generation = owned_generation,
+                        rank_files = files,
+                        rank_sha256 = digests,
                     ),
                 )
                 HybridPlasmaPIC._atomic_serialize(manifest_path, _pencil_empic_envelope(manifest))
             end
         end
     catch original
-        (original isa InterruptException || original isa OutOfMemoryError || original isa StackOverflowError) && rethrow()
+        (
+            original isa InterruptException ||
+            original isa OutOfMemoryError ||
+            original isa StackOverflowError
+        ) && rethrow()
         trace = catch_backtrace()
         try
             HybridPlasmaPIC._mpi_collective_stage(comm, context, "failed generation cleanup") do
                 rank == 0 && _pencil_empic_remove_generation(directory, owned_generation, nranks)
             end
         catch cleanup_error
-            (cleanup_error isa InterruptException || cleanup_error isa OutOfMemoryError || cleanup_error isa StackOverflowError) && rethrow()
-            throw(CompositeException([CapturedException(original, trace), CapturedException(cleanup_error, catch_backtrace())]))
+            (
+                cleanup_error isa InterruptException ||
+                cleanup_error isa OutOfMemoryError ||
+                cleanup_error isa StackOverflowError
+            ) && rethrow()
+            throw(
+                CompositeException([
+                    CapturedException(original, trace),
+                    CapturedException(cleanup_error, catch_backtrace()),
+                ]),
+            )
         end
         rethrow()
     end
     try
         HybridPlasmaPIC._mpi_collective_stage(comm, context, "superseded generation cleanup") do
-            rank == 0 && previous !== nothing &&
+            rank == 0 &&
+                previous !== nothing &&
                 _pencil_empic_remove_generation(directory, previous.generation, nranks)
         end
     catch cleanup_error
-        (cleanup_error isa InterruptException || cleanup_error isa OutOfMemoryError || cleanup_error isa StackOverflowError) && rethrow()
-        throw(CompositeException([
-            ErrorException("Pencil electromagnetic checkpoint was published, but superseded-file cleanup failed"),
-            CapturedException(cleanup_error, catch_backtrace()),
-        ]))
+        (
+            cleanup_error isa InterruptException ||
+            cleanup_error isa OutOfMemoryError ||
+            cleanup_error isa StackOverflowError
+        ) && rethrow()
+        throw(
+            CompositeException([
+                ErrorException(
+                    "Pencil electromagnetic checkpoint was published, but superseded-file cleanup failed",
+                ),
+                CapturedException(cleanup_error, catch_backtrace()),
+            ]),
+        )
     end
     return manifest_path
 end
 
-function _pencil_empic_prepare_rank_state(state, manifest, model::DistributedEMPIC{T,G,R,P}, rank, nranks) where {T,G,R,P}
+function _pencil_empic_prepare_rank_state(
+    state,
+    manifest,
+    model::DistributedEMPIC{T,G,R,P},
+    rank,
+    nranks,
+) where {T,G,R,P}
     layout = _pencil_empic_checkpoint_layout(model)
     required = (
-        keys(_pencil_empic_checkpoint_config(model, nranks))..., _PENCIL_EMPIC_CHECKPOINT_PHASE...,
-        :rank, keys(layout)..., :fields, :species,
+        keys(_pencil_empic_checkpoint_config(model, nranks))...,
+        _PENCIL_EMPIC_CHECKPOINT_PHASE...,
+        :rank,
+        keys(layout)...,
+        :fields,
+        :species,
     )
     _pencil_empic_checkpoint_keys(state, required)
     _pencil_empic_checkpoint_common(state, model, nranks)
-    state.rank isa Int && state.rank == rank || throw(ArgumentError("Pencil electromagnetic checkpoint rank mismatch"))
+    state.rank isa Int && state.rank == rank ||
+        throw(ArgumentError("Pencil electromagnetic checkpoint rank mismatch"))
     for name in _PENCIL_EMPIC_CHECKPOINT_PHASE
         isequal(getproperty(state, name), getproperty(manifest, name)) ||
             throw(ArgumentError("Pencil electromagnetic rank phase differs from the manifest"))
     end
     for name in keys(layout)
         value, expected = getproperty(state, name), getproperty(layout, name)
-        typeof(value) === typeof(expected) && isequal(value, expected) ||
-            throw(ArgumentError("Pencil electromagnetic checkpoint $name differs from the current layout"))
+        typeof(value) === typeof(expected) && isequal(value, expected) || throw(
+            ArgumentError(
+                "Pencil electromagnetic checkpoint $name differs from the current layout",
+            ),
+        )
     end
     _pencil_empic_checkpoint_keys(state.fields, (:E, :B, :J, :rho_n, :rho_np1))
-    state.fields.E isa NTuple{3,Array{T,3}} && state.fields.B isa NTuple{3,Array{T,3}} &&
+    state.fields.E isa NTuple{3,Array{T,3}} &&
+        state.fields.B isa NTuple{3,Array{T,3}} &&
         state.fields.J isa NTuple{3,Array{T,3}} &&
-        state.fields.rho_n isa Array{T,3} && state.fields.rho_np1 isa Array{T,3} ||
-        throw(ArgumentError("Pencil electromagnetic checkpoint requires eleven ordinary Array fields"))
+        state.fields.rho_n isa Array{T,3} &&
+        state.fields.rho_np1 isa Array{T,3} || throw(
+        ArgumentError("Pencil electromagnetic checkpoint requires eleven ordinary Array fields"),
+    )
     fields = _pencil_empic_field_arrays(state.fields)
     destination = (
-        _pencil_empic_arrays(model)..., model._source_spectral,
-        _pencil_empic_metadata(model)..., _pencil_empic_midpoints(model)...,
+        _pencil_empic_arrays(model)...,
+        model._source_spectral,
+        _pencil_empic_metadata(model)...,
+        _pencil_empic_midpoints(model)...,
     )
     for (i, array) in enumerate(fields)
-        size(array) == layout.parent_size ||
-            throw(DimensionMismatch("Pencil electromagnetic checkpoint parent-array shape mismatch"))
-        all(isfinite, array) || throw(ArgumentError("Pencil electromagnetic checkpoint fields must be finite"))
+        size(array) == layout.parent_size || throw(
+            DimensionMismatch("Pencil electromagnetic checkpoint parent-array shape mismatch"),
+        )
+        all(isfinite, array) ||
+            throw(ArgumentError("Pencil electromagnetic checkpoint fields must be finite"))
         for j = 1:(i-1)
             HybridPlasmaPIC._particle_arrays_mightalias(array, fields[j]) &&
                 throw(ArgumentError("Pencil electromagnetic incoming fields must be independent"))
         end
         for other in destination
-            HybridPlasmaPIC._particle_arrays_mightalias(array, parent(other)) &&
-                throw(ArgumentError("Pencil electromagnetic incoming fields must be detached from destination storage"))
+            HybridPlasmaPIC._particle_arrays_mightalias(array, parent(other)) && throw(
+                ArgumentError(
+                    "Pencil electromagnetic incoming fields must be detached from destination storage",
+                ),
+            )
         end
-        _aliases_workspace(array, model.g) &&
-            throw(ArgumentError("Pencil electromagnetic incoming fields must be detached from Fourier storage"))
+        _aliases_workspace(array, model.g) && throw(
+            ArgumentError(
+                "Pencil electromagnetic incoming fields must be detached from Fourier storage",
+            ),
+        )
     end
     _pencil_empic_phase_fields(state.fields.J, state.fields.rho_n, state.fields.rho_np1, state.step)
-    state.species isa Vector && length(state.species) == length(model.owners) ||
-        throw(ArgumentError("Pencil electromagnetic checkpoint requires matching ordered population records"))
+    state.species isa Vector && length(state.species) == length(model.owners) || throw(
+        ArgumentError(
+            "Pencil electromagnetic checkpoint requires matching ordered population records",
+        ),
+    )
     populations = P[]
     for (s, record) in enumerate(state.species)
         _pencil_empic_checkpoint_keys(record, HybridPlasmaPIC._CHECKPOINT_PARTICLE_FIELDS)
         ps = HybridPlasmaPIC._checkpoint_species(record, Val(3), T)
-        ps isa P || throw(ArgumentError("Pencil electromagnetic checkpoint requires ordinary Vector particle leaves"))
-        isequal((ps.q, ps.m), model._species_scalars[s]) ||
-            throw(ArgumentError("Pencil electromagnetic checkpoint particle q/m differs from the cached model binding"))
+        ps isa P || throw(
+            ArgumentError(
+                "Pencil electromagnetic checkpoint requires ordinary Vector particle leaves",
+            ),
+        )
+        isequal((ps.q, ps.m), model._species_scalars[s]) || throw(
+            ArgumentError(
+                "Pencil electromagnetic checkpoint particle q/m differs from the cached model binding",
+            ),
+        )
         push!(populations, ps)
     end
     _pencil_empic_species(model, populations; bound = false, values = true, counts = false)
     _pencil_owned_particles(populations, model.g, model._layout)
     for ps in populations, live in model.owners
-        HybridPlasmaPIC._particle_sets_mightalias(ps, live) &&
-            throw(ArgumentError("Pencil electromagnetic incoming particles must be detached from destination storage"))
+        HybridPlasmaPIC._particle_sets_mightalias(ps, live) && throw(
+            ArgumentError(
+                "Pencil electromagnetic incoming particles must be detached from destination storage",
+            ),
+        )
     end
     for array in fields, species in (populations, model.owners, model._staged), ps in species
-        HybridPlasmaPIC._mightalias_particle_storage(array, ps) &&
-            throw(ArgumentError("Pencil electromagnetic incoming fields must not alias particle storage"))
+        HybridPlasmaPIC._mightalias_particle_storage(array, ps) && throw(
+            ArgumentError("Pencil electromagnetic incoming fields must not alias particle storage"),
+        )
     end
     # File decoding detaches fields; complete same-type indexed copies prepare
     # every replacement leaf even when local counts change or a population empties.
-    prepared = P[HybridPlasmaPIC._prepare_particle_replacement(ps, eachindex(ps.weight)) for ps in populations]
+    prepared = P[
+        HybridPlasmaPIC._prepare_particle_replacement(ps, eachindex(ps.weight)) for
+        ps in populations
+    ]
     scalars = Tuple{T,T}[(ps.q, ps.m) for ps in prepared]
     counts = Int[length(ps.weight) for ps in prepared]
     # Storage preflight fixed both cache lengths to this ordered species count.
@@ -339,20 +454,29 @@ function HybridPlasmaPIC.load_mpi_checkpoint!(model::DistributedEMPIC, dir)
     raw_dir, _ = _pencil_empic_checkpoint_agreement(model, dir, nranks)
     HybridPlasmaPIC._mpi_collective_stage(comm, context, "restore destination storage") do
         _pencil_empic_storage(model)
-        _pencil_empic_species(model, model.owners; bound = true, values = false, factors = false, counts = false)
+        _pencil_empic_species(
+            model,
+            model.owners;
+            bound = true,
+            values = false,
+            factors = false,
+            counts = false,
+        )
     end
     directory = first(_agree_configuration(comm, context) do
         (realpath(raw_dir),)
     end)
-    manifest = first(_agree_configuration(comm, context) do
-        record = _pencil_empic_manifest(joinpath(directory, _PENCIL_EMPIC_MANIFEST), model, nranks)
-        _pencil_empic_generation_path(directory, record.generation)
-        (record,)
-    end)
+    manifest = first(
+        _agree_configuration(comm, context) do
+            record = _pencil_empic_manifest(joinpath(directory, _PENCIL_EMPIC_MANIFEST), model, nranks)
+            _pencil_empic_generation_path(directory, record.generation)
+            (record,)
+        end,
+    )
     saved = HybridPlasmaPIC._mpi_collective_stage(comm, context, "rank restore preparation") do
         location = _pencil_empic_generation_path(directory, manifest.generation)
-        path = joinpath(location, manifest.rank_files[rank + 1])
-        state = _pencil_empic_rank_state(path, manifest.rank_sha256[rank + 1])
+        path = joinpath(location, manifest.rank_files[rank+1])
+        state = _pencil_empic_rank_state(path, manifest.rank_sha256[rank+1])
         _pencil_empic_prepare_rank_state(state, manifest, model, rank, nranks)
     end
     # This collective checks source values only. Destination clocks/phase and

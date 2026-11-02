@@ -42,9 +42,14 @@ function _validate_empic_clock_phase(time::T, step::Int, full::T, previous::T) w
         (step == 0 ? iszero(full) && iszero(previous) : previous > zero(T)) ||
         throw(ArgumentError("electromagnetic timestep history is inconsistent with its phase"))
     # Legacy EM also permits an initial nonnegative clock origin.
-    (step == 0 ? _particle_stored_zero(full) && _particle_stored_zero(previous) :
-     previous <= time) ||
-        throw(ArgumentError("electromagnetic fast timestep history is inconsistent with its completed clock"))
+    (
+        step == 0 ? _particle_stored_zero(full) && _particle_stored_zero(previous) :
+        previous <= time
+    ) || throw(
+        ArgumentError(
+            "electromagnetic fast timestep history is inconsistent with its completed clock",
+        ),
+    )
     return nothing
 end
 
@@ -174,8 +179,17 @@ function recommended_dt(
     return _recommended_dt_geometry(g, T; NB, integrator, safety, d_i, Ω_ci, η, ηH)
 end
 
-function _recommended_dt_geometry(g, ::Type{T}; NB::Integer = 1, integrator::Symbol = :rk4,
-    safety::Real = 0.8, d_i::Real = 1.0, Ω_ci::Real = 1.0, η::Real = 0.0, ηH::Real = 0.0) where {T}
+function _recommended_dt_geometry(
+    g,
+    ::Type{T};
+    NB::Integer = 1,
+    integrator::Symbol = :rk4,
+    safety::Real = 0.8,
+    d_i::Real = 1.0,
+    Ω_ci::Real = 1.0,
+    η::Real = 0.0,
+    ηH::Real = 0.0,
+) where {T}
     for dx in g.dx
         _timestep_check_exponent(dx)
     end

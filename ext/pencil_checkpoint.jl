@@ -3,8 +3,7 @@
 
 function _pencil_checkpoint_generation_name(name, prefix, label)
     name = HybridPlasmaPIC._validate_mpi_checkpoint_filename(name)
-    startswith(name, prefix) &&
-        length(name) > length(prefix) ||
+    startswith(name, prefix) && length(name) > length(prefix) ||
         throw(ArgumentError("invalid $label checkpoint generation"))
     return name
 end
@@ -17,7 +16,8 @@ function _pencil_checkpoint_generation_path(dir, name, prefix, label)
 end
 
 function _pencil_checkpoint_digest(value, label)
-    value isa String && ncodeunits(value) == 64 &&
+    value isa String &&
+        ncodeunits(value) == 64 &&
         all(c -> '0' <= c <= '9' || 'a' <= c <= 'f', value) ||
         throw(ArgumentError("$label checksum must be a lowercase SHA-256 digest"))
     return value
@@ -55,7 +55,8 @@ function _pencil_checkpoint_remove_generation(dir, generation, nranks, prefix, l
     for name in files
         path = joinpath(location, name)
         islink(path) && throw(ArgumentError("refusing to clean a linked $label rank file"))
-        !ispath(path) || isfile(path) ||
+        !ispath(path) ||
+            isfile(path) ||
             throw(ArgumentError("refusing to clean a non-file $label rank entry"))
     end
     for name in files

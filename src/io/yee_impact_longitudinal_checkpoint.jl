@@ -79,10 +79,12 @@ const _YI_CHECKPOINT_FIELDS = (
 
 function _yi_validate_checkpoint_configuration(s, st::YeeImpactLongitudinalPIC)
     _yee_closed_validate_checkpoint_configuration(s, st)
-    all(name -> getproperty(s, name) === getproperty(_YI_CHECKPOINT_POLICIES, name),
-        keys(_YI_CHECKPOINT_POLICIES)) ||
-        throw(ArgumentError("unsupported Yee impact checkpoint policy or version"))
-    s.max_root_refinements isa Int && s.max_root_refinements > 0 &&
+    all(
+        name -> getproperty(s, name) === getproperty(_YI_CHECKPOINT_POLICIES, name),
+        keys(_YI_CHECKPOINT_POLICIES),
+    ) || throw(ArgumentError("unsupported Yee impact checkpoint policy or version"))
+    s.max_root_refinements isa Int &&
+        s.max_root_refinements > 0 &&
         s.max_root_refinements === st.max_root_refinements ||
         throw(ArgumentError("checkpoint impact root budget does not match destination"))
     for name in (:wall_charge_transfer, :wall_work_transfer)
@@ -111,7 +113,8 @@ function _validate_checkpoint_state(s, st::YeeImpactLongitudinalPIC{T}) where {T
     _yi_validate_history_values(s, st.g, count)
     fields = _yee_closed_checkpoint_arrays(s, st, populations)
     _yl_validate_longitudinal_fields(st, fields)
-    s.right_plate_charge isa Rational{BigInt} && denominator(s.right_plate_charge) > 0 &&
+    s.right_plate_charge isa Rational{BigInt} &&
+        denominator(s.right_plate_charge) > 0 &&
         s.right_plate_charge == _yl_right_plate(st, populations) ||
         throw(ArgumentError("checkpoint derived right plate charge is inconsistent with sources"))
     return nothing
@@ -121,8 +124,7 @@ function _yi_checkpoint_state(st::YeeImpactLongitudinalPIC{T}, species, layout) 
     populations = _yl_species(species)
     _yl_validate_populations(st, populations)
     _yi_validate_phase(st)
-    st.initialized[] ||
-        throw(ArgumentError("Yee impact checkpoints require initialized state"))
+    st.initialized[] || throw(ArgumentError("Yee impact checkpoints require initialized state"))
     _yi_validate_bound(st, populations)
     _yl_validate_longitudinal_fields(st, st.fields)
     config = (

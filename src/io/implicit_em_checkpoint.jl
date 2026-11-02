@@ -1,19 +1,41 @@
 # Complete synchronous implicit EM state; no explicit leapfrog surrogate.
 const _IMPLICIT_EM_CHECKPOINT_FIELDS = (
-    :integrator, :schema, :configuration, :phase, :initialized,
-    :species, :fields, :time, :step, :last_dt, :last_report,
+    :integrator,
+    :schema,
+    :configuration,
+    :phase,
+    :initialized,
+    :species,
+    :fields,
+    :time,
+    :step,
+    :last_dt,
+    :last_report,
 )
 function _implicit_em_checkpoint_keys(s, keys_required)
     _validate_checkpoint_container(s, keys_required)
-    length(keys(s)) == length(keys_required) || throw(ArgumentError("implicit EM checkpoint contains unsupported fields"))
+    length(keys(s)) == length(keys_required) ||
+        throw(ArgumentError("implicit EM checkpoint contains unsupported fields"))
     return nothing
 end
-function _implicit_em_checkpoint_physical!(st::ImplicitEMPICStepper{D,T}, fields, species, step, h, report) where {D,T}
+function _implicit_em_checkpoint_physical!(
+    st::ImplicitEMPICStepper{D,T},
+    fields,
+    species,
+    step,
+    h,
+    report,
+) where {D,T}
     Q, w = _exact_rational, st.work
-    all(a -> all(isfinite, a), _implicit_em_field_arrays(fields)) || throw(ArgumentError("implicit EM checkpoint fields must be finite"))
+    all(a -> all(isfinite, a), _implicit_em_field_arrays(fields)) ||
+        throw(ArgumentError("implicit EM checkpoint fields must be finite"))
     if step == 0
-        all(a -> all(_particle_stored_zero, a), (fields.J..., fields.Jraw...)) && isequal(fields.rho_n, fields.rho_np1) ||
-            throw(ArgumentError("unstepped implicit EM checkpoint requires zero current and equal charges"))
+        all(a -> all(_particle_stored_zero, a), (fields.J..., fields.Jraw...)) &&
+            isequal(fields.rho_n, fields.rho_np1) || throw(
+            ArgumentError(
+                "unstepped implicit EM checkpoint requires zero current and equal charges",
+            ),
+        )
     end
     _implicit_em_set_constraint_scales!(st, fields, species)
     _implicit_em_charge!(w.midpoint.rho_n, st, species)
@@ -35,12 +57,21 @@ end
 function _implicit_em_checkpoint_data(s, st::ImplicitEMPICStepper{D,T}) where {D,T}
     _implicit_em_binding(st, st.owners; values = false, counts = false, sources = false)
     _implicit_em_checkpoint_keys(s, _IMPLICIT_EM_CHECKPOINT_FIELDS)
-    s.integrator === :implicit_empic_midpoint && s.schema === 1 &&
-        s.phase === :synchronous_integer && s.initialized === true ||
+    s.integrator === :implicit_empic_midpoint &&
+        s.schema === 1 &&
+        s.phase === :synchronous_integer &&
+        s.initialized === true ||
         throw(ArgumentError("unsupported implicit EM checkpoint family/schema/phase"))
-    config = _implicit_em_configuration(st.g, st.c, st._species_scalars, st.controls, st.constraint_tolerances)
-    typeof(s.configuration) === typeof(config) && isequal(s.configuration, config) ||
-        throw(ArgumentError("implicit EM checkpoint fixed configuration must match the destination"))
+    config = _implicit_em_configuration(
+        st.g,
+        st.c,
+        st._species_scalars,
+        st.controls,
+        st.constraint_tolerances,
+    )
+    typeof(s.configuration) === typeof(config) && isequal(s.configuration, config) || throw(
+        ArgumentError("implicit EM checkpoint fixed configuration must match the destination"),
+    )
     _implicit_em_phase(st, s.initialized, s.time, s.step, s.last_dt, s.last_report)
     s.species isa Vector && length(s.species) == length(st.owners) ||
         throw(ArgumentError("implicit EM checkpoint requires its ordered species count"))
@@ -48,8 +79,12 @@ function _implicit_em_checkpoint_data(s, st::ImplicitEMPICStepper{D,T}) where {D
     for (index, record) in enumerate(s.species)
         _implicit_em_checkpoint_keys(record, _CHECKPOINT_PARTICLE_FIELDS)
         ps = _checkpoint_species(record, Val(D), T)
-        ps isa _ElectrostaticHostParticle{D,T} && isequal((ps.q, ps.m), st._species_scalars[index]) ||
-            throw(ArgumentError("implicit EM checkpoint requires ordinary Vectors and fixed original factors"))
+        ps isa _ElectrostaticHostParticle{D,T} &&
+            isequal((ps.q, ps.m), st._species_scalars[index]) || throw(
+            ArgumentError(
+                "implicit EM checkpoint requires ordinary Vectors and fixed original factors",
+            ),
+        )
         push!(populations, ps)
     end
     _implicit_em_particles(st, populations)
@@ -57,18 +92,23 @@ function _implicit_em_checkpoint_data(s, st::ImplicitEMPICStepper{D,T}) where {D
     _implicit_em_checkpoint_keys(s.fields, keys(references))
     _validate_checkpoint_fields(s.fields, references)
     fields_in = Tuple(a for value in values(s.fields) for a in (value isa Tuple ? value : (value,)))
-    all(a -> a isa Array{T,D} && all(isfinite, a), fields_in) ||
-        throw(ArgumentError("implicit EM checkpoint requires finite ordinary matching field Arrays"))
+    all(a -> a isa Array{T,D} && all(isfinite, a), fields_in) || throw(
+        ArgumentError("implicit EM checkpoint requires finite ordinary matching field Arrays"),
+    )
     incoming = (s.species, fields_in..., _implicit_hybrid_particle_arrays(populations)...)
-    owned = (_implicit_em_owned_arrays(st)..., st.g.midx..., st.g.kfull..., st.g.ik..., st.g.kvec...)
+    owned =
+        (_implicit_em_owned_arrays(st)..., st.g.midx..., st.g.kfull..., st.g.ik..., st.g.kvec...)
     for i in eachindex(incoming)
         for j = 1:(i-1)
             _particle_arrays_mightalias(incoming[i], incoming[j]) &&
                 throw(ArgumentError("implicit EM checkpoint physical roles must be independent"))
         end
         for a in owned
-            _particle_arrays_mightalias(incoming[i], a) &&
-                throw(ArgumentError("implicit EM checkpoint must be detached from destination/grid storage"))
+            _particle_arrays_mightalias(incoming[i], a) && throw(
+                ArgumentError(
+                    "implicit EM checkpoint must be detached from destination/grid storage",
+                ),
+            )
         end
     end
     # Configuration contains only fixed scalar/type/policy tuples. Known Q
@@ -88,12 +128,26 @@ function _checkpoint_state(st::ImplicitEMPICStepper, species::AbstractVector)
     _implicit_em_boundary(st)
     _implicit_em_stage!(st, species, zero(st.c))
     _implicit_em_ready_constraints!(st)
-    config = _implicit_em_configuration(st.g, st.c, st._species_scalars, st.controls, st.constraint_tolerances)
-    state = (integrator = :implicit_empic_midpoint, schema = 1, configuration = config,
-        phase = :synchronous_integer, initialized = true,
+    config = _implicit_em_configuration(
+        st.g,
+        st.c,
+        st._species_scalars,
+        st.controls,
+        st.constraint_tolerances,
+    )
+    state = (
+        integrator = :implicit_empic_midpoint,
+        schema = 1,
+        configuration = config,
+        phase = :synchronous_integer,
+        initialized = true,
         species = [_checkpoint_particle_state(ps) for ps in species],
-        fields = _implicit_em_field_state(st.fields), time = st.time[], step = st.step[],
-        last_dt = st.last_dt[], last_report = st.last_report)
+        fields = _implicit_em_field_state(st.fields),
+        time = st.time[],
+        step = st.step[],
+        last_dt = st.last_dt[],
+        last_report = st.last_report,
+    )
     _validate_checkpoint_configuration(state, st, config)
     saved = deepcopy(state)
     _validate_checkpoint_state(saved, st)
@@ -109,8 +163,17 @@ function _restore_checkpoint_state!(st::ImplicitEMPICStepper, species::AbstractV
     prepared, counts = _implicit_em_replacements(incoming)
     bindings = _implicit_em_bindings(incoming)
     _implicit_em_reserve!(st, incoming)
-    return _implicit_em_commit!(st, prepared, counts, bindings, fields,
-        saved.time, saved.step, saved.last_dt, saved.last_report)
+    return _implicit_em_commit!(
+        st,
+        prepared,
+        counts,
+        bindings,
+        fields,
+        saved.time,
+        saved.step,
+        saved.last_dt,
+        saved.last_report,
+    )
 end
 
 """
@@ -145,7 +208,12 @@ function load_checkpoint!(st::ImplicitEMPICStepper, species::AbstractVector, pat
         st.busy = false
     end
 end
-function archive_run(path::AbstractString, st::ImplicitEMPICStepper, species::AbstractVector; kwargs...)
+function archive_run(
+    path::AbstractString,
+    st::ImplicitEMPICStepper,
+    species::AbstractVector;
+    kwargs...,
+)
     _acquire_implicit_em!(st)
     try
         return _archive_run(path, st, _checkpoint_state(st, species); kwargs...)

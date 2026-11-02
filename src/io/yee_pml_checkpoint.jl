@@ -1,6 +1,17 @@
 const _YEE_PML_CHECKPOINT_FIELDS = (
-    :integrator, :schema_version, :pml_policy, :profile_policy, :inner, :memory,
-    :dt, :cells, :peak_rate, :profile, :initialized, :phase, :ledger_step,
+    :integrator,
+    :schema_version,
+    :pml_policy,
+    :profile_policy,
+    :inner,
+    :memory,
+    :dt,
+    :cells,
+    :peak_rate,
+    :profile,
+    :initialized,
+    :phase,
+    :ledger_step,
     _YEE_PML_LEDGER_FIELDS...,
 )
 
@@ -9,15 +20,22 @@ function _checkpoint_state(model::YeePML)
     _yp_validate_storage(model)
     _yp_boundary(model)
     return (
-        integrator = :yee_ade_pml, schema_version = 1,
+        integrator = :yee_ade_pml,
+        schema_version = 1,
         pml_policy = :causal_directional_kappa1_alpha0_midpoint_kdk_original_h_v1,
         profile_policy = :index_staggered_polynomial_v1,
         inner = _checkpoint_state(model.inner),
         memory = (E = model._memory.E, B = model._memory.B),
-        dt = model.dt, cells = model.cells, peak_rate = model.peak_rate,
-        profile = model.profile, initialized = true, phase = :ready,
-        ledger_step = model.ledger_step, initial_energy = model.initial_energy,
-        last_exchange = model.last_exchange, total_exchange = model.total_exchange,
+        dt = model.dt,
+        cells = model.cells,
+        peak_rate = model.peak_rate,
+        profile = model.profile,
+        initialized = true,
+        phase = :ready,
+        ledger_step = model.ledger_step,
+        initial_energy = model.initial_energy,
+        last_exchange = model.last_exchange,
+        total_exchange = model.total_exchange,
         last_field_defect = model.last_field_defect,
         total_field_defect = model.total_field_defect,
     )
@@ -25,10 +43,14 @@ end
 
 function _yp_checkpoint_memory(s, model::YeePML{D,T}) where {D,T}
     _validate_checkpoint_container(s, (:E, :B))
-    length(keys(s)) == 2 || throw(ArgumentError("PML checkpoint contains unsupported memory families"))
+    length(keys(s)) == 2 ||
+        throw(ArgumentError("PML checkpoint contains unsupported memory families"))
     s.E isa NTuple{3,NTuple{2,Union{Nothing,Array{T,D}}}} &&
-        s.B isa NTuple{3,NTuple{2,Union{Nothing,Array{T,D}}}} ||
-        throw(ArgumentError("PML checkpoint memories must use ordinary matching CPU arrays or absent slots"))
+        s.B isa NTuple{3,NTuple{2,Union{Nothing,Array{T,D}}}} || throw(
+        ArgumentError(
+            "PML checkpoint memories must use ordinary matching CPU arrays or absent slots",
+        ),
+    )
     memory = _YeePMLMemory{D,T}(s.E, s.B)
     _yp_memory_storage(memory, model.inner.g, model.cells)
     return memory
@@ -39,7 +61,8 @@ function _validate_checkpoint_state(s, model::YeePML{D,T}) where {D,T}
     _validate_checkpoint_container(s, _YEE_PML_CHECKPOINT_FIELDS)
     length(keys(s)) == length(_YEE_PML_CHECKPOINT_FIELDS) ||
         throw(ArgumentError("PML checkpoint contains unsupported fields"))
-    s.integrator === :yee_ade_pml && s.schema_version === 1 &&
+    s.integrator === :yee_ade_pml &&
+        s.schema_version === 1 &&
         s.pml_policy === :causal_directional_kappa1_alpha0_midpoint_kdk_original_h_v1 &&
         s.profile_policy === :index_staggered_polynomial_v1 ||
         throw(ArgumentError("unsupported PML checkpoint schema or policy"))
@@ -68,7 +91,13 @@ function _restore_checkpoint_state!(model::YeePML, s)
     saved = deepcopy(s)
     _validate_checkpoint_state(saved, model)
     memory = _yp_checkpoint_memory(saved.memory, model)
-    rates = _yee_profile_axis_cache(model.inner.g, saved.cells, saved.peak_rate, saved.profile, one(_YeeLayerQ))
+    rates = _yee_profile_axis_cache(
+        model.inner.g,
+        saved.cells,
+        saved.peak_rate,
+        saved.profile,
+        one(_YeeLayerQ),
+    )
     # The whole source graph is detached. Canonical nested restore completes its
     # own detachment/checks before its first store. Fixed-size copies and typed
     # already-prepared assignments only follow that physical publication.
@@ -135,12 +164,22 @@ function archive_run(
     path::AbstractString,
     model::YeePML;
     normalization::AbstractString = "epsilon0=1;mu0=1/c^2;directional_ADE_PML_kappa1_alpha0",
-    boundary_desc::AbstractString = join(map(p -> p ? "periodic" : "pec", model.inner.g.periodic), ",") * ";directional_ADE_PML",
+    boundary_desc::AbstractString = join(
+        map(p -> p ? "periodic" : "pec", model.inner.g.periodic),
+        ",",
+    ) * ";directional_ADE_PML",
     kwargs...,
 )
     _yp_acquire!(model)
     try
-        return _archive_run(path, model, _checkpoint_state(model); normalization, boundary_desc, kwargs...)
+        return _archive_run(
+            path,
+            model,
+            _checkpoint_state(model);
+            normalization,
+            boundary_desc,
+            kwargs...,
+        )
     finally
         model.busy[] = false
     end

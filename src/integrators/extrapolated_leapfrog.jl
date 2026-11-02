@@ -49,8 +49,7 @@ _transport_force_storage(g::FourierGrid{D,T}, ::_ScalarTransportClosure) where {
     ntuple(_ -> zeros(T, g.n), 3)
 
 _conduction_quotient_storage(::FourierGrid, ::ElectronClosure) = nothing
-_conduction_quotient_storage(g::FourierGrid, ::ConductingElectrons) =
-    zeros(Rational{BigInt}, g.n)
+_conduction_quotient_storage(g::FourierGrid, ::ConductingElectrons) = zeros(Rational{BigInt}, g.n)
 
 function _pressure_workspace(g::FourierGrid{D,T}, closure, count) where {D,T}
     _evolves_pressure(closure) || return nothing
@@ -165,10 +164,14 @@ function _validate_conduction_substep(st::HybridStepper{D,T}, h::T) where {D,T}
         throw(ArgumentError("active electron conduction requires a positive resolved substep"))
     nmin = minimum(st.fn)
     γ = T(st.model.closure.γ)
-    decay_step = _exact_rational(h) * _exact_rational(_pressure_heat_gamma(γ)) *
-        _exact_rational(κ) * _conduction_laplacian_gain(st.g) / _exact_rational(nmin)
-    decay_step < _exact_rational(_integrator_real_axis_limit(:rk4)) ||
-        throw(ArgumentError("electron conduction substep violates the strict pure-diffusion RK4 bound"))
+    decay_step =
+        _exact_rational(h) *
+        _exact_rational(_pressure_heat_gamma(γ)) *
+        _exact_rational(κ) *
+        _conduction_laplacian_gain(st.g) / _exact_rational(nmin)
+    decay_step < _exact_rational(_integrator_real_axis_limit(:rk4)) || throw(
+        ArgumentError("electron conduction substep violates the strict pure-diffusion RK4 bound"),
+    )
     return nothing
 end
 
@@ -179,7 +182,8 @@ function _conduction_dt_down(::Type{T}, bound::Rational{BigInt}) where {T}
 end
 function _conduction_dt_down(::Type{T}, bound::AbstractFloat) where {T}
     isinf(bound) && bound > 0 && return floatmax(T)
-    isfinite(bound) && bound >= 0 || throw(ArgumentError("recommended timestep must be nonnegative"))
+    isfinite(bound) && bound >= 0 ||
+        throw(ArgumentError("recommended timestep must be nonnegative"))
     return _conduction_dt_down(T, _exact_rational(bound))
 end
 
@@ -197,12 +201,23 @@ The recommendation respects the strict bound after grid-precision substep divisi
 `safety=1`. The existing grid-based overload is unchanged.
 """
 function recommended_dt(
-    st::HybridStepper{D,T}; NB::Integer = 1, safety::Real = 0.8,
-    d_i::Real = 1.0, Ω_ci::Real = 1.0,
+    st::HybridStepper{D,T};
+    NB::Integer = 1,
+    safety::Real = 0.8,
+    d_i::Real = 1.0,
+    Ω_ci::Real = 1.0,
 ) where {D,T}
     _validate_evolving_model(st.model, T)
-    magnetic = recommended_dt(st.g; NB, integrator = :rk4, safety, d_i, Ω_ci,
-        η = st.model.η, ηH = st.model.ηH)
+    magnetic = recommended_dt(
+        st.g;
+        NB,
+        integrator = :rk4,
+        safety,
+        d_i,
+        Ω_ci,
+        η = st.model.η,
+        ηH = st.model.ηH,
+    )
     result = _conduction_dt_down(T, magnetic)
     (result >= 2 * floatmin(T) && !iszero(result / NB)) || return zero(T)
     κ = _electron_conductivity(st.model.closure, T)
@@ -212,7 +227,8 @@ function recommended_dt(
     γ = T(st.model.closure.γ)
     floor = _require_finite_positive_real("nfloor", st.model.nfloor, T)
     limit = _exact_rational(_integrator_real_axis_limit(:rk4))
-    decay = _exact_rational(_pressure_heat_gamma(γ)) * _exact_rational(κ) * gain /
+    decay =
+        _exact_rational(_pressure_heat_gamma(γ)) * _exact_rational(κ) * gain /
         _exact_rational(floor)
     safety_exact = safety isa AbstractFloat ? _exact_rational(safety) : Rational{BigInt}(safety)
     bound = Rational{BigInt}(NB) * safety_exact * limit / decay
@@ -287,20 +303,68 @@ _validate_conduction_quotient_storage(st::HybridStepper, ps, ::Nothing) = nothin
 function _validate_conduction_quotient_storage(st::HybridStepper, ps, quotient)
     f, w, g = st.fields, st.pressure_work, st.g
     _require_conduction_quotient(quotient, g)
-    grids = (f.n, f.ui..., f.B..., f.E..., f.J..., f.pe, f.gradp..., f.ninv,
-        f.lapJ..., f.pforce..., f.cgl_dp, st.fn, st.fui..., st.Escr...,
-        st.k1..., st.k2..., st.k3..., st.k4..., st.Btmp..., w.ue..., w.divue,
-        w.kp..., w.ptmp, w.saved.n, w.saved.ui..., w.saved.B..., w.saved.E...,
-        w.saved.J..., w.saved.pe, w.saved.gradp..., w.saved.ninv, w.saved.lapJ...,
-        w.saved.pforce..., w.saved.cgl_dp, w.Eforce..., w.saved_Eforce...)
-    scratch = (st.Ep..., st.Bp..., st.vpred..., st.xmid..., st.work, w.x0..., w.v0...,
-        g.cbuf, g.tbuf, g.abuf, g.sbuf, g.kfull..., g.kvec..., g.ik..., g.midx...)
+    grids = (
+        f.n,
+        f.ui...,
+        f.B...,
+        f.E...,
+        f.J...,
+        f.pe,
+        f.gradp...,
+        f.ninv,
+        f.lapJ...,
+        f.pforce...,
+        f.cgl_dp,
+        st.fn,
+        st.fui...,
+        st.Escr...,
+        st.k1...,
+        st.k2...,
+        st.k3...,
+        st.k4...,
+        st.Btmp...,
+        w.ue...,
+        w.divue,
+        w.kp...,
+        w.ptmp,
+        w.saved.n,
+        w.saved.ui...,
+        w.saved.B...,
+        w.saved.E...,
+        w.saved.J...,
+        w.saved.pe,
+        w.saved.gradp...,
+        w.saved.ninv,
+        w.saved.lapJ...,
+        w.saved.pforce...,
+        w.saved.cgl_dp,
+        w.Eforce...,
+        w.saved_Eforce...,
+    )
+    scratch = (
+        st.Ep...,
+        st.Bp...,
+        st.vpred...,
+        st.xmid...,
+        st.work,
+        w.x0...,
+        w.v0...,
+        g.cbuf,
+        g.tbuf,
+        g.abuf,
+        g.sbuf,
+        g.kfull...,
+        g.kvec...,
+        g.ik...,
+        g.midx...,
+    )
     for a in (grids..., scratch...)
         _particle_arrays_mightalias(quotient, a) &&
             throw(ArgumentError("electron quotient scratch must have independent storage"))
     end
     for population in _pressure_populations(ps),
         a in (population.x..., population.v..., population.weight, population.id, population.tag)
+
         _particle_arrays_mightalias(quotient, a) &&
             throw(ArgumentError("electron quotient scratch must not alias particles"))
     end
@@ -722,20 +786,33 @@ end
     return _from_exact(T, Q(initial) + Q(op.h) * total / op.divisor)
 end
 
-@inline function _rk4_affine_native(op::_RK4Affine{T}, initial::T, rate::T,
-    ops::_ScalarOps = _DefaultScalarOps()) where {T}
+@inline function _rk4_affine_native(
+    op::_RK4Affine{T},
+    initial::T,
+    rate::T,
+    ops::_ScalarOps = _DefaultScalarOps(),
+) where {T}
     increment = _scalar_mul(ops, op.coefficient, rate)
     value = _scalar_add(ops, initial, increment)
     T <: _RangeGuardedFloat || return (value = value, resolved = true)
     all(isfinite, (initial, op.h, rate)) || return (value = value, resolved = true)
-    resolved = op.native_context & _rk4_coefficient_in_range(op) &
+    resolved =
+        op.native_context &
+        _rk4_coefficient_in_range(op) &
         _kinematics_product_in_range(increment, op.coefficient, rate) &
         _rk4_sum_in_range(value, initial, increment)
     return (value = value, resolved = resolved)
 end
 
-@inline function _rk4_affine_native(op::_RK4Affine{T}, initial::T, k1::T, k2::T, k3::T, k4::T,
-    ops::_ScalarOps = _DefaultScalarOps()) where {T}
+@inline function _rk4_affine_native(
+    op::_RK4Affine{T},
+    initial::T,
+    k1::T,
+    k2::T,
+    k3::T,
+    k4::T,
+    ops::_ScalarOps = _DefaultScalarOps(),
+) where {T}
     twice2, twice3 = _scalar_mul(ops, 2, k2), _scalar_mul(ops, 2, k3)
     sum12 = _scalar_add(ops, k1, twice2)
     sum123 = _scalar_add(ops, sum12, twice3)
@@ -744,7 +821,9 @@ end
     value = _scalar_add(ops, initial, increment)
     T <: _RangeGuardedFloat || return (value = value, resolved = true)
     all(isfinite, (initial, op.h, k1, k2, k3, k4)) || return (value = value, resolved = true)
-    resolved = op.native_context & _rk4_coefficient_in_range(op) &
+    resolved =
+        op.native_context &
+        _rk4_coefficient_in_range(op) &
         _kinematics_product_in_range(twice2, T(2), k2) &
         _kinematics_product_in_range(twice3, T(2), k3) &
         _rk4_sum_in_range(sum12, k1, twice2) &
@@ -762,7 +841,8 @@ end
 
 @inline function (op::_RK4Affine{T})(initial::T, k1::T, k2::T, k3::T, k4::T) where {T}
     native = _rk4_affine_native(op, initial, k1, k2, k3, k4)
-    return native.resolved ? native.value : _rk4_affine_exact(op, initial, (k1, k2, k3, k4), (1, 2, 2, 1))
+    return native.resolved ? native.value :
+           _rk4_affine_exact(op, initial, (k1, k2, k3, k4), (1, 2, 2, 1))
 end
 
 # one RK4 substep of size h on canonical B (st.fields.B), frozen moments
@@ -864,8 +944,18 @@ function _bpressure_rhs!(
     γ, η = T(st.model.closure.γ), T(st.model.η)
     if !iszero(κ)
         iszero(η) || _add_ohmic_field!(st.Escr, st.Escr, f.J, η)
-        _complete_transport_pressure_rhs!(outp, ptrial, w.ue, f.J, γ, η, zero(T), g;
-            κ, quotient = w.quotient)
+        _complete_transport_pressure_rhs!(
+            outp,
+            ptrial,
+            w.ue,
+            f.J,
+            γ,
+            η,
+            zero(T),
+            g;
+            κ,
+            quotient = w.quotient,
+        )
     else
         divergence!(w.divue, w.ue, g)
         derivative_risk = _transport_pressure_derivative_range_risk(
@@ -1203,9 +1293,13 @@ function _validated_step_dt(
     NB >= min_NB ||
         throw(ArgumentError("$name requires NB >= $min_NB magnetic subcycles (got $NB)"))
     dtT = _require_resolved_dt(name, _validated_nonnegative_dt(T, dt; name))
-    iszero(dtT) || !iszero(dtT / NB) || throw(
-        ArgumentError("$name magnetic substep dt/NB must remain nonzero at grid precision; reduce NB or increase dt"),
-    )
+    iszero(dtT) ||
+        !iszero(dtT / NB) ||
+        throw(
+            ArgumentError(
+                "$name magnetic substep dt/NB must remain nonzero at grid precision; reduce NB or increase dt",
+            ),
+        )
     return dtT
 end
 
@@ -1475,7 +1569,17 @@ function _push_hybrid_population!(st, ws, ps::ParticleSet{D,T}, dtT::T, kick_dt:
 end
 
 # Fields have already been gathered; preserve the common prime/kick/drift map.
-function _push_hybrid_gathered!(ps::ParticleSet{D,T}, ws, factor, qm, h, dtT, kick_dt, prime::Bool, L) where {D,T}
+function _push_hybrid_gathered!(
+    ps::ParticleSet{D,T},
+    ws,
+    factor,
+    qm,
+    h,
+    dtT,
+    kick_dt,
+    prime::Bool,
+    L,
+) where {D,T}
     prime && _prime_leapfrog!(ps.v, ws.Ep, ws.Bp, factor, h, length(ps.weight))
     hk = qm * kick_dt / 2
     scales = _boris_batch_scales(ps.v, ws.Ep, ws.Bp, hk, eachindex(ps.weight))
@@ -2395,7 +2499,11 @@ function electron_internal_energy(
 end
 
 function _electron_internal_energy_checked(
-    n::Array{T,D}, closure::ElectronClosure, g::FourierGrid{D,T}, pe, state::Val,
+    n::Array{T,D},
+    closure::ElectronClosure,
+    g::FourierGrid{D,T},
+    pe,
+    state::Val,
 ) where {D,T}
     _require_grid_array(:n, n, g)
     if _evolves_pressure(closure)
@@ -2410,7 +2518,11 @@ function _electron_internal_energy_checked(
         γ = _require_finite_real("γ", closure.γ, T)
         γ > one(T) ||
             throw(ArgumentError("evolving electron γ must be greater than one at grid precision"))
-        return _energy_pressure_result(_stored_pressure_internal_energy(pe, γ, g.dx, state), γ, state)
+        return _energy_pressure_result(
+            _stored_pressure_internal_energy(pe, γ, g.dx, state),
+            γ,
+            state,
+        )
     end
     pe === nothing ||
         throw(ArgumentError("algebraic electron energy does not accept an alternate pe"))

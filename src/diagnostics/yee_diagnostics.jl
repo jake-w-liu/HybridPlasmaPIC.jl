@@ -491,8 +491,10 @@ function yee_longitudinal_diagnostics(st::YeeLongitudinalPIC{T}, particles) wher
         kinetic_energy = _kinetic_energy_checked(species, T, Val(false)),
         field_energy = _em_field_energy_exact(st.fields.E, st.fields.B, one(T), st.g.dx),
         left_plate_charge = _exact_rational(st.left_plate_charge),
-        right_plate_charge = st.right_plate_charge[], gauss_residual = residual,
-        last_work = st.last_work[], last_energy_defect = st.last_energy_defect[],
+        right_plate_charge = st.right_plate_charge[],
+        gauss_residual = residual,
+        last_work = st.last_work[],
+        last_energy_defect = st.last_energy_defect[],
     )
 end
 
@@ -527,7 +529,9 @@ end
 Physical longitudinal field energy using the original-input energy owner.
 Read-only overflow returns infinity; no field is projected or rebuilt.
 """
-function em_field_energy(st::Union{YeeImpactLongitudinalPIC{T},YeeAbsorbingLongitudinalPIC{T}}) where {T}
+function em_field_energy(
+    st::Union{YeeImpactLongitudinalPIC{T},YeeAbsorbingLongitudinalPIC{T}},
+) where {T}
     _yl_validate_longitudinal_fields(st, st.fields)
     return _em_field_energy_exact(st.fields.E, st.fields.B, one(T), st.g.dx)
 end
@@ -546,21 +550,29 @@ surviving trajectories from that step's stored original input, conditionally on
 the single-capture admission law, not the whole run or a material sheath model.
 Read-only physical energy/Gauss can overflow; required stored histories are finite.
 """
-function yee_absorbing_longitudinal_diagnostics(st::YeeAbsorbingLongitudinalPIC{T}, particles) where {T}
+function yee_absorbing_longitudinal_diagnostics(
+    st::YeeAbsorbingLongitudinalPIC{T},
+    particles,
+) where {T}
     species = _yl_species(particles)
     st.initialized[] || throw(ArgumentError("call init! before absorbing diagnostics"))
     _yl_validate_populations(st, species)
     _ya_validate_phase(st, species)
     _ya_validate_bound(st, species)
     _yl_validate_longitudinal_fields(st, st.fields)
-    return merge(_ya_history_values(st), (
-        initial_counts = copy(st._initial_counts[]), initial_charges = copy(st._initial_charges[]),
-        current_counts = Int[length(ps.weight) for ps in species],
-        last_impulse = map(copy, st.last_impulse),
-        kinetic_energy = _kinetic_energy_checked(species, T, Val(false)),
-        field_energy = em_field_energy(st),
-        left_plate_charge = st.free_left_plate_charge[],
-        gauss_residual = _yee_closed_gauss_residual(st, species)))
+    return merge(
+        _ya_history_values(st),
+        (
+            initial_counts = copy(st._initial_counts[]),
+            initial_charges = copy(st._initial_charges[]),
+            current_counts = Int[length(ps.weight) for ps in species],
+            last_impulse = map(copy, st.last_impulse),
+            kinetic_energy = _kinetic_energy_checked(species, T, Val(false)),
+            field_energy = em_field_energy(st),
+            left_plate_charge = st.free_left_plate_charge[],
+            gauss_residual = _yee_closed_gauss_residual(st, species),
+        ),
+    )
 end
 
 """
@@ -587,16 +599,19 @@ function yee_impact_longitudinal_diagnostics(st::YeeImpactLongitudinalPIC{T}, pa
     _yl_validate_populations(st, species)
     _yi_validate_bound(st, species)
     _yl_validate_longitudinal_fields(st, st.fields)
-    return merge(_yi_history_values(st), (
-        last_impulse = map(copy, st.last_impulse),
-        kinetic_energy = _kinetic_energy_checked(species, T, Val(false)),
-        field_energy = em_field_energy(st),
-        left_plate_charge = _exact_rational(st.left_plate_charge),
-        right_plate_charge = st.right_plate_charge[],
-        gauss_residual = _yee_closed_gauss_residual(st, species),
-        wall_charge_transfer = ntuple(_ -> zero(_YeeImpactQ), 2),
-        wall_work_transfer = ntuple(_ -> zero(_YeeImpactQ), 2),
-    ))
+    return merge(
+        _yi_history_values(st),
+        (
+            last_impulse = map(copy, st.last_impulse),
+            kinetic_energy = _kinetic_energy_checked(species, T, Val(false)),
+            field_energy = em_field_energy(st),
+            left_plate_charge = _exact_rational(st.left_plate_charge),
+            right_plate_charge = st.right_plate_charge[],
+            gauss_residual = _yee_closed_gauss_residual(st, species),
+            wall_charge_transfer = ntuple(_ -> zero(_YeeImpactQ), 2),
+            wall_work_transfer = ntuple(_ -> zero(_YeeImpactQ), 2),
+        ),
+    )
 end
 
 """
@@ -620,7 +635,9 @@ energy; no exactly conserved fully discrete coupled energy is implied.
 function yee_modified_energy(st::YeeElectromagneticPIC{T}, dt::Real) where {T}
     tau = _require_finite_positive_real("dt", dt, T)
     tau < maxwell_cfl(st) || throw(ArgumentError("dt must be strictly below Maxwell CFL"))
-    st.step[] == 0 || isequal(tau, st.last_dt[]) || throw(ArgumentError("modified energy requires fixed dt"))
+    st.step[] == 0 ||
+        isequal(tau, st.last_dt[]) ||
+        throw(ArgumentError("modified energy requires fixed dt"))
     _ye_validate_fields(st, st.fields)
     return _from_exact(T, _yee_modified_energy_rational(st, tau))
 end
@@ -644,12 +661,15 @@ function yee_electromagnetic_diagnostics(st::YeeElectromagneticPIC{T}, particles
     _yl_validate_populations(st, species)
     _yl_validate_bound(st, species)
     _ye_validate_fields(st, st.fields)
-    return (kinetic_energy = _kinetic_energy_checked(species, T, Val(false)),
+    return (
+        kinetic_energy = _kinetic_energy_checked(species, T, Val(false)),
         field_energy = em_field_energy(st),
         modified_field_energy = st.step[] == 0 ? nothing : yee_modified_energy(st, st.last_dt[]),
         left_plate_charge = _exact_rational(st.left_plate_charge),
         right_plate_charge = st.right_plate_charge[],
         gauss_residual = _yee_closed_gauss_residual(st, species),
-        last_work = st.last_work[], last_modified_energy_defect = st.last_modified_energy_defect[],
-        last_physical_energy_change = st.last_physical_energy_change[])
+        last_work = st.last_work[],
+        last_modified_energy_defect = st.last_modified_energy_defect[],
+        last_physical_energy_change = st.last_physical_energy_change[],
+    )
 end

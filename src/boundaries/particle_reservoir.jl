@@ -299,7 +299,8 @@ Base.showerror(io::IO, err::ReservoirDrawBudgetError) =
 
 # Ephemeral: retain the stock scalar normal/flux owners and delegate each exact
 # uniform request. No broad Sampler method or replacement distribution.
-mutable struct _ReservoirDrawView{R<:Union{Random.Xoshiro,Random.MersenneTwister}} <: Random.AbstractRNG
+mutable struct _ReservoirDrawView{R<:Union{Random.Xoshiro,Random.MersenneTwister}} <:
+               Random.AbstractRNG
     rng::R
     limit::Int
     used::Int

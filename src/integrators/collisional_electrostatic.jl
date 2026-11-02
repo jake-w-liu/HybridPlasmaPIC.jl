@@ -58,7 +58,9 @@ end
 
 function _validate_collisional_espic_mode()
     _boris_accuracy_mode() || throw(
-        ArgumentError("CollisionalElectrostaticPIC requires nearest rounding and gradual underflow"),
+        ArgumentError(
+            "CollisionalElectrostaticPIC requires nearest rounding and gradual underflow",
+        ),
     )
     return nothing
 end
@@ -77,8 +79,9 @@ end
 function _validate_collisional_espic_population_storage(species, grid::FourierGrid{D,T}) where {D,T}
     _espic_validate_collection_type(species, grid)
     for ps in species
-        ps isa _ElectrostaticHostParticle{D,T} ||
-            throw(ArgumentError("CollisionalElectrostaticPIC requires ordinary Vector particle storage"))
+        ps isa _ElectrostaticHostParticle{D,T} || throw(
+            ArgumentError("CollisionalElectrostaticPIC requires ordinary Vector particle storage"),
+        )
     end
     return nothing
 end
@@ -102,9 +105,8 @@ function CollisionalElectrostaticPIC(
     h = _require_resolved_dt("collisional ES dt", _require_finite_positive_real("dt", dt, T))
     epsilon = _require_finite_positive_real("epsilon0", epsilon0, T)
     number_scale = _require_finite_positive_real("weight_to_number", weight_to_number, T)
-    isequal(epsilon, number_scale) || throw(
-        ArgumentError("collisional ES requires equal resolved epsilon0 and weight_to_number"),
-    )
+    isequal(epsilon, number_scale) ||
+        throw(ArgumentError("collisional ES requires equal resolved epsilon0 and weight_to_number"))
     uf = _require_finite_positive_real("u_floor", u_floor, T)
     _validate_coulomb_logs(coulomb_log, length(species), T)
     logs = coulomb_log isa Real ? T(coulomb_log) : Matrix{T}(coulomb_log)
@@ -150,14 +152,23 @@ function _validate_collisional_espic_role_storage(st::CollisionalElectrostaticPI
     inner, g = st.inner, st.grid
     work = _espic_collection(inner)
     writers = (
-        inner.E..., inner.ne, work.E..., work.ne, work.density, inner.Ep...,
-        g.cbuf, g.tbuf, g.abuf, g.sbuf,
+        inner.E...,
+        inner.ne,
+        work.E...,
+        work.ne,
+        work.density,
+        inner.Ep...,
+        g.cbuf,
+        g.tbuf,
+        g.abuf,
+        g.sbuf,
     )
     for a in eachindex(writers)
         _require_collisional_espic_metadata_independent(writers[a], g)
         for b = 1:(a-1)
-            _particle_arrays_mightalias(writers[a], writers[b]) &&
-                throw(ArgumentError("collisional ES field, gather and FFT storage must be independent"))
+            _particle_arrays_mightalias(writers[a], writers[b]) && throw(
+                ArgumentError("collisional ES field, gather and FFT storage must be independent"),
+            )
         end
     end
     for (a, ps) in enumerate(work.staged)
@@ -203,7 +214,9 @@ function _validate_collisional_espic_rngs(st::CollisionalElectrostaticPIC)
 end
 
 function _validate_collisional_espic_binding(
-    st::CollisionalElectrostaticPIC{D,T}, species; values::Bool = true,
+    st::CollisionalElectrostaticPIC{D,T},
+    species;
+    values::Bool = true,
 ) where {D,T}
     _validate_collisional_espic_mode()
     st.phase in (:uninitialized, :ready) ||
@@ -217,7 +230,8 @@ function _validate_collisional_espic_binding(
             throw(ArgumentError("collisional ES species identities and order are fixed"))
         nparticles(ps) == st.identities[a][1] ||
             throw(ArgumentError("collisional ES particle counts are fixed"))
-        !values || isequal((nparticles(ps), ps.q, ps.m), st.identities[a]) ||
+        !values ||
+            isequal((nparticles(ps), ps.q, ps.m), st.identities[a]) ||
             throw(ArgumentError("collisional ES charges and masses are fixed"))
     end
     st.inner.g === st.grid || throw(ArgumentError("collisional ES grid is fixed"))
@@ -230,9 +244,8 @@ function _validate_collisional_espic_binding(
     _require_finite_positive_real("epsilon0", st.epsilon0, T)
     _require_finite_positive_real("weight_to_number", st.weight_to_number, T)
     _require_finite_positive_real("u_floor", st.u_floor, T)
-    isequal(st.epsilon0, st.weight_to_number) || throw(
-        ArgumentError("collisional ES requires equal resolved epsilon0 and weight_to_number"),
-    )
+    isequal(st.epsilon0, st.weight_to_number) ||
+        throw(ArgumentError("collisional ES requires equal resolved epsilon0 and weight_to_number"))
     _validate_coulomb_logs(st.coulomb_log, length(st.species), T)
     if values
         _espic_validate_species(st.inner, st.species)
@@ -280,8 +293,12 @@ function _validate_collisional_espic_boundary(st::CollisionalElectrostaticPIC{D,
     _validate_checkpoint_clock_state((time = st.source_time, step = st.source_count), T)
     (
         st.source_count == 0 ?
-        _particle_stored_zero(st.source_time) && !inner.primed[] && _particle_stored_zero(inner.last_dt[]) :
-        st.source_time > zero(T) && inner.primed[] && isequal(inner.last_dt[], st.dt) &&
+        _particle_stored_zero(st.source_time) &&
+        !inner.primed[] &&
+        _particle_stored_zero(inner.last_dt[]) :
+        st.source_time > zero(T) &&
+        inner.primed[] &&
+        isequal(inner.last_dt[], st.dt) &&
         st.dt <= st.source_time
     ) || throw(ArgumentError("collisional ES clock and carried phase do not match its fixed dt"))
     return nothing
@@ -312,9 +329,11 @@ end
 
 function step!(st::CollisionalElectrostaticPIC{D,T}, species::AbstractVector, dt::Real) where {D,T}
     h = _require_resolved_dt(
-        "collisional ES step!", _validated_nonnegative_dt(T, dt; name = "collisional ES step!"),
+        "collisional ES step!",
+        _validated_nonnegative_dt(T, dt; name = "collisional ES step!"),
     )
-    _particle_stored_zero(h) && !iszero(dt) &&
+    _particle_stored_zero(h) &&
+        !iszero(dt) &&
         throw(ArgumentError("nonzero collisional ES dt must not underflow at grid precision"))
     _acquire_collisional_espic!(st)
     try
@@ -337,7 +356,9 @@ function step!(st::CollisionalElectrostaticPIC{D,T}, species::AbstractVector, dt
             _espic_collection_advance_candidate!(st.inner, st.species, work, h)
             if active
                 collide_coulomb!(
-                    work.staged, st.grid, h;
+                    work.staged,
+                    st.grid,
+                    h;
                     coulomb_log = st.coulomb_log,
                     epsilon0 = st.epsilon0,
                     weight_to_number = st.weight_to_number,
@@ -374,7 +395,11 @@ function electrostatic_diagnostics(st::CollisionalElectrostaticPIC, species::Abs
         _validate_collisional_espic_boundary(st)
         return merge(
             electrostatic_diagnostics(st.inner, st.species),
-            (split_policy = :field_then_coulomb, source_time = st.source_time, source_count = st.source_count),
+            (
+                split_policy = :field_then_coulomb,
+                source_time = st.source_time,
+                source_count = st.source_count,
+            ),
         )
     finally
         st.busy[] = false

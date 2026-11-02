@@ -65,8 +65,10 @@ end
 
 
 function YeeLongitudinalPIC(
-    g::YeeGrid{1,T}; shape::YeeTriangularCloud,
-    background_charge = zero(T), left_plate_charge = zero(T),
+    g::YeeGrid{1,T};
+    shape::YeeTriangularCloud,
+    background_charge = zero(T),
+    left_plate_charge = zero(T),
 ) where {T}
     g.periodic[1] && throw(ArgumentError("longitudinal PIC requires a closed PEC grid"))
     b = _yl_source_scalar("background_charge", background_charge, T)
@@ -75,10 +77,23 @@ function YeeLongitudinalPIC(
     impulse() = ntuple(c -> zeros(T, length(fields.E[c])), 3)
     stage = _YeeLongitudinalStage{T}(ParticleSet{1,T}[], Tuple[], _ElectrostaticHostParticle{1,T}[])
     return YeeLongitudinalPIC{T,typeof(shape),typeof(b),typeof(sigma)}(
-        g, shape, b, sigma, fields, Ref(zero(T)), Ref(0), Ref(false), Ref(zero(T)),
+        g,
+        shape,
+        b,
+        sigma,
+        fields,
+        Ref(zero(T)),
+        Ref(0),
+        Ref(false),
+        Ref(zero(T)),
         Ref(-_exact_rational(sigma) - _exact_rational(b) * _exact_rational(g.L[1])),
-        impulse(), Ref(zero(T)), Ref(zero(T)), candidate, impulse(),
-        YeeChargeWorkspace(g), Ref(stage),
+        impulse(),
+        Ref(zero(T)),
+        Ref(zero(T)),
+        candidate,
+        impulse(),
+        YeeChargeWorkspace(g),
+        Ref(stage),
     )
 end
 
@@ -124,8 +139,13 @@ end
 
 function _yl_storage_arrays(st)
     arrays = Any[
-        st.fields.E..., st.fields.B..., st._candidate.E..., st._candidate.B...,
-        st.last_impulse..., st._impulse..., st._charge_workspace.sum,
+        st.fields.E...,
+        st.fields.B...,
+        st._candidate.E...,
+        st._candidate.B...,
+        st.last_impulse...,
+        st._impulse...,
+        st._charge_workspace.sum,
         st._charge_workspace.candidate,
     ]
     for ps in st._stage[].candidates
@@ -159,8 +179,9 @@ function _yl_validate_storage(st, species)
         throw(DimensionMismatch("closed Yee PIC charge workspace shape changed"))
     clocks = _yee_closed_references(st)
     for j in eachindex(clocks), i = 1:j-1
-        clocks[i] === clocks[j] &&
-            throw(ArgumentError("closed Yee PIC clock and diagnostic references must be independent"))
+        clocks[i] === clocks[j] && throw(
+            ArgumentError("closed Yee PIC clock and diagnostic references must be independent"),
+        )
     end
     arrays = _yl_storage_arrays(st)
     for ps in species
@@ -170,8 +191,9 @@ function _yl_validate_storage(st, species)
         append!(arrays, _yl_particle_arrays(ps))
     end
     for j in eachindex(arrays), i = 1:j-1
-        _particle_arrays_mightalias(arrays[i], arrays[j]) &&
-            throw(ArgumentError("closed Yee PIC public, stage and particle arrays must be independent"))
+        _particle_arrays_mightalias(arrays[i], arrays[j]) && throw(
+            ArgumentError("closed Yee PIC public, stage and particle arrays must be independent"),
+        )
     end
     return nothing
 end
@@ -206,32 +228,46 @@ _yl_validate_populations(st::YeeLongitudinalPIC, species) =
     _yee_closed_validate_longitudinal_populations(st, species)
 
 function _yl_validate_phase_values(initialized, time::T, step, last_dt, work, defect) where {T}
-    initialized isa Bool && step isa Int && step >= 0 && last_dt isa T &&
-        work isa T && defect isa T && all(isfinite, (time, last_dt, work, defect)) ||
+    initialized isa Bool &&
+        step isa Int &&
+        step >= 0 &&
+        last_dt isa T &&
+        work isa T &&
+        defect isa T &&
+        all(isfinite, (time, last_dt, work, defect)) ||
         throw(ArgumentError("invalid closed Yee PIC phase or diagnostics"))
     if step == 0
         iszero(time) && iszero(last_dt) && iszero(work) && iszero(defect) ||
             throw(ArgumentError("unadvanced closed Yee PIC clock/history must be zero"))
     else
-        initialized && time > zero(T) && last_dt > zero(T) && last_dt <= time ||
-            throw(ArgumentError("advanced closed Yee PIC phase must be initialized with positive dt/time"))
+        initialized && time > zero(T) && last_dt > zero(T) && last_dt <= time || throw(
+            ArgumentError(
+                "advanced closed Yee PIC phase must be initialized with positive dt/time",
+            ),
+        )
     end
     return nothing
 end
 function _yl_validate_phase(st::YeeLongitudinalPIC)
-    _yl_validate_phase_values(st.initialized[], st.time[], st.step[], st.last_dt[],
-        st.last_work[], st.last_energy_defect[])
+    _yl_validate_phase_values(
+        st.initialized[],
+        st.time[],
+        st.step[],
+        st.last_dt[],
+        st.last_work[],
+        st.last_energy_defect[],
+    )
     _yee_validate_impulse(st.last_impulse, st.g)
     all(_yl_stored_zero, st.last_impulse[2]) && all(_yl_stored_zero, st.last_impulse[3]) ||
         throw(ArgumentError("longitudinal impulse history must have zero transverse data"))
-    st.step[] == 0 && !all(a -> all(iszero, a), st.last_impulse) &&
+    st.step[] == 0 &&
+        !all(a -> all(iszero, a), st.last_impulse) &&
         throw(ArgumentError("unadvanced longitudinal impulse must be zero"))
     return nothing
 end
 
 function _yee_closed_right_plate(sigma, background, length, species)
-    total = _exact_rational(sigma) +
-        _exact_rational(background) * _exact_rational(length)
+    total = _exact_rational(sigma) + _exact_rational(background) * _exact_rational(length)
     for ps in species, w in ps.weight
         total += _exact_rational(ps.q) * _exact_rational(w)
     end
@@ -242,14 +278,21 @@ _yl_right_plate(st, species) =
 _yee_closed_plate_values(st) = (_exact_rational(st.left_plate_charge), st.right_plate_charge[])
 
 _yee_closed_frozen_sources_match(ps, frozen) =
-    isequal(ps.q, frozen.q) && isequal(ps.m, frozen.m) &&
-    isequal(ps.weight, frozen.weight) && isequal(ps.id, frozen.id) && isequal(ps.tag, frozen.tag)
+    isequal(ps.q, frozen.q) &&
+    isequal(ps.m, frozen.m) &&
+    isequal(ps.weight, frozen.weight) &&
+    isequal(ps.id, frozen.id) &&
+    isequal(ps.tag, frozen.tag)
 
 function _yee_closed_validate_binding(st, species, stage)
-    length(species) == length(stage.owners) == length(stage.candidates) == length(stage.components) ||
+    length(species) ==
+    length(stage.owners) ==
+    length(stage.candidates) ==
+    length(stage.components) ||
         throw(ArgumentError("population count changed; call init! explicitly"))
     for (k, ps) in enumerate(species)
-        ps === stage.owners[k] || throw(ArgumentError("population identity/order changed; call init!"))
+        ps === stage.owners[k] ||
+            throw(ArgumentError("population identity/order changed; call init!"))
         all(t -> t[1] === t[2], zip(_yl_particle_arrays(ps), stage.components[k])) ||
             throw(ArgumentError("particle component identity changed; call init!"))
         frozen = stage.candidates[k]
@@ -274,7 +317,7 @@ function _yl_initialize_fields!(st, species)
         # The exact nodal prefix telescopes to sum(q*w*(1-A_e)); do not
         # convert nodal charges, which can overflow even when Ex is finite.
         cumulative += charge[e+1]
-        total = sigma + b * (e + 1//2) * h + cumulative
+        total = sigma + b * (e + 1 // 2) * h + cumulative
         value = _from_exact(T, total)
         isfinite(value) || throw(ArgumentError("initial closed Yee PIC Ex does not round finite"))
         st._candidate.E[1][e+1] = value
@@ -341,8 +384,13 @@ end
 
 # Shared original-force owner. The caller prepares the original q/m and full-dt
 # half once; gathered fields remain rational through the canonical Boris map.
-function _yee_particle_half_kick(v::NTuple{3,T}, E::NTuple{3,Rational{BigInt}},
-    B::NTuple{3,Rational{BigInt}}, factor::Rational{BigInt}, half::Rational{BigInt}) where {T}
+function _yee_particle_half_kick(
+    v::NTuple{3,T},
+    E::NTuple{3,Rational{BigInt}},
+    B::NTuple{3,Rational{BigInt}},
+    factor::Rational{BigInt},
+    half::Rational{BigInt},
+) where {T}
     exact, _ = _boris_kick_parts(map(_exact_rational, v)..., E..., B..., factor, half)
     return map(value -> _from_exact(T, value), exact)
 end
@@ -361,7 +409,8 @@ function step!(st::YeeLongitudinalPIC{T}, particles, dt::Real) where {T}
     tau = _require_finite_positive_real("dt", dt, T)
     st.initialized[] || throw(ArgumentError("call init! before longitudinal stepping"))
     _yl_validate_phase(st)
-    st.step[] == 0 || isequal(tau, st.last_dt[]) ||
+    st.step[] == 0 ||
+        isequal(tau, st.last_dt[]) ||
         throw(ArgumentError("longitudinal dt is fixed after the first accepted step"))
     next_time, next_step = _validated_step_clock(st.time[], st.step[], tau)
     next_time > st.time[] || throw(ArgumentError("longitudinal time must advance finitely"))
@@ -386,8 +435,15 @@ function step!(st::YeeLongitudinalPIC{T}, particles, dt::Real) where {T}
     end
     old = [ps.x[1] for ps in species]
     new = [ps.x[1] for ps in stage.candidates]
-    yee_longitudinal_impulse!(st._impulse[1], species, old, new, g,
-        st._charge_workspace; shape = st.shape)
+    yee_longitudinal_impulse!(
+        st._impulse[1],
+        species,
+        old,
+        new,
+        g,
+        st._charge_workspace;
+        shape = st.shape,
+    )
     # Only Ex is advanced. Structurally zero curl reuses the canonical source
     # row arithmetic without an extra Maxwell clock, transverse stage or CFL.
     for c = 2:3
@@ -396,12 +452,17 @@ function step!(st::YeeLongitudinalPIC{T}, particles, dt::Real) where {T}
     for a in st._candidate.B
         fill!(a, zero(T))
     end
-    _yee_advance!(st._candidate.E, st.fields.E, st._candidate.B, g, false,
-        tau, one(T), st._impulse)
+    _yee_advance!(st._candidate.E, st.fields.E, st._candidate.B, g, false, tau, one(T), st._impulse)
     _yl_validate_longitudinal_fields(st, st._candidate)
     for (ps, candidate, factor) in zip(species, stage.candidates, factors)
         for p in eachindex(ps.weight)
-            field = _yee_cloud_field_rational(st._candidate.E[1], candidate.x[1][p], nothing, g, st.shape)
+            field = _yee_cloud_field_rational(
+                st._candidate.E[1],
+                candidate.x[1][p],
+                nothing,
+                g,
+                st.shape,
+            )
             candidate.v[1][p] = _yl_kick(candidate.v[1][p], field, factor, half)
         end
     end
@@ -409,7 +470,10 @@ function step!(st::YeeLongitudinalPIC{T}, particles, dt::Real) where {T}
     work = yee_source_work(st.fields.E, st._candidate.E, st._impulse, g)
     all(isfinite, (oldkinetic, newkinetic, work)) ||
         throw(ArgumentError("longitudinal step diagnostics do not round finite"))
-    defect = _from_exact(T, _exact_rational(newkinetic) - _exact_rational(oldkinetic) - _exact_rational(work))
+    defect = _from_exact(
+        T,
+        _exact_rational(newkinetic) - _exact_rational(oldkinetic) - _exact_rational(work),
+    )
     isfinite(defect) || throw(ArgumentError("longitudinal energy defect does not round finite"))
     # Every potentially failing operation precedes the first public store.
     for (ps, candidate) in zip(species, stage.candidates)

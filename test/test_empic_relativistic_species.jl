@@ -52,7 +52,8 @@ function continuity_observation(state, sub_dt)
     g.plan * density
     dc = first(CartesianIndices(density))
     for I in CartesianIndices(density)
-        I != dc && H._spectral_mode_is_null(H._spectral_wavevector(g, I)) &&
+        I != dc &&
+            H._spectral_mode_is_null(H._spectral_wavevector(g, I)) &&
             (density[I] = zero(eltype(density)))
     end
     g.iplan * density
@@ -61,7 +62,8 @@ function continuity_observation(state, sub_dt)
     return (
         projected_density_scale = maximum(x -> abs(real(x)), density),
         absolute_residual = maximum(
-            I -> abs(real(density[I]) + sub_dt * divergence[I]), eachindex(density),
+            I -> abs(real(density[I]) + sub_dt * divergence[I]),
+            eachindex(density),
         ),
         density_scale = max(maximum(abs, state.rho_n), maximum(abs, state.rho_np1)),
         current_scale = maximum(a -> maximum(abs, a), state.J),
@@ -167,9 +169,15 @@ end
             @test physical(state, species) == physical(fine, fine_species)
             @test state.time[] == fine.time[]
             scales = continuity_observation(state, dt / ns)
-            println((observation = :relativistic_collection_continuity,
-                T = T, D = D, dt = dt, n_sub = ns,
-                relative_residual = charge_conservation_residual(state, dt / ns), scales = scales))
+            println((
+                observation = :relativistic_collection_continuity,
+                T = T,
+                D = D,
+                dt = dt,
+                n_sub = ns,
+                relative_residual = charge_conservation_residual(state, dt / ns),
+                scales = scales,
+            ))
             # Uniform lattices have zero physical charge increment. Normalize
             # absolute roundoff by the population sources before cancellation.
             @test scales.absolute_residual < eps(T) * source_density
@@ -217,9 +225,15 @@ end
             state.n_sub = ns
             step_empic!(state, species, dt)
             scales = continuity_observation(state, dt / ns)
-            println((observation = :relativistic_collection_resolved_continuity,
-                T = T, D = D, dt = dt, n_sub = ns,
-                relative_residual = charge_conservation_residual(state, dt / ns), scales = scales))
+            println((
+                observation = :relativistic_collection_resolved_continuity,
+                T = T,
+                D = D,
+                dt = dt,
+                n_sub = ns,
+                relative_residual = charge_conservation_residual(state, dt / ns),
+                scales = scales,
+            ))
             @test scales.projected_density_scale > 64eps(T) * source_density
             @test charge_conservation_residual(state, dt / ns) < 1024eps(T)
         end

@@ -1,9 +1,22 @@
 # Complete synchronous open-Hall state. Plans, projection work and trial history
 # remain private; no saved physical field or source is reconstructed on restore.
 const _OPEN_HALL_CHECKPOINT_FIELDS = (
-    :integrator, :schema, :configuration, :phase, :initialized, :species,
-    :fields, :floor_count, :time, :step, :last_dt, :source, :rng,
-    :rng_algorithm, :runtime, :last_report,
+    :integrator,
+    :schema,
+    :configuration,
+    :phase,
+    :initialized,
+    :species,
+    :fields,
+    :floor_count,
+    :time,
+    :step,
+    :last_dt,
+    :source,
+    :rng,
+    :rng_algorithm,
+    :runtime,
+    :last_report,
 )
 
 function _open_hall_checkpoint_keys(s, required)
@@ -13,9 +26,16 @@ function _open_hall_checkpoint_keys(s, required)
     return nothing
 end
 
-_open_hall_checkpoint_source_arrays(source) =
-    (source.alpha, source.next_index, source.initial_next_index,
-        source.initial_totals, source.births, source.exits, source.last_births, source.last_exits)
+_open_hall_checkpoint_source_arrays(source) = (
+    source.alpha,
+    source.next_index,
+    source.initial_next_index,
+    source.initial_totals,
+    source.births,
+    source.exits,
+    source.last_births,
+    source.last_exits,
+)
 
 function _open_hall_checkpoint_rng_metadata(st, s)
     # Register incoming state and both destination streams before checking only
@@ -24,7 +44,9 @@ function _open_hall_checkpoint_rng_metadata(st, s)
     if s.rng === st.rng || s.rng === st.rng_candidate
         throw(ArgumentError("open Hall checkpoint RNG must be detached from destination streams"))
     end
-    _validate_checkpoint_configuration_registered(_collisional_rng_metadata(s.rng)) do remember, backing, owned
+    _validate_checkpoint_configuration_registered(
+        _collisional_rng_metadata(s.rng),
+    ) do remember, backing, owned
         _open_hall_register_owned!(remember, backing, owned, st)
         for value in (s.species, s.fields, s.source, s.last_report, _collisional_rng_buffers(s.rng))
             _visit_checkpoint_objects(remember, value; backing)
@@ -38,8 +60,10 @@ function _open_hall_checkpoint_data(s, st::OpenHallHybrid{D,T}) where {D,T}
     # storage, object identities, policy and stock copy destinations are not.
     _open_hall_binding(st, st.owners; values = false, counts = false)
     _open_hall_checkpoint_keys(s, _OPEN_HALL_CHECKPOINT_FIELDS)
-    s.integrator === :open_hall_hybrid && s.schema === 1 &&
-        s.phase === :synchronous_integer && s.initialized === true ||
+    s.integrator === :open_hall_hybrid &&
+        s.schema === 1 &&
+        s.phase === :synchronous_integer &&
+        s.initialized === true ||
         throw(ArgumentError("unsupported open Hall checkpoint family, schema or phase"))
     configuration = _open_hall_bound_configuration(st)
     typeof(s.configuration) === typeof(configuration) && isequal(s.configuration, configuration) ||
@@ -61,8 +85,11 @@ function _open_hall_checkpoint_data(s, st::OpenHallHybrid{D,T}) where {D,T}
         _open_hall_checkpoint_keys(record, _CHECKPOINT_PARTICLE_FIELDS)
         ps = _checkpoint_species(record, Val(D), T)
         ps isa _ElectrostaticHostParticle{D,T} &&
-            isequal((ps.q, ps.m), st._species_scalars[index]) ||
-            throw(ArgumentError("open Hall checkpoint requires ordinary Vectors and fixed original charges/masses"))
+            isequal((ps.q, ps.m), st._species_scalars[index]) || throw(
+            ArgumentError(
+                "open Hall checkpoint requires ordinary Vectors and fixed original charges/masses",
+            ),
+        )
         push!(populations, ps)
     end
     _open_hall_particles(st, populations)
@@ -71,21 +98,32 @@ function _open_hall_checkpoint_data(s, st::OpenHallHybrid{D,T}) where {D,T}
     references = _hybrid_field_state(st.fields)
     _open_hall_checkpoint_keys(s.fields, keys(references))
     _validate_checkpoint_fields(s.fields, references)
-    field_arrays = Tuple(a for value in values(s.fields)
-        for a in (value isa Tuple ? value : (value,)))
+    field_arrays =
+        Tuple(a for value in values(s.fields) for a in (value isa Tuple ? value : (value,)))
     all(a -> a isa Array{T,D} && all(isfinite, a), field_arrays) ||
         throw(ArgumentError("open Hall checkpoint fields must be finite ordinary matching Arrays"))
-    incoming = (s.species, field_arrays..., _open_hall_particle_arrays(populations)...,
-        _open_hall_checkpoint_source_arrays(s.source)..., _collisional_rng_buffers(s.rng)...)
+    incoming = (
+        s.species,
+        field_arrays...,
+        _open_hall_particle_arrays(populations)...,
+        _open_hall_checkpoint_source_arrays(s.source)...,
+        _collisional_rng_buffers(s.rng)...,
+    )
     destination = _open_hall_owned_arrays(st)
     for i in eachindex(incoming)
         for j = 1:(i-1)
-            _particle_arrays_mightalias(incoming[i], incoming[j]) &&
-                throw(ArgumentError("open Hall checkpoint physical/source/RNG arrays must be independent"))
+            _particle_arrays_mightalias(incoming[i], incoming[j]) && throw(
+                ArgumentError(
+                    "open Hall checkpoint physical/source/RNG arrays must be independent",
+                ),
+            )
         end
         for a in destination
-            _particle_arrays_mightalias(incoming[i], a) &&
-                throw(ArgumentError("open Hall checkpoint must be detached from destination public/private storage"))
+            _particle_arrays_mightalias(incoming[i], a) && throw(
+                ArgumentError(
+                    "open Hall checkpoint must be detached from destination public/private storage",
+                ),
+            )
         end
     end
     _open_hall_checkpoint_rng_metadata(st, s)
@@ -107,15 +145,24 @@ end
 
 function _checkpoint_state(st::OpenHallHybrid, species::AbstractVector)
     _open_hall_boundary(st, species)
-    state = (integrator = :open_hall_hybrid, schema = 1,
-        configuration = _open_hall_bound_configuration(st), phase = :synchronous_integer,
+    state = (
+        integrator = :open_hall_hybrid,
+        schema = 1,
+        configuration = _open_hall_bound_configuration(st),
+        phase = :synchronous_integer,
         initialized = true,
         species = [_checkpoint_particle_state(ps) for ps in species],
-        fields = _hybrid_field_state(st.fields), floor_count = st.fields.floor_count[],
-        time = st.time[], step = st.step[], last_dt = st.last_dt[],
-        source = _open_hall_source_state(st), rng = st.rng,
-        rng_algorithm = typeof(st.rng), runtime = _collisional_runtime(),
-        last_report = st.last_report)
+        fields = _hybrid_field_state(st.fields),
+        floor_count = st.fields.floor_count[],
+        time = st.time[],
+        step = st.step[],
+        last_dt = st.last_dt[],
+        source = _open_hall_source_state(st),
+        rng = st.rng,
+        rng_algorithm = typeof(st.rng),
+        runtime = _collisional_runtime(),
+        last_report = st.last_report,
+    )
     # Live metadata links were checked by the boundary owner before detachment.
     # One whole-graph copy preserves actual physical/source/stream values.
     saved = deepcopy(state)
@@ -133,8 +180,19 @@ function _restore_checkpoint_state!(st::OpenHallHybrid, species::AbstractVector,
     _open_hall_reserve!(st, populations)
     # All validation, direct constraints, allocation and stock-copy admission
     # precede the canonical commit's first public particle/field/source store.
-    return _open_hall_commit!(st, prepared, counts, fields, saved.source, saved.rng,
-        saved.initialized, saved.time, saved.step, saved.last_dt, saved.last_report)
+    return _open_hall_commit!(
+        st,
+        prepared,
+        counts,
+        fields,
+        saved.source,
+        saved.rng,
+        saved.initialized,
+        saved.time,
+        saved.step,
+        saved.last_dt,
+        saved.last_report,
+    )
 end
 
 """
@@ -178,8 +236,13 @@ end
 Save the same complete state through the checksummed run archive. `rng_seed` is
 caller provenance; continuation uses the saved full stream, not a reseeded RNG.
 """
-function archive_run(path::AbstractString, st::OpenHallHybrid, species::AbstractVector;
-    boundary_desc::AbstractString = "open Hall x reservoirs; periodic transverse", kwargs...)
+function archive_run(
+    path::AbstractString,
+    st::OpenHallHybrid,
+    species::AbstractVector;
+    boundary_desc::AbstractString = "open Hall x reservoirs; periodic transverse",
+    kwargs...,
+)
     _acquire_open_hall!(st)
     try
         return _archive_run(path, st, _checkpoint_state(st, species); boundary_desc, kwargs...)

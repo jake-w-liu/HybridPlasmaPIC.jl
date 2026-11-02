@@ -46,20 +46,50 @@ function MixedHallProjectionWorkspace(op::MixedShockOperators{D,T}) where {D,T}
     A() = zeros(T, op.n)
     V() = (A(), A(), A())
     solver = Krylov.MinresQlpWorkspace(rows, rows, Vector{T})
-    return MixedHallProjectionWorkspace(op.n, op.L, solver, zeros(T, rows), zeros(T, rows),
-        A(), A(), A(), A(), V(), V(), V(), V(), V())
+    return MixedHallProjectionWorkspace(
+        op.n,
+        op.L,
+        solver,
+        zeros(T, rows),
+        zeros(T, rows),
+        A(),
+        A(),
+        A(),
+        A(),
+        V(),
+        V(),
+        V(),
+        V(),
+        V(),
+    )
 end
 
-_mixed_projection_fields(w) = (w.volume, w.face, w.divergence, w.current,
-    w.masked..., w.beta1..., w.beta..., w.candidate..., w.adjoint...)
+_mixed_projection_fields(w) = (
+    w.volume,
+    w.face,
+    w.divergence,
+    w.current,
+    w.masked...,
+    w.beta1...,
+    w.beta...,
+    w.candidate...,
+    w.adjoint...,
+)
 _mixed_solver_full(s) = (s.wₖ₋₁, s.wₖ, s.M⁻¹vₖ₋₁, s.M⁻¹vₖ, s.x, s.p)
 _mixed_solver_empty(s) = (s.Δx, s.vₖ, s.npc_dir)
 _mixed_solver_stats(s) = (s.stats.residuals, s.stats.Aresiduals, s.stats.qvals, s.stats.Acond)
-_mixed_projection_arrays(w) = (_mixed_projection_fields(w)..., w.rhs, w.image,
-    _mixed_solver_full(w.solver)..., _mixed_solver_empty(w.solver)..., _mixed_solver_stats(w.solver)...)
+_mixed_projection_arrays(w) = (
+    _mixed_projection_fields(w)...,
+    w.rhs,
+    w.image,
+    _mixed_solver_full(w.solver)...,
+    _mixed_solver_empty(w.solver)...,
+    _mixed_solver_stats(w.solver)...,
+)
 
 function _mixed_projection_storage(w::MixedHallProjectionWorkspace{D,T}, op) where {D,T}
-    w.n == op.n && w.L == op.L || throw(ArgumentError("mixed projection workspace geometry changed"))
+    w.n == op.n && w.L == op.L ||
+        throw(ArgumentError("mixed projection workspace geometry changed"))
     rows = _mixed_constraint_count(op)
     s = w.solver
     s isa Krylov.MinresQlpWorkspace{T,T,Vector{T}} ||
@@ -71,7 +101,9 @@ function _mixed_projection_storage(w::MixedHallProjectionWorkspace{D,T}, op) whe
             throw(DimensionMismatch("mixed projection solver vector shape changed"))
     end
     for a in (_mixed_solver_empty(s)..., _mixed_solver_stats(s)...)
-        isempty(a) || throw(ArgumentError("mixed projection optional/history solver buffers must remain empty"))
+        isempty(a) || throw(
+            ArgumentError("mixed projection optional/history solver buffers must remain empty"),
+        )
     end
     for a in _mixed_projection_fields(w)
         _mixed_array(a, op, "mixed projection private field")
@@ -85,8 +117,16 @@ function _mixed_projection_preflight(out, inputs, op, w)
     return nothing
 end
 
-function _mixed_projection_controls(::Type{T}, rtol, atol, work_rtol, work_atol,
-    state_rtol, state_atol, maxiter) where {T}
+function _mixed_projection_controls(
+    ::Type{T},
+    rtol,
+    atol,
+    work_rtol,
+    work_atol,
+    state_rtol,
+    state_atol,
+    maxiter,
+) where {T}
     function pair(name, relative, absolute)
         r = _require_finite_nonnegative_real(name * "_rtol", relative, T)
         a = _require_finite_nonnegative_real(name * "_atol", absolute, T)
@@ -97,8 +137,15 @@ function _mixed_projection_controls(::Type{T}, rtol, atol, work_rtol, work_atol,
     r, a = pair("projection", rtol, atol)
     wr, wa = pair("projection work", work_rtol, work_atol)
     sr, sa = pair("projection state", state_rtol, state_atol)
-    return (rtol = r, atol = a, work_rtol = wr, work_atol = wa,
-        state_rtol = sr, state_atol = sa, maxiter = _require_positive_intlike("maxiter", maxiter))
+    return (
+        rtol = r,
+        atol = a,
+        work_rtol = wr,
+        work_atol = wa,
+        state_rtol = sr,
+        state_atol = sa,
+        maxiter = _require_positive_intlike("maxiter", maxiter),
+    )
 end
 
 function _mixed_mask!(out, input, op::MixedShockOperators{D,T}) where {D,T}
@@ -212,10 +259,16 @@ function _mixed_direct_constraints(vector, op, w, relative, absolute, source)
     scales = _mixed_source_scales(op)
     div_tolerance = absolute + relative * scales.divergence * source
     current_tolerance = absolute + relative * scales.current * source
-    return (normal_zero = normal_zero, divergence = div, normal_current = current,
-        scaled_divergence = dx * div, scaled_normal_current = dx * current,
-        divergence_tolerance = div_tolerance, normal_current_tolerance = current_tolerance,
-        passed = normal_zero && dx * div <= div_tolerance && dx * current <= current_tolerance)
+    return (
+        normal_zero = normal_zero,
+        divergence = div,
+        normal_current = current,
+        scaled_divergence = dx * div,
+        scaled_normal_current = dx * current,
+        divergence_tolerance = div_tolerance,
+        normal_current_tolerance = current_tolerance,
+        passed = normal_zero && dx * div <= div_tolerance && dx * current <= current_tolerance,
+    )
 end
 
 # Exact products of finite stored values; no rounded tolerance/subtraction accepts a solve.
@@ -250,8 +303,13 @@ end
 function _mixed_subtraction_defect(input, candidate, beta)
     defect = zero(Rational{BigInt})
     for c = 1:3, i in eachindex(input[c])
-        defect = max(defect, abs(_exact_rational(input[c][i]) -
-            _exact_rational(beta[c][i]) - _exact_rational(candidate[c][i])))
+        defect = max(
+            defect,
+            abs(
+                _exact_rational(input[c][i]) - _exact_rational(beta[c][i]) -
+                _exact_rational(candidate[c][i]),
+            ),
+        )
     end
     return defect
 end
@@ -262,9 +320,19 @@ function _mixed_project_candidate!(input, op::MixedShockOperators{D,T}, w, contr
     operator = _MixedHallNormal{T,typeof(op),typeof(w)}(op, w)
     # No x0, preconditioner, shift, linesearch or history. The validated cold
     # workspace keeps the six-vector path; solver status is never sufficient.
-    Krylov.minres_qlp!(w.solver, operator, w.rhs; M = I, λ = zero(T),
-        linesearch = false, history = false, Artol = zero(T),
-        rtol = T(controls.rtol), atol = T(controls.atol), itmax = controls.maxiter)
+    Krylov.minres_qlp!(
+        w.solver,
+        operator,
+        w.rhs;
+        M = I,
+        λ = zero(T),
+        linesearch = false,
+        history = false,
+        Artol = zero(T),
+        rtol = T(controls.rtol),
+        atol = T(controls.atol),
+        itmax = controls.maxiter,
+    )
     _mixed_finite(w.solver.x, "mixed solved multiplier")
     _mixed_constraint_transpose!(w.beta1, w.solver.x, op, w)
     _mixed_mask_qinverse!(w.beta1, op)
@@ -277,10 +345,16 @@ function _mixed_project_candidate!(input, op::MixedShockOperators{D,T}, w, contr
     mul!(w.image, operator, w.solver.x)
     equation = _mixed_true_residual(w.rhs, w.image, controls)
     source = _exact_rational(max(_mixed_vector_maxabs(w.masked), _mixed_vector_maxabs(w.beta1)))
-    constraints = _mixed_direct_constraints(w.candidate, op, w, controls.rtol, controls.atol, source)
-    return (equation = equation, constraints = constraints, iterations = w.solver.stats.niter,
-        solver_solved = w.solver.stats.solved, solver_status = w.solver.stats.status,
-        subtraction_defect = _mixed_subtraction_defect(input, w.candidate, w.beta))
+    constraints =
+        _mixed_direct_constraints(w.candidate, op, w, controls.rtol, controls.atol, source)
+    return (
+        equation = equation,
+        constraints = constraints,
+        iterations = w.solver.stats.niter,
+        solver_solved = w.solver.stats.solved,
+        solver_status = w.solver.stats.status,
+        subtraction_defect = _mixed_subtraction_defect(input, w.candidate, w.beta),
+    )
 end
 
 """
@@ -294,10 +368,17 @@ orthogonality and energy gates must all pass before any output copies. Returns
 exact normalized-Q residual/work/energy ledgers and a borrowed private correction.
 This is a restrictive perpendicular boundary space, not a Hall shock solver.
 """
-function project_mixed_field!(out::NTuple{3,Array{T,D}}, B::NTuple{3,Array{T,D}},
-    op::MixedShockOperators{D,T}, work::MixedHallProjectionWorkspace{D,T};
-    rtol = 100eps(T), atol = zero(T), work_rtol = 100eps(T), work_atol = zero(T),
-    maxiter = 200) where {D,T}
+function project_mixed_field!(
+    out::NTuple{3,Array{T,D}},
+    B::NTuple{3,Array{T,D}},
+    op::MixedShockOperators{D,T},
+    work::MixedHallProjectionWorkspace{D,T};
+    rtol = 100eps(T),
+    atol = zero(T),
+    work_rtol = 100eps(T),
+    work_atol = zero(T),
+    maxiter = 200,
+) where {D,T}
     _mixed_projection_preflight(out, B, op, work)
     controls = _mixed_projection_controls(T, rtol, atol, work_rtol, work_atol, rtol, atol, maxiter)
     solve = _mixed_project_candidate!(B, op, work, controls)
@@ -307,11 +388,21 @@ function project_mixed_field!(out::NTuple{3,Array{T,D}}, B::NTuple{3,Array{T,D}}
     dot = _mixed_qdot(work.candidate, work.beta, op)
     orthogonal = _mixed_work_gate(dot, after, correction, controls.work_rtol, controls.work_atol)
     energy = after / 2 <= before / 2 + controls.work_atol + controls.work_rtol * before / 2
-    report = (solve = solve, orthogonality_work = dot, energy_before = before / 2,
-        energy_after = after / 2, correction_energy = correction / 2,
+    report = (
+        solve = solve,
+        orthogonality_work = dot,
+        energy_before = before / 2,
+        energy_after = after / 2,
+        correction_energy = correction / 2,
         energy_identity_defect = (before - after - correction) / 2,
-        work_passed = orthogonal, energy_passed = energy)
-    solve.solver_solved && solve.equation.passed && solve.constraints.passed && orthogonal && energy ||
+        work_passed = orthogonal,
+        energy_passed = energy,
+    )
+    solve.solver_solved &&
+        solve.equation.passed &&
+        solve.constraints.passed &&
+        orthogonal &&
+        energy ||
         throw(MixedHallProjectionError("field equation/constraint/work/energy gate", report))
     published_report = merge(report, (correction = work.beta,))
     for c = 1:3
@@ -331,22 +422,52 @@ Gate the actual represented change in dot_Q(B,rate); exact power preservation
 only follows for B truly in the algebraic space and an exact projection. All
 reported finite-rounding/state/solve defects remain explicit.
 """
-function project_mixed_rate!(out::NTuple{3,Array{T,D}}, rate::NTuple{3,Array{T,D}},
-    B::NTuple{3,Array{T,D}}, op::MixedShockOperators{D,T}, work::MixedHallProjectionWorkspace{D,T};
-    rtol = 100eps(T), atol = zero(T), state_rtol = 100eps(T), state_atol = zero(T),
-    work_rtol = 100eps(T), work_atol = zero(T), maxiter = 200) where {D,T}
+function project_mixed_rate!(
+    out::NTuple{3,Array{T,D}},
+    rate::NTuple{3,Array{T,D}},
+    B::NTuple{3,Array{T,D}},
+    op::MixedShockOperators{D,T},
+    work::MixedHallProjectionWorkspace{D,T};
+    rtol = 100eps(T),
+    atol = zero(T),
+    state_rtol = 100eps(T),
+    state_atol = zero(T),
+    work_rtol = 100eps(T),
+    work_atol = zero(T),
+    maxiter = 200,
+) where {D,T}
     _mixed_projection_preflight(out, (rate..., B...), op, work)
-    controls = _mixed_projection_controls(T, rtol, atol, work_rtol, work_atol, state_rtol, state_atol, maxiter)
+    controls = _mixed_projection_controls(
+        T,
+        rtol,
+        atol,
+        work_rtol,
+        work_atol,
+        state_rtol,
+        state_atol,
+        maxiter,
+    )
     source = _exact_rational(_mixed_vector_maxabs(B))
     state = _mixed_direct_constraints(B, op, work, controls.state_rtol, controls.state_atol, source)
     state.passed || throw(MixedHallProjectionError("input B state constraint gate", state))
     solve = _mixed_project_candidate!(rate, op, work, controls)
     power, actual_correction_norm = _mixed_actual_difference(B, work.candidate, rate, op)
     state_norm = _mixed_qdot(B, B, op)
-    power_ok = _mixed_work_gate(power, state_norm, actual_correction_norm, controls.work_rtol, controls.work_atol)
-    report = (solve = solve, state = state, power_change = power,
-        state_norm_squared = state_norm, actual_correction_norm_squared = actual_correction_norm,
-        work_passed = power_ok)
+    power_ok = _mixed_work_gate(
+        power,
+        state_norm,
+        actual_correction_norm,
+        controls.work_rtol,
+        controls.work_atol,
+    )
+    report = (
+        solve = solve,
+        state = state,
+        power_change = power,
+        state_norm_squared = state_norm,
+        actual_correction_norm_squared = actual_correction_norm,
+        work_passed = power_ok,
+    )
     solve.solver_solved && solve.equation.passed && solve.constraints.passed && power_ok ||
         throw(MixedHallProjectionError("rate equation/constraint/power gate", report))
     published_report = merge(report, (correction = work.beta,))

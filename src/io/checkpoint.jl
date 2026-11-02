@@ -314,8 +314,7 @@ function _validate_checkpoint_transport_state(s, st::_HybridCheckpointStepper{D,
         aliased && throw(ArgumentError("checkpoint Eforce must not alias other saved fields"))
     end
     if !haskey(s, :particle_layout)
-        isone(s.q) ||
-            throw(ArgumentError("transport scalar checkpoint populations require q = 1"))
+        isone(s.q) || throw(ArgumentError("transport scalar checkpoint populations require q = 1"))
     end
     return nothing
 end
@@ -620,7 +619,9 @@ function _register_checkpoint_configuration_owned!(remember, remember_backing, o
 end
 
 function _validate_checkpoint_configuration(s, st, configuration)
-    return _validate_checkpoint_configuration_registered(configuration) do remember, remember_backing, owned
+    return _validate_checkpoint_configuration_registered(
+        configuration,
+    ) do remember, remember_backing, owned
         _register_checkpoint_configuration_owned!(remember, remember_backing, owned, s, st)
     end
 end
@@ -788,8 +789,11 @@ _conduction_checkpoint_state(::ElectronClosure) = NamedTuple()
 _conduction_checkpoint_state(::ConductingElectrons) =
     (conduction_policy_version = _CONDUCTION_POLICY_VERSION,)
 _pressure_checkpoint_state(st::HybridStepper, closure::_ScalarTransportClosure) = merge(
-    (pe = st.fields.pe, transport_policy_version = _TRANSPORT_POLICY_VERSION,
-        Eforce = st.pressure_work.Eforce),
+    (
+        pe = st.fields.pe,
+        transport_policy_version = _TRANSPORT_POLICY_VERSION,
+        Eforce = st.pressure_work.Eforce,
+    ),
     _conduction_checkpoint_state(closure),
 )
 
@@ -890,7 +894,9 @@ end
 function _validate_checkpoint_state(s, st::_ElectromagneticCheckpointStepper)
     if s isa NamedTuple && haskey(s, :particle_layout)
         st.collection !== nothing || throw(
-            ArgumentError("collection checkpoint requires an electromagnetic collection destination"),
+            ArgumentError(
+                "collection checkpoint requires an electromagnetic collection destination",
+            ),
         )
         return _validate_empic_collection_checkpoint(s, st)
     end
@@ -1332,7 +1338,23 @@ end
 
 function _save_checkpoint(
     path::AbstractString,
-    st::Union{_CheckpointStepper,HallMHDState,MaxwellVacuum,YeeConductiveLayer,YeePML,CollisionalHybridStepper,CollisionalEMPICStepper,CollisionalElectrostaticPIC,ImplicitHybridStepper,ImplicitEMPICStepper,SlabGyrokineticPIC,OpenHallHybrid,ShearedPeriodicHybridPIC,StaticCompositeElectrostaticPIC,_ClosedYeeCheckpointStepper},
+    st::Union{
+        _CheckpointStepper,
+        HallMHDState,
+        MaxwellVacuum,
+        YeeConductiveLayer,
+        YeePML,
+        CollisionalHybridStepper,
+        CollisionalEMPICStepper,
+        CollisionalElectrostaticPIC,
+        ImplicitHybridStepper,
+        ImplicitEMPICStepper,
+        SlabGyrokineticPIC,
+        OpenHallHybrid,
+        ShearedPeriodicHybridPIC,
+        StaticCompositeElectrostaticPIC,
+        _ClosedYeeCheckpointStepper,
+    },
     state,
 )
     _validate_checkpoint_state(state, st)

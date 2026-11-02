@@ -95,7 +95,9 @@ function _isothermal_log_bounds(terms::Dict{UInt64,Rational{BigInt}}, bits::Int)
 end
 
 function _isothermal_exact_energy(
-    n::AbstractArray{T}, temperature::C, dx,
+    n::AbstractArray{T},
+    temperature::C,
+    dx,
     offset::Rational{BigInt} = zero(Rational{BigInt}),
 ) where {T<:Union{Float32,Float64},C<:Union{Float32,Float64,Rational{BigInt}}}
     return _isothermal_finish_log_energy(T, _isothermal_log_terms(n, temperature, dx), offset)

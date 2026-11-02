@@ -202,7 +202,8 @@ end
     kx = _scalar_mul(ops, hq, ax)
     ky = _scalar_mul(ops, hq, ay)
     kz = _scalar_mul(ops, hq, az)
-    out = mode === :prime ?
+    out =
+        mode === :prime ?
         (_scalar_sub(ops, ux, kx), _scalar_sub(ops, uy, ky), _scalar_sub(ops, uz, kz)) :
         (_scalar_add(ops, ux, kx), _scalar_add(ops, uy, ky), _scalar_add(ops, uz, kz))
     return out, (ax, ay, az, kx, ky, kz)
@@ -433,13 +434,20 @@ end
 # max|v|, max|E|, max|B| and the smallest nonzero Boris guard scale
 # S_p = max(|v_p|, |h E_p|) (same h*E products). Fields are per-particle vectors
 # or uniform numbers; samples are converted to T as the kick loops do.
-@inline function _boris_scale_record(v::NTuple{3,T}, e::NTuple{3,T}, b::NTuple{3,T},
-    hk::T, ops::_ScalarOps = _DefaultScalarOps()) where {T}
+@inline function _boris_scale_record(
+    v::NTuple{3,T},
+    e::NTuple{3,T},
+    b::NTuple{3,T},
+    hk::T,
+    ops::_ScalarOps = _DefaultScalarOps(),
+) where {T}
     av = _abs3(v...)
     emax = _abs3(e...)
     bmax = _abs3(b...)
-    scale = max(av, _abs3(_scalar_mul(ops, hk, e[1]), _scalar_mul(ops, hk, e[2]),
-        _scalar_mul(ops, hk, e[3])))
+    scale = max(
+        av,
+        _abs3(_scalar_mul(ops, hk, e[1]), _scalar_mul(ops, hk, e[2]), _scalar_mul(ops, hk, e[3])),
+    )
     return (vmax = av, emax = emax, bmax = bmax, scale = scale)
 end
 
@@ -580,13 +588,21 @@ end
 # bound σ_p of the guard scale S_p = max(|u_p|, |k_p|): |u_p| for a moving
 # particle and, for u_p = 0, exactly |k_p| = |factor E_p| because then
 # E + u×B = E ± 0. `factor` is h*qm, or (h, qm) for the relativistic h*(qm*E).
-@inline function _euler_scale_record(u::NTuple{3,T}, e::NTuple{3,T}, b::NTuple{3,T},
-    factor, ops::_ScalarOps = _DefaultScalarOps()) where {T}
+@inline function _euler_scale_record(
+    u::NTuple{3,T},
+    e::NTuple{3,T},
+    b::NTuple{3,T},
+    factor,
+    ops::_ScalarOps = _DefaultScalarOps(),
+) where {T}
     av = _abs3(u...)
     emax = _abs3(e...)
     bmax = _abs3(b...)
-    ak = max(_batch_kick_magnitude(e[1], factor, ops),
-        _batch_kick_magnitude(e[2], factor, ops), _batch_kick_magnitude(e[3], factor, ops))
+    ak = max(
+        _batch_kick_magnitude(e[1], factor, ops),
+        _batch_kick_magnitude(e[2], factor, ops),
+        _batch_kick_magnitude(e[3], factor, ops),
+    )
     scale = ifelse(iszero(av), ak, av)
     return (vmax = av, emax = emax, bmax = bmax, scale = scale)
 end

@@ -5,8 +5,16 @@ include("transport_hyperresistivity/reference.jl")
 const H = HybridPlasmaPIC
 const Q = Rational{BigInt}
 
-function fixture(::Type{T}; κ = T(0.07), η = 0.0, ηH = 0.0, collection = false,
-    density = one(T), constant_pressure = false, legacy = false) where {T}
+function fixture(
+    ::Type{T};
+    κ = T(0.07),
+    η = 0.0,
+    ηH = 0.0,
+    collection = false,
+    density = one(T),
+    constant_pressure = false,
+    legacy = false,
+) where {T}
     g = FourierGrid((8,), (T(2pi),))
     ps = ParticleSet{1,T}(16)
     load_lattice_1d!(ps, zero(T), g.L[1])
@@ -30,9 +38,14 @@ function public_state(st, particles)
         value isa Ref ? value[] : value
     end
     populations = particles isa ParticleSet ? (particles,) : particles
-    return deepcopy((values, st.pressure_work.Eforce,
+    return deepcopy((
+        values,
+        st.pressure_work.Eforce,
         [(p.x, p.v, p.weight, p.id, p.tag, p.q, p.m) for p in populations],
-        st.time[], st.step[], st.last_dt[]))
+        st.time[],
+        st.step[],
+        st.last_dt[],
+    ))
 end
 
 function stage!(st)
@@ -44,8 +57,8 @@ end
 # retains Nyquist; the centered first derivative annihilates it.
 function matrices(g)
     k = Q(g.kfull[1][2])
-    D = [mod(j-i, 4) == 1 ? k/2 : mod(j-i, 4) == 3 ? -k/2 : zero(k) for i = 1:4, j = 1:4]
-    L = [mod(j-i, 4) == 0 ? -3k^2/2 : mod(j-i, 4) == 2 ? -k^2/2 : k^2 for i = 1:4, j = 1:4]
+    D = [mod(j - i, 4) == 1 ? k / 2 : mod(j - i, 4) == 3 ? -k / 2 : zero(k) for i = 1:4, j = 1:4]
+    L = [mod(j - i, 4) == 0 ? -3k^2 / 2 : mod(j - i, 4) == 2 ? -k^2 / 2 : k^2 for i = 1:4, j = 1:4]
     return D, L
 end
 
@@ -79,13 +92,23 @@ end
             H._conduction_quotient!(quotient, pe, n, g)
             @test all(iszero, quotient)
         end
-        for (pressure, density) in ((-one(T), one(T)), (T(Inf), one(T)),
-            (one(T), zero(T)), (one(T), T(NaN)))
-            @test_throws ArgumentError H._conduction_quotient!(quotient, fill(pressure, 4), fill(density, 4), g)
+        for (pressure, density) in
+            ((-one(T), one(T)), (T(Inf), one(T)), (one(T), zero(T)), (one(T), T(NaN)))
+            @test_throws ArgumentError H._conduction_quotient!(
+                quotient,
+                fill(pressure, 4),
+                fill(density, 4),
+                g,
+            )
         end
         u = Q(1) / (BigInt(1) << precision(T))
-        for value in (Q(1) / 3, -Q(7) / 11, Q(floatmax(T)) / Q(nextfloat(zero(T))),
-            Q(nextfloat(zero(T))) / Q(floatmax(T)), zero(Q))
+        for value in (
+            Q(1) / 3,
+            -Q(7) / 11,
+            Q(floatmax(T)) / Q(nextfloat(zero(T))),
+            Q(nextfloat(zero(T))) / Q(floatmax(T)),
+            zero(Q),
+        )
             prepared = H._conduction_dyadic(T, value)
             @test ispow2(denominator(prepared))
             @test abs(value - prepared) <= u^2 * abs(value)
@@ -93,8 +116,18 @@ end
         end
     end
     g = FourierGrid((4,), (Float32(2pi),))
-    @test_throws ArgumentError HybridStepper(g, HybridModel(ConductingElectrons(2.0; κ = 1e-100)), NGP(), 0)
-    @test_throws ArgumentError HybridStepper(g, HybridModel(ConductingElectrons(2.0; κ = 1e100)), NGP(), 0)
+    @test_throws ArgumentError HybridStepper(
+        g,
+        HybridModel(ConductingElectrons(2.0; κ = 1e-100)),
+        NGP(),
+        0,
+    )
+    @test_throws ArgumentError HybridStepper(
+        g,
+        HybridModel(ConductingElectrons(2.0; κ = 1e100)),
+        NGP(),
+        0,
+    )
 end
 
 @testset "Independent variable-density conduction, full Nyquist and signed stages" begin
@@ -118,10 +151,12 @@ end
         # Remove exact axis-null backgrounds before converting the independent
         # direct-DFT oracle operands. No production preparation/FFT supplies it.
         quotient = Q.(f.pe) ./ Q.(f.n)
-        residuals = [map(CartesianIndices(dims)) do I
-            reference = CartesianIndex(ntuple(c -> c == d ? 1 : I[c], D))
-            quotient[I] - quotient[reference]
-        end for d = 1:D]
+        residuals = [
+            map(CartesianIndices(dims)) do I
+                reference = CartesianIndex(ntuple(c -> c == d ? 1 : I[c], D))
+                quotient[I] - quotient[reference]
+            end for d = 1:D
+        ]
         lap = sum(th_apply(th_matrix(dims[d], g.L[d], :lap), Float64.(residuals[d]), d) for d = 1:D)
         conductive = Float64(γ - 1) * Float64(κ) * lap
         actual = stage!(st)
@@ -165,8 +200,8 @@ end
         g = FourierGrid((4,), (T(2pi),))
         M = ldexp(one(T), precision(T) - 1)
         st = HybridStepper(g, HybridModel(ConductingElectrons(T(2); κ = one(T)); ηH), NGP(), 0)
-        st.fields.pe .= T[M, M + 1, M, M + 1]
-        st.fn .= T[M + 1, M + 2, M + 1, M + 2]
+        st.fields.pe .= T[M, M+1, M, M+1]
+        st.fn .= T[M+1, M+2, M+1, M+2]
         st.fields.ninv .= inv.(st.fn)
         quotient = Q.(st.fields.pe) ./ Q.(st.fn)
         @test all(==(T(quotient[1])), T.(quotient))
@@ -180,7 +215,11 @@ end
         @test actual ≈ T.(expected) rtol = 16eps(T)
         for (p, n, κ) in (
             (fill(floatmax(T), 4), T[0.5, 1, 0.5, 1], ldexp(one(T), -exponent(floatmax(T)))),
-            (T[nextfloat(zero(T)), 0, nextfloat(zero(T)), 0], fill(T(2), 4), ldexp(one(T), exponent(floatmax(T)))),
+            (
+                T[nextfloat(zero(T)), 0, nextfloat(zero(T)), 0],
+                fill(T(2), 4),
+                ldexp(one(T), exponent(floatmax(T))),
+            ),
         )
             st.model = HybridModel(ConductingElectrons(T(2); κ); ηH)
             st.fields.pe .= p
@@ -265,7 +304,7 @@ end
         st = HybridStepper(g, HybridModel(ConductingElectrons(T(2); κ = 0.2)), NGP(), 0)
         st.fn .= one(T)
         st.fields.ninv .= one(T)
-        initial = [0.2cos((i-1) * g.dx[1]) for i = 1:8]
+        initial = [0.2cos((i - 1) * g.dx[1]) for i = 1:8]
         st.fields.pe .= 1 .+ initial
         for cycle = 1:round(Int, 0.4 / h)
             H._rk4_Bp!(st, h, cycle)
@@ -287,19 +326,25 @@ end
         @test_throws ArgumentError step!(st, ps, nextfloat(boundary))
         @test isequal(public_state(st, ps), before)
         suggested = recommended_dt(st; NB = 3, safety = 0.8)
-        cap = Q(3) * Q(0.8) * Q(H._integrator_real_axis_limit(:rk4)) * Q(T(st.model.nfloor)) /
+        cap =
+            Q(3) * Q(0.8) * Q(H._integrator_real_axis_limit(:rk4)) * Q(T(st.model.nfloor)) /
             (Q(T(st.model.closure.κ)) * sum(maximum(abs, Q.(axis))^2 for axis in st.g.kfull))
         @test suggested isa T && Q(suggested) <= cap < Q(nextfloat(suggested))
         # safety=1 must not recommend exact equality at the strict guard;
         # NB>1 also exercises the actual grid-precision substep division.
-        strict = HybridStepper(FourierGrid((4,), (T(2pi),)),
-            HybridModel(ConductingElectrons(T(2); κ = T(1024)); nfloor = 1.0), NGP(), 0)
+        strict = HybridStepper(
+            FourierGrid((4,), (T(2pi),)),
+            HybridModel(ConductingElectrons(T(2); κ = T(1024)); nfloor = 1.0),
+            NGP(),
+            0,
+        )
         strict.fn .= one(T)
         for NB in (1, 3)
             suggestion = recommended_dt(strict; NB, safety = 1.0)
             @test suggestion > zero(T)
             @test H._validate_conduction_substep(strict, suggestion / NB) === nothing
-            strictcap = Q(NB) * Q(H._integrator_real_axis_limit(:rk4)) /
+            strictcap =
+                Q(NB) * Q(H._integrator_real_axis_limit(:rk4)) /
                 (Q(T(1024)) * sum(maximum(abs, Q.(axis))^2 for axis in strict.g.kfull))
             @test Q(suggestion) <= strictcap
             if Q(T(strictcap)) == strictcap
@@ -316,7 +361,8 @@ end
             recommended_dt(strict; safety = wide_safety)
         end
         original_safety = Q(3) / 4 + Q(1) / (BigInt(1) << 100)
-        exact_cap = original_safety * Q(H._integrator_real_axis_limit(:rk4)) /
+        exact_cap =
+            original_safety * Q(H._integrator_real_axis_limit(:rk4)) /
             (Q(T(1024)) * sum(maximum(abs, Q.(axis))^2 for axis in strict.g.kfull))
         @test low > zero(T) && Q(low) <= exact_cap
         # No positive full step is admitted below the existing dt resolution.
@@ -376,14 +422,18 @@ end
             step!(restored, pop, T(0.001); NB = 2)
             step!(st, particles, T(0.001); NB = 2)
             @test isequal(public_state(restored, pop), public_state(st, particles))
-            drop_policy = (; (k => v for (k, v) in pairs(saved) if k != :conduction_policy_version)...)
+            drop_policy =
+                (; (k => v for (k, v) in pairs(saved) if k != :conduction_policy_version)...)
             bad = reinterpret(ConductingElectrons{T}, T[T(2), -one(T)])[1]
-            malformed = (drop_policy, merge(saved, (; conduction_policy_version = 1)),
+            malformed = (
+                drop_policy,
+                merge(saved, (; conduction_policy_version = 1)),
                 merge(saved, (; conduction_policy_version = 2.0)),
                 merge(saved, (; conduction_policy_version = true)),
                 merge(saved, (; conduction_policy_version = BigInt(2))),
                 merge(saved, (; model = HybridModel(bad, η, ηH, 1e-6, 0.0))),
-                merge(saved, (; Eforce = (saved.Eforce[1], saved.Eforce[1], saved.Eforce[3]))))
+                merge(saved, (; Eforce = (saved.Eforce[1], saved.Eforce[1], saved.Eforce[3]))),
+            )
             for payload in malformed
                 before = public_state(restored, pop)
                 @test_throws ArgumentError H._restore_checkpoint_state!(restored, pop, payload)
@@ -419,9 +469,17 @@ end
             @test isequal(public_state(st, ps), before)
         end
         for P in (typeof(ps), Vector{typeof(ps)})
-            for (operation, signature) in ((init!, Tuple{typeof(st),P}),
-                (step!, Tuple{typeof(st),P,T}), (H._checkpoint_state, Tuple{typeof(st),P}))
-                report = JET.report_call(operation, signature; sourceinfo = :full, stacktrace_types_limit = 0)
+            for (operation, signature) in (
+                (init!, Tuple{typeof(st),P}),
+                (step!, Tuple{typeof(st),P,T}),
+                (H._checkpoint_state, Tuple{typeof(st),P}),
+            )
+                report = JET.report_call(
+                    operation,
+                    signature;
+                    sourceinfo = :full,
+                    stacktrace_types_limit = 0,
+                )
                 if !isempty(JET.get_reports(report))
                     show(IOContext(stdout, :limit => false), MIME"text/plain"(), report)
                 end

@@ -162,14 +162,17 @@ _evolves_pressure(::ConductingElectrons) = true
 _transports_electrons(::ConductingElectrons) = true
 
 electron_pressure!(::Any, ::Any, ::ConductingElectrons) = throw(
-    ArgumentError("ConductingElectrons requires stored pressure; initialize fields.pe and use ohms_law!"),
+    ArgumentError(
+        "ConductingElectrons requires stored pressure; initialize fields.pe and use ohms_law!",
+    ),
 )
 
 _conduction_zero(value::Union{Float16,Float32,Float64,BigFloat}) = iszero(_exact_rational(value))
 _conduction_zero(value::Real) = iszero(value)
 function _validate_conduction_mode(κ)
-    (_conduction_zero(κ) || _boris_accuracy_mode()) ||
-        throw(ArgumentError("active electron conduction requires nearest rounding and gradual underflow"))
+    (_conduction_zero(κ) || _boris_accuracy_mode()) || throw(
+        ArgumentError("active electron conduction requires nearest rounding and gradual underflow"),
+    )
     return nothing
 end
 
@@ -226,7 +229,8 @@ end
 
 @inline _isothermal_pressure_value(Te, n, ops::_ScalarOps = _DefaultScalarOps()) =
     _scalar_mul(ops, Te, n)
-electron_pressure!(pe, n, c::IsothermalElectrons) = (@. pe = _isothermal_pressure_value(c.Te, n); pe)
+electron_pressure!(pe, n, c::IsothermalElectrons) =
+    (@. pe = _isothermal_pressure_value(c.Te, n); pe)
 # Floor the base at 0: particle-deposited densities are ≥0 (so this is a no-op for hybrid/full-PIC),
 # but a Hall-MHD RK4 predictor stage can transiently undershoot a cell below 0, and (neg)^γ with a
 # non-integer γ throws an uncontrolled DomainError. pe→0 there (continuous, since 0^γ=0 for γ>0);

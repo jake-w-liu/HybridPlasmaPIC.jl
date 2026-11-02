@@ -1,7 +1,5 @@
-const _YEE_PML_LEDGER_FIELDS = (
-    :initial_energy, :last_exchange, :total_exchange,
-    :last_field_defect, :total_field_defect,
-)
+const _YEE_PML_LEDGER_FIELDS =
+    (:initial_energy, :last_exchange, :total_exchange, :last_field_defect, :total_field_defect)
 
 struct _YeePMLMemory{D,T}
     E::NTuple{3,NTuple{2,Union{Nothing,Array{T,D}}}}
@@ -61,7 +59,9 @@ end
 function _yp_config(g::YeeGrid{D,T}, dt, cells, rates, profile) where {D,T}
     h = _require_finite_positive_real("dt", dt, T)
     widths, peaks = _yee_profile_config(g, cells, rates, profile)
-    bound = _exact_rational(h) * maximum(d -> max(_exact_rational(peaks[d][1]), _exact_rational(peaks[d][2])), 1:D) / 2
+    bound =
+        _exact_rational(h) *
+        maximum(d -> max(_exact_rational(peaks[d][1]), _exact_rational(peaks[d][2])), 1:D) / 2
     bound < 1 || throw(ArgumentError("PML dt*maximum axis rate/2 must be strictly below one"))
     return h, widths, peaks
 end
@@ -90,7 +90,8 @@ function _yp_memory_storage(memory::_YeePMLMemory{D,T}, g::YeeGrid{D,T}, cells) 
             a isa Array{T,D} && size(a) == _yee_shape(g, electric, c) ||
                 throw(DimensionMismatch("PML memory must match its target Yee component"))
         else
-            a === nothing || throw(ArgumentError("suppressed or disabled PML directions have no memory"))
+            a === nothing ||
+                throw(ArgumentError("suppressed or disabled PML directions have no memory"))
         end
     end
     return nothing
@@ -107,8 +108,9 @@ function _yp_memory_values(memory, g, rates, step)
         table = rates[axis][_yee_node(electric, c, axis) ? 1 : 2]
         for I in CartesianIndices(a)
             if step == 0 || iszero(table[I[axis]])
-                _particle_stored_zero(a[I]) ||
-                    throw(ArgumentError("PML memories must vanish at step zero and at zero-rate samples"))
+                _particle_stored_zero(a[I]) || throw(
+                    ArgumentError("PML memories must vanish at step zero and at zero-rate samples"),
+                )
             end
         end
     end
@@ -129,8 +131,18 @@ function _yp_validate_config(model::YeePML; cache::Bool = true)
             length(table) == inner.g.n[d] + Int(slot == 1 && !inner.g.periodic[d]) ||
                 throw(DimensionMismatch("PML axis cache has the wrong length"))
             for i in eachindex(table)
-                expected = _yee_layer_axis_value(inner.g, model.cells, model.peak_rate, model.profile, one(_YeeLayerQ), d, slot == 1, i)
-                isequal(table[i], expected) || throw(ArgumentError("PML cache does not match its fixed profile"))
+                expected = _yee_layer_axis_value(
+                    inner.g,
+                    model.cells,
+                    model.peak_rate,
+                    model.profile,
+                    one(_YeeLayerQ),
+                    d,
+                    slot == 1,
+                    i,
+                )
+                isequal(table[i], expected) ||
+                    throw(ArgumentError("PML cache does not match its fixed profile"))
             end
         end
     end
@@ -144,21 +156,45 @@ function _yp_validate_storage(model::YeePML; check_pec::Bool = true, cache::Bool
     _yp_memory_storage(model._candidate_memory, inner.g, model.cells)
     caches = cache ? Tuple(a for pair in model._axis_rate for a in pair) : ()
     _yee_check_independent_arrays((
-        inner.fields.E..., inner.fields.B..., inner._candidate.E..., inner._candidate.B...,
-        _yp_arrays(model._memory)..., _yp_arrays(model._candidate_memory)..., caches...,
+        inner.fields.E...,
+        inner.fields.B...,
+        inner._candidate.E...,
+        inner._candidate.B...,
+        _yp_arrays(model._memory)...,
+        _yp_arrays(model._candidate_memory)...,
+        caches...,
     ))
     return nothing
 end
 
-function YeePML(vacuum::MaxwellVacuum{D,T}; dt, cells, peak_rate, profile::Symbol = :quadratic) where {D,T}
+function YeePML(
+    vacuum::MaxwellVacuum{D,T};
+    dt,
+    cells,
+    peak_rate,
+    profile::Symbol = :quadratic,
+) where {D,T}
     _yp_mode()
     h, widths, peaks = _yp_config(vacuum.g, dt, cells, peak_rate, profile)
     z = zero(_YeeLayerQ)
     model = YeePML(
-        vacuum, h, widths, peaks, profile,
-        _yp_make_memory(vacuum.g, widths), _yp_make_memory(vacuum.g, widths),
+        vacuum,
+        h,
+        widths,
+        peaks,
+        profile,
+        _yp_make_memory(vacuum.g, widths),
+        _yp_make_memory(vacuum.g, widths),
         _yee_profile_axis_cache(vacuum.g, widths, peaks, profile, one(_YeeLayerQ)),
-        Threads.Atomic{Bool}(false), :uninitialized, false, 0, z, z, z, z, z,
+        Threads.Atomic{Bool}(false),
+        :uninitialized,
+        false,
+        0,
+        z,
+        z,
+        z,
+        z,
+        z,
     )
     _yp_validate_config(model)
     _yp_validate_storage(model)
@@ -183,7 +219,8 @@ function _yp_validate_budget(s, energy, time, step, dt::T, ::Type{T}) where {T}
     end
     s.initial_energy >= 0 || throw(ArgumentError("PML initial field norm must be nonnegative"))
     if step == 0
-        _particle_stored_zero(time) && all(name -> iszero(getproperty(s, name)), _YEE_PML_LEDGER_FIELDS[2:end]) ||
+        _particle_stored_zero(time) &&
+            all(name -> iszero(getproperty(s, name)), _YEE_PML_LEDGER_FIELDS[2:end]) ||
             throw(ArgumentError("unadvanced PML clock and exchange/defect ledgers must be zero"))
     else
         time > zero(T) && dt <= time || throw(ArgumentError("advanced PML time must be positive"))
@@ -226,16 +263,27 @@ function init!(model::YeePML{D,T}) where {D,T}
         _yp_validate_storage(model; cache = false)
         _yee_validate_fields(model.inner.fields, model.inner.g)
         energy = _yee_layer_energy(model.inner.fields, model.inner)
-        rates = _yee_profile_axis_cache(model.inner.g, model.cells, model.peak_rate, model.profile, one(_YeeLayerQ))
+        rates = _yee_profile_axis_cache(
+            model.inner.g,
+            model.cells,
+            model.peak_rate,
+            model.profile,
+            one(_YeeLayerQ),
+        )
         z, time = zero(_YeeLayerQ), zero(T)
         for a in _yp_arrays(model._candidate_memory)
             fill!(a, time)
         end
         _yp_memory_values(model._candidate_memory, model.inner.g, rates, 0)
         budget = (
-            phase = :ready, initialized = true, ledger_step = 0,
-            initial_energy = energy, last_exchange = z, total_exchange = z,
-            last_field_defect = z, total_field_defect = z,
+            phase = :ready,
+            initialized = true,
+            ledger_step = 0,
+            initial_energy = energy,
+            last_exchange = z,
+            total_exchange = z,
+            last_field_defect = z,
+            total_field_defect = z,
         )
         _yp_validate_budget(budget, energy, time, 0, model.dt, T)
         _yp_copy_memory!(model._memory, model._candidate_memory)
@@ -258,7 +306,18 @@ end
 
 # A frozen-source midpoint subflow. Canonical exact differences retain original
 # entries/dx, and delta is Q(h) or Q(h)/2, never an independently rounded duration.
-function _yp_stage!(out, old, source, out_memory, old_memory, model::YeePML{D,T}, delta, c2, volume, electric) where {D,T}
+function _yp_stage!(
+    out,
+    old,
+    source,
+    out_memory,
+    old_memory,
+    model::YeePML{D,T},
+    delta,
+    c2,
+    volume,
+    electric,
+) where {D,T}
     g = model.inner.g
     exchange = zero(_YeeLayerQ)
     beta = electric ? c2 : -one(_YeeLayerQ)
@@ -278,7 +337,8 @@ function _yp_stage!(out, old, source, out_memory, old_memory, model::YeePML{D,T}
                     return (flux = zero(_YeeLayerQ), before = zero(_YeeLayerQ), after = nothing)
                 end
                 source_component = slot == 1 ? jb : ja
-                derivative = _yee_difference_exact(source[source_component], I, axis, g, !electric)
+                derivative =
+                    _yee_difference_exact(source[source_component], I, axis, g, !electric)
                 a = old_memory[c][slot]
                 psi = a === nothing ? zero(_YeeLayerQ) : _exact_rational(a[I])
                 lambda = model._axis_rate[axis][_yee_node(electric, c, axis) ? 1 : 2][I[axis]]
@@ -288,17 +348,28 @@ function _yp_stage!(out, old, source, out_memory, old_memory, model::YeePML{D,T}
                     nothing
                 else
                     next = _from_exact(T, ((1 - r) * psi - 2r * derivative) / (1 + r))
-                    isfinite(next) || throw(ArgumentError("PML stage produces a nonfinite memory"))
+                    isfinite(next) ||
+                        throw(ArgumentError("PML stage produces a nonfinite memory"))
                     next
                 end
                 (flux = flux, before = psi, after = value)
             end
-            value = _yee_source_row_exact(original + beta * delta * (terms[1].flux - terms[2].flux), nothing, I, T)
+            value = _yee_source_row_exact(
+                original + beta * delta * (terms[1].flux - terms[2].flux),
+                nothing,
+                I,
+                T,
+            )
             average_field = (original + _exact_rational(value)) / 2
             average_memory = map(terms) do term
-                term.after === nothing ? zero(_YeeLayerQ) : (term.before + _exact_rational(term.after)) / 2
+                term.after === nothing ? zero(_YeeLayerQ) :
+                (term.before + _exact_rational(term.after)) / 2
             end
-            exchange += (electric ? -c2 : c2) * delta * average_field * (average_memory[1] - average_memory[2])
+            exchange +=
+                (electric ? -c2 : c2) *
+                delta *
+                average_field *
+                (average_memory[1] - average_memory[2])
             out[c][I] = value
             for slot = 1:2
                 next = terms[slot].after
@@ -335,9 +406,42 @@ function _yp_step!(model::YeePML{D,T}, dt::Real) where {D,T}
             candidate, old = inner._candidate, inner.fields
             memory, staged = model._memory, model._candidate_memory
             if any(pair -> any(>(0), pair), model.cells)
-                exchange = _yp_stage!(candidate.B, old.B, old.E, staged.B, memory.B, model, half, c2, volume, false)
-                exchange += _yp_stage!(candidate.E, old.E, candidate.B, staged.E, memory.E, model, duration, c2, volume, true)
-                exchange += _yp_stage!(candidate.B, candidate.B, candidate.E, staged.B, staged.B, model, half, c2, volume, false)
+                exchange = _yp_stage!(
+                    candidate.B,
+                    old.B,
+                    old.E,
+                    staged.B,
+                    memory.B,
+                    model,
+                    half,
+                    c2,
+                    volume,
+                    false,
+                )
+                exchange += _yp_stage!(
+                    candidate.E,
+                    old.E,
+                    candidate.B,
+                    staged.E,
+                    memory.E,
+                    model,
+                    duration,
+                    c2,
+                    volume,
+                    true,
+                )
+                exchange += _yp_stage!(
+                    candidate.B,
+                    candidate.B,
+                    candidate.E,
+                    staged.B,
+                    staged.B,
+                    model,
+                    half,
+                    c2,
+                    volume,
+                    false,
+                )
             else
                 _yee_candidate_step!(candidate, old, inner.g, h, inner.c, nothing)
                 exchange = zero(_YeeLayerQ)
@@ -348,10 +452,14 @@ function _yp_step!(model::YeePML{D,T}, dt::Real) where {D,T}
             total_exchange = model.total_exchange + exchange
             total_defect = model.total_field_defect + defect
             budget = (
-                phase = :ready, initialized = true, ledger_step = next_step,
+                phase = :ready,
+                initialized = true,
+                ledger_step = next_step,
                 initial_energy = model.initial_energy,
-                last_exchange = exchange, total_exchange = total_exchange,
-                last_field_defect = defect, total_field_defect = total_defect,
+                last_exchange = exchange,
+                total_exchange = total_exchange,
+                last_field_defect = defect,
+                total_field_defect = total_defect,
             )
             _yp_validate_budget(budget, energy, next_time, next_step, model.dt, T)
             # Complete candidate fields/memories, clock and exact ledgers passed.
@@ -404,16 +512,22 @@ function pml_diagnostics(model::YeePML)
         _yp_validate_config(model)
         _yp_validate_storage(model)
         energy = _yp_boundary(model)
-        memory_norm(family) = _field_square_sum_exact(Tuple(a for pair in family for a in pair if a !== nothing))
+        memory_norm(family) =
+            _field_square_sum_exact(Tuple(a for pair in family for a in pair if a !== nothing))
         return (
-            time = model.inner.time[], step = model.inner.step[],
-            field_energy = em_field_energy(model.inner), field_energy_exact = energy,
+            time = model.inner.time[],
+            step = model.inner.step[],
+            field_energy = em_field_energy(model.inner),
+            field_energy_exact = energy,
             electric_memory_square_sum = memory_norm(model._memory.E),
             magnetic_memory_square_sum = memory_norm(model._memory.B),
             initial_energy = model.initial_energy,
-            last_exchange = model.last_exchange, total_exchange = model.total_exchange,
-            last_field_defect = model.last_field_defect, total_field_defect = model.total_field_defect,
-            bookkeeping_residual = energy + model.total_exchange - model.initial_energy - model.total_field_defect,
+            last_exchange = model.last_exchange,
+            total_exchange = model.total_exchange,
+            last_field_defect = model.last_field_defect,
+            total_field_defect = model.total_field_defect,
+            bookkeeping_residual = energy + model.total_exchange - model.initial_energy -
+                                   model.total_field_defect,
         )
     finally
         model.busy[] = false

@@ -4,11 +4,13 @@ isdefined(@__MODULE__, :_composition_fixture) || include("collisional_fixtures.j
 
 @testset "Collisional checkpoint validation and failure ownership" begin
     H = HybridPlasmaPIC
-    @testset "transport force pressure and advanced RNG restart together $R etaH=$ηH kind=$kind" for R in (
+    @testset "transport force pressure and advanced RNG restart together $R etaH=$ηH kind=$kind" for R in
+                                                                                                     (
             Xoshiro,
             MersenneTwister,
         ),
-        ηH in (0.0, 0.01), kind in (:transport, :conduction, :wide_conduction)
+        ηH in (0.0, 0.01),
+        kind in (:transport, :conduction, :wide_conduction)
 
         # Matching particle/grid lengths allow a real force/particle alias control.
         conducting = kind !== :transport
@@ -59,13 +61,15 @@ isdefined(@__MODULE__, :_composition_fixture) || include("collisional_fixtures.j
                 @test Float64(changed_κ) == Float64(closure.κ)
             end
             changed_closure = typeof(closure)(closure.γ; κ = changed_κ)
-            changed_model = HybridModel(changed_closure;
-                η = saved.inner.model.η, ηH)
-            append!(corruptions, (
-                drop(:conduction_policy_version),
-                merge(saved.inner, (conduction_policy_version = 1,)),
-                merge(saved.inner, (model = changed_model,)),
-            ))
+            changed_model = HybridModel(changed_closure; η = saved.inner.model.η, ηH)
+            append!(
+                corruptions,
+                (
+                    drop(:conduction_policy_version),
+                    merge(saved.inner, (conduction_policy_version = 1,)),
+                    merge(saved.inner, (model = changed_model,)),
+                ),
+            )
         end
         for inner in corruptions
             @test_throws ArgumentError H._restore_checkpoint_state!(

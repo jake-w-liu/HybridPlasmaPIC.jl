@@ -145,8 +145,7 @@ _validate_collisional_rng(rng) =
     throw(ArgumentError("CollisionalHybridStepper requires Xoshiro or MersenneTwister"))
 
 _collisional_rng_buffers(::Random.Xoshiro) = ()
-_collisional_rng_buffers(rng::Random.MersenneTwister) =
-    (rng.state.val, rng.vals, rng.ints)
+_collisional_rng_buffers(rng::Random.MersenneTwister) = (rng.state.val, rng.vals, rng.ints)
 
 function _validate_collisional_rng_pair(live, candidate, context::AbstractString)
     # Both stdlib owners validate fixed recurrence/cache sizes before any copy!.

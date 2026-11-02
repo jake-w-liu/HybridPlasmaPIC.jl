@@ -57,7 +57,10 @@ end
             (step_empic!, Tuple{typeof(state),typeof(species),T}),
             (electromagnetic_diagnostics, Tuple{typeof(state),typeof(species)}),
             (HybridPlasmaPIC._checkpoint_state, Tuple{typeof(state),typeof(species)}),
-            (HybridPlasmaPIC._restore_checkpoint_state!, Tuple{typeof(state),typeof(species),typeof(saved)}),
+            (
+                HybridPlasmaPIC._restore_checkpoint_state!,
+                Tuple{typeof(state),typeof(species),typeof(saved)},
+            ),
         )
         for (f, types) in calls
             report = JET.report_call(f, types)

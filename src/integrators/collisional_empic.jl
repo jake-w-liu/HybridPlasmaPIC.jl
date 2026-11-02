@@ -75,8 +75,9 @@ function _validate_collisional_empic_model(inner::EMPIC{D,T}) where {D,T}
     T in (Float32, Float64) ||
         throw(ArgumentError("CollisionalEMPICStepper requires Float32 or Float64"))
     work = _empic_collection(inner)
-    work.schedule === nothing ||
-        throw(ArgumentError("CollisionalEMPICStepper requires an unscheduled generic EMPIC collection"))
+    work.schedule === nothing || throw(
+        ArgumentError("CollisionalEMPICStepper requires an unscheduled generic EMPIC collection"),
+    )
     !inner.relativistic ||
         throw(ArgumentError("CollisionalEMPICStepper requires nonrelativistic EMPIC"))
     inner.n_sub == 1 || throw(ArgumentError("CollisionalEMPICStepper requires n_sub = 1"))
@@ -84,7 +85,8 @@ function _validate_collisional_empic_model(inner::EMPIC{D,T}) where {D,T}
         throw(ArgumentError("CollisionalEMPICStepper requires zero background charge"))
     work.neutrality === :require ||
         throw(ArgumentError("CollisionalEMPICStepper requires neutrality = :require"))
-    all(work.mobile) || throw(ArgumentError("CollisionalEMPICStepper requires every population mobile"))
+    all(work.mobile) ||
+        throw(ArgumentError("CollisionalEMPICStepper requires every population mobile"))
     inner.shape isa Union{NGP,CIC,TSC} ||
         throw(ArgumentError("CollisionalEMPICStepper requires NGP, CIC or TSC"))
     _require_finite_positive_real("c", inner.c, T)
@@ -94,8 +96,9 @@ end
 function _validate_collisional_empic_population_storage(species, grid::FourierGrid{D,T}) where {D,T}
     _espic_validate_collection_type(species, grid)
     for ps in species
-        ps isa _ElectrostaticHostParticle{D,T} ||
-            throw(ArgumentError("CollisionalEMPICStepper requires ordinary Vector particle storage"))
+        ps isa _ElectrostaticHostParticle{D,T} || throw(
+            ArgumentError("CollisionalEMPICStepper requires ordinary Vector particle storage"),
+        )
     end
     return nothing
 end
@@ -115,8 +118,10 @@ function CollisionalEMPICStepper(
     _validate_collisional_empic_population_storage(species, inner.g)
     _empic_collection_validate_species(inner, species)
     _empic_collection_validate_phase(inner)
-    _particle_stored_zero(inner.time[]) && inner.step[] == 0 &&
-        _particle_stored_zero(inner.last_dt[]) && _particle_stored_zero(inner.last_sub_dt[]) ||
+    _particle_stored_zero(inner.time[]) &&
+        inner.step[] == 0 &&
+        _particle_stored_zero(inner.last_dt[]) &&
+        _particle_stored_zero(inner.last_sub_dt[]) ||
         throw(ArgumentError("construct collisional EMPIC from an unadvanced inner state"))
     h = _require_resolved_dt("collisional EMPIC dt", _require_finite_positive_real("dt", dt, T))
     epsilon = _require_finite_positive_real("epsilon0", epsilon0, T)
@@ -173,7 +178,9 @@ function _validate_collisional_empic_rngs(st::CollisionalEMPICStepper)
 end
 
 function _validate_collisional_empic_binding(
-    st::CollisionalEMPICStepper{D,T}, species; values::Bool = true,
+    st::CollisionalEMPICStepper{D,T},
+    species;
+    values::Bool = true,
 ) where {D,T}
     _validate_collisional_empic_mode()
     st.phase in (:uninitialized, :ready) ||
@@ -187,12 +194,14 @@ function _validate_collisional_empic_binding(
             throw(ArgumentError("collisional EMPIC species identities and order are fixed"))
         nparticles(ps) == st.identities[a][1] ||
             throw(ArgumentError("collisional EMPIC particle counts are fixed"))
-        !values || isequal((nparticles(ps), ps.q, ps.m), st.identities[a]) ||
+        !values ||
+            isequal((nparticles(ps), ps.q, ps.m), st.identities[a]) ||
             throw(ArgumentError("collisional EMPIC charges and masses are fixed"))
     end
     st.inner.g === st.grid || throw(ArgumentError("collisional EMPIC grid is fixed"))
     work = _validate_collisional_empic_model(st.inner)
-    isequal(st.inner.c, st.c) && isequal(st.inner.shape, st.shape) &&
+    isequal(st.inner.c, st.c) &&
+        isequal(st.inner.shape, st.shape) &&
         isequal(work.charge_rtol, st.charge_rtol) ||
         throw(ArgumentError("collisional EMPIC field configuration is fixed"))
     isequal(st.coulomb_log, st.log_binding) ||
@@ -289,9 +298,11 @@ end
 
 function step!(st::CollisionalEMPICStepper{D,T}, species::AbstractVector, dt::Real) where {D,T}
     h = _require_resolved_dt(
-        "collisional EMPIC step!", _validated_nonnegative_dt(T, dt; name = "collisional EMPIC step!"),
+        "collisional EMPIC step!",
+        _validated_nonnegative_dt(T, dt; name = "collisional EMPIC step!"),
     )
-    _particle_stored_zero(h) && !iszero(dt) &&
+    _particle_stored_zero(h) &&
+        !iszero(dt) &&
         throw(ArgumentError("nonzero collisional EMPIC dt must not underflow at grid precision"))
     _acquire_collisional_empic!(st)
     try
@@ -309,11 +320,20 @@ function step!(st::CollisionalEMPICStepper{D,T}, species::AbstractVector, dt::Re
         try
             work = _empic_collection(st.inner)
             _empic_collection_advance_candidate!(
-                st.inner, st.species, work, charges, h, h, next_time, next_step,
+                st.inner,
+                st.species,
+                work,
+                charges,
+                h,
+                h,
+                next_time,
+                next_step,
             )
             if active
                 collide_coulomb!(
-                    work.staged, st.grid, h;
+                    work.staged,
+                    st.grid,
+                    h;
                     coulomb_log = st.coulomb_log,
                     epsilon0 = st.epsilon0,
                     weight_to_number = st.weight_to_number,
@@ -351,7 +371,11 @@ function electromagnetic_diagnostics(st::CollisionalEMPICStepper, species::Abstr
         _validate_collisional_empic_boundary(st)
         return merge(
             electromagnetic_diagnostics(st.inner, st.species),
-            (split_policy = :field_then_coulomb, source_time = st.source_time, source_count = st.source_count),
+            (
+                split_policy = :field_then_coulomb,
+                source_time = st.source_time,
+                source_count = st.source_count,
+            ),
         )
     finally
         st.busy[] = false

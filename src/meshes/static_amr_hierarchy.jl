@@ -32,13 +32,17 @@ function _static_amr_specs(refinements)
     refinements isa Union{Tuple,AbstractVector} ||
         throw(ArgumentError("static refinements must be an ordered tuple or vector"))
     refinements isa AbstractVector && Base.require_one_based_indexing(refinements)
-    return Tuple(map(refinements) do record
-        record isa Tuple && length(record) == 3 && all(x -> x isa Integer, record) ||
-            throw(ArgumentError("each static refinement must be (parent, first_cell, last_cell)"))
-        all(x -> 0 < x <= typemax(Int), record) ||
-            throw(ArgumentError("static refinement indices must be positive Int-sized integers"))
-        (Int(record[1]), Int(record[2]), Int(record[3]))
-    end)
+    return Tuple(
+        map(refinements) do record
+            record isa Tuple && length(record) == 3 && all(x -> x isa Integer, record) || throw(
+                ArgumentError("each static refinement must be (parent, first_cell, last_cell)"),
+            )
+            all(x -> 0 < x <= typemax(Int), record) || throw(
+                ArgumentError("static refinement indices must be positive Int-sized integers"),
+            )
+            (Int(record[1]), Int(record[2]), Int(record[3]))
+        end,
+    )
 end
 
 function _static_amr_layout(nbase::Int, L::T, specs::Tuple) where {T}
@@ -62,8 +66,11 @@ function _static_amr_layout(nbase::Int, L::T, specs::Tuple) where {T}
         level = Base.checked_add(levels[parent], 1)
         total = Base.checked_add(total, count)
         Base.checked_add(total, 1)
-        push!(parents, parent); push!(levels, level); push!(firsts, origin)
-        push!(counts, count); push!(denominators, denominator)
+        push!(parents, parent)
+        push!(levels, level)
+        push!(firsts, origin)
+        push!(counts, count)
+        push!(denominators, denominator)
         push!(covered, fill(false, count))
         fill!(view(covered[parent], first:last), true)
     end
@@ -86,8 +93,10 @@ function _static_amr_layout(nbase::Int, L::T, specs::Tuple) where {T}
             throw(ArgumentError("static leaves must cover the domain once without holes"))
         abs(levels[patch] - previous_level) <= 1 ||
             throw(ArgumentError("static adjacent leaves must satisfy 2:1 balance"))
-        push!(vertices, hi); push!(widths, hi - lo)
-        push!(owner_patch, patch); push!(owner_cell, cell)
+        push!(vertices, hi)
+        push!(widths, hi - lo)
+        push!(owner_patch, patch)
+        push!(owner_cell, cell)
         previous_level = levels[patch]
     end
     vertices[end] == length0 || throw(ArgumentError("static leaves do not cover the full domain"))
@@ -103,22 +112,37 @@ function _static_amr_layout(nbase::Int, L::T, specs::Tuple) where {T}
         end
         lo, hi, indices = Int[], Int[], Int[]
         for cell = 1:counts[patch]
-            push!(lo, nodes[cell]); push!(hi, nodes[cell+1] - 1)
+            push!(lo, nodes[cell])
+            push!(hi, nodes[cell+1] - 1)
             nodes[cell] < nodes[cell+1] || throw(ArgumentError("empty static patch cell"))
             valid = !covered[patch][cell]
-            valid && nodes[cell+1] != nodes[cell] + 1 &&
+            valid &&
+                nodes[cell+1] != nodes[cell] + 1 &&
                 throw(ArgumentError("valid static cell must own exactly one leaf"))
             push!(indices, valid ? nodes[cell] : 0)
         end
-        push!(patches, _StaticAMRPatch1D(parents[patch], levels[patch], firsts[patch],
-            counts[patch], .!covered[patch], covered[patch], indices, lo, hi, nodes))
+        push!(
+            patches,
+            _StaticAMRPatch1D(
+                parents[patch],
+                levels[patch],
+                firsts[patch],
+                counts[patch],
+                .!covered[patch],
+                covered[patch],
+                indices,
+                lo,
+                hi,
+                nodes,
+            ),
+        )
     end
-    dual = _CompositeQ[widths[1] / 2]
+    dual = _CompositeQ[widths[1]/2]
     for i = 2:length(widths)
         push!(dual, (widths[i-1] + widths[i]) / 2)
     end
     push!(dual, widths[end] / 2)
-    interfaces = Int[i+1 for i = 1:length(widths)-1 if owner_patch[i] != owner_patch[i+1]]
+    interfaces = Int[i + 1 for i = 1:length(widths)-1 if owner_patch[i] != owner_patch[i+1]]
     return (; patches, vertices, widths, dual_volumes = dual, owner_patch, owner_cell, interfaces)
 end
 
@@ -132,13 +156,27 @@ shared nodes occur once, and the direct 1D operator requires zero ghost width.
 Geometry is exact from the original Float32/64 length. No dynamic regridding,
 multidimensional halos or automatic field/particle transfer is implied.
 """
-function StaticAMRHierarchy1D(nbase::Integer, L::T, refinements = ()) where {T<:Union{Float32,Float64}}
-    2 <= nbase <= typemax(Int) || throw(ArgumentError("static base cell count must fit Int and be >=2"))
+function StaticAMRHierarchy1D(
+    nbase::Integer,
+    L::T,
+    refinements = (),
+) where {T<:Union{Float32,Float64}}
+    2 <= nbase <= typemax(Int) ||
+        throw(ArgumentError("static base cell count must fit Int and be >=2"))
     specs = _static_amr_specs(refinements)
     layout = _static_amr_layout(Int(nbase), L, specs)
-    return StaticAMRHierarchy1D{T,typeof(specs)}(Int(nbase), L, specs, layout.patches,
-        layout.vertices, layout.widths, layout.dual_volumes, layout.owner_patch,
-        layout.owner_cell, layout.interfaces)
+    return StaticAMRHierarchy1D{T,typeof(specs)}(
+        Int(nbase),
+        L,
+        specs,
+        layout.patches,
+        layout.vertices,
+        layout.widths,
+        layout.dual_volumes,
+        layout.owner_patch,
+        layout.owner_cell,
+        layout.interfaces,
+    )
 end
 
 function _static_amr_validate(mesh::StaticAMRHierarchy1D)
@@ -149,7 +187,9 @@ function _static_amr_validate(mesh::StaticAMRHierarchy1D)
     end
     length(mesh.patches) == length(expected.patches) ||
         throw(ArgumentError("static hierarchy patch cache changed"))
-    for (patch, wanted) in zip(mesh.patches, expected.patches), name in fieldnames(_StaticAMRPatch1D)
+    for (patch, wanted) in zip(mesh.patches, expected.patches),
+        name in fieldnames(_StaticAMRPatch1D)
+
         isequal(getfield(patch, name), getfield(wanted, name)) ||
             throw(ArgumentError("static hierarchy patch $name cache changed"))
     end
@@ -157,11 +197,26 @@ function _static_amr_validate(mesh::StaticAMRHierarchy1D)
 end
 
 function _static_amr_arrays(mesh::StaticAMRHierarchy1D)
-    arrays = Any[mesh.vertices, mesh.widths, mesh.dual_volumes, mesh.owner_patch,
-        mesh.owner_cell, mesh.interfaces]
+    arrays = Any[
+        mesh.vertices,
+        mesh.widths,
+        mesh.dual_volumes,
+        mesh.owner_patch,
+        mesh.owner_cell,
+        mesh.interfaces,
+    ]
     for patch in mesh.patches
-        append!(arrays, (patch.valid, patch.covered, patch.leaf_index, patch.leaf_first,
-            patch.leaf_last, patch.nodes))
+        append!(
+            arrays,
+            (
+                patch.valid,
+                patch.covered,
+                patch.leaf_index,
+                patch.leaf_first,
+                patch.leaf_last,
+                patch.nodes,
+            ),
+        )
     end
     return arrays
 end

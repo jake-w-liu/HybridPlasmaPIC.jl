@@ -13,8 +13,12 @@ function particles(::Type{T}, x, v; q = zero(T), m = one(T), weights = ones(T, l
     return ps
 end
 function state(::Type{T}, species; sigma = zero(T), width = Float64(1 / 16)) where {T}
-    st = YeeAbsorbingLongitudinalPIC(YeeGrid((4,), (one(T),));
-        shape = YeeTriangularCloud(width), left_plate_charge = sigma, max_root_refinements = 128)
+    st = YeeAbsorbingLongitudinalPIC(
+        YeeGrid((4,), (one(T),));
+        shape = YeeTriangularCloud(width),
+        left_plate_charge = sigma,
+        max_root_refinements = 128,
+    )
     init!(st, species)
     return st
 end
@@ -27,9 +31,22 @@ function snapshot(st, input)
         capture = NamedTuple{names}(ntuple(i -> getfield(record, i), fieldcount(typeof(record))))
         history = merge(history, (last_capture = capture,))
     end
-    return deepcopy(([(map(copy, ps.x), map(copy, ps.v), copy(ps.weight), copy(ps.id),
-        copy(ps.tag), ps.q, ps.m) for ps in species], map(copy, st.fields.E),
-        map(copy, st.fields.B), history))
+    return deepcopy((
+        [
+            (
+                map(copy, ps.x),
+                map(copy, ps.v),
+                copy(ps.weight),
+                copy(ps.id),
+                copy(ps.tag),
+                ps.q,
+                ps.m,
+            ) for ps in species
+        ],
+        map(copy, st.fields.E),
+        map(copy, st.fields.B),
+        history,
+    ))
 end
 fieldenergy(E, dx) = O.rat(dx) / 2 * sum(abs2, O.rat.(E))
 function death_reference(charge, side, n, L, a)
@@ -53,8 +70,7 @@ end
 
 @testset "Stable capture and exact passive ledgers" begin
     for T in (Float32, Float64), side in (1, 2)
-        ps = particles(T, side == 1 ? T[0.25, 0.6] : T[0.75, 0.4],
-            side == 1 ? T[-1, 0] : T[1, 0])
+        ps = particles(T, side == 1 ? T[0.25, 0.6] : T[0.75, 0.4], side == 1 ? T[-1, 0] : T[1, 0])
         ps.tag .= UInt32[17, 29]
         st = state(T, ps)
         identities = H._yl_particle_arrays(ps)
@@ -74,7 +90,7 @@ end
         @test all(iszero, yee_absorbing_longitudinal_diagnostics(st, ps).gauss_residual)
     end
     for T in (Float32, Float64)
-        ps = particles(T, T[1 / 128, 1 / 8], T[-1, 0]; q = one(T), weights = T[1, 0])
+        ps = particles(T, T[1/128, 1/8], T[-1, 0]; q = one(T), weights = T[1, 0])
         initial = deepcopy(ps)
         st = state(T, ps; sigma = T(-2))
         E0, K0 = copy(st.fields.E[1]), O.rat(kinetic_energy(ps))
@@ -84,22 +100,32 @@ end
         @test st.free_left_plate_charge[] == -1 && st.right_plate_charge[] == 1
         @test st.left_plate_charge == -2 && st.last_wall_charge[1][] == 1
         prex = T[0, st._stage[].event_candidates[1].x[1][1]]
-        Ipre = T.(O.cloud_impulse([initial], [initial.x[1]], [prex], 4, one(T), st.shape.half_width))
+        Ipre =
+            T.(O.cloud_impulse([initial], [initial.x[1]], [prex], 4, one(T), st.shape.half_width))
         Ideath = T.(death_reference(1, 1, 4, one(T), st.shape.half_width))
         Epre, Epost = st._event_fields.E[1], st._death_fields.E[1]
         @test Epre[1] != Epost[1]
         @test all(O.rounded(e, O.rat(old) - O.rat(i)) for (e, old, i) in zip(Epre, E0, Ipre))
         @test all(O.rounded(e, O.rat(old) - O.rat(i)) for (e, old, i) in zip(Epost, Epre, Ideath))
-        Wpre = O.rat(st.g.dx[1]) / 2 * sum(O.rat(i) * (O.rat(a) + O.rat(b)) for (i, a, b) in zip(Ipre, E0, Epre))
-        Wdeath = O.rat(st.g.dx[1]) / 2 * sum(O.rat(i) * (O.rat(a) + O.rat(b)) for (i, a, b) in zip(Ideath, Epre, Epost))
+        Wpre =
+            O.rat(st.g.dx[1]) / 2 *
+            sum(O.rat(i) * (O.rat(a) + O.rat(b)) for (i, a, b) in zip(Ipre, E0, Epre))
+        Wdeath =
+            O.rat(st.g.dx[1]) / 2 *
+            sum(O.rat(i) * (O.rat(a) + O.rat(b)) for (i, a, b) in zip(Ideath, Epre, Epost))
         @test !iszero(Wdeath) && st.last_wall_work[1][] == Wdeath
         @test st.last_transport_work[] == Wpre
         @test st.last_wall_energy[1][] > 0 && st.last_wall_energy[1][] >= st.last_passivity_error[]
         @test st.last_wall_energy[1][] == st.last_wall_kinetic[1][] + Wdeath
-        @test all(O.rounded(i, O.rat(a) + O.rat(b)) for (i, a, b) in zip(st.last_impulse[1], Ipre, Ideath))
+        @test all(
+            O.rounded(i, O.rat(a) + O.rat(b)) for (i, a, b) in zip(st.last_impulse[1], Ipre, Ideath)
+        )
         @test O.rounded(st.last_energy_defect[], -K0 + st.last_wall_kinetic[1][] - Wpre)
-        @test O.rounded(st.last_total_energy_defect[], -K0 + fieldenergy(st.fields.E[1], st.g.dx[1]) -
-            fieldenergy(E0, st.g.dx[1]) + st.last_wall_energy[1][])
+        @test O.rounded(
+            st.last_total_energy_defect[],
+            -K0 + fieldenergy(st.fields.E[1], st.g.dx[1]) - fieldenergy(E0, st.g.dx[1]) +
+            st.last_wall_energy[1][],
+        )
     end
 end
 
@@ -125,8 +151,11 @@ function capture_reference(initial_field, subdivisions)
     end
     hit = integral(x -> inv(speed(x)))
     @test 0 < hit < terminal
-    return (hit = hit, incoming = -speed(zero(x0)),
-        survivor = integral(x -> electric(x) / speed(x)) + invariant * (terminal - hit))
+    return (
+        hit = hit,
+        incoming = -speed(zero(x0)),
+        survivor = integral(x -> electric(x) / speed(x)) + invariant * (terminal - hit),
+    )
 end
 @testset "Independent nonzero force-jump refinement" begin
     setprecision(BigFloat, 192) do
@@ -134,7 +163,9 @@ end
         initial = state(Float64, seed; sigma = -2.0)
         coarse = capture_reference(initial.fields.E[1][1], 64)
         fine = capture_reference(initial.fields.E[1][1], 128)
-        oracle_error = abs(coarse.hit - fine.hit) + abs(coarse.incoming - fine.incoming) +
+        oracle_error =
+            abs(coarse.hit - fine.hit) +
+            abs(coarse.incoming - fine.incoming) +
             abs(coarse.survivor - fine.survivor)
         errors = BigFloat[]
         for steps in (4, 8, 16)
@@ -147,8 +178,12 @@ end
             end
             @test captured !== nothing && sum(x -> x[], st.cumulative_wall_count) == 1
             hit = O.rat(dt) * (captured.external_step - 1) + captured.elapsed
-            push!(errors, abs(BigFloat(hit) - fine.hit) + abs(BigFloat(captured.velocity) - fine.incoming) +
-                abs(BigFloat(ps.v[1][1]) - fine.survivor))
+            push!(
+                errors,
+                abs(BigFloat(hit) - fine.hit) +
+                abs(BigFloat(captured.velocity) - fine.incoming) +
+                abs(BigFloat(ps.v[1][1]) - fine.survivor),
+            )
         end
         orders = (log2(errors[1] / errors[2]), log2(errors[2] / errors[3]))
         @test oracle_error < minimum(errors) / 32
@@ -166,13 +201,16 @@ end
         @test_throws ArgumentError step!(terminal_state, terminal, T(0.25))
         @test isequal(snapshot(terminal_state, terminal), terminal_before)
         simultaneous = particles(T, T[0.25, 0.75], T[-1, 1])
-        simultaneous_state = YeeAbsorbingLongitudinalPIC(YeeGrid((4,), (one(T),));
-            shape = YeeTriangularCloud(T(1 / 16)), max_root_refinements = 4)
+        simultaneous_state = YeeAbsorbingLongitudinalPIC(
+            YeeGrid((4,), (one(T),));
+            shape = YeeTriangularCloud(T(1 / 16)),
+            max_root_refinements = 4,
+        )
         init!(simultaneous_state, simultaneous)
         simultaneous_before = snapshot(simultaneous_state, simultaneous)
         @test_throws ArgumentError step!(simultaneous_state, simultaneous, T(0.5))
         @test isequal(snapshot(simultaneous_state, simultaneous), simultaneous_before)
-        ps = particles(T, T[1 / 4096], T[-0.25]; q = one(T))
+        ps = particles(T, T[1/4096], T[-0.25]; q = one(T))
         st = state(T, ps; sigma = T(16))
         before, binding = snapshot(st, ps), st._binding[]
         @test_throws ArgumentError step!(st, ps, T(1 / 512))
@@ -182,7 +220,8 @@ end
         x = ldexp(one(T), exponent(eta) + exponent(floatmax(T)) - 1)
         captured = particles(T, T[x], T[-floatmax(T)]; m = floatmin(T), weights = T[floatmin(T)])
         fast = prevfloat(prevfloat(prevfloat(prevfloat(floatmax(T)))))
-        survivor = particles(T, T[0.5], T[fast]; q = inv(floatmin(T)), m = floatmin(T), weights = T[0])
+        survivor =
+            particles(T, T[0.5], T[fast]; q = inv(floatmin(T)), m = floatmin(T), weights = T[0])
         species = [captured, survivor]
         failed = state(T, species; sigma = T(16), width = T(1 / 8))
         original, committed = snapshot(failed, species), failed._binding[]
@@ -205,7 +244,7 @@ end
 
 @testset "Strict detached capture restart" begin
     for T in (Float32, Float64)
-        ps = particles(T, T[1 / 128, 1 / 8], T[-1, 0]; q = one(T), weights = T[1, 0])
+        ps = particles(T, T[1/128, 1/8], T[-1, 0]; q = one(T), weights = T[1, 0])
         st = state(T, ps; sigma = T(-2))
         step!(st, ps, T(1 / 64))
         saved = deepcopy(H._checkpoint_state(st, ps))
@@ -214,29 +253,46 @@ end
         resumed.free_left_plate_charge[] = O.rat(-999)
         H._restore_checkpoint_state!(resumed, target, saved)
         @test snapshot(resumed, target) == snapshot(st, ps)
-        for corrupt in (merge(saved, (schema_version = 2,)),
+        for corrupt in (
+            merge(saved, (schema_version = 2,)),
             merge(saved, (passivity_policy_version = true,)),
             merge(saved, (free_left_plate_charge = saved.free_left_plate_charge + 1,)),
             merge(saved, (initial_counts = saved.initial_counts .+ 1,)),
             merge(saved, (last_wall_energy = (-one(O.Q), zero(O.Q)),)),
-            merge(saved, (shape_width_type = Float32,)))
+            merge(saved, (shape_width_type = Float32,)),
+        )
             before = snapshot(resumed, target)
             @test_throws ArgumentError H._restore_checkpoint_state!(resumed, target, corrupt)
             @test isequal(snapshot(resumed, target), before)
         end
-        view_target = ParticleSet{1,T}((view(zeros(T, 2), 1:2:2),),
-            ntuple(_ -> view(zeros(T, 2), 1:2:2), 3), view(zeros(T, 2), 1:2:2),
-            view(UInt64[1, 0], 1:2:2), view(UInt32[0, 0], 1:2:2), zero(T), one(T))
+        view_target = ParticleSet{1,T}(
+            (view(zeros(T, 2), 1:2:2),),
+            ntuple(_ -> view(zeros(T, 2), 1:2:2), 3),
+            view(zeros(T, 2), 1:2:2),
+            view(UInt64[1, 0], 1:2:2),
+            view(UInt32[0, 0], 1:2:2),
+            zero(T),
+            one(T),
+        )
         before = snapshot(resumed, view_target)
         @test_throws ArgumentError H._restore_checkpoint_state!(resumed, view_target, saved)
         @test isequal(snapshot(resumed, view_target), before)
         resumed.fields.E[2] .= -zero(T)
-        swapped = merge(saved, (fields = (E = (saved.fields.E[1], resumed.fields.E[3], resumed.fields.E[2]), B = saved.fields.B),))
+        swapped = merge(
+            saved,
+            (
+                fields = (
+                    E = (saved.fields.E[1], resumed.fields.E[3], resumed.fields.E[2]),
+                    B = saved.fields.B,
+                ),
+            ),
+        )
         H._restore_checkpoint_state!(resumed, target, swapped)
         @test all(x -> isequal(x, -zero(T)), resumed.fields.E[3])
         H._restore_checkpoint_state!(resumed, target, saved)
         mktempdir() do directory
-            checkpoint, archive = joinpath(directory, "capture.bin"), joinpath(directory, "capture.archive")
+            checkpoint, archive =
+                joinpath(directory, "capture.bin"), joinpath(directory, "capture.archive")
             save_checkpoint(checkpoint, st, ps)
             load_checkpoint!(resumed, target, checkpoint)
             archive_run(archive, st, ps; rng_seed = 19)
@@ -250,9 +306,12 @@ end
         step!(empty_state, empty, T(1 / 64))
         @test isempty(empty_state._initial_counts[]) && empty_state.step[] == 1
         @test_throws ArgumentError H._restore_checkpoint_state!(empty_state, empty, saved)
-        calls = ((init!, Tuple{typeof(st),typeof(ps)}), (step!, Tuple{typeof(st),typeof(ps),T}),
+        calls = (
+            (init!, Tuple{typeof(st),typeof(ps)}),
+            (step!, Tuple{typeof(st),typeof(ps),T}),
             (yee_absorbing_longitudinal_diagnostics, Tuple{typeof(st),typeof(ps)}),
-            (H._restore_checkpoint_state!, Tuple{typeof(st),typeof(ps),typeof(saved)}))
+            (H._restore_checkpoint_state!, Tuple{typeof(st),typeof(ps),typeof(saved)}),
+        )
         for (f, types) in calls
             report = JET.report_call(f, types)
             if !isempty(JET.get_reports(report))

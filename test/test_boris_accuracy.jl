@@ -766,7 +766,9 @@ end
                     @test all(collect(reinterpret(U, a)) == b for (a, b) in zip(arrays, before))
                 end
                 @test_throws ArgumentError H._validated_nonnegative_dt(
-                    T, negative_tiny; name = "stored dt",
+                    T,
+                    negative_tiny;
+                    name = "stored dt",
                 )
                 @test H._validated_nonnegative_dt(T, tiny; name = "stored dt") === tiny
                 for zero_dt in (z, negative_zero)
@@ -823,29 +825,49 @@ end
                 )
                 @info "Stored collection admission" observation
                 arrays = (
-                    hybrid.fields.B..., hybrid.fields.E..., hybrid.fields.J..., hybrid.fields.n,
-                    hybrid.fields.ui..., hybrid.fields.pe,
-                    electrostatic.E..., electrostatic.ne,
-                    electromagnetic.E..., electromagnetic.B..., electromagnetic.J...,
-                    electromagnetic.rho_n, electromagnetic.rho_np1,
-                    ps.x..., ps.v..., ps.weight,
+                    hybrid.fields.B...,
+                    hybrid.fields.E...,
+                    hybrid.fields.J...,
+                    hybrid.fields.n,
+                    hybrid.fields.ui...,
+                    hybrid.fields.pe,
+                    electrostatic.E...,
+                    electrostatic.ne,
+                    electromagnetic.E...,
+                    electromagnetic.B...,
+                    electromagnetic.J...,
+                    electromagnetic.rho_n,
+                    electromagnetic.rho_np1,
+                    ps.x...,
+                    ps.v...,
+                    ps.weight,
                 )
                 before = map(a -> collect(reinterpret(U, a)), arrays)
                 phase = (
-                    hybrid.time[], hybrid.step[], hybrid.last_dt[],
-                    electrostatic.primed[], electrostatic.last_dt[],
-                    electromagnetic.time[], electromagnetic.step[],
-                    electromagnetic.last_dt[], electromagnetic.last_sub_dt[],
+                    hybrid.time[],
+                    hybrid.step[],
+                    hybrid.last_dt[],
+                    electrostatic.primed[],
+                    electrostatic.last_dt[],
+                    electromagnetic.time[],
+                    electromagnetic.step[],
+                    electromagnetic.last_dt[],
+                    electromagnetic.last_sub_dt[],
                 )
                 @test_throws ArgumentError init!(hybrid, species)
                 @test_throws ArgumentError init_espic!(electrostatic, species)
                 @test_throws ArgumentError init_empic!(electromagnetic, species)
                 @test all(collect(reinterpret(U, a)) == b for (a, b) in zip(arrays, before))
                 @test (
-                    hybrid.time[], hybrid.step[], hybrid.last_dt[],
-                    electrostatic.primed[], electrostatic.last_dt[],
-                    electromagnetic.time[], electromagnetic.step[],
-                    electromagnetic.last_dt[], electromagnetic.last_sub_dt[],
+                    hybrid.time[],
+                    hybrid.step[],
+                    hybrid.last_dt[],
+                    electrostatic.primed[],
+                    electrostatic.last_dt[],
+                    electromagnetic.time[],
+                    electromagnetic.step[],
+                    electromagnetic.last_dt[],
+                    electromagnetic.last_sub_dt[],
                 ) === phase
                 ps.weight[2] = one(T)
             end

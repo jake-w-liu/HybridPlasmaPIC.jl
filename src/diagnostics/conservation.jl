@@ -168,7 +168,10 @@ function _budget_complete_total(
     quadratic = _kinetic_energy_rational(species) + _field_square_sum_exact(B) * volume / 2
     J === nothing || (quadratic += _exact_rational(de2) * _field_square_sum_exact(J) * volume / 2)
     if closure isa Union{EvolvingElectrons,TransportElectrons,ConductingElectrons}
-        return _from_exact(T, quadratic + _stored_pressure_energy_rational(pe, electron.gamma, g.dx))
+        return _from_exact(
+            T,
+            quadratic + _stored_pressure_energy_rational(pe, electron.gamma, g.dx),
+        )
     elseif closure isa IsothermalElectrons
         return _isothermal_exact_energy(n, closure.Te, g.dx, quadratic)
     elseif closure isa PolytropicElectrons

@@ -25,7 +25,8 @@ function polynomial_integral(f, knots)
     total = zero(Q)
     for (left, right) in zip(points[1:end-1], points[2:end])
         h = (right - left) / 4
-        total += (right - left) / 90 *
+        total +=
+            (right - left) / 90 *
             (7 * f(left) + 32 * f(left + h) + 12 * f(left + 2h) + 32 * f(left + 3h) + 7 * f(right))
     end
     return total
@@ -35,26 +36,28 @@ density(r, x, a) = max(zero(Q), a - abs(r - x)) / a^2
 
 function cloud_mass(r, x, a)
     hi = clamp(r, x - a, x + a)
-    knots = [x-a, hi]
+    knots = [x - a, hi]
     x - a < x < hi && push!(knots, x)
     return polynomial_integral(t -> density(t, x, a), knots)
 end
 
 function cloud_nodes(x, n, length, a)
     x, length, a = rat(x), rat(length), rat(a)
-    knots = [x-a, x, x+a]
+    knots = [x - a, x, x + a]
     append!(knots, filter(r -> x - a < r < x + a, [length * j / n for j = 0:n]))
-    return [polynomial_integral(knots) do r
-        s = n * clamp(r, zero(Q), length) / length
-        density(r, x, a) * max(zero(Q), 1 - abs(s - j))
-    end for j = 0:n]
+    return [
+        polynomial_integral(knots) do r
+            s = n * clamp(r, zero(Q), length) / length
+            density(r, x, a) * max(zero(Q), 1 - abs(s - j))
+        end for j = 0:n
+    ]
 end
 
 function cloud_edge(x, e, n, length, a)
     x, length, a = rat(x), rat(length), rat(a)
     lo, hi = length * e / n, length * (e + 1) / n
     knots = [lo, hi]
-    append!(knots, filter(r -> lo < r < hi, [x-a, x, x+a]))
+    append!(knots, filter(r -> lo < r < hi, [x - a, x, x + a]))
     return n / length * polynomial_integral(r -> density(r, x, a), knots)
 end
 
@@ -79,10 +82,15 @@ function cloud_charge(species, positions, n, length, a)
 end
 
 function cloud_impulse(species, old, new, n, length, a)
-    return [sum((rat(ps.q) * rat(ps.weight[p]) *
-        cloud_path(x0[p], x1[p], e, n, length, a)
-        for (ps, x0, x1) in zip(species, old, new) for p in eachindex(ps.weight)); init = zero(Q))
-        for e = 0:(n-1)]
+    return [
+        sum(
+            (
+                rat(ps.q) * rat(ps.weight[p]) * cloud_path(x0[p], x1[p], e, n, length, a) for
+                (ps, x0, x1) in zip(species, old, new) for p in eachindex(ps.weight)
+            );
+            init = zero(Q),
+        ) for e = 0:(n-1)
+    ]
 end
 
 function impulse(species, old, new, n, length)

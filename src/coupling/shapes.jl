@@ -59,8 +59,8 @@ end
     return (positive(t + a)^4 - 2 * positive(t)^4 + positive(t - a)^4) / (24a^2)
 end
 @inline function _yee_cloud_integrated_edge(x, lower, h, a)
-    return (_yee_cloud_path_primitive(x - lower, a) -
-        _yee_cloud_path_primitive(x - lower - h, a)) / h
+    return (_yee_cloud_path_primitive(x - lower, a) - _yee_cloud_path_primitive(x - lower - h, a)) /
+           h
 end
 
 # Outside this exact span both endpoint cumulatives equal the same saturated
@@ -81,9 +81,10 @@ end
 # Explicit geometry policy shared by exact deposition and vector gather.
 @inline _stencil_node_index(st, n, o, ::Val{:periodic}) =
     ntuple(d -> mod(st[d][1] + o[d] - 1, n[d]) + 1, length(n))
-@inline _stencil_node_index(st, n, o, ::Val{:fold_x}) =
-    ntuple(d -> d == 1 ? clamp(st[d][1] + o[d], 1, n[d]) :
-        mod(st[d][1] + o[d] - 1, n[d]) + 1, length(n))
+@inline _stencil_node_index(st, n, o, ::Val{:fold_x}) = ntuple(
+    d -> d == 1 ? clamp(st[d][1] + o[d], 1, n[d]) : mod(st[d][1] + o[d] - 1, n[d]) + 1,
+    length(n),
+)
 
 Base.@propagate_inbounds @inline function _particle_cell_position(
     ps::ParticleSet{D,T},
@@ -114,8 +115,11 @@ end
     c = Int(_ngp_node(s))
     return (c, (one(T),))
 end
-@inline function _cic_weights(s::T, integer_base::Integer,
-    ops::_ScalarOps = _DefaultScalarOps()) where {T}
+@inline function _cic_weights(
+    s::T,
+    integer_base::Integer,
+    ops::_ScalarOps = _DefaultScalarOps(),
+) where {T}
     f = _scalar_sub(ops, s, integer_base)
     return (_scalar_sub(ops, one(T), f), f)
 end

@@ -526,12 +526,14 @@ physical_values(es, species) =
         incoming = merge(saved, (; ne = target.E[1], E = (target.ne, saved.E[2], saved.E[3])))
         expected = deepcopy(incoming)
         identities = map(objectid, (target.ne, target.E...)),
-            [map(objectid, (p.x..., p.v..., p.weight, p.id, p.tag)) for p in destination]
+        [map(objectid, (p.x..., p.v..., p.weight, p.id, p.tag)) for p in destination]
         @test H._restore_checkpoint_state!(target, destination, incoming) === target
         @test physical_values(target, destination) ==
-            (expected.E, expected.ne, expected.primed, expected.last_dt, expected.species)
-        @test (map(objectid, (target.ne, target.E...)),
-            [map(objectid, (p.x..., p.v..., p.weight, p.id, p.tag)) for p in destination]) == identities
+              (expected.E, expected.ne, expected.primed, expected.last_dt, expected.species)
+        @test (
+            map(objectid, (target.ne, target.E...)),
+            [map(objectid, (p.x..., p.v..., p.weight, p.id, p.tag)) for p in destination],
+        ) == identities
     end
 end
 

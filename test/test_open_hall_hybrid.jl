@@ -8,7 +8,7 @@ using HybridPlasmaPIC
             op = MixedShockOperators((3, 3), (T(2), T(3)))
             p = ParticleSet{2,T}(prod(op.n))
             for (i, I) in enumerate(CartesianIndices(op.n))
-                for d in 1:2
+                for d = 1:2
                     p.x[d][i] = op.coordinates[d][I[d]]
                 end
                 p.weight[i] = op.sbp.H[I[1]] * op.dx[2]
@@ -19,16 +19,33 @@ using HybridPlasmaPIC
             right = OpenHallReservoir(zero(T), zero(T), zero(T))
             species = [p]
             rng = T === Float32 ? Xoshiro(41) : MersenneTwister(41)
-            st = OpenHallHybrid(op, HybridModel(IsothermalElectrons(zero(T))),
-                species, [(left, right)]; rng, max_levels = 0, max_births = 3,
-                max_particles = 32, max_draws = 1024)
+            st = OpenHallHybrid(
+                op,
+                HybridModel(IsothermalElectrons(zero(T))),
+                species,
+                [(left, right)];
+                rng,
+                max_levels = 0,
+                max_births = 3,
+                max_particles = 32,
+                max_draws = 1024,
+            )
             init!(st, species)
-            snapshot() = (x = map(copy, p.x), v = map(copy, p.v),
-                weight = copy(p.weight), id = copy(p.id), tag = copy(p.tag),
+            snapshot() = (
+                x = map(copy, p.x),
+                v = map(copy, p.v),
+                weight = copy(p.weight),
+                id = copy(p.id),
+                tag = copy(p.tag),
                 fields = deepcopy(HybridPlasmaPIC._hybrid_field_state(st.fields)),
-                time = st.time[], step = st.step[], last_dt = st.last_dt[],
-                alpha = copy(st.alpha), next_index = copy(st.next_index),
-                elapsed = st.source_elapsed, future = rand(deepcopy(st.rng), UInt64, 8))
+                time = st.time[],
+                step = st.step[],
+                last_dt = st.last_dt[],
+                alpha = copy(st.alpha),
+                next_index = copy(st.next_index),
+                elapsed = st.source_elapsed,
+                future = rand(deepcopy(st.rng), UInt64, 8),
+            )
             initial = snapshot()
             @test step!(st, species, zero(T)) === st
             @test isequal(snapshot(), initial)

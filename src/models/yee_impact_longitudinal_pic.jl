@@ -114,16 +114,34 @@ function _yi_make_stage(populations, sources, ::Type{T}, n::Int) where {T}
     roots, contacts = _YeeImpactBracket[], _YeeImpactContact[]
     sizehint!(roots, capacity)
     sizehint!(contacts, capacity)
-    return _YeeImpactStage{T}(final.owners, final.components, final.candidates, event,
-        offsets, fill(zero(_YeeImpactQ), length(sources)), ntuple(_ -> qvector(), 3), ntuple(_ -> qvector(), 3),
-        ntuple(_ -> qvector(), 3), ntuple(_ -> qvector(), 2), ntuple(_ -> qvector(), 3),
-        ntuple(_ -> qvector(), 2), zeros(Int8, count), roots, contacts,
-        fill(zero(_YeeImpactQ), n), fill(zero(_YeeImpactQ), n))
+    return _YeeImpactStage{T}(
+        final.owners,
+        final.components,
+        final.candidates,
+        event,
+        offsets,
+        fill(zero(_YeeImpactQ), length(sources)),
+        ntuple(_ -> qvector(), 3),
+        ntuple(_ -> qvector(), 3),
+        ntuple(_ -> qvector(), 3),
+        ntuple(_ -> qvector(), 2),
+        ntuple(_ -> qvector(), 3),
+        ntuple(_ -> qvector(), 2),
+        zeros(Int8, count),
+        roots,
+        contacts,
+        fill(zero(_YeeImpactQ), n),
+        fill(zero(_YeeImpactQ), n),
+    )
 end
 
-function YeeImpactLongitudinalPIC(g::YeeGrid{1,T}; shape::YeeTriangularCloud,
-    background_charge = zero(T), left_plate_charge = zero(T),
-    max_root_refinements = precision(T)) where {T}
+function YeeImpactLongitudinalPIC(
+    g::YeeGrid{1,T};
+    shape::YeeTriangularCloud,
+    background_charge = zero(T),
+    left_plate_charge = zero(T),
+    max_root_refinements = precision(T),
+) where {T}
     g.periodic[1] && throw(ArgumentError("impact longitudinal PIC requires closed PEC"))
     cap = _require_positive_intlike("max_root_refinements", max_root_refinements)
     b = _yl_source_scalar("background_charge", background_charge, T)
@@ -133,12 +151,39 @@ function YeeImpactLongitudinalPIC(g::YeeGrid{1,T}; shape::YeeTriangularCloud,
     qref() = Ref(zero(_YeeImpactQ))
     stage = _yi_make_stage(ParticleSet{1,T}[], ParticleSet{1,T}[], T, g.n[1])
     return YeeImpactLongitudinalPIC{T,typeof(shape),typeof(b),typeof(sigma)}(
-        g, shape, b, sigma, cap, fields, Ref(zero(T)), Ref(0), Ref(false), Ref(zero(T)),
+        g,
+        shape,
+        b,
+        sigma,
+        cap,
+        fields,
+        Ref(zero(T)),
+        Ref(0),
+        Ref(false),
+        Ref(zero(T)),
         Ref(-_exact_rational(sigma) - _exact_rational(b) * _exact_rational(g.L[1])),
-        impulse(), Ref(zero(T)), Ref(zero(T)), Ref(zero(T)),
-        ntuple(_ -> Ref(0), 2), ntuple(_ -> Ref(0), 2), ntuple(_ -> qref(), 2),
-        ntuple(_ -> qref(), 2), qref(), qref(), qref(), qref(), qref(), qref(), qref(), qref(),
-        final, event, impulse(), YeeChargeWorkspace(g), Ref(stage))
+        impulse(),
+        Ref(zero(T)),
+        Ref(zero(T)),
+        Ref(zero(T)),
+        ntuple(_ -> Ref(0), 2),
+        ntuple(_ -> Ref(0), 2),
+        ntuple(_ -> qref(), 2),
+        ntuple(_ -> qref(), 2),
+        qref(),
+        qref(),
+        qref(),
+        qref(),
+        qref(),
+        qref(),
+        qref(),
+        qref(),
+        final,
+        event,
+        impulse(),
+        YeeChargeWorkspace(g),
+        Ref(stage),
+    )
 end
 YeeImpactLongitudinalPIC(g::YeeGrid; kwargs...) =
     throw(ArgumentError("impact longitudinal PIC requires one spatial dimension"))
@@ -151,12 +196,31 @@ function _yee_impact_storage_arrays(st)
     _yee_check_shape(st._event_fields.E, st.g, true)
     _yee_check_shape(st._event_fields.B, st.g, false)
     stage = st._stage[]
-    arrays = Any[st.fields.E..., st.fields.B..., st._candidate.E..., st._candidate.B...,
-        st._event_fields.E..., st._event_fields.B..., st.last_impulse..., st._impulse...,
-        st._charge_workspace.sum, st._charge_workspace.candidate,
-        stage.offsets, stage.factors, stage.acceleration..., stage.gather..., stage.bounds...,
-        stage.residual..., stage.carried..., stage.terminal..., stage.selected_side,
-        stage.roots, stage.contacts, stage.rho, stage.net_impulse]
+    arrays = Any[
+        st.fields.E...,
+        st.fields.B...,
+        st._candidate.E...,
+        st._candidate.B...,
+        st._event_fields.E...,
+        st._event_fields.B...,
+        st.last_impulse...,
+        st._impulse...,
+        st._charge_workspace.sum,
+        st._charge_workspace.candidate,
+        stage.offsets,
+        stage.factors,
+        stage.acceleration...,
+        stage.gather...,
+        stage.bounds...,
+        stage.residual...,
+        stage.carried...,
+        stage.terminal...,
+        stage.selected_side,
+        stage.roots,
+        stage.contacts,
+        stage.rho,
+        stage.net_impulse,
+    ]
     for candidates in (stage.candidates, stage.event_candidates), ps in candidates
         _yl_check_particle_storage(ps)
         append!(arrays, _yl_particle_arrays(ps))
@@ -164,13 +228,29 @@ function _yee_impact_storage_arrays(st)
     return arrays
 end
 _yl_storage_arrays(st::YeeImpactLongitudinalPIC) = _yee_impact_storage_arrays(st)
-_yee_closed_references(st::YeeImpactLongitudinalPIC) =
-    (st.time, st.step, st.initialized, st.last_dt, st.right_plate_charge, st.last_work,
-    st.last_energy_defect, st.last_physical_energy_change, st.last_wall_count...,
-    st.cumulative_wall_count..., st.last_wall_impulse..., st.cumulative_wall_impulse...,
-    st.last_electric_impulse, st.last_max_snap, st.last_snap_energy_bound,
-    st.last_predictor_time_error, st.last_physical_time_error, st.last_source_invariant_error,
-    st.last_position_error_bound, st.last_velocity_error_bound, st._stage)
+_yee_closed_references(st::YeeImpactLongitudinalPIC) = (
+    st.time,
+    st.step,
+    st.initialized,
+    st.last_dt,
+    st.right_plate_charge,
+    st.last_work,
+    st.last_energy_defect,
+    st.last_physical_energy_change,
+    st.last_wall_count...,
+    st.cumulative_wall_count...,
+    st.last_wall_impulse...,
+    st.cumulative_wall_impulse...,
+    st.last_electric_impulse,
+    st.last_max_snap,
+    st.last_snap_energy_bound,
+    st.last_predictor_time_error,
+    st.last_physical_time_error,
+    st.last_source_invariant_error,
+    st.last_position_error_bound,
+    st.last_velocity_error_bound,
+    st._stage,
+)
 
 function _yi_validate_bound(st, species)
     _yl_validate_bound(st, species)
@@ -188,10 +268,16 @@ function _yi_validate_bound(st, species)
         count = Base.checked_add(count, length(ps.weight))
         stage.offsets[k+1] == count || throw(ArgumentError("impact offsets changed"))
     end
-    for a in (stage.acceleration..., stage.gather..., stage.bounds..., stage.residual...,
-        stage.carried..., stage.terminal..., stage.selected_side)
-        length(a) == count ||
-            throw(DimensionMismatch("impact certificate buffer shape changed"))
+    for a in (
+        stage.acceleration...,
+        stage.gather...,
+        stage.bounds...,
+        stage.residual...,
+        stage.carried...,
+        stage.terminal...,
+        stage.selected_side,
+    )
+        length(a) == count || throw(DimensionMismatch("impact certificate buffer shape changed"))
     end
     length(stage.rho) == st.g.n[1] == length(stage.net_impulse) ||
         throw(DimensionMismatch("impact field certificate shape changed"))
@@ -199,32 +285,62 @@ function _yi_validate_bound(st, species)
 end
 
 function _yi_history_values(st)
-    return (initialized = st.initialized[], time = st.time[], step = st.step[],
-        last_dt = st.last_dt[], last_impulse = st.last_impulse, last_work = st.last_work[],
+    return (
+        initialized = st.initialized[],
+        time = st.time[],
+        step = st.step[],
+        last_dt = st.last_dt[],
+        last_impulse = st.last_impulse,
+        last_work = st.last_work[],
         last_energy_defect = st.last_energy_defect[],
         last_physical_energy_change = st.last_physical_energy_change[],
         last_wall_count = map(x -> x[], st.last_wall_count),
         cumulative_wall_count = map(x -> x[], st.cumulative_wall_count),
         last_wall_impulse = map(x -> x[], st.last_wall_impulse),
         cumulative_wall_impulse = map(x -> x[], st.cumulative_wall_impulse),
-        last_electric_impulse = st.last_electric_impulse[], last_max_snap = st.last_max_snap[],
+        last_electric_impulse = st.last_electric_impulse[],
+        last_max_snap = st.last_max_snap[],
         last_snap_energy_bound = st.last_snap_energy_bound[],
         last_predictor_time_error = st.last_predictor_time_error[],
         last_physical_time_error = st.last_physical_time_error[],
         last_source_invariant_error = st.last_source_invariant_error[],
         last_position_error_bound = st.last_position_error_bound[],
-        last_velocity_error_bound = st.last_velocity_error_bound[])
+        last_velocity_error_bound = st.last_velocity_error_bound[],
+    )
 end
-const _YI_Q_HISTORY = (:last_electric_impulse, :last_max_snap, :last_snap_energy_bound,
-    :last_predictor_time_error, :last_physical_time_error, :last_source_invariant_error,
-    :last_position_error_bound, :last_velocity_error_bound)
-_yi_q_history_values(s) = (s.last_electric_impulse, s.last_max_snap, s.last_snap_energy_bound,
-    s.last_predictor_time_error, s.last_physical_time_error, s.last_source_invariant_error,
-    s.last_position_error_bound, s.last_velocity_error_bound)
+const _YI_Q_HISTORY = (
+    :last_electric_impulse,
+    :last_max_snap,
+    :last_snap_energy_bound,
+    :last_predictor_time_error,
+    :last_physical_time_error,
+    :last_source_invariant_error,
+    :last_position_error_bound,
+    :last_velocity_error_bound,
+)
+_yi_q_history_values(s) = (
+    s.last_electric_impulse,
+    s.last_max_snap,
+    s.last_snap_energy_bound,
+    s.last_predictor_time_error,
+    s.last_physical_time_error,
+    s.last_source_invariant_error,
+    s.last_position_error_bound,
+    s.last_velocity_error_bound,
+)
 _yi_finite_q(x) = x isa _YeeImpactQ && denominator(x) > 0
 function _yi_validate_history_values(s, g::YeeGrid{1,T}, count::Int) where {T}
-    _yl_validate_phase_values(s.initialized, s.time, s.step, s.last_dt, s.last_work, s.last_energy_defect)
-    s.time isa T && s.last_physical_energy_change isa T && isfinite(s.last_physical_energy_change) ||
+    _yl_validate_phase_values(
+        s.initialized,
+        s.time,
+        s.step,
+        s.last_dt,
+        s.last_work,
+        s.last_energy_defect,
+    )
+    s.time isa T &&
+        s.last_physical_energy_change isa T &&
+        isfinite(s.last_physical_energy_change) ||
         throw(ArgumentError("invalid impact energy-change history"))
     _yee_validate_impulse(s.last_impulse, g)
     all(a -> all(_yl_stored_zero, a), (s.last_impulse[2], s.last_impulse[3])) ||
@@ -241,8 +357,9 @@ function _yi_validate_history_values(s, g::YeeGrid{1,T}, count::Int) where {T}
     end
     for name in (:last_wall_impulse, :cumulative_wall_impulse)
         values = getproperty(s, name)
-        values isa NTuple{2,_YeeImpactQ} && all(_yi_finite_q, values) && values[1] <= 0 <= values[2] ||
-            throw(ArgumentError("invalid impact wall momentum"))
+        values isa NTuple{2,_YeeImpactQ} &&
+            all(_yi_finite_q, values) &&
+            values[1] <= 0 <= values[2] || throw(ArgumentError("invalid impact wall momentum"))
     end
     for side = 1:2
         0 <= s.last_wall_count[side] <= s.cumulative_wall_count[side] &&
@@ -256,17 +373,38 @@ function _yi_validate_history_values(s, g::YeeGrid{1,T}, count::Int) where {T}
         sum(BigInt, s.cumulative_wall_count) <= BigInt(s.step) * count ||
         throw(ArgumentError("impact counts exceed completed step scope"))
     if sum(BigInt, s.last_wall_count) == 0
-        all(iszero, (s.last_max_snap, s.last_snap_energy_bound,
-            s.last_predictor_time_error, s.last_physical_time_error)) ||
-            throw(ArgumentError("no-event impact history has contact residuals"))
+        all(
+            iszero,
+            (
+                s.last_max_snap,
+                s.last_snap_energy_bound,
+                s.last_predictor_time_error,
+                s.last_physical_time_error,
+            ),
+        ) || throw(ArgumentError("no-event impact history has contact residuals"))
     end
     if s.step == 0
-        all(_yl_stored_zero, (s.time, s.last_dt, s.last_work, s.last_energy_defect,
-            s.last_physical_energy_change)) && all(a -> all(_yl_stored_zero, a), s.last_impulse) &&
+        all(
+                _yl_stored_zero,
+                (
+                    s.time,
+                    s.last_dt,
+                    s.last_work,
+                    s.last_energy_defect,
+                    s.last_physical_energy_change,
+                ),
+            ) &&
+            all(a -> all(_yl_stored_zero, a), s.last_impulse) &&
             all(iszero, qhistory) &&
-            all(iszero, (s.last_wall_count..., s.cumulative_wall_count...,
-                s.last_wall_impulse..., s.cumulative_wall_impulse...)) ||
-            throw(ArgumentError("unadvanced impact histories must be zero"))
+            all(
+                iszero,
+                (
+                    s.last_wall_count...,
+                    s.cumulative_wall_count...,
+                    s.last_wall_impulse...,
+                    s.cumulative_wall_impulse...,
+                ),
+            ) || throw(ArgumentError("unadvanced impact histories must be zero"))
     end
     return nothing
 end
@@ -306,13 +444,22 @@ function init!(st::YeeImpactLongitudinalPIC{T}, particles) where {T}
     right = _yl_right_plate(st, species)
     _yl_initialize_fields!(st, species)
     qz, z = zero(_YeeImpactQ), zero(T)
-    history = (last_energy_defect = z, last_physical_energy_change = z,
-        last_wall_count = (0, 0), cumulative_wall_count = (0, 0),
-        last_wall_impulse = (qz, qz), cumulative_wall_impulse = (qz, qz),
-        last_electric_impulse = qz, last_max_snap = qz, last_snap_energy_bound = qz,
-        last_predictor_time_error = qz, last_physical_time_error = qz,
-        last_source_invariant_error = qz, last_position_error_bound = qz,
-        last_velocity_error_bound = qz)
+    history = (
+        last_energy_defect = z,
+        last_physical_energy_change = z,
+        last_wall_count = (0, 0),
+        cumulative_wall_count = (0, 0),
+        last_wall_impulse = (qz, qz),
+        cumulative_wall_impulse = (qz, qz),
+        last_electric_impulse = qz,
+        last_max_snap = qz,
+        last_snap_energy_bound = qz,
+        last_predictor_time_error = qz,
+        last_physical_time_error = qz,
+        last_source_invariant_error = qz,
+        last_position_error_bound = qz,
+        last_velocity_error_bound = qz,
+    )
     copyto!(st.fields.E[1], st._candidate.E[1])
     foreach(a -> fill!(a, z), st.last_impulse)
     st._stage[] = stage
@@ -340,7 +487,8 @@ function _yi_global_bounds!(st, species, tau)
             i = stage.offsets[k] + p
             A[i] = abs(alpha) * delta * field / h
             V[i] = abs(Q(ps.v[1][p])) + A[i] * tau
-            stage.gather[1][i] = _yee_cloud_field_rational(st.fields.E[1], ps.x[1][p], nothing, st.g, st.shape)
+            stage.gather[1][i] =
+                _yee_cloud_field_rational(st.fields.E[1], ps.x[1][p], nothing, st.g, st.shape)
             a0[i] = alpha * stage.gather[1][i]
             sumQV += abs(Q(ps.q) * Q(ps.weight[p])) * V[i]
         end
@@ -359,7 +507,7 @@ function _yi_coefficients(st, species, i, side, acceleration)
     ps, p, _ = _yi_particle(st._stage[], species, i)
     x, v = _exact_rational(ps.x[1][p]), _exact_rational(ps.v[1][p])
     return side == 1 ? (x, v, acceleration[i]) :
-        (_exact_rational(st.g.L[1]) - x, -v, -acceleration[i])
+           (_exact_rational(st.g.L[1]) - x, -v, -acceleration[i])
 end
 _yi_polynomial(c, t) = c[1] + t * c[2] + t^2 * c[3] / 2
 _yi_slope(c, t) = c[2] + t * c[3]
@@ -413,8 +561,8 @@ function _yi_refine!(st, species)
         middle = (r.lo + r.hi) / 2
         value = _yi_polynomial(c, middle)
         lo, hi = value > 0 ? (middle, r.hi) : value < 0 ? (r.lo, middle) : (middle, middle)
-        stage.roots[k] = _YeeImpactBracket(r.particle, r.side, lo, hi,
-            iszero(value), r.refinements + 1)
+        stage.roots[k] =
+            _YeeImpactBracket(r.particle, r.side, lo, hi, iszero(value), r.refinements + 1)
     end
     return nothing
 end
@@ -436,7 +584,8 @@ function _yi_physical_contact(st, species, rootindex, geom)
     if exact
         _yi_polynomial(c, lo) == 0 && _yi_minimum(c, zero(lo), lo) >= 0 || return nothing
     else
-        _yi_polynomial(c, lo) > H && _yi_polynomial(c, hi) < -H &&
+        _yi_polynomial(c, lo) > H &&
+            _yi_polynomial(c, hi) < -H &&
             _yi_minimum(c, zero(lo), lo) > H || return nothing
     end
     opposite = _yi_coefficients(st, species, r.particle, 3 - r.side, stage.acceleration[1])
@@ -477,8 +626,18 @@ function _yi_contacts!(st, species, geom)
     return true
 end
 
-function _yee_longitudinal_local_chunk!(st, ::Type{T}, source, oldfields,
-    destination, newfields, duration, first_acceleration, next_acceleration, constrained) where {T}
+function _yee_longitudinal_local_chunk!(
+    st,
+    ::Type{T},
+    source,
+    oldfields,
+    destination,
+    newfields,
+    duration,
+    first_acceleration,
+    next_acceleration,
+    constrained,
+) where {T}
     stage, Q = st._stage[], _exact_rational
     half = duration / 2
     dx, kappa = stage.residual
@@ -492,12 +651,24 @@ function _yee_longitudinal_local_chunk!(st, ::Type{T}, source, oldfields,
             throw(ArgumentError("impact local drift does not produce an admitted endpoint"))
         candidate.x[1][p], candidate.v[1][p] = y, u
         candidate.v[2][p], candidate.v[3][p] = zero(T), zero(T)
-        dx[i] = Q(y) - (Q(ps.x[1][p]) + duration * Q(ps.v[1][p]) +
-            duration^2 * stage.acceleration[first_acceleration][i] / 2)
+        dx[i] =
+            Q(y) - (
+                Q(ps.x[1][p]) +
+                duration * Q(ps.v[1][p]) +
+                duration^2 * stage.acceleration[first_acceleration][i] / 2
+            )
     end
     old, new = [ps.x[1] for ps in source], [ps.x[1] for ps in destination]
-    _yee_validate_charge(st._impulse[1], source, old, new, st.g,
-        st._charge_workspace, Val(:impulse), false)
+    _yee_validate_charge(
+        st._impulse[1],
+        source,
+        old,
+        new,
+        st.g,
+        st._charge_workspace,
+        Val(:impulse),
+        false,
+    )
     raw = _yee_charge_exact_sums(source, old, new, st.g, Val(:impulse), st.shape)
     _yee_charge_store_exact_candidate!(st._charge_workspace, raw, st.g.n[1])
     copyto!(st._impulse[1], 1, st._charge_workspace.candidate, 1, st.g.n[1])
@@ -516,32 +687,58 @@ function _yee_longitudinal_local_chunk!(st, ::Type{T}, source, oldfields,
     electric = zero(duration)
     for (k, (ps, candidate)) in enumerate(zip(source, destination)), p in eachindex(ps.weight)
         i = stage.offsets[k] + p
-        field = _yee_cloud_field_rational(newfields.E[1], candidate.x[1][p], nothing, st.g, st.shape)
+        field =
+            _yee_cloud_field_rational(newfields.E[1], candidate.x[1][p], nothing, st.g, st.shape)
         stage.gather[next_acceleration][i] = field
         stage.acceleration[next_acceleration][i] = stage.factors[k] * field
         candidate.v[1][p] = _yl_kick(candidate.v[1][p], field, stage.factors[k], half)
-        kappa[i] = Q(candidate.v[1][p]) - Q(ps.v[1][p]) -
-            half * (stage.acceleration[first_acceleration][i] + stage.acceleration[next_acceleration][i])
+        kappa[i] =
+            Q(candidate.v[1][p]) - Q(ps.v[1][p]) -
+            half *
+            (stage.acceleration[first_acceleration][i] + stage.acceleration[next_acceleration][i])
         electric += Q(ps.m) * Q(ps.weight[p]) * (Q(candidate.v[1][p]) - Q(ps.v[1][p]))
     end
     return (work = work, electric = electric)
 end
-_yi_local_chunk!(st::YeeImpactLongitudinalPIC{T}, source, oldfields,
-    destination, newfields, duration, first_acceleration, next_acceleration, constrained) where {T} =
-    _yee_longitudinal_local_chunk!(st, T, source, oldfields, destination, newfields,
-        duration, first_acceleration, next_acceleration, constrained)
+_yi_local_chunk!(
+    st::YeeImpactLongitudinalPIC{T},
+    source,
+    oldfields,
+    destination,
+    newfields,
+    duration,
+    first_acceleration,
+    next_acceleration,
+    constrained,
+) where {T} = _yee_longitudinal_local_chunk!(
+    st,
+    T,
+    source,
+    oldfields,
+    destination,
+    newfields,
+    duration,
+    first_acceleration,
+    next_acceleration,
+    constrained,
+)
 
 function _yi_weighted_error(stage, species, errors)
     total = zero(_YeeImpactQ)
     for (k, ps) in enumerate(species), p in eachindex(ps.weight)
-        total += abs(_exact_rational(ps.q) * _exact_rational(ps.weight[p])) * errors[stage.offsets[k]+p]
+        total +=
+            abs(_exact_rational(ps.q) * _exact_rational(ps.weight[p])) * errors[stage.offsets[k]+p]
     end
     return total
 end
 function _yi_force_error(stage, i, k, weighted, errors, rho, geom)
-    return abs(stage.factors[k]) * geom.delta *
-        (rho / geom.h + geom.M / geom.h * weighted +
-            2 * geom.field / (geom.a * geom.h) * errors[i])
+    return abs(stage.factors[k]) *
+           geom.delta *
+           (
+               rho / geom.h +
+               geom.M / geom.h * weighted +
+               2 * geom.field / (geom.a * geom.h) * errors[i]
+           )
 end
 function _yi_carry!(st, species, cluster, geom)
     stage = st._stage[]
@@ -555,7 +752,8 @@ function _yi_carry!(st, species, cluster, geom)
             A[i] * cluster.width < incoming / 2 && V[i] * cluster.width < geom.L ||
                 throw(ArgumentError("physical contact hull permits another wall event"))
         end
-        xerr[i] = selected ? V[i] * cluster.width :
+        xerr[i] =
+            selected ? V[i] * cluster.width :
             abs(dx[i]) + J[i] * cluster.duration^3 / 6 + V[i] * cluster.delta
     end
     weighted = _yi_weighted_error(stage, species, xerr)
@@ -563,8 +761,11 @@ function _yi_carry!(st, species, cluster, geom)
     for (k, ps) in enumerate(species), p in eachindex(ps.weight)
         i = stage.offsets[k] + p
         aerr[i] = _yi_force_error(stage, i, k, weighted, xerr, rho, geom)
-        verr[i] = abs(kappa[i]) + cluster.delta * abs(stage.acceleration[1][i] +
-            stage.acceleration[2][i]) / 2 + cluster.upper * aerr[i] / 2 + J[i] * cluster.upper^2 / 4
+        verr[i] =
+            abs(kappa[i]) +
+            cluster.delta * abs(stage.acceleration[1][i] + stage.acceleration[2][i]) / 2 +
+            cluster.upper * aerr[i] / 2 +
+            J[i] * cluster.upper^2 / 4
         stage.selected_side[i] != 0 && (verr[i] += A[i] * cluster.width)
     end
     return nothing
@@ -616,8 +817,13 @@ function _yi_terminal!(st, species, cluster, geom)
             v = _exact_rational(stage.event_candidates[k].v[1][p])
             acceleration = stage.acceleration[2][i]
             Z = max(abs(v + acceleration * lower), abs(v + acceleration * horizon))
-            X[i] = xerr[i] + horizon * verr[i] + horizon^2 * aerr[i] / 2 +
-                J[i] * horizon^3 / 6 + cluster.delta * Z + abs(dx[i])
+            X[i] =
+                xerr[i] +
+                horizon * verr[i] +
+                horizon^2 * aerr[i] / 2 +
+                J[i] * horizon^3 / 6 +
+                cluster.delta * Z +
+                abs(dx[i])
         else
             X[i] = abs(dx[i]) + J[i] * horizon^3 / 6
         end
@@ -629,7 +835,9 @@ function _yi_terminal!(st, species, cluster, geom)
         force = _yi_force_error(stage, i, k, weighted, X, rho, geom)
         V[i] = abs(kappa[i]) + horizon * force / 2 + J[i] * horizon^2 / 4
         if event
-            V[i] += stage.carried[2][i] + horizon * stage.carried[3][i] / 2 +
+            V[i] +=
+                stage.carried[2][i] +
+                horizon * stage.carried[3][i] / 2 +
                 cluster.delta * abs(stage.acceleration[first][i] + stage.acceleration[next][i]) / 2
         end
     end
@@ -642,7 +850,8 @@ function step!(st::YeeImpactLongitudinalPIC{T}, particles, dt::Real) where {T}
     tau = _require_finite_positive_real("dt", dt, T)
     st.initialized[] || throw(ArgumentError("call init! before impact stepping"))
     _yi_validate_phase(st)
-    st.step[] == 0 || isequal(tau, st.last_dt[]) ||
+    st.step[] == 0 ||
+        isequal(tau, st.last_dt[]) ||
         throw(ArgumentError("impact dt is fixed after first success"))
     next_time, next_step = _validated_step_clock(st.time[], st.step[], tau)
     next_time > st.time[] || throw(ArgumentError("impact time must advance finitely"))
@@ -667,13 +876,31 @@ function step!(st::YeeImpactLongitudinalPIC{T}, particles, dt::Real) where {T}
             _yi_minimum(c, zero(geom.tau), geom.tau) > stage.bounds[3][i] * geom.tau^3 / 6 ||
                 throw(ArgumentError("physical no-contact certificate is inconclusive"))
         end
-        local_step = _yi_local_chunk!(st, species, st.fields, stage.candidates,
-            st._candidate, geom.tau, 1, 2, false)
+        local_step = _yi_local_chunk!(
+            st,
+            species,
+            st.fields,
+            stage.candidates,
+            st._candidate,
+            geom.tau,
+            1,
+            2,
+            false,
+        )
         work, electric = local_step.work, local_step.electric
     else
         cluster = _yi_certify_cluster!(st, species, geom)
-        local_step = _yi_local_chunk!(st, species, st.fields, stage.event_candidates,
-            st._event_fields, cluster.duration, 1, 2, true)
+        local_step = _yi_local_chunk!(
+            st,
+            species,
+            st.fields,
+            stage.event_candidates,
+            st._event_fields,
+            cluster.duration,
+            1,
+            2,
+            true,
+        )
         _yi_carry!(st, species, cluster, geom)
         for (k, ps) in enumerate(stage.event_candidates), p in eachindex(ps.weight)
             i = stage.offsets[k] + p
@@ -683,13 +910,26 @@ function step!(st::YeeImpactLongitudinalPIC{T}, particles, dt::Real) where {T}
             incoming >= stage.terminal[2][i] / 2 ||
                 throw(ArgumentError("completed impact kick is not sufficiently incoming"))
             counts = Base.setindex(counts, Base.checked_add(counts[side], 1), side)
-            impulse = 2 * _exact_rational(ps.m) * _exact_rational(ps.weight[p]) * _exact_rational(ps.v[1][p])
+            impulse =
+                2 *
+                _exact_rational(ps.m) *
+                _exact_rational(ps.weight[p]) *
+                _exact_rational(ps.v[1][p])
             walls = Base.setindex(walls, walls[side] + impulse, side)
             ps.v[1][p] = -ps.v[1][p]
         end
         remainder = _yi_clear_remainder!(st, cluster, geom)
-        final_step = _yi_local_chunk!(st, stage.event_candidates, st._event_fields,
-            stage.candidates, st._candidate, remainder, 2, 3, false)
+        final_step = _yi_local_chunk!(
+            st,
+            stage.event_candidates,
+            st._event_fields,
+            stage.candidates,
+            st._candidate,
+            remainder,
+            2,
+            3,
+            false,
+        )
         work = local_step.work + final_step.work
         electric = local_step.electric + final_step.electric
     end
@@ -707,23 +947,36 @@ function step!(st::YeeImpactLongitudinalPIC{T}, particles, dt::Real) where {T}
         isfinite(value) || throw(ArgumentError("net impact impulse does not round finite"))
         st._impulse[1][i] = value
     end
-    cumulative_count = ntuple(side -> Base.checked_add(st.cumulative_wall_count[side][], counts[side]), 2)
+    cumulative_count =
+        ntuple(side -> Base.checked_add(st.cumulative_wall_count[side][], counts[side]), 2)
     cumulative_wall = ntuple(side -> st.cumulative_wall_impulse[side][] + walls[side], 2)
     qz = zero(_YeeImpactQ)
-    snapenergy = cluster === nothing ? qz : geom.delta *
+    snapenergy =
+        cluster === nothing ? qz :
+        geom.delta *
         (geom.field * cluster.charge_snap / geom.h + geom.M * cluster.charge_snap^2 / (2 * geom.h))
-    history = (initialized = true, time = next_time, step = next_step, last_dt = tau,
-        last_impulse = st._impulse, last_work = lastwork, last_energy_defect = defect,
-        last_physical_energy_change = physical, last_wall_count = counts,
-        cumulative_wall_count = cumulative_count, last_wall_impulse = walls,
-        cumulative_wall_impulse = cumulative_wall, last_electric_impulse = electric,
+    history = (
+        initialized = true,
+        time = next_time,
+        step = next_step,
+        last_dt = tau,
+        last_impulse = st._impulse,
+        last_work = lastwork,
+        last_energy_defect = defect,
+        last_physical_energy_change = physical,
+        last_wall_count = counts,
+        cumulative_wall_count = cumulative_count,
+        last_wall_impulse = walls,
+        cumulative_wall_impulse = cumulative_wall,
+        last_electric_impulse = electric,
         last_max_snap = cluster === nothing ? qz : cluster.max_snap,
         last_snap_energy_bound = snapenergy,
         last_predictor_time_error = cluster === nothing ? qz : cluster.predictor_error,
         last_physical_time_error = cluster === nothing ? qz : cluster.delta,
         last_source_invariant_error = maximum(abs, stage.rho),
         last_position_error_bound = maximum(stage.terminal[1]; init = qz),
-        last_velocity_error_bound = maximum(stage.terminal[2]; init = qz))
+        last_velocity_error_bound = maximum(stage.terminal[2]; init = qz),
+    )
     _yi_validate_history_values(history, st.g, last(stage.offsets))
     # All failing work precedes the first public store.
     for (ps, candidate) in zip(species, stage.candidates)
@@ -748,8 +1001,7 @@ function _yi_ulp(::Type{T}, scale::_YeeImpactQ) where {T}
         (power >= 0 ? n < d << power : n << -power < d) && (power -= 1)
         quantum = max(power - precision(T) + 1, minimum)
     end
-    return quantum >= 0 ? (BigInt(1) << quantum) // BigInt(1) :
-        BigInt(1) // (BigInt(1) << -quantum)
+    return quantum >= 0 ? (BigInt(1) << quantum) // BigInt(1) : BigInt(1) // (BigInt(1) << -quantum)
 end
 function _yee_longitudinal_cluster_candidate(st, ::Type{T}, species, geom) where {T}
     stage = st._stage[]
@@ -788,8 +1040,13 @@ function _yee_longitudinal_cluster_candidate(st, ::Type{T}, species, geom) where
         x, v = _exact_rational(ps.x[1][p]), _exact_rational(ps.v[1][p])
         field = stage.gather[1][r.particle]
         qz = zero(field)
-        out = _yee_particle_half_kick((ps.v[1][p], zero(T), zero(T)),
-            (field, qz, qz), (qz, qz, qz), stage.factors[k], s / 2)
+        out = _yee_particle_half_kick(
+            (ps.v[1][p], zero(T), zero(T)),
+            (field, qz, qz),
+            (qz, qz, qz),
+            stage.factors[k],
+            s / 2,
+        )
         all(isfinite, out) || return nothing
         u = _exact_rational(out[1])
         free = _particle_coordinate_native(x, u, s)
@@ -812,13 +1069,23 @@ function _yee_longitudinal_cluster_candidate(st, ::Type{T}, species, geom) where
         V[i] * eta + A[i] * eta^2 / 2 <= 4 * _yi_ulp(T, abs(x) + geom.tau * V[i]) &&
             2A[i] * eta <= 4 * _yi_ulp(T, abs(v) + geom.tau * A[i]) || return nothing
         snap = abs(stage.residual[1][i])
-        force = abs(stage.factors[k]) * geom.delta *
+        force =
+            abs(stage.factors[k]) *
+            geom.delta *
             (geom.M / geom.h * Rcharge + 2 * geom.field / (geom.a * geom.h) * snap)
         s / 2 * force <= 4 * _yi_ulp(T, abs(v) + geom.tau * A[i]) || return nothing
     end
-    return (duration = s, lower = lower, upper = upper,
-        delta = max(s - lower, upper - s), width = upper - lower,
-        group = last, predictor_error = eta, max_snap = maxsnap, charge_snap = Rcharge)
+    return (
+        duration = s,
+        lower = lower,
+        upper = upper,
+        delta = max(s - lower, upper - s),
+        width = upper - lower,
+        group = last,
+        predictor_error = eta,
+        max_snap = maxsnap,
+        charge_snap = Rcharge,
+    )
 end
 _yi_cluster(st::YeeImpactLongitudinalPIC{T}, species, geom) where {T} =
     _yee_longitudinal_cluster_candidate(st, T, species, geom)

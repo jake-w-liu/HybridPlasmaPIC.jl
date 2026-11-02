@@ -626,9 +626,14 @@ function _espic_validate_storage(es::ElectrostaticPIC{D,T}, species) where {D,T}
             throw(ArgumentError("electrostatic species must match grid dimension and precision"))
         _check_particle_storage_axes(ps)
         _require_particle_ordinary_stores(ps, "electrostatic collection")
-        all(a -> a isa StridedVector && _particle_batch_injective(a),
-            (ps.x..., ps.v..., ps.weight, ps.id, ps.tag)) ||
-            throw(ArgumentError("electrostatic collections require injective CPU strided particle storage"))
+        all(
+            a -> a isa StridedVector && _particle_batch_injective(a),
+            (ps.x..., ps.v..., ps.weight, ps.id, ps.tag),
+        ) || throw(
+            ArgumentError(
+                "electrostatic collections require injective CPU strided particle storage",
+            ),
+        )
         _particle_components_mightalias(ps) &&
             throw(ArgumentError("electrostatic particle components must not alias"))
         for j = 1:(i-1)

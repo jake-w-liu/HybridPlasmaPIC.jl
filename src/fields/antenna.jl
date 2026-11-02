@@ -13,17 +13,14 @@
 # The half-maximum margin certifies only the overflow domain, not exact rounding.
 @inline function _antenna_update_value(b::T, curl::T, dt::T) where {T}
     value = _antenna_update_native(b, curl, dt)
-    isfinite(value) &&
-        (abs(value) <= floatmax(T) / 2 || iszero(curl) || iszero(dt)) &&
-        return value
+    isfinite(value) && (abs(value) <= floatmax(T) / 2 || iszero(curl) || iszero(dt)) && return value
     return _antenna_update_repair(value, b, curl, dt)
 end
 
 @noinline function _antenna_update_repair(value::T, b::T, curl::T, dt::T) where {T}
     Q = _exact_rational
     rounded = _from_exact(T, _antenna_update_native(Q(b), Q(curl), Q(dt)))
-    isfinite(rounded) ||
-        throw(ArgumentError("complete antenna magnetic field is not finite in $T"))
+    isfinite(rounded) || throw(ArgumentError("complete antenna magnetic field is not finite in $T"))
     return isfinite(value) ? value : rounded
 end
 
@@ -59,9 +56,8 @@ function apply_antenna!(
     dt >= 0 || throw(ArgumentError("dt must be ≥ 0"))
     dtT = _validated_nonnegative_dt(T, dt; name = "apply_antenna!")
     _particle_stored_zero(dtT) && return B
-    rounding(T) === RoundNearest && !get_zero_subnormals() || throw(
-        ArgumentError("apply_antenna! requires nearest rounding and gradual underflow"),
-    )
+    rounding(T) === RoundNearest && !get_zero_subnormals() ||
+        throw(ArgumentError("apply_antenna! requires nearest rounding and gradual underflow"))
     for c = 1:3
         size(B[c]) == g.n ||
             throw(DimensionMismatch("B[$c] size $(size(B[c])) does not match grid size $(g.n)"))
@@ -75,8 +71,7 @@ function apply_antenna!(
         Base.mightalias(scratch, field) &&
             throw(ArgumentError("antenna workspace must not alias the magnetic field"))
     end
-    for output in (B..., curlE...),
-        metadata in (g.midx, g.kfull, g.ik, g.kvec), axis in metadata
+    for output in (B..., curlE...), metadata in (g.midx, g.kfull, g.ik, g.kvec), axis in metadata
 
         Base.mightalias(output, axis) &&
             throw(ArgumentError("antenna outputs must not alias Fourier metadata"))

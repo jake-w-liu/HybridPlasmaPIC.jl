@@ -7,7 +7,7 @@ using HybridPlasmaPIC
         @testset "$T" begin
             g = FourierGrid((4, 3, 3), (T(4), T(3), T(3)))
             p = GyrocentreSet{T}(prod(g.n))
-            for (i, I) in enumerate(CartesianIndices(g.n)), d in 1:3
+            for (i, I) in enumerate(CartesianIndices(g.n)), d = 1:3
                 p.X[d][i] = T(I[d] - 1)
             end
             # Base.mod may round a negative near-zero coordinate to L. The
@@ -30,7 +30,12 @@ using HybridPlasmaPIC
             receipt = H._sg_field!(st)
             amplitude = T(1 / 8) / (st.chi * (T(2π) / T(4) * T(2))^2)
             expected = [isodd(I[1]) ? amplitude : -amplitude for I in CartesianIndices(g.n)]
-            @test isapprox(st.work.phi, expected; rtol = T(64) * eps(T), atol = T(64) * eps(T) * amplitude)
+            @test isapprox(
+                st.work.phi,
+                expected;
+                rtol = T(64) * eps(T),
+                atol = T(64) * eps(T) * amplitude,
+            )
             @test receipt.residual <= receipt.tolerance
             sample = H._sg_sample(fill(T(3), g.n), (T(0.2), T(0.3), T(0.4)), g)
             @test all(iszero, sample[2:4])
@@ -46,8 +51,18 @@ using HybridPlasmaPIC
             step!(st, species, h)
             @test p.X === identity
             @test st.time == h && st.step == 1 && st.last_dt == h
-            @test isapprox(p.X[3], mod.(old_z .+ h * T(1 / 8), g.L[3]); atol = T(64) * eps(T), rtol = zero(T))
-            @test isapprox(p.vpar, fill(T(1 / 8), length(p.vpar)); atol = T(64) * eps(T), rtol = zero(T))
+            @test isapprox(
+                p.X[3],
+                mod.(old_z .+ h * T(1 / 8), g.L[3]);
+                atol = T(64) * eps(T),
+                rtol = zero(T),
+            )
+            @test isapprox(
+                p.vpar,
+                fill(T(1 / 8), length(p.vpar));
+                atol = T(64) * eps(T),
+                rtol = zero(T),
+            )
             @test isapprox(st.rho_gc, fill(one(T), g.n); atol = T(64) * eps(T), rtol = zero(T))
             diagnostics = slab_gyrokinetic_diagnostics(st)
             @test diagnostics.range_resolved

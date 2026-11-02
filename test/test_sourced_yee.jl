@@ -77,8 +77,20 @@ end
                 exact = sy_rat(old) - (p === nothing ? zero(SY_Q) : sy_rat(p[1]))
                 value = H._yee_source_row_exact(sy_rat(old), p, 1, T)
                 @test isequal(value, T(exact))
-                @test isequal(H._yee_stage_exact(T[old], m.fields.B, p,
-                    CartesianIndex(1), 1, g, false, T(0.25), one(T)), value)
+                @test isequal(
+                    H._yee_stage_exact(
+                        T[old],
+                        m.fields.B,
+                        p,
+                        CartesianIndex(1),
+                        1,
+                        g,
+                        false,
+                        T(0.25),
+                        one(T),
+                    ),
+                    value,
+                )
             end
             # Native zero impulse retains -0; the exact owner canonicalizes Q(0).
             op = H._YeeStageOp{T,false}(one(T), one(T))

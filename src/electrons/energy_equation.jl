@@ -299,23 +299,33 @@ end
 function _require_conduction_quotient(quotient, g::FourierGrid{D}) where {D}
     quotient isa Array{Rational{BigInt},D} ||
         throw(ArgumentError("active conduction requires exact quotient storage"))
-    size(quotient) == g.n ||
-        throw(DimensionMismatch("electron quotient size $(size(quotient)) does not match grid size $(g.n)"))
+    size(quotient) == g.n || throw(
+        DimensionMismatch(
+            "electron quotient size $(size(quotient)) does not match grid size $(g.n)",
+        ),
+    )
     return nothing
 end
 
 function _conduction_quotient!(quotient, pe, n, g::FourierGrid{D,T}) where {D,T}
-    _boris_accuracy_mode() ||
-        throw(ArgumentError("active electron conduction requires nearest rounding and gradual underflow"))
+    _boris_accuracy_mode() || throw(
+        ArgumentError("active electron conduction requires nearest rounding and gradual underflow"),
+    )
     _require_conduction_quotient(quotient, g)
     _require_grid_array(:pe, pe, g)
     _require_grid_array(:n, n, g)
     (_particle_arrays_mightalias(quotient, pe) || _particle_arrays_mightalias(quotient, n)) &&
-        throw(ArgumentError("electron quotient scratch must be independent of pressure and density"))
+        throw(
+            ArgumentError("electron quotient scratch must be independent of pressure and density"),
+        )
     for I in eachindex(quotient, pe, n)
         pressure, density = pe[I], n[I]
         isfinite(pressure) && pressure >= zero(T) && isfinite(density) && density > zero(T) ||
-            throw(ArgumentError("electron quotient requires finite nonnegative pressure and positive density"))
+            throw(
+                ArgumentError(
+                    "electron quotient requires finite nonnegative pressure and positive density",
+                ),
+            )
         quotient[I] = _exact_rational(pressure) / _exact_rational(density)
     end
     return quotient

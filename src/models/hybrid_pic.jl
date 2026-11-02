@@ -103,8 +103,7 @@ function compute_moments!(
     return f
 end
 
-@inline function _charge_moment_parts(acc, q, number_moment,
-    ops::_ScalarOps = _DefaultScalarOps())
+@inline function _charge_moment_parts(acc, q, number_moment, ops::_ScalarOps = _DefaultScalarOps())
     increment = _scalar_mul(ops, q, number_moment)
     value = _scalar_add(ops, acc, increment)
     return (value = value, increment = increment)

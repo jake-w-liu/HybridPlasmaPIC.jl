@@ -175,10 +175,8 @@ end
             # CPU movers retain finite original factors even when their quotient
             # is infinite or rounds to zero. Restore preserves stored state;
             # subsequent field/output range checks are a separate contract.
-            for (q, m) in (
-                (floatmax(Float64), eps(Float64)),
-                (floatmin(Float64), floatmax(Float64)),
-            )
+            for (q, m) in
+                ((floatmax(Float64), eps(Float64)), (floatmin(Float64), floatmax(Float64)))
                 expected = deepcopy(species)
                 expected[2].q = q
                 expected[2].m = m

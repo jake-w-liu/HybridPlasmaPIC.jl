@@ -17,7 +17,11 @@ function _pencil_maxwell_checkpoint_config(model::DistributedMaxwellVacuum{T}, n
     )
 end
 
-function _pencil_maxwell_checkpoint_agreement(model::DistributedMaxwellVacuum{T}, dir, nranks) where {T}
+function _pencil_maxwell_checkpoint_agreement(
+    model::DistributedMaxwellVacuum{T},
+    dir,
+    nranks,
+) where {T}
     return _agree_configuration(model.g.fft.comm, "Pencil Maxwell checkpoint") do
         _distributed_maxwell_mode(T)
         HybridPlasmaPIC._require_finite_positive_real("c", model.c, T)
@@ -34,7 +38,11 @@ function _pencil_maxwell_checkpoint_keys(record, required)
     return nothing
 end
 
-function _pencil_maxwell_checkpoint_common(record, model::DistributedMaxwellVacuum{T}, nranks) where {T}
+function _pencil_maxwell_checkpoint_common(
+    record,
+    model::DistributedMaxwellVacuum{T},
+    nranks,
+) where {T}
     expected = _pencil_maxwell_checkpoint_config(model, nranks)
     for name in keys(expected)
         value, reference = getproperty(record, name), getproperty(expected, name)
@@ -63,7 +71,12 @@ function _pencil_maxwell_generation_name(name)
 end
 
 function _pencil_maxwell_generation_path(dir, name)
-    return _pencil_checkpoint_generation_path(dir, name, _PENCIL_MAXWELL_GENERATION, "Pencil Maxwell")
+    return _pencil_checkpoint_generation_path(
+        dir,
+        name,
+        _PENCIL_MAXWELL_GENERATION,
+        "Pencil Maxwell",
+    )
 end
 
 function _pencil_maxwell_digest(value)
@@ -120,11 +133,23 @@ end
 # The fixed generation-name broadcast cannot use unguarded MPI.bcast: encoding,
 # receiver allocation and decoding must agree before the next collective.
 function _pencil_maxwell_broadcast_generation(name, comm, rank)
-    return _pencil_checkpoint_broadcast_generation(name, comm, rank, _PENCIL_MAXWELL_GENERATION, "Pencil Maxwell")
+    return _pencil_checkpoint_broadcast_generation(
+        name,
+        comm,
+        rank,
+        _PENCIL_MAXWELL_GENERATION,
+        "Pencil Maxwell",
+    )
 end
 
 function _pencil_maxwell_remove_generation(dir, generation, nranks)
-    return _pencil_checkpoint_remove_generation(dir, generation, nranks, _PENCIL_MAXWELL_GENERATION, "Pencil Maxwell")
+    return _pencil_checkpoint_remove_generation(
+        dir,
+        generation,
+        nranks,
+        _PENCIL_MAXWELL_GENERATION,
+        "Pencil Maxwell",
+    )
 end
 
 """
@@ -158,7 +183,12 @@ function HybridPlasmaPIC.save_mpi_checkpoint(dir, model::DistributedMaxwellVacuu
             _pencil_maxwell_checkpoint_config(model, nranks),
             (time = model.time[], step = model.step[], rank = rank),
             _pencil_maxwell_checkpoint_layout(model),
-            (fields = (E = map(a -> copy(parent(a)), model.fields.E), B = map(a -> copy(parent(a)), model.fields.B)),),
+            (
+                fields = (
+                    E = map(a -> copy(parent(a)), model.fields.E),
+                    B = map(a -> copy(parent(a)), model.fields.B),
+                ),
+            ),
         )
     end
     HybridPlasmaPIC._mpi_collective_stage(comm, context, "directory setup") do
@@ -168,21 +198,31 @@ function HybridPlasmaPIC.save_mpi_checkpoint(dir, model::DistributedMaxwellVacuu
         (realpath(raw_dir),)
     end)
     manifest_path = joinpath(directory, _PENCIL_MAXWELL_MANIFEST)
-    previous, owned_generation = HybridPlasmaPIC._mpi_collective_stage(comm, context, "generation setup") do
-        if rank == 0
-            old = ispath(manifest_path) ? _pencil_maxwell_manifest(manifest_path, model, nranks) : nothing
-            if old !== nothing
-                location = _pencil_maxwell_generation_path(directory, old.generation)
-                for r = 1:nranks
-                    _pencil_maxwell_file_digest(joinpath(location, old.rank_files[r])) == old.rank_sha256[r] ||
-                        throw(ArgumentError("superseded Pencil Maxwell checkpoint rank checksum mismatch"))
+    previous, owned_generation =
+        HybridPlasmaPIC._mpi_collective_stage(comm, context, "generation setup") do
+            if rank == 0
+                old =
+                    ispath(manifest_path) ? _pencil_maxwell_manifest(manifest_path, model, nranks) :
+                    nothing
+                if old !== nothing
+                    location = _pencil_maxwell_generation_path(directory, old.generation)
+                    for r = 1:nranks
+                        _pencil_maxwell_file_digest(joinpath(location, old.rank_files[r])) ==
+                        old.rank_sha256[r] || throw(
+                            ArgumentError(
+                                "superseded Pencil Maxwell checkpoint rank checksum mismatch",
+                            ),
+                        )
+                    end
                 end
+                old,
+                basename(
+                    mktempdir(directory; prefix = _PENCIL_MAXWELL_GENERATION, cleanup = false),
+                )
+            else
+                nothing, ""
             end
-            old, basename(mktempdir(directory; prefix = _PENCIL_MAXWELL_GENERATION, cleanup = false))
-        else
-            nothing, ""
         end
-    end
     try
         generation = _pencil_maxwell_broadcast_generation(owned_generation, comm, rank)
         HybridPlasmaPIC._mpi_collective_stage(comm, context, "rank write") do
@@ -199,35 +239,63 @@ function HybridPlasmaPIC.save_mpi_checkpoint(dir, model::DistributedMaxwellVacuu
                 digests = map(name -> _pencil_maxwell_file_digest(joinpath(location, name)), files)
                 manifest = merge(
                     _pencil_maxwell_checkpoint_config(model, nranks),
-                    (time = state.time, step = state.step, generation = owned_generation, rank_files = files, rank_sha256 = digests),
+                    (
+                        time = state.time,
+                        step = state.step,
+                        generation = owned_generation,
+                        rank_files = files,
+                        rank_sha256 = digests,
+                    ),
                 )
                 HybridPlasmaPIC._atomic_serialize(manifest_path, _pencil_maxwell_envelope(manifest))
             end
         end
     catch original
-        (original isa InterruptException || original isa OutOfMemoryError || original isa StackOverflowError) && rethrow()
+        (
+            original isa InterruptException ||
+            original isa OutOfMemoryError ||
+            original isa StackOverflowError
+        ) && rethrow()
         trace = catch_backtrace()
         try
             HybridPlasmaPIC._mpi_collective_stage(comm, context, "failed generation cleanup") do
                 rank == 0 && _pencil_maxwell_remove_generation(directory, owned_generation, nranks)
             end
         catch cleanup_error
-            (cleanup_error isa InterruptException || cleanup_error isa OutOfMemoryError || cleanup_error isa StackOverflowError) && rethrow()
-            throw(CompositeException([CapturedException(original, trace), CapturedException(cleanup_error, catch_backtrace())]))
+            (
+                cleanup_error isa InterruptException ||
+                cleanup_error isa OutOfMemoryError ||
+                cleanup_error isa StackOverflowError
+            ) && rethrow()
+            throw(
+                CompositeException([
+                    CapturedException(original, trace),
+                    CapturedException(cleanup_error, catch_backtrace()),
+                ]),
+            )
         end
         rethrow()
     end
     try
         HybridPlasmaPIC._mpi_collective_stage(comm, context, "superseded generation cleanup") do
-            rank == 0 && previous !== nothing &&
+            rank == 0 &&
+                previous !== nothing &&
                 _pencil_maxwell_remove_generation(directory, previous.generation, nranks)
         end
     catch cleanup_error
-        (cleanup_error isa InterruptException || cleanup_error isa OutOfMemoryError || cleanup_error isa StackOverflowError) && rethrow()
-        throw(CompositeException([
-            ErrorException("Pencil Maxwell checkpoint was published, but superseded-file cleanup failed"),
-            CapturedException(cleanup_error, catch_backtrace()),
-        ]))
+        (
+            cleanup_error isa InterruptException ||
+            cleanup_error isa OutOfMemoryError ||
+            cleanup_error isa StackOverflowError
+        ) && rethrow()
+        throw(
+            CompositeException([
+                ErrorException(
+                    "Pencil Maxwell checkpoint was published, but superseded-file cleanup failed",
+                ),
+                CapturedException(cleanup_error, catch_backtrace()),
+            ]),
+        )
     end
     return manifest_path
 end
@@ -236,12 +304,26 @@ function _pencil_maxwell_rank_state(path, digest)
     return _pencil_checkpoint_rank_state(path, digest, "Pencil Maxwell")
 end
 
-function _pencil_maxwell_validate_rank_state(state, manifest, model::DistributedMaxwellVacuum{T}, rank, nranks) where {T}
+function _pencil_maxwell_validate_rank_state(
+    state,
+    manifest,
+    model::DistributedMaxwellVacuum{T},
+    rank,
+    nranks,
+) where {T}
     layout = _pencil_maxwell_checkpoint_layout(model)
-    required = (keys(_pencil_maxwell_checkpoint_config(model, nranks))..., :time, :step, :rank, keys(layout)..., :fields)
+    required = (
+        keys(_pencil_maxwell_checkpoint_config(model, nranks))...,
+        :time,
+        :step,
+        :rank,
+        keys(layout)...,
+        :fields,
+    )
     _pencil_maxwell_checkpoint_keys(state, required)
     _pencil_maxwell_checkpoint_common(state, model, nranks)
-    state.rank isa Int && state.rank == rank || throw(ArgumentError("Pencil Maxwell checkpoint rank mismatch"))
+    state.rank isa Int && state.rank == rank ||
+        throw(ArgumentError("Pencil Maxwell checkpoint rank mismatch"))
     isequal(state.time, manifest.time) && state.step == manifest.step ||
         throw(ArgumentError("Pencil Maxwell rank phase differs from the manifest"))
     for name in keys(layout)
@@ -251,8 +333,9 @@ function _pencil_maxwell_validate_rank_state(state, manifest, model::Distributed
     end
     _pencil_maxwell_checkpoint_keys(state.fields, (:E, :B))
     for components in (state.fields.E, state.fields.B)
-        components isa NTuple{3,Array{T,3}} ||
-            throw(ArgumentError("Pencil Maxwell checkpoint fields must be three-tuples of Array{$T,3}"))
+        components isa NTuple{3,Array{T,3}} || throw(
+            ArgumentError("Pencil Maxwell checkpoint fields must be three-tuples of Array{$T,3}"),
+        )
         for array in components
             size(array) == layout.parent_size ||
                 throw(DimensionMismatch("Pencil Maxwell checkpoint parent-array shape mismatch"))
@@ -260,15 +343,24 @@ function _pencil_maxwell_validate_rank_state(state, manifest, model::Distributed
     end
     _distributed_maxwell_finite_fields(state.fields)
     incoming = (state.fields.E..., state.fields.B...)
-    destination = (model.fields.E..., model.fields.B..., model._candidate.E..., model._candidate.B..., model._curl...)
+    destination = (
+        model.fields.E...,
+        model.fields.B...,
+        model._candidate.E...,
+        model._candidate.B...,
+        model._curl...,
+    )
     for i in eachindex(incoming)
         for j = 1:(i-1)
             Base.mightalias(incoming[i], incoming[j]) &&
                 throw(ArgumentError("Pencil Maxwell incoming field arrays must be independent"))
         end
         for array in destination
-            Base.mightalias(incoming[i], parent(array)) &&
-                throw(ArgumentError("Pencil Maxwell incoming fields must be detached from destination storage"))
+            Base.mightalias(incoming[i], parent(array)) && throw(
+                ArgumentError(
+                    "Pencil Maxwell incoming fields must be detached from destination storage",
+                ),
+            )
         end
     end
     return nothing
@@ -300,15 +392,21 @@ function HybridPlasmaPIC.load_mpi_checkpoint!(model::DistributedMaxwellVacuum, d
     directory = first(_agree_configuration(comm, context) do
         (realpath(raw_dir),)
     end)
-    manifest = first(_agree_configuration(comm, context) do
-        record = _pencil_maxwell_manifest(joinpath(directory, _PENCIL_MAXWELL_MANIFEST), model, nranks)
-        _pencil_maxwell_generation_path(directory, record.generation)
-        (record,)
-    end)
+    manifest = first(
+        _agree_configuration(comm, context) do
+            record = _pencil_maxwell_manifest(
+                joinpath(directory, _PENCIL_MAXWELL_MANIFEST),
+                model,
+                nranks,
+            )
+            _pencil_maxwell_generation_path(directory, record.generation)
+            (record,)
+        end,
+    )
     saved = HybridPlasmaPIC._mpi_collective_stage(comm, context, "rank restore preflight") do
         location = _pencil_maxwell_generation_path(directory, manifest.generation)
-        path = joinpath(location, manifest.rank_files[rank + 1])
-        state = _pencil_maxwell_rank_state(path, manifest.rank_sha256[rank + 1])
+        path = joinpath(location, manifest.rank_files[rank+1])
+        state = _pencil_maxwell_rank_state(path, manifest.rank_sha256[rank+1])
         _pencil_maxwell_validate_rank_state(state, manifest, model, rank, nranks)
         state
     end

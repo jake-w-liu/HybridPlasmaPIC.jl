@@ -386,10 +386,20 @@ isdefined(@__MODULE__, :_composition_fixture) || include("collisional_fixtures.j
     end
 
     @testset "conducting pressure uses the canonical collision split $T etaH=$ηH kappa=$κ" for T in
-        (Float32, Float64), ηH in (zero(T), T(0.01)), κ in (zero(T), T(0.07))
+                                                                                               (
+            Float32,
+            Float64,
+        ),
+        ηH in (zero(T), T(0.01)),
+        κ in (zero(T), T(0.07))
 
-        make(logs) = _composition_transport_fixture(T, Xoshiro; ηH, logs,
-            closure = ConductingElectrons(T(5 / 3); κ))
+        make(logs) = _composition_transport_fixture(
+            T,
+            Xoshiro;
+            ηH,
+            logs,
+            closure = ConductingElectrons(T(5 / 3); κ),
+        )
         st, ps = make(T(0.05))
         reference, rps = make(T(0.05))
         init!(st, ps)
@@ -416,8 +426,11 @@ isdefined(@__MODULE__, :_composition_fixture) || include("collisional_fixtures.j
     end
 
     @testset "conduction guard restores the composed state $T" for T in (Float32, Float64)
-        st, ps = _composition_transport_fixture(T, Xoshiro;
-            closure = ConductingElectrons(T(2); κ = floatmax(T)))
+        st, ps = _composition_transport_fixture(
+            T,
+            Xoshiro;
+            closure = ConductingElectrons(T(2); κ = floatmax(T)),
+        )
         init!(st, ps)
         before = _composition_snapshot(st, ps)
         for _ = 1:2

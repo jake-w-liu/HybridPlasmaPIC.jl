@@ -10,9 +10,8 @@ function _pencil_poisson_gain(g::DistributedFourierGrid{T}) where {T}
     exact = inv(Q(minimum_wave))
     gain = HybridPlasmaPIC._from_exact(T, exact)
     isfinite(gain) && Q(gain) < exact && (gain = nextfloat(gain))
-    isfinite(gain) || throw(
-        ArgumentError("distributed Poisson requires a finite inverse-wavenumber bound"),
-    )
+    isfinite(gain) ||
+        throw(ArgumentError("distributed Poisson requires a finite inverse-wavenumber bound"))
     return gain
 end
 
@@ -65,12 +64,19 @@ function HybridPlasmaPIC.distributed_poisson_field!(
         HybridPlasmaPIC._exact_float_sum(parent(rho))
     end
     gain, result = HybridPlasmaPIC._mpi_collective_stage(g.fft.comm, context, "charge admission") do
-        neutrality === :require && !iszero(total) && throw(
-            ArgumentError("periodic Poisson requires exact neutral charge or neutrality=:neutralize"),
-        )
+        neutrality === :require &&
+            !iszero(total) &&
+            throw(
+                ArgumentError(
+                    "periodic Poisson requires exact neutral charge or neutrality=:neutralize",
+                ),
+            )
         charge = total * prod(HybridPlasmaPIC._exact_rational, g.dx)
-        report = (E = out, source_charge = charge,
-            neutralizing_charge = neutrality === :neutralize ? -charge : zero(charge))
+        report = (
+            E = out,
+            source_charge = charge,
+            neutralizing_charge = neutrality === :neutralize ? -charge : zero(charge),
+        )
         _pencil_poisson_gain(g), report
     end
     staging = _staging_buffers(g)

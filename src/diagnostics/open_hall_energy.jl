@@ -34,7 +34,8 @@ function _open_hall_energy_change_interval(st, old, endpoint, old_species, new_s
         end
     end
     lower, upper = _isothermal_log_bounds(terms, st.controls.log_bits)
-    offset = _kinetic_energy_rational(new_species) - _kinetic_energy_rational(old_species) +
+    offset =
+        _kinetic_energy_rational(new_species) - _kinetic_energy_rational(old_species) +
         _open_hall_magnetic(endpoint.B, st.op) - _open_hall_magnetic(old.B, st.op)
     return lower + offset, upper + offset
 end
@@ -98,20 +99,32 @@ function open_hall_diagnostics(st::OpenHallHybrid{D,T}, species = st.owners) whe
         physical_face = prod(_exact_rational, Base.tail(st.op.L))
         quadrature_face = prod(BigInt(st.op.n[d]) * _exact_rational(st.op.dx[d]) for d = 2:D)
         norm_volume = sum(_exact_rational, st.op.sbp.H) * quadrature_face
-        return (time = st.time[], step = st.step[], phase = :synchronous_integer,
-            kinetic = totals.kinetic, magnetic = _open_hall_magnetic(st.fields.B, st.op),
-            total_energy_interval = energy, certified_total = _open_hall_interval_value(T, energy),
-            particle_totals = totals, represented_grid_charge = grid_charge,
-            physical_particle_charge = totals.charge, grid_charge_defect = grid_charge - totals.charge,
-            declared_volume = physical_volume, stored_norm_volume = norm_volume,
-            declared_face_area = physical_face, quadrature_face_area = quadrature_face,
+        return (
+            time = st.time[],
+            step = st.step[],
+            phase = :synchronous_integer,
+            kinetic = totals.kinetic,
+            magnetic = _open_hall_magnetic(st.fields.B, st.op),
+            total_energy_interval = energy,
+            certified_total = _open_hall_interval_value(T, energy),
+            particle_totals = totals,
+            represented_grid_charge = grid_charge,
+            physical_particle_charge = totals.charge,
+            grid_charge_defect = grid_charge - totals.charge,
+            declared_volume = physical_volume,
+            stored_norm_volume = norm_volume,
+            declared_face_area = physical_face,
+            quadrature_face_area = quadrature_face,
             volume_discrepancy = norm_volume - physical_volume,
             face_area_discrepancy = quadrature_face - physical_face,
-            last_kick_defect = st.last_report === nothing ? zero(_OpenHallQ) : st.last_report.kick_energy - st.last_report.kick_work,
+            last_kick_defect = st.last_report === nothing ? zero(_OpenHallQ) :
+                               st.last_report.kick_energy - st.last_report.kick_work,
             cumulative_kick_defect = st.cumulative.kick_energy - st.cumulative.kick_work,
-            source = deepcopy(_open_hall_source_state(st)), last_report = deepcopy(st.last_report),
+            source = deepcopy(_open_hall_source_state(st)),
+            last_report = deepcopy(st.last_report),
             log_bits = st.controls.log_bits,
-            scope = :qualified_perpendicular_numerical_reservoir)
+            scope = :qualified_perpendicular_numerical_reservoir,
+        )
     finally
         st.busy = false
     end

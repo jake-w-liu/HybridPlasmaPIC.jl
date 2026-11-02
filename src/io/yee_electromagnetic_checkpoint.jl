@@ -73,11 +73,13 @@ function _ye_validate_checkpoint_configuration(s, st::YeeElectromagneticPIC)
         s.velocity_phase === :synchronized &&
         s.field_phase === :synchronized &&
         s.timestep_policy === :fixed_after_first_success &&
-        s.arithmetic_policy === :nearest_gradual ||
-        throw(ArgumentError("checkpoint Yee electromagnetic source or stepping policy is unsupported"))
-    all(name -> getproperty(s, name) === _YE_CHECKPOINT_POLICY_VERSION,
-        _YE_CHECKPOINT_POLICY_FIELDS) ||
-        throw(ArgumentError("unsupported Yee electromagnetic checkpoint policy version"))
+        s.arithmetic_policy === :nearest_gradual || throw(
+        ArgumentError("checkpoint Yee electromagnetic source or stepping policy is unsupported"),
+    )
+    all(
+        name -> getproperty(s, name) === _YE_CHECKPOINT_POLICY_VERSION,
+        _YE_CHECKPOINT_POLICY_FIELDS,
+    ) || throw(ArgumentError("unsupported Yee electromagnetic checkpoint policy version"))
     return nothing
 end
 
@@ -85,15 +87,29 @@ function _validate_checkpoint_state(s, st::YeeElectromagneticPIC{T}) where {T}
     _yee_closed_validate_checkpoint_envelope(s, :yee_electromagnetic_pic)
     _validate_checkpoint_container(s, _YE_CHECKPOINT_FIELDS)
     _ye_validate_checkpoint_configuration(s, st)
-    s.initialized === true && s.phase === :ready ||
-        throw(ArgumentError("Yee electromagnetic checkpoint must be an initialized completed boundary"))
-    s.time isa T && s.step isa Int && s.last_dt isa T && s.last_work isa T &&
-        s.last_modified_energy_defect isa T && s.last_physical_energy_change isa T ||
+    s.initialized === true && s.phase === :ready || throw(
+        ArgumentError("Yee electromagnetic checkpoint must be an initialized completed boundary"),
+    )
+    s.time isa T &&
+        s.step isa Int &&
+        s.last_dt isa T &&
+        s.last_work isa T &&
+        s.last_modified_energy_defect isa T &&
+        s.last_physical_energy_change isa T ||
         throw(ArgumentError("checkpoint clock and diagnostics must have destination precision"))
     # Re-derive the owner bound from immutable grid/c, not a saved cache.
-    _ye_validate_phase_values(s.initialized, s.time, s.step, s.last_dt,
-        s.last_work, s.last_modified_energy_defect, s.last_physical_energy_change,
-        s.last_impulse, st.g, _yee_cfl(st.g, st.c))
+    _ye_validate_phase_values(
+        s.initialized,
+        s.time,
+        s.step,
+        s.last_dt,
+        s.last_work,
+        s.last_modified_energy_defect,
+        s.last_physical_energy_change,
+        s.last_impulse,
+        st.g,
+        _yee_cfl(st.g, st.c),
+    )
     populations = _yl_checkpoint_populations(s, T)
     _yl_validate_populations(st, populations)
     fields = _yee_closed_checkpoint_arrays(s, st, populations)

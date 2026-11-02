@@ -20,12 +20,21 @@ struct GyrocentreSet{T<:Union{Float32,Float64}}
     m::T
 end
 function GyrocentreSet{T}(N::Integer; q = one(T), m = one(T)) where {T<:Union{Float32,Float64}}
-    _boris_accuracy_mode() || throw(ArgumentError("gyrocentres require nearest rounding and gradual underflow"))
+    _boris_accuracy_mode() ||
+        throw(ArgumentError("gyrocentres require nearest rounding and gradual underflow"))
     count = _particle_length(N)
     charge = _require_finite_positive_real("gyrocentre q", q, T)
     mass = _require_finite_positive_real("gyrocentre m", m, T)
-    return GyrocentreSet{T}(ntuple(_ -> zeros(T, count), 3), zeros(T, count),
-        zeros(T, count), ones(T, count), _particle_ids(count), zeros(UInt32, count), charge, mass)
+    return GyrocentreSet{T}(
+        ntuple(_ -> zeros(T, count), 3),
+        zeros(T, count),
+        zeros(T, count),
+        ones(T, count),
+        _particle_ids(count),
+        zeros(UInt32, count),
+        charge,
+        mass,
+    )
 end
 nparticles(p::GyrocentreSet) = length(p.weight)
 Base.eltype(::GyrocentreSet{T}) where {T} = T
@@ -112,10 +121,14 @@ _sg_cell_volume(g) = _sg_volume(g) / length(g.cbuf)
 function _sg_inventory(populations, g, e)
     Q = _exact_rational
     volume = _sg_volume(g)
-    charge = sum((Q(p.q) * _exact_float_sum(p.weight) for p in populations);
-        init = zero(Rational{BigInt}))
-    mass = sum((Q(p.m) * _exact_float_sum(p.weight) for p in populations);
-        init = zero(Rational{BigInt}))
+    charge = sum(
+        (Q(p.q) * _exact_float_sum(p.weight) for p in populations);
+        init = zero(Rational{BigInt}),
+    )
+    mass = sum(
+        (Q(p.m) * _exact_float_sum(p.weight) for p in populations);
+        init = zero(Rational{BigInt}),
+    )
     return (charge = charge, mass = mass, ne0 = charge / (Q(e) * volume))
 end
 function _sg_population(p::GyrocentreSet{T}; values = true) where {T}
@@ -133,13 +146,15 @@ function _sg_population(p::GyrocentreSet{T}; values = true) where {T}
     return nothing
 end
 function _sg_grid(g::FourierGrid{3,T}) where {T}
-    all(>=(3), g.n) || throw(ArgumentError("slab gyrokinetics requires at least three cells per axis"))
+    all(>=(3), g.n) ||
+        throw(ArgumentError("slab gyrokinetics requires at least three cells per axis"))
     metadata = SpectralOperators._fourier_metadata(g.n, g.L)
-    isequal(g.dx, metadata.dx) && isequal(g.midx, metadata.midx) &&
-        isequal(g.kfull, metadata.kfull) && isequal(g.kvec, metadata.kvec) &&
+    isequal(g.dx, metadata.dx) &&
+        isequal(g.midx, metadata.midx) &&
+        isequal(g.kfull, metadata.kfull) &&
+        isequal(g.kvec, metadata.kvec) &&
         isequal(g.ik, metadata.ik) || throw(ArgumentError("gyrokinetic Fourier metadata changed"))
-    all(a -> a isa Array{Complex{T},3} && size(a) == g.n,
-        (g.cbuf, g.tbuf, g.abuf, g.sbuf)) ||
+    all(a -> a isa Array{Complex{T},3} && size(a) == g.n, (g.cbuf, g.tbuf, g.abuf, g.sbuf)) ||
         throw(ArgumentError("gyrokinetic Fourier buffers must be matching ordinary Arrays"))
     return nothing
 end
@@ -159,23 +174,38 @@ function _sg_storage_arrays(st)
     append!(arrays, st._weight)
     append!(arrays, st._radius)
     append!(arrays, _sg_work_arrays(st.work))
-    append!(arrays, (st.g.cbuf, st.g.tbuf, st.g.abuf, st.g.sbuf,
-        st.g.midx..., st.g.kfull..., st.g.kvec..., st.g.ik...))
+    append!(
+        arrays,
+        (
+            st.g.cbuf,
+            st.g.tbuf,
+            st.g.abuf,
+            st.g.sbuf,
+            st.g.midx...,
+            st.g.kfull...,
+            st.g.kvec...,
+            st.g.ik...,
+        ),
+    )
     return arrays
 end
 function _sg_storage(st)
     arrays = _sg_storage_arrays(st)
-    for i in eachindex(arrays), j in 1:(i-1)
-        _particle_arrays_mightalias(arrays[i], arrays[j]) &&
-            throw(ArgumentError("gyrokinetic public/private/metadata storage roles must be independent"))
+    for i in eachindex(arrays), j = 1:(i-1)
+        _particle_arrays_mightalias(arrays[i], arrays[j]) && throw(
+            ArgumentError("gyrokinetic public/private/metadata storage roles must be independent"),
+        )
     end
     # FFT plans may retain arrays in addition to the four explicit grid buffers.
     _visit_checkpoint_objects((st.g.plan, st.g.iplan)) do value
         if value isa AbstractArray
             for a in arrays
                 any(x -> value === x, (st.g.cbuf, st.g.tbuf, st.g.abuf, st.g.sbuf)) && continue
-                _particle_arrays_mightalias(value, a) &&
-                    throw(ArgumentError("gyrokinetic physical/configuration storage overlaps FFT plan storage"))
+                _particle_arrays_mightalias(value, a) && throw(
+                    ArgumentError(
+                        "gyrokinetic physical/configuration storage overlaps FFT plan storage",
+                    ),
+                )
             end
         end
     end
@@ -183,19 +213,23 @@ function _sg_storage(st)
 end
 function _sg_geometry(st)
     N = length(st.owners)
-    all(a -> length(a) == N, (st._counts, st._qm, st._mu, st._weight,
-        st._radius, st._components)) || throw(DimensionMismatch("gyrokinetic fixed inventory geometry changed"))
+    all(
+        a -> length(a) == N,
+        (st._counts, st._qm, st._mu, st._weight, st._radius, st._components),
+    ) || throw(DimensionMismatch("gyrokinetic fixed inventory geometry changed"))
     length(st._phases) == st.nring && all(phase -> all(isfinite, phase), st._phases) ||
         throw(ArgumentError("gyrokinetic fixed quadrature geometry changed"))
-    all(a -> size(a) == st.g.n, (st.rho_gc, st.phi, st._lambda, st.work.rho,
-        st.work.phi, st.work.source, st.work.phihat)) ||
-        throw(DimensionMismatch("gyrokinetic field/work geometry changed"))
+    all(
+        a -> size(a) == st.g.n,
+        (st.rho_gc, st.phi, st._lambda, st.work.rho, st.work.phi, st.work.source, st.work.phihat),
+    ) || throw(DimensionMismatch("gyrokinetic field/work geometry changed"))
     for k in eachindex(st.owners)
         all(a -> length(a) == st._counts[k], (st._mu[k], st._weight[k], st._radius[k])) ||
             throw(DimensionMismatch("gyrokinetic invariant/radius geometry changed"))
     end
     for collection in (st.work.old, st.work.trial, st.work.endpoint, st.work.rates...)
-        length(collection) == N || throw(DimensionMismatch("gyrokinetic stage population count changed"))
+        length(collection) == N ||
+            throw(DimensionMismatch("gyrokinetic stage population count changed"))
         for k in eachindex(collection)
             all(a -> length(a) == st._counts[k], _sg_arrays(collection[k])) ||
                 throw(DimensionMismatch("gyrokinetic stage component geometry changed"))
@@ -204,20 +238,25 @@ function _sg_geometry(st)
     return nothing
 end
 function _sg_bind(st::SlabGyrokineticPIC{T}, populations; values = true) where {T}
-    _boris_accuracy_mode() || throw(ArgumentError("slab gyrokinetics requires nearest rounding and gradual underflow"))
-    populations isa AbstractVector || throw(ArgumentError("gyrocentre populations must be an ordered vector"))
+    _boris_accuracy_mode() ||
+        throw(ArgumentError("slab gyrokinetics requires nearest rounding and gradual underflow"))
+    populations isa AbstractVector ||
+        throw(ArgumentError("gyrocentre populations must be an ordered vector"))
     Base.require_one_based_indexing(populations)
-    length(populations) == length(st.owners) || throw(DimensionMismatch("gyrocentre population count changed"))
+    length(populations) == length(st.owners) ||
+        throw(DimensionMismatch("gyrocentre population count changed"))
     _sg_grid(st.g)
     _sg_geometry(st)
     for k in eachindex(st.owners)
         p = populations[k]
         p === st.owners[k] || throw(ArgumentError("gyrocentre population identity/order changed"))
         _sg_population(p; values)
-        nparticles(p) == st._counts[k] || throw(DimensionMismatch("gyrocentre particle count changed"))
+        nparticles(p) == st._counts[k] ||
+            throw(DimensionMismatch("gyrocentre particle count changed"))
         all(pair -> pair[1] === pair[2], zip(_sg_arrays(p), st._components[k])) ||
             throw(ArgumentError("gyrocentre component identities changed"))
-        isequal((p.q, p.m), st._qm[k]) && isequal(p.mu, st._mu[k]) &&
+        isequal((p.q, p.m), st._qm[k]) &&
+            isequal(p.mu, st._mu[k]) &&
             isequal(p.weight, st._weight[k]) ||
             throw(ArgumentError("gyrokinetic fixed charges/masses/mu/weights changed"))
     end
@@ -234,54 +273,76 @@ function _sg_phase(initialized, time::T, step::Int, h::T, report) where {T}
         throw(ArgumentError("invalid synchronous gyrokinetic phase"))
     (step == 0 ? iszero(time) && iszero(h) : time > 0 && 0 < h <= time) ||
         throw(ArgumentError("gyrokinetic clock/completed interval disagree"))
-    report isa SlabGyrokineticFieldReport{T} || throw(ArgumentError("gyrokinetic boundary requires its field receipt"))
+    report isa SlabGyrokineticFieldReport{T} ||
+        throw(ArgumentError("gyrokinetic boundary requires its field receipt"))
     return nothing
 end
 function _sg_boundary(st)
     _sg_phase(st.initialized, st.time, st.step, st.last_dt, st.last_report)
     all(isfinite, st.rho_gc) && all(isfinite, st.phi) ||
         throw(ArgumentError("gyrokinetic boundary fields must be finite"))
-    for p in st.owners, d in 1:3, x in p.X[d]
-        0 <= x < st.g.L[d] || throw(ArgumentError("gyrocentre boundary positions must be periodic representatives"))
+    for p in st.owners, d = 1:3, x in p.X[d]
+        0 <= x < st.g.L[d] ||
+            throw(ArgumentError("gyrocentre boundary positions must be periodic representatives"))
     end
     return nothing
 end
 
-function SlabGyrokineticPIC(g::FourierGrid{3,T}, populations::AbstractVector;
-    B0, Te, e = one(T), nring = 16, field_rtol = sqrt(eps(T)), field_atol = zero(T)) where {T<:Union{Float32,Float64}}
-    _boris_accuracy_mode() || throw(ArgumentError("slab gyrokinetics requires nearest rounding and gradual underflow"))
+function SlabGyrokineticPIC(
+    g::FourierGrid{3,T},
+    populations::AbstractVector;
+    B0,
+    Te,
+    e = one(T),
+    nring = 16,
+    field_rtol = sqrt(eps(T)),
+    field_atol = zero(T),
+) where {T<:Union{Float32,Float64}}
+    _boris_accuracy_mode() ||
+        throw(ArgumentError("slab gyrokinetics requires nearest rounding and gradual underflow"))
     _sg_grid(g)
     Base.require_one_based_indexing(populations)
     isempty(populations) && throw(ArgumentError("at least one gyrocentre population is required"))
-    all(p -> p isa GyrocentreSet{T}, populations) || throw(ArgumentError("gyrocentre populations must match grid precision"))
+    all(p -> p isa GyrocentreSet{T}, populations) ||
+        throw(ArgumentError("gyrocentre populations must match grid precision"))
     owners = GyrocentreSet{T}[p for p in populations]
     foreach(_sg_population, owners)
-    B, temp, charge = (_require_finite_positive_real(name, value, T)
-        for (name, value) in (("B0", B0), ("Te", Te), ("e", e)))
+    B, temp, charge = (
+        _require_finite_positive_real(name, value, T) for
+        (name, value) in (("B0", B0), ("Te", Te), ("e", e))
+    )
     count = _require_positive_intlike("nring", nring)
-    count >= 3 && Float64(count) == count || throw(ArgumentError("nring must be at least three and exactly representable in phase precision"))
+    count >= 3 && Float64(count) == count || throw(
+        ArgumentError("nring must be at least three and exactly representable in phase precision"),
+    )
     rtol = _require_finite_nonnegative_real("field_rtol", field_rtol, T)
     atol = _require_finite_nonnegative_real("field_atol", field_atol, T)
-    rtol < 1 && (!iszero(rtol) || !iszero(atol)) || throw(ArgumentError("field tolerances require rtol<1 and a positive tolerance"))
+    rtol < 1 && (!iszero(rtol) || !iszero(atol)) ||
+        throw(ArgumentError("field tolerances require rtol<1 and a positive tolerance"))
     Q = _exact_rational
     inventory = _sg_inventory(owners, g, charge)
-    inventory.charge > 0 || throw(ArgumentError("gyrocentre collection must carry positive full-f number"))
+    inventory.charge > 0 ||
+        throw(ArgumentError("gyrocentre collection must carry positive full-f number"))
     chi = _from_exact(T, inventory.mass / (_sg_volume(g) * Q(B)^2))
     alpha = _from_exact(T, Q(charge)^2 * inventory.ne0 / Q(temp))
     display = _from_exact(T, inventory.ne0)
-    all(x -> isfinite(x) && x >= floatmin(T), (chi, alpha, display)) ||
-        throw(ArgumentError("gyrokinetic susceptibilities and displayed equilibrium density must be positive normal values"))
+    all(x -> isfinite(x) && x >= floatmin(T), (chi, alpha, display)) || throw(
+        ArgumentError(
+            "gyrokinetic susceptibilities and displayed equilibrium density must be positive normal values",
+        ),
+    )
     counts = map(nparticles, owners)
     radii = map(owners) do p
         map(p.mu) do mu
             radius = _sqrt_from_exact(T, 2Q(p.m) * Q(mu) / (Q(p.q)^2 * Q(B)))
-            isfinite(radius) && (iszero(mu) || !iszero(radius)) ||
-                throw(ArgumentError("gyrocentre radius must be finite and positive when mu is positive"))
+            isfinite(radius) && (iszero(mu) || !iszero(radius)) || throw(
+                ArgumentError("gyrocentre radius must be finite and positive when mu is positive"),
+            )
             radius
         end
     end
     phases = NTuple{2,T}[]
-    for k in 0:(count-1)
+    for k = 0:(count-1)
         sine, cosine = sincospi(2 * (Float64(k) / Float64(count)))
         push!(phases, (T(cosine), T(sine)))
     end
@@ -292,19 +353,55 @@ function SlabGyrokineticPIC(g::FourierGrid{3,T}, populations::AbstractVector;
         symbol = Q(chi) * (Q(g.kfull[1][I[1]])^2 + Q(g.kfull[2][I[2]])^2)
         (g.midx[2][I[2]] != 0 || g.midx[3][I[3]] != 0) && (symbol += Q(alpha))
         value = _from_exact(T, symbol)
-        isfinite(value) && value >= floatmin(T) || throw(ArgumentError("gyrokinetic non-DC field symbols must be positive finite normal values"))
+        isfinite(value) && value >= floatmin(T) || throw(
+            ArgumentError("gyrokinetic non-DC field symbols must be positive finite normal values"),
+        )
         lambda[I] = value
         gain = max(gain, inv(value))
     end
     isfinite(gain) || throw(ArgumentError("gyrokinetic inverse field gain must be finite"))
     stages() = [_SlabGyroStage(T, N) for N in counts]
-    work = _SlabGyroWork{T}(stages(), stages(), stages(), ntuple(_ -> stages(), 4),
-        zeros(T, g.n), zeros(T, g.n), zeros(Complex{T}, g.n), zeros(Complex{T}, g.n))
-    st = SlabGyrokineticPIC{T,typeof(g)}(g, owners, B, temp, charge, count, rtol, atol,
-        chi, alpha, display, zeros(T, g.n), zeros(T, g.n), counts,
-        [(p.q, p.m) for p in owners], [copy(p.mu) for p in owners],
-        [copy(p.weight) for p in owners], radii, Tuple[_sg_arrays(p) for p in owners],
-        phases, lambda, gain, work, false, zero(T), 0, zero(T), nothing, false)
+    work = _SlabGyroWork{T}(
+        stages(),
+        stages(),
+        stages(),
+        ntuple(_ -> stages(), 4),
+        zeros(T, g.n),
+        zeros(T, g.n),
+        zeros(Complex{T}, g.n),
+        zeros(Complex{T}, g.n),
+    )
+    st = SlabGyrokineticPIC{T,typeof(g)}(
+        g,
+        owners,
+        B,
+        temp,
+        charge,
+        count,
+        rtol,
+        atol,
+        chi,
+        alpha,
+        display,
+        zeros(T, g.n),
+        zeros(T, g.n),
+        counts,
+        [(p.q, p.m) for p in owners],
+        [copy(p.mu) for p in owners],
+        [copy(p.weight) for p in owners],
+        radii,
+        Tuple[_sg_arrays(p) for p in owners],
+        phases,
+        lambda,
+        gain,
+        work,
+        false,
+        zero(T),
+        0,
+        zero(T),
+        nothing,
+        false,
+    )
     _sg_bind(st, populations)
     return st
 end
@@ -320,7 +417,8 @@ function _sg_ring_point(ring, phase)
     all(isfinite, point) || throw(ArgumentError("gyrocentre ring point is not representable"))
     return point
 end
-_sg_stencil(point, g) = ntuple(d -> _stencil1d(TSC(), _periodic_cell_position(point[d], g.L[d], g.dx[d])), 3)
+_sg_stencil(point, g) =
+    ntuple(d -> _stencil1d(TSC(), _periodic_cell_position(point[d], g.L[d], g.dx[d])), 3)
 
 function _sg_deposit!(st::SlabGyrokineticPIC{T}, stage) where {T}
     out, g = st.work.rho, st.g
@@ -335,7 +433,7 @@ function _sg_deposit!(st::SlabGyrokineticPIC{T}, stage) where {T}
             for O in CartesianIndices((3, 3, 3))
                 index = ntuple(d -> _wrapped_cell(stencils[d][1] + O[d] - 1, g.n[d]), 3)
                 term = charge
-                for d in 1:3
+                for d = 1:3
                     factor = stencils[d][2][O[d]]
                     next = term * factor
                     lost |= _deposition_product_lost(term, factor, next)
@@ -384,29 +482,42 @@ end
 # annihilate constant represented potentials; cold arithmetic retains delta.
 function _sg_sample(field, point, g::FourierGrid{3,T}) where {T}
     stencils = _sg_stencil(point, g)
-    pairs = ntuple(d -> _tsc_derivative_pair(_periodic_cell_position(point[d], g.L[d], g.dx[d]), stencils[d][1]), 3)
+    pairs = ntuple(
+        d -> _tsc_derivative_pair(
+            _periodic_cell_position(point[d], g.L[d], g.dx[d]),
+            stencils[d][1],
+        ),
+        3,
+    )
     value = zero(T)
     gradient = ntuple(_ -> zero(T), 3)
     lost = false
     for O in CartesianIndices((3, 3, 3))
         index = ntuple(d -> _wrapped_cell(stencils[d][1] + O[d] - 1, g.n[d]), 3)
         term = field[index...]
-        for d in 1:3
+        for d = 1:3
             factor = stencils[d][2][O[d]]
             next = term * factor
             lost |= _deposition_product_lost(term, factor, next)
             term = next
         end
         next = value + term
-        lost |= !isfinite(next) || issubnormal(next) || (iszero(next) && !iszero(value) && !iszero(term))
+        lost |=
+            !isfinite(next) ||
+            issubnormal(next) ||
+            (iszero(next) && !iszero(value) && !iszero(term))
         value = next
     end
-    for d in 1:3
+    for d = 1:3
         total = zero(T)
         others = filter(!=(d), (1, 2, 3))
-        for a in 1:3, b in 1:3
-            index = ntuple(j -> j == d ? _wrapped_cell(stencils[j][1] + 1, g.n[j]) :
-                _wrapped_cell(stencils[j][1] + (j == others[1] ? a : b) - 1, g.n[j]), 3)
+        for a = 1:3, b = 1:3
+            index = ntuple(
+                j ->
+                    j == d ? _wrapped_cell(stencils[j][1] + 1, g.n[j]) :
+                    _wrapped_cell(stencils[j][1] + (j == others[1] ? a : b) - 1, g.n[j]),
+                3,
+            )
             left = Base.setindex(index, _wrapped_cell(stencils[d][1], g.n[d]), d)
             right = Base.setindex(index, _wrapped_cell(stencils[d][1] + 2, g.n[d]), d)
             dl, dr = field[left...] - field[index...], field[right...] - field[index...]
@@ -420,7 +531,8 @@ function _sg_sample(field, point, g::FourierGrid{3,T}) where {T}
                 term = next
             end
             next = total + term
-            lost |= any(x -> !isfinite(x) || issubnormal(x), (dl, dr, u, v, term, next)) ||
+            lost |=
+                any(x -> !isfinite(x) || issubnormal(x), (dl, dr, u, v, term, next)) ||
                 (iszero(u) && !iszero(pairs[d].left) && !iszero(dl)) ||
                 (iszero(v) && !iszero(pairs[d].right) && !iszero(dr)) ||
                 (iszero(next) && !iszero(total) && !iszero(term))
@@ -442,26 +554,33 @@ function _sg_sample(field, point, g::FourierGrid{3,T}) where {T}
             total = zero(Rational{BigInt})
             others = filter(!=(d), (1, 2, 3))
             delta = Q(pairs[d].delta)
-            for a in 1:3, b in 1:3
-                index = ntuple(j -> j == d ? _wrapped_cell(stencils[j][1] + 1, g.n[j]) :
-                    _wrapped_cell(stencils[j][1] + (j == others[1] ? a : b) - 1, g.n[j]), 3)
+            for a = 1:3, b = 1:3
+                index = ntuple(
+                    j ->
+                        j == d ? _wrapped_cell(stencils[j][1] + 1, g.n[j]) :
+                        _wrapped_cell(stencils[j][1] + (j == others[1] ? a : b) - 1, g.n[j]),
+                    3,
+                )
                 left = Base.setindex(index, _wrapped_cell(stencils[d][1], g.n[d]), d)
                 right = Base.setindex(index, _wrapped_cell(stencils[d][1] + 2, g.n[d]), d)
-                line = (delta - 1//2) * (Q(field[left...]) - Q(field[index...])) +
-                    (delta + 1//2) * (Q(field[right...]) - Q(field[index...]))
+                line =
+                    (delta - 1 // 2) * (Q(field[left...]) - Q(field[index...])) +
+                    (delta + 1 // 2) * (Q(field[right...]) - Q(field[index...]))
                 total += line * Q(stencils[others[1]][2][a]) * Q(stencils[others[2]][2][b])
             end
             _from_exact(T, total / Q(g.dx[d]))
         end
     end
-    all(isfinite, (value, gradient...)) || throw(ArgumentError("gyroaveraged potential sample/gradient is not representable"))
+    all(isfinite, (value, gradient...)) ||
+        throw(ArgumentError("gyroaveraged potential sample/gradient is not representable"))
     return (value, gradient...)
 end
 function _sg_stream_add(state, sample)
     parts, exact = state
     if exact === nothing
         updated = _gyro_ring_add(parts, sample)
-        return updated[4] ? (updated, nothing) : (parts, _gyro_exact_parts(parts) + _exact_rational(sample))
+        return updated[4] ? (updated, nothing) :
+               (parts, _gyro_exact_parts(parts) + _exact_rational(sample))
     end
     return parts, exact + _exact_rational(sample)
 end
@@ -473,7 +592,8 @@ function _sg_gather(st::SlabGyrokineticPIC{T}, stage, k, p) where {T}
         sums = ntuple(c -> _sg_stream_add(sums[c], sample[c]), 4)
     end
     values = ntuple(c -> _gyro_ring_mean(sums[c]..., st.nring, T), 4)
-    all(isfinite, values) || throw(ArgumentError("gyroaveraged potential/gradient is not representable"))
+    all(isfinite, values) ||
+        throw(ArgumentError("gyroaveraged potential/gradient is not representable"))
     return values
 end
 
@@ -512,21 +632,27 @@ function _sg_field_receipt(st::SlabGyrokineticPIC{T}, source_scale, phi_scale) w
         end
     end
     tolerance = Q(st.field_atol) + Q(st.field_rtol) * source_norm
-    residual <= tolerance || throw(ArgumentError("gyrokinetic potential failed its fresh modal field residual"))
+    residual <= tolerance ||
+        throw(ArgumentError("gyrokinetic potential failed its fresh modal field residual"))
     gauge = max(abs(Q(real(w.phihat[1]))), abs(Q(imag(w.phihat[1])))) * Q(phi_scale) / N
     gauge_tolerance = Q(st.field_atol) / minimum_symbol + Q(st.field_rtol) * potential_norm
-    gauge <= gauge_tolerance || throw(ArgumentError("gyrokinetic potential failed its zero-mean gauge gate"))
+    gauge <= gauge_tolerance ||
+        throw(ArgumentError("gyrokinetic potential failed its zero-mean gauge gate"))
     inventory = _sg_inventory(st.owners, g, st.e)
     amplitude = zero(Rational{BigInt})
-    for i in 1:g.n[1]
-        mean_phi = sum((Q(w.phi[i,j,k]) for j in 1:g.n[2], k in 1:g.n[3]);
-            init = zero(Rational{BigInt})) / (g.n[2] * g.n[3])
-        for j in 1:g.n[2], k in 1:g.n[3]
-            response = Q(w.phi[i,j,k]) - mean_phi
+    for i = 1:g.n[1]
+        mean_phi =
+            sum((Q(w.phi[i, j, k]) for j = 1:g.n[2], k = 1:g.n[3]); init = zero(Rational{BigInt})) /
+            (g.n[2] * g.n[3])
+        for j = 1:g.n[2], k = 1:g.n[3]
+            response = Q(w.phi[i, j, k]) - mean_phi
             density = inventory.ne0 + Q(st.alpha) * response / Q(st.e)
             materialized = _from_exact(T, density)
-            density > 0 && isfinite(materialized) && materialized > 0 ||
-                throw(ArgumentError("linear adiabatic electron density must remain finite and strictly positive"))
+            density > 0 && isfinite(materialized) && materialized > 0 || throw(
+                ArgumentError(
+                    "linear adiabatic electron density must remain finite and strictly positive",
+                ),
+            )
             amplitude = max(amplitude, abs(Q(st.e) * response / Q(st.Te)))
         end
     end
@@ -534,8 +660,21 @@ function _sg_field_receipt(st::SlabGyrokineticPIC{T}, source_scale, phi_scale) w
     mean_imag = Q(imag(w.source[1])) * Q(source_scale) / N
     dc_defect = mean_real - inventory.charge / _sg_volume(g)
     charge_defect = _sg_cell_volume(g) * _exact_float_sum(w.rho) - inventory.charge
-    values = map(x -> _from_exact(T, x), (residual, tolerance, source_norm, gauge,
-        gauge_tolerance, mean_real, mean_imag, dc_defect, charge_defect, amplitude))
+    values = map(
+        x -> _from_exact(T, x),
+        (
+            residual,
+            tolerance,
+            source_norm,
+            gauge,
+            gauge_tolerance,
+            mean_real,
+            mean_imag,
+            dc_defect,
+            charge_defect,
+            amplitude,
+        ),
+    )
     any(isnan, values) && throw(ArgumentError("invalid gyrokinetic field diagnostic"))
     return SlabGyrokineticFieldReport{T}(values..., all(isfinite, values))
 end
@@ -567,11 +706,15 @@ function _sg_rhs!(out, st::SlabGyrokineticPIC{T}, stage) where {T}
     _sg_field!(st)
     for (k, pset) in enumerate(st.owners), p in eachindex(pset.weight)
         _, gx, gy, gz = _sg_gather(st, stage, k, p)
-        rate = (_gyro_scaled_ratio((-gy,), (st.B0,)),
-            _gyro_scaled_ratio((gx,), (st.B0,)), stage[k].vpar[p])
+        rate = (
+            _gyro_scaled_ratio((-gy,), (st.B0,)),
+            _gyro_scaled_ratio((gx,), (st.B0,)),
+            stage[k].vpar[p],
+        )
         acceleration = _gyro_scaled_ratio((-pset.q, gz), (pset.m,))
-        all(isfinite, (rate..., acceleration)) || throw(ArgumentError("gyrocentre characteristic rate is not representable"))
-        for d in 1:3
+        all(isfinite, (rate..., acceleration)) ||
+            throw(ArgumentError("gyrocentre characteristic rate is not representable"))
+        for d = 1:3
             out[k].X[d][p] = rate[d]
         end
         out[k].vpar[p] = acceleration
@@ -580,7 +723,7 @@ function _sg_rhs!(out, st::SlabGyrokineticPIC{T}, stage) where {T}
 end
 function _sg_copy!(dest, source)
     for k in eachindex(dest)
-        for d in 1:3
+        for d = 1:3
             copyto!(dest[k].X[d], source[k].X[d])
         end
         copyto!(dest[k].vpar, source[k].vpar)
@@ -588,7 +731,7 @@ function _sg_copy!(dest, source)
     return nothing
 end
 function _sg_affine!(dest, old, rates, op)
-    for k in eachindex(dest), c in 1:4
+    for k in eachindex(dest), c = 1:4
         target = c == 4 ? dest[k].vpar : dest[k].X[c]
         initial = c == 4 ? old[k].vpar : old[k].X[c]
         vectors = map(r -> c == 4 ? r[k].vpar : r[k].X[c], rates)
@@ -600,7 +743,7 @@ function _sg_affine!(dest, old, rates, op)
     return nothing
 end
 function _sg_wrap!(stage, g)
-    for pop in stage, d in 1:3, p in eachindex(pop.vpar)
+    for pop in stage, d = 1:3, p in eachindex(pop.vpar)
         x = pop.X[d][p]
         isfinite(x) || throw(ArgumentError("gyrocentre endpoint must be finite before wrapping"))
         pop.X[d][p] = _periodic_coordinate(x, zero(x), g.L[d], g.L[d])
@@ -609,7 +752,7 @@ function _sg_wrap!(stage, g)
 end
 function _sg_publish!(st, stage, rho, phi, time, step, h, report)
     for k in eachindex(st.owners)
-        for d in 1:3, p in eachindex(st.owners[k].vpar)
+        for d = 1:3, p in eachindex(st.owners[k].vpar)
             @inbounds st.owners[k].X[d][p] = stage[k].X[d][p]
         end
         for p in eachindex(st.owners[k].vpar)
@@ -632,8 +775,16 @@ function init!(st::SlabGyrokineticPIC{T}, populations::AbstractVector = st.owner
         _sg_wrap!(st.work.endpoint, st.g)
         _sg_deposit!(st, st.work.endpoint)
         report = _sg_field!(st)
-        return _sg_publish!(st, st.work.endpoint, st.work.rho, st.work.phi,
-            zero(T), 0, zero(T), report)
+        return _sg_publish!(
+            st,
+            st.work.endpoint,
+            st.work.rho,
+            st.work.phi,
+            zero(T),
+            0,
+            zero(T),
+            report,
+        )
     finally
         st.busy = false
     end
@@ -644,7 +795,11 @@ function step!(st::SlabGyrokineticPIC{T}, populations::AbstractVector, dt::Real)
         _sg_bind(st, populations)
         _sg_boundary(st)
         h = _require_finite_real("gyrokinetic dt", dt, T)
-        h >= 0 && (iszero(dt) || !iszero(h)) || throw(ArgumentError("gyrokinetic dt must be nonnegative and nonzero inputs must survive conversion"))
+        h >= 0 && (iszero(dt) || !iszero(h)) || throw(
+            ArgumentError(
+                "gyrokinetic dt must be nonnegative and nonzero inputs must survive conversion",
+            ),
+        )
         iszero(h) && return st
         time, count = _validated_step_clock(st.time, st.step, h)
         time > st.time || throw(ArgumentError("gyrokinetic clock must advance at stored precision"))
@@ -698,24 +853,45 @@ function slab_gyrokinetic_diagnostics(st::SlabGyrokineticPIC{T}, populations = s
         factor = _sg_cell_volume(st.g) / (2length(st.phi))
         Upol *= factor
         Ue *= factor
-        pairing = _sg_cell_volume(st.g) * sum((Q(a) * Q(b) for (a,b) in zip(st.rho_gc, st.phi)); init = zero(Rational{BigInt})) / 2
+        pairing =
+            _sg_cell_volume(st.g) *
+            sum((Q(a) * Q(b) for (a, b) in zip(st.rho_gc, st.phi)); init = zero(Rational{BigInt})) /
+            2
         total = Kpar + Kmu + Upol + Ue
         radius = maximum((r for rs in st._radius for r in rs); init = zero(T))
-        k2 = maximum(_exact_rational(x)^2 for x in st.g.kfull[1]) + maximum(_exact_rational(y)^2 for y in st.g.kfull[2])
+        k2 =
+            maximum(_exact_rational(x)^2 for x in st.g.kfull[1]) +
+            maximum(_exact_rational(y)^2 for y in st.g.kfull[2])
         coverage = _sqrt_from_exact(T, Q(radius)^2 * k2)
         reservoirs = map(x -> _from_exact(T, x), (Kpar, Kmu, Upol, Ue, total, Upol + Ue - pairing))
         displayed_momentum = _from_exact(T, momentum)
-        resolved = all(isfinite, (reservoirs..., displayed_momentum, radius, coverage)) && st.last_report.range_resolved
-        return (time = st.time, step = st.step, last_dt = st.last_dt,
-            phase = :synchronous_integer, velocity_time_offset = zero(T),
-            number = number, charge = charge, electron_background_charge = -sum(charge),
+        resolved =
+            all(isfinite, (reservoirs..., displayed_momentum, radius, coverage)) &&
+            st.last_report.range_resolved
+        return (
+            time = st.time,
+            step = st.step,
+            last_dt = st.last_dt,
+            phase = :synchronous_integer,
+            velocity_time_offset = zero(T),
+            number = number,
+            charge = charge,
+            electron_background_charge = -sum(charge),
             parallel_momentum = displayed_momentum,
-            energy = (parallel = reservoirs[1], magnetic_moment = reservoirs[2],
-                polarization = reservoirs[3], electron_response_free_energy = reservoirs[4],
-                total = reservoirs[5], field_pairing_defect = reservoirs[6],
-                range_resolved = all(isfinite, reservoirs)),
-            max_radius = radius, max_resolved_kperp_radius = coverage,
-            last_field = st.last_report, range_resolved = resolved)
+            energy = (
+                parallel = reservoirs[1],
+                magnetic_moment = reservoirs[2],
+                polarization = reservoirs[3],
+                electron_response_free_energy = reservoirs[4],
+                total = reservoirs[5],
+                field_pairing_defect = reservoirs[6],
+                range_resolved = all(isfinite, reservoirs),
+            ),
+            max_radius = radius,
+            max_resolved_kperp_radius = coverage,
+            last_field = st.last_report,
+            range_resolved = resolved,
+        )
     finally
         st.busy = false
     end

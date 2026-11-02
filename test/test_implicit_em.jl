@@ -6,8 +6,11 @@ using HybridPlasmaPIC
 function _implicit_em_snapshot(state, species)
     saved = HybridPlasmaPIC._checkpoint_state(state, species)
     report = saved.last_report
-    values = report === nothing ? nothing : NamedTuple{fieldnames(typeof(report))}(
-        ntuple(i -> getfield(report, i), fieldcount(typeof(report))))
+    values =
+        report === nothing ? nothing :
+        NamedTuple{fieldnames(typeof(report))}(
+            ntuple(i -> getfield(report, i), fieldcount(typeof(report))),
+        )
     return merge(saved, (last_report = values,))
 end
 
@@ -18,8 +21,8 @@ end
             g = FourierGrid((5,), (T(5),))
             populations = typeof(ParticleSet{1,T}(0))[]
             state = ImplicitEMPICStepper(g, CIC(), populations; c = T(2))
-            wave = [cospi(T(2) * T(i - 1) / T(5)) for i in 1:5]
-            sine = [sinpi(T(2) * T(i - 1) / T(5)) for i in 1:5]
+            wave = [cospi(T(2) * T(i - 1) / T(5)) for i = 1:5]
+            sine = [sinpi(T(2) * T(i - 1) / T(5)) for i = 1:5]
             state.fields.E[2] .= wave
             state.fields.E[3] .= wave ./ T(2)
             init!(state, populations)
@@ -37,12 +40,32 @@ end
             ratio = (one(T) - (state.c * k * h / T(2))^2) / denominator
             allowance = T(32) * (state.last_report.tolerance + eps(T))
             @test isapprox(state.fields.E[2], ratio .* wave; atol = allowance, rtol = zero(T))
-            @test isapprox(state.fields.E[3], ratio .* wave ./ T(2); atol = allowance, rtol = zero(T))
-            @test isapprox(state.fields.B[3], (h * k / denominator) .* sine; atol = allowance, rtol = zero(T))
-            @test isapprox(state.fields.B[2], -(h * k / denominator) .* sine ./ T(2); atol = allowance, rtol = zero(T))
+            @test isapprox(
+                state.fields.E[3],
+                ratio .* wave ./ T(2);
+                atol = allowance,
+                rtol = zero(T),
+            )
+            @test isapprox(
+                state.fields.B[3],
+                (h * k / denominator) .* sine;
+                atol = allowance,
+                rtol = zero(T),
+            )
+            @test isapprox(
+                state.fields.B[2],
+                -(h * k / denominator) .* sine ./ T(2);
+                atol = allowance,
+                rtol = zero(T),
+            )
             r = state.last_report
             @test r.energy_change == sum(r.defects)
-            bad_report = typeof(r)(map(name -> name == :time ? h / T(2) : getproperty(r, name), fieldnames(typeof(r)))...)
+            bad_report = typeof(r)(
+                map(
+                    name -> name == :time ? h / T(2) : getproperty(r, name),
+                    fieldnames(typeof(r)),
+                )...,
+            )
             @test_throws ArgumentError H._implicit_em_phase(state, true, h / T(2), 1, h, bad_report)
             mktempdir() do directory
                 checkpoint = joinpath(directory, "implicit.chk")
@@ -79,7 +102,8 @@ end
             @test implicit_em_diagnostics(plasma).total isa T
             # Exhausting the declared solver bound preserves the public phase
             # and leaves the same instance usable for a validated zero call.
-            failed = ImplicitEMPICStepper(FourierGrid((5,), (T(5),)), CIC(), populations; max_newton = 0)
+            failed =
+                ImplicitEMPICStepper(FourierGrid((5,), (T(5),)), CIC(), populations; max_newton = 0)
             failed.fields.E[2] .= wave
             init!(failed, populations)
             before = _implicit_em_snapshot(failed, populations)

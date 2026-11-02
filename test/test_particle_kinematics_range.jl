@@ -302,7 +302,8 @@ end
         boris = rel = 0
         boris_accuracy_repaired = 0
         flagged = 0
-        rel_valid_parent = rel_repaired = rel_rejected = rel_invalid_input = rel_accuracy_repaired = 0
+        rel_valid_parent =
+            rel_repaired = rel_rejected = rel_invalid_input = rel_accuracy_repaired = 0
         for _ = 1:NORDINARY
             v = ntuple(_ -> ordinary(rng, T, s), 3)
             E = ntuple(_ -> ordinary(rng, T, s), 3)
@@ -1523,7 +1524,8 @@ euler_certified(v, E, B, qm, h, n) = H._euler_batch_certificate(
                 # fixture. Retain the producer comparison, plus a controlled
                 # positive certificate that exercises the real native push.
                 native_sh, native_ps = deepcopy(sh), deepcopy(ps2)
-                native_E, native_B = D == 3 ? (native_sh.E, native_sh.B) :
+                native_E, native_B =
+                    D == 3 ? (native_sh.E, native_sh.B) :
                     ((native_sh.Ex, native_sh.Ey), (native_sh.Bz,))
                 foreach(a -> fill!(a, zero(T)), (native_E..., native_B...))
                 foreach(a -> fill!(a, one(T)), native_ps.v)

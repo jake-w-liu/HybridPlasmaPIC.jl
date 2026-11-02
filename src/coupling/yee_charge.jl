@@ -330,7 +330,16 @@ _yee_validate_charge_shape(shape) =
 _yee_charge_kernel!(sums, species, old, new, g, exact, mode, ::CIC) =
     _yee_charge_kernel!(sums, species, old, new, g, exact, mode)
 
-function _yee_charge_kernel!(sums, species, old, new, g, ::Val{true}, mode, shape::YeeTriangularCloud)
+function _yee_charge_kernel!(
+    sums,
+    species,
+    old,
+    new,
+    g,
+    ::Val{true},
+    mode,
+    shape::YeeTriangularCloud,
+)
     for k in eachindex(species)
         before = mode isa Val{:charge} ? nothing : old[k]
         after = mode isa Val{:charge} ? nothing : new[k]
@@ -339,7 +348,16 @@ function _yee_charge_kernel!(sums, species, old, new, g, ::Val{true}, mode, shap
     return true
 end
 
-@noinline function _yee_charge_population!(sums, ps::ParticleSet{1,T}, old, new, g, ::Val{true}, mode, shape::YeeTriangularCloud) where {T}
+@noinline function _yee_charge_population!(
+    sums,
+    ps::ParticleSet{1,T},
+    old,
+    new,
+    g,
+    ::Val{true},
+    mode,
+    shape::YeeTriangularCloud,
+) where {T}
     h = _exact_rational(g.L[1]) / g.n[1]
     a = _exact_rational(shape.half_width)
     for p in eachindex(ps.weight)
@@ -377,7 +395,12 @@ function _yee_charge_exact_sums(species, old, new, g, mode, shape)
 end
 
 # Exact one-capture charge redistribution. It is not an unchanged-source path.
-function _yee_cloud_death_sums(charge::Rational{BigInt}, side, g::YeeGrid{1}, shape::YeeTriangularCloud)
+function _yee_cloud_death_sums(
+    charge::Rational{BigInt},
+    side,
+    g::YeeGrid{1},
+    shape::YeeTriangularCloud,
+)
     h, a = _exact_rational(g.L[1]) / g.n[1], _exact_rational(shape.half_width)
     wall = side == 1 ? zero(h) : _exact_rational(g.L[1])
     target = side == 1 ? zero(h) : one(h)
@@ -479,7 +502,15 @@ Use the same optional `YeeTriangularCloud` shape as the endpoint charges and
 path voltage. Cloud impulse is the exact cumulative difference, with all
 populations accumulated before one final entry rounding.
 """
-function yee_longitudinal_impulse!(out, particles, xold, xnew, g::YeeGrid{1}, workspace; shape = CIC())
+function yee_longitudinal_impulse!(
+    out,
+    particles,
+    xold,
+    xnew,
+    g::YeeGrid{1},
+    workspace;
+    shape = CIC(),
+)
     species = _yee_charge_species(particles)
     old, new = _yee_charge_endpoints(particles, xold, xnew)
     return _yee_charge_apply!(out, species, old, new, g, workspace, Val(:impulse), shape)
@@ -581,9 +612,16 @@ function _yee_cloud_field_rational(Ex, old, new, g::YeeGrid{1}, shape::YeeTriang
     return _exact_rational(g.dx[1]) * total
 end
 
-function _yee_cloud_field_contraction(Ex, old, new, g::YeeGrid{1,T}, shape::YeeTriangularCloud) where {T}
+function _yee_cloud_field_contraction(
+    Ex,
+    old,
+    new,
+    g::YeeGrid{1,T},
+    shape::YeeTriangularCloud,
+) where {T}
     value = _from_exact(T, _yee_cloud_field_rational(Ex, old, new, g, shape))
-    isfinite(value) || throw(ArgumentError("Yee cloud field contraction does not round to a finite $T value"))
+    isfinite(value) ||
+        throw(ArgumentError("Yee cloud field contraction does not round to a finite $T value"))
     return value
 end
 

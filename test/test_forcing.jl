@@ -226,8 +226,9 @@ end
             for supplied_work in (false, true)
                 B = map(copy, samplecurl)
                 work = ntuple(_ -> fill(T(7), 4), 3)
-                returned = supplied_work ? apply_antenna!(B, Eant, T(3), g; work) :
-                           apply_antenna!(B, Eant, T(3), g)
+                returned =
+                    supplied_work ? apply_antenna!(B, Eant, T(3), g; work) :
+                    apply_antenna!(B, Eant, T(3), g)
                 @test returned === B
                 # B=c and dt=3 give -2c, an exact finite binary scaling.
                 @test B == expected

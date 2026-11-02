@@ -1,18 +1,22 @@
 # Real mixed geometry: the normal stencil folds on physical endpoint nodes;
 # transverse coordinates and the shape arithmetic retain their canonical owner.
-function _particle_cell_position(ps::ParticleSet{D,T}, op::MixedShockOperators{D,T},
-    d::Int, p::Int) where {D,T}
+function _particle_cell_position(
+    ps::ParticleSet{D,T},
+    op::MixedShockOperators{D,T},
+    d::Int,
+    p::Int,
+) where {D,T}
     x = ps.x[d][p]
     isfinite(x) && (d == 1 ? 0 <= x <= op.L[d] : 0 <= x < op.L[d]) ||
         throw(ArgumentError("mixed CIC positions are outside their physical domain"))
     s = d == 1 ? x / op.dx[d] : _periodic_cell_position(x, op.L[d], op.dx[d])
-    isfinite(s) && _exact_rational(typemin(Int)) <= _exact_rational(s) <=
-        _exact_rational(typemax(Int) - 2) || throw(ArgumentError("mixed CIC cell position is not safely Int-convertible"))
+    isfinite(s) &&
+        _exact_rational(typemin(Int)) <= _exact_rational(s) <= _exact_rational(typemax(Int) - 2) ||
+        throw(ArgumentError("mixed CIC cell position is not safely Int-convertible"))
     return s
 end
 
-_open_hall_volume(op, ix) = _exact_rational(op.sbp.H[ix]) *
-    prod(_exact_rational, Base.tail(op.dx))
+_open_hall_volume(op, ix) = _exact_rational(op.sbp.H[ix]) * prod(_exact_rational, Base.tail(op.dx))
 
 function _open_hall_moments!(st::OpenHallHybrid{D,T}, f::HybridFields{D,T}, species) where {D,T}
     sums = st.work.moment
@@ -21,11 +25,17 @@ function _open_hall_moments!(st::OpenHallHybrid{D,T}, f::HybridFields{D,T}, spec
     end
     for ps in species
         q = _exact_rational(ps.q)
-        _foreach_exact_particle_contribution(ps, (ps.weight,), st.op, CIC(), Val(:fold_x)) do idx, value, p
+        _foreach_exact_particle_contribution(
+            ps,
+            (ps.weight,),
+            st.op,
+            CIC(),
+            Val(:fold_x),
+        ) do idx, value, p
             charge = q * value
             sums[1][idx...] += charge
             for c = 1:3
-                sums[c + 1][idx...] += charge * _exact_rational(ps.v[c][p])
+                sums[c+1][idx...] += charge * _exact_rational(ps.v[c][p])
             end
         end
     end
@@ -33,14 +43,18 @@ function _open_hall_moments!(st::OpenHallHybrid{D,T}, f::HybridFields{D,T}, spec
         volume = _open_hall_volume(st.op, I[1])
         f.n[I] = _from_exact(T, sums[1][I] / volume)
         for c = 1:3
-            f.ui[c][I] = _from_exact(T, sums[c + 1][I] / volume)
+            f.ui[c][I] = _from_exact(T, sums[c+1][I] / volume)
         end
     end
     floor = _open_hall_physics(st.model, T)
-    all(x -> isfinite(x) && x >= floor, f.n) && all(a -> all(isfinite, a), f.ui) ||
-        throw(ArgumentError("open Hall complete moments require finite materialized density/momentum and strict n>=nfloor"))
+    all(x -> isfinite(x) && x >= floor, f.n) && all(a -> all(isfinite, a), f.ui) || throw(
+        ArgumentError(
+            "open Hall complete moments require finite materialized density/momentum and strict n>=nfloor",
+        ),
+    )
     _normalize_ion_moments!(f.n, f.ui, floor)
-    all(a -> all(isfinite, a), f.ui) || throw(ArgumentError("open Hall normalized ion velocity crosses its materialized range"))
+    all(a -> all(isfinite, a), f.ui) ||
+        throw(ArgumentError("open Hall normalized ion velocity crosses its materialized range"))
     return nothing
 end
 
@@ -64,7 +78,8 @@ function _open_hall_gather!(st::OpenHallHybrid{D,T}, ps, fields) where {D,T}
     n = nparticles(ps)
     Ep, Bp = st.work.Ep, st.work.Bp
     for a in (Ep..., Bp...)
-        length(a) >= n || throw(DimensionMismatch("open Hall particle gather capacity was not prepared"))
+        length(a) >= n ||
+            throw(DimensionMismatch("open Hall particle gather capacity was not prepared"))
     end
     stamp = CartesianIndices(ntuple(_ -> 2, D))
     for p = 1:n

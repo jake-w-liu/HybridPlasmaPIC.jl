@@ -99,10 +99,12 @@ const _YA_CHECKPOINT_FIELDS = (
 
 function _ya_validate_checkpoint_configuration(s, st::YeeAbsorbingLongitudinalPIC)
     _yee_closed_validate_checkpoint_configuration(s, st)
-    all(name -> getproperty(s, name) === getproperty(_YA_CHECKPOINT_POLICIES, name),
-        keys(_YA_CHECKPOINT_POLICIES)) ||
-        throw(ArgumentError("unsupported Yee absorbing checkpoint policy or version"))
-    s.max_root_refinements isa Int && s.max_root_refinements > 0 &&
+    all(
+        name -> getproperty(s, name) === getproperty(_YA_CHECKPOINT_POLICIES, name),
+        keys(_YA_CHECKPOINT_POLICIES),
+    ) || throw(ArgumentError("unsupported Yee absorbing checkpoint policy or version"))
+    s.max_root_refinements isa Int &&
+        s.max_root_refinements > 0 &&
         s.max_root_refinements === st.max_root_refinements ||
         throw(ArgumentError("checkpoint absorbing root budget does not match destination"))
     return nothing
@@ -152,8 +154,7 @@ function _ya_checkpoint_state(st::YeeAbsorbingLongitudinalPIC{T}, species, layou
     populations = _yl_species(species)
     _yl_validate_populations(st, populations)
     _ya_validate_phase(st, populations)
-    st.initialized[] ||
-        throw(ArgumentError("Yee absorbing checkpoints require initialized state"))
+    st.initialized[] || throw(ArgumentError("Yee absorbing checkpoints require initialized state"))
     _ya_validate_bound(st, populations)
     _yl_validate_longitudinal_fields(st, st.fields)
     config = (

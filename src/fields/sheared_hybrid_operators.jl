@@ -31,7 +31,7 @@ function _sheared_divergence_receipt(st, beta::NTuple{3,Array{T,3}}) where {T}
     isfinite(magnitude) || throw(ArgumentError("sheared magnetic flux must be finite"))
     safe = SpectralOperators._fft_safe_magnitude(T, length(beta[1]), one(T))
     scale = SpectralOperators._fft_input_scale(magnitude, safe)
-    for c in 1:3
+    for c = 1:3
         SpectralOperators._copy_fft_input!(hats[c], beta[c], scale)
         g.plan * hats[c]
         all(isfinite, hats[c]) || throw(ArgumentError("sheared divergence FFT is not finite"))
@@ -40,7 +40,7 @@ function _sheared_divergence_receipt(st, beta::NTuple{3,Array{T,3}}) where {T}
     residual = reference = zero(Rational{BigInt})
     for I in CartesianIndices(hats[1])
         re = im = bound = zero(Rational{BigInt})
-        for c in 1:3
+        for c = 1:3
             k = Q(g.kvec[c][I[c]])
             z = hats[c][I]
             re += k * Q(real(z))
@@ -54,7 +54,8 @@ function _sheared_divergence_receipt(st, beta::NTuple{3,Array{T,3}}) where {T}
     residual *= factor
     reference *= factor
     tolerance = Q(st.div_atol) + Q(st.div_rtol) * reference
-    residual <= tolerance || throw(ArgumentError("sheared magnetic flux failed its fresh divergence gate"))
+    residual <= tolerance ||
+        throw(ArgumentError("sheared magnetic flux failed its fresh divergence gate"))
     values = map(x -> _from_exact(T, x), (residual, tolerance, reference))
     return ShearedHybridFieldReport{T}(values..., false, all(isfinite, values))
 end
@@ -64,13 +65,18 @@ function _sheared_complete_fields!(st, beta::NTuple{3,Array{T,3}}) where {T}
     _shear_flux_to_physical!(f.B, beta, st.mesh)
     _shear_covariant!(w.Bcov, f.B, st.mesh)
     curl!(w.curl, w.Bcov, g)
-    all(a -> all(isfinite, a), w.curl) || throw(ArgumentError("sheared logical current is not finite"))
+    all(a -> all(isfinite, a), w.curl) ||
+        throw(ArgumentError("sheared logical current is not finite"))
     _shear_flux_to_physical!(f.J, w.curl, st.mesh)
     electron_pressure!(f.pe, f.n, st.closure)
-    all(x -> isfinite(x) && (iszero(st.closure.Te) || x > 0), f.pe) ||
-        throw(ArgumentError("sheared isothermal pressure must materialize without losing positive pressure"))
+    all(x -> isfinite(x) && (iszero(st.closure.Te) || x > 0), f.pe) || throw(
+        ArgumentError(
+            "sheared isothermal pressure must materialize without losing positive pressure",
+        ),
+    )
     gradient!(w.gradient, f.pe, g)
-    all(a -> all(isfinite, a), w.gradient) || throw(ArgumentError("sheared pressure gradient is not finite"))
+    all(a -> all(isfinite, a), w.gradient) ||
+        throw(ArgumentError("sheared pressure gradient is not finite"))
     for I in CartesianIndices(f.pe)
         f.gradp[1][I] = w.gradient[1][I]
         f.gradp[2][I] = _shear_linear(w.gradient[2][I], -st.mesh._s[I[2]], w.gradient[1][I])
@@ -81,7 +87,11 @@ function _sheared_complete_fields!(st, beta::NTuple{3,Array{T,3}}) where {T}
     all(a -> all(isfinite, a), f.E) || throw(ArgumentError("sheared electric field is not finite"))
     # A finite completed local field is not an original-product differentiated
     # source certificate. All accepted phases are Faraday ready under this rule.
-    risk && throw(ArgumentError("sheared original-product mapped Faraday recovery is unsupported; canonical Ohm source-risk rejects"))
+    risk && throw(
+        ArgumentError(
+            "sheared original-product mapped Faraday recovery is unsupported; canonical Ohm source-risk rejects",
+        ),
+    )
     # Current has already materialized into f.J, so reuse curl for the admitted
     # Faraday rate, including at init/endpoint/restore preparation.
     _sheared_faraday!(w.curl, st)
@@ -92,6 +102,7 @@ function _sheared_faraday!(out, st)
     _shear_covariant!(st.work.Ecov, st.work.fields.E, st.mesh)
     curl!(out, st.work.Ecov, st.g)
     _faraday_negate!(out)
-    all(a -> all(isfinite, a), out) || throw(ArgumentError("sheared magnetic rate is not representable"))
+    all(a -> all(isfinite, a), out) ||
+        throw(ArgumentError("sheared magnetic rate is not representable"))
     return nothing
 end

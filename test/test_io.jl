@@ -611,15 +611,16 @@ include("test_io_configuration_serialization.jl")
         tiny, negative_tiny = reinterpret(T, one(U)), reinterpret(T, sign | one(U))
         negative_zero = reinterpret(T, sign)
         invalid = (
-            (T(NaN), one(T)), (T(Inf), one(T)),
-            (one(T), zero(T)), (one(T), negative_zero),
-            (one(T), -one(T)), (one(T), negative_tiny),
-            (one(T), T(NaN)), (one(T), T(Inf)),
+            (T(NaN), one(T)),
+            (T(Inf), one(T)),
+            (one(T), zero(T)),
+            (one(T), negative_zero),
+            (one(T), -one(T)),
+            (one(T), negative_tiny),
+            (one(T), T(NaN)),
+            (one(T), T(Inf)),
         )
-        valid = (
-            (-one(T), T(2)), (floatmax(T), tiny),
-            (tiny, floatmax(T)), (negative_zero, tiny),
-        )
+        valid = ((-one(T), T(2)), (floatmax(T), tiny), (tiny, floatmax(T)), (negative_zero, tiny))
         oldmode = get_zero_subnormals()
         try
             @test set_zero_subnormals(false)
@@ -644,15 +645,25 @@ include("test_io_configuration_serialization.jl")
                         integrator = State,
                         requested_flush = flush,
                         active_flush = get_zero_subnormals(),
-                        invalid_words = [(reinterpret(U, q), reinterpret(U, m)) for (q, m) in invalid],
+                        invalid_words = [
+                            (reinterpret(U, q), reinterpret(U, m)) for (q, m) in invalid
+                        ],
                         valid_words = [(reinterpret(U, q), reinterpret(U, m)) for (q, m) in valid],
                     )
                     @info "Scalar checkpoint stored-factor admission" observation
                     preserved = read(path)
                     before = deepcopy(HybridPlasmaPIC._checkpoint_state(target, particles))
                     storage = (
-                        particles.x..., particles.v..., particles.weight, particles.id, particles.tag,
-                        target.Ep..., target.Bp..., target.vpred..., target.xmid..., target.work,
+                        particles.x...,
+                        particles.v...,
+                        particles.weight,
+                        particles.id,
+                        particles.tag,
+                        target.Ep...,
+                        target.Bp...,
+                        target.vpred...,
+                        target.xmid...,
+                        target.work,
                     )
                     lengths = map(length, storage)
                     for (q, m) in invalid
@@ -663,10 +674,23 @@ include("test_io_configuration_serialization.jl")
                         @test_throws ArgumentError load_checkpoint!(target, particles, incoming)
                         @test isequal(HybridPlasmaPIC._checkpoint_state(target, particles), before)
                         @test map(length, storage) == lengths
-                        @test all(a === b for (a, b) in zip(storage, (
-                            particles.x..., particles.v..., particles.weight, particles.id, particles.tag,
-                            target.Ep..., target.Bp..., target.vpred..., target.xmid..., target.work,
-                        )))
+                        @test all(
+                            a === b for (a, b) in zip(
+                                storage,
+                                (
+                                    particles.x...,
+                                    particles.v...,
+                                    particles.weight,
+                                    particles.id,
+                                    particles.tag,
+                                    target.Ep...,
+                                    target.Bp...,
+                                    target.vpred...,
+                                    target.xmid...,
+                                    target.work,
+                                ),
+                            )
+                        )
                     end
                     for (q, m) in valid
                         ps.q, ps.m = q, m

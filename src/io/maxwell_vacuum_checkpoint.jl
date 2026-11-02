@@ -43,7 +43,8 @@ function _validate_checkpoint_state(s, model::MaxwellVacuum{D,T}) where {D,T}
     _validate_checkpoint_container(s, _MAXWELL_VACUUM_CHECKPOINT_FIELDS)
     length(keys(s)) == length(_MAXWELL_VACUUM_CHECKPOINT_FIELDS) ||
         throw(ArgumentError("Maxwell vacuum checkpoint contains unsupported fields"))
-    s.integrator === :yee_maxwell_vacuum && s.schema_version === 1 &&
+    s.integrator === :yee_maxwell_vacuum &&
+        s.schema_version === 1 &&
         s.integrator_policy === :synchronized_yee_kdk_native_normwise_v1 &&
         s.field_phase === :synchronized ||
         throw(ArgumentError("unsupported Maxwell vacuum checkpoint schema or field policy"))
@@ -136,7 +137,11 @@ function archive_run(
     kwargs...,
 )
     return _archive_run(
-        path, model, _checkpoint_state(model);
-        normalization, boundary_desc, kwargs...,
+        path,
+        model,
+        _checkpoint_state(model);
+        normalization,
+        boundary_desc,
+        kwargs...,
     )
 end

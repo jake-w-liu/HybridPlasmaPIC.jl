@@ -149,10 +149,15 @@ end
 
 # Pointwise Ohm owner shared by serial and actual-pencil orchestration.
 function _ohm_field_rows!(
-    E::NTuple{3,<:Array{T,D}}, ui::NTuple{3,<:Array{T,D}},
-    B::NTuple{3,<:Array{T,D}}, J::NTuple{3,<:Array{T,D}},
-    lapJ::NTuple{3,<:Array{T,D}}, gradp::NTuple{D,<:Array{T,D}},
-    ninv::Array{T,D}, η::T, ηH::T,
+    E::NTuple{3,<:Array{T,D}},
+    ui::NTuple{3,<:Array{T,D}},
+    B::NTuple{3,<:Array{T,D}},
+    J::NTuple{3,<:Array{T,D}},
+    lapJ::NTuple{3,<:Array{T,D}},
+    gradp::NTuple{D,<:Array{T,D}},
+    ninv::Array{T,D},
+    η::T,
+    ηH::T,
 ) where {D,T}
     Bx, By, Bz = B
     ux, uy, uz = ui
@@ -252,8 +257,13 @@ end
     m1, m2 = _scalar_mul(ops, v1, b2), _scalar_mul(ops, v2, b1)
     h1, h2 = _scalar_mul(ops, j1, b2), _scalar_mul(ops, j2, b1)
     cross = _scalar_sub(ops, h1, h2)
-    hall, ohmic, hyper = _scalar_mul(ops, cross, ninv), _scalar_mul(ops, η, current), _scalar_mul(ops, ηH, lap)
-    value = _scalar_sub(ops, _scalar_add(ops, _scalar_add(ops, -_scalar_sub(ops, m1, m2), hall), ohmic), hyper)
+    hall, ohmic, hyper =
+        _scalar_mul(ops, cross, ninv), _scalar_mul(ops, η, current), _scalar_mul(ops, ηH, lap)
+    value = _scalar_sub(
+        ops,
+        _scalar_add(ops, _scalar_add(ops, -_scalar_sub(ops, m1, m2), hall), ohmic),
+        hyper,
+    )
     pressure_term = pressure === nothing ? zero(value) : _scalar_mul(ops, pressure, ninv)
     pressure === nothing || (value = _scalar_sub(ops, value, pressure_term))
     cold =

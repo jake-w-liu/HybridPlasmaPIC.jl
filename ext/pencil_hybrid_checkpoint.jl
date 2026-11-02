@@ -7,14 +7,17 @@ const _PENCIL_HYBRID_FIELD_NAMES = (:B, :E, :n, :ui, :pe, :J, :gradp, :ninv)
 function _pencil_hybrid_checkpoint_config(model::DistributedHybrid, nranks)
     return merge(
         (
-            schema = 1, model = :distributed_isothermal_hybrid,
+            schema = 1,
+            model = :distributed_isothermal_hybrid,
             integrator_policy = :canonical_boris_frozen_midpoint_rk4_endpoint_predictor_v1,
             moment_policy = :exact_original_charge_weighted_cic_route_round_once_v1,
             derivative_policy = :represented_odd_nyquist_zero_v1,
             faraday_policy = :differentiated_ohm_source_risk_rejected_v1,
             layout_policy = :matching_physical_pencil_cic_anchor_v1,
             field_phase = :integer_b_x_predictor_moments_carried_e_half_v_v1,
-            shape = :cic, mobility = :all_mobile, relativistic = false,
+            shape = :cic,
+            mobility = :all_mobile,
+            relativistic = false,
         ),
         _pencil_hybrid_bound_config(model),
         (nranks = nranks,),
@@ -44,10 +47,19 @@ function _pencil_hybrid_checkpoint_common(record, model::DistributedHybrid{T}, n
         typeof(value) === typeof(reference) && isequal(value, reference) ||
             throw(ArgumentError("Pencil hybrid checkpoint $name does not match the model"))
     end
-    record.initialized === true && record.primed isa Bool &&
-        record.last_dt isa T && record.time isa T && record.step isa Int ||
+    record.initialized === true &&
+        record.primed isa Bool &&
+        record.last_dt isa T &&
+        record.time isa T &&
+        record.step isa Int ||
         throw(ArgumentError("Pencil hybrid checkpoint requires typed initialized phase and clock"))
-    _pencil_hybrid_phase_values(record.initialized, record.primed, record.last_dt, record.time, record.step)
+    _pencil_hybrid_phase_values(
+        record.initialized,
+        record.primed,
+        record.last_dt,
+        record.time,
+        record.step,
+    )
     return nothing
 end
 
@@ -67,11 +79,22 @@ _pencil_hybrid_generation_path(dir, name) =
     _pencil_checkpoint_generation_path(dir, name, _PENCIL_HYBRID_GENERATION, "Pencil hybrid")
 _pencil_hybrid_digest(value) = _pencil_checkpoint_digest(value, "Pencil hybrid")
 _pencil_hybrid_file_digest(path) = _pencil_checkpoint_file_digest(path, "Pencil hybrid")
-_pencil_hybrid_broadcast_generation(name, comm, rank) =
-    _pencil_checkpoint_broadcast_generation(name, comm, rank, _PENCIL_HYBRID_GENERATION, "Pencil hybrid")
-_pencil_hybrid_remove_generation(dir, generation, nranks) =
-    _pencil_checkpoint_remove_generation(dir, generation, nranks, _PENCIL_HYBRID_GENERATION, "Pencil hybrid")
-_pencil_hybrid_rank_state(path, digest) = _pencil_checkpoint_rank_state(path, digest, "Pencil hybrid")
+_pencil_hybrid_broadcast_generation(name, comm, rank) = _pencil_checkpoint_broadcast_generation(
+    name,
+    comm,
+    rank,
+    _PENCIL_HYBRID_GENERATION,
+    "Pencil hybrid",
+)
+_pencil_hybrid_remove_generation(dir, generation, nranks) = _pencil_checkpoint_remove_generation(
+    dir,
+    generation,
+    nranks,
+    _PENCIL_HYBRID_GENERATION,
+    "Pencil hybrid",
+)
+_pencil_hybrid_rank_state(path, digest) =
+    _pencil_checkpoint_rank_state(path, digest, "Pencil hybrid")
 
 function _pencil_hybrid_manifest(path, model, nranks)
     envelope = HybridPlasmaPIC.Serialization.deserialize(path)
@@ -84,8 +107,16 @@ function _pencil_hybrid_manifest(path, model, nranks)
     bytes2hex(HybridPlasmaPIC.SHA.sha256(envelope.payload)) == digest ||
         throw(ArgumentError("Pencil hybrid manifest checksum mismatch"))
     record = HybridPlasmaPIC._deserialize_mpi_payload(NamedTuple, envelope.payload)
-    _pencil_hybrid_checkpoint_keys(record, (keys(_pencil_hybrid_checkpoint_config(model, nranks))...,
-        _PENCIL_HYBRID_CHECKPOINT_PHASE..., :generation, :rank_files, :rank_sha256))
+    _pencil_hybrid_checkpoint_keys(
+        record,
+        (
+            keys(_pencil_hybrid_checkpoint_config(model, nranks))...,
+            _PENCIL_HYBRID_CHECKPOINT_PHASE...,
+            :generation,
+            :rank_files,
+            :rank_sha256,
+        ),
+    )
     _pencil_hybrid_checkpoint_common(record, model, nranks)
     record.generation isa String || throw(ArgumentError("checkpoint generation must be a String"))
     _pencil_hybrid_generation_name(record.generation)
@@ -101,14 +132,19 @@ end
 function _pencil_hybrid_envelope(manifest)
     payload = HybridPlasmaPIC._serialize_mpi_payload(manifest)
     HybridPlasmaPIC._check_mpi_count(length(payload), "Pencil hybrid manifest payload")
-    return (schema = 1, model = :pencil_hybrid_manifest, payload = payload,
-        sha256 = bytes2hex(HybridPlasmaPIC.SHA.sha256(payload)))
+    return (
+        schema = 1,
+        model = :pencil_hybrid_manifest,
+        payload = payload,
+        sha256 = bytes2hex(HybridPlasmaPIC.SHA.sha256(payload)),
+    )
 end
 
 # Preserve the canonical named physical inventory, copying every owned parent.
-_pencil_hybrid_checkpoint_fields(fields) = map(fields) do value
-    value isa Tuple ? map(a -> copy(parent(a)), value) : copy(parent(value))
-end
+_pencil_hybrid_checkpoint_fields(fields) =
+    map(fields) do value
+        value isa Tuple ? map(a -> copy(parent(a)), value) : copy(parent(value))
+    end
 
 """
     save_mpi_checkpoint(dir, model::DistributedHybrid) -> manifest_path
@@ -133,11 +169,25 @@ function HybridPlasmaPIC.save_mpi_checkpoint(dir, model::DistributedHybrid)
         _pencil_owned_particles(model.owners, model.g, model._layout)
     end
     state, phase = HybridPlasmaPIC._mpi_collective_stage(comm, context, "snapshot preparation") do
-        phase = (initialized = model.initialized[], primed = model.primed[], last_dt = model.last_dt[],
-            time = model.time[], step = model.step[])
-        state = merge(common, phase, (rank = rank,), _pencil_hybrid_checkpoint_layout(model),
-            (fields = _pencil_hybrid_checkpoint_fields(model.fields),
-             species = deepcopy([HybridPlasmaPIC._checkpoint_particle_state(ps) for ps in model.owners])))
+        phase = (
+            initialized = model.initialized[],
+            primed = model.primed[],
+            last_dt = model.last_dt[],
+            time = model.time[],
+            step = model.step[],
+        )
+        state = merge(
+            common,
+            phase,
+            (rank = rank,),
+            _pencil_hybrid_checkpoint_layout(model),
+            (
+                fields = _pencil_hybrid_checkpoint_fields(model.fields),
+                species = deepcopy([
+                    HybridPlasmaPIC._checkpoint_particle_state(ps) for ps in model.owners
+                ]),
+            ),
+        )
         state, phase
     end
     HybridPlasmaPIC._mpi_collective_stage(comm, context, "directory setup") do
@@ -147,27 +197,36 @@ function HybridPlasmaPIC.save_mpi_checkpoint(dir, model::DistributedHybrid)
         (realpath(raw_dir),)
     end)
     manifest_path = joinpath(directory, _PENCIL_HYBRID_MANIFEST)
-    previous, owned_generation = HybridPlasmaPIC._mpi_collective_stage(comm, context, "generation setup") do
-        if rank == 0
-            old = ispath(manifest_path) ? _pencil_hybrid_manifest(manifest_path, model, nranks) : nothing
-            if old !== nothing
-                location = _pencil_hybrid_generation_path(directory, old.generation)
-                for r = 1:nranks
-                    _pencil_hybrid_file_digest(joinpath(location, old.rank_files[r])) == old.rank_sha256[r] ||
-                        throw(ArgumentError("superseded Pencil hybrid checkpoint rank checksum mismatch"))
+    previous, owned_generation =
+        HybridPlasmaPIC._mpi_collective_stage(comm, context, "generation setup") do
+            if rank == 0
+                old =
+                    ispath(manifest_path) ? _pencil_hybrid_manifest(manifest_path, model, nranks) :
+                    nothing
+                if old !== nothing
+                    location = _pencil_hybrid_generation_path(directory, old.generation)
+                    for r = 1:nranks
+                        _pencil_hybrid_file_digest(joinpath(location, old.rank_files[r])) ==
+                        old.rank_sha256[r] || throw(
+                            ArgumentError(
+                                "superseded Pencil hybrid checkpoint rank checksum mismatch",
+                            ),
+                        )
+                    end
                 end
+                old,
+                basename(mktempdir(directory; prefix = _PENCIL_HYBRID_GENERATION, cleanup = false))
+            else
+                nothing, ""
             end
-            old, basename(mktempdir(directory; prefix = _PENCIL_HYBRID_GENERATION, cleanup = false))
-        else
-            nothing, ""
         end
-    end
     try
         generation = _pencil_hybrid_broadcast_generation(owned_generation, comm, rank)
         HybridPlasmaPIC._mpi_collective_stage(comm, context, "rank write") do
             location = _pencil_hybrid_generation_path(directory, generation)
             path = joinpath(location, HybridPlasmaPIC._mpi_checkpoint_rank_filename(rank + 1))
-            !ispath(path) && !islink(path) || throw(ArgumentError("new Pencil hybrid rank file already exists"))
+            !ispath(path) && !islink(path) ||
+                throw(ArgumentError("new Pencil hybrid rank file already exists"))
             HybridPlasmaPIC._atomic_serialize(path, state)
         end
         HybridPlasmaPIC._mpi_collective_stage(comm, context, "manifest publication") do
@@ -175,43 +234,86 @@ function HybridPlasmaPIC.save_mpi_checkpoint(dir, model::DistributedHybrid)
                 location = _pencil_hybrid_generation_path(directory, owned_generation)
                 files = ntuple(r -> HybridPlasmaPIC._mpi_checkpoint_rank_filename(r), nranks)
                 digests = map(name -> _pencil_hybrid_file_digest(joinpath(location, name)), files)
-                manifest = merge(common, phase, (generation = owned_generation, rank_files = files, rank_sha256 = digests))
+                manifest = merge(
+                    common,
+                    phase,
+                    (generation = owned_generation, rank_files = files, rank_sha256 = digests),
+                )
                 HybridPlasmaPIC._atomic_serialize(manifest_path, _pencil_hybrid_envelope(manifest))
             end
         end
     catch original
-        (original isa InterruptException || original isa OutOfMemoryError || original isa StackOverflowError) && rethrow()
+        (
+            original isa InterruptException ||
+            original isa OutOfMemoryError ||
+            original isa StackOverflowError
+        ) && rethrow()
         trace = catch_backtrace()
         try
             HybridPlasmaPIC._mpi_collective_stage(comm, context, "failed generation cleanup") do
                 rank == 0 && _pencil_hybrid_remove_generation(directory, owned_generation, nranks)
             end
         catch cleanup_error
-            (cleanup_error isa InterruptException || cleanup_error isa OutOfMemoryError || cleanup_error isa StackOverflowError) && rethrow()
-            throw(CompositeException([CapturedException(original, trace), CapturedException(cleanup_error, catch_backtrace())]))
+            (
+                cleanup_error isa InterruptException ||
+                cleanup_error isa OutOfMemoryError ||
+                cleanup_error isa StackOverflowError
+            ) && rethrow()
+            throw(
+                CompositeException([
+                    CapturedException(original, trace),
+                    CapturedException(cleanup_error, catch_backtrace()),
+                ]),
+            )
         end
         rethrow()
     end
     try
         HybridPlasmaPIC._mpi_collective_stage(comm, context, "superseded generation cleanup") do
-            rank == 0 && previous !== nothing && _pencil_hybrid_remove_generation(directory, previous.generation, nranks)
+            rank == 0 &&
+                previous !== nothing &&
+                _pencil_hybrid_remove_generation(directory, previous.generation, nranks)
         end
     catch cleanup_error
-        (cleanup_error isa InterruptException || cleanup_error isa OutOfMemoryError || cleanup_error isa StackOverflowError) && rethrow()
-        throw(CompositeException([
-            ErrorException("Pencil hybrid checkpoint was published, but superseded-file cleanup failed"),
-            CapturedException(cleanup_error, catch_backtrace()),
-        ]))
+        (
+            cleanup_error isa InterruptException ||
+            cleanup_error isa OutOfMemoryError ||
+            cleanup_error isa StackOverflowError
+        ) && rethrow()
+        throw(
+            CompositeException([
+                ErrorException(
+                    "Pencil hybrid checkpoint was published, but superseded-file cleanup failed",
+                ),
+                CapturedException(cleanup_error, catch_backtrace()),
+            ]),
+        )
     end
     return manifest_path
 end
 
-function _pencil_hybrid_prepare_rank_state(state, manifest, model::DistributedHybrid{T,G,R,P}, rank, nranks) where {T,G,R,P}
+function _pencil_hybrid_prepare_rank_state(
+    state,
+    manifest,
+    model::DistributedHybrid{T,G,R,P},
+    rank,
+    nranks,
+) where {T,G,R,P}
     layout = _pencil_hybrid_checkpoint_layout(model)
-    _pencil_hybrid_checkpoint_keys(state, (keys(_pencil_hybrid_checkpoint_config(model, nranks))...,
-        _PENCIL_HYBRID_CHECKPOINT_PHASE..., :rank, keys(layout)..., :fields, :species))
+    _pencil_hybrid_checkpoint_keys(
+        state,
+        (
+            keys(_pencil_hybrid_checkpoint_config(model, nranks))...,
+            _PENCIL_HYBRID_CHECKPOINT_PHASE...,
+            :rank,
+            keys(layout)...,
+            :fields,
+            :species,
+        ),
+    )
     _pencil_hybrid_checkpoint_common(state, model, nranks)
-    state.rank isa Int && state.rank == rank || throw(ArgumentError("Pencil hybrid checkpoint rank mismatch"))
+    state.rank isa Int && state.rank == rank ||
+        throw(ArgumentError("Pencil hybrid checkpoint rank mismatch"))
     for name in _PENCIL_HYBRID_CHECKPOINT_PHASE
         isequal(getproperty(state, name), getproperty(manifest, name)) ||
             throw(ArgumentError("Pencil hybrid rank phase differs from manifest"))
@@ -223,57 +325,86 @@ function _pencil_hybrid_prepare_rank_state(state, manifest, model::DistributedHy
     end
     _pencil_hybrid_checkpoint_keys(state.fields, _PENCIL_HYBRID_FIELD_NAMES)
     for name in (:B, :E, :ui, :J, :gradp)
-        getproperty(state.fields, name) isa NTuple{3,Array{T,3}} ||
-            throw(ArgumentError("Pencil hybrid checkpoint requires ordinary three-component Array fields"))
+        getproperty(state.fields, name) isa NTuple{3,Array{T,3}} || throw(
+            ArgumentError(
+                "Pencil hybrid checkpoint requires ordinary three-component Array fields",
+            ),
+        )
     end
     for name in (:n, :pe, :ninv)
         getproperty(state.fields, name) isa Array{T,3} ||
             throw(ArgumentError("Pencil hybrid checkpoint requires ordinary scalar Array fields"))
     end
     fields = _pencil_hybrid_field_arrays(state.fields)
-    destination = (_pencil_hybrid_arrays(model)..., _pencil_hybrid_metadata(model)...,
-        _pencil_hybrid_particle_work(model)...)
+    destination = (
+        _pencil_hybrid_arrays(model)...,
+        _pencil_hybrid_metadata(model)...,
+        _pencil_hybrid_particle_work(model)...,
+    )
     for (i, array) in enumerate(fields)
-        size(array) == layout.parent_size || throw(DimensionMismatch("Pencil hybrid incoming field shape mismatch"))
+        size(array) == layout.parent_size ||
+            throw(DimensionMismatch("Pencil hybrid incoming field shape mismatch"))
         for j = 1:(i-1)
             HybridPlasmaPIC._particle_arrays_mightalias(array, fields[j]) &&
                 throw(ArgumentError("Pencil hybrid incoming fields must be independent"))
         end
         for other in destination
-            HybridPlasmaPIC._particle_arrays_mightalias(array, parent(other)) &&
-                throw(ArgumentError("Pencil hybrid incoming fields must be detached from model storage"))
+            HybridPlasmaPIC._particle_arrays_mightalias(array, parent(other)) && throw(
+                ArgumentError("Pencil hybrid incoming fields must be detached from model storage"),
+            )
         end
-        _aliases_workspace(array, model.g) &&
-            throw(ArgumentError("Pencil hybrid incoming fields must be detached from Fourier storage"))
+        _aliases_workspace(array, model.g) && throw(
+            ArgumentError("Pencil hybrid incoming fields must be detached from Fourier storage"),
+        )
     end
     _pencil_hybrid_finite_fields(state.fields, model.nfloor)
-    state.species isa Vector && length(state.species) == length(model.owners) ||
-        throw(ArgumentError("Pencil hybrid checkpoint requires matching ordered population records"))
+    state.species isa Vector && length(state.species) == length(model.owners) || throw(
+        ArgumentError("Pencil hybrid checkpoint requires matching ordered population records"),
+    )
     populations = P[]
     for (s, record) in enumerate(state.species)
         _pencil_hybrid_checkpoint_keys(record, HybridPlasmaPIC._CHECKPOINT_PARTICLE_FIELDS)
         ps = HybridPlasmaPIC._checkpoint_species(record, Val(3), T)
-        ps isa P || throw(ArgumentError("Pencil hybrid checkpoint requires ordinary Vector particle leaves"))
+        ps isa P || throw(
+            ArgumentError("Pencil hybrid checkpoint requires ordinary Vector particle leaves"),
+        )
         isequal((ps.q, ps.m), model._species_scalars[s]) ||
             throw(ArgumentError("Pencil hybrid incoming q/m differs from cached binding"))
         push!(populations, ps)
     end
-    _pencil_hybrid_species(model, populations; bound = false, values = true, factors = true, counts = false)
+    _pencil_hybrid_species(
+        model,
+        populations;
+        bound = false,
+        values = true,
+        factors = true,
+        counts = false,
+    )
     _pencil_owned_particles(populations, model.g, model._layout)
     for ps in populations, live in model.owners
-        HybridPlasmaPIC._particle_sets_mightalias(ps, live) &&
-            throw(ArgumentError("Pencil hybrid incoming particles must be detached from destination"))
+        HybridPlasmaPIC._particle_sets_mightalias(ps, live) && throw(
+            ArgumentError("Pencil hybrid incoming particles must be detached from destination"),
+        )
     end
     for array in fields, species in (populations, model.owners, model._staged), ps in species
         HybridPlasmaPIC._mightalias_particle_storage(array, ps) &&
             throw(ArgumentError("Pencil hybrid incoming fields must not alias particle storage"))
     end
-    prepared = P[HybridPlasmaPIC._prepare_particle_replacement(ps, eachindex(ps.weight)) for ps in populations]
+    prepared = P[
+        HybridPlasmaPIC._prepare_particle_replacement(ps, eachindex(ps.weight)) for
+        ps in populations
+    ]
     scalars = Tuple{T,T}[(ps.q, ps.m) for ps in prepared]
     counts = Int[length(ps.weight) for ps in prepared]
     targets = map(parent, _pencil_hybrid_field_arrays(model.fields))
-    return (state = state, particles = prepared, scalars = scalars, counts = counts,
-        fields = fields, targets = targets)
+    return (
+        state = state,
+        particles = prepared,
+        scalars = scalars,
+        counts = counts,
+        fields = fields,
+        targets = targets,
+    )
 end
 
 """
@@ -293,20 +424,33 @@ function HybridPlasmaPIC.load_mpi_checkpoint!(model::DistributedHybrid, dir)
     raw_dir, _ = _pencil_hybrid_checkpoint_agreement(model, dir, nranks)
     HybridPlasmaPIC._mpi_collective_stage(comm, context, "restore destination storage") do
         _pencil_hybrid_storage(model)
-        _pencil_hybrid_species(model, model.owners; bound = true, values = false, factors = false, counts = false)
+        _pencil_hybrid_species(
+            model,
+            model.owners;
+            bound = true,
+            values = false,
+            factors = false,
+            counts = false,
+        )
     end
     directory = first(_agree_configuration(comm, context) do
         (realpath(raw_dir),)
     end)
-    manifest = first(_agree_configuration(comm, context) do
-        record = _pencil_hybrid_manifest(joinpath(directory, _PENCIL_HYBRID_MANIFEST), model, nranks)
-        _pencil_hybrid_generation_path(directory, record.generation)
-        (record,)
-    end)
+    manifest = first(
+        _agree_configuration(comm, context) do
+            record = _pencil_hybrid_manifest(
+                joinpath(directory, _PENCIL_HYBRID_MANIFEST),
+                model,
+                nranks,
+            )
+            _pencil_hybrid_generation_path(directory, record.generation)
+            (record,)
+        end,
+    )
     saved = HybridPlasmaPIC._mpi_collective_stage(comm, context, "rank restore preparation") do
         location = _pencil_hybrid_generation_path(directory, manifest.generation)
-        path = joinpath(location, manifest.rank_files[rank + 1])
-        incoming = _pencil_hybrid_rank_state(path, manifest.rank_sha256[rank + 1])
+        path = joinpath(location, manifest.rank_files[rank+1])
+        incoming = _pencil_hybrid_rank_state(path, manifest.rank_sha256[rank+1])
         _pencil_hybrid_prepare_rank_state(incoming, manifest, model, rank, nranks)
         detached = deepcopy(incoming)
         _pencil_hybrid_prepare_rank_state(detached, manifest, model, rank, nranks)
@@ -314,7 +458,14 @@ function HybridPlasmaPIC.load_mpi_checkpoint!(model::DistributedHybrid, dir)
     # This explicit final allrank gate has no reconstruction or neutrality policy.
     HybridPlasmaPIC._mpi_collective_stage(comm, context, "complete publication preflight") do
         _pencil_hybrid_storage(model)
-        _pencil_hybrid_species(model, model.owners; bound = true, values = false, factors = false, counts = false)
+        _pencil_hybrid_species(
+            model,
+            model.owners;
+            bound = true,
+            values = false,
+            factors = false,
+            counts = false,
+        )
     end
     for s in eachindex(model.owners)
         replacement = saved.particles[s]

@@ -65,8 +65,10 @@ end
             before, after = charging ? (nothing, nothing) : (old, new)
             entries = charging ? 3 : 2
             expected = if shape isa CIC
-                first(charging ? O.charge(species, old, 2, one(T)) :
-                      O.impulse(species, old, new, 2, one(T)))
+                first(
+                    charging ? O.charge(species, old, 2, one(T)) :
+                    O.impulse(species, old, new, 2, one(T)),
+                )
             else
                 charging ? O.cloud_charge(species, old, 2, one(T), shape.half_width) :
                 O.cloud_impulse(species, old, new, 2, one(T), shape.half_width)
@@ -82,8 +84,16 @@ end
             @test H._yee_charge_store_exact_candidate!(work, raw, entries) === nothing
             @test isequal(work.candidate[1:entries], T.(expected))
             @test raw == saved
-            @test H._yee_charge_exact_candidate!(work, species, before, after,
-                g, mode, entries, shape) === nothing
+            @test H._yee_charge_exact_candidate!(
+                work,
+                species,
+                before,
+                after,
+                g,
+                mode,
+                entries,
+                shape,
+            ) === nothing
             @test isequal(work.candidate[1:entries], T.(expected))
             bad = copy(raw)
             bad[entries] = 2 * O.rat(floatmax(T))
@@ -448,8 +458,9 @@ end
         field = T[1, -2, 3, 4]
         particle_work, work_error = zero(O.Q), zero(O.Q)
         for (pop, x0, x1) in zip(species, old, new), p in eachindex(pop.weight)
-            reference = O.rat(g.dx[1]) * sum(O.rat(field[e+1]) *
-                O.cloud_path(x0[p], x1[p], e, 4, g.L[1], a) for e = 0:3)
+            reference =
+                O.rat(g.dx[1]) *
+                sum(O.rat(field[e+1]) * O.cloud_path(x0[p], x1[p], e, 4, g.L[1], a) for e = 0:3)
             voltage = yee_longitudinal_voltage(field, x0[p], x1[p], g; shape = cloud)
             @test O.rounded(voltage, reference)
             source = O.rat(pop.q) * O.rat(pop.weight[p])
@@ -457,16 +468,19 @@ end
             work_error += abs(source) * O.rounding_error(T, reference)
         end
         mesh_work = O.rat(g.dx[1]) * sum(O.rat(v) * O.rat(i) for (v, i) in zip(field, impulse))
-        mesh_error = O.rat(g.dx[1]) * sum(abs(O.rat(field[e])) * O.rounding_error(T, flux[e]) for e = 1:4)
+        mesh_error =
+            O.rat(g.dx[1]) * sum(abs(O.rat(field[e])) * O.rounding_error(T, flux[e]) for e = 1:4)
         @test abs(particle_work - mesh_work) <= work_error + mesh_error
         for x in T[0, prevfloat(T(0.5)), 0.5, nextfloat(T(0.5)), 1]
-            expected = O.rat(g.dx[1]) * sum(O.rat(field[e+1]) *
-                O.cloud_edge(x, e, 4, g.L[1], a) for e = 0:3)
+            expected =
+                O.rat(g.dx[1]) *
+                sum(O.rat(field[e+1]) * O.cloud_edge(x, e, 4, g.L[1], a) for e = 0:3)
             @test O.rounded(yee_longitudinal_field(field, x, g; shape = cloud), expected)
         end
         for (x, y) in ((zero(T), one(T)), (T(0.25), T(0.5)), (T(0.5), T(0.5)))
-            expected = O.rat(g.dx[1]) * sum(O.rat(field[e+1]) *
-                O.cloud_path(x, y, e, 4, g.L[1], a) for e = 0:3)
+            expected =
+                O.rat(g.dx[1]) *
+                sum(O.rat(field[e+1]) * O.cloud_path(x, y, e, 4, g.L[1], a) for e = 0:3)
             @test O.rounded(yee_longitudinal_voltage(field, x, y, g; shape = cloud), expected)
         end
         @test isequal(map(state, species), original)
@@ -537,34 +551,53 @@ end
         omitted = iseven(reinterpret(U, left)) ? left : right
         expected = metric * midpoint
         @test !O.rounded(omitted, expected)
-        @test O.rounded(yee_longitudinal_field(sampled, metric_grid.L[1] / 2, metric_grid;
-            shape = YeeTriangularCloud(metric_grid.dx[1] / 4)), expected)
+        @test O.rounded(
+            yee_longitudinal_field(
+                sampled,
+                metric_grid.L[1] / 2,
+                metric_grid;
+                shape = YeeTriangularCloud(metric_grid.dx[1] / 4),
+            ),
+            expected,
+        )
         # Reuse the retained unstable geometry, now with the matching cloud pair.
-        n, length, width = 2, O.Q(1), O.Q(1//4)
-        basis = [[O.cloud_edge(x, e, n, length, width) for e = 0:1] for x in (O.Q(1//8), O.Q(5//8))]
-        matrix = [sum(w * b[e] * b[f] / 2 for (w, b) in zip((O.Q(1), O.Q(5//3)), basis)) for e = 1:2, f = 1:2]
-        @test matrix[1,2] == matrix[2,1]
-        @test matrix[1,1] >= 0 && matrix[2,2] >= 0
-        @test matrix[1,1] * matrix[2,2] >= matrix[1,2]^2
+        n, length, width = 2, O.Q(1), O.Q(1 // 4)
+        basis =
+            [[O.cloud_edge(x, e, n, length, width) for e = 0:1] for x in (O.Q(1 // 8), O.Q(5 // 8))]
+        matrix = [
+            sum(w * b[e] * b[f] / 2 for (w, b) in zip((O.Q(1), O.Q(5 // 3)), basis)) for
+            e = 1:2, f = 1:2
+        ]
+        @test matrix[1, 2] == matrix[2, 1]
+        @test matrix[1, 1] >= 0 && matrix[2, 2] >= 0
+        @test matrix[1, 1] * matrix[2, 2] >= matrix[1, 2]^2
         symmetric = T[-1, 1]
         two = YeeGrid((2,), (one(T),))
         for (x, b) in zip(T[0.125, 0.625], basis), e = 1:2
             unit = zeros(T, 2)
             unit[e] = one(T)
-            @test O.rounded(yee_longitudinal_field(unit, x, two; shape = YeeTriangularCloud(T(0.25))), b[e] / 2)
+            @test O.rounded(
+                yee_longitudinal_field(unit, x, two; shape = YeeTriangularCloud(T(0.25))),
+                b[e] / 2,
+            )
         end
-        @test yee_longitudinal_field(symmetric, T(0.5), two; shape = YeeTriangularCloud(T(0.25))) === zero(T)
+        @test yee_longitudinal_field(
+            symmetric,
+            T(0.5),
+            two;
+            shape = YeeTriangularCloud(T(0.25)),
+        ) === zero(T)
         # An exact volume quadrature checks the declared finite cloud wall law.
-        a = O.Q(1//4)
+        a = O.Q(1 // 4)
         @test O.polynomial_integral(r -> r * O.density(r, O.Q(0), a), [O.Q(0), a]) == a / 6
         # Widths larger than L retain endpoint tails; the continuum a/6 wall
         # formula no longer applies. Check the actual sampled-field contraction.
         wide = YeeTriangularCloud(T(2))
         sampled = T[0.25, 0.75] # exact cell averages of E=r on this grid
-        expected = O.rat(two.dx[1]) * sum(O.rat(sampled[e+1]) *
-            O.cloud_edge(0, e, 2, 1, 2) for e = 0:1)
+        expected =
+            O.rat(two.dx[1]) * sum(O.rat(sampled[e+1]) * O.cloud_edge(0, e, 2, 1, 2) for e = 0:1)
         @test O.rounded(yee_longitudinal_field(sampled, zero(T), two; shape = wide), expected)
-        @test O.polynomial_integral(r -> r * O.density(r, O.Q(0), O.Q(2)), O.Q[0, 1]) == 1//6
+        @test O.polynomial_integral(r -> r * O.density(r, O.Q(0), O.Q(2)), O.Q[0, 1]) == 1 // 6
     end
 end
 
@@ -572,19 +605,23 @@ end
     # Independent volume quadrature, not a mesh-shaped point-sheet substitute.
     x, a = O.rat(0.3), O.rat(0.13)
     physical(r) = -r + O.cloud_mass(r, x, a)
-    force = O.polynomial_integral(r -> O.density(r, x, a) * physical(r), [x-a, x, x+a])
+    force = O.polynomial_integral(r -> O.density(r, x, a) * physical(r), [x - a, x, x + a])
     for n in (32, 64, 128)
         g = YeeGrid((n,), (1.0,))
         h = O.Q(1) / n
-        exact_field = [begin
-            lo, hi = e * h, (e + 1) * h
-            knots = [lo, hi]
-            append!(knots, filter(r -> lo < r < hi, [x-a, x, x+a]))
-            O.polynomial_integral(physical, knots) / h
-        end for e = 0:(n-1)]
+        exact_field = [
+            begin
+                lo, hi = e * h, (e + 1) * h
+                knots = [lo, hi]
+                append!(knots, filter(r -> lo < r < hi, [x - a, x, x + a]))
+                O.polynomial_integral(physical, knots) / h
+            end for e = 0:(n-1)
+        ]
         field = Float64.(exact_field)
-        result = yee_longitudinal_field(field, Float64(x), g; shape = YeeTriangularCloud(Float64(a)))
-        represented = O.rat(g.dx[1]) * sum(O.rat(field[e+1]) * O.cloud_edge(x, e, n, 1, a) for e = 0:(n-1))
+        result =
+            yee_longitudinal_field(field, Float64(x), g; shape = YeeTriangularCloud(Float64(a)))
+        represented =
+            O.rat(g.dx[1]) * sum(O.rat(field[e+1]) * O.cloud_edge(x, e, n, 1, a) for e = 0:(n-1))
         @test O.rounded(result, represented)
         eta = O.rat(g.dx[1]) / h
         spatial_bound = eta * (1 / a^2) * (1 + 1 / a) * h^2
@@ -593,7 +630,8 @@ end
         end
         # Separately enclose initial cell-average publication and final rounding.
         field_error = maximum(O.rounding_error(Float64, v) for v in exact_field)
-        @test abs(O.rat(result) - eta * force) <= spatial_bound + eta * field_error + O.rounding_error(Float64, represented)
+        @test abs(O.rat(result) - eta * force) <=
+              spatial_bound + eta * field_error + O.rounding_error(Float64, represented)
     end
 end
 end
