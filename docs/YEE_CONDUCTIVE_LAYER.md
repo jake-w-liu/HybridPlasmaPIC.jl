@@ -10,8 +10,9 @@ with matched scalar electric/magnetic conductivity evolution. It supports serial
 CPU Float32/64 in D=1–3 and all three vector components. This is an artificial
 graded absorber, **not PML/CPML or an exact outgoing boundary**. The
 [Meep Absorber documentation](https://meep.readthedocs.io/en/latest/Python_User_Interface/#absorber)
-makes the same scalar-conductivity/PML distinction. Full split/convolutional PML
-requires its own auxiliary evolution and persistence.
+makes the same scalar-conductivity/PML distinction. The separate
+[`YeePML` source](YEE_PML.md) supplies causal directional auxiliary evolution and
+persistence; its reflection/stability and runtime acceptance remain unverified.
 
 ```julia
 vacuum = MaxwellVacuum(g; c)

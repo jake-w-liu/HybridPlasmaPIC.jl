@@ -64,6 +64,14 @@ end
 
 function _yee_layer_config(g::YeeGrid{D,T}, dt, cells, rates, profile) where {D,T}
     h = _require_finite_positive_real("dt", dt, T)
+    widths, peaks = _yee_profile_config(g, cells, rates, profile)
+    bound = _exact_rational(h) * sum(d -> max(_exact_rational(peaks[d][1]), _exact_rational(peaks[d][2])), 1:D) / 4
+    bound < 1 ||
+        throw(ArgumentError("layer dt*sum(maximum face rate)/4 must be strictly below one"))
+    return h, widths, peaks
+end
+
+function _yee_profile_config(g::YeeGrid{D,T}, cells, rates, profile) where {D,T}
     profile in (:quadratic, :cubic) ||
         throw(ArgumentError("layer profile must be :quadratic or :cubic"))
     cells isa Tuple && length(cells) == D && rates isa Tuple && length(rates) == D ||
@@ -95,10 +103,7 @@ function _yee_layer_config(g::YeeGrid{D,T}, dt, cells, rates, profile) where {D,
             rate
         end
     end
-    bound = _exact_rational(h) * sum(d -> max(_exact_rational(peaks[d][1]), _exact_rational(peaks[d][2])), 1:D) / 4
-    bound < 1 ||
-        throw(ArgumentError("layer dt*sum(maximum face rate)/4 must be strictly below one"))
-    return h, widths, peaks
+    return widths, peaks
 end
 
 function _yee_layer_axis_value(g, cells, peaks, profile, hquarter, d, node, i)
@@ -120,6 +125,10 @@ end
 
 function _yee_layer_axis_cache(g::YeeGrid{D}, h, cells, peaks, profile) where {D}
     hquarter = _exact_rational(h) / 4
+    return _yee_profile_axis_cache(g, cells, peaks, profile, hquarter)
+end
+
+function _yee_profile_axis_cache(g::YeeGrid{D}, cells, peaks, profile, hquarter) where {D}
     return ntuple(D) do d
         nodes = g.n[d] + Int(!g.periodic[d])
         nodal = _YeeLayerQ[_yee_layer_axis_value(g, cells, peaks, profile, hquarter, d, true, i) for i = 1:nodes]

@@ -1281,6 +1281,9 @@ Refs restore in place after detached incoming validation; no field projection.
 canonical vacuum payload, fixed staggered profile/timestep and exact loss/work/
 defect ledgers. Derived caches/staging are omitted. Incoming budget identity and
 fields detach/validate before publication; PML memory and particles are not supplied.
+`YeePML` retains its separate directional ADE policy, every causal memory and
+signed exchange/field-defect ledger. Completed count-zero memories must all be
+stored zero; advanced memories restore verbatim without reconstructing history.
 
 Publish by same-directory rename after serialization, flush and close succeed;
 earlier failures preserve the previous file. Cleanup failures accompany the
@@ -1316,7 +1319,7 @@ end
 
 function _save_checkpoint(
     path::AbstractString,
-    st::Union{_CheckpointStepper,HallMHDState,MaxwellVacuum,YeeConductiveLayer,CollisionalHybridStepper,CollisionalEMPICStepper,CollisionalElectrostaticPIC,_ClosedYeeCheckpointStepper},
+    st::Union{_CheckpointStepper,HallMHDState,MaxwellVacuum,YeeConductiveLayer,YeePML,CollisionalHybridStepper,CollisionalEMPICStepper,CollisionalElectrostaticPIC,_ClosedYeeCheckpointStepper},
     state,
 )
     _validate_checkpoint_state(state, st)
@@ -1376,6 +1379,10 @@ Its nested fields/clock and exact budget restore verbatim; derived axis caches
 prepare before any publication. Old destination fields, clock and ledger values
 may be stale. No field projection or PML state substitution occurs; runtime
 continuation acceptance remains deferred.
+`YeePML` additionally validates/detaches all incoming directional memories and
+their step-zero/PEC/zero-rate constraints. Old destination memory values are
+replaceable; fixed profile/timestep policy and storage must match. No scalar
+absorber or vacuum payload is silently upgraded to PML history.
 Electrostatic destinations must have the same background density `n0`, which
 is immutable; their saved fields, density, and leapfrog phase are restored directly.
 Electromagnetic destinations require the same ion mobility and concrete shape

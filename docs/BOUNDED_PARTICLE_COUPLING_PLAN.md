@@ -560,9 +560,10 @@ complete-step resource acceptance are deferred during the current
 implementation-first pass; existing authored controls remain unrun. General
 material/sheath/circuit/emission laws, multiple captures, transverse walls,
 relativistic/device/distributed execution and coupled absorbing field layers
-remain open. The separate [scalar-conductivity field layer](YEE_CONDUCTIVE_LAYER.md)
-now has source evolution, exact budget and restart; attaching it to particle
-charge/current requires its own sink/injection derivation.
+remain open. Separate [scalar-conductivity](YEE_CONDUCTIVE_LAYER.md) and
+[directional ADE PML](YEE_PML.md) field layers now have source evolution, explicit
+budgets and complete restart. Attaching either to particle charge/current
+requires its own sink/injection and, for PML, transformed-source history derivation.
 This source candidate does not complete CAP-002B or establish whole-run stability.
 
 ## Implementation tracker

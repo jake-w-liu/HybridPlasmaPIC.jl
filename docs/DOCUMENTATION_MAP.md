@@ -46,7 +46,10 @@ rerun by this documentation-only audit.
 - [docs/SOURCED_YEE_FIELDS.md](SOURCED_YEE_FIELDS.md)
 - [docs/YEE_CONDUCTIVE_LAYER.md](YEE_CONDUCTIVE_LAYER.md)
   — graded scalar E/B conductivity, exact loss/work/field-defect budgets, fixed
-  staggering and full nested restart; PML and runtime acceptance remain open.
+  staggering and full nested restart; runtime acceptance remains open.
+- [docs/YEE_PML.md](YEE_PML.md) — causal directional ADE memories, midpoint KDK,
+  signed exchange/field-defect budgets and complete restart; reflection/stability
+  and runtime acceptance remain open.
 - [docs/MAXWELL_VACUUM_CHECKPOINT.md](MAXWELL_VACUUM_CHECKPOINT.md)
   — synchronized serial Yee vacuum state, matching-grid restore and archives.
 - [docs/YEE_IMPACT_LONGITUDINAL.md](YEE_IMPACT_LONGITUDINAL.md)

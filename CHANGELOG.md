@@ -11,6 +11,14 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Added
 
+- `YeePML` adds source-free causal directional ADE PML for serial D1–3 CPU
+  Float32/64, separate target-lattice memories, original-duration midpoint KDK
+  and signed exchange/field-defect ledgers. Distinct checkpoint/archive retains
+  actual advanced memories; zero-prehistory init is explicit. Canonical Yee
+  spatial/field owners are reused. Source-reviewed only; no tests added or run.
+  Reflection/stability, runtime/restart/cost, general CPML and particle/source
+  integration remain open. See the [PML guide](docs/YEE_PML.md).
+
 - Actual-pencil electrostatic PIC gains initialized-boundary matching-layout
   checkpoint/restart. A distinct checksummed generation retains complete local
   particles, density/E and variable-step phase; all ranks validate detached

@@ -7,8 +7,10 @@ particle/wall models, absorbers and GPU/MPI production integration retain open
 work. [Field-only checkpoint/archive](MAXWELL_VACUUM_CHECKPOINT.md) is now
 source-implemented; its runtime acceptance is deferred. The separate
 [scalar-conductivity layer](YEE_CONDUCTIVE_LAYER.md) adds graded E/B damping,
-exact loss/work/defect ledgers and complete nested restart source. PML auxiliary
-evolution, reflection/stability and broader coupled integration remain open.
+exact loss/work/defect ledgers and complete nested restart source. Separate
+[causal directional ADE PML](YEE_PML.md) source now supplies actual memories,
+signed exchange/field-defect budgets and complete restart. Reflection/stability,
+runtime acceptance and broader coupled integration remain open.
 
 The CPU Float32/64 B2a prerequisite adds extensive nodal CIC charge and compatible
 longitudinal endpoint impulse on a closed 1D PEC interval. Its
@@ -210,13 +212,15 @@ Their exact-head acceptance and general wall dynamics remain open; the endpoint
 impulse alone does not supply that coupling. The separate
 [graded scalar-conductivity layer](YEE_CONDUCTIVE_LAYER.md) now has a D1–3 CPU
 source implementation with fixed-step midpoint damping, exact loss/work/defect
-ledgers and complete nested restart. It is not PML or a particle sink. 002C still
-needs PML auxiliary evolution, measured angle/frequency/refinement reflection
-studies and coupled charge/injection laws.
+ledgers and complete nested restart. Separate [directional ADE PML](YEE_PML.md)
+source supplies causal memories and signed exchange/field-defect accounting.
+Neither supplies a particle sink. 002C still needs measured angle/frequency/
+refinement reflection studies, long-time stability and coupled charge/injection laws.
 [Field-only vacuum restart/archive](MAXWELL_VACUUM_CHECKPOINT.md) now retains
 synchronized fields, model configuration and clock. The conductive layer has
-its own source schema. Runtime acceptance, full PML state, broader particle
-models and backend orchestration remain 002D work.
+its own source schema, as does the complete advanced-memory PML source.
+Runtime acceptance, general CPML tuning, broader particle models and backend
+orchestration remain 002D work.
 
 ## History
 
