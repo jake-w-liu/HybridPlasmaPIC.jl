@@ -34,6 +34,11 @@ rerun by this documentation-only audit.
 
 ## Physics and API guides
 
+- [docs/STATIC_COMPOSITE_ELECTROSTATIC.md](STATIC_COMPOSITE_ELECTROSTATIC.md) —
+  nested hierarchy, unique-leaf Neumann solve, physical-cloud crossing/work
+  diagnostics and complete physical IO; runtime, self-force/resource and
+  dynamic AMR acceptance remain open.
+
 - [docs/IMPLICIT_EM.md](IMPLICIT_EM.md) — actual synchronous joint particle/E/B
   solve, canonical source/continuity owners, bounded nonlinear driver, separate
   physical constraints/work and complete checkpoint/archive; acceptance open.

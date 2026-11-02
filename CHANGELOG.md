@@ -11,6 +11,16 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Added
 
+- `StaticAMRHierarchy1D` and `StaticCompositeElectrostaticPIC` add a bounded CPU
+  1D nested 2:1 composite electrostatic family: unique-leaf/shared-node ownership,
+  one mixed Neumann solve, physical clouds, synchronous Verlet and coarse/fine
+  crossings. Exact charge/current/work/rounding diagnostics and full physical IO
+  are included. The shared scalar-source helper moves byte-identically; existing
+  cloud/force/plate owners remain canonical. Review corrected phase admission
+  and pre-publication preparation. Essential remote regressions are prepared;
+  runtime, self-force/resource and dynamic AMR acceptance remain open. See the
+  [model](docs/STATIC_COMPOSITE_ELECTROSTATIC.md).
+
 - `ImplicitEMPICStepper` adds a separate synchronous CPU D1–3 all-mobile,
   exact-neutral CIC Vlasov–Maxwell family on odd periodic grids. Every joint
   velocity/E/B residual and probe re-deposits endpoint charge and midpoint

@@ -105,18 +105,18 @@ Source names below resolve to these canonical files:
 | Implicit evolution | Linear Fourier reference and residual-checked reduced shock CN; separate [synchronous coupled hybrid source](IMPLICIT_HYBRID.md) | CPU periodic isothermal collections now have joint velocity/B residual, bounded Newton–GMRES, work-defect report and complete persistence source. Runtime/method acceptance, evolving pressure/orbit averages, EM and backends remain CAP-005 work |
 | Geometry | `ToroidalGrid`, metric gradient/divergence in curvilinear_mesh:20–49,90–235 | Geometry operators exist; no coupled toroidal plasma stepper, CAP-006A |
 | Gyrokinetics | Local `GuidingCentre` utilities plus [self-consistent slab source](SLAB_GYROKINETIC.md) | Full-f gyrocentre collections, reciprocal ring-TSC, full-k polarization/modified adiabatic electrons, collective RK4, physical diagnostics and complete synchronous checkpoint/archive are source-implemented and reviewed. Exact-revision runtime/scientific/resource acceptance and broader geometry/physics remain CAP-006B work |
-| AMR | `AMRGrid` is a single 1D scalar level, adaptive_mesh_refinement:8–23; prolong/restrict/refine:322–366 | Transfer primitives; no adaptive plasma hierarchy, particle crossing or coupled timestep, CAP-006C |
+| AMR | Existing scalar `AMRGrid` transfer primitives plus separate [static composite electrostatic source](STATIC_COMPOSITE_ELECTROSTATIC.md) | Nested 2:1 ownership, one global Neumann solve, physical-cloud coupling/crossings, exact work/rounding diagnostics and full physical restart are source-implemented and reviewed. Runtime/self-force/scientific/resource acceptance and dynamic/multidimensional/EM hierarchy remain CAP-006C work |
 | External validation | Pinned external references plus case 34 parallel and case 35 oblique Hall production histories | Bounded production validation exists; complete manual campaigns, broader regimes, full profile replay and matched cost/accuracy comparisons remain CAP-007 work |
 | Kinetic species diversity | Arbitrary ES collections landed; CPU EMPIC collections with opt-in D1–3 dividing schedules and specialized EMPIC1D S1/S2, both with optional relativistic motion are source-implemented and reviewed | Exact-revision GitHub and resource acceptance, broader schedules and collision/boundary/partition/device composition remain CAP-008 work |
 | Multidimensional shocks | Existing reduced shocks plus separate [OpenHallHybrid source](OPEN_HALL_HYBRID.md), built on real mixed operators | Bounded isothermal numerical reservoirs, full-Hall projected field trials, SBP CIC, synchronous particles/sources, energy and full RNG restart are source-implemented/reviewed. Runtime/physical-boundary/resource acceptance, evolving pressure and broader boundaries/backends remain CAP-009 work |
 | Coupled sources and collisions | `CollisionalElectrostaticPIC` / `CollisionalEMPICStepper` source with deferred acceptance; `CollisionalHybridStepper` and full RNG checkpoint/archive state (`2b2420b`); ideal evolving, S1/S2 transport and S3b conduction pressure/force extensions are CI-pending | Fixed-step first-order CPU composition plus bounded actual-pencil ES/EM physical/RNG source families; runtime acceptance, anisotropic/inertial models, electron-ion heat exchange, other sources, schedules and backends remain CAP-010 work |
 | Electron transport | `EvolvingElectrons` covers ideal massless pressure; `TransportElectrons` provides constant Ohmic transport (S1), with complete-source hyperresistive S2 and shared scalar pressure range routing. `ConductingElectrons` adds an original-quotient S3b source candidate with bounded preparation and projected full-Nyquist conduction | [S2 gates](TRANSPORT_SOURCE_RANGE_PLAN.md), [scalar pressure verification](SCALAR_PRESSURE_RATE_RANGE_PLAN.md) and [S3b GitHub verification](EVOLVING_ELECTRONS.md#constant-isotropic-conduction-source-candidate) remain open; broader conditioning, complete-step cost, conduction models, equilibration, anisotropy, inertia and backends remain CAP-011 work |
 
-The geometry integration finding also follows from a repository-wide symbol
-search: outside their defining files, `ToroidalGrid`, `AMRGrid`, `GuidingCentre`,
-`push_guiding_centre!` and `gyroaverage` occur in `src/` only as exports.
-`test_fusion.jl` checks the primitives; those tests do not construct a coupled
-fusion simulation.
+At the initial assessment, the geometry symbol search found only primitive
+exports outside their defining files; `test_fusion.jl` did not construct a
+coupled simulation. The later periodic-shear, slab gyrokinetic and static
+composite-ES families above have distinct source contracts and pending gates.
+They do not close toroidal geometry or dynamic AMR.
 
 ## Completion contract shared by every slice
 
@@ -224,9 +224,10 @@ mean code or runtime verification is complete. “Scope proposal” marks the
 additional CAP-008–011 model expansion. Root owns integration, tracker consistency,
 commit/push and CI. A named subsystem below is a code owner; an unassigned
 implementation agent is explicitly unassigned, not implicitly running.
-Current assignments (2026-11-02): static composite ES implements in its own
-worktree; root integrates frozen implicit EM after periodic curvilinear source, while
-a freed worker maps resident CUDA. Hall and slab candidates are source-complete
+Current assignments (2026-11-02): root integrates reviewed static composite ES;
+two workers implement the approved resident CUDA family and its disjoint shared
+scalar seams. A third has frozen a compatible implicit-EM contract for review.
+Hall, slab, periodic shear and synchronous implicit EM are source-complete
 and await remote acceptance. Root owns shared registrations, current docs, dependency
 publication, source integration and remote CI. Earlier audit assignments and
 quota failures describe historical work; the linked workflow is authoritative
@@ -241,7 +242,7 @@ for active ownership.
 | 003C/D distributed coupled solvers | MPI orchestration + canonical solver owners | 003A/B and accepted serial solver | Rank-owned periodic Maxwell, coupled CIC ES/EM and isothermal hybrid source with global scalar diagnostics implemented | Maxwell, ES, EM and hybrid matching-layout checkpoint source implemented; broader closures/EM families and runtime/rank/restart validation remain open |
 | 003E cluster scale/restart | Agent unassigned; benchmark/MPI/I/O | 003C/D; real multi-node allocation | Hardware campaign pending | Freeze strong/weak scaling and changed-layout restart workloads before requesting/running resources |
 | 004A GPU primitive closure | Root; extensions and coupling | Current kernel gates and exact-SHA CI | Metal uniform push and NGP have green CI. Current gathered preflight source adds guarded canonical native publication and explicit field-storage admission; historical V1 allocation, V2–V5 latency and V6 calibration failures remain retained | Accept current source on GitHub and actual Metal, including native bits, compiler and both fixed cost matrices. The 1.5 latency and 8 KiB additional-allocation limits remain unchanged; [historical results do not accept this source](METAL_GATHERED_VALIDATION_PLAN.md) |
-| 004B/C resident solver families | GPU architecture design agent; fields, integrators/models, extensions | 004A; actual device storage/operator/API contract | Concrete first-family contract under source review; no resident solver implemented yet | Freeze actual CUFFT/kernel/range/phase/private-public/transfer/full-persistence contract before source implementation; hardware/runtime acceptance remains open |
+| 004B/C resident solver families | CUDA family worker plus disjoint shared-scalar-seam worker; root owns SO/registration | 004A; actual CUDA/cuFFT/kernel/range/phase/private-public/transfer/full-persistence contract and frozen callable seams | Complete first-family v2 contract approved; source implementation active in nine new family paths plus eleven shared-seam paths | Review source and default legacy expansions, publish actual SO dependency APIs, then remote compiler/numerical/device/resource acceptance; no resident runtime acceptance yet |
 | 004D multi-GPU | Agent unassigned; MPI + device extensions | 003C/D, 004B/C; real devices/network | Hardware/integration pending | Establish buffer ownership/staging contract and matched device/rank oracle |
 | 005A existing CN-labelled paths | Shock3d and integrator stability owners | Independent linear-system oracle | Shock CN `ce52836` and [linear CN](LINEAR_CN_RANGE_PLAN.md) `03e4eb3` have green exact-SHA CI | Continue with 005B/C; preserve separate resource regressions and corrections |
 | Magnetic timestep correctness | Root; `recommended_dt` and both RK4 stage owners | Independent frozen Hall/damping mode and exact stability polynomial | [Certified polygon repair](RK4_MIXED_STABILITY_PLAN.md) passes both runtime campaigns and full compiler/resource gates | `a7fb3c8` retains its failed packet-allocation CI; the later containing `fd0a168` is green. The separate BigFloat repair has the revision-specific outcome below |
@@ -253,7 +254,7 @@ for active ownership.
 | 005D implicit EM / parallel geometry | Root integration of frozen EM/field/nonlinear/IO source | Actual Boris/current-continuity/Maxwell and nonlinear owners | Complete bounded coupled source reviewed/integrated, three legacy inverses and all eight frozen file hashes checked; essential remote regressions prepared | Exact-revision numerical/constraint/work, failure/restart, compiler/resource gates; broader conservative/relativistic/backend methods remain open |
 | 006A curvilinear solver | Root integration of frozen mesh/coupling/model/IO source | Compatible geometry/component/volume conventions | Complete bounded periodic-shear core, diagnostics, loader and physical IO source reviewed/integrated | Exact-revision runtime, field/work/refinement, restore/compiler/resource gates; toroidal axis/walls remain separate |
 | 006B self-consistent gyrokinetics | Root integration of frozen population/core/coupling/IO source | Reviewed full-f slab model and registered SO 0.1.8; 006A remains required for toroidal claims | Complete bounded source and canonical callers reviewed; essential remote regressions prepared | Exact-revision runtime, field/reciprocity/convergence, failure/restart, compiler and resource acceptance; broader geometry/physics remain open |
-| 006C adaptive plasma hierarchy | Static composite-ES implementation worker; AMR/field/coupling/model/IO | Real patch/covered/leaf ownership and composite field method | Complete 373-line contract approved, all 33 source pins checked; implementation active | Complete source/IO review and remote field/crossing/self-force gates; dynamic refinement remains later |
+| 006C adaptive plasma hierarchy | Root integration of frozen static composite-ES source; AMR/field/coupling/model/IO | Real patch/covered/leaf ownership and composite field method | Complete bounded source reviewed/integrated, seven frozen file hashes and shared-helper inverse checked; essential remote regressions prepared | Exact-revision field/crossing/restart/compiler/self-force/resource gates; dynamic and multidimensional refinement remain later |
 | 007A/B reference provenance + production dispersion | Canonical validation/reference owners; next campaign agent unassigned | Source/network/toolchain; accepted production solver | Pinned provenance, parallel production histories and oblique Hall case 35 landed; CI state is in the audit tracker | Complete manual campaigns and broaden thermal/kinetic/EM regimes, uncertainty and matched-cost comparisons; [production plan](PRODUCTION_DISPERSION_PLAN.md) |
 | 007C–E profiles, new physics, comparative costs | Agent unassigned; validation/benchmark owners | Accepted corresponding capability; datasets/hardware | Existing scalar comparisons inspected; campaigns unrun here | Freeze matched inputs/diagnostics/uncertainty and preserve raw reference outputs |
 | 008 ES/EM arbitrary species | Canonical electrostatic/EM collection owners | Existing deposition, spectral Maxwell and phase owners | ES containing `4724947` passes all six jobs/compiler review. [EMPIC collections with generic/specialized dividing schedules](EMPIC_SPECIES_IMPLEMENTATION.md) implemented with shared ordinary-store admission, staged publication and persistence; new GitHub acceptance pending | Accept current sum/continuity, per-species phase, physical diagnostics, restart/migration and matched cost; nondividing/adaptive schedules and backends remain open |
@@ -692,13 +693,16 @@ Reject invalid equilibrium or failed field solve before committing the populatio
 
 ### CAP-006C: adaptive plasma hierarchy
 
-The complete first static 1D composite-ES contract is approved after actual
-source review and 33 source-pin checks. Implementation is active: true nested 2:1
-patch/leaf ownership, one global mixed Neumann solve, fixed physical triangular
-clouds, real coarse/fine crossings, signed work/rounding defects and complete
-matching-hierarchy IO. The scalar-source helper moves byte-identically to its
-shared validation owner; cloud/force/plate numerical owners stay in place.
-This is an implementation stage, without runtime or adaptive-hierarchy acceptance.
+The first static 1D composite-ES bounded source is complete and reviewed:
+true nested 2:1 patch/leaf ownership, one global mixed Neumann solve, fixed
+physical triangular clouds, real coarse/fine crossings, signed work/rounding
+defects and complete matching-hierarchy IO. The scalar-source helper moves
+byte-identically to shared validation; cloud/force/plate owners stay canonical.
+Review corrected duration/clock admission and prepared initialization before
+publication. Essential remote matrix-solve, analytic charged-crossing and
+physical restart checks are prepared; no local Julia work was run.
+The [guide](STATIC_COMPOSITE_ELECTROSTATIC.md) owns this source contract.
+Runtime, self-force/resource and adaptive-hierarchy acceptance remain open.
 
 - [ ] Add an owned hierarchy of patches, valid/ghost regions, refinement ratios,
   tagging/regridding and covered-cell accounting. Existing `AMRGrid` only stores

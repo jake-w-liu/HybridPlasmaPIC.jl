@@ -95,3 +95,11 @@ function _require_resolved_dt(name::AbstractString, dt::T) where {T<:AbstractFlo
         )
     return dt
 end
+
+function _yl_source_scalar(name, value, ::Type{T}) where {T}
+    if value isa Union{Float32,Float64}
+        isfinite(value) || throw(ArgumentError("$name must be finite"))
+        return value
+    end
+    return _require_finite_real(name, value, T)
+end

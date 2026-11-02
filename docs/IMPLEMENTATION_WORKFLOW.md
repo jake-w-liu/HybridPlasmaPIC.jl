@@ -38,9 +38,14 @@ The periodic-shear candidate `c53ef77`, branch
 `implement/sheared-periodic-hybrid-20261102`, contains Hall and slab. Its
 [full](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41455172923) and
 [essential](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41455205769)
-checks are submitted and still unaccepted. The current implicit EM branch
-`implement/implicit-em-coupled-20261102` builds on it with complete reviewed
-source and remote checks required before acceptance.
+checks are submitted and still unaccepted. The implicit EM candidate `d665c47` builds on it; its
+[full](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41457743663) and
+[essential](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41457768797)
+checks are submitted. Separate hybrid-clock fix `ae23c71` has
+[full](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41458375525) and
+[essential](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41458455218)
+checks submitted. Static composite ES composes on that exact source. None is
+runtime accepted; candidates remain off main while their gates are pending.
 
 Hall `cd78339` contains slab `08e1bf2` and correctness candidate `bb7da93`.
 Main remains `531f5ba`; none of those candidates is runtime accepted. Frozen
@@ -51,12 +56,11 @@ repairs; new workers do not edit those family files.
 
 | Track | Worker | Complete deliverable | Current stage |
 | --- | --- | --- | --- |
-| Periodic curvilinear hybrid | Root integration of frozen `self_consistent_gyrokinetic_design` source | `PeriodicShearGrid` and `ShearedPeriodicHybridPIC`, physical field/component transforms, collective kinetic-ion/field RK4, diagnostics, quiet loader and full physical persistence | Complete seven-file v2 source reviewed/integrated; receipt invariant repaired; remote acceptance pending |
-| Implicit electromagnetic PIC | Root integration of frozen `yee_longitudinal_coupled_implementation` source | `ImplicitEMPICStepper`, joint velocity/E/B residual, canonical continuity current, shared bounded nonlinear solver, signed work diagnostics and full physical persistence | Complete eight-file source reviewed/integrated; three legacy inverses and history admission checked; remote acceptance pending |
-| Static composite-grid electrostatic PIC | `cpu_model_factor_admission` | A real static hierarchy, one composite field solve, compatible finite-cloud coupling, particle crossings, diagnostics and full physical persistence | Complete 373-line contract approved and 33 source pins checked; implementation active from `cd78339` |
-| First resident CUDA hybrid | `self_consistent_gyrokinetic_design` | Complete device field/particle lifecycle and physical persistence with actual CUDA/CUFFT APIs | Contract/source/seam preparation; no production edits |
-| Compatible implicit EM current/gather | `yee_longitudinal_coupled_implementation` | A genuine compatible work/current/field model using canonical source and nonlinear owners | Actual method/geometry/phase/IO contract in preparation; no production edits |
-| Integration and CI | Root | Shared registrations/docs, canonical source review, dependency publication, commits/pushes and exact-revision CI closure | Active alongside all three source tracks |
+| Static composite-grid electrostatic PIC | Root integration of frozen `cpu_model_factor_admission` source | Nested hierarchy, global Neumann field solve, physical-cloud crossings, diagnostics and complete physical persistence | Seven-file v2 source reviewed/integrated; phase/preparation findings repaired; essential GitHub checks prepared |
+| First resident CUDA hybrid | `self_consistent_gyrokinetic_design` | Complete device field/particle lifecycle and physical persistence with actual CUDA/cuFFT APIs | Complete v2 contract and exact callable seams approved; nine new family files implementing |
+| Shared CUDA scalar dependencies | `cpu_model_factor_admission` | Canonical arithmetic/coupling/scale/native Ohm/RK4 extractions with unchanged default CPU behavior | Eleven disjoint paths implementing; root owns upstream SO and registrations |
+| Compatible implicit EM current/gather | `yee_longitudinal_coupled_implementation` | Paired orbit-averaged current/gather, midpoint field/particle solve and physical persistence | Complete contract and 29 source pins frozen for root review; no production edits |
+| Integration and CI | Root | Shared registrations/docs, canonical source review, dependency publication, commits/pushes and exact-revision CI closure | Active alongside the independent tracks; existing clock-admission audit frozen for follow-up repair |
 
 The curvilinear contract keeps logical positions and Cartesian velocities,
 primary contravariant magnetic flux and a compatible covariant electric curl.
@@ -75,59 +79,54 @@ relativistic, source and backend families remain open.
 
 ## Exclusive file ownership
 
-**Curvilinear** owns only these seven new paths:
+Completed Hall, slab, periodic-shear, synchronous implicit EM and static composite
+ES author patches are frozen. Their owners transfer to root for integration and
+later repairs. Static ES includes the byte-identical `_yl_source_scalar` move
+from `models/yee_longitudinal_pic.jl` to `utils/validation.jl`; canonical cloud,
+force and plate owners remain in place. Broader clock findings retain a separate
+frozen audit; do not edit those owners without a new root assignment.
 
-- `src/meshes/periodic_shear_mesh.jl`
-- `src/fields/sheared_hybrid_operators.jl`
-- `src/coupling/sheared_hybrid_coupling.jl`
-- `src/models/sheared_periodic_hybrid_pic.jl`
-- `src/initial_conditions/sheared_hybrid.jl`
-- `src/io/sheared_hybrid_checkpoint.jl`
-- `docs/SHEARED_PERIODIC_HYBRID.md`
+**CUDA family** owns only these nine new paths:
 
-It reuses the existing complete periodic gather, exact contribution iterator
-and node-index policy from the Hall candidate without editing those owners.
+- `src/models/cuda_hybrid.jl`
+- `ext/cuda_hybrid/types.jl`
+- `ext/cuda_hybrid/validation.jl`
+- `ext/cuda_hybrid/kernels.jl`
+- `ext/cuda_hybrid/fourier.jl`
+- `ext/cuda_hybrid/evolution.jl`
+- `ext/cuda_hybrid/snapshot.jl`
+- `ext/cuda_hybrid/checkpoint.jl`
+- `docs/CUDA_HYBRID.md`
 
-**Implicit EM** owns three existing canonical seams:
-`src/models/full_pic.jl`, `src/models/empic_collection.jl` and
-`src/integrators/implicit_hybrid.jl`. It also owns only these five new paths:
+**Shared scalar dependencies** owns new `src/utils/scalar_ops.jl` and these ten
+existing paths, including across worktrees:
 
-- `src/integrators/implicit_em.jl`
-- `src/integrators/implicit_pic_nonlinear.jl`
-- `src/diagnostics/implicit_em.jl`
-- `src/io/implicit_em_checkpoint.jl`
-- `docs/IMPLICIT_EM.md`
+- `src/particles/boris.jl`
+- `src/particles/kinematics_range.jl`
+- `src/coupling/shapes.jl`
+- `src/coupling/deposit.jl`
+- `src/coupling/gather.jl`
+- `src/coupling/moments.jl`
+- `src/models/hybrid_pic.jl`
+- `src/electrons/closures.jl`
+- `src/electrons/ohms_law.jl`
+- `src/integrators/extrapolated_leapfrog.jl`
 
-Existing-owner extraction recovers each complete old file by literal
-expansion, preserving arithmetic, defaults, validation and try/finally order.
-The final eight-file freeze passed all 29 source inverse/ownership checks; root
-checked the adopted hashes and all three whole-file inverses. The new EM phase
-rejects last_dt>time. A separate follow-on now repairs the analogous hybrid
-phase owner; its prior exact extraction receipt remains intact.
-The nonlinear driver serves these two actual implicit families; it is not a
-new public solver framework.
+Its default expansion must retain current CPU arithmetic, generic branches,
+validation, exact cold behavior and read/write/reduction order. CUDA consumes
+frozen signatures and record fields; neither worker duplicates a physics owner.
+Actual device lowering, semantics and performance still need remote acceptance.
 
-**Static AMR** owns only these five new paths:
+**Compatible implicit EM** currently owns design evidence only. Root reviews
+its complete method/geometry/source/phase/IO contract before production ownership.
 
-- `src/meshes/static_amr_hierarchy.jl`
-- `src/coupling/composite_cloud.jl`
-- `src/models/static_composite_electrostatic.jl`
-- `src/io/static_composite_electrostatic_checkpoint.jl`
-- `docs/STATIC_COMPOSITE_ELECTROSTATIC.md`
-
-Its only existing-owner change is the byte-identical `_yl_source_scalar` move
-from `models/yee_longitudinal_pic.jl` to `utils/validation.jl`; that fragment is
-already frozen and released to root. Force/plate/cloud owners remain in place.
-The CUDA and compatible-implicit-EM workers currently own design evidence only;
-root reviews any proposed shared fragment before implementation ownership is
-assigned. Frozen implementation owners transfer back to root for integration
-and subsequent repairs.
-
-**Root** owns `src/HybridPlasmaPIC.jl`, shared checkpoint/archive registrations,
-`Project.toml`, workflows, README, CHANGELOG, global trackers/documentation map,
-and current CI repair/observation files. Workers supply registration hunks.
-SpectralOperators fixes and release/registration remain root-owned. Every path
-has one active writer, including across worktrees.
+**Root** owns `src/HybridPlasmaPIC.jl`, existing extension includes, shared
+checkpoint/archive registrations, `Project.toml`, workflows, focused essentials,
+README, CHANGELOG, global trackers/documentation map and CI repair/observation
+files. Workers supply registration hunks. SpectralOperators canonical mode-row
+and D1 curl-descriptor changes, all upstream CI/release/registration and the
+actual accepted consumer compat floor remain root-owned. Every path has one
+active writer; isolated worktrees do not permit competing edits.
 
 ## Interface and handoff
 
@@ -153,8 +152,8 @@ model contracts and all remaining combinations.
 
 | Wave | Parallel work | Required boundary |
 | --- | --- | --- |
-| Current | Curvilinear integration; implicit EM and static composite ES implementation; resident CUDA contract; known CI/dependency repairs | Complete physical lifecycle and persistence; no shared-file writers |
-| Next | First resident CUDA hybrid after contract review; broader geometry and implicit-method slices | CUDA needs reviewed shared scalar seams and real device acceptance; every new method keeps its own field/coupling/phase contract |
+| Current | Static composite ES integration; resident CUDA family and shared scalar implementation; compatible implicit EM contract review; known CI/dependency repairs | Complete physical lifecycle and persistence; no shared-file writers |
+| Next | Compatible implicit EM implementation after review; broader geometry; completed-phase admission repairs | CUDA needs reviewed shared scalar seams and real device acceptance; every new method keeps its own field/coupling/phase contract |
 | Following | Dynamic AMR and multidimensional hierarchy; broader electron transport/anisotropy/inertia; broader open EM particle/source boundaries | Composite field/particle ownership, term-specific energy balances and boundary charge/current accounting |
 | Composition | Extend accepted families across species, collisions/sources, schedules, MPI/device storage and restart | Explicit supported-combination matrix; no automatic claim from component availability |
 | Continuous | Independent physical validation, latest Julia, failure/restart checks and measured optimization | GitHub or suitable remote hardware; retain failed evidence and fixed acceptance limits |

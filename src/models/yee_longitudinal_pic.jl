@@ -63,13 +63,6 @@ struct YeeLongitudinalPIC{T,S<:YeeTriangularCloud,B,P}
     _stage::Base.RefValue{_YeeLongitudinalStage{T}}
 end
 
-function _yl_source_scalar(name, value, ::Type{T}) where {T}
-    if value isa Union{Float32,Float64}
-        isfinite(value) || throw(ArgumentError("$name must be finite"))
-        return value
-    end
-    return _require_finite_real(name, value, T)
-end
 
 function YeeLongitudinalPIC(
     g::YeeGrid{1,T}; shape::YeeTriangularCloud,

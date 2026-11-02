@@ -53,6 +53,7 @@ include("meshes/local_finite_difference.jl")
 include("meshes/curvilinear_mesh.jl")
 include("meshes/periodic_shear_mesh.jl")
 include("meshes/adaptive_mesh_refinement.jl")
+include("meshes/static_amr_hierarchy.jl")
 include("fields/yee_fields.jl")
 
 # --- Particles ---
@@ -89,6 +90,7 @@ include("coupling/gather.jl")
 include("coupling/moments.jl")
 include("coupling/sheared_hybrid_coupling.jl")
 include("coupling/yee_charge.jl")
+include("coupling/composite_cloud.jl")
 include("coupling/yee_transverse.jl")
 
 # --- Electrons + hybrid model + field state ---
@@ -137,6 +139,7 @@ include("models/maxwell_vacuum.jl")
 include("models/yee_conductive_layer.jl")
 include("models/yee_pml.jl")
 include("models/yee_longitudinal_pic.jl")
+include("models/static_composite_electrostatic.jl")
 include("models/yee_electromagnetic_pic.jl")
 include("models/yee_impact_longitudinal_pic.jl")
 include("models/yee_absorbing_longitudinal_pic.jl")
@@ -173,6 +176,7 @@ include("parallel/mpi.jl")
 # --- IO ---
 include("io/publication.jl")
 include("io/checkpoint.jl")
+include("io/static_composite_electrostatic_checkpoint.jl")
 include("io/slab_gyrokinetic_checkpoint.jl")
 include("io/sheared_hybrid_checkpoint.jl")
 include("io/implicit_hybrid_checkpoint.jl")
@@ -447,6 +451,8 @@ export EMPIC, EMPIC1D, init_empic!, step_empic!, em_field_energy, charge_conserv
 export set_empic1d_schedule!, set_empic_schedule!
 export electromagnetic_diagnostics
 export YeeLongitudinalPIC, yee_longitudinal_diagnostics
+export StaticAMRHierarchy1D, StaticCompositeElectrostaticPIC, StaticCompositeESReport
+export composite_electrostatic_diagnostics, patch_electric_field
 export YeeElectromagneticPIC, yee_electromagnetic_diagnostics
 export YeeImpactLongitudinalPIC, yee_impact_longitudinal_diagnostics
 export YeeAbsorbingLongitudinalPIC, yee_absorbing_longitudinal_diagnostics
