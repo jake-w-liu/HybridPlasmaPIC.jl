@@ -365,6 +365,11 @@ ledger satisfy the coupled method.
   external fields/particles with explicit energy/charge budgets. Gate reflection
   spectra versus angle/frequency/resolution and long-time stability, including
   face/edge/corner layers and particle exits through them.
+Serial [Yee vacuum checkpoint/archive](MAXWELL_VACUUM_CHECKPOINT.md) is now
+source-implemented for synchronized field/clock state on matching grids. Its
+restart/compiler/resource acceptance is deferred; this is a field-only part of
+002D, with no absorbing-layer or particle-state substitution.
+
 - [ ] **002D: production integration.** Relativistic and subcycled species,
   restart including layer/surface state and half-time fields; CAP-003 halos,
   CAP-004 resident kernels and external bounded-plasma comparisons under CAP-007.

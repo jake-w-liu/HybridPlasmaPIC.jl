@@ -1,10 +1,11 @@
 # Bounded Maxwell implementation record
 
-Updated: 2026-11-01. CAP-002A provides source-free Cartesian vacuum/cavity
+Updated: 2026-11-02. CAP-002A provides source-free Cartesian vacuum/cavity
 fields. The [prescribed-current slice](#prescribed-current-slice) adds 1D field
 advancement with a supplied impulse. CAP-002 remains incomplete: coupled
-particles and walls, absorbers, restart and GPU/MPI production integration are
-separate stages.
+particle/wall models, absorbers and GPU/MPI production integration retain open
+work. [Field-only checkpoint/archive](MAXWELL_VACUUM_CHECKPOINT.md) is now
+source-implemented; its runtime acceptance is deferred.
 
 The CPU Float32/64 B2a prerequisite adds extensive nodal CIC charge and compatible
 longitudinal endpoint impulse on a closed 1D PEC interval. Its
@@ -22,7 +23,9 @@ adjoint of endpoint impulse, with a zero voltage for zero displacement; it does
 not define a stationary-node force. The scalar implementation rounds the exact
 stored-input expression once. Native-path/resource acceptance and GitHub
 verification remain pending. The particle coupling plan owns its metric and
-failure contract; point-sheet force, coupled time centering and walls stay open.
+failure contract. Separate event-free longitudinal/1D3V, one-cluster reflection
+and one isolated passive capture source models are described in that plan; their
+exact-head acceptance and broader wall dynamics remain open.
 
 Earlier isolated B2a campaigns are historical evidence. Their population-barrier
 candidate passed 126,925 focused and 1,806 CRC assertions per runtime and sampled
@@ -164,9 +167,10 @@ composition of their checked stages.
 
 ## Resources and performance
 
-The stepper owns physical E/B and one candidate E/B. Warmed steps allocate zero
-bytes. On the shared Apple M5 (Julia 1.12.7, load average 6–11 during
-measurement), best-of-15 48³ PEC steps cost about 6.4 ns (Float32) and 11 ns
+The stepper owns physical E/B and one candidate E/B. In the recorded normwise
+campaign, warmed steps allocated zero bytes. These historical profiles do not
+validate the current checkpoint integration or its exact-revision cost. On the
+shared Apple M5 (Julia 1.12.7, load average 6–11 during measurement), best-of-15 48³ PEC steps cost about 6.4 ns (Float32) and 11 ns
 (Float64) per cell; the same session measured about 1,200 ns per cell for the
 componentwise V12 candidate. Each stage costs about as much as a minimal
 unit-stride kernel with the same three updates per cell timed on the same
@@ -196,13 +200,15 @@ scalar normwise bounds in place of the componentwise ones.
 
 ## Remaining CAP-002 work
 
-002B must add transverse trajectory current, a synchronized force/pusher and a
-wall charge/current ledger before this becomes bounded EM PIC. The endpoint
-longitudinal impulse alone does not supply that coupling. 002C needs actual absorbing-layer
-auxiliary evolution and a measured angle/frequency/refinement reflection suite.
-002D must register the synchronized fields, model clock and boundary state in
-checkpoint/restart and backend orchestration. None is supplied by this vacuum
-slice, and the existing particle boundary utilities are not a substitute.
+Separate [bounded coupling models](BOUNDED_PARTICLE_COUPLING_PLAN.md) now supply
+event-free longitudinal/1D3V evolution, one-cluster reflection and one isolated
+passive capture source implementations with ledgers and distinct restart.
+Their exact-head acceptance and general wall dynamics remain open; the endpoint
+impulse alone does not supply that coupling. 002C still needs absorbing-layer
+auxiliary evolution and measured angle/frequency/refinement reflection studies.
+[Field-only vacuum restart/archive](MAXWELL_VACUUM_CHECKPOINT.md) now retains
+synchronized fields, model configuration and clock. Runtime acceptance, layer
+state, broader particle models and backend orchestration remain 002D work.
 
 ## History
 

@@ -8,8 +8,9 @@ drift, magnetic half-kick. Constant steps have the usual Yee dispersion relation
 changing the step preserves second-order centering. Neither the constant-step
 energy invariant nor stability for arbitrary sub-CFL step sequences extends to
 variable steps. CPU Float32/Float64 only. In 1D, `step_maxwell!` also accepts
-prescribed integrated current arrays. No particle coupling, absorbing layer or
-restart adapter is supplied by this field model.
+prescribed integrated current arrays. No particle coupling or absorbing layer
+is supplied by this field model. Field-only checkpoint/archive
+overloads are described in `docs/MAXWELL_VACUUM_CHECKPOINT.md`.
 
 The model owns reusable staging arrays. Concurrent mutation/stepping of one
 instance is unsupported. Physical E/B arrays retain their identities on commit.
@@ -50,10 +51,10 @@ maxwell_cfl(model::MaxwellVacuum) = model._cfl
 # Field finiteness is not scanned here: every physical entry is an operand of
 # a native stage whose finiteness reduction fails for a nonfinite input, and
 # `_yee_advance!` then validates its inputs before any exact completion.
-function _yee_validate_storage(model::MaxwellVacuum)
+function _yee_validate_storage(model::MaxwellVacuum; check_pec::Bool = true)
     _yee_check_shape(model.fields.E, model.g, true)
     _yee_check_shape(model.fields.B, model.g, false)
-    _yee_validate_pec(model.fields, model.g)
+    check_pec && _yee_validate_pec(model.fields, model.g)
     _yee_check_shape(model._candidate.E, model.g, true)
     _yee_check_shape(model._candidate.B, model.g, false)
     arrays = (model.fields.E..., model.fields.B..., model._candidate.E..., model._candidate.B...)

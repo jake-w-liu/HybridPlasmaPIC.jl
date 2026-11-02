@@ -1203,6 +1203,7 @@ end
     save_checkpoint(path, stepper, species::AbstractVector)
     save_checkpoint(path, empic, electrons, ions)
     save_checkpoint(path, hall::HallMHDState)
+    save_checkpoint(path, model::MaxwellVacuum)
 
 Serialize the restartable state (model, shape, particles, B, carried E, time,
 step, and previous timestep for the staggered particle velocities) to `path`.
@@ -1263,6 +1264,11 @@ values are saved because inactive hyperresistivity can carry them into the publi
 fields. Other RK workspaces are rebuilt during stepping; saved derived fields
 are restored without reevaluating Ohm's law.
 
+`MaxwellVacuum` uses a distinct field-only schema with synchronized E/B, exact
+Yee grid/boundary/speed configuration and completed clock. No particles, source
+waveform or preceding timestep is invented. Its matching destination arrays and
+Refs restore in place after detached incoming validation; no field projection.
+
 Publish by same-directory rename after serialization, flush and close succeed;
 earlier failures preserve the previous file. Cleanup failures accompany the
 original error. Existing file rwx permissions are retained; new files use 0600.
@@ -1297,7 +1303,7 @@ end
 
 function _save_checkpoint(
     path::AbstractString,
-    st::Union{_CheckpointStepper,HallMHDState,CollisionalHybridStepper,CollisionalEMPICStepper,_ClosedYeeCheckpointStepper},
+    st::Union{_CheckpointStepper,HallMHDState,MaxwellVacuum,CollisionalHybridStepper,CollisionalEMPICStepper,_ClosedYeeCheckpointStepper},
     state,
 )
     _validate_checkpoint_state(state, st)
@@ -1310,6 +1316,7 @@ end
     load_checkpoint!(stepper, species::AbstractVector, path)
     load_checkpoint!(empic, electrons, ions, path)
     load_checkpoint!(hall::HallMHDState, path)
+    load_checkpoint!(model::MaxwellVacuum, path)
 
 Restore a checkpoint into a `stepper`/`ps` of matching dimension, precision,
 grid, and integrator (particle arrays are resized to match).

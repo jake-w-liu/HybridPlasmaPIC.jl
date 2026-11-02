@@ -152,6 +152,7 @@ include("parallel/mpi.jl")
 # --- IO ---
 include("io/publication.jl")
 include("io/checkpoint.jl")
+include("io/maxwell_vacuum_checkpoint.jl")
 include("io/empic_collection_checkpoint.jl")
 include("io/yee_longitudinal_checkpoint.jl")
 include("io/yee_electromagnetic_checkpoint.jl")

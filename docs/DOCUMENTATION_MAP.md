@@ -42,6 +42,8 @@ rerun by this documentation-only audit.
   cloud primitives and the event-free longitudinal/1D3V electromagnetic source
   candidates, including original-geometry force completion and schema-2 policy.
 - [docs/SOURCED_YEE_FIELDS.md](SOURCED_YEE_FIELDS.md)
+- [docs/MAXWELL_VACUUM_CHECKPOINT.md](MAXWELL_VACUUM_CHECKPOINT.md)
+  — synchronized serial Yee vacuum state, matching-grid restore and archives.
 - [docs/YEE_IMPACT_LONGITUDINAL.md](YEE_IMPACT_LONGITUDINAL.md)
   — one-cluster finite-cloud reflection, carried-error and restart source contract.
 - [docs/YEE_ABSORBING_LONGITUDINAL.md](YEE_ABSORBING_LONGITUDINAL.md)

@@ -11,6 +11,13 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Added
 
+- Serial `MaxwellVacuum` gains field-only checkpoint/archive overloads for D1–3
+  CPU Float32/64 periodic/PEC Yee grids. A distinct schema records synchronized
+  fields, exact configuration and clock; complete incoming validation/detachment
+  precedes in-place copies, allowing stale destination values. Existing field
+  arithmetic is retained. No tests were added or run; restart/compiler/resource
+  acceptance is deferred. See the [guide](docs/MAXWELL_VACUUM_CHECKPOINT.md).
+
 - `distributed_poisson_field!` adds a static rank-owned periodic 3D CPU Float32/64
   electrostatic field solve using the canonical serial Poisson mode and existing
   distributed transforms. Exact represented neutrality or an explicit compensator
