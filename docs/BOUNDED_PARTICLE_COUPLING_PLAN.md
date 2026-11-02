@@ -559,7 +559,10 @@ GitHub numerical/convergence, rollback/restart, JET/compiler, formatting/CI and
 complete-step resource acceptance are deferred during the current
 implementation-first pass; existing authored controls remain unrun. General
 material/sheath/circuit/emission laws, multiple captures, transverse walls,
-relativistic/device/distributed execution and absorbing field layers remain open.
+relativistic/device/distributed execution and coupled absorbing field layers
+remain open. The separate [scalar-conductivity field layer](YEE_CONDUCTIVE_LAYER.md)
+now has source evolution, exact budget and restart; attaching it to particle
+charge/current requires its own sink/injection derivation.
 This source candidate does not complete CAP-002B or establish whole-run stability.
 
 ## Implementation tracker

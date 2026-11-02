@@ -5,7 +5,10 @@ fields. The [prescribed-current slice](#prescribed-current-slice) adds 1D field
 advancement with a supplied impulse. CAP-002 remains incomplete: coupled
 particle/wall models, absorbers and GPU/MPI production integration retain open
 work. [Field-only checkpoint/archive](MAXWELL_VACUUM_CHECKPOINT.md) is now
-source-implemented; its runtime acceptance is deferred.
+source-implemented; its runtime acceptance is deferred. The separate
+[scalar-conductivity layer](YEE_CONDUCTIVE_LAYER.md) adds graded E/B damping,
+exact loss/work/defect ledgers and complete nested restart source. PML auxiliary
+evolution, reflection/stability and broader coupled integration remain open.
 
 The CPU Float32/64 B2a prerequisite adds extensive nodal CIC charge and compatible
 longitudinal endpoint impulse on a closed 1D PEC interval. Its
@@ -204,11 +207,16 @@ Separate [bounded coupling models](BOUNDED_PARTICLE_COUPLING_PLAN.md) now supply
 event-free longitudinal/1D3V evolution, one-cluster reflection and one isolated
 passive capture source implementations with ledgers and distinct restart.
 Their exact-head acceptance and general wall dynamics remain open; the endpoint
-impulse alone does not supply that coupling. 002C still needs absorbing-layer
-auxiliary evolution and measured angle/frequency/refinement reflection studies.
+impulse alone does not supply that coupling. The separate
+[graded scalar-conductivity layer](YEE_CONDUCTIVE_LAYER.md) now has a D1–3 CPU
+source implementation with fixed-step midpoint damping, exact loss/work/defect
+ledgers and complete nested restart. It is not PML or a particle sink. 002C still
+needs PML auxiliary evolution, measured angle/frequency/refinement reflection
+studies and coupled charge/injection laws.
 [Field-only vacuum restart/archive](MAXWELL_VACUUM_CHECKPOINT.md) now retains
-synchronized fields, model configuration and clock. Runtime acceptance, layer
-state, broader particle models and backend orchestration remain 002D work.
+synchronized fields, model configuration and clock. The conductive layer has
+its own source schema. Runtime acceptance, full PML state, broader particle
+models and backend orchestration remain 002D work.
 
 ## History
 

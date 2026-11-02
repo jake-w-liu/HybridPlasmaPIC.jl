@@ -1277,6 +1277,10 @@ are restored without reevaluating Ohm's law.
 Yee grid/boundary/speed configuration and completed clock. No particles, source
 waveform or preceding timestep is invented. Its matching destination arrays and
 Refs restore in place after detached incoming validation; no field projection.
+`YeeConductiveLayer` has a separate scalar-conductivity schema containing that
+canonical vacuum payload, fixed staggered profile/timestep and exact loss/work/
+defect ledgers. Derived caches/staging are omitted. Incoming budget identity and
+fields detach/validate before publication; PML memory and particles are not supplied.
 
 Publish by same-directory rename after serialization, flush and close succeed;
 earlier failures preserve the previous file. Cleanup failures accompany the
@@ -1312,7 +1316,7 @@ end
 
 function _save_checkpoint(
     path::AbstractString,
-    st::Union{_CheckpointStepper,HallMHDState,MaxwellVacuum,CollisionalHybridStepper,CollisionalEMPICStepper,CollisionalElectrostaticPIC,_ClosedYeeCheckpointStepper},
+    st::Union{_CheckpointStepper,HallMHDState,MaxwellVacuum,YeeConductiveLayer,CollisionalHybridStepper,CollisionalEMPICStepper,CollisionalElectrostaticPIC,_ClosedYeeCheckpointStepper},
     state,
 )
     _validate_checkpoint_state(state, st)
@@ -1367,6 +1371,11 @@ restore verbatim, with the sole wrapper source clock/count; ES has no inner
 time/step counters. Destination old physical, clock and inner-phase values may be
 replaced after storage/configuration preflight. No Poisson solve or time
 reconstruction from count times timestep is performed.
+`YeeConductiveLayer` requires matching fixed grid/speed/profile/timestep policy.
+Its nested fields/clock and exact budget restore verbatim; derived axis caches
+prepare before any publication. Old destination fields, clock and ledger values
+may be stale. No field projection or PML state substitution occurs; runtime
+continuation acceptance remains deferred.
 Electrostatic destinations must have the same background density `n0`, which
 is immutable; their saved fields, density, and leapfrog phase are restored directly.
 Electromagnetic destinations require the same ion mobility and concrete shape

@@ -126,6 +126,7 @@ include("models/empic_collection.jl")
 include("integrators/collisional_empic.jl")
 include("integrators/collisional_electrostatic.jl")
 include("models/maxwell_vacuum.jl")
+include("models/yee_conductive_layer.jl")
 include("models/yee_longitudinal_pic.jl")
 include("models/yee_electromagnetic_pic.jl")
 include("models/yee_impact_longitudinal_pic.jl")
@@ -154,6 +155,7 @@ include("parallel/mpi.jl")
 include("io/publication.jl")
 include("io/checkpoint.jl")
 include("io/maxwell_vacuum_checkpoint.jl")
+include("io/yee_conductive_layer_checkpoint.jl")
 include("io/empic_collection_checkpoint.jl")
 include("io/yee_longitudinal_checkpoint.jl")
 include("io/yee_electromagnetic_checkpoint.jl")
@@ -407,6 +409,8 @@ export YeeGrid,
     yee_longitudinal_field,
     apply_yee_pec!,
     MaxwellVacuum,
+    YeeConductiveLayer,
+    absorber_diagnostics,
     maxwell_cfl,
     step_maxwell!,
     yee_poynting,

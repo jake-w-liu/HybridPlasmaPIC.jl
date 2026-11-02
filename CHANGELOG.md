@@ -11,6 +11,15 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Added
 
+- `YeeConductiveLayer` adds a graded scalar electric/magnetic conductivity layer
+  for D1–3 CPU Float32/64 Yee vacuum fields. Fixed-step midpoint damping surrounds
+  the unchanged KDK candidate, with exact actual loss, source work and signed
+  physical-field defect ledgers staged before publication. Distinct nested
+  checkpoint/archive preserves fields and budget; derived caches rebuild.
+  This is not PML. Source-reviewed only; no tests were added or run. Reflection,
+  stability, restart/compiler/resource acceptance and particle coupling remain
+  open. See the [layer guide](docs/YEE_CONDUCTIVE_LAYER.md).
+
 - Generic D1–3 `EMPIC` collections gain explicit dividing species kick schedules
   and `set_empic_schedule!`. They share the specialized schedule/history owner,
   retain every-fast drift/current and full-vector physics, and stage histories

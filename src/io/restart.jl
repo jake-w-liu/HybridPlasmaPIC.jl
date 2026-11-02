@@ -38,6 +38,7 @@ Supports [`HybridStepper`](@ref), [`CAMCLStepper`](@ref),
 [`Electrostatic1D`](@ref), [`ElectrostaticPIC`](@ref), [`EMPIC1D`](@ref), [`EMPIC`](@ref),
 [`HallMHDState`](@ref), [`MaxwellVacuum`](@ref), [`CollisionalHybridStepper`](@ref), [`CollisionalEMPICStepper`](@ref),
 [`CollisionalElectrostaticPIC`](@ref),
+[`YeeConductiveLayer`](@ref),
 [`YeeLongitudinalPIC`](@ref),
 [`YeeElectromagneticPIC`](@ref), [`YeeImpactLongitudinalPIC`](@ref),
 and [`YeeAbsorbingLongitudinalPIC`](@ref).
@@ -96,6 +97,10 @@ fields verbatim and retain the new-position/carried-half collision policy.
 Field-only `MaxwellVacuum` archives retain synchronized fields, clock and actual
 Yee grid/boundary/speed configuration in a distinct schema, with no particle or
 waveform payload. Their defaults describe vacuum units and actual wall axes.
+`YeeConductiveLayer` archives additionally retain fixed scalar-conductivity
+profile/timestep policies and every exact loss/work/defect ledger in a distinct
+schema. Derived caches are rebuilt; no PML auxiliary state or forcing waveform
+is invented. The existing container remains version 4.
 Closed-Yee archives retain their distinct completed-state schemas and restore
 physical fields verbatim. Impact longitudinal state additionally retains its
 root-refinement budget, exact wall/electric impulses, counts and carried error
@@ -184,7 +189,7 @@ end
 
 function _archive_run(
     path::AbstractString,
-    st::Union{_CheckpointStepper,HallMHDState,MaxwellVacuum,CollisionalHybridStepper,CollisionalEMPICStepper,CollisionalElectrostaticPIC,_ClosedYeeCheckpointStepper},
+    st::Union{_CheckpointStepper,HallMHDState,MaxwellVacuum,YeeConductiveLayer,CollisionalHybridStepper,CollisionalEMPICStepper,CollisionalElectrostaticPIC,_ClosedYeeCheckpointStepper},
     state;
     rng_seed::Integer,
     normalization::AbstractString = "Omega_ci",

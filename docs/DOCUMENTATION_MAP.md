@@ -44,6 +44,9 @@ rerun by this documentation-only audit.
   cloud primitives and the event-free longitudinal/1D3V electromagnetic source
   candidates, including original-geometry force completion and schema-2 policy.
 - [docs/SOURCED_YEE_FIELDS.md](SOURCED_YEE_FIELDS.md)
+- [docs/YEE_CONDUCTIVE_LAYER.md](YEE_CONDUCTIVE_LAYER.md)
+  — graded scalar E/B conductivity, exact loss/work/field-defect budgets, fixed
+  staggering and full nested restart; PML and runtime acceptance remain open.
 - [docs/MAXWELL_VACUUM_CHECKPOINT.md](MAXWELL_VACUUM_CHECKPOINT.md)
   — synchronized serial Yee vacuum state, matching-grid restore and archives.
 - [docs/YEE_IMPACT_LONGITUDINAL.md](YEE_IMPACT_LONGITUDINAL.md)

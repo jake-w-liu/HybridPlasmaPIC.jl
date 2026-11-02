@@ -410,13 +410,7 @@ function _yee_step_maxwell!(model::MaxwellVacuum{D,T}, dt::Real, impulse) where 
     # `0 + κ*(0 - 0)` (or its exact replay) because each difference it uses is
     # of constrained samples or is absent, and constrained impulses are zero;
     # no clamp or re-validation is needed.
-    for c = 1:3
-        copyto!(original.E[c], candidate.E[c])
-        copyto!(original.B[c], candidate.B[c])
-    end
-    model.time[] = next_time
-    model.step[] = next_step
-    return model
+    return _yee_publish_candidate!(model, candidate, original, next_time, next_step)
 end
 
 # Shared complete field candidate map; no clock or public publication.
@@ -431,4 +425,14 @@ function _yee_candidate_step!(candidate, original, g, dtT, speed, impulse)
         _yee_stage!(candidate.B, candidate.B, candidate.E, g, Val(true), dtT, speed, true)
     end
     return nothing
+end
+
+function _yee_publish_candidate!(model::MaxwellVacuum, candidate, original, next_time, next_step)
+    for c = 1:3
+        copyto!(original.E[c], candidate.E[c])
+        copyto!(original.B[c], candidate.B[c])
+    end
+    model.time[] = next_time
+    model.step[] = next_step
+    return model
 end
