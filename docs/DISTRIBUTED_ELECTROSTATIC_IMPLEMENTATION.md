@@ -99,7 +99,12 @@ change. MPI loss and fatal resource failures retain existing exclusions. Aliases
 must be exposed by the supplied ordinary storage and Base.mightalias contracts.
 
 `electrostatic_diagnostics(model,species)` exchanges exact scalar charge, count,
-kinetic and field-energy contributions. Energies round once globally and the
-field is counted once; an unrepresentable total returns Inf. No field is gathered.
-The source provides no global momentum diagnostic, changed-layout restart,
+particle momentum, kinetic and field-energy contributions. Momentum retains
+original mass, weight and velocity factors before three exact scalar reductions,
+then each component rounds once globally; energies also round once and the field
+is counted once. Unrepresentable final values return signed Inf. Momentum is at
+the stored common velocity half level, with the reported offset, and carries no
+exact discrete conservation guarantee. Three additional scalar reductions have
+unmeasured cost. No field or population is gathered.
+The source provides no changed-layout restart,
 collisions, subcycling, hybrid/EM composition, GPU path or measured cluster scaling.

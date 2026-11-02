@@ -363,10 +363,11 @@ end
 """
     electrostatic_diagnostics(model::DistributedElectrostaticPIC, species)
 
-Collective exact physical/grid charge ledgers, global particle count, kinetic and
-field energy, time/step and stored half-velocity offset. Charges/volumes remain
-rational; global energies round once after exact scalar reduction. No field or
-population is gathered. The ledgers separate physical-policy and represented-grid
+Collective exact physical/grid charge ledgers, global particle count, momentum,
+kinetic and field energy, time/step and stored half-velocity offset. Charges/volumes
+remain rational; global energies and momentum components round once after exact
+scalar reduction. Momentum uses the stored carried velocity half level. No field
+or population is gathered. The ledgers separate physical-policy and represented-grid
 compensators; these are descriptions of the same projection, not two additions.
 """
 function HybridPlasmaPIC.electrostatic_diagnostics(model::DistributedElectrostaticPIC{T}, species) where {T}
@@ -381,6 +382,14 @@ function HybridPlasmaPIC.electrostatic_diagnostics(model::DistributedElectrostat
     end
     kinetic = _pencil_exact_scalar_sum(model.g.fft.comm, context, "kinetic preparation", "kinetic accumulation") do
         HybridPlasmaPIC._kinetic_energy_rational(species)
+    end
+    local_momentum = HybridPlasmaPIC._mpi_collective_stage(model.g.fft.comm, context, "momentum preparation") do
+        HybridPlasmaPIC._momentum_rational(species)
+    end
+    momentum = ntuple(3) do c
+        _pencil_exact_scalar_sum(model.g.fft.comm, context, "momentum component serialization", "momentum component accumulation") do
+            local_momentum[c]
+        end
     end
     field = _pencil_exact_scalar_sum(model.g.fft.comm, context, "field energy preparation", "field energy accumulation") do
         HybridPlasmaPIC._field_energy_rational(map(parent, model.E), (), zero(_PencilCharge), model.g.dx)
@@ -405,6 +414,7 @@ function HybridPlasmaPIC.electrostatic_diagnostics(model::DistributedElectrostat
             deposition_discrepancy = grid_charge - Q(model.background_charge) * grid_volume - charges.particle,
             kinetic = HybridPlasmaPIC._from_exact(T, kinetic), field = HybridPlasmaPIC._from_exact(T, field),
             total = HybridPlasmaPIC._from_exact(T, kinetic + field),
+            momentum = map(value -> HybridPlasmaPIC._from_exact(T, value), momentum),
             velocity_time_offset = model.primed[] ? -model.last_dt[] / 2 : zero(T),
         )
     end

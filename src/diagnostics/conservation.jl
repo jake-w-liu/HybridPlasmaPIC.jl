@@ -284,6 +284,23 @@ function resistive_dissipation(
 end
 
 # --- particle momentum / electric work (from diagnostics.jl) ---
+# Exact original-factor totals for collective diagnostics. The ordinary serial
+# methods below retain their native summation and rounding order.
+function _momentum_rational(species)
+    px = py = pz = zero(Rational{BigInt})
+    for ps in species
+        mass = _exact_rational(ps.m)
+        for p in eachindex(ps.weight)
+            factor = mass * _exact_rational(ps.weight[p])
+            iszero(factor) && continue
+            px += factor * _exact_rational(ps.v[1][p])
+            py += factor * _exact_rational(ps.v[2][p])
+            pz += factor * _exact_rational(ps.v[3][p])
+        end
+    end
+    return px, py, pz
+end
+
 function total_momentum(ps::ParticleSet{D,T}) where {D,T}
     px = zero(T)
     py = zero(T)

@@ -39,8 +39,12 @@ operators are now implemented under the [operator contract](DISTRIBUTED_OPERATOR
 a separate [vacuum Maxwell model](DISTRIBUTED_MAXWELL_IMPLEMENTATION.md),
 [matching-layout field checkpoint](DISTRIBUTED_MAXWELL_CHECKPOINT.md) and
 [static Poisson field](DISTRIBUTED_POISSON_FIELD.md) are source-implemented.
-Their runtime/compiler/resource acceptance is deferred during the current
-implementation-first pass; particle-coupled domain-owned evolution remains open.
+The [distributed ES collection](DISTRIBUTED_ELECTROSTATIC_IMPLEMENTATION.md) now
+adds actual-pencil ownership, complete CIC transport, migration, canonical
+leapfrog and collective charge/energy/momentum diagnostics. Matching-layout ES
+checkpoint is the next source slice; broader hybrid/EM composition remains open.
+Runtime/compiler/resource acceptance is deferred during the implementation-first
+pass.
 
 The [roundtrip diagnostic repair](DISTRIBUTED_FFT_DIAGNOSTIC_PLAN.md) supports
 in-place FFT!, RFFT! and R2R! through their input view and shared output container.
@@ -84,8 +88,8 @@ Primary source:
 3. Limit the first integration to fully periodic 3D transforms. **Plans,
    forward/inverse wrappers and rank-owned field operators are implemented.**
    A [vacuum Maxwell source implementation](DISTRIBUTED_MAXWELL_IMPLEMENTATION.md)
-   now composes them; runtime acceptance and coupled particle evolution remain
-   open. Shock configurations with nonperiodic shock-normal physics use
+   and [coupled ES source](DISTRIBUTED_ELECTROSTATIC_IMPLEMENTATION.md) now compose
+   them; runtime acceptance and broader hybrid/EM evolution remain open. Shock configurations with nonperiodic shock-normal physics use
    slab/local finite-difference logic until a mixed distributed operator is
    designed and tested.
 4. Validate the extension with real `mpiexec` tests:

@@ -11,6 +11,11 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Added
 
+- Distributed ES diagnostics now include global three-component particle momentum.
+  Original mass/weight/velocity products and rank sums remain exact until one final
+  component rounding. Momentum retains the stored velocity half phase; no new
+  conservation or measured cost claim is made. No tests or executions were added.
+
 - `distributed_electrostatic_pic` adds a rank-owned periodic 3D CPU Float32/64
   CIC collection using actual physical pencil ownership, complete remote stencil
   transport, direct particle migration and the canonical leapfrog mover. Exact
