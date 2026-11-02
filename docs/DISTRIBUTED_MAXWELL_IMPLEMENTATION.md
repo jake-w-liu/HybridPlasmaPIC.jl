@@ -20,9 +20,10 @@ Populate owned cells through `PencilArrays.global_view(model.fields.E[c])` and
 the corresponding B view. Model time and step start at zero. `c` converts once
 to the grid precision and must be finite, positive and equal on every rank.
 
-Call `step_maxwell!(model, dt)` on every rank in the same order. Converted dt,
-speed and current clocks must agree. A step is positive, must advance the finite
-clock, and must be strictly below `maxwell_cfl(model)`. Nearest rounding and
+Call `step_maxwell!(model, dt)` on every rank in the same order. Precision, grid
+dimensions/spacing, converted dt, speed and current clocks must agree. A step
+is positive, must advance the finite clock, and must be strictly below
+`maxwell_cfl(model)`. Nearest rounding and
 gradual underflow are required for construction, stepping and diagnostics.
 The grid's metadata remain read-only; the grid/model belong to one caller at a
 time, with no concurrent mutation. The caller owns the communicator; this model

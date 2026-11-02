@@ -50,10 +50,10 @@ or its grid is unsupported. See `docs/DISTRIBUTED_MAXWELL_IMPLEMENTATION.md`.
 """
 function HybridPlasmaPIC.distributed_maxwell_vacuum(g::DistributedFourierGrid{T}; c = 1) where {T}
     context = "Distributed vacuum Maxwell"
-    _, _, speed = _agree_configuration(g.fft.comm, context) do
+    _, _, speed, _, _ = _agree_configuration(g.fft.comm, context) do
         _distributed_maxwell_mode(T)
         c isa Real || throw(ArgumentError("c must be real"))
-        g.n, g.L, HybridPlasmaPIC._require_finite_positive_real("c", c, T)
+        g.n, g.L, HybridPlasmaPIC._require_finite_positive_real("c", c, T), T, g.dx
     end
     return HybridPlasmaPIC._mpi_collective_stage(g.fft.comm, context, "model allocation") do
         vector() = ntuple(_ -> HybridPlasmaPIC.distributed_field(g), 3)
@@ -115,7 +115,7 @@ function _distributed_maxwell_state_agreement(model::DistributedMaxwellVacuum{T}
             throw(ArgumentError("distributed Maxwell time must be finite and nonnegative"))
         model.step[] >= 0 ||
             throw(ArgumentError("distributed Maxwell step must be nonnegative"))
-        model.g.n, model.g.L, model.g.dx, model.c, model.time[], model.step[]
+        model.g.n, model.g.L, model.g.dx, model.c, model.time[], model.step[], T
     end
 end
 
@@ -177,7 +177,7 @@ function HybridPlasmaPIC.step_maxwell!(model::DistributedMaxwellVacuum{T}, dt) w
         next_time, next_step = HybridPlasmaPIC._validated_step_clock(model.time[], model.step[], h)
         next_time > model.time[] ||
             throw(ArgumentError("distributed Maxwell time must advance finitely"))
-        h, model.c, model.time[], model.step[], next_time, next_step, g.n, g.L, g.dx
+        h, model.c, model.time[], model.step[], next_time, next_step, g.n, g.L, g.dx, T
     end
     coefficients = HybridPlasmaPIC._mpi_collective_stage(g.fft.comm, context, "step preflight") do
         _distributed_maxwell_storage(model)
