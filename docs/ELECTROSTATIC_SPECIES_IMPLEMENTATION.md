@@ -75,7 +75,9 @@ and `AtomicMemory`, including standard view/reshape/reinterpret ancestry,
 before alias checks, initialization or restore publication. Every particle
 leaf is checked: frozen metadata also participates in restore and independence.
 Ordinary writable vectors, non-atomic Memory and writable views/reinterpretations
-retain their admission. Supplied host storage must support ordinary writes and
+retain their admission. Electrostatic collection particle leaves must also be
+injective: a strided view with multiple logical entries sharing one backing
+cell rejects before staging or restoration. Supplied host storage must support ordinary writes and
 alias detection; OS protection changes and arbitrary custom setter side effects
 are outside the staged-publication guarantee. This is not a universal writable
 array trait. The focused constructor/init/restore controls await GitHub on the

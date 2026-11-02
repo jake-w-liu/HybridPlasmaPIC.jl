@@ -151,7 +151,8 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Fixed
 
-- Electromagnetic collection preflight now requires injective particle leaves,
+- Electrostatic and electromagnetic collection preflights now require injective
+  particle leaves,
   rejecting repeated-cell strided views before staging or checkpoint restore.
   Existing injective storage retains its admission. Source review only; runtime
   validation is deferred during the current implementation-first pass.
