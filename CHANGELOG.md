@@ -11,6 +11,19 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Added
 
+- `YeeAbsorbingLongitudinalPIC` adds a nonrelativistic CPU Float32/64 finite-cloud
+  source candidate on a closed longitudinal 1D Yee grid. It admits zero captures
+  or one uniquely isolated certified-passive instantaneous capture per external
+  step, using KDK with original forces and rational local durations. Full death
+  current, dynamic exact free plates and separate capture/work/energy ledgers
+  accompany stable Vector survivor compaction and distinct checkpoint/archive.
+  Survivor carry handles the force jump separately from the reflection contract.
+  GitHub numerical/convergence, rollback/restart, JET/compiler, formatting/CI
+  and complete-step resource acceptance are deferred during the current
+  implementation-first pass; existing authored checks remain unrun. General
+  material/sheath laws, multiple captures, transverse walls and backends remain
+  open; see the [model guide](docs/YEE_ABSORBING_LONGITUDINAL.md).
+
 - `YeeImpactLongitudinalPIC` adds a nonrelativistic CPU Float32/64 finite-cloud
   reflection source candidate on a closed 1D Yee grid. Each external step admits
   zero contacts or one connected certified cluster, with original-factor forces,
@@ -18,8 +31,8 @@ records scoped verification and remaining exact-revision acceptance gates.
   Wall ledgers, diagnostics and distinct checkpoint/archive state stage before
   publication. Exact-revision GitHub numerical, convergence, rollback/restart,
   JET/compiler, formatting/CI and complete-step cost acceptance remain pending.
-  Absorption, multiple clusters, transverse walls and backend integration remain
-  open; see the [model guide](docs/YEE_IMPACT_LONGITUDINAL.md).
+  Broader wall laws, multiple clusters, transverse walls and backend integration
+  remain open; see the [model guide](docs/YEE_IMPACT_LONGITUDINAL.md).
 
 - Private canonical Yee raw-sum/candidate-conversion, exact source-row and
   unrounded source-work owners support the reflection candidate without copying

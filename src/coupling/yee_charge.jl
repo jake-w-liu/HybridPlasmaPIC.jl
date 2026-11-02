@@ -376,6 +376,19 @@ function _yee_charge_exact_sums(species, old, new, g, mode, shape)
     return sums
 end
 
+# Exact one-capture charge redistribution. It is not an unchanged-source path.
+function _yee_cloud_death_sums(charge::Rational{BigInt}, side, g::YeeGrid{1}, shape::YeeTriangularCloud)
+    h, a = _exact_rational(g.L[1]) / g.n[1], _exact_rational(shape.half_width)
+    wall = side == 1 ? zero(h) : _exact_rational(g.L[1])
+    target = side == 1 ? zero(h) : one(h)
+    sums = fill(zero(Rational{BigInt}), Base.checked_add(g.n[1], 1))
+    for e in _yee_cloud_edge_span(wall, wall, h, a, g.n[1])
+        cumulative, _ = _yee_cloud_edge(wall, e * h, h, a)
+        sums[e+1] = charge * (target - cumulative)
+    end
+    return sums
+end
+
 function _yee_charge_store_exact_candidate!(work, sums, entries)
     T = eltype(work.candidate)
     for i = 1:entries

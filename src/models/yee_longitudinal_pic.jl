@@ -236,21 +236,23 @@ function _yl_validate_phase(st::YeeLongitudinalPIC)
     return nothing
 end
 
-function _yl_right_plate(st, species)
-    total = _exact_rational(st.left_plate_charge) +
-        _exact_rational(st.background_charge) * _exact_rational(st.g.L[1])
+function _yee_closed_right_plate(sigma, background, length, species)
+    total = _exact_rational(sigma) +
+        _exact_rational(background) * _exact_rational(length)
     for ps in species, w in ps.weight
         total += _exact_rational(ps.q) * _exact_rational(w)
     end
     return -total
 end
+_yl_right_plate(st, species) =
+    _yee_closed_right_plate(st.left_plate_charge, st.background_charge, st.g.L[1], species)
+_yee_closed_plate_values(st) = (_exact_rational(st.left_plate_charge), st.right_plate_charge[])
 
 _yee_closed_frozen_sources_match(ps, frozen) =
     isequal(ps.q, frozen.q) && isequal(ps.m, frozen.m) &&
     isequal(ps.weight, frozen.weight) && isequal(ps.id, frozen.id) && isequal(ps.tag, frozen.tag)
 
-function _yl_validate_bound(st, species)
-    stage = st._stage[]
+function _yee_closed_validate_binding(st, species, stage)
     length(species) == length(stage.owners) == length(stage.candidates) == length(stage.components) ||
         throw(ArgumentError("population count changed; call init! explicitly"))
     for (k, ps) in enumerate(species)
@@ -265,6 +267,7 @@ function _yl_validate_bound(st, species)
         throw(ArgumentError("derived closed Yee PIC free-plate charge changed"))
     return nothing
 end
+_yl_validate_bound(st, species) = _yee_closed_validate_binding(st, species, st._stage[])
 
 function _yl_initialize_fields!(st, species)
     T = eltype(st.fields.E[1])

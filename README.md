@@ -257,10 +257,11 @@ in the [implementation plan](docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md).
 | **Electromagnetic PIC** | periodic spectral current correction and Gauss initialization in 1D–3D; legacy electron/ion models; synchronous CPU arbitrary-species `EMPIC` collections and planar `EMPIC1D` dividing species schedules, with optional relativity, mobile/fixed populations and explicit neutrality policy ([contract and pending CI](docs/EMPIC_SPECIES_IMPLEMENTATION.md)) | `EMPIC`, `EMPIC1D`, `set_empic1d_schedule!`, `init_empic!`, `step_empic!`, `charge_conservation_residual`, `electromagnetic_diagnostics`, `total_momentum_relativistic` |
 | **Bounded Maxwell vacuum** | staggered Yee fields in 1D–3D with periodic or homogeneous conducting axes, synchronized second-order stepping, CFL rejection, compatible divergence and energy/Poynting diagnostics; native stencils under the normwise accuracy contract; no particle coupling or absorbing layer | `YeeGrid`, `MaxwellVacuum`, `step_maxwell!`, `yee_divergence!`, `yee_poynting_flux` |
 | **Prescribed-current Yee fields** | 1D current impulses on electric lattices, all-node charge including conducting surfaces, source work and fixed-step modified energy; [scope and example](docs/SOURCED_YEE_FIELDS.md) | `step_maxwell!(model, dt, impulse)`, `yee_electric_charge!`, `yee_source_work`, `yee_modified_energy` |
-| **Closed Yee static particle coupling** | CPU 1D point/CIC charge, longitudinal endpoint impulse and path voltage; optional finite physical-width triangular-cloud family with stationary work-adjoint field ([contract and pending CI](docs/BOUNDED_PARTICLE_COUPLING_PLAN.md)); point/CIC wall-contact models remain open; finite-cloud reflection uses a separate coupled source candidate | `YeeChargeWorkspace`, `YeeTriangularCloud`, `yee_particle_charge!`, `yee_longitudinal_impulse!`, `yee_longitudinal_voltage`, `yee_longitudinal_field` |
+| **Closed Yee static particle coupling** | CPU 1D point/CIC charge, longitudinal endpoint impulse and path voltage; optional finite physical-width triangular-cloud family with stationary work-adjoint field ([contract and pending CI](docs/BOUNDED_PARTICLE_COUPLING_PLAN.md)); point/CIC wall-contact models remain open; finite-cloud reflection and capture use separate coupled source candidates | `YeeChargeWorkspace`, `YeeTriangularCloud`, `yee_particle_charge!`, `yee_longitudinal_impulse!`, `yee_longitudinal_voltage`, `yee_longitudinal_field` |
 | **Event-free longitudinal cloud PIC** | source candidate for CPU 1D synchronized electrostatic Verlet coupling, background/free plates, strict impact-risk rejection, diagnostics and restart; [contract and pending GitHub acceptance](docs/BOUNDED_PARTICLE_COUPLING_PLAN.md#event-free-longitudinal-coupled-source-candidate) | `YeeLongitudinalPIC`, `init!`, `step!`, `yee_longitudinal_diagnostics` |
 | **Event-free 1D3V electromagnetic cloud PIC** | source candidate for synchronized Boris/Yee coupling with exact compatible longitudinal/transverse currents, PEC masks, scoped CFL/rest/impact guards, diagnostics and distinct restart; [scope and pending GitHub acceptance](docs/BOUNDED_PARTICLE_COUPLING_PLAN.md#event-free-1d3v-electromagnetic-source-candidate) | `YeeElectromagneticPIC`, `init!`, `step!`, `yee_electromagnetic_diagnostics` |
 | **Event-local longitudinal reflection** | nonrelativistic CPU Float32/64 finite-cloud source candidate on a closed 1D grid; at most one connected reflection cluster per external step, conservative carried remainder checks, staged wall ledgers and distinct restart; [scope and pending GitHub acceptance](docs/YEE_IMPACT_LONGITUDINAL.md) | `YeeImpactLongitudinalPIC`, `init!`, `step!`, `yee_impact_longitudinal_diagnostics` |
+| **Isolated passive longitudinal capture** | nonrelativistic CPU Float32/64 finite-cloud source candidate on a closed 1D grid; KDK with original forces, at most one uniquely isolated certified-passive capture per external step, full death current, dynamic exact plates, stable Vector compaction and distinct restart; [scope and pending GitHub acceptance](docs/YEE_ABSORBING_LONGITUDINAL.md) | `YeeAbsorbingLongitudinalPIC`, `init!`, `step!`, `yee_absorbing_longitudinal_diagnostics` |
 | **Fusion geometry / gyrokinetics / AMR** | toroidal metric operators, guiding-centre particle updates and finite-volume AMR primitives; a coupled gyrokinetic or adaptive plasma solver remains [planned](docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md#cap-006--geometry-gyrokinetics-and-adaptive-plasma-evolution) | `ToroidalGrid`, `metric_gradient`, `GuidingCentre`, `push_guiding_centre!`, `AMRGrid`, `refine` |
 | **KdV reference** | integrating-factor pseudo-spectral KdV solver + analytic soliton, used as a nonlinear-wave verification target | `kdv_solve`, `kdv_soliton` |
 
@@ -675,13 +676,15 @@ EM and comparative campaigns remain in the
 - Full nonperiodic EM-PIC coupling (`EMPIC` and `EMPIC1D` use periodic geometry).
   The separate [bounded Maxwell vacuum solver](docs/BOUNDED_MAXWELL_IMPLEMENTATION.md)
   supplies conducting cavities and mixed periodic/conducting fields.
-  [Event-free closed 1D cloud coupling](docs/BOUNDED_PARTICLE_COUPLING_PLAN.md)
-  and [event-local longitudinal reflection](docs/YEE_IMPACT_LONGITUDINAL.md) have
-  source implementations with diagnostics and restart. Reflection is limited to
-  one connected cluster per external step with conservative carried remainder
-  checks. Exact-revision GitHub numerical/JET/CI and resource acceptance remain
-  pending; absorption, multiple clusters, transverse wall coupling, absorbing
-  layers and backend integration remain open.
+  [Event-free closed 1D cloud coupling](docs/BOUNDED_PARTICLE_COUPLING_PLAN.md),
+  [one-cluster longitudinal reflection](docs/YEE_IMPACT_LONGITUDINAL.md) and
+  [one isolated passive capture](docs/YEE_ABSORBING_LONGITUDINAL.md) have source
+  implementations with diagnostics and distinct restart. Capture uses a separate
+  carry across the force jump; it is not a general material/sheath law.
+  GitHub numerical/JET/CI and resource acceptance are deferred during the current
+  implementation-first pass; existing authored checks remain unrun. Multiple
+  clusters/captures, transverse walls, absorbing field layers and backend
+  integration remain open.
 - Specialized `EMPIC1D` arbitrary-species collections have a planar CPU source
   implementation with dividing per-species kick schedules, every-fast drift/current
   and independent phase histories. Schema 2 includes explicit S1 migration.

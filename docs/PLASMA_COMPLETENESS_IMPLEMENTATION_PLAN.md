@@ -4,7 +4,7 @@ Initial source assessment: **2026-10-23**, revision
 `bf2a8bc615f514f8d2868934849bf44814140bbb`. This document plans work; it does not
 certify the proposed implementations. Source status was reconciled on
 **2026-11-02** against the IEEE, CPU particle-factor and transport
-implementations, accepted C1 `1bc618b` and the bounded reflection source candidate;
+implementations, accepted C1 `1bc618b` and the bounded reflection/capture source candidates;
 earlier line references remain pinned to the initial assessment. The
 [audit tracker](DEEP_DEBUG_TRACKER.md) owns accepted fixes, measured results and exact-revision CI status.
 
@@ -14,6 +14,18 @@ but several advertised domains still lack an end-to-end evolution path.
 Source presence, a passing primitive test and a complete simulation are separate
 milestones. No current evidence establishes that the package is globally bug-free,
 fully optimized, or stronger than every external plasma code.
+
+**Recorded-milestone snapshot (2026-11-02):** 14 checked and 65 open
+checkbox items out of 79 (17.7% checked). This is an unweighted count of
+this plan's recorded milestones. Checked source milestones can still await
+GitHub acceptance; the count is neither weighted physics/runtime completion
+nor a measured percentage of the full goal. All eleven CAP areas retain open
+work.
+
+**Current validation policy (2026-11-02):** prioritize source implementation,
+caller review and optimization. Do not add or run tests during this pass;
+existing authored controls remain unrun. Runtime/JET/CI and resource acceptance
+are deferred to a later validation pass on the exact integrated revision.
 
 The original scope recoverable from the repository is the periodic hybrid model,
 its companion solvers and the open completeness roadmap: [README](../README.md),
@@ -77,7 +89,7 @@ Source names below resolve to these canonical files:
 | ES/EM PIC | Periodic `ElectrostaticPIC`, `EMPIC` and `EMPIC1D`; ES collection implementation `d46029e` | Periodic CPU ES collections are landed; synchronous CPU EMPIC and specialized EMPIC1D S1/S2 dividing schedules with optional relativistic motion are source-implemented, exact-revision GitHub acceptance pending. Broader schedules, bounded coupling and resident GPU/MPI integration remain open |
 | Hall-MHD | `HallMHDModel`, `HallMHDState`, `step_hall_mhd!`; `test_hall_mhd.jl`, `test_io_hall_mhd.jl` | A periodic solver exists; it is not a general geometry/closure solver |
 | Coulomb collisions | Canonical homogeneous and local collection `collide_coulomb!`; `CollisionalHybridStepper` | Local self/cross CPU operator and fixed-step isothermal hybrid/RNG restart exist; ideal evolving-scalar, S1/S2 transport and S3b conduction extensions await CI, additional compositions and parallel/device support remain |
-| Nonperiodic EM | Periodic `EMPIC`; separate Yee vacuum/prescribed-current fields; closed 1D PEC charge/impulse/path voltage plus optional finite physical-width cloud static coupling | B2a, optional cloud, event-free longitudinal/1D3V EM and one-cluster longitudinal reflection/restart source are implemented. Exact-revision GitHub numerical/JET/CI and resource acceptance, absorption, multiple clusters, transverse walls, absorbers and backends remain CAP-002 work |
+| Nonperiodic EM | Periodic `EMPIC`; separate Yee vacuum/prescribed-current fields; closed 1D PEC charge/impulse/path voltage plus optional finite physical-width cloud static coupling | B2a, optional cloud, event-free longitudinal/1D3V EM, one-cluster reflection and one isolated passive longitudinal capture/restart source are implemented. Exact-head GitHub numerical/JET/CI and resource acceptance, general capture laws, multiple clusters/captures, transverse walls, field absorbers and backends remain CAP-002 work |
 | Distributed evolution | Replicated-field MPI reference plus rank-owned Fourier storage and derivative/vector/filter operators (`4724947`) | Distributed operator primitives exist; coupled domain-owned solver, restart and cluster-scale acceptance remain CAP-003 work |
 | GPU | Metal extension has deposit/gather/push methods; CUDA extension:1–68 has storage/telemetry hooks; `HybridFields` uses `Array` at field_state:12–29 | Partial kernels, not complete resident solvers, CAP-004; device availability is not numerical acceptance |
 | Implicit evolution | Linear Fourier amplitudes in `semi_implicit.jl`; subsequent `ce52836` adds a residual-checked `ShockCNWorkspace` solve and full-step rollback ([contract](SHOCK_CN_SOLVE_PLAN.md)) | Limited field-only paths exist; nonlinear coupled particle/field solve remains missing, CAP-005 |
@@ -206,7 +218,7 @@ and quota failures describe historical work, not current ownership.
 | Slice | Implementation owner / canonical code | Dependencies | State and checked evidence | Next concrete action |
 | --- | --- | --- | --- | --- |
 | 001 local self/cross collisions | Canonical collision/sorting owners | Accepted sampler and particle arithmetic | CPU self/cross operator, normwise scheduling and fixed-step isothermal composition landed | MPI/device pairing and broader cost campaign; [live evidence](DEEP_DEBUG_TRACKER.md#current-progress) |
-| 002A/B bounded Maxwell + particles | Canonical mesh/operator, field, boundary, coupling and diagnostic owners | Accepted vacuum/prescribed-current fields; full particle/wall/DC contract required | Closed 1D PEC nodal CIC charge, longitudinal endpoint impulse and its exact scalar path-work adjoint are implemented with explicit IEEE scalar boundaries and exact mode decisions. An optional triangular-cloud family adds static stationary work-adjoint fields with an explicit distinct wall shape. Event-free longitudinal/1D3V EM and one-cluster longitudinal reflection source candidates include diagnostics, staged publication and distinct restart | [Coupled contract](BOUNDED_PARTICLE_COUPLING_PLAN.md) and [reflection scope](YEE_IMPACT_LONGITUDINAL.md): exact-revision numerical/JET/CI and resource acceptance remain pending; absorption, multiple clusters, transverse walls and backends remain open |
+| 002A/B bounded Maxwell + particles | Canonical mesh/operator, field, boundary, coupling and diagnostic owners | Accepted vacuum/prescribed-current fields; full particle/wall/DC contract required | Closed 1D PEC nodal CIC charge, longitudinal endpoint impulse and its exact scalar path-work adjoint are implemented with explicit IEEE scalar boundaries and exact mode decisions. An optional triangular-cloud family adds static stationary work-adjoint fields with an explicit distinct wall shape. Event-free longitudinal/1D3V EM, one-cluster reflection and one isolated passive capture source candidates include diagnostics, staged publication and distinct restart | [Coupled contract](BOUNDED_PARTICLE_COUPLING_PLAN.md), [reflection](YEE_IMPACT_LONGITUDINAL.md) and [capture](YEE_ABSORBING_LONGITUDINAL.md): exact-head numerical/JET/CI and resource acceptance remain pending; broader wall laws, multiple clusters/captures, transverse walls and backends remain open |
 | 002C/D open boundaries + production integration | Agent unassigned; boundaries, EM, I/O | 002A/B; 003/004 for parallel/device claims | Planned; no coupled open Maxwell path | Pre-register pulse reflection/charge-flux suite and absorber state schema |
 | 003A/B local storage + distributed operators | Distributed audit track; MPI/Pencil/SpectralOperators owners | Collective precision, shared kernels and owned storage | Rank-owned storage and derivative/vector/filter operators landed; `4724947` exact-SHA CI/compiler gates pass | Shared filter/inverse repairs are registered as 0.1.4/0.1.5; consumer and metadata repairs are pushed with local integration gates passed. Their exact-SHA CI is tracked separately; next complete [resources and integration](DISTRIBUTED_OPERATOR_IMPLEMENTATION_PLAN.md) |
 | 003C/D distributed coupled solvers | Agent unassigned; MPI orchestration + canonical solver owners | 003A/B and accepted serial solver | Planned; full-grid allreduce reference inspected | Compose a periodic hybrid step without replicated grids and test 2/4/8 ranks |
@@ -335,9 +347,18 @@ ledger satisfy the coupled method.
   from the original external-step state; ledgers, diagnostics and distinct restart
   stage before publication. Exact-revision GitHub numerical, independent
   force-driven convergence, rollback/restart, JET/compiler, formatting/CI and
-  complete-step resource acceptance remain pending. Absorption, multiple clusters,
-  transverse walls, relativity and backend integration remain open; **002B is
-  not complete**.
+  complete-step resource acceptance remain pending. Broader wall laws, multiple
+  clusters, transverse walls, relativity and backend integration remain open.
+  The distinct [`YeeAbsorbingLongitudinalPIC` source candidate](YEE_ABSORBING_LONGITUDINAL.md)
+  adds zero or one uniquely isolated certified-passive instantaneous full-cloud
+  capture per external step in the same closed nonrelativistic CPU Float32/64
+  longitudinal 1D domain. It retains original-force rational-duration KDK,
+  full death current, dynamic exact plate and capture ledgers, stable Vector
+  compaction and distinct restart. Its survivor carry handles the finite force
+  jump separately from reflection's fixed-source contract. Exact-head GitHub
+  numerical/convergence, rollback/restart, JET/compiler, formatting/CI and resource
+  acceptance remain pending. General material/sheath laws, multiple captures,
+  transverse walls and backends remain open; **002B is not complete**.
 
 - [ ] **002C: absorbing/radiating boundaries.** Add a measured absorbing layer
   with configurable thickness/profile and accounted energy removal; inject

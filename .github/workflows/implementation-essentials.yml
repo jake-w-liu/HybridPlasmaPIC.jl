@@ -57,7 +57,7 @@ jobs:
               "electromagnetic-continuity" => ("test_empic_relativistic_species.jl",),
               "electron-conduction" => ("test_electron_conduction.jl", "test_evolving_pressure.jl", "test_transport_electrons.jl", "test_transport_electrons_io.jl", "test_transport_hyperresistivity.jl", "test_scalar_pressure_range.jl"),
               "yee-electromagnetic-pic" => ("test_yee_electromagnetic_pic.jl", "test_yee_longitudinal_pic.jl", "test_yee_particle_charge.jl", "test_bounded_maxwell.jl", "test_sourced_yee.jl"),
-              "longitudinal-pic" => ("test_yee_impact_longitudinal_pic.jl", "test_yee_longitudinal_pic.jl", "test_yee_particle_charge.jl", "test_bounded_maxwell.jl", "test_sourced_yee.jl"),
+              "longitudinal-pic" => ("test_yee_absorbing_longitudinal_pic.jl", "test_yee_impact_longitudinal_pic.jl", "test_yee_longitudinal_pic.jl", "test_yee_particle_charge.jl", "test_bounded_maxwell.jl", "test_sourced_yee.jl"),
               "rk4-affine" => ("test_rk4_original_duration.jl", "test_rk4_mixed_stability.jl", "test_transport_electrons.jl", "test_phase_helpers.jl"),
               "bounded-fields" => ("test_yee_particle_charge.jl", "test_bounded_maxwell.jl", "test_sourced_yee.jl", "test_sourced_yee_modes.jl", "test_sourced_yee_additional.jl"),
             )

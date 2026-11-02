@@ -127,6 +127,7 @@ include("models/maxwell_vacuum.jl")
 include("models/yee_longitudinal_pic.jl")
 include("models/yee_electromagnetic_pic.jl")
 include("models/yee_impact_longitudinal_pic.jl")
+include("models/yee_absorbing_longitudinal_pic.jl")
 include("models/hall_mhd.jl")
 include("models/gyrokinetics.jl")
 
@@ -154,6 +155,7 @@ include("io/empic_collection_checkpoint.jl")
 include("io/yee_longitudinal_checkpoint.jl")
 include("io/yee_electromagnetic_checkpoint.jl")
 include("io/yee_impact_longitudinal_checkpoint.jl")
+include("io/yee_absorbing_longitudinal_checkpoint.jl")
 include("io/collisional_checkpoint.jl")
 include("io/metadata.jl")
 include("io/hdf5_output.jl")
@@ -379,6 +381,7 @@ export electromagnetic_diagnostics
 export YeeLongitudinalPIC, yee_longitudinal_diagnostics
 export YeeElectromagneticPIC, yee_electromagnetic_diagnostics
 export YeeImpactLongitudinalPIC, yee_impact_longitudinal_diagnostics
+export YeeAbsorbingLongitudinalPIC, yee_absorbing_longitudinal_diagnostics
 export YeeGrid,
     YeeFields,
     yee_coordinates,

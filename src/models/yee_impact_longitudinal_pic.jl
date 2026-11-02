@@ -147,7 +147,7 @@ _yl_validate_longitudinal_fields(st::YeeImpactLongitudinalPIC, fields::YeeFields
 _yl_validate_populations(st::YeeImpactLongitudinalPIC, species) =
     _yee_closed_validate_longitudinal_populations(st, species)
 
-function _yl_storage_arrays(st::YeeImpactLongitudinalPIC)
+function _yee_impact_storage_arrays(st)
     _yee_check_shape(st._event_fields.E, st.g, true)
     _yee_check_shape(st._event_fields.B, st.g, false)
     stage = st._stage[]
@@ -163,6 +163,7 @@ function _yl_storage_arrays(st::YeeImpactLongitudinalPIC)
     end
     return arrays
 end
+_yl_storage_arrays(st::YeeImpactLongitudinalPIC) = _yee_impact_storage_arrays(st)
 _yee_closed_references(st::YeeImpactLongitudinalPIC) =
     (st.time, st.step, st.initialized, st.last_dt, st.right_plate_charge, st.last_work,
     st.last_energy_defect, st.last_physical_energy_change, st.last_wall_count...,
@@ -471,7 +472,7 @@ function _yi_contacts!(st, species, geom)
     return true
 end
 
-function _yi_local_chunk!(st::YeeImpactLongitudinalPIC{T}, source, oldfields,
+function _yee_longitudinal_local_chunk!(st, ::Type{T}, source, oldfields,
     destination, newfields, duration, first_acceleration, next_acceleration, constrained) where {T}
     stage, Q = st._stage[], _exact_rational
     half = duration / 2
@@ -520,6 +521,10 @@ function _yi_local_chunk!(st::YeeImpactLongitudinalPIC{T}, source, oldfields,
     end
     return (work = work, electric = electric)
 end
+_yi_local_chunk!(st::YeeImpactLongitudinalPIC{T}, source, oldfields,
+    destination, newfields, duration, first_acceleration, next_acceleration, constrained) where {T} =
+    _yee_longitudinal_local_chunk!(st, T, source, oldfields, destination, newfields,
+        duration, first_acceleration, next_acceleration, constrained)
 
 function _yi_weighted_error(stage, species, errors)
     total = zero(_YeeImpactQ)
@@ -741,7 +746,7 @@ function _yi_ulp(::Type{T}, scale::_YeeImpactQ) where {T}
     return quantum >= 0 ? (BigInt(1) << quantum) // BigInt(1) :
         BigInt(1) // (BigInt(1) << -quantum)
 end
-function _yi_cluster(st::YeeImpactLongitudinalPIC{T}, species, geom) where {T}
+function _yee_longitudinal_cluster_candidate(st, ::Type{T}, species, geom) where {T}
     stage = st._stage[]
     isempty(stage.contacts) && return nothing
     last = 1
@@ -810,6 +815,8 @@ function _yi_cluster(st::YeeImpactLongitudinalPIC{T}, species, geom) where {T}
         delta = max(s - lower, upper - s), width = upper - lower,
         group = last, predictor_error = eta, max_snap = maxsnap, charge_snap = Rcharge)
 end
+_yi_cluster(st::YeeImpactLongitudinalPIC{T}, species, geom) where {T} =
+    _yee_longitudinal_cluster_candidate(st, T, species, geom)
 
 function _yi_certify_cluster!(st, species, geom)
     for iteration = 0:st.max_root_refinements

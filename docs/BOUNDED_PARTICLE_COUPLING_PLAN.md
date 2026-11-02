@@ -526,9 +526,41 @@ for the stronger wall contract, not a runtime result or an impossibility claim.
 - [ ] On GitHub, run essential independent force-driven impact refinement,
   branch/cluster failures, complete rollback and restart controls. Preserve
   existing event-free and compiler assertions; measure complete-step cost.
-- [ ] Separately design absorption: removing a finite cloud at a wall needs its
-  remaining nodal charge-to-plate current, constitutive plate update and work
-  ledger. Reaching the wall does not turn this cloud into a point delta.
+- [x] Separate source candidate for one isolated passive full-cloud capture,
+  including remaining charge-to-plate current, dynamic plates and work ledgers;
+  [scope and pending acceptance](#one-isolated-passive-capture-source-candidate).
+
+## One isolated passive capture source candidate
+
+[`YeeAbsorbingLongitudinalPIC`](YEE_ABSORBING_LONGITUDINAL.md) implements a distinct
+nonrelativistic CPU Float32/64 closed 1D finite-cloud source candidate: zero or one
+uniquely isolated certified-passive instantaneous capture per external step.
+Complete the rational-duration KDK final half-kick with original forces before
+retiring the entire cloud, including particle-bound endpoint tails. Its additional
+`I_death,* = q*w*(Bside-A(wall))` current transfers full signed charge to the
+selected isolated plate through the canonical source row. Both current free
+plates and separate captured kinetic/death-work/received-energy ledgers are exact.
+A negative received total or inconclusive physical-passivity lower bound rejects.
+
+Absorption has a separate carry across the finite force jump. It aligns survivor
+uncertainty at the true predeath hit, applies the same death map, recomputes the
+postdeath gathers and checks both walls over the enlarged remainder. Smooth-epoch
+bounds are not extended across the jump. The [reflection contract](BOUNDED_EVENT_COVERAGE_CONTRACT.md)
+retains its unchanged fixed-source/velocity-reversal premises and departure rule;
+those premises do not cover source removal.
+
+Stable compaction requires ordinary Vector leaves and preserves particle objects,
+array identities and surviving provenance, including empty ordered populations.
+Distinct schema-1 checkpoint/archive state includes dynamic plates, initial source
+records and capture/certificate histories; no implicit cross-model migration is
+provided. See the model guide for binding, transaction and restore limits.
+
+GitHub numerical/convergence, rollback/restart, JET/compiler, formatting/CI and
+complete-step resource acceptance are deferred during the current
+implementation-first pass; existing authored controls remain unrun. General
+material/sheath/circuit/emission laws, multiple captures, transverse walls,
+relativistic/device/distributed execution and absorbing field layers remain open.
+This source candidate does not complete CAP-002B or establish whole-run stability.
 
 ## Implementation tracker
 
@@ -549,8 +581,8 @@ acceptance remains a separate gate.
 - [x] Source candidate for exact PEC-masked transverse path currents and a
   synchronized event-free 1D3V Boris/Yee method.
 - [ ] Accept the EM candidate on the exact integrated GitHub revision.
-- [x] Source completion of original-geometry-through-Lorentz semantics for both
-  coupled models, retaining exact gathers/factors through canonical Boris and
+- [x] Source completion of original-geometry-through-Lorentz semantics for the two
+  event-free coupled models, retaining exact gathers/factors through canonical Boris and
   rounding only each final half-kick velocity; schema-2 force policy is explicit.
 - [ ] Accept the original-force map, schema transition and whole-step resource
   behavior on the exact integrated GitHub revision.
@@ -573,9 +605,14 @@ acceptance remains a separate gate.
   longitudinal fields, ordered particles, fixed phase and exposed diagnostics.
 - [x] Distinct source checkpoint/archive for completed longitudinal reflection,
   root budget, wall/electric ledgers and carried error histories.
-- [ ] Accept event-free longitudinal, EM and reflection restart regressions.
-- [ ] Absorption/injection/circuits, relativistic coupling, higher dimensions,
-  GPU/MPI and broader physical validation.
+- [x] Source candidate for one uniquely isolated certified-passive capture with
+  full death current, dynamic exact plates, separate ledgers, jump-aware survivor
+  carry, stable Vector compaction and distinct checkpoint/archive.
+- [ ] Accept event-free longitudinal, EM, reflection and capture restart controls,
+  plus independent capture passivity/force-jump/rollback and full compiler checks
+  on the exact integrated GitHub revision; measure complete-step resources.
+- [ ] General material absorption/injection/circuits, multiple captures,
+  relativistic coupling, higher dimensions, GPU/MPI and broader physical validation.
 
 The coupled source candidates require their exact-revision GitHub acceptance;
 the reflecting utility and prescribed-source field step retain separate contracts.

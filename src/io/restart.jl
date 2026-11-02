@@ -36,7 +36,8 @@ Write a provenance-stamped, checksum-verified archive of the run state at `path`
 Supports [`HybridStepper`](@ref), [`CAMCLStepper`](@ref),
 [`Electrostatic1D`](@ref), [`ElectrostaticPIC`](@ref), [`EMPIC1D`](@ref), [`EMPIC`](@ref),
 [`HallMHDState`](@ref), [`CollisionalHybridStepper`](@ref), [`YeeLongitudinalPIC`](@ref),
-[`YeeElectromagneticPIC`](@ref), and [`YeeImpactLongitudinalPIC`](@ref).
+[`YeeElectromagneticPIC`](@ref), [`YeeImpactLongitudinalPIC`](@ref),
+and [`YeeAbsorbingLongitudinalPIC`](@ref).
 
 The archive captures the deterministic simulation state (model and shape
 configuration, particle phase space + provenance, the canonical magnetic field
@@ -81,6 +82,10 @@ physical fields verbatim. Impact longitudinal state additionally retains its
 root-refinement budget, exact wall/electric impulses, counts and carried error
 bounds, with required elastic zero charge/work records and policies. Its schema 1
 cannot be interchanged with event-free schema 2; the archive container remains 4.
+Absorbing longitudinal archives use a distinct schema-1 tag and retain initial/live
+source records, both dynamic free plates, local capture records and all signed
+capture/energy ledgers. Their particle destinations require ordinary Vectors;
+reflection/event-free payloads and matched-view destinations cannot be substituted.
 
 `rng_seed` records the initialization seed as provenance in the metadata. A seed
 does not replace the advanced RNG state needed for stochastic continuation.

@@ -504,8 +504,9 @@ function _yee_closed_gauss_residual(st, species)
     _yee_charge_kernel!(charge, species, nothing, nothing, st.g, Val(true), Val(:charge), st.shape)
     h = _exact_rational(st.g.L[1]) / n
     background = _exact_rational(st.background_charge) * h
-    charge[1] += background / 2 + _exact_rational(st.left_plate_charge)
-    charge[end] += background / 2 + st.right_plate_charge[]
+    left, right = _yee_closed_plate_values(st)
+    charge[1] += background / 2 + left
+    charge[end] += background / 2 + right
     for i = 2:n
         charge[i] += background
     end
@@ -521,13 +522,45 @@ end
 
 """
     em_field_energy(state::YeeImpactLongitudinalPIC)
+    em_field_energy(state::YeeAbsorbingLongitudinalPIC)
 
 Physical longitudinal field energy using the original-input energy owner.
 Read-only overflow returns infinity; no field is projected or rebuilt.
 """
-function em_field_energy(st::YeeImpactLongitudinalPIC{T}) where {T}
+function em_field_energy(st::Union{YeeImpactLongitudinalPIC{T},YeeAbsorbingLongitudinalPIC{T}}) where {T}
     _yl_validate_longitudinal_fields(st, st.fields)
     return _em_field_energy_exact(st.fields.E, st.fields.B, one(T), st.g.dx)
+end
+
+"""
+    yee_absorbing_longitudinal_diagnostics(state, particles)
+
+Return live kinetic/field energies, exact current isolated plates, all-node Gauss,
+copied source/count/impulse histories and complete passive-capture ledgers.
+Wall received energy equals incoming kinetic plus signed death-source work;
+transport work is separate. `last_energy_defect` measures DeltaKlive+Kcaptured
+minus transport work; `last_total_energy_defect` measures Delta(Klive+U) plus wall
+received energy. Neither is forced to zero. Local elapsed capture time belongs
+to the recorded external step, not an absolute timestamp. Error bounds cover
+surviving trajectories from that step's stored original input, conditionally on
+the single-capture admission law, not the whole run or a material sheath model.
+Read-only physical energy/Gauss can overflow; required stored histories are finite.
+"""
+function yee_absorbing_longitudinal_diagnostics(st::YeeAbsorbingLongitudinalPIC{T}, particles) where {T}
+    species = _yl_species(particles)
+    st.initialized[] || throw(ArgumentError("call init! before absorbing diagnostics"))
+    _yl_validate_populations(st, species)
+    _ya_validate_phase(st, species)
+    _ya_validate_bound(st, species)
+    _yl_validate_longitudinal_fields(st, st.fields)
+    return merge(_ya_history_values(st), (
+        initial_counts = copy(st._initial_counts[]), initial_charges = copy(st._initial_charges[]),
+        current_counts = Int[length(ps.weight) for ps in species],
+        last_impulse = map(copy, st.last_impulse),
+        kinetic_energy = _kinetic_energy_checked(species, T, Val(false)),
+        field_energy = em_field_energy(st),
+        left_plate_charge = st.free_left_plate_charge[],
+        gauss_residual = _yee_closed_gauss_residual(st, species)))
 end
 
 """

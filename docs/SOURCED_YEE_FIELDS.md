@@ -98,7 +98,16 @@ matched full-vector force/current are now supplied by separate event-free
 The separate [longitudinal elastic-reflection source candidate](YEE_IMPACT_LONGITUDINAL.md)
 adds one certified contact cluster per external step, carried physical-error
 checks, wall ledgers and restart. Its exact-revision GitHub acceptance is pending.
-Particle absorption and broader nonlinear event handling remain incomplete.
+The distinct [passive capture source candidate](YEE_ABSORBING_LONGITUDINAL.md)
+adds zero or one uniquely isolated certified-passive instantaneous full-cloud
+capture per external step on a closed nonrelativistic CPU Float32/64 longitudinal
+1D grid. Additional death current updates dynamic exact plates and capture
+ledgers; stable Vector compaction and distinct restart retain surviving sources.
+Its carry handles the force jump separately from the reflection proof. GitHub
+numerical/convergence, rollback/restart, JET/compiler, formatting/CI and resource
+acceptance are deferred during the current implementation-first pass; existing
+authored controls remain unrun. General material/sheath absorption, multiple
+captures, transverse walls and broader nonlinear event handling remain incomplete.
 The retained fixed-macrocharge self-force and coupled impact-velocity convergence failures are still open; this prerequisite does not
 resolve them. Higher-dimensional impressed sources, open/PML boundaries, circuits,
 particle injection, broader reflecting dynamics, GPU/MPI and field-only restart adapters
