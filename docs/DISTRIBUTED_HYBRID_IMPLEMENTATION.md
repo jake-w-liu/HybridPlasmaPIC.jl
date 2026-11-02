@@ -10,8 +10,8 @@ or populations. This bounded model is one CAP-003 family, not CAP-003 completion
 The current implementation-first pass adds and runs no tests. Package loading,
 numerical/convergence, actual-rank rollback/liveness, compiler/JET, formatting/CI,
 restart continuation and complete-operation memory/performance acceptance remain
-deferred. The matching-layout checkpoint source is a required companion; its
-runtime acceptance is also deferred.
+deferred. The [complete matching-layout checkpoint source](DISTRIBUTED_HYBRID_CHECKPOINT.md)
+is implemented; its runtime acceptance is also deferred.
 
 ## Construction and state
 
@@ -163,8 +163,9 @@ Carried E and predictor ui cannot be rebuilt by depositing half-time velocities.
 Counts are derived on restore; no RNG, RK stage, midpoint, gather, plan,
 communicator or layout lookup is serialized. Stale destination physical/qm/count/
 clock values are replaceable after representation/configuration checks. Restore
-performs no moment/Ohm/FFT reconstruction. See the companion checkpoint guide
-when integrated; numerical/compiler/rollback/resource acceptance remains deferred.
+performs no moment/Ohm/FFT reconstruction. See the
+[checkpoint guide](DISTRIBUTED_HYBRID_CHECKPOINT.md);
+numerical/compiler/rollback/resource acceptance remains deferred.
 
 The first slice excludes CAMCL, pressure evolution/transport/CGL, resistivity,
 conduction, electron inertia, collisions/sources/RNG, relativistic ions, shape or

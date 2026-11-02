@@ -11,6 +11,16 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Added
 
+- Actual-pencil isothermal hybrid gains complete matching-layout checkpoint
+  source: eighteen carried fields, ordered particles and actual half-velocity/
+  integer-field phase persist in distinct checksummed generations. Incoming
+  state detaches and fully prepares on all ranks before publication; stale
+  destination values/counts are replaceable. No deposit, Ohm, predictor or phase
+  reconstruction runs during restore. Existing numerical and file mechanics
+  remain unchanged. No tests added or run; runtime continuation, liveness,
+  compiler and resource acceptance remain open. See the
+  [checkpoint guide](docs/DISTRIBUTED_HYBRID_CHECKPOINT.md).
+
 - `distributed_hybrid` adds actual-pencil positive-ion CIC collections with
   massless isothermal electrons, strict density, canonical prime/Boris/midpoint
   motion, frozen-moment RK4 subcycles and carried endpoint prediction. All
@@ -18,7 +28,7 @@ records scoped verification and remaining exact-revision acceptance gates.
   Diagnostics combine exact scalar mechanical sums and local log enclosures;
   no global field/log dictionary is gathered. Existing numerical owners retain
   literal whole-file inverses. Original-source differentiated Ohm range recovery
-  is explicitly unsupported. Complete checkpoint is a separate companion.
+  is explicitly unsupported. Complete checkpoint is recorded separately.
   Source-reviewed only; no tests added or run. Actual-rank numerical, restart,
   compiler and resource acceptance remain open. See the
   [hybrid guide](docs/DISTRIBUTED_HYBRID_IMPLEMENTATION.md).

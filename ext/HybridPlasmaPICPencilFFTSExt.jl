@@ -167,5 +167,6 @@ include("pencil_empic_checkpoint.jl")
 include("pencil_collisional_electrostatic.jl")
 include("pencil_collisional_electrostatic_checkpoint.jl")
 include("pencil_hybrid.jl")
+include("pencil_hybrid_checkpoint.jl")
 
 end # module
