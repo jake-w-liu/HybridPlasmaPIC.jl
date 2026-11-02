@@ -114,7 +114,7 @@ const _HALL_CHECKPOINT_REQUIRED_FIELDS =
 function _validate_checkpoint_container(s, required = _CHECKPOINT_REQUIRED_FIELDS)
     s isa NamedTuple ||
         throw(ArgumentError("checkpoint file does not contain a valid checkpoint container"))
-    if !all(map(k -> haskey(s, k), required))
+    if !all(k -> haskey(s, k), required)
         missing = Symbol[k for k in required if !haskey(s, k)]
         missing_list = join(string.(missing), ", ")
         throw(ArgumentError("checkpoint is missing required fields: $missing_list"))

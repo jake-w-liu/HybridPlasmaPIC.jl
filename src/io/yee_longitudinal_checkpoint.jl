@@ -85,8 +85,8 @@ function _yee_closed_validate_checkpoint_configuration(s, st::_ClosedYeeCheckpoi
     T = eltype(st.fields.E[1])
     s.D === 1 && s.T === T ||
         throw(ArgumentError("checkpoint dimension and precision must match destination"))
-    for name in (:ncell, :L, :dx, :periodic)
-        value, expected = getproperty(s, name), getfield(st.g, name === :ncell ? :n : name)
+    for (name, value, expected) in ((:ncell, s.ncell, st.g.n), (:L, s.L, st.g.L),
+        (:dx, s.dx, st.g.dx), (:periodic, s.periodic, st.g.periodic))
         typeof(value) === typeof(expected) && isequal(value, expected) ||
             throw(ArgumentError("checkpoint grid $name does not match destination"))
     end
@@ -118,7 +118,7 @@ function _yl_checkpoint_populations(s, ::Type{T}) where {T}
         throw(ArgumentError("checkpoint species must be an ordered one-based vector"))
     s.particle_layout === :scalar && length(s.species) != 1 &&
         throw(ArgumentError("scalar closed Yee checkpoint requires exactly one population"))
-    return ParticleSet{1,T}[_checkpoint_species(record, Val(1), T) for record in s.species]
+    return [_checkpoint_species(record, Val(1), T) for record in s.species]
 end
 
 function _yee_closed_checkpoint_arrays(s, st::_ClosedYeeCheckpointStepper, populations)

@@ -188,9 +188,11 @@ function _yi_validate_bound(st, species)
         count = Base.checked_add(count, length(ps.weight))
         stage.offsets[k+1] == count || throw(ArgumentError("impact offsets changed"))
     end
-    all(a -> length(a) == count, (stage.acceleration..., stage.gather..., stage.bounds..., stage.residual...,
-        stage.carried..., stage.terminal..., stage.selected_side)) ||
-        throw(DimensionMismatch("impact certificate buffer shape changed"))
+    for a in (stage.acceleration..., stage.gather..., stage.bounds..., stage.residual...,
+        stage.carried..., stage.terminal..., stage.selected_side)
+        length(a) == count ||
+            throw(DimensionMismatch("impact certificate buffer shape changed"))
+    end
     length(stage.rho) == st.g.n[1] == length(stage.net_impulse) ||
         throw(DimensionMismatch("impact field certificate shape changed"))
     return nothing
@@ -216,6 +218,9 @@ end
 const _YI_Q_HISTORY = (:last_electric_impulse, :last_max_snap, :last_snap_energy_bound,
     :last_predictor_time_error, :last_physical_time_error, :last_source_invariant_error,
     :last_position_error_bound, :last_velocity_error_bound)
+_yi_q_history_values(s) = (s.last_electric_impulse, s.last_max_snap, s.last_snap_energy_bound,
+    s.last_predictor_time_error, s.last_physical_time_error, s.last_source_invariant_error,
+    s.last_position_error_bound, s.last_velocity_error_bound)
 _yi_finite_q(x) = x isa _YeeImpactQ && denominator(x) > 0
 function _yi_validate_history_values(s, g::YeeGrid{1,T}, count::Int) where {T}
     _yl_validate_phase_values(s.initialized, s.time, s.step, s.last_dt, s.last_work, s.last_energy_defect)
@@ -224,8 +229,8 @@ function _yi_validate_history_values(s, g::YeeGrid{1,T}, count::Int) where {T}
     _yee_validate_impulse(s.last_impulse, g)
     all(a -> all(_yl_stored_zero, a), (s.last_impulse[2], s.last_impulse[3])) ||
         throw(ArgumentError("impact transverse impulse history must be stored zero"))
-    for name in _YI_Q_HISTORY
-        value = getproperty(s, name)
+    qhistory = _yi_q_history_values(s)
+    for (name, value) in zip(_YI_Q_HISTORY, qhistory)
         _yi_finite_q(value) && (name === :last_electric_impulse || value >= 0) ||
             throw(ArgumentError("invalid impact rational history $name"))
     end
@@ -251,14 +256,14 @@ function _yi_validate_history_values(s, g::YeeGrid{1,T}, count::Int) where {T}
         sum(BigInt, s.cumulative_wall_count) <= BigInt(s.step) * count ||
         throw(ArgumentError("impact counts exceed completed step scope"))
     if sum(BigInt, s.last_wall_count) == 0
-        all(name -> iszero(getproperty(s, name)), (:last_max_snap, :last_snap_energy_bound,
-            :last_predictor_time_error, :last_physical_time_error)) ||
+        all(iszero, (s.last_max_snap, s.last_snap_energy_bound,
+            s.last_predictor_time_error, s.last_physical_time_error)) ||
             throw(ArgumentError("no-event impact history has contact residuals"))
     end
     if s.step == 0
         all(_yl_stored_zero, (s.time, s.last_dt, s.last_work, s.last_energy_defect,
             s.last_physical_energy_change)) && all(a -> all(_yl_stored_zero, a), s.last_impulse) &&
-            all(name -> iszero(getproperty(s, name)), _YI_Q_HISTORY) &&
+            all(iszero, qhistory) &&
             all(iszero, (s.last_wall_count..., s.cumulative_wall_count...,
                 s.last_wall_impulse..., s.cumulative_wall_impulse...)) ||
             throw(ArgumentError("unadvanced impact histories must be zero"))

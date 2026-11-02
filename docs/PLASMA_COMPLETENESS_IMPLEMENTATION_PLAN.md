@@ -22,17 +22,20 @@ GitHub acceptance; the count is neither weighted physics/runtime completion
 nor a measured percentage of the full goal. All eleven CAP areas retain open
 work.
 
-**Current validation policy (2026-11-02):** prioritize source implementation,
-caller review and optimization. Do not add or run tests during this pass;
-existing authored controls remain unrun. Runtime/JET/CI and resource acceptance
-are deferred to a later validation pass on the exact integrated revision.
+**Current validation policy (2026-11-02):** combine source/caller review with
+exact-revision GitHub CI for every push. Package, JET/compiler, formatting and
+MPI checks run remotely; local Julia/device workloads remain excluded. Earlier
+source-only publications retain pending acceptance until their corresponding
+checks pass. Failed checks must be diagnosed and repaired without weakening
+assertions or acceptance limits. The [audit tracker](DEEP_DEBUG_TRACKER.md#current-progress)
+records the active runs and failures.
 
 The canonical [complete energy-budget source](HYBRID_DIAGNOSTIC_RANGE_PLAN.md#current-complete-budget-source-2026-11-02)
 now composes finite built-in original reservoirs when normal-range/sign bounds
 do not certify the native sum. Scalar component contracts and true total Inf,
 custom/nonfinite and CGL singular behavior remain. No acceptance milestone is
 advanced: numerical/compiler/concurrency/cost gates and historical V6 rejection
-remain open under the current source-only policy.
+remain open pending exact-revision remote and resource evidence.
 
 The original scope recoverable from the repository is the periodic hybrid model,
 its companion solvers and the open completeness roadmap: [README](../README.md),
@@ -191,6 +194,11 @@ open profile ledger for remaining bottlenecks.
 
 ## Sequencing and integration ownership
 
+The [parallel implementation workflow](IMPLEMENTATION_WORKFLOW.md) owns current
+worker assignments, exclusive file paths, handoffs and the next ready work.
+Independent source work continues while GitHub checks run; integration
+acceptance still requires the relevant exact-revision results.
+
 Finish inherited correctness/resource gates before using the repaired owner as a
 new baseline. CAP-001 can proceed independently of field redesign. CAP-002,
 CAP-003 and CAP-004 share storage/operator requirements and need a short joint
@@ -216,11 +224,12 @@ mean code or runtime verification is complete. “Scope proposal” marks the
 additional CAP-008–011 model expansion. Root owns integration, tracker consistency,
 commit/push and CI. A named subsystem below is a code owner; an unassigned
 implementation agent is explicitly unassigned, not implicitly running.
-On 2026-10-27, root owns integration, radiation force-span completion, tracker
-consistency and exact-SHA CI. Three independent audit tracks own relativistic
-kinematics/Metal, distributed operators/shared dependencies, and transport/
-collision correctness plus the independent radiation review. Earlier agent names
-and quota failures describe historical work, not current ownership.
+Current assignments (2026-11-02): three implementation workers own Hall core,
+Hall complete persistence and slab gyrokinetics in separate worktrees with
+exclusive file paths. Root owns shared registrations, current docs, dependency
+publication, source integration and remote CI. Earlier audit assignments and
+quota failures describe historical work; the linked workflow is authoritative
+for active ownership.
 
 | Slice | Implementation owner / canonical code | Dependencies | State and checked evidence | Next concrete action |
 | --- | --- | --- | --- | --- |
@@ -242,12 +251,12 @@ and quota failures describe historical work, not current ownership.
 | 005B/C implicit hybrid | Root integration; canonical integrator + moment/Ohm owners | Explicit represented Boris-map/Faraday and work-defect contract | Full bounded synchronous CPU isothermal collection core/report/checkpoint/archive source implemented; [guide](IMPLICIT_HYBRID.md) | Exact-revision numerical, residual/convergence, failure/restart, compiler and cost acceptance; broader pressure/orbit-averaged models remain open |
 | 005D implicit EM / parallel geometry | Agent unassigned; EM/parallel/geometry owners | 005B/C method evidence; accepted relevant operators | Planned | Derive EM-specific continuity/work residual before adding a public method |
 | 006A curvilinear solver | Agent unassigned; mesh/coupling/model/I/O | Compatible geometry operators, chosen physical model | Partial primitives; no production callers found | Specify coordinate/component/volume conventions and coupled manufactured problem |
-| 006B self-consistent gyrokinetics | Agent unassigned; gyrokinetics/coupling/field/I/O | Explicit model choice; 006A for toroidal claim | Partial primitives; no distribution/field integration found | Fix electrostatic model, marker/weight state and polarization equation |
+| 006B self-consistent gyrokinetics | Assigned gyrokinetic implementation worker; new population/core/coupling/IO | Reviewed full-f slab model and registered SO 0.1.8; 006A remains required for toroidal claims | Complete model contract reviewed; source implementation in progress | Finish reciprocal ring-TSC collective evolution, field solve, diagnostics and full restart; exact-revision acceptance remains open |
 | 006C adaptive plasma hierarchy | Agent unassigned; AMR/coupling/model/I/O | Composite field method; 002/003/004 only where claimed | Partial scalar-level primitives | Design static ES hierarchy and crossing/self-force oracle before dynamic refinement |
 | 007A/B reference provenance + production dispersion | Canonical validation/reference owners; next campaign agent unassigned | Source/network/toolchain; accepted production solver | Pinned provenance, parallel production histories and oblique Hall case 35 landed; CI state is in the audit tracker | Complete manual campaigns and broaden thermal/kinetic/EM regimes, uncertainty and matched-cost comparisons; [production plan](PRODUCTION_DISPERSION_PLAN.md) |
 | 007C–E profiles, new physics, comparative costs | Agent unassigned; validation/benchmark owners | Accepted corresponding capability; datasets/hardware | Existing scalar comparisons inspected; campaigns unrun here | Freeze matched inputs/diagnostics/uncertainty and preserve raw reference outputs |
 | 008 ES/EM arbitrary species | Canonical electrostatic/EM collection owners | Existing deposition, spectral Maxwell and phase owners | ES containing `4724947` passes all six jobs/compiler review. [EMPIC collections with generic/specialized dividing schedules](EMPIC_SPECIES_IMPLEMENTATION.md) implemented with shared ordinary-store admission, staged publication and persistence; new GitHub acceptance pending | Accept current sum/continuity, per-species phase, physical diagnostics, restart/migration and matched cost; nondividing/adaptive schedules and backends remain open |
-| 009 full-Hall multidimensional shocks | Coupled-family design agent + root integration | Actual mixed operators and explicit field/reservoir/time/phase balance | [Operator/RHS/transpose/work/projector source](MIXED_HALL_OPERATORS.md) published; reduced solver retains its scope | Freeze complete coupled SBP-weighted CIC/reservoir/newborn/controller/ledger/restart contract; native prerequisite and full-family acceptance remain open |
+| 009 full-Hall multidimensional shocks | Hall A core worker + Hall B persistence worker; root integration | Published mixed operators and reviewed field/reservoir/time/phase contract | [Operator/RHS/transpose/work/projector source](MIXED_HALL_OPERATORS.md) published; full numerical-reservoir core and complete IO implementation in progress | Freeze actual A interface for B, finish coupled controller/source/diagnostic/restart paths, then close exact-revision remote gates; broader physics remains open |
 | 010 composed sources and RNG restart | Integrator/checkpoint owners; independent collision audit track | 001 and phase/growth/checkpoint contracts | Fixed-step first-order isothermal CPU `CollisionalHybridStepper` landed; `2b2420b` exact-SHA CI/compiler gates pass. Ideal evolving, S1/S2 transport and S3b conduction extensions implemented, CI pending | Bounded generic collisional ES/EMPIC source is implemented; accept current extensions, then extend schedules, other closures/models/sources and backends; preserve full pressure/force/RNG/phase/rollback contract |
 | 011 electron transport/energy | Electron/integrator owners and transport track | Term-specific balance and carried force contract | S1 is landed. The registered SO 0.1.8 consumer floor and bounded scalar original-product prerequisites are integrated; the dependency's five passing checks do not accept HPIC. Earlier 0.1.7 and rejected-candidate evidence remains historical | Exact-revision HPIC CI, transport resource/peak-memory and restart checks, general original-product admission and S3–S8 remain open |
 

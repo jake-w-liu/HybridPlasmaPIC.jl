@@ -345,6 +345,16 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Fixed
 
+- Impact longitudinal validation now checks certificate buffers directly and
+  projects only the relevant history/grid values. Checkpoint population wrappers
+  retain their concrete storage, and required-key validation avoids an
+  intermediate boolean tuple. All validation conditions and JET gates remain.
+  The overflow fixture doubles its finite tracer charge because the finite-cloud
+  wall gather is half the stored field; no finite production result is rejected
+  to satisfy that fixture. Source review is complete; remote acceptance remains
+  pending in the [audit tracker](docs/DEEP_DEBUG_TRACKER.md#current-progress).
+
+
 - Electrostatic and electromagnetic collection preflights now require injective
   particle leaves,
   rejecting repeated-cell strided views before staging or checkpoint restore.

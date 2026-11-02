@@ -27,6 +27,8 @@ rerun by this documentation-only audit.
 
 ## Current implementation trackers
 
+- [docs/IMPLEMENTATION_WORKFLOW.md](IMPLEMENTATION_WORKFLOW.md) — current parallel
+  assignments, exclusive file ownership, handoffs and separate progress stages.
 - [docs/DEEP_DEBUG_TRACKER.md](DEEP_DEBUG_TRACKER.md)
 - [docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md](PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md)
 

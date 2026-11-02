@@ -12,14 +12,23 @@ completeness. Comparative leadership requires reproducible external benchmarks.
 
 ## Development and verification
 
-Current user instruction (2026-11-02): prioritize implementation and direct
-review of the canonical source and callers. Do not add or run tests in this
-pass. Runtime, compiler/JET, formatting/CI and resource acceptance are deferred;
-existing authored controls remain unrun. When validation resumes, run package,
-formatter and MPI tests in GitHub Actions so other computations can use the
-development machine. Device-only checks need a suitable remote runner and remain unverified
-until their results are available. Historical local evidence is retained; no new
-local test campaigns are required by this workflow.
+The [parallel implementation workflow](IMPLEMENTATION_WORKFLOW.md) records current
+workers, exclusive file ownership, dependencies and separate implementation,
+review and CI stages. Hall core, Hall persistence and slab gyrokinetics proceed
+in parallel; root owns shared registrations/docs and remote CI closure.
+
+Current user instruction (2026-11-02): review canonical source and callers,
+and close the correctness and GitHub CI loop for every push. Run package,
+compiler/JET, formatter and MPI checks on GitHub so other computations can use
+the development machine. Do not run local Julia, compiler, formatter or device
+workloads. Keep existing assertions and acceptance limits intact; a failed check
+requires diagnosis and a verified repair. Device-only checks need a suitable
+remote runner and remain unverified until results exist.
+
+Earlier implementation-first publications used `[skip ci]`. Their source-review
+records below describe evidence at publication, not current runtime acceptance.
+The current remote runs and failed checks below supersede that earlier deferral.
+Historical local and failed-run evidence remains retained.
 
 ## Numerical accuracy standard (user decision, 2026-10-26)
 
@@ -60,9 +69,34 @@ Julia **1.13.3** as stable (checked again 2026-11-02 Asia/Taipei). New campaigns
 actual 1.12.7 and 1.13.3; a stale local `release` alias is not version evidence.
 The existing CI matrix selects minimum `1.12` and latest stable `1`.
 The latest fully accepted containing revision is `d0d04f4`, including both
-complete compiler-tree reviews. New implementation pushes have their own
-deferred checks under the current implementation-first instruction; the accepted
-historical run does not validate those changes.
+complete compiler-tree reviews. That historical run does not validate newer
+implementations. The full suite for `531f5ba` is queued in
+[run 41436219662](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41436219662);
+no acceptance milestone advances while its result is pending.
+
+Current CI repairs, checked 2026-11-02:
+
+- SpectralOperators `8bf69f4` fails all four Julia jobs in
+  [run 41378026613](https://github.com/jake-w-liu/SpectralOperators.jl/actions/runs/41378026613):
+  27,894 assertions pass and 45 existing zero-allocation assertions fail in each;
+  formatting also fails. Candidate `f1eb13f` retains the checks and alias
+  protections, separates tuple-family traversal and applies the actual formatter
+  patch. Its [validation run](https://github.com/jake-w-liu/SpectralOperators.jl/actions/runs/41436256658)
+  is queued; it has not replaced `main` or been registered.
+- At historical `8adce3e`, [essentials run 41385075678](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41385075678)
+  records 106,694 passes/12 failures on Julia 1.12.7 and 106,688 passes/18 failures
+  on Julia 1.13.3. A four-file candidate removes unnecessary captured/dynamic
+  validation paths and corrects the finite-cloud late-overflow fixture's charge;
+  every assertion and JET gate remains. Root reproduced32 text/source checks;
+  candidate runtime/compiler acceptance is pending. The latest-only two stored-
+  subnormal and four broad endpoint JET failures require measured observations;
+  valid reinterpret endpoint controls pass108 assertions in that older run.
+  Auxiliary observations run separately after the unchanged strict tests.
+- Historical `06fa658` [conduction run 41377913235](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41377913235)
+  records 5,292 passes/two strict Faraday equality failures on latest Julia with
+  SO 0.1.8. Its recorded dyadic/without-inactive-Ex comparisons match the oracle;
+  unchanged strict consumer checks must pass with the accepted dependency.
+  None of these historical results substitutes for current exact-revision CI.
 
 | Work | Verified integration state | Remaining work |
 | --- | --- | --- |
@@ -111,12 +145,12 @@ historical run does not validate those changes.
 | Event-free 1D3V Yee EM coupling | `YeeElectromagneticPIC` source candidate adds both transverse polarizations, exact masked path currents, synchronized full-vector Boris/Yee stages, scoped rest/impact guards, diagnostics and distinct restart | [Declared source contract](BOUNDED_PARTICLE_COUPLING_PLAN.md#event-free-1d3v-electromagnetic-source-candidate): new and prerequisite exact-revision GitHub runtime/compiler/format gates remain pending; general nonlinear stability, transverse wall coupling and resource/backends remain open |
 | Closed Yee original-force lifecycle | The event-free longitudinal and 1D3V EM source candidates retain rational original-geometry E/B through canonical Boris with original q/m and full-dt half; only final half-kick velocities round. Schema 2 records the shared force policy and rejects the former map | [Contract](BOUNDED_PARTICLE_COUPLING_PLAN.md): independent underflow/overflow/cancellation, magnetic rescue, late-final-kick rollback/retry and schema continuation controls are implemented but unrun. Exact-revision runtime/compiler/format and complete-step resource acceptance remain pending; no ordinary native-bit preservation or new conservation/stability claim |
 | Event-local longitudinal reflection | `YeeImpactLongitudinalPIC` source candidate implements original-factor finite-cloud reflection on a closed 1D grid for nonrelativistic CPU Float32/64 particles: zero contacts or one connected certified cluster per external step, conservative carried physical remainder checks, staged ledgers and distinct restart | [Model guide](YEE_IMPACT_LONGITUDINAL.md): exact-revision GitHub numerical, convergence, rollback/restart, JET/compiler, formatting/CI and complete-step cost acceptance remain pending. Broader wall laws, multiple clusters, transverse walls and backends remain open; CAP-002B is not complete |
-| Isolated passive longitudinal capture | `YeeAbsorbingLongitudinalPIC` source implements nonrelativistic CPU Float32/64 finite-cloud KDK with original forces, zero or one uniquely isolated certified-passive capture per external step, full death current, dynamic exact plates, separate capture ledgers, stable Vector compaction and distinct restart. Survivor carry handles the force jump separately from reflection | [Model guide](YEE_ABSORBING_LONGITUDINAL.md): GitHub numerical/convergence, rollback/restart, JET/compiler, formatting/CI and complete-step resource acceptance are deferred during the current implementation-first pass; existing authored checks remain unrun. General material/sheath laws, multiple captures, transverse walls and backends remain open; CAP-002B is incomplete |
+| Isolated passive longitudinal capture | `YeeAbsorbingLongitudinalPIC` source implements nonrelativistic CPU Float32/64 finite-cloud KDK with original forces, zero or one uniquely isolated certified-passive capture per external step, full death current, dynamic exact plates, separate capture ledgers, stable Vector compaction and distinct restart. Survivor carry handles the force jump separately from reflection | [Model guide](YEE_ABSORBING_LONGITUDINAL.md): GitHub numerical/convergence, rollback/restart, JET/compiler, formatting/CI and complete-step resource acceptance remain open; current remote checks are recorded above. General material/sheath laws, multiple captures, transverse walls and backends remain open; CAP-002B is incomplete |
 | Bounded Maxwell / particle coupling | Vacuum/cavity and prescribed-current fields are landed. Static point/CIC and finite physical-width cloud owners are retained; event-free longitudinal/1D3V EM, one-cluster reflection and one isolated passive longitudinal capture have source implementations | The [current-series bounded suite](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41286511307) passes 38 groups / 106,082 assertions on Julia 1.12.7/JET0.13.1. New coupled/reflection/capture runtime/format/compiler/resource acceptance, broader wall events and backends remain open; historical point force/contact/wall failures are retained. [Contract](BOUNDED_PARTICLE_COUPLING_PLAN.md) |
 | Broad Yee collection compiler checks | At `1c44d1d`, Julia 1.12.7/JET0.13.1 passes all ten broad checks; Julia 1.13.3 with the same JET passes six and reports four indexing errors after 675 physics passes, before cloud/field files | Compact public reinterpret and rank-rejection controls are added, pending GitHub. Broad JET assertions remain unchanged. Three Base-only indexing observations are wired before assertions in the existing manual workflow; source diagnosis remains open, with no production fix or runtime cause established |
 | Closed Yee compiler and context controls | Historical `ac84217` longitudinal essentials passed initialization 55/55 on both Julia 1.12.7 and 1.13.3/JET0.13.1, but failed all 16 concrete compiler checks; latest also failed two composed subnormal controls and four broad Yee checks ([run](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41287708255)) | Later `adfdb3e` supplies an explicit stored-bit control, and `a0ecf6b` retains concrete owned vector candidates through the shared PIC staging owner. Public views, diagnostic/injectivity owners and compiler assertions are unchanged. Their exact-revision compiler/runtime/cost checks remain pending; no runtime cause or clearing is established |
 | CPU collection ordinary-store admission | Periodic ES/EM collections and closed Yee models share known Const/AtomicMemory ancestry rejection in the canonical particle owner, before alias checks or publication. All leaves and fixed populations are included for lifecycle and independence | Essential constructor/init/restore snapshot controls await GitHub on both Julia versions. Existing numerical owners, schemas and compiler gates remain unchanged; writable host storage and alias detection are caller requirements. [ES contract](ELECTROSTATIC_SPECIES_IMPLEMENTATION.md#ordinary-store-admission-2026-11-01), [EM contract](EMPIC_SPECIES_IMPLEMENTATION.md#ordinary-store-admission-2026-11-01) |
-| ES/EM collection injective publication | ElectrostaticPIC and shared EMPIC/EMPIC1D collection preflights now use the existing particle injectivity owner for every leaf. Repeated-cell strided views reject before staging or restore; scalar movers and numerical kernels are unchanged | Source-reviewed against actual Julia 1.12.7/1.13.3 range/view owners; no tests added or run. Runtime/compiler/resource acceptance is deferred during this implementation pass. [ES contract](ELECTROSTATIC_SPECIES_IMPLEMENTATION.md#ordinary-store-admission-2026-11-01), [EM contract](EMPIC_SPECIES_IMPLEMENTATION.md#ordinary-store-admission-2026-11-01) |
+| ES/EM collection injective publication | ElectrostaticPIC and shared EMPIC/EMPIC1D collection preflights now use the existing particle injectivity owner for every leaf. Repeated-cell strided views reject before staging or restore; scalar movers and numerical kernels are unchanged | Source-reviewed against actual Julia 1.12.7/1.13.3 range/view owners; no tests added or run. Runtime/compiler/resource acceptance remains open pending the corresponding remote results. [ES contract](ELECTROSTATIC_SPECIES_IMPLEMENTATION.md#ordinary-store-admission-2026-11-01), [EM contract](EMPIC_SPECIES_IMPLEMENTATION.md#ordinary-store-admission-2026-11-01) |
 | Graded scalar-conductivity Yee layer | Fixed-step D1–3 CPU E/B midpoint damping surrounds the canonical KDK candidate with exact staggered profiles, actual loss/source-work/signed field-defect budgets, staged publication and distinct full nested restart/archive | Root read full core/IO/guide and reproduced 30 source inverses; no tests added or run. [Guide](YEE_CONDUCTIVE_LAYER.md); reflection/stability/numerical, restart/compiler/format/resource acceptance and coupled PIC integration remain open |
 | Directional ADE Yee PML | Source-free D1–3 CPU causal directional memories use canonical Yee differences and original-duration midpoint KDK; signed exchange/field-defect budgets and distinct complete checkpoint/archive stage with fields/history | Root full source/caller review and 30 source-preservation checks reproduced; no tests added or run. [Guide](YEE_PML.md); reflection/convergence/long-time stability, rollback/restart, compiler/format/resource acceptance, general CPML and coupled sources/PIC remain open |
 | Serial Yee vacuum checkpoint/archive | Distinct field-only schema retains actual staggered fields, grid/boundary/speed configuration and synchronized clock. Incoming complete validation/detachment precedes six ordinary copies and typed clock stores; current replaceable field/clock values do not gate restore | Source-reviewed only; no tests added or run. Restart/compiler/format/CI and resource acceptance deferred. [Guide](MAXWELL_VACUUM_CHECKPOINT.md); scalar-conductivity and directional PML source have their own restart, while coupled boundaries and broader CAP-002 integration remain open |

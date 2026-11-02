@@ -191,10 +191,12 @@ end
 
         # Original subnormal duration: a zero-weight tracer keeps finite energy
         # while original q/m and the postreflection final kick cross overflow.
+        # At the wall half the cloud is outside, so its gathered field is 8,
+        # half the stored 16. The doubled charge reaches the late overflow.
         eta = reinterpret(T, T === Float32 ? UInt32(1) : UInt64(1))
         x = ldexp(one(T), exponent(eta) + exponent(floatmax(T)) - 1)
         tracer = population(T, T[x], T[-prevfloat(floatmax(T))];
-            q = inv(floatmin(T)), m = floatmin(T), w = zero(T))
+            q = 2 * inv(floatmin(T)), m = floatmin(T), w = zero(T))
         failed = state(T, tracer; sigma = T(16))
         original = snapshot(failed, tracer)
         @test_throws ArgumentError step!(failed, tracer, eta)

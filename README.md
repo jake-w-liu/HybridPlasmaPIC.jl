@@ -687,7 +687,8 @@ differentiated original-product Ohm range events reject explicitly. Its
 [complete matching-layout checkpoint source](docs/DISTRIBUTED_HYBRID_CHECKPOINT.md)
 retains all eighteen carried fields and actual particle/clock phase without
 rebuilding predictor moments or E. Broader hybrid closures,
-backends and runtime acceptance remain open. No tests are added or run in this pass.
+backends and runtime acceptance remain open; current remote checks are recorded
+in the [audit tracker](docs/DEEP_DEBUG_TRACKER.md#current-progress).
 
 GPU backend storage is exposed through `particle_storage_backend`. The Metal
 extension includes particle gather, deposit and push kernels; the CUDA extension
@@ -706,6 +707,8 @@ stable Julia release. The [audit tracker](docs/DEEP_DEBUG_TRACKER.md) records te
 revisions, version-specific results, and outstanding coverage. The
 [implementation plan](docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md) tracks
 missing end-to-end capabilities, owners, dependencies and acceptance gates.
+The [parallel implementation workflow](docs/IMPLEMENTATION_WORKFLOW.md) records
+current workers, file ownership, dependencies and implementation/review/CI stages.
 The [documentation map](docs/DOCUMENTATION_MAP.md) distinguishes user guides,
 active trackers and revision-scoped implementation records.
 The expanded simulator goal remains incomplete; current solver support and
@@ -770,8 +773,9 @@ EM and comparative campaigns remain in the
   [one isolated passive capture](docs/YEE_ABSORBING_LONGITUDINAL.md) have source
   implementations with diagnostics and distinct restart. Capture uses a separate
   carry across the force jump; it is not a general material/sheath law.
-  GitHub numerical/JET/CI and resource acceptance are deferred during the current
-  implementation-first pass; existing authored checks remain unrun. Multiple
+  GitHub numerical/JET/CI and resource acceptance remain open; the
+  [audit tracker](docs/DEEP_DEBUG_TRACKER.md#current-progress) records current runs
+  and failed checks. Multiple
   clusters/captures, transverse walls and backend integration remain open.
   A separate [graded scalar-conductivity field layer](docs/YEE_CONDUCTIVE_LAYER.md)
   now supplies staged loss/work/defect ledgers and restart source. A separate

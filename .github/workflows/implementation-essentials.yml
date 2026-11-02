@@ -85,6 +85,20 @@ jobs:
                 include(joinpath("test", file))
               end
             end' 2>&1 | tee implementation-essentials.log
+      - name: Observe stored-zero context and generated operations
+        if: ${{ always() && inputs.suite == 'longitudinal-pic' }}
+        shell: bash
+        run: |
+          julia --project=. benchmark/yee_stored_zero_context_observation.jl 2>&1 | tee yee-stored-zero-context.log
+      - name: Retain auxiliary stored-zero observation
+        if: ${{ always() && inputs.suite == 'longitudinal-pic' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: stored-zero-context-${{ matrix.julia-version }}-${{ github.sha }}
+          path: |
+            yee-stored-zero-context.log
+            yee-stored-zero-context/
+          if-no-files-found: warn
       - name: Retain full test output
         if: always()
         uses: actions/upload-artifact@v4
