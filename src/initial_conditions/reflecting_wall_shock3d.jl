@@ -10,14 +10,13 @@
 #   E_ind  = −u×B + ηJ                            (motional + resistive, stable)
 #   ∂t B   = −∇×E_ind  (+ inflow SAT at x=Lx toward B0 ẑ)
 #
-# DIV-B PRESERVATION: with ∂x via SBP (dim 1) and ∂y,∂z via Fourier (dims 2,3),
-# the three derivative operators act on independent index ranges, so they
-# commute EXACTLY (∂x∂y = ∂y∂x, etc.). Hence ∇·(∇×E) = 0 to machine precision and
-# the induction step conserves ∇·B at its initial value (=0 for uniform B0). This
-# is verified in test_shock3d.jl (max|∇·B| stays ~1e-12). The Hall term is kept
-# out of the field advance (as in 2-D) — it would inject a stiff whistler; it
-# enters only the particle electric field. Reduces to the 2-D shock when
-# z-uniform, and to the 1-D shock when y- and z-uniform.
+# The tensor SBP/Fourier derivatives commute algebraically, so divergence of
+# the curl contribution cancels; floating evaluation leaves roundoff. The
+# separate componentwise inflow SAT is outside curl and can change divergence
+# for general transverse fields. Uniform-field fixture results do not establish
+# preservation for that full boundary update. Hall remains in the particle
+# electric field only; the reduced field advance excludes its whistler branch.
+# Uniform-z and uniform-y,z reductions retain their existing model scope.
 #
 const _Arr3{T} = Array{T,3}
 const _Vec3{T} = NTuple{3,Array{T,3}}
@@ -189,22 +188,22 @@ function _fourier_d!(out::_Arr3{T}, f::_Arr3{T}, L::T, d::Int) where {T}
     return out
 end
 
+# Curl geometry shared with the concrete mixed Hall operators. The legacy
+# wrapper retains its six derivative calls and component subtraction order.
+const _MIXED_CURL_CHANNELS = ((1, 3, 2, 2, 3), (2, 1, 3, 3, 1), (3, 2, 1, 1, 2))
+
+function _shock3d_derivative!(out, f, sh, axis)
+    axis == 1 && return _sbp_dx3d!(out, f, sh.sbp)
+    return _fourier_d!(out, f, axis == 2 ? sh.Ly : sh.Lz, axis)
+end
+
 # J = ∇×B, written into `J`, using `sh.s` as scratch.
 function _curl3d!(J::_Vec3{T}, B::_Vec3{T}, sh::PerpShock3D{T}) where {T}
-    Bx, By, Bz = B
-    s = sh.s
-    # Jx = ∂y Bz − ∂z By
-    _fourier_d!(J[1], Bz, sh.Ly, 2)
-    _fourier_d!(s, By, sh.Lz, 3)
-    J[1] .-= s
-    # Jy = ∂z Bx − ∂x Bz
-    _fourier_d!(J[2], Bx, sh.Lz, 3)
-    _sbp_dx3d!(s, Bz, sh.sbp)
-    J[2] .-= s
-    # Jz = ∂x By − ∂y Bx
-    _sbp_dx3d!(J[3], By, sh.sbp)
-    _fourier_d!(s, Bx, sh.Ly, 2)
-    J[3] .-= s
+    for (c, plus, plus_axis, minus, minus_axis) in _MIXED_CURL_CHANNELS
+        _shock3d_derivative!(J[c], B[plus], sh, plus_axis)
+        _shock3d_derivative!(sh.s, B[minus], sh, minus_axis)
+        J[c] .-= sh.s
+    end
     return J
 end
 

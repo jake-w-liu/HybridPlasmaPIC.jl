@@ -32,6 +32,10 @@ rerun by this documentation-only audit.
 
 ## Physics and API guides
 
+- [docs/MIXED_HALL_OPERATORS.md](MIXED_HALL_OPERATORS.md) — real mixed operators,
+  raw full-Hall induction, represented transpose, exact face-work ledger and
+  constrained field/rate projector; full shock and runtime acceptance remain open.
+
 - [docs/IMPLICIT_HYBRID.md](IMPLICIT_HYBRID.md) — synchronous joint velocity/B
   residual, bounded Newton–GMRES, represented work defects, distinct full
   checkpoint/archive and deferred runtime acceptance.

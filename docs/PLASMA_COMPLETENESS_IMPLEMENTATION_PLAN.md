@@ -98,7 +98,7 @@ Source names below resolve to these canonical files:
 | AMR | `AMRGrid` is a single 1D scalar level, adaptive_mesh_refinement:8–23; prolong/restrict/refine:322–366 | Transfer primitives; no adaptive plasma hierarchy, particle crossing or coupled timestep, CAP-006C |
 | External validation | Pinned external references plus case 34 parallel and case 35 oblique Hall production histories | Bounded production validation exists; complete manual campaigns, broader regimes, full profile replay and matched cost/accuracy comparisons remain CAP-007 work |
 | Kinetic species diversity | Arbitrary ES collections landed; CPU EMPIC collections with opt-in D1–3 dividing schedules and specialized EMPIC1D S1/S2, both with optional relativistic motion are source-implemented and reviewed | Exact-revision GitHub and resource acceptance, broader schedules and collision/boundary/partition/device composition remain CAP-008 work |
-| Multidimensional shocks | shock3d:9–19,337–359 and shock2d:230–236 intentionally exclude Hall induction while retaining Hall particle forces | Documented reduced shock model; full-Hall multidimensional branch required for broader claims, CAP-009 |
+| Multidimensional shocks | Existing 2D/3D shock induction remains reduced; separate [mixed full-Hall prerequisite](MIXED_HALL_OPERATORS.md) now supplies real operators/RHS/transpose/face-work/projector source | Full coupled reservoir/pressure/SAT/time/phase/restart family and prerequisite runtime acceptance remain CAP-009 work |
 | Coupled sources and collisions | `CollisionalElectrostaticPIC` / `CollisionalEMPICStepper` source with deferred acceptance; `CollisionalHybridStepper` and full RNG checkpoint/archive state (`2b2420b`); ideal evolving, S1/S2 transport and S3b conduction pressure/force extensions are CI-pending | Fixed-step first-order CPU composition plus bounded actual-pencil ES/EM physical/RNG source families; runtime acceptance, anisotropic/inertial models, electron-ion heat exchange, other sources, schedules and backends remain CAP-010 work |
 | Electron transport | `EvolvingElectrons` covers ideal massless pressure; `TransportElectrons` provides constant Ohmic transport (S1), with complete-source hyperresistive S2 and shared scalar pressure range routing. `ConductingElectrons` adds an original-quotient S3b source candidate with bounded preparation and projected full-Nyquist conduction | [S2 gates](TRANSPORT_SOURCE_RANGE_PLAN.md), [scalar pressure verification](SCALAR_PRESSURE_RATE_RANGE_PLAN.md) and [S3b GitHub verification](EVOLVING_ELECTRONS.md#constant-isotropic-conduction-source-candidate) remain open; broader conditioning, complete-step cost, conduction models, equilibration, anisotropy, inertia and backends remain CAP-011 work |
 
@@ -778,8 +778,26 @@ For general transverse variation, derive the induction electric field and
 compatible SAT/open-boundary energy flux; do not simply copy the particle field
 into Faraday without checking the discrete constraints and boundary terms.
 
+The [mixed Hall prerequisite](MIXED_HALL_OPERATORS.md) is now source-implemented:
+D2/3 SBP-x/periodic-transverse cached operators, represented Euclidean transpose,
+raw isothermal full-Hall induction and exact stored-source face-work ledger.
+Explicit field/rate projection structurally removes normal face DOFs and uses
+a consistent singular Q-metric multiplier construction with fresh equation,
+direct constraint and signed work/energy gates. All represented nulls remain.
+Native operator symmetry, convergence and cost are untested. This slice owns no
+advancing physical state, particles, clock or RNG and supplies no new solver
+checkpoint. A separate complete-family contract is being derived for actual
+SBP-volume CIC coupling, two-face reservoir transport/newborn phase, explicit
+SAT/projection work, bounded nonlinear time control and complete atomic source/
+RNG/controller/ledger persistence. The existing componentwise shock SAT remains
+outside curl; tensor derivative commutation alone does not establish divergence
+preservation for that full boundary update.
+
 - [ ] Derive and implement Hall/pressure/inertia terms supported by the declared
   model, compatible mixed operators and accurate timestep/implicit solve control.
+  The massless isothermal raw RHS/operator/projector source is present; its
+  runtime acceptance and coupled time controller remain open. Pressure evolution,
+  transport and inertia require separately declared boundary/model extensions.
 - [ ] Couple upstream/downstream particle reservoirs and fields, pressure
   evolution, actual source/flux diagnostics and restart phase.
 - [ ] Extend to distributed/device execution through accepted CAP-002/003/004

@@ -11,6 +11,18 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Added
 
+- `MixedShockOperators` adds concrete D2/3 SBP-x/periodic-transverse gradient,
+  curl, divergence and represented Euclidean transpose with cached Fourier
+  work. `mixed_hall_rhs!` reuses canonical isothermal pressure/Ohm/Faraday owners
+  and reports exact stored-source face work. Explicit constrained field/rate
+  projection uses structural normal-face elimination, cold MINRES-QLP and fresh
+  equation/constraint/work gates before publication. The reduced shock curl
+  shares its geometry with a whole-file source inverse; its SAT divergence
+  qualification is corrected. No advancing Hall shock or new checkpoint is
+  supplied by this prerequisite. No tests added/run; native symmetry,
+  convergence, compiler and cost acceptance remain open. See the
+  [scope and projection contract](docs/MIXED_HALL_OPERATORS.md).
+
 - `ImplicitHybridStepper` adds a separate synchronous CPU periodic isothermal
   collection family. Joint original-factor Boris-map/Faraday residuals feed
   bounded Newton–GMRES with fresh inner/outer gates and explicit typed failure;

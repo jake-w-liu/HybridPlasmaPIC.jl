@@ -135,6 +135,8 @@ include("models/yee_electromagnetic_pic.jl")
 include("models/yee_impact_longitudinal_pic.jl")
 include("models/yee_absorbing_longitudinal_pic.jl")
 include("models/hall_mhd.jl")
+include("fields/mixed_shock_operators.jl")
+include("fields/mixed_hall_projection.jl")
 include("models/gyrokinetics.jl")
 
 # --- Diagnostics ---
@@ -266,6 +268,18 @@ export MHDState, rankine_hugoniot
 export save_checkpoint, load_checkpoint!
 export kdv_soliton, kdv_solve
 export SBP1D, sbp_deriv!, sbp_deriv, sbp_deriv_x!, FourierDerivYWorkspace, fourier_deriv_y!
+export MixedShockOperators,
+    mixed_gradient!,
+    mixed_curl!,
+    mixed_divergence!,
+    mixed_derivative_transpose!,
+    MixedHallWorkspace,
+    mixed_hall_rhs!,
+    mixed_magnetic_rate_budget,
+    MixedHallProjectionWorkspace,
+    MixedHallProjectionError,
+    project_mixed_field!,
+    project_mixed_rate!
 export ToroidalGrid,
     gridsize,
     scale_factors,
