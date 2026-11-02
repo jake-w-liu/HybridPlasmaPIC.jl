@@ -375,6 +375,7 @@ export supported_extensions,
     distributed_poisson_field!,
     distributed_electrostatic_pic,
     distributed_collisional_electrostatic_pic,
+    distributed_collisional_empic,
     distributed_empic,
     distributed_hybrid,
     hybrid_diagnostics

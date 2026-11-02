@@ -124,3 +124,10 @@ Source/caller/inverse review is separate from runtime acceptance. Existing tests
 compiler assertions and tolerances remain unchanged. Collision-rate/relaxation,
 coupled convergence, rollback/retry, advanced-RNG continuation and complete-call
 cost remain unverified. Broader CAP-010 physics and backends remain open.
+
+The separate [actual-pencil collisional EM source](DISTRIBUTED_COLLISIONAL_EMPIC.md)
+now composes the distributed model with the same local scheduler on admitted
+owned cells. It preserves actual drift-current/field history and full per-rank
+RNG/physical state in one matching-layout generation. Local counts may change
+through migration. Runtime, statistics and restart acceptance remain deferred;
+the serial schema above and the distributed schema are distinct.

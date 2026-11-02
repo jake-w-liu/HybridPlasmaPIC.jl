@@ -105,3 +105,9 @@ superseded-cleanup failure can accompany a usable newly published checkpoint.
 There is no crash-durability, changed-layout/rank stream repartition or cross-runtime
 stream-continuation promise. See [the physical ES implementation](DISTRIBUTED_ELECTROSTATIC_IMPLEMENTATION.md)
 and [its checkpoint contract](DISTRIBUTED_ELECTROSTATIC_CHECKPOINT.md).
+
+The separate [actual-pencil collisional EM family](DISTRIBUTED_COLLISIONAL_EMPIC.md)
+shares the local-cell, configuration graph, RNG, busy, storage-role and prepared
+generation owners. It keeps its own eleven-field/current phase and distinct
+payload; this ES family's physical map and schema remain unchanged. The shared
+source extraction does not establish runtime, allocation or error-timing identity.

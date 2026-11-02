@@ -11,6 +11,16 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Added
 
+- `distributed_collisional_empic` composes the canonical actual-pencil EM
+  candidate with local Coulomb scattering at new positions/carried-half
+  velocities. All eleven fields and preceding drift current persist unchanged;
+  one matching-layout checkpoint generation retains complete physical/RNG
+  state. Cell, graph, RNG, busy and prepared-generation owners are shared with
+  collisional ES; bare ES/EM/CES source paths retain whole-file inverses.
+  Fixed sub-CFL duration, explicit normalization and cell ownership are required.
+  No tests added or run; runtime/statistical/continuation/compiler/resource
+  acceptance remains open. See the [guide](docs/DISTRIBUTED_COLLISIONAL_EMPIC.md).
+
 - Actual-pencil isothermal hybrid gains complete matching-layout checkpoint
   source: eighteen carried fields, ordered particles and actual half-velocity/
   integer-field phase persist in distinct checksummed generations. Incoming

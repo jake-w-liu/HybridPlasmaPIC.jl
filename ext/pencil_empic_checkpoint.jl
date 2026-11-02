@@ -117,6 +117,26 @@ function _pencil_empic_envelope(manifest)
     )
 end
 
+function _pencil_empic_checkpoint_snapshot(model, rank, nranks)
+    merge(
+        _pencil_empic_checkpoint_config(model, nranks),
+        (
+            initialized = model.initialized[], primed = model.primed[], last_dt = model.last_dt[],
+            time = model.time[], step = model.step[], rank = rank,
+        ),
+        _pencil_empic_checkpoint_layout(model),
+        (
+            fields = (
+                E = map(a -> copy(parent(a)), model.E),
+                B = map(a -> copy(parent(a)), model.B),
+                J = map(a -> copy(parent(a)), model.J),
+                rho_n = copy(parent(model.rho_n)), rho_np1 = copy(parent(model.rho_np1)),
+            ),
+            species = deepcopy([HybridPlasmaPIC._checkpoint_particle_state(ps) for ps in model.owners]),
+        ),
+    )
+end
+
 """
     save_mpi_checkpoint(dir, model::DistributedEMPIC) -> manifest_path
 
@@ -144,23 +164,7 @@ function HybridPlasmaPIC.save_mpi_checkpoint(dir, model::DistributedEMPIC)
     end
     _pencil_pic_charges(model, model.owners, context)
     state = HybridPlasmaPIC._mpi_collective_stage(comm, context, "snapshot preparation") do
-        merge(
-            _pencil_empic_checkpoint_config(model, nranks),
-            (
-                initialized = model.initialized[], primed = model.primed[], last_dt = model.last_dt[],
-                time = model.time[], step = model.step[], rank = rank,
-            ),
-            _pencil_empic_checkpoint_layout(model),
-            (
-                fields = (
-                    E = map(a -> copy(parent(a)), model.E),
-                    B = map(a -> copy(parent(a)), model.B),
-                    J = map(a -> copy(parent(a)), model.J),
-                    rho_n = copy(parent(model.rho_n)), rho_np1 = copy(parent(model.rho_np1)),
-                ),
-                species = deepcopy([HybridPlasmaPIC._checkpoint_particle_state(ps) for ps in model.owners]),
-            ),
-        )
+        _pencil_empic_checkpoint_snapshot(model, rank, nranks)
     end
     HybridPlasmaPIC._mpi_collective_stage(comm, context, "directory setup") do
         rank == 0 && mkpath(raw_dir)
@@ -354,6 +358,10 @@ function HybridPlasmaPIC.load_mpi_checkpoint!(model::DistributedEMPIC, dir)
     # This collective checks source values only. Destination clocks/phase and
     # particle values are still replaceable, and no field reconstruction occurs.
     _pencil_pic_charges(model, saved.particles, context)
+    return _pencil_empic_restore_prepared!(model, saved)
+end
+
+function _pencil_empic_restore_prepared!(model, saved)
     for (ps, replacement) in zip(model.owners, saved.particles)
         HybridPlasmaPIC._publish_particle_replacement!(ps, replacement)
         ps.q = replacement.q

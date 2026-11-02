@@ -20,93 +20,14 @@ mutable struct DistributedCollisionalElectrostaticPIC{T,S,P,R,L,G}
     source_count::Int
 end
 
-function _pencil_ces_cells(inner)
-    owned = inner._layout.by_rank[inner._layout.rank]
-    count = Base.checked_mul(Base.checked_mul(length(owned[1]), length(owned[2])), length(owned[3]))
-    Base.checked_add(count, 1)
-    return count
-end
-
-# Only this geometry seam differs from serial collisions. No global bins exist.
-function _pencil_ces_cell(inner, ps, p)
-    g, layout = inner.g, inner._layout
-    index = HybridPlasmaPIC._particle_linear_cell(ps, g, p, HybridPlasmaPIC._particle_cell_strides(g.n))
-    cell = CartesianIndices(g.n)[index]
-    owned = layout.by_rank[layout.rank]
-    _pencil_contains(owned, Tuple(cell)) || throw(
-        ArgumentError("canonical collision cell is not owned by the migrated PIC rank"),
-    )
-    local_cell = ntuple(d -> cell[d] - first(owned[d]) + 1, 3)
-    return LinearIndices(map(length, owned))[local_cell...]
-end
-
-function _pencil_ces_cell_admission(inner, species)
-    for ps in species, p in eachindex(ps.weight)
-        iszero(ps.weight[p]) || _pencil_ces_cell(inner, ps, p)
-    end
-    return nothing
-end
-
-# Register actual pencil/solver roots while retaining the canonical configuration
-# traversal, native-resource rejection and serialization/alias semantics.
-function _pencil_ces_configuration(inner, extras, configuration)
-    return HybridPlasmaPIC._validate_checkpoint_configuration_registered(configuration) do remember, backing, owned
-        HybridPlasmaPIC._visit_checkpoint_objects(remember, inner; backing)
-        HybridPlasmaPIC._visit_checkpoint_objects(remember, extras; backing)
-    end
-end
-
 function _pencil_ces_roles(st, extra = ())
     inner, g = st.inner, st.g
     writers = Any[parent(a) for a in (inner.E..., inner.rho, inner._candidate_E..., inner._candidate_rho,
         g.physical, g.spectral, g.spectral_work..., g.staging, g.staging_work...)]
-    for populations in (st.species, inner._staged, extra), ps in populations
-        append!(writers, (ps.x..., ps.v..., ps.weight, ps.id, ps.tag))
-    end
-    for work in st.workspace.populations
-        append!(writers, (work.velocity..., HybridPlasmaPIC._coulomb_index_arrays(work)...))
-    end
-    for rng in (st.rng, st.candidate_rng)
-        append!(writers, HybridPlasmaPIC._collisional_rng_buffers(rng))
-    end
     readonly = (g.midx..., g.kfull..., g.ik..., g.kvec..., inner._layout.by_rank,
         inner._layout.partitions..., inner._layout.starts..., inner._layout.lookup,
         inner._species_scalars, st.identities)
-    for i in eachindex(writers)
-        for j = 1:(i-1)
-            HybridPlasmaPIC._particle_arrays_mightalias(writers[i], writers[j]) &&
-                throw(ArgumentError("distributed collisional ES writable storage must be independent"))
-        end
-        for metadata in readonly
-            HybridPlasmaPIC._particle_arrays_mightalias(writers[i], metadata) &&
-                throw(ArgumentError("distributed collisional ES writes must not alias readonly metadata"))
-        end
-    end
-    return nothing
-end
-
-function _pencil_ces_rngs(st; values = true)
-    live, candidate = st.rng, st.candidate_rng
-    live !== candidate || throw(ArgumentError("distributed collisional ES RNGs must be independent"))
-    values && HybridPlasmaPIC._validate_collisional_rng_pair(live, candidate, "distributed collisional ES")
-    for rng in (live, candidate)
-        HybridPlasmaPIC._validate_collisional_rng_storage(rng)
-        other = rng === live ? candidate : live
-        values && _pencil_ces_configuration(st.inner, (st.species, st.identities, st.busy, st.workspace,
-            st.coulomb_log, st.log_binding, HybridPlasmaPIC._collisional_rng_buffers(other)), (rng,))
-        # Do not register own buffers against the whole RNG; inspect only its
-        # read-only seed/history graph to reject self-cache and cross-cache links.
-        values && _pencil_ces_configuration(st.inner, (st.species, st.identities, st.busy, st.workspace,
-            st.coulomb_log, st.log_binding, HybridPlasmaPIC._collisional_rng_buffers(live),
-            HybridPlasmaPIC._collisional_rng_buffers(candidate)), HybridPlasmaPIC._collisional_rng_metadata(rng))
-    end
-    if !values
-        for a in HybridPlasmaPIC._collisional_rng_buffers(live), b in HybridPlasmaPIC._collisional_rng_buffers(candidate)
-            HybridPlasmaPIC._particle_arrays_mightalias(a, b) &&
-                throw(ArgumentError("distributed collisional ES RNG buffers must be independent"))
-        end
-    end
-    return nothing
+    return _pencil_collision_roles(st, writers, readonly, extra)
 end
 
 function _pencil_ces_binding(st::DistributedCollisionalElectrostaticPIC{T}, species; values = true) where {T}
@@ -139,14 +60,14 @@ function _pencil_ces_binding(st::DistributedCollisionalElectrostaticPIC{T}, spec
         HybridPlasmaPIC._require_finite_positive_real("grid cell width", width, T)
     end
     values && HybridPlasmaPIC._validate_local_coulomb_species(species, Val(3), T)
-    HybridPlasmaPIC._validate_coulomb_workspace(st.workspace, species, T, _pencil_ces_cells(inner), st.coulomb_log)
+    HybridPlasmaPIC._validate_coulomb_workspace(st.workspace, species, T, _pencil_collision_cells(inner), st.coulomb_log)
     rng_roots = values ? (st.rng, st.candidate_rng) :
         (HybridPlasmaPIC._collisional_rng_buffers(st.rng), HybridPlasmaPIC._collisional_rng_buffers(st.candidate_rng))
-    _pencil_ces_configuration(inner, (st.species, st.identities, st.busy, st.workspace, rng_roots),
+    _pencil_collision_configuration(inner, (st.species, st.identities, st.busy, st.workspace, rng_roots),
         (st.coulomb_log, st.log_binding))
-    _pencil_ces_configuration(inner, (st.species, st.identities, st.busy, st.coulomb_log, st.log_binding,
+    _pencil_collision_configuration(inner, (st.species, st.identities, st.busy, st.coulomb_log, st.log_binding,
         rng_roots), (st.workspace,))
-    _pencil_ces_rngs(st; values)
+    _pencil_collision_rngs(st; values)
     _pencil_ces_roles(st)
     return nothing
 end
@@ -175,21 +96,6 @@ function _pencil_ces_agreement(st, species, context; ready = true, values = true
         _pencil_ces_binding(st, species; values)
         ready && _pencil_ces_boundary(st)
         (_pencil_ces_config(st), ready ? (st.phase, st.source_time, st.source_count) : ())
-    end
-end
-
-# A failed collective acquisition releases only this call's locally acquired flag.
-function _pencil_ces_operation(f, st, context)
-    acquired = false
-    try
-        HybridPlasmaPIC._mpi_collective_stage(st.g.fft.comm, context, "exclusive acquisition") do
-            Base.Threads.atomic_cas!(st.busy, false, true) &&
-                throw(ArgumentError("concurrent or reentrant distributed collisional ES operation"))
-            acquired = true
-        end
-        return f()
-    finally
-        acquired && (st.busy[] = false)
     end
 end
 
@@ -224,8 +130,8 @@ function HybridPlasmaPIC.distributed_collisional_electrostatic_pic(
         rng isa Union{HybridPlasmaPIC.Random.Xoshiro,HybridPlasmaPIC.Random.MersenneTwister} ||
             throw(ArgumentError("distributed collisional ES requires stock Xoshiro or MersenneTwister"))
         HybridPlasmaPIC._validate_collisional_rng(rng)
-        _pencil_ces_configuration(inner, (species, coulomb_log), (rng,))
-        _pencil_ces_configuration(inner, (species, rng), (coulomb_log,))
+        _pencil_collision_configuration(inner, (species, coulomb_log), (rng,))
+        _pencil_collision_configuration(inner, (species, rng), (coulomb_log,))
         logs = coulomb_log isa Real ? T(coulomb_log) : Matrix{T}(coulomb_log)
         (h, ep, ns, uf, logs, typeof(rng), HybridPlasmaPIC._collisional_runtime())
     end
@@ -235,7 +141,7 @@ function HybridPlasmaPIC.distributed_collisional_electrostatic_pic(
         owned_rng = deepcopy(rng)
         st = DistributedCollisionalElectrostaticPIC(inner, inner.g, populations,
             copy(inner._species_scalars), inner.charge_rtol, h, logs, copy(logs), ep, ns, uf,
-            owned_rng, deepcopy(owned_rng), HybridPlasmaPIC._coulomb_workspace(populations, T, _pencil_ces_cells(inner)),
+            owned_rng, deepcopy(owned_rng), HybridPlasmaPIC._coulomb_workspace(populations, T, _pencil_collision_cells(inner)),
             Base.Threads.Atomic{Bool}(false), :uninitialized, zero(T), 0)
         _pencil_ces_binding(st, species)
         st
@@ -244,7 +150,7 @@ end
 
 function HybridPlasmaPIC.init!(st::DistributedCollisionalElectrostaticPIC{T}, species) where {T}
     context = "Distributed collisional ES initialization"
-    return _pencil_ces_operation(st, context) do
+    return _pencil_collision_operation(st, context) do
         _pencil_ces_agreement(st, species, context; ready = false)
         initial_time, initial_count = zero(T), 0
         HybridPlasmaPIC.init_espic!(st.inner, species)
@@ -257,7 +163,7 @@ end
 
 function HybridPlasmaPIC.step!(st::DistributedCollisionalElectrostaticPIC{T}, species, dt) where {T}
     context = "Distributed collisional ES step"
-    return _pencil_ces_operation(st, context) do
+    return _pencil_collision_operation(st, context) do
         _pencil_ces_agreement(st, species, context)
         h, next_time, next_step = _agree_configuration(st.g.fft.comm, context) do
             dt isa Real || throw(ArgumentError("distributed collisional ES dt must be real"))
@@ -277,7 +183,7 @@ function HybridPlasmaPIC.step!(st::DistributedCollisionalElectrostaticPIC{T}, sp
         end
         HybridPlasmaPIC._mpi_collective_stage(st.g.fft.comm, context, "current ownership") do
             _pencil_owned_particles(species, st.g, st.inner._layout)
-            _pencil_ces_cell_admission(st.inner, species)
+            _pencil_collision_cell_admission(st.inner, species)
         end
         HybridPlasmaPIC._particle_stored_zero(h) && return st
         active = HybridPlasmaPIC._mpi_collective_stage(st.g.fft.comm, context, "collision preparation") do
@@ -289,13 +195,13 @@ function HybridPlasmaPIC.step!(st::DistributedCollisionalElectrostaticPIC{T}, sp
         HybridPlasmaPIC._mpi_collective_stage(st.g.fft.comm, context, "local collision candidate") do
             HybridPlasmaPIC._validate_local_coulomb_species(prepared, Val(3), T)
             HybridPlasmaPIC._validate_coulomb_workspace(st.workspace, prepared, T,
-                _pencil_ces_cells(st.inner), st.coulomb_log)
-            _pencil_ces_cell_admission(st.inner, prepared)
+                _pencil_collision_cells(st.inner), st.coulomb_log)
+            _pencil_collision_cell_admission(st.inner, prepared)
             _pencil_ces_roles(st, prepared)
             if active
                 HybridPlasmaPIC._collide_coulomb_prepared!(prepared, st.g.dx, h, st.epsilon0,
                     st.weight_to_number, st.u_floor, st.coulomb_log, st.candidate_rng,
-                    st.workspace, (ps, p) -> _pencil_ces_cell(st.inner, ps, p))
+                    st.workspace, (ps, p) -> _pencil_collision_cell(st.inner, ps, p))
                 HybridPlasmaPIC._validate_collisional_rng(st.candidate_rng)
             end
         end
@@ -316,7 +222,7 @@ end
 
 function HybridPlasmaPIC.electrostatic_diagnostics(st::DistributedCollisionalElectrostaticPIC, species)
     context = "Distributed collisional ES diagnostics"
-    return _pencil_ces_operation(st, context) do
+    return _pencil_collision_operation(st, context) do
         _pencil_ces_agreement(st, species, context)
         merge(HybridPlasmaPIC.electrostatic_diagnostics(st.inner, species),
             (split_policy = :field_then_coulomb, source_time = st.source_time, source_count = st.source_count))

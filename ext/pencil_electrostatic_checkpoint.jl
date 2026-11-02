@@ -101,9 +101,9 @@ function _pencil_es_manifest(path, model, nranks)
 end
 
 _pencil_es_envelope(manifest) =
-    _pencil_es_prepared_envelope(manifest, :pencil_electrostatic_manifest, "Pencil electrostatic")
+    _pencil_pic_prepared_envelope(manifest, :pencil_electrostatic_manifest, "Pencil electrostatic")
 
-function _pencil_es_prepared_envelope(manifest, tag, label)
+function _pencil_pic_prepared_envelope(manifest, tag, label)
     payload = HybridPlasmaPIC._serialize_mpi_payload(manifest)
     HybridPlasmaPIC._check_mpi_count(length(payload), "$label manifest payload")
     return (
@@ -184,15 +184,15 @@ function HybridPlasmaPIC.save_mpi_checkpoint(dir, model::DistributedElectrostati
             nothing, ""
         end
     end
-    return _pencil_es_write_prepared(directory, manifest_path, previous, owned_generation,
+    return _pencil_pic_write_prepared(directory, manifest_path, previous, owned_generation,
         state, common, phase,
         (prefix = _PENCIL_ES_GENERATION, tag = :pencil_electrostatic_manifest, label = "Pencil electrostatic"),
         comm, rank, nranks, context)
 end
 
-# Fixed ES/new-composition generation mechanics; schemas and validation remain
-# explicit at their callers. EM persistence has a separate unchanged owner.
-function _pencil_es_write_prepared(directory, manifest_path, previous, owned_generation,
+# Prepared ES/composition generations use explicit caller-owned schemas/policies.
+# Bare EM persistence retains its separate established orchestration.
+function _pencil_pic_write_prepared(directory, manifest_path, previous, owned_generation,
     state, common, phase, policy, comm, rank, nranks, context)
     try
         generation = _pencil_checkpoint_broadcast_generation(owned_generation, comm, rank, policy.prefix, policy.label)
@@ -215,7 +215,7 @@ function _pencil_es_write_prepared(directory, manifest_path, previous, owned_gen
                         rank_files = files, rank_sha256 = digests,
                     ),
                 )
-                HybridPlasmaPIC._atomic_serialize(manifest_path, _pencil_es_prepared_envelope(manifest, policy.tag, policy.label))
+                HybridPlasmaPIC._atomic_serialize(manifest_path, _pencil_pic_prepared_envelope(manifest, policy.tag, policy.label))
             end
         end
     catch original

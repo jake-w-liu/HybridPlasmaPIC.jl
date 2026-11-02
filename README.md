@@ -261,6 +261,7 @@ in the [implementation plan](docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md).
 | **Distributed electrostatic PIC** | rank-owned periodic 3D CPU Float32/64 CIC collections, complete remote stencils, direct migration, shared leapfrog and exact charge/energy/momentum diagnostics; explicit `grid_dc=:project`; [source scope and deferred acceptance](docs/DISTRIBUTED_ELECTROSTATIC_IMPLEMENTATION.md); [matching-layout checkpoint source](docs/DISTRIBUTED_ELECTROSTATIC_CHECKPOINT.md), with restart acceptance deferred | `distributed_electrostatic_pic`, `init_espic!`, `step_espic!`, `poisson_E!`, `electrostatic_diagnostics` |
 | **Distributed collisional ES PIC** | fixed-step 3D CPU ES/local-Coulomb source composition, owned-cell bins and complete per-rank RNG/physical checkpoint; zero background, required neutrality and equal positive permittivity/count conversion; [scope and deferred acceptance](docs/DISTRIBUTED_COLLISIONAL_ELECTROSTATIC.md) | `distributed_collisional_electrostatic_pic`, `init!`, `step!`, `electrostatic_diagnostics`, `save_mpi_checkpoint`, `load_mpi_checkpoint!` |
 | **Distributed electromagnetic PIC** | source implementation of rank-owned periodic 3D CPU Float32/64 all-mobile nonrelativistic CIC collections, canonical Boris/carried B phase, exact routed midpoint current, represented-mode continuity and staged publication; [scope and deferred acceptance](docs/DISTRIBUTED_EMPIC_IMPLEMENTATION.md); [complete matching-layout checkpoint source](docs/DISTRIBUTED_EMPIC_CHECKPOINT.md), with restart acceptance deferred | `distributed_empic`, `init_empic!`, `step_empic!`, `maxwell_cfl`, `electromagnetic_diagnostics` |
+| **Distributed collisional EM PIC** | fixed-step actual-pencil EM/local-Coulomb source composition with owned cells, preserved eleven-field/current history and complete per-rank RNG/physical restart; [scope and deferred acceptance](docs/DISTRIBUTED_COLLISIONAL_EMPIC.md) | `distributed_collisional_empic`, `init!`, `step!`, `electromagnetic_diagnostics`, `save_mpi_checkpoint`, `load_mpi_checkpoint!` |
 | **Distributed isothermal hybrid** | actual-pencil 3D CPU Float32/64 positive-ion CIC collections, canonical prime/Boris/midpoint motion, frozen-moment RK4 magnetic subcycles, endpoint predictor, strict density and global scalar diagnostics; [source scope](docs/DISTRIBUTED_HYBRID_IMPLEMENTATION.md); [complete matching-layout checkpoint source](docs/DISTRIBUTED_HYBRID_CHECKPOINT.md), with runtime acceptance deferred | `distributed_hybrid`, `init!`, `step!`, `hybrid_diagnostics`, `recommended_dt`, `save_mpi_checkpoint`, `load_mpi_checkpoint!` |
 | **Distributed periodic Poisson field** | static rank-owned 3D CPU Float32/64 field solve, canonical mode arithmetic, exact represented neutrality or explicit uniform compensator, staged fields and exact charge ledger; [source scope and deferred acceptance](docs/DISTRIBUTED_POISSON_FIELD.md); composes with the distributed ES model | `distributed_poisson_field!` |
 | **Distributed periodic Maxwell vacuum** | source implementation of rank-owned 3D CPU spectral KDK over physical PencilArrays, strict spectral CFL, staged fields and collective energy/divergence diagnostics; [scope and deferred acceptance](docs/DISTRIBUTED_MAXWELL_IMPLEMENTATION.md); [matching-layout checkpoint](docs/DISTRIBUTED_MAXWELL_CHECKPOINT.md) source is available, with restart acceptance deferred; separate coupled ES/EM source models are available | `distributed_maxwell_vacuum`, `step_maxwell!`, `maxwell_cfl`, `em_field_energy`, `distributed_maxwell_diagnostics` |
@@ -408,6 +409,12 @@ near-light Lorentz factor or an entire trajectory from rounded velocities.
   nonrelativistic populations, `n_sub=1`, zero background, required neutrality and
   matching positive permittivity/count conversion. Tests and runtime acceptance
   are deferred; see the [scope and normalization](docs/COLLISIONAL_EMPIC.md).
+- `distributed_collisional_empic(inner, species; dt, rng, coulomb_log, epsilon0,
+  weight_to_number)` — fixed-step actual-pencil EM/local-Coulomb source with
+  admitted owned cells, unchanged drift-current/field history and complete
+  per-rank RNG/physical restart. Uses zero background, required neutrality,
+  explicit grid DC projection and matching positive normalization. Source-reviewed
+  only; [scope and deferred acceptance](docs/DISTRIBUTED_COLLISIONAL_EMPIC.md).
 - `collide_bgk!(ps, ν, dt)` — BGK relaxation toward the set's own drifting
   Maxwellian, conserving momentum and energy exactly.
 - `collide_neutral_mcc!` / `ionize_mcc!` — Monte-Carlo elastic scattering off
@@ -762,8 +769,9 @@ EM and comparative campaigns remain in the
   [Generic electrostatic](docs/COLLISIONAL_ELECTROSTATIC.md) and
   [electromagnetic PIC composition](docs/COLLISIONAL_EMPIC.md) are also
   source-implemented in bounded fixed-step nonrelativistic scopes; acceptance
-  is deferred. A separate [actual-pencil collisional ES source](docs/DISTRIBUTED_COLLISIONAL_ELECTROSTATIC.md)
-  now adds complete owned cells, per-rank RNG staging and full physical/RNG restart.
+  is deferred. Separate actual-pencil [collisional ES](docs/DISTRIBUTED_COLLISIONAL_ELECTROSTATIC.md)
+  and [collisional EM sources](docs/DISTRIBUTED_COLLISIONAL_EMPIC.md) now add
+  admitted owned cells, per-rank RNG staging and full physical/RNG restart.
   Actual-rank/statistical/continuation acceptance is open. Variable steps, higher-order
   splitting, electron-ion heat exchange, anisotropic/inertial
   composition, other models and sources, broader MPI families and device kernels

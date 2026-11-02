@@ -108,3 +108,6 @@ distributed_collisional_electrostatic_pic(args...; kwargs...) =
 
 distributed_hybrid(args...; kwargs...) = _extension_missing(:pencilfft, :distributed_hybrid)
 hybrid_diagnostics(args...; kwargs...) = _extension_missing(:pencilfft, :hybrid_diagnostics)
+
+distributed_collisional_empic(args...; kwargs...) =
+    _extension_missing(:pencilfft, :distributed_collisional_empic)

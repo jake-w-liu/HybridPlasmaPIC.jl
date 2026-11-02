@@ -38,6 +38,9 @@ rerun by this documentation-only audit.
 - [docs/DISTRIBUTED_COLLISIONAL_ELECTROSTATIC.md](DISTRIBUTED_COLLISIONAL_ELECTROSTATIC.md)
   — actual-pencil cell-local ES/Coulomb composition, sole inner clock/source
   ledger and complete per-rank RNG/physical persistence; runtime acceptance open.
+- [docs/DISTRIBUTED_COLLISIONAL_EMPIC.md](DISTRIBUTED_COLLISIONAL_EMPIC.md)
+  — actual-pencil EM/Coulomb composition, carried field/current phase and full
+  per-rank RNG/physical persistence; runtime acceptance open.
 - [docs/COLLISIONAL_EMPIC.md](COLLISIONAL_EMPIC.md) — field-first electromagnetic
   PIC/local-Coulomb source composition, fixed normalization and full RNG restart.
 - [docs/EVOLVING_ELECTRONS.md](EVOLVING_ELECTRONS.md) — stored pressure, transport

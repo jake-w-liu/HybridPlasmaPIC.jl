@@ -457,38 +457,8 @@ function _pencil_empic_magnetic!(out, old, curl, previous, following, backward =
     return nothing
 end
 
-"""
-    step_empic!(model::DistributedEMPIC, species, dt)
-
-Collectively advance all mobile populations and staggered Maxwell fields by one
-nonnegative converted dt. Nonzero dt must advance the finite clock and be strictly
-sub-CFL. Existing original-factor prime/Boris/midpoint drift and scalar Maxwell
-owners are shared. Exact routed CIC moments precede one represented-mode current
-constraint; periodic ownership migration precedes final atomic publication.
-Recoverable failure preserves all public particles/fields/phase/count bindings;
-private work may change. True stored-zero dt validates and leaves work unchanged.
-"""
-function HybridPlasmaPIC.step_empic!(model::DistributedEMPIC{T}, species, dt) where {T}
-    context = "Distributed electromagnetic step"
-    _pencil_empic_agreement(model, species, context)
-    h, next_time, next_step = _agree_configuration(model.g.fft.comm, context) do
-        dt isa Real || throw(ArgumentError("distributed electromagnetic dt must be real"))
-        h = HybridPlasmaPIC._require_resolved_dt(context,
-            HybridPlasmaPIC._validated_nonnegative_dt(T, dt; name = context))
-        if HybridPlasmaPIC._particle_stored_zero(h)
-            h, model.time[], model.step[]
-        else
-            h < model._cfl || throw(ArgumentError("dt must be strictly below the distributed spectral Maxwell CFL limit"))
-            time, step = HybridPlasmaPIC._validated_step_clock(model.time[], model.step[], h)
-            time > model.time[] || throw(ArgumentError("distributed electromagnetic time must advance"))
-            h, time, step
-        end
-    end
-    HybridPlasmaPIC._mpi_collective_stage(model.g.fft.comm, context, "current particle ownership") do
-        _pencil_owned_particles(species, model.g, model._layout)
-    end
-    HybridPlasmaPIC._particle_stored_zero(h) && return model
-    _pencil_pic_charges(model, species, context)
+# Includes original private first-step priming; public phase remains unchanged.
+function _pencil_empic_advance_candidate!(model::DistributedEMPIC{T}, species, h, next_time, next_step, context) where {T}
     staged = _pencil_empic_stages!(model, species, context)
     fields = model._candidate
     _pencil_deposit_cic!(fields.rho_n, staged, model.g, model._layout, model.background_charge, 0, context)
@@ -534,6 +504,42 @@ function HybridPlasmaPIC.step_empic!(model::DistributedEMPIC{T}, species, dt) wh
         _pencil_empic_phase_values(true, true, h, next_time, next_step, model._cfl)
     end
     prepared = _pencil_migrate(staged, model.g, model._layout, context)
+    return prepared
+end
+
+"""
+    step_empic!(model::DistributedEMPIC, species, dt)
+
+Collectively advance all mobile populations and staggered Maxwell fields by one
+nonnegative converted dt. Nonzero dt must advance the finite clock and be strictly
+sub-CFL. Existing original-factor prime/Boris/midpoint drift and scalar Maxwell
+owners are shared. Exact routed CIC moments precede one represented-mode current
+constraint; periodic ownership migration precedes final atomic publication.
+Recoverable failure preserves all public particles/fields/phase/count bindings;
+private work may change. True stored-zero dt validates and leaves work unchanged.
+"""
+function HybridPlasmaPIC.step_empic!(model::DistributedEMPIC{T}, species, dt) where {T}
+    context = "Distributed electromagnetic step"
+    _pencil_empic_agreement(model, species, context)
+    h, next_time, next_step = _agree_configuration(model.g.fft.comm, context) do
+        dt isa Real || throw(ArgumentError("distributed electromagnetic dt must be real"))
+        h = HybridPlasmaPIC._require_resolved_dt(context,
+            HybridPlasmaPIC._validated_nonnegative_dt(T, dt; name = context))
+        if HybridPlasmaPIC._particle_stored_zero(h)
+            h, model.time[], model.step[]
+        else
+            h < model._cfl || throw(ArgumentError("dt must be strictly below the distributed spectral Maxwell CFL limit"))
+            time, step = HybridPlasmaPIC._validated_step_clock(model.time[], model.step[], h)
+            time > model.time[] || throw(ArgumentError("distributed electromagnetic time must advance"))
+            h, time, step
+        end
+    end
+    HybridPlasmaPIC._mpi_collective_stage(model.g.fft.comm, context, "current particle ownership") do
+        _pencil_owned_particles(species, model.g, model._layout)
+    end
+    HybridPlasmaPIC._particle_stored_zero(h) && return model
+    _pencil_pic_charges(model, species, context)
+    prepared = _pencil_empic_advance_candidate!(model, species, h, next_time, next_step, context)
     binding = _pencil_empic_final(model, species, prepared, context)
     return _pencil_empic_commit!(model, species, prepared, binding; dt = h, clock = (next_time, next_step))
 end

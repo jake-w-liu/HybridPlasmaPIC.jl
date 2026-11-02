@@ -88,7 +88,7 @@ Source names below resolve to these canonical files:
 | Periodic hybrid, positive ion collections | `HybridStepper` / `CAMCLStepper`; README:78–93,156–169; `extrapolated_leapfrog.jl:67–120,359,766`; collection and pressure tests | Implemented within documented closure, geometry and time-centering restrictions; inherited audit findings remain open |
 | ES/EM PIC | Periodic `ElectrostaticPIC`, `EMPIC` and `EMPIC1D`; ES collection implementation `d46029e` | Periodic CPU ES collections are landed; CPU EMPIC collections with opt-in D1–3 dividing schedules and specialized EMPIC1D S1/S2, both with optional relativistic motion are source-implemented, exact-revision GitHub acceptance pending. Broader schedules, bounded coupling and resident GPU/MPI integration remain open |
 | Hall-MHD | `HallMHDModel`, `HallMHDState`, `step_hall_mhd!`; `test_hall_mhd.jl`, `test_io_hall_mhd.jl` | A periodic solver exists; it is not a general geometry/closure solver |
-| Coulomb collisions | Canonical homogeneous and local collection `collide_coulomb!`; `CollisionalHybridStepper` | Local self/cross CPU operator and fixed-step isothermal hybrid/RNG restart exist; ideal evolving-scalar, S1/S2 transport and S3b conduction extensions await CI, bounded generic collisional ES/EMPIC source is implemented with deferred acceptance; broader compositions and parallel/device support remain |
+| Coulomb collisions | Canonical homogeneous and local collection `collide_coulomb!`; `CollisionalHybridStepper` | Local self/cross CPU operator and fixed-step isothermal hybrid/RNG restart exist; ideal evolving-scalar, S1/S2 transport and S3b conduction extensions await CI, bounded generic and actual-pencil collisional ES/EMPIC sources are implemented with deferred acceptance; broader compositions and parallel/device support remain |
 | Nonperiodic EM | Periodic `EMPIC`; separate Yee vacuum/prescribed-current fields; closed 1D PEC charge/impulse/path voltage plus optional finite physical-width cloud static coupling | B2a, optional cloud, event-free longitudinal/1D3V EM, one-cluster reflection and one isolated passive longitudinal capture/restart source are implemented. Exact-head GitHub numerical/JET/CI and resource acceptance, general capture laws, multiple clusters/captures, transverse walls, measured absorber behavior/stability, general CPML and backends remain CAP-002 work; separate scalar-conductivity and causal directional ADE PML field layers with full budget/restart are source-implemented |
 | Distributed evolution | Replicated-field MPI reference, rank-owned Fourier operators, static Poisson/vacuum Maxwell, coupled ES/EM and isothermal hybrid physical-pencil source | Ownership, complete CIC transport, direct migration, canonical movers/field expressions and scalar diagnostics are source-implemented; Maxwell, ES, EM and complete eighteen-field hybrid matching-layout restart are source-implemented; exact-head runtime/restart/resource acceptance, broader closures/EM families and cluster scaling remain CAP-003 work |
 | GPU | Metal extension has deposit/gather/push methods; CUDA extension:1–68 has storage/telemetry hooks; `HybridFields` uses `Array` at field_state:12–29 | Partial kernels, not complete resident solvers, CAP-004; device availability is not numerical acceptance |
@@ -99,7 +99,7 @@ Source names below resolve to these canonical files:
 | External validation | Pinned external references plus case 34 parallel and case 35 oblique Hall production histories | Bounded production validation exists; complete manual campaigns, broader regimes, full profile replay and matched cost/accuracy comparisons remain CAP-007 work |
 | Kinetic species diversity | Arbitrary ES collections landed; CPU EMPIC collections with opt-in D1–3 dividing schedules and specialized EMPIC1D S1/S2, both with optional relativistic motion are source-implemented and reviewed | Exact-revision GitHub and resource acceptance, broader schedules and collision/boundary/partition/device composition remain CAP-008 work |
 | Multidimensional shocks | shock3d:9–19,337–359 and shock2d:230–236 intentionally exclude Hall induction while retaining Hall particle forces | Documented reduced shock model; full-Hall multidimensional branch required for broader claims, CAP-009 |
-| Coupled sources and collisions | `CollisionalElectrostaticPIC` / `CollisionalEMPICStepper` source with deferred acceptance; `CollisionalHybridStepper` and full RNG checkpoint/archive state (`2b2420b`); ideal evolving, S1/S2 transport and S3b conduction pressure/force extensions are CI-pending | Fixed-step first-order CPU composition; anisotropic/inertial models, electron-ion heat exchange, other sources, schedules and backends remain CAP-010 work |
+| Coupled sources and collisions | `CollisionalElectrostaticPIC` / `CollisionalEMPICStepper` source with deferred acceptance; `CollisionalHybridStepper` and full RNG checkpoint/archive state (`2b2420b`); ideal evolving, S1/S2 transport and S3b conduction pressure/force extensions are CI-pending | Fixed-step first-order CPU composition plus bounded actual-pencil ES/EM physical/RNG source families; runtime acceptance, anisotropic/inertial models, electron-ion heat exchange, other sources, schedules and backends remain CAP-010 work |
 | Electron transport | `EvolvingElectrons` covers ideal massless pressure; `TransportElectrons` provides constant Ohmic transport (S1), with complete-source hyperresistive S2 and shared scalar pressure range routing. `ConductingElectrons` adds an original-quotient S3b source candidate with bounded preparation and projected full-Nyquist conduction | [S2 gates](TRANSPORT_SOURCE_RANGE_PLAN.md), [scalar pressure verification](SCALAR_PRESSURE_RATE_RANGE_PLAN.md) and [S3b GitHub verification](EVOLVING_ELECTRONS.md#constant-isotropic-conduction-source-candidate) remain open; broader conditioning, complete-step cost, conduction models, equilibration, anisotropy, inertia and backends remain CAP-011 work |
 
 The geometry integration finding also follows from a repository-wide symbol
@@ -285,8 +285,8 @@ candidates and numerical/resource evidence. No global cost optimum follows.
 - [ ] Accept the implemented ideal evolving-scalar, S1/S2 transport and S3b conduction extensions
   through exact-revision GitHub CI; ion-ion collisions leave pressure fixed,
   while existing field stages provide the applicable Ohmic/hyperresistive heat and conduction.
-- [ ] Accept [actual-pencil collisional ES source](DISTRIBUTED_COLLISIONAL_ELECTROSTATIC.md):
-  migrated populations pass an explicit canonical collision-cell ownership gate,
+- [ ] Accept actual-pencil [collisional ES](DISTRIBUTED_COLLISIONAL_ELECTROSTATIC.md)
+  and [EM sources](DISTRIBUTED_COLLISIONAL_EMPIC.md): migrated populations pass an explicit canonical collision-cell ownership gate,
   use owned logical bins/global dx and persist full per-rank RNG/physical state.
   Actual-rank/statistical/restart acceptance and broader MPI families remain open;
   CAP-004 must still supply real device pairing/streams.
@@ -448,7 +448,7 @@ all eighteen carried fields, full particles and actual clock/half-phase without
 reconstructing predictor moments or E. Detached incoming state and complete
 replacement/count preparation precede the final all-rank gate; stale destination
 values and changed local counts are supported. Broader closures/EM families,
-collisions, backends, runtime/restart acceptance and cluster scaling remain open.
+collision compositions, backends, runtime/restart acceptance and cluster scaling remain open.
 No global field/population gather occurs in these source paths; CAP-003 remains
 incomplete and its acceptance checkboxes remain open.
 
@@ -799,7 +799,13 @@ separate work. [Actual-pencil collisional ES](DISTRIBUTED_COLLISIONAL_ELECTROSTA
 now supplies fixed-step canonical owned-cell scattering with per-rank RNG staging,
 sole inner clock/source ledger and complete one-generation physical/RNG restart.
 Explicit cell ownership admission and equal field/collision normalization apply.
-Actual-rank/statistical/rollback/restart/compiler/resource acceptance remains open.
+[Actual-pencil collisional EM](DISTRIBUTED_COLLISIONAL_EMPIC.md) now adds the same
+local scheduler after the complete private EM candidate, preserving all eleven
+fields and actual drift-current/charge history. A distinct complete physical/RNG
+generation retains its sole clock and carried half phase. Cell/RNG/graph/busy and
+prepared-generation owners are shared with ES; existing source paths reconstruct
+by literal expansion. Actual-rank/statistical/rollback/restart/compiler/resource
+acceptance remains open.
 This does not complete CAP-010.
 
 Add an explicitly owned evolution composition in the integrator layer; reuse
