@@ -73,7 +73,7 @@ function _validate_checkpoint_state(s, st::CollisionalHybridStepper{D,T}) where 
         throw(ArgumentError("collisional checkpoint source ledger must match its field clock"))
     (
         s.source_count == 0 ? iszero(s.source_time) && iszero(s.inner.last_dt) :
-        isequal(s.inner.last_dt, st.dt)
+        isequal(s.inner.last_dt, st.dt) && st.dt <= s.source_time
     ) || throw(ArgumentError("collisional checkpoint has inconsistent timestep history"))
     length(s.inner.species) == length(st.identities) ||
         throw(ArgumentError("collisional checkpoint species count must match the destination"))

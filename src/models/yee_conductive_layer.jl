@@ -204,7 +204,7 @@ end
 _yee_layer_energy(fields, inner) =
     _field_energy_rational(fields.E, fields.B, _exact_rational(inner.c)^2, inner.g.dx)
 
-function _yee_layer_validate_budget(s, energy, time, step, ::Type{T}) where {T}
+function _yee_layer_validate_budget(s, energy, time, step, dt::T, ::Type{T}) where {T}
     s.phase === :ready && s.initialized === true ||
         throw(ArgumentError("conductive layer must be initialized at a completed boundary"))
     _validate_checkpoint_clock_state((; time, step), T)
@@ -221,7 +221,7 @@ function _yee_layer_validate_budget(s, energy, time, step, ::Type{T}) where {T}
         _particle_stored_zero(time) && all(name -> iszero(getproperty(s, name)), _YEE_LAYER_LEDGER_FIELDS[2:end]) ||
             throw(ArgumentError("unadvanced layer clock and loss/work/defect ledgers must be zero"))
     else
-        time > zero(T) || throw(ArgumentError("advanced layer time must be positive"))
+        time > zero(T) && dt <= time || throw(ArgumentError("advanced layer time must be positive"))
         if step == 1
             s.last_loss == s.total_loss && s.last_work == s.total_work && s.last_defect == s.total_defect ||
                 throw(ArgumentError("first-step layer ledgers must match their cumulative values"))
@@ -235,7 +235,7 @@ end
 function _yee_layer_boundary(model::YeeConductiveLayer{D,T}) where {D,T}
     _yee_validate_fields(model.inner.fields, model.inner.g)
     energy = _yee_layer_energy(model.inner.fields, model.inner)
-    _yee_layer_validate_budget(model, energy, model.inner.time[], model.inner.step[], T)
+    _yee_layer_validate_budget(model, energy, model.inner.time[], model.inner.step[], model.dt, T)
     return energy
 end
 
@@ -351,7 +351,7 @@ function _yee_layer_step!(model::YeeConductiveLayer{D,T}, dt::Real, impulse) whe
                 last_work = work, total_work = total_work,
                 last_defect = defect, total_defect = total_defect,
             )
-            _yee_layer_validate_budget(budget, final_energy, next_time, next_step, T)
+            _yee_layer_validate_budget(budget, final_energy, next_time, next_step, model.dt, T)
             # All field arithmetic, exact budgets and clock calculations passed.
             # Shared fixed-size copies and typed assignments only follow.
             _yee_publish_candidate!(inner, candidate, inner.fields, next_time, next_step)

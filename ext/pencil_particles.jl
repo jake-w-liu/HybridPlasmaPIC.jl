@@ -28,7 +28,7 @@ function _pencil_pic_phase_values(initialized::Bool, primed::Bool, last_dt::T, t
         HybridPlasmaPIC._particle_stored_zero(time) && !primed ||
             throw(ArgumentError("an unstepped distributed PIC model must have zero time and unprimed velocity"))
     else
-        time > zero(time) && primed ||
+        time > zero(time) && primed && last_dt <= time ||
             throw(ArgumentError("a stepped distributed PIC model must have positive time and primed velocity"))
     end
     HybridPlasmaPIC._require_resolved_dt("distributed PIC history", last_dt)

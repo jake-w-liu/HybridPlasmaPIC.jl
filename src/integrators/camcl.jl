@@ -290,6 +290,7 @@ function step_camcl!(
 ) where {D,T}
     dtT = _validated_step_dt(T, dt, NB; min_NB = 2, name = "step_camcl!")
     iszero(dtT) && return st        # dt=0 no-op: do not consume the one-time priming guard.
+    _validate_hybrid_clock_phase(st.time[], st.step[], st.last_dt[])
     next_time, next_step = _validated_step_clock(st.time[], st.step[], dtT)
     _resize_hybrid_particle_workspaces!(st, _validate_hybrid_species(ps))
     g = st.g

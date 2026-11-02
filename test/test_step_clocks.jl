@@ -80,7 +80,8 @@ end
         @test advance(zero(T)) === st
         @test clock_snapshot(st, ps) == before
 
-        st.time[] = zero(T)
+        st, ps, advance = clock_case(family, D, T)
+        advance(T(0.01))
         st.step[] = typemax(Int) - 1
         @test advance(T(0.01)) === st
         @test st.step[] == typemax(Int)
@@ -102,6 +103,21 @@ end
         before = clock_snapshot(st, ps)
         @test_throws ArgumentError advance(T(0.01))
         @test clock_snapshot(st, ps) == before
+    end
+end
+
+@testset "Completed histories use the duration actually added" begin
+    for T in (Float32, Float64)
+        H = HybridPlasmaPIC
+        h = T(0.25)
+        @test H._validate_hybrid_clock_phase(h, 1, h) === nothing
+        @test_throws ArgumentError H._validate_hybrid_clock_phase(h / 2, 1, h)
+        @test H._validate_hybrid_clock_phase(T(2), 0, zero(T)) === nothing
+        @test H._validate_empic_clock_phase(T(2), 0, zero(T), zero(T)) === nothing
+        # Repeated rounded fast additions can leave time below the full interval.
+        fast = ldexp(one(T), -precision(T))
+        @test H._validate_empic_clock_phase(one(T), 1, T(4), fast) === nothing
+        @test_throws ArgumentError H._validate_empic_clock_phase(fast / 2, 1, T(4), fast)
     end
 end
 

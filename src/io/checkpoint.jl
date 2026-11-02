@@ -704,6 +704,7 @@ function _validate_checkpoint_state(s, st::_HybridCheckpointStepper{D,T}) where 
         _validate_checkpoint_scalar_state(s, T)
         _validate_checkpoint_particle_state(s, Val(D))
     end
+    _validate_hybrid_clock_phase(s.time, s.step, s.last_dt)
     _validate_checkpoint_field_state(s, st)
     _validate_checkpoint_integrator_state(s, st)
     _validate_checkpoint_configuration(s, st, (s.model, s.shape))
@@ -924,6 +925,7 @@ function _validate_checkpoint_state(s, st::_ElectromagneticCheckpointStepper)
     (s.step == 0 ? iszero(s.last_sub_dt) : s.last_sub_dt > zero(T)) || throw(
         ArgumentError("checkpoint last_sub_dt must be zero before stepping and positive afterward"),
     )
+    _validate_empic_clock_phase(s.time, s.step, s.last_dt, s.last_sub_dt)
     dims = Val(s.D)
     electrons = _checkpoint_species(s.electrons, dims, T)
     _require_empic_electrons(electrons)

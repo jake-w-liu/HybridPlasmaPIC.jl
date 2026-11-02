@@ -333,7 +333,7 @@ function _validate_collisional_boundary(st::CollisionalHybridStepper)
         throw(ArgumentError("collisional source ledger must be finite and nonnegative"))
     (
         st.source_count == 0 ? iszero(inner.last_dt[]) && iszero(st.source_time) :
-        isequal(inner.last_dt[], st.dt)
+        isequal(inner.last_dt[], st.dt) && st.dt <= st.source_time
     ) || throw(ArgumentError("collisional timestep history does not match its fixed dt"))
     return nothing
 end

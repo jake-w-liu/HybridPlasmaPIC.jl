@@ -227,8 +227,10 @@ implementation agent is explicitly unassigned, not implicitly running.
 Current assignments (2026-11-02): static composite ES is reviewed and submitted;
 the approved resident CUDA and compatible implicit-EM families implement in
 disjoint paths. Shared scalar dependencies are reviewed/pushed; root integrates
-the frozen absorption CI repair, while another worker closes all eight audited
-completed-clock admission gaps without changing numerical clock arithmetic.
+the frozen absorption and nineteen-file completed-clock repairs. All eight
+audited clock groups retain numerical clock arithmetic and legacy origins;
+remote acceptance is pending. An independent worker audits the frozen CUDA
+family while root integrates completed source.
 Hall, slab, periodic shear and synchronous implicit EM are source-complete
 and await remote acceptance. Root owns shared registrations, current docs, dependency
 publication, source integration and remote CI. Earlier audit assignments and

@@ -51,7 +51,7 @@ function _validate_checkpoint_state(s, model::YeeConductiveLayer{D,T}) where {D,
         throw(ArgumentError("conductive layer checkpoint timestep must be strictly sub-CFL"))
     fields = YeeFields{D,T}(s.inner.fields.E, s.inner.fields.B)
     energy = _yee_layer_energy(fields, model.inner)
-    _yee_layer_validate_budget(s, energy, s.inner.time, s.inner.step, T)
+    _yee_layer_validate_budget(s, energy, s.inner.time, s.inner.step, s.dt, T)
     return nothing
 end
 

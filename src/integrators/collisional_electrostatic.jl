@@ -281,7 +281,8 @@ function _validate_collisional_espic_boundary(st::CollisionalElectrostaticPIC{D,
     (
         st.source_count == 0 ?
         _particle_stored_zero(st.source_time) && !inner.primed[] && _particle_stored_zero(inner.last_dt[]) :
-        st.source_time > zero(T) && inner.primed[] && isequal(inner.last_dt[], st.dt)
+        st.source_time > zero(T) && inner.primed[] && isequal(inner.last_dt[], st.dt) &&
+        st.dt <= st.source_time
     ) || throw(ArgumentError("collisional ES clock and carried phase do not match its fixed dt"))
     return nothing
 end

@@ -405,7 +405,7 @@ function _open_hall_phase_values(st::OpenHallHybrid{D,T}, initialized, time, ste
         _particle_stored_zero(time) && _particle_stored_zero(last_dt) && report === nothing ||
             throw(ArgumentError("unstepped open Hall requires zero clock/history and no report"))
     else
-        initialized && time > 0 && last_dt > 0 || throw(ArgumentError("advanced open Hall requires initialized positive clock/history"))
+        initialized && time > 0 && last_dt > 0 && last_dt <= time || throw(ArgumentError("advanced open Hall requires initialized positive clock/history"))
         _open_hall_pair_duration(last_dt, 0)
         _open_hall_report(st, report, time, step, last_dt)
     end

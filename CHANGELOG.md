@@ -407,6 +407,12 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Fixed
 
+- Completed-clock admission checks the preceding duration at the existing live
+  and checkpoint owners for closed Yee, pencil PIC, open Hall, legacy hybrid,
+  explicit EM, serial collisional and conductive/PML families. Explicit EM uses
+  its fast interval. Numerical clock additions, legacy initial origins and
+  scalar zero-step behavior are retained; exact-revision CI remains pending.
+
 - Absorbing Yee history validation selects the same rational/error fields
   explicitly, preserving all predicates while avoiding heterogeneous dynamic
   field arithmetic. Its restart/rollback snapshot helper compares every capture

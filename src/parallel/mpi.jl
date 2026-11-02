@@ -799,6 +799,7 @@ function _mpi_hybrid_step_inputs(
         return _mpi_hybrid_collective_step_inputs(st, ps, ctx, dt, NB, migrate)
     dtT = _validated_step_dt(T, dt, NB; min_NB = 1, name = "mpi_step!")
     iszero(dtT) && return (dtT, st.time[], st.step[], 0)
+    _validate_hybrid_clock_phase(st.time[], st.step[], st.last_dt[])
     next_time, next_step = _validated_step_clock(st.time[], st.step[], dtT)
     _require_finite_positive_real("nfloor", st.model.nfloor, T)
     return dtT, next_time, next_step, _validate_hybrid_species(ps)
@@ -856,6 +857,7 @@ function _mpi_hybrid_collective_step_inputs(
         _evolves_pressure(st.model.closure) && _validate_pressure_step_state(st, ps)
         isfinite(st.last_dt[]) && st.last_dt[] >= zero(T) ||
             throw(ArgumentError("previous hybrid timestep must be finite and nonnegative"))
+        _validate_hybrid_clock_phase(st.time[], st.step[], st.last_dt[])
         migrate && _mpi_require_migration_storage(ps)
         (following_time, following_step, local_count)
     end

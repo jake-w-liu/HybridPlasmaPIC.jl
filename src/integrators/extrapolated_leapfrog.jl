@@ -1592,6 +1592,7 @@ function _step_hybrid!(
     NB::Integer,
     source,
 ) where {D,T}
+    _validate_hybrid_clock_phase(st.time[], st.step[], st.last_dt[])
     next_time, next_step = _validated_step_clock(st.time[], st.step[], dtT)
     count = _validate_hybrid_species(ps)
     _validate_pressure_step_state(st, ps)

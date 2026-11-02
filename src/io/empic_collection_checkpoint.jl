@@ -155,6 +155,7 @@ function _validate_empic_collection_checkpoint_envelope(
         zero(T) <= s.last_sub_dt <= s.last_dt &&
         (s.step == 0 ? iszero(s.last_sub_dt) : s.last_sub_dt > zero(T)) ||
         throw(ArgumentError("checkpoint fast timestep history is inconsistent"))
+    _validate_empic_clock_phase(s.time, s.step, s.last_dt, s.last_sub_dt)
     !s.initialized &&
         s.step != 0 &&
         throw(ArgumentError("advanced electromagnetic checkpoint must be initialized"))

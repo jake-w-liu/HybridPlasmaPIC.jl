@@ -64,11 +64,11 @@ repairs; new workers do not edit those family files.
 | Static composite-grid electrostatic PIC | Root integrated frozen `cpu_model_factor_admission` source | Nested hierarchy, global Neumann field solve, physical-cloud crossings, diagnostics and complete physical persistence | Seven-file v2 source reviewed/integrated/pushed; phase/preparation findings repaired; full/essential GitHub checks submitted |
 | First resident CUDA hybrid | Frozen `self_consistent_gyrokinetic_design` source, root review | Complete device field/particle lifecycle and physical persistence with actual CUDA/cuFFT APIs | Nine new files frozen; full root source review, dependency integration and remote/device acceptance pending |
 | Shared CUDA scalar dependencies | Root integration of frozen `cpu_model_factor_admission` v2 source | Canonical arithmetic/coupling/scale/native Ohm/RK4 extractions with existing default CPU expression/order retained | Eleven files reviewed/integrated; mixed-precision custom-shape restriction removed; remote acceptance pending |
-| Compatible implicit EM current/gather | `yee_longitudinal_coupled_implementation` | Paired orbit-averaged current/gather, midpoint field/particle solve and physical persistence | Complete contract approved; five new files and minimal shared-driver registration drafted, author review underway |
+| Compatible implicit EM current/gather | Frozen `yee_longitudinal_coupled_implementation` source, root review | Paired orbit-averaged current/gather, midpoint field/particle solve and physical persistence | Five new files and minimal shared-driver registration frozen; root source review/integration and remote acceptance pending |
 | Absorption CI repair | Root integrates frozen `cpu_model_factor_admission` source | Value snapshots retain every capture field; same canonical history predicates use explicit scalar selections | Two-file source reviewed/integrated; numerical/IO/assertion/JET owners preserved; remote validation pending |
-| Completed-clock admission | `cpu_model_factor_admission` | All eight audited full-step/fast-substep/source/budget phase owners and actual live/IO callers | Existing-owner implementation assigned above shared scalar source; numerical clock additions and EMPIC nominal intervals preserved |
-| Spectral scalar dependencies | `self_consistent_gyrokinetic_design` | Minimal canonical complex products and D1 curl descriptor; current CPU validation/scaling preserved | Independent single-file implementation assigned above the allocation-repair candidate; release and CI remain root-owned |
-| Integration and CI | Root | Shared registrations/docs, canonical source review, dependency publication, commits/pushes and exact-revision CI closure | Active alongside the independent tracks; clock-admission repairs implementing |
+| Completed-clock admission | Root integration of frozen `cpu_model_factor_admission` source | All eight audited full-step/fast-substep/source/budget phase owners and actual live/IO callers | Nineteen files reviewed/integrated; old clock arithmetic and legacy origins preserved; remote acceptance pending |
+| Spectral scalar dependencies | Frozen `self_consistent_gyrokinetic_design` source, root integration | Minimal canonical complex products and D1 curl descriptor; current CPU validation/scaling preserved | Single-file extraction frozen; root API/docs/CI integration and release pending |
+| Integration and CI | Root | Shared registrations/docs, canonical source review, dependency publication, commits/pushes and exact-revision CI closure | Active alongside independent CUDA audit and completed-family integration |
 
 The curvilinear contract keeps logical positions and Cartesian velocities,
 primary contravariant magnetic flux and a compatible covariant electric curl.
@@ -137,17 +137,15 @@ third-family union/header/adapters in `src/integrators/implicit_pic_nonlinear.jl
 The existing nonlinear algorithm body must remain byte-identical. Root retains
 all `shapes.jl` documentation edits, module/exports and outer IO registrations.
 
-**Frozen absorption repair** transfers its two files to root; its IO source,
-physics and every assertion remain unchanged. The freed worker owns only the
-existing completed-clock admission owners/callers from the eight-group audit.
-Root holds edits to those owners, including checkpoint phase validators, until
-that source freezes. No shapes/new CUDA/compatible-Yee/shared nonlinear owner is
-assigned to that clock task. Explicit EMPIC uses its stored fast duration; no
+**Absorption repair** is reviewed/pushed with its IO source, physics and every
+assertion unchanged. **Completed-clock admission** transfers its nineteen-file
+freeze to root for integration. The worker now independently audits the frozen
+CUDA family without edits. Explicit EMPIC uses its stored fast duration; no
 full-step/species interval bound or time=count*duration rule is introduced.
 Existing finite nonnegative origins remain supported where established by the
 legacy hybrid and EMPIC APIs; a new zero-origin restriction is outside this repair.
 
-The clock worker owns these existing paths until freeze: `abstract_integrator.jl`,
+The clock repair transfers these paths to root: `abstract_integrator.jl`,
 `extrapolated_leapfrog.jl`, `camcl.jl`, `collisional_electrostatic.jl` and
 `collisional_hybrid.jl` under `src/integrators/`; `yee_longitudinal_pic.jl`,
 `open_hall_hybrid.jl`, `empic_collection.jl`, `full_pic.jl`,
@@ -156,8 +154,8 @@ The clock worker owns these existing paths until freeze: `abstract_integrator.jl
 `empic_collection_checkpoint.jl`, `collisional_electrostatic_checkpoint.jl`,
 `collisional_checkpoint.jl`, `yee_conductive_layer_checkpoint.jl` and
 `yee_pml_checkpoint.jl` under `src/io/`. Root applies outer IO type registrations
-after that handoff. The SpectralOperators worker owns only its separate
-`src/differential_operators.jl`; its CUDA family files remain frozen.
+after that handoff. The SpectralOperators single-file extraction is also frozen
+and transferred to root; its CUDA family files remain frozen.
 
 **Root** owns `src/HybridPlasmaPIC.jl`, existing extension includes, shared
 checkpoint/archive registrations, `Project.toml`, workflows, focused essentials,

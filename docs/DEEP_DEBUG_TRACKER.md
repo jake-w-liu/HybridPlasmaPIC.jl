@@ -15,9 +15,9 @@ completeness. Comparative leadership requires reproducible external benchmarks.
 The [parallel implementation workflow](IMPLEMENTATION_WORKFLOW.md) records current
 workers, exclusive file ownership, dependencies and separate implementation,
 review and CI stages. Static composite ES is reviewed and submitted to GitHub CI.
-The resident CUDA and compatible implicit-EM workers have drafted disjoint families.
-Shared scalar dependencies are reviewed/pushed; root integrates the bounded
-absorption CI repair, while another worker closes completed-clock admission gaps.
+The resident CUDA and compatible implicit-EM sources are frozen for root review.
+Shared scalar dependencies and the absorption repair are reviewed/pushed;
+root integrates the frozen completed-clock admission repair.
 Root owns registrations/docs, dependency release and CI closure.
 
 Current user instruction (2026-11-02): review canonical source and callers,
@@ -178,6 +178,13 @@ Current CI repairs, checked 2026-11-02:
   source checks, checked complete old-file inverses and actual Base equality/copy
   sources. No numerical or JET assertion is changed; candidate validation is pending.
   The separate after-test observation completed and is auxiliary evidence only.
+- All eight audited completed-clock groups now have a reviewed source repair
+  at their existing live/IO owners. Explicit EM checks its actual fast duration;
+  finite nonnegative legacy origins and scalar zero-step returns are retained.
+  Root reproduced 149 source/Git checks, including nineteen complete old-file
+  inverses. The existing counter-boundary fixture now starts from an actual
+  completed step; its assertions remain. Compact phase controls and existing
+  clock/IO essentials require exact-revision remote validation.
 - Historical `06fa658` [conduction run 41377913235](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41377913235)
   records 5,292 passes/two strict Faraday equality failures on latest Julia with
   SO 0.1.8. Its recorded dyadic/without-inactive-Ex comparisons match the oracle;

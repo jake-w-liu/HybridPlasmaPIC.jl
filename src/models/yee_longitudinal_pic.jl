@@ -213,7 +213,7 @@ function _yl_validate_phase_values(initialized, time::T, step, last_dt, work, de
         iszero(time) && iszero(last_dt) && iszero(work) && iszero(defect) ||
             throw(ArgumentError("unadvanced closed Yee PIC clock/history must be zero"))
     else
-        initialized && time > zero(T) && last_dt > zero(T) ||
+        initialized && time > zero(T) && last_dt > zero(T) && last_dt <= time ||
             throw(ArgumentError("advanced closed Yee PIC phase must be initialized with positive dt/time"))
     end
     return nothing

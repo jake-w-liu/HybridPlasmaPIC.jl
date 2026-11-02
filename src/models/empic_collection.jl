@@ -467,16 +467,7 @@ function _empic_collection_substep!(stage::EMPIC{D,T}, work, dt::T, previous::T,
 end
 
 function _empic_collection_validate_phase(es::Union{EMPIC,EMPIC1D})
-    T = eltype(es.rho_n)
-    isfinite(es.time[]) && es.time[] >= zero(T) && es.step[] >= 0 ||
-        throw(ArgumentError("electromagnetic clock must be finite and nonnegative"))
-    previous = es.last_sub_dt[]
-    full = es.last_dt[]
-    isfinite(full) &&
-        isfinite(previous) &&
-        zero(T) <= previous <= full &&
-        (es.step[] == 0 ? iszero(full) && iszero(previous) : previous > zero(T)) ||
-        throw(ArgumentError("electromagnetic timestep history is inconsistent with its phase"))
+    _validate_empic_clock_phase(es.time[], es.step[], es.last_dt[], es.last_sub_dt[])
     _empic_collection_validate_species_history(es, _empic_collection(es).schedule)
     return nothing
 end

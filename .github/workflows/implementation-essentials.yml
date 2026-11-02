@@ -23,6 +23,7 @@ on:
           - implicit-em
           - static-composite-es
           - shared-cuda-scalars
+          - completed-clock
           - open-hall-hybrid
 
 permissions:
@@ -62,6 +63,7 @@ jobs:
               "implicit-em" => ("test_implicit_em.jl", "test_implicit_hybrid_phase.jl"),
               "static-composite-es" => ("test_static_composite_electrostatic.jl",),
               "shared-cuda-scalars" => ("test_shared_scalar_shapes.jl", "test_moment_normalization.jl", "test_boris_accuracy.jl", "test_rk4_original_duration.jl", "test_ohm_scalar_range.jl", "test_hybrid.jl"),
+              "completed-clock" => ("test_step_clocks.jl", "test_io_clock.jl"),
               "open-hall-hybrid" => ("test_open_hall_hybrid.jl",),
               "electromagnetic-species" => ("test_empic_species.jl", "test_empic1d_species.jl", "test_empic_relativistic_species.jl", "test_relativistic_energy_range.jl", "test_empic.jl", "test_empic1d.jl", "test_electrostatic_species_diversity.jl", "test_electrostatic_species.jl"),
               "collisional-transport" => ("test_collisional_hybrid.jl", "test_collisional_checkpoint.jl", "test_collisional_physics.jl"),

@@ -1719,6 +1719,7 @@ function step_empic!(
     ns = es.n_sub
     ns >= 1 || throw(ArgumentError("n_sub must be ≥ 1"))
     iszero(dtT) && return es            # dt=0 no-op: do not consume the one-time priming
+    _validate_empic_clock_phase(es.time[], es.step[], es.last_dt[], es.last_sub_dt[])
     dt_e = dtT / ns
     dt_e > zero(T) || throw(ArgumentError("dt/n_sub must be representable and positive"))
     _require_resolved_dt("step_empic! substep dt/n_sub", dt_e)
@@ -2686,6 +2687,7 @@ function step_empic!(
     ns = es.n_sub
     ns >= 1 || throw(ArgumentError("n_sub must be ≥ 1"))
     iszero(dtT) && return es            # dt=0 no-op: do not consume the one-time priming
+    _validate_empic_clock_phase(es.time[], es.step[], es.last_dt[], es.last_sub_dt[])
     dt_e = dtT / ns
     dt_e > zero(T) || throw(ArgumentError("dt/n_sub must be representable and positive"))
     _require_resolved_dt("step_empic! substep dt/n_sub", dt_e)

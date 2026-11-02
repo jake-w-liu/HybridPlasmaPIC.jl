@@ -84,7 +84,8 @@ function _validate_checkpoint_state(s, st::CollisionalElectrostaticPIC{D,T}) whe
         s.source_count == 0 ?
         _particle_stored_zero(s.source_time) && !s.inner.primed &&
         _particle_stored_zero(s.inner.last_dt) :
-        s.source_time > zero(T) && s.inner.primed && isequal(s.inner.last_dt, st.dt)
+        s.source_time > zero(T) && s.inner.primed && isequal(s.inner.last_dt, st.dt) &&
+        st.dt <= s.source_time
     ) || throw(ArgumentError("collisional ES checkpoint source clock and velocity phase disagree"))
     length(s.inner.species) == length(st.identities) &&
         axes(s.inner.species, 1) == Base.OneTo(length(st.identities)) ||

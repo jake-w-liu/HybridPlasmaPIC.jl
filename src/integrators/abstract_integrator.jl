@@ -19,6 +19,35 @@ function _validated_step_clock(time::T, step::Int, dt::T, substeps::Int = 1) whe
     return next_time, step + 1
 end
 
+# These phase checks validate stored history, not an exact cumulative-time sum.
+# A single positive addition to a nonnegative clock cannot finish below that
+# same represented duration. Explicit EM instead adds its fast interval.
+function _validate_hybrid_clock_phase(time::T, step::Int, last_dt::T) where {T}
+    isfinite(time) && time >= zero(T) && step >= 0 ||
+        throw(ArgumentError("hybrid clock must be finite and nonnegative"))
+    isfinite(last_dt) && last_dt >= zero(T) ||
+        throw(ArgumentError("previous hybrid timestep must be finite and nonnegative"))
+    # Legacy hybrid checkpoints permit a nonnegative origin before stepping.
+    (step == 0 ? _particle_stored_zero(last_dt) : zero(T) < last_dt <= time) ||
+        throw(ArgumentError("hybrid timestep history is inconsistent with its completed clock"))
+    return nothing
+end
+
+function _validate_empic_clock_phase(time::T, step::Int, full::T, previous::T) where {T}
+    isfinite(time) && time >= zero(T) && step >= 0 ||
+        throw(ArgumentError("electromagnetic clock must be finite and nonnegative"))
+    isfinite(full) &&
+        isfinite(previous) &&
+        zero(T) <= previous <= full &&
+        (step == 0 ? iszero(full) && iszero(previous) : previous > zero(T)) ||
+        throw(ArgumentError("electromagnetic timestep history is inconsistent with its phase"))
+    # Legacy EM also permits an initial nonnegative clock origin.
+    (step == 0 ? _particle_stored_zero(full) && _particle_stored_zero(previous) :
+     previous <= time) ||
+        throw(ArgumentError("electromagnetic fast timestep history is inconsistent with its completed clock"))
+    return nothing
+end
+
 include("timestep_bounds.jl")
 
 # Imaginary-axis stability limit |ω·Δt| of each magnetic mover (the largest ω·Δt

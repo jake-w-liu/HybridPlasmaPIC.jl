@@ -170,7 +170,7 @@ end
 
 maxwell_cfl(model::YeePML) = maxwell_cfl(model.inner)
 
-function _yp_validate_budget(s, energy, time, step, ::Type{T}) where {T}
+function _yp_validate_budget(s, energy, time, step, dt::T, ::Type{T}) where {T}
     s.phase === :ready && s.initialized === true ||
         throw(ArgumentError("PML requires an initialized completed boundary"))
     _validate_checkpoint_clock_state((; time, step), T)
@@ -186,7 +186,7 @@ function _yp_validate_budget(s, energy, time, step, ::Type{T}) where {T}
         _particle_stored_zero(time) && all(name -> iszero(getproperty(s, name)), _YEE_PML_LEDGER_FIELDS[2:end]) ||
             throw(ArgumentError("unadvanced PML clock and exchange/defect ledgers must be zero"))
     else
-        time > zero(T) || throw(ArgumentError("advanced PML time must be positive"))
+        time > zero(T) && dt <= time || throw(ArgumentError("advanced PML time must be positive"))
         if step == 1
             s.last_exchange == s.total_exchange && s.last_field_defect == s.total_field_defect ||
                 throw(ArgumentError("first-step PML ledgers must match cumulative values"))
@@ -201,7 +201,7 @@ function _yp_boundary(model::YeePML{D,T}) where {D,T}
     _yee_validate_fields(model.inner.fields, model.inner.g)
     _yp_memory_values(model._memory, model.inner.g, model._axis_rate, model.inner.step[])
     energy = _yee_layer_energy(model.inner.fields, model.inner)
-    _yp_validate_budget(model, energy, model.inner.time[], model.inner.step[], T)
+    _yp_validate_budget(model, energy, model.inner.time[], model.inner.step[], model.dt, T)
     return energy
 end
 
@@ -237,7 +237,7 @@ function init!(model::YeePML{D,T}) where {D,T}
             initial_energy = energy, last_exchange = z, total_exchange = z,
             last_field_defect = z, total_field_defect = z,
         )
-        _yp_validate_budget(budget, energy, time, 0, T)
+        _yp_validate_budget(budget, energy, time, 0, model.dt, T)
         _yp_copy_memory!(model._memory, model._candidate_memory)
         model.inner.time[] = time
         model.inner.step[] = 0
@@ -353,7 +353,7 @@ function _yp_step!(model::YeePML{D,T}, dt::Real) where {D,T}
                 last_exchange = exchange, total_exchange = total_exchange,
                 last_field_defect = defect, total_field_defect = total_defect,
             )
-            _yp_validate_budget(budget, energy, next_time, next_step, T)
+            _yp_validate_budget(budget, energy, next_time, next_step, model.dt, T)
             # Complete candidate fields/memories, clock and exact ledgers passed.
             # Only prevalidated fixed-size ordinary copies and typed stores follow.
             _yp_copy_memory!(memory, staged)
