@@ -11,6 +11,17 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Added
 
+- `PeriodicShearGrid` and `ShearedPeriodicHybridPIC` add a bounded CPU 3D
+  periodic nonorthogonal full-f hybrid family: logical positions, Cartesian
+  velocities, contravariant magnetic flux, canonical TSC/Ohm/Fourier owners,
+  genuine continuous Lorentz derivatives, four collective RK4 stages and
+  endpoint refresh. Source-risk rejects before mapped Faraday differentiation.
+  Quiet loading, physical work/energy/flux diagnostics and complete synchronous
+  raw/checksummed archive restore are included. Source review added the accepted
+  receipt invariant divergence<=tolerance. Essential remote checks are prepared;
+  runtime/scientific/resource and broader toroidal geometry remain open. See
+  the [model and limits](docs/SHEARED_PERIODIC_HYBRID.md).
+
 - `OpenHallHybrid` adds a separate synchronous CPU D2/3 isothermal positive-ion
   numerical reservoir family with full Hall induction, actual SBP-volume CIC,
   constrained projected RK4 trials, original-factor Boris velocities and two-face

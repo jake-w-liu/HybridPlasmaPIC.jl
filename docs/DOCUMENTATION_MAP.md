@@ -34,6 +34,11 @@ rerun by this documentation-only audit.
 
 ## Physics and API guides
 
+- [docs/SHEARED_PERIODIC_HYBRID.md](SHEARED_PERIODIC_HYBRID.md) — coupled
+  periodic nonorthogonal hybrid, physical/logical components, collective RK4,
+  source-risk/field gates, physical diagnostics and complete synchronous IO;
+  runtime, scientific, resource and broader toroidal geometry remain open.
+
 - [docs/OPEN_HALL_HYBRID.md](OPEN_HALL_HYBRID.md) — synchronous mixed-grid full-Hall
   numerical reservoirs, projected field controller, complete CIC/source/ID/RNG
   evolution and signed physical/work diagnostics; remote acceptance remains open.

@@ -91,6 +91,13 @@ discrete momentum is not conserved exactly. Use `kinetic_energy(species)`,
 `total_momentum(species)`, and the collection forms of `energy_budget` and
 `momentum_budget` for totals; shared field energy is counted once.
 
+A bounded [periodic shear hybrid](docs/SHEARED_PERIODIC_HYBRID.md) also has
+complete source for logical-position/Cartesian-velocity ions, mapped magnetic
+flux, collective RK4, physical diagnostics and synchronous checkpoint/archive
+continuation. It is CPU 3D with odd grids and one fixed nonorthogonal map.
+Runtime, scientific and resource acceptance remain open; toroidal geometry
+requires the further work in the [completeness plan](docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md).
+
 ## The physics model
 
 The core solver integrates the standard massless-electron hybrid model in

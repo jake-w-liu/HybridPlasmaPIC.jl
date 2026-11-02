@@ -14,8 +14,9 @@ completeness. Comparative leadership requires reproducible external benchmarks.
 
 The [parallel implementation workflow](IMPLEMENTATION_WORKFLOW.md) records current
 workers, exclusive file ownership, dependencies and separate implementation,
-review and CI stages. Hall core, Hall persistence and slab gyrokinetics proceed
-in parallel; root owns shared registrations/docs and remote CI closure.
+review and CI stages. Implicit EM and static composite ES implement in separate
+paths; root integrates the frozen curvilinear family. A freed worker maps the
+resident CUDA contract; root owns shared registrations/docs and remote CI closure.
 
 Current user instruction (2026-11-02): review canonical source and callers,
 and close the correctness and GitHub CI loop for every push. Run package,
@@ -58,14 +59,23 @@ rewritten as normwise bounds.
 
 ## Current progress
 
-The next source wave has disjoint owners: complete periodic curvilinear hybrid
-and synchronous implicit EM contracts are approved and implementation is
-starting from `cd78339`; a third worker derives the actual static composite ES
-field/coupling contract before production edits. Root reviewed canonical owners,
-full physical/phase/IO contracts and primary method references. The curvilinear
-contract explicitly rejects differentiated Ohm source-risk events; implicit EM
-retains the current-correction work defect rather than claiming exact energy
-conservation. No new runtime or completion milestone follows from approval.
+The periodic curvilinear hybrid now has complete bounded source reviewed and
+integrated: seven new files for the J=1 shear geometry, physical field transforms,
+canonical complete TSC moments/gather, true continuous original-factor Lorentz
+rates, collective RK4 and endpoint preparation, quiet loading, physical work/energy/
+flux diagnostics and full synchronous checkpoint/archive restoration. Source
+review added the missing divergence<=tolerance receipt invariant. Shared owners
+are unchanged apart from canonical registrations. Essential remote checks are
+prepared; runtime/scientific/resource acceptance and full toroidal work remain
+open. See the [model guide](SHEARED_PERIODIC_HYBRID.md).
+
+The other full contracts are approved: synchronous implicit EM and static
+composite ES are implementing in exclusive paths. Implicit EM retains actual
+current-correction work; the composite hierarchy uses one global field solve,
+fixed physical clouds and real coarse/fine particle ownership. Root verified
+all 33 static design source pins and its transaction/subnormal amendments. A freed
+worker prepares the resident CUDA contract. No milestone advances for source
+presence or queued CI.
 The [workflow](IMPLEMENTATION_WORKFLOW.md) records the precise owned paths and
 broader geometry, conservative-method and adaptive-hierarchy work still open.
 

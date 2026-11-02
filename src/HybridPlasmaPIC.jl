@@ -51,6 +51,7 @@ include("utils/error_free_arithmetic.jl")
 include("meshes/cartesian_mesh.jl")
 include("meshes/local_finite_difference.jl")
 include("meshes/curvilinear_mesh.jl")
+include("meshes/periodic_shear_mesh.jl")
 include("meshes/adaptive_mesh_refinement.jl")
 include("fields/yee_fields.jl")
 
@@ -86,6 +87,7 @@ include("coupling/tsc_derivatives.jl")
 include("coupling/deposit.jl")
 include("coupling/gather.jl")
 include("coupling/moments.jl")
+include("coupling/sheared_hybrid_coupling.jl")
 include("coupling/yee_charge.jl")
 include("coupling/yee_transverse.jl")
 
@@ -98,6 +100,7 @@ include("fields/field_state.jl")              # HybridFields
 include("fields/antenna.jl")                  # external antenna/RF field source
 include("models/hybrid_pic.jl")               # HybridModel + compute_moments!
 include("electrons/ohms_law.jl")
+include("fields/sheared_hybrid_operators.jl")
 include("electrons/energy_equation.jl")
 
 # --- Integrators ---
@@ -143,6 +146,8 @@ include("coupling/mixed_cic.jl")
 include("boundaries/open_hall_reservoir.jl")
 include("models/gyrokinetics.jl")
 include("models/slab_gyrokinetic_pic.jl")
+include("models/sheared_periodic_hybrid_pic.jl")
+include("initial_conditions/sheared_hybrid.jl")
 
 # --- Diagnostics ---
 include("diagnostics/pressure_tensor.jl")
@@ -166,6 +171,7 @@ include("parallel/mpi.jl")
 include("io/publication.jl")
 include("io/checkpoint.jl")
 include("io/slab_gyrokinetic_checkpoint.jl")
+include("io/sheared_hybrid_checkpoint.jl")
 include("io/implicit_hybrid_checkpoint.jl")
 include("io/maxwell_vacuum_checkpoint.jl")
 include("io/yee_conductive_layer_checkpoint.jl")
@@ -288,6 +294,8 @@ export MixedShockOperators,
     MixedHallProjectionError,
     project_mixed_field!,
     project_mixed_rate!
+export PeriodicShearGrid, ShearedPeriodicHybridPIC, ShearedHybridFieldReport
+export to_logical, load_sheared_uniform!, sheared_hybrid_diagnostics
 export ToroidalGrid,
     gridsize,
     scale_factors,
