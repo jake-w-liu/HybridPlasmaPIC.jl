@@ -277,7 +277,11 @@ function _empic_collection_charge_target(es, work, charges)
 end
 
 function _empic_collection_charge!(rho, stage, work, target)
-    _charge_density_sum!(rho, stage.ne, work.staged, stage.g, stage.shape; background = stage.n0)
+    return _empic_charge_sum!(rho, stage.ne, work.staged, stage.g, stage.shape, stage.n0, target)
+end
+
+function _empic_charge_sum!(rho, density, species, g, shape, background, target)
+    _charge_density_sum!(rho, density, species, g, shape; background = background)
     all(isfinite, rho) ||
         throw(ArgumentError("electromagnetic deposited charge exceeds numeric range"))
     shift = (_exact_float_sum(rho) - target) / length(rho)
@@ -344,38 +348,64 @@ function _empic_collection_initialize_fields!(stage::EMPIC{D,T}) where {D,T}
 end
 
 function _empic_collection_current!(stage::EMPIC{D,T}, work) where {D,T}
-    foreach(a -> fill!(a, zero(T)), stage.Jraw)
-    eligible, lost = true, false
-    for (i, ps) in enumerate(work.staged)
-        work.mobile[i] || continue
-        _ensure_empic_electron_buffers!(stage, nparticles(ps))
-        mid = work.midpoints[i]
+    return _empic_current_sum!(stage.Jraw, stage, work.staged, work.midpoints,
+        work.mobile, stage.g, stage.shape, Val(:recorded_midpoints))
+end
+
+_empic_current_prepare!(::Val{:recorded_midpoints}, stage, ps) =
+    _ensure_empic_electron_buffers!(stage, nparticles(ps))
+_empic_current_prepare!(::Val{:stored_positions}, data, ps) = resize!(data.work, nparticles(ps))
+
+function _empic_current_population!(::Val{:recorded_midpoints}, Jraw, stage,
+    ps, mid, g, shape)
+    _swap_positions_with_midpoints!(ps, mid)
+    return try
+        _add_species_current!(Jraw, stage, ps, stage.worke, stage.ne, true)
+    finally
         _swap_positions_with_midpoints!(ps, mid)
-        states = try
-            _add_species_current!(stage.Jraw, stage, ps, stage.worke, stage.ne, true)
-        finally
-            _swap_positions_with_midpoints!(ps, mid)
-        end
+    end
+end
+function _empic_current_population!(::Val{:stored_positions}, Jraw, data,
+    ps, mid, g, shape)
+    return _empic_add_species_current!(Jraw, ps, data.work, data.density, g, shape, true)
+end
+_empic_current_exact(::Val{:recorded_midpoints}, ps, mid, g, shape, c) =
+    _exact_midpoint_current(ps, mid, g, shape, c)
+_empic_current_exact(::Val{:stored_positions}, ps, mid, g, shape, c) =
+    _exact_moment(ps, (ps.weight, ps.v[c]), g, shape, ps.q)
+
+function _empic_current_sum!(Jraw::NTuple{3,Array{T,D}}, data, species, midpoints,
+    mobile, g, shape, placement) where {D,T}
+    foreach(a -> fill!(a, zero(T)), Jraw)
+    eligible, lost = true, false
+    for (i, ps) in enumerate(species)
+        mobile[i] || continue
+        _empic_current_prepare!(placement, data, ps)
+        states = _empic_current_population!(placement, Jraw, data, ps, midpoints[i], g, shape)
         eligible &= all(s -> s.eligible, states)
         lost |= any(s -> s.lost, states)
-        lost |= any(a -> any(_deposition_range_lost, a), stage.Jraw)
+        lost |= any(a -> any(_deposition_range_lost, a), Jraw)
     end
     if eligible && lost
         for c = 1:3
-            _empic_collection_exact_current!(stage.Jraw[c], stage, work, c)
+            _empic_exact_current_sum!(Jraw[c], species, midpoints, mobile, g, shape, c, placement)
         end
     end
-    all(a -> all(isfinite, a), stage.Jraw) ||
+    all(a -> all(isfinite, a), Jraw) ||
         throw(ArgumentError("electromagnetic deposited current exceeds numeric range"))
-    return stage.Jraw
+    return Jraw
 end
 
 function _empic_collection_exact_current!(out::Array{T}, stage, work, c) where {T}
-    exact = fill(zero(Rational{BigInt}), stage.g.n)
-    for (i, ps) in enumerate(work.staged)
-        work.mobile[i] || continue
-        contribution =
-            _exact_midpoint_current(ps, work.midpoints[i], stage.g, stage.shape, c)
+    return _empic_exact_current_sum!(out, work.staged, work.midpoints, work.mobile,
+        stage.g, stage.shape, c, Val(:recorded_midpoints))
+end
+function _empic_exact_current_sum!(out::Array{T}, species, midpoints, mobile,
+    g, shape, c, placement) where {T}
+    exact = fill(zero(Rational{BigInt}), g.n)
+    for (i, ps) in enumerate(species)
+        mobile[i] || continue
+        contribution = _empic_current_exact(placement, ps, midpoints[i], g, shape, c)
         for I in eachindex(exact)
             exact[I] += contribution[I]
         end

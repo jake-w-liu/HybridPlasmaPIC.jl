@@ -34,6 +34,14 @@ file ownership and handoffs.
 | Self-consistent full-f slab gyrokinetics | `08e1bf2`, branch `implement/slab-gyrokinetic-20261102` | Complete core, coupling, diagnostics and physical checkpoint/archive reviewed and integrated | [Full CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41446645551) and [essentials](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41446663047) submitted; no accepted result yet |
 | Synchronous open Hall numerical reservoirs | `cd78339`, branch `implement/open-hall-hybrid-20261102` | Complete Hall A/B source composed, including last/cumulative source records, full RNG, diagnostics and physical restore | [Full CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41448552638) and [essentials](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41448552969) submitted; no accepted result yet |
 
+The periodic-shear candidate `c53ef77`, branch
+`implement/sheared-periodic-hybrid-20261102`, contains Hall and slab. Its
+[full](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41455172923) and
+[essential](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41455205769)
+checks are submitted and still unaccepted. The current implicit EM branch
+`implement/implicit-em-coupled-20261102` builds on it with complete reviewed
+source and remote checks required before acceptance.
+
 Hall `cd78339` contains slab `08e1bf2` and correctness candidate `bb7da93`.
 Main remains `531f5ba`; none of those candidates is runtime accepted. Frozen
 author worktrees remain intact. Root owns their integration and any subsequent
@@ -44,9 +52,10 @@ repairs; new workers do not edit those family files.
 | Track | Worker | Complete deliverable | Current stage |
 | --- | --- | --- | --- |
 | Periodic curvilinear hybrid | Root integration of frozen `self_consistent_gyrokinetic_design` source | `PeriodicShearGrid` and `ShearedPeriodicHybridPIC`, physical field/component transforms, collective kinetic-ion/field RK4, diagnostics, quiet loader and full physical persistence | Complete seven-file v2 source reviewed/integrated; receipt invariant repaired; remote acceptance pending |
-| Implicit electromagnetic PIC | `yee_longitudinal_coupled_implementation` | `ImplicitEMPICStepper`, joint velocity/E/B residual, canonical continuity current, shared bounded nonlinear solver, signed work diagnostics and full physical persistence | Complete contract approved; core/driver/IO/guide drafted from `cd78339`, final source/inverse review in progress |
+| Implicit electromagnetic PIC | Root integration of frozen `yee_longitudinal_coupled_implementation` source | `ImplicitEMPICStepper`, joint velocity/E/B residual, canonical continuity current, shared bounded nonlinear solver, signed work diagnostics and full physical persistence | Complete eight-file source reviewed/integrated; three legacy inverses and history admission checked; remote acceptance pending |
 | Static composite-grid electrostatic PIC | `cpu_model_factor_admission` | A real static hierarchy, one composite field solve, compatible finite-cloud coupling, particle crossings, diagnostics and full physical persistence | Complete 373-line contract approved and 33 source pins checked; implementation active from `cd78339` |
 | First resident CUDA hybrid | `self_consistent_gyrokinetic_design` | Complete device field/particle lifecycle and physical persistence with actual CUDA/CUFFT APIs | Contract/source/seam preparation; no production edits |
+| Compatible implicit EM current/gather | `yee_longitudinal_coupled_implementation` | A genuine compatible work/current/field model using canonical source and nonlinear owners | Actual method/geometry/phase/IO contract in preparation; no production edits |
 | Integration and CI | Root | Shared registrations/docs, canonical source review, dependency publication, commits/pushes and exact-revision CI closure | Active alongside all three source tracks |
 
 The curvilinear contract keeps logical positions and Cartesian velocities,
@@ -89,8 +98,11 @@ and node-index policy from the Hall candidate without editing those owners.
 - `src/io/implicit_em_checkpoint.jl`
 - `docs/IMPLICIT_EM.md`
 
-Existing-owner extraction must recover each complete old file by literal
+Existing-owner extraction recovers each complete old file by literal
 expansion, preserving arithmetic, defaults, validation and try/finally order.
+The final eight-file freeze passed all 29 source inverse/ownership checks; root
+checked the adopted hashes and all three whole-file inverses. The new EM phase
+rejects last_dt>time. Its analogous old hybrid check is a separate follow-on.
 The nonlinear driver serves these two actual implicit families; it is not a
 new public solver framework.
 
@@ -105,8 +117,10 @@ new public solver framework.
 Its only existing-owner change is the byte-identical `_yl_source_scalar` move
 from `models/yee_longitudinal_pic.jl` to `utils/validation.jl`; that fragment is
 already frozen and released to root. Force/plate/cloud owners remain in place.
-The CUDA worker currently owns design evidence only; root reviews any proposed
-shared scalar fragment before implementation ownership is assigned.
+The CUDA and compatible-implicit-EM workers currently own design evidence only;
+root reviews any proposed shared fragment before implementation ownership is
+assigned. Frozen implementation owners transfer back to root for integration
+and subsequent repairs.
 
 **Root** owns `src/HybridPlasmaPIC.jl`, shared checkpoint/archive registrations,
 `Project.toml`, workflows, README, CHANGELOG, global trackers/documentation map,

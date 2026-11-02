@@ -224,8 +224,8 @@ mean code or runtime verification is complete. “Scope proposal” marks the
 additional CAP-008–011 model expansion. Root owns integration, tracker consistency,
 commit/push and CI. A named subsystem below is a code owner; an unassigned
 implementation agent is explicitly unassigned, not implicitly running.
-Current assignments (2026-11-02): implicit EM and static composite ES implement
-in separate worktrees; root integrates frozen periodic curvilinear source, while
+Current assignments (2026-11-02): static composite ES implements in its own
+worktree; root integrates frozen implicit EM after periodic curvilinear source, while
 a freed worker maps resident CUDA. Hall and slab candidates are source-complete
 and await remote acceptance. Root owns shared registrations, current docs, dependency
 publication, source integration and remote CI. Earlier audit assignments and
@@ -250,7 +250,7 @@ for active ownership.
 | Coordinate exact-range closure | Canonical coordinate owner and full/midpoint/native-batch callers | Exact stored-input overflow classification plus unchanged four-ulp/finite-bit contract | Canonical CPU correction passes 4,786 new and 46,725 legacy assertions per runtime; 108 paired resource profiles retain all 36 ordinary 0 B profiles; full compiler/Aqua, formatting and 3,543 actual-Metal assertions per runtime pass | [Contract, proof and costs](PARTICLE_KINEMATICS_RANGE_PLAN.md#coordinate-overflow-follow-on): both broader model lanes pass 117,819 / 117,820 assertions; correctness commit `a29da03` passes all six exact-SHA jobs and complete compiler review (1,246,963 / 1,246,964 assertions on actual Julia 1.12.7 / 1.13.3; whole forests byte-equal accepted C1). The separate zero-product optimization passes 7,366 focused assertions and all 108 paired profiles per runtime, including all 36 affected profiles at 0 B; actual Metal passes 3,543 and legacy 46,725 per runtime; complete compiler/Aqua captures match both parents and composition preserves every tested source byte. Optimization `8d7473f` passes all six exact-SHA jobs and complete compiler review: 1,249,543 / 1,249,544 assertions, with whole forests byte-equal accepted C1 |
 | BigFloat timestep contexts | Root; canonical recommendation core | Independent positive-rate geometry, exact endpoint controls and production-mode witness | [Directed context repair](BIGFLOAT_TIMESTEP_CONTEXT_PLAN.md) passes isolated minimum/latest package, native bit/allocation, complete compiler/Aqua and formatting gates | `36d1794` CI completed: minimum Julia/formatting/MPI pass, latest Julia fails the separate packet allocation gate. Containing `fd0a168` is green with complete compiler review. NUM-001 runtime integration remains open |
 | 005B/C implicit hybrid | Root integration; canonical integrator + moment/Ohm owners | Explicit represented Boris-map/Faraday and work-defect contract | Full bounded synchronous CPU isothermal collection core/report/checkpoint/archive source implemented; [guide](IMPLICIT_HYBRID.md) | Exact-revision numerical, residual/convergence, failure/restart, compiler and cost acceptance; broader pressure/orbit-averaged models remain open |
-| 005D implicit EM / parallel geometry | Assigned implicit-EM contract worker; EM/field/nonlinear/IO owners | Actual Boris/current-continuity/Maxwell and nonlinear owners | Complete coupled residual/work/phase/IO contract approved; full source drafted with three canonical legacy inverses | Finish source/IO review, integration and exact-revision remote gates |
+| 005D implicit EM / parallel geometry | Root integration of frozen EM/field/nonlinear/IO source | Actual Boris/current-continuity/Maxwell and nonlinear owners | Complete bounded coupled source reviewed/integrated, three legacy inverses and all eight frozen file hashes checked; essential remote regressions prepared | Exact-revision numerical/constraint/work, failure/restart, compiler/resource gates; broader conservative/relativistic/backend methods remain open |
 | 006A curvilinear solver | Root integration of frozen mesh/coupling/model/IO source | Compatible geometry/component/volume conventions | Complete bounded periodic-shear core, diagnostics, loader and physical IO source reviewed/integrated | Exact-revision runtime, field/work/refinement, restore/compiler/resource gates; toroidal axis/walls remain separate |
 | 006B self-consistent gyrokinetics | Root integration of frozen population/core/coupling/IO source | Reviewed full-f slab model and registered SO 0.1.8; 006A remains required for toroidal claims | Complete bounded source and canonical callers reviewed; essential remote regressions prepared | Exact-revision runtime, field/reciprocity/convergence, failure/restart, compiler and resource acceptance; broader geometry/physics remain open |
 | 006C adaptive plasma hierarchy | Static composite-ES implementation worker; AMR/field/coupling/model/IO | Real patch/covered/leaf ownership and composite field method | Complete 373-line contract approved, all 33 source pins checked; implementation active | Complete source/IO review and remote field/crossing/self-force gates; dynamic refinement remains later |
@@ -586,6 +586,16 @@ must be re-derived for the selected implementation rather than inherited by name
   terms and preconditioning remain open. Accept the actual spatial/particle
   residual, phase/order, work and momentum errors and restart before advancing
   this milestone; the represented defect report is not exact conservation.
+
+Current bounded EM source: [ImplicitEMPICStepper](IMPLICIT_EM.md) supplies a
+real joint velocity/E/B map with fresh endpoint charge/current in every residual,
+separate physical constraints, four-piece work ledger and full synchronous IO.
+It shares the bounded nonlinear owner with hybrid and preserves old numerical
+owners by literal extraction. Exact-neutral all-mobile CPU CIC/odd periodic
+scope is explicit; remote runtime/scientific/resource acceptance remains open.
+This continuity-corrected gather/current pair does not inherit an exact energy
+theorem. Conservative orbit averages, broader geometry and backends remain work.
+
 - [ ] **005D: implicit EM and broader geometry.** EM requires its own coupled
   Maxwell/charge-current equations; it is not an automatic hybrid mode. Integrate
   compatible boundaries, domain ownership and device execution only after the

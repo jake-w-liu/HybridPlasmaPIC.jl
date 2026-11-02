@@ -14,9 +14,9 @@ completeness. Comparative leadership requires reproducible external benchmarks.
 
 The [parallel implementation workflow](IMPLEMENTATION_WORKFLOW.md) records current
 workers, exclusive file ownership, dependencies and separate implementation,
-review and CI stages. Implicit EM and static composite ES implement in separate
-paths; root integrates the frozen curvilinear family. A freed worker maps the
-resident CUDA contract; root owns shared registrations/docs and remote CI closure.
+review and CI stages. Root integrates frozen implicit EM; static composite ES
+implements in separate paths. Other workers prepare resident CUDA and compatible
+implicit-EM current/gather contracts; root owns shared registrations/docs and CI closure.
 
 Current user instruction (2026-11-02): review canonical source and callers,
 and close the correctness and GitHub CI loop for every push. Run package,
@@ -69,11 +69,20 @@ are unchanged apart from canonical registrations. Essential remote checks are
 prepared; runtime/scientific/resource acceptance and full toroidal work remain
 open. See the [model guide](SHEARED_PERIODIC_HYBRID.md).
 
-The other full contracts are approved: synchronous implicit EM and static
-composite ES are implementing in exclusive paths. Implicit EM retains actual
-current-correction work; the composite hierarchy uses one global field solve,
-fixed physical clouds and real coarse/fine particle ownership. Root verified
-all 33 static design source pins and its transaction/subnormal amendments. A freed
+The synchronous implicit EM family now has complete source reviewed/integrated:
+joint original-factor velocity/E/B residuals, actual endpoint charge and midpoint
+current in every residual/probe, shared bounded nonlinear driver, separate actual
+constraints, four exact signed work pieces and full physical IO. Three existing
+owners recover literally; root reproduced all 29 author inverse/ownership checks
+and checked the final eight file hashes. Review added last_dt<=time admission,
+without imposing time=count*last_dt. The same existing implicit-hybrid phase gap
+is recorded for a separate follow-on, preserving the extraction proof here.
+Essential GitHub checks are prepared; runtime/scientific/resource gates stay open.
+See the [model guide](IMPLICIT_EM.md).
+
+Static composite ES is implementing its approved complete contract: one global
+field solve, fixed physical clouds and real coarse/fine particle ownership.
+Root verified all 33 source pins and transaction/subnormal amendments. A freed
 worker prepares the resident CUDA contract. No milestone advances for source
 presence or queued CI.
 The [workflow](IMPLEMENTATION_WORKFLOW.md) records the precise owned paths and

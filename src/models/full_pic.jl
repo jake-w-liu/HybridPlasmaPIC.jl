@@ -2246,13 +2246,16 @@ end
 @inline _empic_component_buffer(g, c::Int) = c == 1 ? g.cbuf : c == 2 ? g.tbuf : g.abuf
 
 function _enforce_gauss!(es::EMPIC{D,T}) where {D,T}
-    g = es.g
+    return _empic_gauss!(es.E, es.rho_n, es.g)
+end
+
+function _empic_gauss!(E, rho_n, g::FourierGrid{D,T}) where {D,T}
     rhohat = g.sbuf
-    rhohat .= es.rho_n
+    rhohat .= rho_n
     g.plan * rhohat
     buffers = (g.cbuf, g.tbuf, g.abuf)
     for c = 1:3
-        buffers[c] .= es.E[c]
+        buffers[c] .= E[c]
         g.plan * buffers[c]
     end
     @inbounds for I in CartesianIndices(rhohat)
@@ -2267,9 +2270,9 @@ function _enforce_gauss!(es::EMPIC{D,T}) where {D,T}
     end
     for c = 1:3
         g.iplan * buffers[c]
-        es.E[c] .= real.(buffers[c])
+        E[c] .= real.(buffers[c])
     end
-    return es.E
+    return E
 end
 
 function _charge_density!(
@@ -2290,20 +2293,26 @@ function _add_species_current!(
     scratch::Array{T,D},
     accumulate::Bool,
 ) where {D,T}
+    return _empic_add_species_current!(J, s, work, scratch, es.g, es.shape, accumulate)
+end
+
+function _empic_add_species_current!(J::NTuple{3,Array{T,D}}, s::ParticleSet{D,T},
+    work::Vector{T}, scratch::Array{T,D}, g::FourierGrid{D,T}, shape,
+    accumulate::Bool) where {D,T}
     length(work) == nparticles(s) ||
         throw(DimensionMismatch("current work length must equal particle count"))
     return ntuple(Val(3)) do c
         @. work = s.weight * s.v[c]
-        _validate_deposition_inputs(scratch, s, work, es.g)
+        _validate_deposition_inputs(scratch, s, work, g)
         factors = (s.weight, s.v[c])
-        state = _deposit_scalar_kernel!(scratch, s, factors, es.g, es.shape, Val(true))
+        state = _deposit_scalar_kernel!(scratch, s, factors, g, shape, Val(true))
         return _finish_moment!(
             J[c],
             scratch,
             s,
             factors,
-            es.g,
-            es.shape,
+            g,
+            shape,
             s.q,
             state,
             Val(:prescale),
@@ -2401,15 +2410,18 @@ function _empic_current_mode!(buffers, k, delta, dt::T, I, dc) where {T}
 end
 
 function _correct_current_continuity!(es::EMPIC{D,T}, dt::T) where {D,T}
-    g = es.g
+    return _empic_correct_current!(es.J, es.Jraw, es.rho_n, es.rho_np1, es.g, dt)
+end
+
+function _empic_correct_current!(J, Jraw, rho_n, rho_np1, g::FourierGrid{D,T}, dt::T) where {D,T}
     buffers = (g.cbuf, g.tbuf, g.abuf)
     for c = 1:3
-        buffers[c] .= es.Jraw[c]
+        buffers[c] .= Jraw[c]
         g.plan * buffers[c]
     end
     delta = g.sbuf
     @inbounds for I in CartesianIndices(delta)
-        delta[I] = Complex{T}(es.rho_np1[I] - es.rho_n[I])
+        delta[I] = Complex{T}(rho_np1[I] - rho_n[I])
     end
     g.plan * delta
     dc = first(CartesianIndices(delta))          # the true k=0 mode (all indices 1)
@@ -2419,9 +2431,9 @@ function _correct_current_continuity!(es::EMPIC{D,T}, dt::T) where {D,T}
     end
     for c = 1:3
         g.iplan * buffers[c]
-        es.J[c] .= real.(buffers[c])
+        J[c] .= real.(buffers[c])
     end
-    return es.J
+    return J
 end
 
 @inline function _push_empic_velocities!(

@@ -11,6 +11,17 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Added
 
+- `ImplicitEMPICStepper` adds a separate synchronous CPU D1–3 all-mobile,
+  exact-neutral CIC Vlasov–Maxwell family on odd periodic grids. Every joint
+  velocity/E/B residual and probe re-deposits endpoint charge and midpoint
+  current, applies canonical continuity correction and recomputes both curls.
+  Hybrid and EM share one bounded Newton/Jv/GMRES/Armijo driver; three canonical
+  owner extractions retain whole-file literal inverses. Exact signed work,
+  actual Gauss/divB/continuity gates and full physical checkpoint/archive are
+  included. Review added rejection of impossible last_dt>time history.
+  Essential remote regressions are prepared; runtime/scientific/resource
+  acceptance remains open. See the [model](docs/IMPLICIT_EM.md).
+
 - `PeriodicShearGrid` and `ShearedPeriodicHybridPIC` add a bounded CPU 3D
   periodic nonorthogonal full-f hybrid family: logical positions, Cartesian
   velocities, contravariant magnetic flux, canonical TSC/Ohm/Fourier owners,

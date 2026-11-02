@@ -34,6 +34,10 @@ rerun by this documentation-only audit.
 
 ## Physics and API guides
 
+- [docs/IMPLICIT_EM.md](IMPLICIT_EM.md) — actual synchronous joint particle/E/B
+  solve, canonical source/continuity owners, bounded nonlinear driver, separate
+  physical constraints/work and complete checkpoint/archive; acceptance open.
+
 - [docs/SHEARED_PERIODIC_HYBRID.md](SHEARED_PERIODIC_HYBRID.md) — coupled
   periodic nonorthogonal hybrid, physical/logical components, collective RK4,
   source-risk/field gates, physical diagnostics and complete synchronous IO;

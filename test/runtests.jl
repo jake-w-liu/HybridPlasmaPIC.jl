@@ -5,6 +5,7 @@ using Test
     include("test_exact_ieee_packing.jl")
     include("test_slab_gyrokinetic.jl")
     include("test_sheared_hybrid.jl")
+    include("test_implicit_em.jl")
     include("test_open_hall_hybrid.jl")
     include("test_yee_particle_charge.jl")
     include("test_yee_longitudinal_pic.jl")

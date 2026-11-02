@@ -98,6 +98,12 @@ continuation. It is CPU 3D with odd grids and one fixed nonorthogonal map.
 Runtime, scientific and resource acceptance remain open; toroidal geometry
 requires the further work in the [completeness plan](docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md).
 
+A separate [synchronous implicit EM family](docs/IMPLICIT_EM.md) now has complete
+CPU D1–3 source for a joint particle-velocity/E/B solve, canonical continuity
+current, actual constraint/work diagnostics and full physical restart. It admits
+exact-neutral all-mobile CIC collections on odd periodic grids. Runtime,
+scientific and resource acceptance remain open.
+
 ## The physics model
 
 The core solver integrates the standard massless-electron hybrid model in

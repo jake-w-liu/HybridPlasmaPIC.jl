@@ -131,6 +131,8 @@ include("models/empic_collection.jl")
 include("integrators/collisional_empic.jl")
 include("integrators/collisional_electrostatic.jl")
 include("integrators/implicit_hybrid.jl")
+include("integrators/implicit_em.jl")
+include("integrators/implicit_pic_nonlinear.jl")
 include("models/maxwell_vacuum.jl")
 include("models/yee_conductive_layer.jl")
 include("models/yee_pml.jl")
@@ -155,6 +157,7 @@ include("diagnostics/phase_space.jl")
 include("diagnostics/spectra.jl")
 include("diagnostics/relativistic_moments.jl")
 include("diagnostics/conservation.jl")        # energy/momentum budgets (needs kinetic_energy)
+include("diagnostics/implicit_em.jl")
 include("diagnostics/open_hall_energy.jl")
 include("diagnostics/shock_surface.jl")       # shock diag (needs PerpShock2D/3D)
 include("diagnostics/synthetic_spacecraft.jl")
@@ -173,6 +176,7 @@ include("io/checkpoint.jl")
 include("io/slab_gyrokinetic_checkpoint.jl")
 include("io/sheared_hybrid_checkpoint.jl")
 include("io/implicit_hybrid_checkpoint.jl")
+include("io/implicit_em_checkpoint.jl")
 include("io/maxwell_vacuum_checkpoint.jl")
 include("io/yee_conductive_layer_checkpoint.jl")
 include("io/yee_pml_checkpoint.jl")
@@ -267,6 +271,10 @@ export HybridStepper,
     ImplicitHybridSolveReport,
     ImplicitHybridConvergenceError,
     implicit_hybrid_diagnostics,
+    ImplicitEMPICStepper,
+    ImplicitEMSolveReport,
+    ImplicitEMConvergenceError,
+    implicit_em_diagnostics,
     CollisionalHybridStepper,
     CollisionalEMPICStepper,
     CollisionalElectrostaticPIC,
