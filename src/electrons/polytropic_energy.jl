@@ -1,7 +1,7 @@
 # Complete algebraic polytropic energy, retaining the stored coefficient and exponent.
 
 function _polytropic_dyadic_equal(coefficient::BigInt, exponent::BigInt, target::Rational{BigInt})
-    coefficient >= 0 || throw(ArgumentError("dyadic comparison requires a nonnegative coefficient"))
+    coefficient < 0 && return _polytropic_dyadic_equal(-coefficient, exponent, -target)
     target < 0 && return false
     iszero(coefficient) && return iszero(target)
     iszero(target) && return false
@@ -12,16 +12,26 @@ function _polytropic_dyadic_equal(coefficient::BigInt, exponent::BigInt, target:
            exponent + a == BigInt(b) - (ndigits(denominator(target); base = 2) - 1)
 end
 
+# Endpoints can cross the signed-zero boundary or the negative overflow edge.
+function _polytropic_sum_boundary(left::T, right::T) where {T<:Union{Float32,Float64}}
+    isfinite(left) && nextfloat(left) == right && return _polytropic_midpoint_after(left)
+    left == -T(Inf) && right == -floatmax(T) && return -_polytropic_midpoint_after(floatmax(T))
+    return nothing
+end
+
 function _polytropic_round_sum(::Type{T}, state) where {T<:Union{Float32,Float64}}
     lo, hi, exponent, lower_strict, upper_strict = state
     left = _polytropic_round_scaled(T, lo, exponent)
     right = _polytropic_round_scaled(T, hi, exponent)
     isequal(left, right) && return left
-    if isfinite(left) && nextfloat(left) == right
-        boundary = _polytropic_midpoint_after(left)
+    boundary = _polytropic_sum_boundary(left, right)
+    if boundary !== nothing
         lower_strict && _polytropic_dyadic_equal(lo, exponent, boundary) && return right
         upper_strict && _polytropic_dyadic_equal(hi, exponent, boundary) && return left
     end
+    # A strict endpoint at zero proves the sign even when both endpoints round
+    # numerically to zero. An exact zero is resolved by the equality owner.
+    iszero(left) && iszero(right) && iszero(hi) && upper_strict && return -zero(T)
     return nothing
 end
 
@@ -150,6 +160,7 @@ function _polytropic_exact_energy(
     n::AbstractArray{T},
     c::PolytropicElectrons{C},
     dx,
+    offset::Union{Nothing,Rational{BigInt}} = nothing,
 ) where {T<:Union{Float32,Float64},C<:Union{Float32,Float64}}
     all(isfinite, n) && all(isfinite, dx) && all(isfinite, (c.pe0, c.n0, c.γ)) ||
         throw(ArgumentError("complete integral component requires finite inputs"))
@@ -166,17 +177,18 @@ function _polytropic_exact_energy(
         uniform &= value == first
     end
     if iszero(count) || iszero(c.pe0) || any(iszero, dx)
-        negative = (c.γ < 1) ⊻ (!isempty(n) && signbit(c.pe0))
+        offset === nothing || return _from_exact(T, offset)
+        zero_negative = (c.γ < 1) ⊻ (!isempty(n) && signbit(c.pe0))
         for spacing in dx
-            negative ⊻= signbit(spacing)
+            zero_negative ⊻= signbit(spacing)
         end
-        return negative ? -zero(T) : zero(T)
+        return zero_negative ? -zero(T) : zero(T)
     end
     gamma, reference = Rational{BigInt}(c.γ), Rational{BigInt}(c.n0)
     factor = Rational{BigInt}(c.pe0) * prod(Rational{BigInt}, dx) / (gamma - 1)
     negative = factor < 0
     magnitude = abs(factor)
-    if uniform
+    if uniform && (offset === nothing || iszero(offset))
         value = _polytropic_complete_power(
             T,
             Rational{BigInt}(first) / reference,
@@ -185,38 +197,56 @@ function _polytropic_exact_energy(
         )
         return negative ? -value : value
     end
+    # Unit bases contribute exactly one at every stored exponent. Combine
+    # them with the rational offset before interval quantization; otherwise
+    # cancelling their two rounded intervals can mask an arbitrarily tiny
+    # remaining positive power and prevent a signed-zero decision.
+    units = Base.count(value -> value == c.n0, n)
+    offset = (offset === nothing ? zero(Rational{BigInt}) : offset) + units * factor
+    units == count && return _from_exact(T, offset)
     _, multiplier, exponent = _polytropic_normalized_factor(magnitude)
+    offset_negative, offset_mantissa, offset_exponent = _polytropic_normalized_factor(offset)
+    offset_negative && (offset_mantissa = -offset_mantissa)
     bits = precision(T) + 16
     all_rational = nothing
     rejected_boundary = nothing
     while true
-        intervals = (
+        terms = (
             _polytropic_energy_term(value, reference, gamma, multiplier, exponent, bits) for
-            value in n if value > 0
+            value in n if value > 0 && value != c.n0
         )
+        signed_terms = ((negative ? -hi : lo, negative ? -lo : hi, e) for (lo, hi, e) in terms)
+        intervals = Iterators.flatten((
+            signed_terms,
+            ((offset_mantissa, offset_mantissa, offset_exponent),),
+        ))
         state = _polytropic_scaled_sum_state(intervals, bits)
         value = _polytropic_round_sum(T, state)
-        value === nothing || return negative ? -value : value
+        value === nothing || return value
         left = _polytropic_round_scaled(T, state[1], state[3])
         right = _polytropic_round_scaled(T, state[2], state[3])
-        if isfinite(left) && nextfloat(left) == right
-            boundary = _polytropic_midpoint_after(left)
-            if rejected_boundary === nothing || boundary != rejected_boundary
-                all_rational === nothing &&
-                    (all_rational = _polytropic_energy_rational_roots(n, reference, gamma))
-                if all_rational
-                    roots = (
-                        _polytropic_energy_root(value, reference, gamma) for
-                        value in n if value > 0
-                    )
-                    decision = _polytropic_sum_equal(roots, numerator(gamma), boundary / magnitude)
-                    if decision.equal
-                        rounded = _from_exact(T, boundary)
-                        return negative ? -rounded : rounded
-                    end
-                end
-                rejected_boundary = boundary
+        boundary = _polytropic_sum_boundary(left, right)
+        # Adjacent half-subnormal boundaries take precedence over zero. Testing
+        # zero instead would never decide an exact half-subnormal tie.
+        boundary === nothing && state[1] <= 0 <= state[2] && (boundary = zero(Rational{BigInt}))
+        if boundary !== nothing && (rejected_boundary === nothing || boundary != rejected_boundary)
+            all_rational === nothing && (
+                all_rational = _polytropic_energy_rational_roots(
+                    (value for value in n if value != c.n0),
+                    reference,
+                    gamma,
+                )
+            )
+            if all_rational
+                roots = (
+                    _polytropic_energy_root(value, reference, gamma) for
+                    value in n if value > 0 && value != c.n0
+                )
+                decision =
+                    _polytropic_sum_equal(roots, numerator(gamma), (boundary - offset) / factor)
+                decision.equal && return _from_exact(T, boundary)
             end
+            rejected_boundary = boundary
         end
         bits = Base.checked_mul(bits, 2)
     end
@@ -254,17 +284,43 @@ function _polytropic_energy_exponent_bounds(
     return lo, hi
 end
 
+@inline function _polytropic_energy_lower_bound(minimum_density, count, c, dx)
+    if minimum_density == c.n0
+        # Every active base is at least one, whose positive power is exact.
+        lower = 1.0
+    else
+        a, ae = frexp(Float64(minimum_density))
+        b, be = frexp(Float64(c.n0))
+        k = ae - be - (a < b)
+        # Every active base is >= 2^k. Widening stored Float32/64 inputs is exact;
+        # a downward exponent and products give an independent magnitude bound.
+        power = prevfloat(Float64(c.γ) * k)
+        lower =
+            power >= 1024 ? floatmax(Float64) : power < -1074 ? 0.0 : ldexp(1.0, floor(Int, power))
+    end
+    gap = nextfloat(abs(Float64(c.γ) - 1.0))
+    coefficient = max(0.0, prevfloat(Float64(c.pe0) / gap))
+    lower = max(0.0, prevfloat(lower * coefficient))
+    lower = max(0.0, prevfloat(lower * prevfloat(Float64(count))))
+    for spacing in dx
+        lower = max(0.0, prevfloat(lower * abs(Float64(spacing))))
+    end
+    return lower
+end
+
 function _polytropic_energy_probe(
     n::AbstractArray{T},
     c::PolytropicElectrons{C},
     dx::NTuple{D,T},
-) where {T<:Union{Float32,Float64},C<:Union{Float32,Float64},D}
+    requested::Val{State} = Val(false),
+) where {T<:Union{Float32,Float64},C<:Union{Float32,Float64},D,State}
     all(isfinite, (c.pe0, c.n0, c.γ)) && c.pe0 > 0 && c.n0 > 0 && c.γ > 0 && c.γ != 1 ||
         return nothing
     all(x -> isfinite(x) && !iszero(x), dx) || return nothing
     total = correction = 0.0
     count = 0
     largest = previous = zero(T)
+    smallest = T(Inf)
     term = 0.0
     for density in n
         isfinite(density) || return nothing
@@ -278,6 +334,7 @@ function _polytropic_energy_probe(
         total, correction = _amr_compensated_add(total, correction, term)
         isfinite(total) && isfinite(correction) || return nothing
         largest = max(largest, density)
+        State && (smallest = min(smallest, density))
         count = Base.checked_add(count, 1)
     end
     count > 0 || return nothing
@@ -293,7 +350,11 @@ function _polytropic_energy_probe(
     end
     result = T(value)
     isfinite(result) && abs(result) >= 2floatmin(T) || return nothing
-    return result
+    State || return result
+    lower = ldexp(1.0, floor(Int, bounds[1]))
+    upper = ldexp(1.0, ceil(Int, bounds[2]))
+    signbit(result) && ((lower, upper) = (-upper, -lower))
+    return (; value = result, lower, upper, minimum_density = smallest, active_count = count)
 end
 
 function _polytropic_log_energy(
@@ -325,8 +386,18 @@ function _polytropic_energy(
     n::AbstractArray{T},
     c::PolytropicElectrons{C},
     dx::NTuple{D,T},
-) where {T<:Union{Float32,Float64},C<:Union{Float32,Float64},D}
-    c.γ == 1 && return _polytropic_log_energy(n, c, dx)
-    value = _polytropic_energy_probe(n, c, dx)
-    return value === nothing ? _polytropic_exact_energy(n, c, dx) : value
+    requested::Val{State} = Val(false),
+) where {T<:Union{Float32,Float64},C<:Union{Float32,Float64},D,State}
+    if c.γ == 1
+        value = _polytropic_log_energy(n, c, dx)
+        State || return value
+        (iszero(c.pe0) || all(x -> x <= 0 || x == 1, n)) && return _energy_zero(value, requested)
+        return _energy_rounded(value, requested)
+    end
+    value = _polytropic_energy_probe(n, c, dx, requested)
+    value === nothing || return value
+    complete = _polytropic_exact_energy(n, c, dx)
+    State || return complete
+    (iszero(c.pe0) || all(x -> x <= 0, n)) && return _energy_zero(complete, requested)
+    return _energy_rounded(complete, requested)
 end

@@ -8,12 +8,56 @@ pushed as `5df5c38`; all six exact-revision GitHub jobs pass on actual Julia
 is pushed as `63f2420`; all six exact-revision GitHub jobs pass on actual
 Julia 1.12.7 and 1.13.2. Isothermal and polytropic repairs are also pushed;
 their current exact-SHA results are tracked in [CI acceptance](CI_RELIABILITY_PLAN.md).
-The inertia repair now has all six exact-SHA CI jobs green; complete budget
-composition remains open.
+The inertia repair has all six exact-SHA CI jobs green. Complete-budget
+composition now has a new source implementation below; its numerical, compiler
+and resource acceptance remains open.
 This work is separate from the evolving-pressure feature and its stored-pressure
 correction.
 
-## Current complete-budget work (2026-10-24)
+## Current complete-budget source (2026-11-02)
+
+The canonical `energy_budget` now retains the four component results and literal
+associated native sum, then keeps that sum only when outward complete-reservoir
+bounds certify its normal range/sign or structural zero. Otherwise, eligible
+finite Float32/64 built-in inputs use original K/B/electron/computed-J factors
+through one complete finish. The total can be finite while separately reported
+components are infinite, or differ from their rounded sum. A true complete
+out-of-range total remains signed Inf. Custom closures, nonfinite arithmetic and
+the deliberate CGL zero-field/nonzero-parallel singularity retain the original
+whole sum. No physical model, time centering or conservation law changes.
+
+The five canonical owners reuse exact particle/field-square and CGL radical
+completion, the CURRENT unchanged logarithm-term traversal, signed power
+interval/equality decisions and the existing spectral curl exactly once. All
+Evolving/Transport/Conducting built-ins carry their already validated grid-T
+gamma into stored-pressure completion. Default scalar component expressions and
+validation order retain literal source projections. This is a built-in/default
+component contract, without a generalized custom kinetic-override protocol.
+
+Polytropic composition first tries the coarse whole-budget enclosure; only an
+inconclusive result requests its sharp minimum-density bound. Minimum density
+is retained in the existing requested scan, and unchanged metadata skips a
+redundant certificate. These avoid unused source work; no latency or allocation
+improvement has been measured. The held V6 candidate is not promoted or retried.
+Its rejected 1.5 cost gates, complete failed history and unrun lanes remain below.
+
+Root read the full changed paths and canonical callers; independent source/math
+review covered signed zero, negative overflow, exact half-subnormal ties,
+unit-base cancellation and the log-plus-rational-offset termination premise.
+Seventy-six text/byte checks include whole-file reverse reconstruction, native
+default projections, actual neighboring owners and six held mathematical-owner
+identities. They are not numerical passes or an executed termination/resource
+bound. No tests added/run, Julia/parser/compiler/formatter/numerical proxy,
+profile/build/device or manual CI ran in this pass; commits use `[skip ci]` under
+the current user instruction. Exact-revision numerical/concurrency/integration,
+compiler/CI, ordinary/cold costs and resource acceptance remain unexecuted.
+The implicit solver's separate report still uses represented F0_T/F1_T endpoints;
+this total repair does not remove its explicit unresolved-free-energy policy.
+
+## Historical V6 complete-budget work (2026-10-24)
+
+The following checklist and commands record that isolated candidate's policy
+and outcomes. The current source-only publication policy is stated above.
 
 V6 is rejected by the broader fixed timing gate and remains isolated. Its final
 zero-offset sign correction passes 16,030 focused assertions, 5,760 power-endpoint assertions and 66 concrete

@@ -61,6 +61,162 @@ function _electron_inertia_energy(J, de2::T, dx) where {T}
     return ordinary
 end
 
+function _budget_field_state(value::T, fields, dx, coefficient_operations = 0) where {T}
+    if iszero(value) && all(a -> all(iszero, a), fields)
+        return _energy_zero(value, Val(true))
+    end
+    T === Float32 && return _energy_rounded(value, Val(true))
+    count = Int128(length(first(fields))) * length(fields) + length(dx) + 4 + coefficient_operations
+    lower, upper = _energy_positive_interval(value, count, precision(T))
+    return _energy_result(value, lower, upper, Val(true))
+end
+
+function _budget_electron_state(n, B, closure, g, pe)
+    return _energy_unknown(electron_internal_energy(n, B, closure, g; pe), Val(true))
+end
+function _budget_electron_state(
+    n::Array{T,D},
+    B,
+    closure::Union{IsothermalElectrons{C},PolytropicElectrons{C}},
+    g,
+    pe,
+) where {T<:Union{Float32,Float64},D,C<:Union{Float32,Float64}}
+    return _electron_internal_energy_checked(n, closure, g, pe, Val(true))
+end
+function _budget_electron_state(
+    n::Array{T,D},
+    B,
+    closure::Union{EvolvingElectrons,TransportElectrons,ConductingElectrons},
+    g,
+    pe,
+) where {T<:Union{Float32,Float64},D}
+    return _electron_internal_energy_checked(n, closure, g, pe, Val(true))
+end
+function _budget_electron_state(
+    n::Array{T,D},
+    B,
+    closure::CGLElectrons{C},
+    g,
+    pe,
+) where {T<:Union{Float32,Float64},D,C<:Union{Float32,Float64}}
+    pe === nothing ||
+        throw(ArgumentError("algebraic electron energy does not accept an alternate pe"))
+    return _cgl_energy_checked(n, B, closure, g.dx, Val(true))
+end
+
+@inline function _budget_total_certified(total::T, states) where {T<:Union{Float32,Float64}}
+    isfinite(total) || return false
+    lower = upper = 0.0
+    active = false
+    for state in states
+        iszero(state.lower) && iszero(state.upper) && continue
+        isfinite(state.lower) && isfinite(state.upper) || return false
+        # Exact zero intervals need no addition allowance; the first active
+        # interval is already outward and can initialize the complete sum.
+        lower = active ? prevfloat(lower + state.lower) : state.lower
+        upper = active ? nextfloat(upper + state.upper) : state.upper
+        active = true
+    end
+    active || return iszero(total)
+    minimum, maximum = Float64(floatmin(T)), Float64(floatmax(T))
+    return total > 0 ? minimum <= lower <= upper <= maximum :
+           total < 0 && -maximum <= lower <= upper <= -minimum
+end
+
+_budget_closure_eligible(::ElectronClosure) = false
+_budget_closure_eligible(c::IsothermalElectrons{<:Union{Float32,Float64}}) = isfinite(c.Te)
+_budget_closure_eligible(c::PolytropicElectrons{<:Union{Float32,Float64}}) =
+    all(isfinite, (c.pe0, c.n0, c.γ)) && c.pe0 >= 0 && c.n0 > 0 && c.γ > 0
+_budget_closure_eligible(c::CGLElectrons{<:Union{Float32,Float64}}) =
+    isfinite(c.Cperp) && isfinite(c.Cpar)
+_budget_closure_eligible(::Union{EvolvingElectrons,TransportElectrons,ConductingElectrons}) = true
+
+# Only an inconclusive coarse whole-budget certificate requests this work.
+_budget_refine_electron_state(state, closure, dx) = state
+function _budget_refine_electron_state(state, closure::PolytropicElectrons, dx)
+    hasproperty(state, :minimum_density) || return state
+    lower = _polytropic_energy_lower_bound(state.minimum_density, state.active_count, closure, dx)
+    return signbit(state.value) ? merge(state, (; upper = min(state.upper, -lower))) :
+           merge(state, (; lower = max(state.lower, lower)))
+end
+
+function _budget_complete_total(
+    ps,
+    B,
+    n::Array{T},
+    closure,
+    g,
+    de2,
+    pe,
+    J,
+    ordinary,
+    electron,
+) where {T<:Union{Float32,Float64}}
+    _budget_closure_eligible(closure) || return ordinary
+    species = ps isa ParticleSet ? (ps,) : ps
+    finite_particles = all(species) do population
+        isfinite(population.m) &&
+            all(isfinite, population.weight) &&
+            all(a -> all(isfinite, a), population.v)
+    end
+    finite_particles === true &&
+        all(isfinite, n) &&
+        all(isfinite, g.dx) &&
+        all(a -> all(isfinite, a), B) &&
+        (J === nothing || all(a -> all(isfinite, a), J)) || return ordinary
+    volume = prod(_exact_rational, g.dx)
+    quadratic = _kinetic_energy_rational(species) + _field_square_sum_exact(B) * volume / 2
+    J === nothing || (quadratic += _exact_rational(de2) * _field_square_sum_exact(J) * volume / 2)
+    if closure isa Union{EvolvingElectrons,TransportElectrons,ConductingElectrons}
+        return _from_exact(T, quadratic + _stored_pressure_energy_rational(pe, electron.gamma, g.dx))
+    elseif closure isa IsothermalElectrons
+        return _isothermal_exact_energy(n, closure.Te, g.dx, quadratic)
+    elseif closure isa PolytropicElectrons
+        if closure.γ == 1
+            coefficient = _exact_rational(closure.pe0) / _exact_rational(closure.n0)
+            return _isothermal_exact_energy(n, coefficient, g.dx, quadratic)
+        end
+        return _polytropic_exact_energy(n, closure, g.dx, quadratic)
+    elseif closure isa CGLElectrons
+        return _cgl_energy_exact(n, B, closure, g.dx, ordinary, quadratic)
+    end
+    return ordinary
+end
+
+@inline function _energy_budget_finish(
+    ps,
+    B,
+    n::Array{T},
+    closure,
+    g,
+    de2,
+    pe,
+    J,
+    components,
+    states,
+) where {T}
+    ek, em, ei = components
+    ej = J === nothing ? zero(T) : _electron_inertia_energy(J, de2, g.dx)
+    total = ek + em + ei + ej
+    if states !== nothing && total isa T && ei isa T
+        inertia = J === nothing ? _energy_zero(ej, Val(true)) : _budget_field_state(ej, J, g.dx, 3)
+        if !_budget_total_certified(total, (states..., inertia))
+            electron = _budget_refine_electron_state(states[3], closure, g.dx)
+            if electron === states[3] ||
+               !_budget_total_certified(total, (states[1], states[2], electron, inertia))
+                total = _budget_complete_total(ps, B, n, closure, g, de2, pe, J, total, electron)
+            end
+        end
+    end
+    return (
+        kinetic = ek,
+        magnetic = em,
+        electron_internal = ei,
+        electron_inertia = ej,
+        total = total,
+    )
+end
+
 """
     energy_budget(ps, B, n, closure, g; de2 = 0.0, pe = nothing)
     energy_budget(species::AbstractVector, B, n, closure, g; de2 = 0.0, pe = nothing)
@@ -75,7 +231,13 @@ and the gyrotropic internal energy `∫ (p_⊥ + p_∥/2) dV` for a CGL closure.
 For [`EvolvingElectrons`](@ref), pass the stored state as `pe=stepper.fields.pe`;
 its internal energy is `∫ pe/(γ−1) dV`. Missing stored pressure is an error.
 Algebraic closures reject an alternate `pe` argument.
-`total` is their sum. For periodic ideal massless scalar-closure evolution
+`total` retains the ordinary associated sum when complete reservoir bounds certify
+normal range and sign. Range-sensitive finite Float32/64 built-in states combine
+original reservoir expressions before final rounding; `total` can therefore be
+finite while reported components are infinite, or differ from their rounded sum.
+True complete overflow, nonfinite/custom arithmetic and the CGL singularity remain
+visible. This changes no model law or exact-conservation guarantee.
+For periodic ideal massless scalar-closure evolution
 (`η = ηH = de2 = 0`) with inactive density floors, the continuum model conserves
 this total. This is not an exact discrete-conservation guarantee for the explicit
 particle/field integrator. CGL additionally has the anisotropic battery term
@@ -130,22 +292,33 @@ function energy_budget(
     _evolves_pressure(closure) &&
         !iszero(de2T) &&
         throw(ArgumentError("$(nameof(typeof(closure))) energy requires de2 = 0"))
-    ek = kinetic_energy(ps)
+    supported = T === Float32 || T === Float64
+    if supported
+        kinetic =
+            ps isa ParticleSet ? _kinetic_energy_checked((ps,), T, Val(true), Val(true)) :
+            _kinetic_energy_checked(ps, T, Val(false), Val(true))
+        ek = kinetic.value
+    else
+        ek = kinetic_energy(ps)
+    end
     em = magnetic_energy(B, g)
-    ei = electron_internal_energy(n, B, closure, g; pe)
-    ej = zero(T)
+    if supported
+        magnetic = _budget_field_state(em, B, g.dx)
+        electron = _budget_electron_state(n, B, closure, g, pe)
+        ei = electron.value
+    else
+        ei = electron_internal_energy(n, B, closure, g; pe)
+    end
+    components = (ek, em, ei)
+    states = supported ? (kinetic, magnetic, electron) : nothing
     if de2T > zero(T)
         J = ntuple(_ -> similar(B[1]), 3)
         curl!(J, B, g)
-        ej = _electron_inertia_energy(J, de2T, g.dx)
+        # Keep concrete current and no-current completion call sites separate;
+        # both consume the same single computed spectral-current candidate.
+        return _energy_budget_finish(ps, B, n, closure, g, de2T, pe, J, components, states)
     end
-    return (
-        kinetic = ek,
-        magnetic = em,
-        electron_internal = ei,
-        electron_inertia = ej,
-        total = ek + em + ei + ej,
-    )
+    return _energy_budget_finish(ps, B, n, closure, g, de2T, pe, nothing, components, states)
 end
 
 # ---------------------------------------------------------------- momentum budget

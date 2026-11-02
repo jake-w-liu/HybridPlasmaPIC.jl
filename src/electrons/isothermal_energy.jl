@@ -49,12 +49,16 @@ end
 function _isothermal_finish_log_energy(
     ::Type{T},
     terms::Dict{UInt64,Rational{BigInt}},
+    offset::Rational{BigInt} = zero(Rational{BigInt}),
 ) where {T<:Union{Float32,Float64}}
-    isempty(terms) && return zero(T)
+    isempty(terms) && return _from_exact(T, offset)
     # All odd-base coefficients share the sign of Te * volume. Clearing their
     # rational denominators gives an odd integer product on one side of any
     # putative zero identity and a power of two on the other. A nonempty odd
     # part therefore cannot cancel; a pure log(2) part is zero only if empty.
+    # A nonzero rational logarithm sum is not rational. A rational offset
+    # therefore cannot create an undecidable rational rounding boundary; this
+    # states no practical iteration or resource bound.
     odd_sign = 0
     for (base, coefficient) in terms
         base > 1 && !iszero(coefficient) ||
@@ -70,6 +74,8 @@ function _isothermal_finish_log_energy(
     bits = precision(T) + 16
     while true
         lower, upper = _isothermal_log_bounds(terms, bits)
+        lower += offset
+        upper += offset
         lo, hi = _from_exact(T, lower), _from_exact(T, upper)
         isequal(lo, hi) && return lo
         bits = Base.checked_mul(bits, 2)
@@ -90,8 +96,9 @@ end
 
 function _isothermal_exact_energy(
     n::AbstractArray{T}, temperature::C, dx,
+    offset::Rational{BigInt} = zero(Rational{BigInt}),
 ) where {T<:Union{Float32,Float64},C<:Union{Float32,Float64,Rational{BigInt}}}
-    return _isothermal_finish_log_energy(T, _isothermal_log_terms(n, temperature, dx))
+    return _isothermal_finish_log_energy(T, _isothermal_log_terms(n, temperature, dx), offset)
 end
 
 function _isothermal_log_terms(
@@ -555,25 +562,31 @@ function _isothermal_general_probe(
     return _isothermal_general_probe_with_reuse(n, temperature, dx, Val(false), reference)
 end
 
-function _isothermal_general_energy(n, temperature, dx)
+function _isothermal_general_energy(n, temperature, dx, requested::Val = Val(false))
     state = _isothermal_general_probe(n, temperature, dx)
-    return state.certified || !state.finite ? state.value :
-           _isothermal_exact_energy(n, temperature, dx)
+    state.certified && return _energy_result(state.value, state.lower, state.upper, requested)
+    !state.finite && return _energy_unknown(state.value, requested)
+    return _energy_rounded(_isothermal_exact_energy(n, temperature, dx), requested)
 end
 
 function _isothermal_energy(
     n::AbstractArray{T},
     temperature::C,
     dx::NTuple{D,T},
-) where {T<:Union{Float32,Float64},C<:Union{Float32,Float64},D}
+    requested::Val{State} = Val(false),
+) where {T<:Union{Float32,Float64},C<:Union{Float32,Float64},D,State}
     if isfinite(temperature) && all(isfinite, dx)
         state = _isothermal_statistics(n)
         if state !== nothing
             value = _isothermal_nearunit_energy(n, temperature, dx, state)
-            return value === nothing ? _isothermal_exact_energy(n, temperature, dx) : value
+            value === nothing && (value = _isothermal_exact_energy(n, temperature, dx))
+            State || return value
+            (iszero(state.active) || iszero(temperature) || any(iszero, dx)) &&
+                return _energy_zero(value, requested)
+            return _energy_rounded(value, requested)
         end
     end
-    return _isothermal_general_energy(n, temperature, dx)
+    return _isothermal_general_energy(n, temperature, dx, requested)
 end
 
 function _isothermal_round_ratio(

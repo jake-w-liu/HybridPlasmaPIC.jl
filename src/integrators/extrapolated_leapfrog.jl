@@ -1614,6 +1614,81 @@ end
 
 # ---------------------------------------------------------------- diagnostics
 
+# The scalar component and budget share the same reduction. A compile-time
+# request retains its enclosure only for composition; public scalar arithmetic
+# and the returned component value do not change.
+@inline _energy_result(value, lower, upper, ::Val{false}) = value
+@inline _energy_result(value, lower, upper, ::Val{true}) = (; value, lower, upper)
+@inline _energy_unknown(value, state) = _energy_result(value, NaN, NaN, state)
+@inline _energy_zero(value, state) = _energy_result(value, 0.0, 0.0, state)
+@inline function _energy_rounded(value, state::Val{State}) where {State}
+    State || return value
+    return _energy_result(value, Float64(prevfloat(value)), Float64(nextfloat(value)), state)
+end
+
+@inline function _energy_reduction_interval(value::T, absolute, count::Int128, p::Int) where {T}
+    isfinite(value) && isfinite(absolute) || return (-Inf, Inf)
+    # Each exact/rounded normal factor lies between 1-u and 1+u.
+    # The exact sum has relative bound gamma_k=k*u/(1-k*u). Bounding its
+    # absolute sum by the rounded positive evaluation gives k*u/(1-2*k*u).
+    # Beyond k*u <= 1/4, log2((1+u)/(1-u)) <= 4u gives a scalable bound.
+    k = max(count, Int128(1))
+    delta = ldexp(nextfloat(Float64(k)), -p)
+    magnitude = Float64(absolute)
+    if delta <= 1 / 4
+        # (1+4delta)(1-2delta) >= 1 on this interval, so this polynomial
+        # bounds delta/(1-2delta) without a division.
+        factor = nextfloat(delta * nextfloat(1.0 + 4delta))
+    else
+        shift = cld(k, Int128(1) << (p - 2))
+        shift <= 1023 || return (-Inf, Inf)
+        factor = ldexp(1.0, Int(shift))
+    end
+    error = nextfloat(nextfloat(factor * magnitude) + Float64(nextfloat(zero(T))))
+    return prevfloat(Float64(value) - error), nextfloat(Float64(value) + error)
+end
+
+@inline function _energy_positive_interval(value::T, count::Int128, p::Int) where {T}
+    k = max(count, Int128(1))
+    if ldexp(nextfloat(Float64(k)), -p) > 1 / 4 && isfinite(value)
+        shift = cld(k, Int128(1) << (p - 2))
+        shift <= 1023 || return value < 0 ? (-Inf, 0.0) : (0.0, Inf)
+        allowance = Float64(nextfloat(zero(T)))
+        lower = max(0.0, prevfloat(ldexp(abs(Float64(value)), -Int(shift)) - allowance))
+        upper = nextfloat(ldexp(abs(Float64(value)), Int(shift)) + allowance)
+        return value < 0 ? (-upper, -lower) : (lower, upper)
+    end
+    lower, upper = _energy_reduction_interval(value, abs(value), count, p)
+    if value > 0
+        lower = max(0.0, lower)
+    elseif value < 0
+        upper = min(0.0, upper)
+    end
+    return lower, upper
+end
+
+function _kinetic_integral_result(
+    species,
+    value::T,
+    count,
+    positive,
+    negative,
+    ::Val{State},
+) where {T,State}
+    State || return value
+    if !(positive && negative)
+        lower, upper = _energy_positive_interval(value, count + 8, precision(T))
+    else
+        absolute = _kinetic_energy_absolute(species, T)
+        lower, upper = _energy_reduction_interval(value, absolute, count + 8, precision(T))
+    end
+    return _energy_result(value, lower, upper, Val(true))
+end
+
+# Carry the already validated grid-precision gamma into complete composition.
+@inline _energy_pressure_result(value, gamma, ::Val{false}) = value
+@inline _energy_pressure_result(value, gamma, ::Val{true}) = merge(value, (; gamma))
+
 @inline _kinetic_factor_certified(value, lower, upper) =
     iszero(value) | ((lower <= abs(value)) & (abs(value) <= upper))
 
@@ -1759,7 +1834,12 @@ end
 _kinetic_energy_exact(species, ::Type{T}) where {T} =
     _from_exact(T, _kinetic_energy_rational(species))
 
-function _kinetic_energy_checked(species, ::Type{T}, ::Val{single}) where {T,single}
+function _kinetic_energy_checked(
+    species,
+    ::Type{T},
+    ::Val{single},
+    state::Val = Val(false),
+) where {T,single}
     count = Int128(0)
     for ps in species
         # Both collection and population lengths fit Int; their complete
@@ -1779,15 +1859,22 @@ function _kinetic_energy_checked(species, ::Type{T}, ::Val{single}) where {T,sin
         has_negative |= minus
     end
     # Empty or identically zero contributions keep the ordinary signed zero.
-    (iszero(count) || (!(has_positive || has_negative) && iszero(energy))) && return energy
-    (mixed_ok || (positive_ok && !(has_positive && has_negative))) && return energy
-    positive_ok && _kinetic_energy_normal_certified(species, energy, count) && return energy
-    !positive_ok && _kinetic_energy_operations_certified(species, energy, count) && return energy
+    (iszero(count) || (!(has_positive || has_negative) && iszero(energy))) &&
+        return _energy_zero(energy, state)
+    (mixed_ok || (positive_ok && !(has_positive && has_negative))) &&
+        return _kinetic_integral_result(species, energy, count, has_positive, has_negative, state)
+    positive_ok &&
+        _kinetic_energy_normal_certified(species, energy, count) &&
+        return _kinetic_integral_result(species, energy, count, has_positive, has_negative, state)
+    !positive_ok &&
+        _kinetic_energy_operations_certified(species, energy, count) &&
+        return _kinetic_integral_result(species, energy, count, has_positive, has_negative, state)
     finite = all(species) do ps
         isfinite(ps.m) && all(isfinite, ps.weight) && all(a -> all(isfinite, a), ps.v)
     end
     # Rational conversion is eligible only when every finite check is known true.
-    return finite === true ? _kinetic_energy_exact(species, T) : energy
+    return finite === true ? _energy_rounded(_kinetic_energy_exact(species, T), state) :
+           _energy_unknown(energy, state)
 end
 
 """
@@ -2195,10 +2282,23 @@ function _pressure_energy_upper_exponent(pressure_sum::T, γ::T, dx, count::Int)
     return upper - Int128(exponent(prevfloat(γ - one(T))))
 end
 
+function _stored_pressure_energy_rational(pe, gamma, dx)
+    total = zero(Rational{BigInt})
+    for pressure in pe
+        total += _exact_rational(pressure)
+    end
+    return total * prod(_exact_rational, dx) / (_exact_rational(gamma) - 1)
+end
+
 # Pressure and gamma have been validated by the public diagnostic. Preserve
 # ordinary summation/order; recover the complete integral on intermediate range
 # loss or when the positive upper bound cannot exclude final overflow.
-function _stored_pressure_internal_energy(pe::AbstractArray{T}, γ::T, dx::NTuple{D,T}) where {D,T}
+function _stored_pressure_internal_energy(
+    pe::AbstractArray{T},
+    γ::T,
+    dx::NTuple{D,T},
+    state::Val{State} = Val(false),
+) where {D,T,State}
     pressure_sum = sum(pe)
     denominator = γ - one(T)
     unscaled = pressure_sum / denominator
@@ -2222,14 +2322,12 @@ function _stored_pressure_internal_energy(pe::AbstractArray{T}, γ::T, dx::NTupl
         lost = upper > exponent(floatmax(T))
     end
     if lost
-        total = zero(Rational{BigInt})
-        for pressure in pe
-            total += _exact_rational(pressure)
-        end
-        integral = total * prod(_exact_rational, dx) / (_exact_rational(γ) - 1)
-        return _from_exact(T, integral)
+        return _energy_rounded(_from_exact(T, _stored_pressure_energy_rational(pe, γ, dx)), state)
     end
-    return result
+    State || return result
+    iszero(pressure_sum) && return _energy_zero(result, state)
+    lower, upper = _energy_positive_interval(result, Int128(length(pe)) + D + 4, precision(T))
+    return _energy_result(result, lower, upper, state)
 end
 
 """
@@ -2280,6 +2378,12 @@ function electron_internal_energy(
     g::FourierGrid{D,T};
     pe = nothing,
 ) where {D,T}
+    return _electron_internal_energy_checked(n, closure, g, pe, Val(false))
+end
+
+function _electron_internal_energy_checked(
+    n::Array{T,D}, closure::ElectronClosure, g::FourierGrid{D,T}, pe, state::Val,
+) where {D,T}
     _require_grid_array(:n, n, g)
     if _evolves_pressure(closure)
         pe === nothing && throw(
@@ -2293,15 +2397,15 @@ function electron_internal_energy(
         γ = _require_finite_real("γ", closure.γ, T)
         γ > one(T) ||
             throw(ArgumentError("evolving electron γ must be greater than one at grid precision"))
-        return _stored_pressure_internal_energy(pe, γ, g.dx)
+        return _energy_pressure_result(_stored_pressure_internal_energy(pe, γ, g.dx, state), γ, state)
     end
     pe === nothing ||
         throw(ArgumentError("algebraic electron energy does not accept an alternate pe"))
     # a gyrotropic (CGL) closure needs |B| for its internal energy — use the
     # (n, B, closure, g) method; degrade to NaN here rather than throwing downstream.
-    is_anisotropic(closure) && return T(NaN)
+    is_anisotropic(closure) && return _energy_unknown(T(NaN), state)
     if T <: Union{Float32,Float64} && closure isa IsothermalElectrons{<:Union{Float32,Float64}}
-        return _isothermal_energy(n, closure.Te, g.dx)
+        return _isothermal_energy(n, closure.Te, g.dx, state)
     end
     if T <: Union{Float32,Float64} && closure isa PolytropicElectrons{<:Union{Float32,Float64}}
         if all(isfinite, (closure.pe0, closure.n0, closure.γ)) &&
@@ -2310,7 +2414,7 @@ function electron_internal_energy(
            closure.γ > 0 &&
            all(isfinite, n) &&
            all(isfinite, g.dx)
-            return _polytropic_energy(n, closure, g.dx)
+            return _polytropic_energy(n, closure, g.dx, state)
         end
     end
     γ = T(closure_gamma(closure))
@@ -2322,9 +2426,9 @@ function electron_internal_energy(
         @inbounds for I in eachindex(pe, n)
             n[I] > zero(T) && (s += pe[I] * log(n[I]))
         end
-        return s * prod(g.dx)
+        return _energy_unknown(s * prod(g.dx), state)
     end
-    return sum(pe) / (γ - one(T)) * prod(g.dx)
+    return _energy_unknown(sum(pe) / (γ - one(T)) * prod(g.dx), state)
 end
 
 # scalar closures do not need B — accept it for interface symmetry with the CGL method
@@ -2466,11 +2570,18 @@ function _cgl_energy_normal_certified(value::T, absolute::T, count::Int, ::Type{
     return prevfloat(abs(value) - error) >= floatmin(T) && isfinite(nextfloat(abs(value) + error))
 end
 
-function _cgl_energy_exact(n::Array{T,D}, B, closure, dx, ordinary) where {T,D}
+function _cgl_energy_exact(
+    n::Array{T,D},
+    B,
+    closure,
+    dx,
+    ordinary,
+    offset::Rational{BigInt} = zero(Rational{BigInt}),
+) where {T,D}
     Q = Rational{BigInt}
     perpendicular, parallel = _exact_rational(closure.Cperp), _exact_rational(closure.Cpar)
     volume = prod(_exact_rational, dx)
-    rational = zero(Q)
+    rational = offset
     radicands, coefficients = Q[], Q[]
     indices = Dict{Q,Int}()
     for I in eachindex(n, B[1], B[2], B[3])
@@ -2503,16 +2614,28 @@ function _cgl_energy_exact(n::Array{T,D}, B, closure, dx, ordinary) where {T,D}
     return _finish_relativistic_energy(T, rational, radicands, coefficients)
 end
 
-function _cgl_energy_checked(n::Array{T,D}, B, closure::CGLElectrons{C}, dx) where {T,D,C}
+function _cgl_energy_checked(
+    n::Array{T,D},
+    B,
+    closure::CGLElectrons{C},
+    dx,
+    state::Val{State} = Val(false),
+) where {T,D,C,State}
     value, absolute, normal, active, largest, nonnegative =
         _cgl_energy_probe(n, B, closure, dx, Val(true))
-    !active && iszero(value) && return value
+    !active && iszero(value) && return _energy_zero(value, state)
     if normal
-        nonnegative &&
-            !iszero(value) &&
-            _cgl_energy_positive_certified(largest, dx, length(n)) &&
-            return value
-        _cgl_energy_normal_certified(value, absolute, length(n), C) && return value
+        positive_certified =
+            nonnegative && !iszero(value) && _cgl_energy_positive_certified(largest, dx, length(n))
+        if positive_certified || _cgl_energy_normal_certified(value, absolute, length(n), C)
+            State || return value
+            count = Int128(length(n)) + 22
+            lower, upper =
+                nonnegative ?
+                _energy_positive_interval(value, count, min(precision(T), precision(C))) :
+                _energy_reduction_interval(value, absolute, count, min(precision(T), precision(C)))
+            return _energy_result(value, lower, upper, state)
+        end
     end
     finite =
         isfinite(closure.Cperp) &&
@@ -2520,7 +2643,8 @@ function _cgl_energy_checked(n::Array{T,D}, B, closure::CGLElectrons{C}, dx) whe
         all(isfinite, n) &&
         all(isfinite, dx) &&
         all(a -> all(isfinite, a), B)
-    return finite === true ? _cgl_energy_exact(n, B, closure, dx, value) : value
+    return finite === true ? _energy_rounded(_cgl_energy_exact(n, B, closure, dx, value), state) :
+           _energy_unknown(value, state)
 end
 
 function electron_internal_energy(

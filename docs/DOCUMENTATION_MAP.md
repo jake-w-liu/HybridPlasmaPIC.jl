@@ -140,6 +140,8 @@ rerun by this documentation-only audit.
 - [docs/GATHERED_MIDPOINT_STORAGE_PLAN.md](GATHERED_MIDPOINT_STORAGE_PLAN.md)
 - [docs/GYRO_RING_PLAN.md](GYRO_RING_PLAN.md)
 - [docs/HYBRID_DIAGNOSTIC_RANGE_PLAN.md](HYBRID_DIAGNOSTIC_RANGE_PLAN.md)
+  — current original-reservoir complete-total source and deferred acceptance,
+  with rejected V6 cost history retained separately.
 - [docs/HYBRID_ENERGY_MODEL_PLAN.md](HYBRID_ENERGY_MODEL_PLAN.md)
 - [docs/IDEAL_FORCE_SOURCE_RANGE_WORK_ORDER.md](IDEAL_FORCE_SOURCE_RANGE_WORK_ORDER.md)
 - [docs/INTERVAL_VALIDATION_ALLOCATION_PLAN.md](INTERVAL_VALIDATION_ALLOCATION_PLAN.md)

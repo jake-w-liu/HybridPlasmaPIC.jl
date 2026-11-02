@@ -479,13 +479,19 @@ A self-contained perpendicular collisionless-shock laboratory:
 
 - **Energy**: `energy_budget(ps, B, n, closure, g; de2 = 0, pe = nothing)` returns kinetic,
   magnetic, electron-internal/free-energy, and optional quadratic
-  electron-inertia reservoirs. Periodic ideal massless scalar-closure
+  electron-inertia reservoirs. For finite Float32/64 built-in states, the
+  source now completes range-sensitive totals from original reservoir
+  expressions; a finite total can accompany infinite rounded components or
+  differ from their rounded sum. True total overflow/nonfinite/custom/CGL
+  singular behavior remains visible. [Runtime and cost acceptance](docs/HYBRID_DIAGNOSTIC_RANGE_PLAN.md#current-complete-budget-source-2026-11-02)
+  is deferred. Periodic ideal massless scalar-closure
   evolution conserves the continuum total when density floors are inactive;
   the explicit integrator is checked through energy convergence. CGL has an
   additional anisotropic battery term. The reduced inertia reservoir closes
   the uniform-density fixed-ion field balance; moving-ion and dissipative energy accounting
   have further terms described in the [model balance](docs/HYBRID_ENERGY_MODEL_PLAN.md).
-  For `EvolvingElectrons` and `TransportElectrons`, supply `pe = st.fields.pe` explicitly. Budgets use
+  For `EvolvingElectrons`, `TransportElectrons` and `ConductingElectrons`, supply
+  `pe = st.fields.pe` explicitly. Budgets use
   the supplied particle velocities, which are staggered in hybrid runs;
   energy-convergence comparisons need reservoirs at a common time.
   `kinetic_energy_relativistic(ps_or_species, c)` covers relativistic EMPIC runs;

@@ -11,6 +11,17 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Added
 
+- `energy_budget.total` now composes original finite built-in reservoir
+  expressions when normal-range/sign bounds cannot certify the associated
+  native sum. Component values stay unchanged; the complete total can be finite
+  when separately rounded components overflow. Existing computed J, exact
+  particle/field/log/power/CGL owners and validated stored-pressure gamma are
+  reused. Coarse polytropic bounds precede optional sharp refinement. This is a
+  source-work reduction, without a measured speed claim; historical V6 timing
+  failures and fixed gates remain intact. No tests added/run; numerical,
+  compiler and cost acceptance remain open. See the
+  [current source contract](docs/HYBRID_DIAGNOSTIC_RANGE_PLAN.md#current-complete-budget-source-2026-11-02).
+
 - `MixedShockOperators` adds concrete D2/3 SBP-x/periodic-transverse gradient,
   curl, divergence and represented Euclidean transpose with cached Fourier
   work. `mixed_hall_rhs!` reuses canonical isothermal pressure/Ohm/Faraday owners

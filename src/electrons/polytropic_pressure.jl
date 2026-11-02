@@ -170,7 +170,10 @@ function _polytropic_power_bounds(base::Rational{BigInt}, gamma::Rational{BigInt
 end
 
 function _polytropic_quantize(value::Rational{BigInt}, shift::BigInt, left_limit::Int)
-    value >= 0 || throw(ArgumentError("scaled interval endpoints must be nonnegative"))
+    if value < 0
+        lower, upper = _polytropic_quantize(-value, shift, left_limit)
+        return -upper, -lower
+    end
     shift <= left_limit || throw(ArgumentError("left shift exceeds the precision bound"))
     iszero(value) && return BigInt(0), BigInt(0)
     n, d = numerator(value), denominator(value)
@@ -186,9 +189,8 @@ function _polytropic_scaled_sum_state(intervals, bits::Int)
     bits > 0 || throw(ArgumentError("sum precision must be positive"))
     largest = nothing
     for (lower, upper, exponent) in intervals
-        0 <= lower <= upper ||
-            throw(ArgumentError("scaled intervals must be nonnegative and ordered"))
-        upper > 0 || continue
+        lower <= upper || throw(ArgumentError("scaled intervals must be ordered"))
+        iszero(lower) && iszero(upper) && continue
         largest = largest === nothing ? exponent : max(largest, exponent)
     end
     largest === nothing && return (BigInt(0), BigInt(0), BigInt(0), false, false)
@@ -196,7 +198,7 @@ function _polytropic_scaled_sum_state(intervals, bits::Int)
     lower = upper = BigInt(0)
     lower_strict = upper_strict = false
     for (lo, hi, exponent) in intervals
-        iszero(hi) && continue
+        iszero(lo) && iszero(hi) && continue
         shift = BigInt(exponent) - scale
         a, aceil = _polytropic_quantize(lo, shift, bits)
         bfloor, b = _polytropic_quantize(hi, shift, bits)

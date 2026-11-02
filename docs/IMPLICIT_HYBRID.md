@@ -163,8 +163,10 @@ family does not fuse its range with a later h factor. `F0_T` and `F1_T` come fro
 the canonical isothermal energy owner. NaN endpoints reject; if either endpoint
 is infinite, the report uses `:unresolved_free_energy_range` and
 `free_energy_defect = nothing`. Finite endpoints use `:represented_reservoir`;
-the resulting work/defect may themselves exceed T's range. Ordinary diagnostic
-budget totals retain their canonical range behavior.
+the resulting work/defect may themselves exceed T's range. The separate canonical
+[complete-budget source](HYBRID_DIAGNOSTIC_RANGE_PLAN.md#current-complete-budget-source-2026-11-02)
+retains original reservoir expressions for range-sensitive totals; it does not
+change this report's represented F0_T/F1_T boundary or its unresolved policy.
 
 This is a represented-reservoir diagnostic, not an exact electron-work theorem.
 The isothermal free-energy secant leaves continuity and nonlinear chain-rule/work
