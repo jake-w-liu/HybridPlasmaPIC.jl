@@ -95,8 +95,11 @@ This capability is prescribed-source field evolution. Charge and longitudinal
 endpoint impulse and path voltage are available separately. Particle motion and
 matched full-vector force/current are now supplied by separate event-free
 `YeeElectromagneticPIC` source code with [pending GitHub acceptance](BOUNDED_PARTICLE_COUPLING_PLAN.md#event-free-1d3v-electromagnetic-source-candidate).
-Particle absorption, wall ledgers and nonlinear event solves remain incomplete.
+The separate [longitudinal elastic-reflection source candidate](YEE_IMPACT_LONGITUDINAL.md)
+adds one certified contact cluster per external step, carried physical-error
+checks, wall ledgers and restart. Its exact-revision GitHub acceptance is pending.
+Particle absorption and broader nonlinear event handling remain incomplete.
 The retained fixed-macrocharge self-force and coupled impact-velocity convergence failures are still open; this prerequisite does not
 resolve them. Higher-dimensional impressed sources, open/PML boundaries, circuits,
-particle injection, reflecting particles, GPU/MPI and field-only restart adapters
+particle injection, broader reflecting dynamics, GPU/MPI and field-only restart adapters
 remain later slices.

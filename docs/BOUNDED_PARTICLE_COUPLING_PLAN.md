@@ -449,8 +449,8 @@ memory remain unmeasured. Regression and compiler assertions retain their gates.
 ## Planned event-local reflection
 
 Method design reviewed 2026-11-01; carried-error design reviewed 2026-11-02.
-**The wall model is not implemented or runtime-accepted.** The next
-bounded-wall candidate is a distinct longitudinal CPU Float32/64 model with
+**The wall model has a source candidate; runtime acceptance remains pending.**
+[`YeeImpactLongitudinalPIC`](YEE_IMPACT_LONGITUDINAL.md) is a distinct longitudinal CPU Float32/64 model with
 at most one common contact cluster and two synchronized local KDK
 (kick-drift-kick) chunks per external step. Existing event-free models keep their methods and restart tags.
 Reflection acts on the cloud center; the current particle-bound cloud tails,
@@ -501,8 +501,8 @@ cluster scope and complete wall/history state.
 The first-contact physical tube can be derived from the existing triangular
 cloud and field-current owners. After an approximate event, a fresh tube from
 the numerical reflected state only bounds flow initialized at that state.
-**Original external-start trajectory coverage over the remainder is not
-implemented or accepted.**
+**Original external-start trajectory coverage has candidate source enforcement;
+exact-revision runtime and independent physical acceptance remain pending.**
 Carried position, velocity, acceleration, field-invariant and event-time errors
 must cover time alignment, reflection and the enlarged remaining horizon before
 this candidate can claim no hidden second physical contact. Refining a predictor
@@ -513,14 +513,16 @@ for the stronger wall contract, not a runtime result or an impossibility claim.
   policy and local physical-tube bounds; independently review their limits.
 - [x] Review the conditional [carried-error contract](BOUNDED_EVENT_COVERAGE_CONTRACT.md)
   through the event and remainder, retaining state, invariant and timing errors.
-  Its original-start coverage premises still need implementation and remote gates.
+  Its original-start coverage premises have candidate source enforcement;
+  exact-revision remote and independent physical gates remain open.
 - [x] Source extraction of the canonical duration-free exact longitudinal row
   and unrounded work value, preserving existing methods by literal expansion.
   Direct runtime/inference/format acceptance remains pending on GitHub.
 - [x] Extract the canonical raw charge/current sum and its existing candidate
-  conversion so a future stage can retain Istar without lifting rounded current.
+  conversion so the event stages retain Istar without lifting rounded current.
   Existing public/current routing remains; GitHub acceptance is pending.
-- [ ] Implement staged reflection, diagnostics and distinct restart policies.
+- [x] Source candidate for staged reflection, carried certificates, diagnostics
+  and distinct restart policies; exact-revision GitHub acceptance remains open.
 - [ ] On GitHub, run essential independent force-driven impact refinement,
   branch/cluster failures, complete rollback and restart controls. Preserve
   existing event-free and compiler assertions; measure complete-step cost.

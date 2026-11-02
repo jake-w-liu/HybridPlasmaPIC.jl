@@ -167,6 +167,7 @@ using Test
     include("test_empic_relativistic_species.jl")
     include("test_empic1d.jl")
     include("test_bounded_maxwell.jl")
+    include("test_yee_impact_longitudinal_pic.jl")
     include("test_sourced_yee.jl")
     include("test_sourced_yee_modes.jl")
     include("test_sourced_yee_additional.jl")

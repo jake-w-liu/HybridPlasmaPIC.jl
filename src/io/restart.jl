@@ -35,7 +35,8 @@
 Write a provenance-stamped, checksum-verified archive of the run state at `path`.
 Supports [`HybridStepper`](@ref), [`CAMCLStepper`](@ref),
 [`Electrostatic1D`](@ref), [`ElectrostaticPIC`](@ref), [`EMPIC1D`](@ref), [`EMPIC`](@ref),
-[`HallMHDState`](@ref), and [`CollisionalHybridStepper`](@ref).
+[`HallMHDState`](@ref), [`CollisionalHybridStepper`](@ref), [`YeeLongitudinalPIC`](@ref),
+[`YeeElectromagneticPIC`](@ref), and [`YeeImpactLongitudinalPIC`](@ref).
 
 The archive captures the deterministic simulation state (model and shape
 configuration, particle phase space + provenance, the canonical magnetic field
@@ -75,6 +76,11 @@ Hall-MHD archives contain the model, fluid and public derived fields, retained
 stage `lapJ`, and clock; no particle argument or timestep history is needed.
 Collisional archives add the complete advanced RNG state and completed source
 ledger through the same versioned state owner as stochastic checkpoints.
+Closed-Yee archives retain their distinct completed-state schemas and restore
+physical fields verbatim. Impact longitudinal state additionally retains its
+root-refinement budget, exact wall/electric impulses, counts and carried error
+bounds, with required elastic zero charge/work records and policies. Its schema 1
+cannot be interchanged with event-free schema 2; the archive container remains 4.
 
 `rng_seed` records the initialization seed as provenance in the metadata. A seed
 does not replace the advanced RNG state needed for stochastic continuation.

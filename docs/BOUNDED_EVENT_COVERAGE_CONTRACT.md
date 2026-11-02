@@ -1,11 +1,13 @@
 # Carried-error contract for one event cluster
 
-Reviewed 2026-11-02. **Conditional design; the event model is not implemented or
-runtime-accepted.** This is the carried-error prerequisite for the
-[event-local reflection plan](BOUNDED_PARTICLE_COUPLING_PLAN.md#planned-event-local-reflection).
-The derivation was reviewed against the canonical cloud/current, original-force,
-exact source-row and work owners. Source review does not establish that code
-enforces these certificates, convergence, compiler behavior or resource costs.
+Reviewed 2026-11-02. **Conditional contract; implemented source awaits
+exact-revision GitHub acceptance.**
+[`YeeImpactLongitudinalPIC`](YEE_IMPACT_LONGITUDINAL.md) implements these carried
+checks for zero contacts or one connected reflection cluster per external step
+on a closed longitudinal 1D grid with finite clouds and nonrelativistic CPU
+Float32/64 particles. The derivation and source share the canonical cloud/current, original-force, exact source-row and
+work owners. Source review does not establish runtime correctness, convergence,
+JET/compiler behavior or complete-step resource costs.
 
 **Disposition:** under the acceptance premises below, this carried-error algebra certifies physical no-hidden-contact coverage from the original external-step stored state through its approximate cluster and full remaining duration. It never restarts the physical proof with zero errors at the numerical event. Conservative or inconclusive checks reject. This is a conditional mathematical contract, not proof that an implementation enforces it, runtime acceptance, or a global entire-run initial-trajectory/convergence theorem.
 
@@ -204,18 +206,23 @@ publication stay in their existing owner. These helpers have source
 implementation and essential test definitions; exact-revision runtime acceptance
 is pending.
 
-A future event implementation must retain that same raw Istar while using the
-canonical candidate conversion for its actual stored current. Longitudinal
-impulse consumes the first N entries; the raw array has N+1 entries for the
-shared charge/current kernel. Float64 workspace sums and a rational lift of
+The reflection source candidate retains that same raw Istar in each local chunk
+while using the canonical candidate conversion for its actual stored current.
+Longitudinal impulse consumes the first N entries; the raw array has N+1
+entries for the shared charge/current kernel. Float64 workspace sums and a rational lift of
 rounded current cannot replace it. No A/g/deposition/path loop is copied.
 
 All a0/a1/a2 come from the existing original-geometry gather/factor owners.
 The [duration-free exact source row](../src/models/maxwell_vacuum.jl) and
 [unrounded work value](../src/diagnostics/yee_diagnostics.jl) are implemented
-private prerequisites. The current public coupled methods retain their existing
-routing. Retaining these values does not itself implement a wall stage,
-first-hit certificate or carried-error admission.
+private owners shared by the reflection source candidate. Its `_yi_carry!` and
+`_yi_clear_remainder!` retain state, timing and signed field-invariant uncertainty;
+they do not restart the physical proof from a zero-error numerical contact state.
+Existing event-free methods retain their routing.
 
 This contract presumes exact original operands, fixed valid sources, genuine first-hit certificates, physical nongrazing/ordering and AW/VW gates, s-in-hull, actual completed residuals, numerical remainder checks and every carried physical clearance test. No clipped interval, heuristic tie, exhausted refinement, unsupported second cluster or zero-error reset is success. It covers one external step from its stored original state, not a global entire-run initial-trajectory theorem or a point/sheath/contact/absorption model. Wall ledgers, transactions, restart, clocks and implementation resource limits
-remain in the event-local plan. Production implementation and remote numerical/compiler/format/rollback/restart acceptance remain pending.
+are described in the [model guide](YEE_IMPACT_LONGITUDINAL.md). Source enforcement
+is implemented; exact-revision GitHub numerical, convergence, rollback/restart,
+JET/compiler, formatting/CI and complete-step cost acceptance remain pending.
+Absorption, multiple clusters per external step, transverse walls and backend
+integration remain outside this candidate; CAP-002B remains open.

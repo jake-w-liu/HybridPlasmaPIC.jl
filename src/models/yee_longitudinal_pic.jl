@@ -142,12 +142,14 @@ function _yl_storage_arrays(st)
     return arrays
 end
 
-function _yl_validate_longitudinal_fields(st::YeeLongitudinalPIC, fields::YeeFields)
+function _yee_closed_validate_longitudinal_fields(st, fields::YeeFields)
     _yee_validate_fields(fields, st.g)
     all(a -> all(_yl_stored_zero, a), (fields.E[2], fields.E[3], fields.B...)) ||
         throw(ArgumentError("longitudinal PIC requires zero transverse E and all B"))
     return nothing
 end
+_yl_validate_longitudinal_fields(st::YeeLongitudinalPIC, fields::YeeFields) =
+    _yee_closed_validate_longitudinal_fields(st, fields)
 
 function _yl_validate_storage(st, species)
     T = eltype(st.fields.E[1])
@@ -199,7 +201,7 @@ function _yee_closed_validate_populations(st, species)
     end
     return nothing
 end
-function _yl_validate_populations(st::YeeLongitudinalPIC, species)
+function _yee_closed_validate_longitudinal_populations(st, species)
     _yee_closed_validate_populations(st, species)
     for ps in species
         all(_yl_stored_zero, ps.v[2]) && all(_yl_stored_zero, ps.v[3]) ||
@@ -207,6 +209,8 @@ function _yl_validate_populations(st::YeeLongitudinalPIC, species)
     end
     return nothing
 end
+_yl_validate_populations(st::YeeLongitudinalPIC, species) =
+    _yee_closed_validate_longitudinal_populations(st, species)
 
 function _yl_validate_phase_values(initialized, time::T, step, last_dt, work, defect) where {T}
     initialized isa Bool && step isa Int && step >= 0 && last_dt isa T &&
@@ -241,6 +245,10 @@ function _yl_right_plate(st, species)
     return -total
 end
 
+_yee_closed_frozen_sources_match(ps, frozen) =
+    isequal(ps.q, frozen.q) && isequal(ps.m, frozen.m) &&
+    isequal(ps.weight, frozen.weight) && isequal(ps.id, frozen.id) && isequal(ps.tag, frozen.tag)
+
 function _yl_validate_bound(st, species)
     stage = st._stage[]
     length(species) == length(stage.owners) == length(stage.candidates) == length(stage.components) ||
@@ -250,8 +258,7 @@ function _yl_validate_bound(st, species)
         all(t -> t[1] === t[2], zip(_yl_particle_arrays(ps), stage.components[k])) ||
             throw(ArgumentError("particle component identity changed; call init!"))
         frozen = stage.candidates[k]
-        isequal(ps.q, frozen.q) && isequal(ps.m, frozen.m) &&
-            isequal(ps.weight, frozen.weight) && isequal(ps.id, frozen.id) && isequal(ps.tag, frozen.tag) ||
+        _yee_closed_frozen_sources_match(ps, frozen) ||
             throw(ArgumentError("particle source/provenance changed; call init!"))
     end
     st.right_plate_charge[] == _yl_right_plate(st, species) ||
@@ -300,12 +307,8 @@ function init!(st::YeeLongitudinalPIC{T}, particles) where {T}
     return st
 end
 
-# Exact original-operand admission, before staging. This bound excludes a first
-# physical exit; it deliberately rejects some safe trajectories as well.
-function _yl_admit_step(st::YeeLongitudinalPIC, species, dt)
-    g = st.g
-    L, delta, tau = _exact_rational(g.L[1]), _exact_rational(g.dx[1]), _exact_rational(dt)
-    h, a = L / g.n[1], _exact_rational(st.shape.half_width)
+# Shared strict rest-mode admission and exact absolute source charge.
+function _yee_longitudinal_rest_bound(species, L, delta, tau, h, a)
     charge = zero(L)
     stiffness = zero(L)
     for ps in species
@@ -318,6 +321,16 @@ function _yl_admit_step(st::YeeLongitudinalPIC, species, dt)
     end
     tau^2 * delta * min(inv(h), inv(a)) / h * stiffness < 4 ||
         throw(ArgumentError("dt violates the strict longitudinal rest-mode bound"))
+    return charge
+end
+
+# Exact original-operand admission, before staging. This bound excludes a first
+# physical exit; it deliberately rejects some safe trajectories as well.
+function _yl_admit_step(st::YeeLongitudinalPIC, species, dt)
+    g = st.g
+    L, delta, tau = _exact_rational(g.L[1]), _exact_rational(g.dx[1]), _exact_rational(dt)
+    h, a = L / g.n[1], _exact_rational(st.shape.half_width)
+    charge = _yee_longitudinal_rest_bound(species, L, delta, tau, h, a)
     fieldbound = maximum(x -> abs(_exact_rational(x)), st.fields.E[1]) + charge
     for ps in species
         acceleration = abs(_exact_rational(ps.q) / _exact_rational(ps.m)) * (delta / h) * fieldbound

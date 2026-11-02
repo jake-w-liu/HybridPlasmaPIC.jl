@@ -520,6 +520,53 @@ function _yee_closed_gauss_residual(st, species)
 end
 
 """
+    em_field_energy(state::YeeImpactLongitudinalPIC)
+
+Physical longitudinal field energy using the original-input energy owner.
+Read-only overflow returns infinity; no field is projected or rebuilt.
+"""
+function em_field_energy(st::YeeImpactLongitudinalPIC{T}) where {T}
+    _yl_validate_longitudinal_fields(st, st.fields)
+    return _em_field_energy_exact(st.fields.E, st.fields.B, one(T), st.g.dx)
+end
+
+"""
+    yee_impact_longitudinal_diagnostics(state, particles)
+
+Return physical kinetic/field energy, all-node Gauss including fixed free plates,
+completed phase and copied net-current history, exact represented electric/wall
+momentum and contact counts, and the accepted step's snap/time/source/terminal
+error bounds. Bounds refer to that step's original stored input under its
+conditional semidiscrete coverage contract, not the entire run's initial flow.
+
+`last_work` is the once-rounded signed sum of actual local source work;
+`last_energy_defect` is once-rounded complete rational DeltaK minus that sum.
+`last_physical_energy_change` is the complete rational Delta(K+U), rounded once.
+Neither is forced to zero. Fixed elastic wall charge/work are exact zero by
+law; wall impulse is signed global-x momentum delivered to each wall. This
+does not include conductor/background stress or imply total momentum conservation.
+Read-only energy/Gauss may overflow; stored step histories remain finite.
+"""
+function yee_impact_longitudinal_diagnostics(st::YeeImpactLongitudinalPIC{T}, particles) where {T}
+    species = _yl_species(particles)
+    st.initialized[] || throw(ArgumentError("call init! before impact diagnostics"))
+    _yi_validate_phase(st)
+    _yl_validate_populations(st, species)
+    _yi_validate_bound(st, species)
+    _yl_validate_longitudinal_fields(st, st.fields)
+    return merge(_yi_history_values(st), (
+        last_impulse = map(copy, st.last_impulse),
+        kinetic_energy = _kinetic_energy_checked(species, T, Val(false)),
+        field_energy = em_field_energy(st),
+        left_plate_charge = _exact_rational(st.left_plate_charge),
+        right_plate_charge = st.right_plate_charge[],
+        gauss_residual = _yee_closed_gauss_residual(st, species),
+        wall_charge_transfer = ntuple(_ -> zero(_YeeImpactQ), 2),
+        wall_work_transfer = ntuple(_ -> zero(_YeeImpactQ), 2),
+    ))
+end
+
+"""
     em_field_energy(state::YeeElectromagneticPIC)
 
 Physical synchronized field energy, using the original-input energy owner.

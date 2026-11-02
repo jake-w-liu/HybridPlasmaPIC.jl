@@ -228,6 +228,10 @@ _checkpoint_state(st::YeeLongitudinalPIC, ps::ParticleSet) =
 _checkpoint_state(st::YeeLongitudinalPIC, species::AbstractVector) =
     _yl_checkpoint_state(st, species, :collection)
 
+_yee_closed_make_stage(
+    st::Union{YeeLongitudinalPIC,YeeElectromagneticPIC}, populations, sources, T,
+) = _yl_make_stage(populations, sources, T)
+
 function _yee_closed_checkpoint_restore_data(st::_ClosedYeeCheckpointStepper, species, s, layout)
     T = eltype(st.fields.E[1])
     _validate_checkpoint_state(s, st)
@@ -260,7 +264,7 @@ function _yee_closed_checkpoint_restore_data(st::_ClosedYeeCheckpointStepper, sp
     saved = deepcopy(s)
     _validate_checkpoint_state(saved, st)
     saved_populations = _yl_checkpoint_populations(saved, saved.T)
-    stage = _yl_make_stage(populations, saved_populations, T)
+    stage = _yee_closed_make_stage(st, populations, saved_populations, T)
     # A Vector can grow only after every destination has reserved its capacity.
     # Matched strided views retain their existing shape and storage throughout.
     for (ps, record) in zip(populations, saved.species)

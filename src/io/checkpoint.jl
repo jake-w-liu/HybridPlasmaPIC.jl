@@ -24,7 +24,8 @@ using Serialization
 const _HybridCheckpointStepper{D,T} = Union{HybridStepper{D,T},CAMCLStepper{D,T}}
 const _ElectrostaticCheckpointStepper = Union{Electrostatic1D,ElectrostaticPIC}
 const _ElectromagneticCheckpointStepper = Union{EMPIC1D,EMPIC}
-const _ClosedYeeCheckpointStepper = Union{YeeLongitudinalPIC,YeeElectromagneticPIC}
+const _ClosedYeeCheckpointStepper =
+    Union{YeeLongitudinalPIC,YeeElectromagneticPIC,YeeImpactLongitudinalPIC}
 const _CheckpointStepper = Union{
     _HybridCheckpointStepper,
     _ElectrostaticCheckpointStepper,

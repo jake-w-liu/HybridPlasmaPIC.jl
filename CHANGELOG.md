@@ -11,16 +11,20 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Added
 
-- Private canonical Yee exact-sum and candidate-conversion owners retain raw
-  charge/current for future field-invariant certificates, preserving the existing
-  exact wrapper and public routing. The conditional carried wall-coverage design
-  is documented; wall stages and runtime acceptance remain pending.
+- `YeeImpactLongitudinalPIC` adds a nonrelativistic CPU Float32/64 finite-cloud
+  reflection source candidate on a closed 1D Yee grid. Each external step admits
+  zero contacts or one connected certified cluster, with original-factor forces,
+  rational-duration KDK chunks and conservative carried physical remainder checks.
+  Wall ledgers, diagnostics and distinct checkpoint/archive state stage before
+  publication. Exact-revision GitHub numerical, convergence, rollback/restart,
+  JET/compiler, formatting/CI and complete-step cost acceptance remain pending.
+  Absorption, multiple clusters, transverse walls and backend integration remain
+  open; see the [model guide](docs/YEE_IMPACT_LONGITUDINAL.md).
 
-- Private exact source-row and unrounded source-work owners provide prerequisites
-  for a future rational-duration longitudinal event method. Existing native,
-  exact and public callers retain their expressions and signed-zero behavior;
-  direct GitHub runtime/compiler/format checks remain pending. No wall method is
-  implemented by this extraction.
+- Private canonical Yee raw-sum/candidate-conversion, exact source-row and
+  unrounded source-work owners support the reflection candidate without copying
+  deposition or force kernels. Existing callers retain their expressions,
+  signed-zero behavior and public routing; GitHub verification remains pending.
 
 - Specialized `EMPIC1D` collections add dividing per-species kick strides,
   every-fast drift/current and independent staged velocity histories. The atomic
@@ -66,16 +70,17 @@ records scoped verification and remaining exact-revision acceptance gates.
   original-source background/free-plate initialization, energy/Gauss diagnostics
   and distinct checkpoint/archive state. Strict impact and rest-mode guards
   reject unsupported steps. Initialization builds Ex from exact cumulative
-  nodal charge before final rounding. Broader bounded EM coupling and
-  wall events remain open in the [contract](docs/BOUNDED_PARTICLE_COUPLING_PLAN.md).
+  nodal charge before final rounding. Broader bounded EM and wall-model
+  acceptance remain open in the [contract](docs/BOUNDED_PARTICLE_COUPLING_PLAN.md).
 
 - Optional `YeeTriangularCloud(a)` extends closed 1D Yee static charge, endpoint
   current and path voltage with a finite physical-width cloud and explicit
   particle-bound endpoint tails. `yee_longitudinal_field` requires that shape
   and returns its stationary work-adjoint field. Exact stored-input polynomials
   retain the original width precision and stored-dx work metric; point/CIC
-  defaults remain. The cloud has a declared distinct wall response; full
-  bounded EM coupling and mechanical wall events remain open.
+  defaults remain. The cloud has a declared distinct wall response; mechanical
+  wall dynamics belong to separate coupled source models. Full bounded EM
+  remains open.
 
 - A manual GitHub workflow runs existing implementation essentials on minimum
   and latest Julia, supplementing the unchanged full CI matrix. Runtime checks
@@ -122,14 +127,14 @@ records scoped verification and remaining exact-revision acceptance gates.
   retain their identities. Compiler and complete-step cost verification remains
   pending on GitHub.
 
-- Both closed Yee coupled source candidates retain complete original-geometry
-  gathers, original q/m and the exact full-dt half through canonical Boris,
-  rounding only each final half-kick velocity. Intermediate gathers can lie outside
-  the grid type’s range when the completed velocity is finite. This changes ordinary
-  velocity bits and requires model checkpoint schema 2 with an explicit force
-  policy; schema 1 is rejected. Static IEEE-valued gathers and archive container
-  schema 4 retain their contracts. GitHub runtime/compiler/format and complete-step
-  resource acceptance remain pending.
+- The event-free longitudinal and 1D3V EM source candidates retain complete
+  original-geometry gathers, original q/m and the exact full-dt half through
+  canonical Boris, rounding only each final half-kick velocity. Intermediate
+  gathers can lie outside the grid type’s range when the completed velocity is
+  finite. This changes ordinary velocity bits and requires model checkpoint
+  schema 2 with an explicit force policy; schema 1 is rejected. Static IEEE-valued
+  gathers and archive container schema 4 retain their contracts. GitHub
+  runtime/compiler/format and complete-step resource acceptance remain pending.
 
 ### Fixed
 
@@ -348,7 +353,8 @@ records scoped verification and remaining exact-revision acceptance gates.
   using the same CIC overlap stencil as endpoint impulse and the existing
   stored-dx Maxwell metric. It rounds the complete exact expression once,
   preserves read-only inputs and rejects nonfinite rounded voltage. Force
-  selection, coupled stepping and wall ledgers remain separate stages.
+  selection, coupled stepping and wall ledgers belong to separate coupled
+  model contracts.
 
 - Constant hyperresistive `TransportElectrons` (CAP-011 S2) for serial periodic
   CPU Float32/64 grids in one to three dimensions. Each stage pairs
@@ -408,8 +414,8 @@ records scoped verification and remaining exact-revision acceptance gates.
   All populations are validated before scratch writes and output is published
   only after complete native/exact evaluation. Broad collections and strided
   storage remain supported. Coupled force, reflection, transverse current,
-  wall ledgers, restart and GPU/MPI remain open; see
-  `docs/BOUNDED_PARTICLE_COUPLING_PLAN.md`.
+  wall ledgers and restart use separate source models; GPU/MPI integration
+  remains open. See the [coupled contract](docs/BOUNDED_PARTICLE_COUPLING_PLAN.md).
 
 - `CollisionalHybridStepper(inner, species; dt, rng, coulomb_log, epsilon0,
   weight_to_number, u_floor)` composes `HybridStepper` with cell-local
