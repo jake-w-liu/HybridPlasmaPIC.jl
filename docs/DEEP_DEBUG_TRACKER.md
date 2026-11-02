@@ -58,6 +58,17 @@ rewritten as normwise bounds.
 
 ## Current progress
 
+The next source wave has disjoint owners: complete periodic curvilinear hybrid
+and synchronous implicit EM contracts are approved and implementation is
+starting from `cd78339`; a third worker derives the actual static composite ES
+field/coupling contract before production edits. Root reviewed canonical owners,
+full physical/phase/IO contracts and primary method references. The curvilinear
+contract explicitly rejects differentiated Ohm source-risk events; implicit EM
+retains the current-correction work defect rather than claiming exact energy
+conservation. No new runtime or completion milestone follows from approval.
+The [workflow](IMPLEMENTATION_WORKFLOW.md) records the precise owned paths and
+broader geometry, conservative-method and adaptive-hierarchy work still open.
+
 The separate bounded `OpenHallHybrid` core and complete persistence are now
 source-implemented and reviewed together: SBP-volume CIC, nonlinear full-Hall
 induction with explicit SAT/projection work, bounded paired RK4 trials,

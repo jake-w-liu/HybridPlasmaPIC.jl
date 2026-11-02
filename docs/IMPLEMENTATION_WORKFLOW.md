@@ -27,63 +27,90 @@ file ownership and handoffs.
    implementation to `main` and checks its exact-revision CI. A failed candidate
    stays unaccepted; a billing exception requires actual GitHub evidence.
 
-## Current assignments
+## Current source candidates
 
-| Track | Worker | Complete deliverable | Current stage | Dependency |
-| --- | --- | --- | --- | --- |
-| Hall A | `cpu_model_factor_admission` | `OpenHallHybrid` core, mixed CIC, two-face sources/IDs/bounded RNG, projected field controller, exchange/energy diagnostics and guide | Complete source frozen and read; root integration/remote essentials prepared | Actual v5 source/report/commit interface and mixed operators |
-| Hall B | `yee_longitudinal_coupled_implementation` | Complete Hall physical/source/RNG checkpoint, archive, restore and guide | Revised complete IO frozen and read; root integrated against final A v5 | Actual A state/configuration/source/report/commit hooks |
-| Gyrokinetics | Root integration of `self_consistent_gyrokinetic_design` handoff | `GyrocentreSet`, self-consistent full-f slab field/distribution/RK4, diagnostics, complete checkpoint/archive and guide | Complete bounded source/callers reviewed; integrated essentials prepared for GitHub | Registered SpectralOperators 0.1.8; runtime/scientific/resource acceptance remains open |
-| Curvilinear next slice | `self_consistent_gyrokinetic_design` | A complete geometry/coupling/field/phase/persistence contract before production edits | Mapping actual owners and choosing bounded model | Coordinate/component/volume conventions and compatible operators; toroidal axis/walls remain explicit |
-| Implicit EM next slice | `yee_longitudinal_coupled_implementation` | A complete joint collection/field residual, nonlinear solve and physical continuation contract | Reading canonical current correction, Boris, Maxwell and nonlinear owners | EM continuity/work residual review; Hall persistence amendments take priority |
-| Static AMR next slice | `cpu_model_factor_admission` | A real static composite ES hierarchy/field/coupling/phase/persistence contract | Reading existing hierarchy, cloud and field owners; no production edits | Global field/interface work and particle crossing/self-force contract before dynamic refinement |
-| Integration and CI | Root | Compose shared registrations/docs, source review, dependency publication, commits/pushes and exact-revision CI closure | Active | Complete candidate handoffs and actual remote results |
+| Family | Candidate | Source stage | Remote acceptance |
+| --- | --- | --- | --- |
+| Self-consistent full-f slab gyrokinetics | `08e1bf2`, branch `implement/slab-gyrokinetic-20261102` | Complete core, coupling, diagnostics and physical checkpoint/archive reviewed and integrated | [Full CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41446645551) and [essentials](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41446663047) submitted; no accepted result yet |
+| Synchronous open Hall numerical reservoirs | `cd78339`, branch `implement/open-hall-hybrid-20261102` | Complete Hall A/B source composed, including last/cumulative source records, full RNG, diagnostics and physical restore | [Full CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41448552638) and [essentials](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41448552969) submitted; no accepted result yet |
 
-Hall and gyrokinetic implementations start from published `531f5ba` in separate
-worktrees. Current repair candidates and historical primary work remain isolated.
-No unfinished family is represented as runtime accepted.
-Hall A/B are composed above the slab candidate `08e1bf2`, retaining exact frozen
-author receipts and legacy inverses. The slab integration candidate builds on
-the separate `bb7da93` correctness
-candidate; neither candidate has replaced `main`. The next three contracts do not
-authorize edits to current-family files or shared registrations.
+Hall `cd78339` contains slab `08e1bf2` and correctness candidate `bb7da93`.
+Main remains `531f5ba`; none of those candidates is runtime accepted. Frozen
+author worktrees remain intact. Root owns their integration and any subsequent
+repairs; new workers do not edit those family files.
+
+## Active assignments
+
+| Track | Worker | Complete deliverable | Current stage |
+| --- | --- | --- | --- |
+| Periodic curvilinear hybrid | `self_consistent_gyrokinetic_design` | `PeriodicShearGrid` and `ShearedPeriodicHybridPIC`, physical field/component transforms, collective kinetic-ion/field RK4, diagnostics, quiet loader and full physical persistence | Amended complete contract reviewed and approved; implementation starting from `cd78339` |
+| Implicit electromagnetic PIC | `yee_longitudinal_coupled_implementation` | `ImplicitEMPICStepper`, joint velocity/E/B residual, canonical continuity current, shared bounded nonlinear solver, signed work diagnostics and full physical persistence | Complete contract reviewed and approved; implementation starting from `cd78339` |
+| Static composite-grid electrostatic PIC | `cpu_model_factor_admission` | A real static hierarchy, one composite field solve, compatible finite-cloud coupling, particle crossings, diagnostics and full physical persistence | Actual field/coupling/storage contract in preparation; production edits await review |
+| Integration and CI | Root | Shared registrations/docs, canonical source review, dependency publication, commits/pushes and exact-revision CI closure | Active alongside all three source tracks |
+
+The curvilinear contract keeps logical positions and Cartesian velocities,
+primary contravariant magnetic flux and a compatible covariant electric curl.
+Its canonical Ohm source-risk flag must be false before differentiation; the
+continuous Lorentz rate retains original q/m and complete field factors. This
+periodic nonorthogonal map does not supply toroidal axis, wall, equilibrium or
+variable-J support. Those remain explicit CAP-006A work.
+
+The implicit EM contract solves velocities and both fields together and
+recomputes charge/current inside every residual and Jv probe. It exposes actual
+Gauss/divB/continuity defects and four signed work terms, including the spatial
+work of current correction. It does not inherit an exact energy theorem from a
+different current/gather scheme. The first scope is nonrelativistic all-mobile
+CPU CIC, exact-neutral collections and odd periodic grids; broader conservative,
+relativistic, source and backend families remain open.
 
 ## Exclusive file ownership
 
-**Hall A** owns these existing canonical seams:
+**Curvilinear** owns only these seven new paths:
 
-- `src/coupling/shapes.jl`
-- `src/coupling/moments.jl`
-- `src/coupling/gather.jl`
-- `src/fields/mixed_shock_operators.jl`
-- `src/electrons/isothermal_energy.jl`
-- `src/boundaries/particle_reservoir.jl`
+- `src/meshes/periodic_shear_mesh.jl`
+- `src/fields/sheared_hybrid_operators.jl`
+- `src/coupling/sheared_hybrid_coupling.jl`
+- `src/models/sheared_periodic_hybrid_pic.jl`
+- `src/initial_conditions/sheared_hybrid.jl`
+- `src/io/sheared_hybrid_checkpoint.jl`
+- `docs/SHEARED_PERIODIC_HYBRID.md`
 
-Hall A also owns new `src/models/open_hall_hybrid.jl`,
-`src/coupling/mixed_cic.jl`, `src/boundaries/open_hall_reservoir.jl`,
-`src/diagnostics/open_hall_energy.jl` and `docs/OPEN_HALL_HYBRID.md`.
+It reuses the existing complete periodic gather, exact contribution iterator
+and node-index policy from the Hall candidate without editing those owners.
 
-**Hall B** owns only new `src/io/open_hall_checkpoint.jl` and
-`docs/OPEN_HALL_HYBRID_CHECKPOINT.md`.
+**Implicit EM** owns three existing canonical seams:
+`src/models/full_pic.jl`, `src/models/empic_collection.jl` and
+`src/integrators/implicit_hybrid.jl`. It also owns only these five new paths:
 
-**Gyrokinetics** owns only new `src/coupling/tsc_derivatives.jl`,
-`src/models/slab_gyrokinetic_pic.jl`, `src/io/slab_gyrokinetic_checkpoint.jl`
-and `docs/SLAB_GYROKINETIC.md`. Its TSC derivative reuses the existing stencil
-base/values; it does not edit Hall A's shape file or duplicate TSC weights.
+- `src/integrators/implicit_em.jl`
+- `src/integrators/implicit_pic_nonlinear.jl`
+- `src/diagnostics/implicit_em.jl`
+- `src/io/implicit_em_checkpoint.jl`
+- `docs/IMPLICIT_EM.md`
+
+Existing-owner extraction must recover each complete old file by literal
+expansion, preserving arithmetic, defaults, validation and try/finally order.
+The nonlinear driver serves these two actual implicit families; it is not a
+new public solver framework.
+
+**Static AMR** currently owns its contract and source map. Production paths
+will be assigned after the full composite field/coupling contract is reviewed;
+no existing production owner is assigned to that worker yet.
 
 **Root** owns `src/HybridPlasmaPIC.jl`, shared checkpoint/archive registrations,
 `Project.toml`, workflows, README, CHANGELOG, global trackers/documentation map,
-and current CI repair/observation files. Workers supply requested registration
-hunks rather than editing these files. SpectralOperators dependency fixes and
-release/registration also remain root-owned.
+and current CI repair/observation files. Workers supply registration hunks.
+SpectralOperators fixes and release/registration remain root-owned. Every path
+has one active writer, including across worktrees.
 
 ## Interface and handoff
 
-Hall A freezes actual configuration/binding/storage, source/phase/report,
-replacement/reserve and final commit hooks for B. B saves the full physical
-state and complete owned RNG, validates the original incoming graph before
-copying, prepares replacements privately, and restores stored state verbatim.
-A seed or reinitialization is not a replacement for continuation state.
+The completed Hall split demonstrates the handoff boundary: its actual
+configuration/binding/storage, source/phase/report, replacement/reserve and final
+commit hooks were frozen for the independent IO owner. Every new family must
+save its full physical phase, validate incoming original roles before detachment,
+prepare replacements privately and restore stored state verbatim. A seed or
+reinitialization is not a replacement for stochastic continuation state.
 
 Each worker hands root the complete patch, owned path list, model guide,
 source/caller review and any unresolved issues. Existing-owner extractions must
@@ -100,9 +127,9 @@ model contracts and all remaining combinations.
 
 | Wave | Parallel work | Required boundary |
 | --- | --- | --- |
-| Current | Complete Hall A/B; self-consistent slab gyrokinetics; known CI/dependency repairs | Complete physical lifecycle and persistence; no shared-file writers |
-| Next | First resident CUDA hybrid; curvilinear coupled solver; implicit EM model and residual | CUDA needs reviewed shared scalar seams and real device acceptance; geometry and EM need their own field/coupling/phase contracts |
-| Following | Static composite-grid ES hierarchy then dynamic AMR; broader electron transport/anisotropy/inertia; broader open EM particle/source boundaries | Composite field/particle ownership, term-specific energy balances and boundary charge/current accounting |
+| Current | Curvilinear coupled hybrid; implicit EM; static composite ES contract; known CI/dependency repairs | Complete physical lifecycle and persistence; no shared-file writers |
+| Next | First resident CUDA hybrid; finish static composite ES source after contract review; broader geometry and implicit-method slices | CUDA needs reviewed shared scalar seams and real device acceptance; every new method keeps its own field/coupling/phase contract |
+| Following | Dynamic AMR and multidimensional hierarchy; broader electron transport/anisotropy/inertia; broader open EM particle/source boundaries | Composite field/particle ownership, term-specific energy balances and boundary charge/current accounting |
 | Composition | Extend accepted families across species, collisions/sources, schedules, MPI/device storage and restart | Explicit supported-combination matrix; no automatic claim from component availability |
 | Continuous | Independent physical validation, latest Julia, failure/restart checks and measured optimization | GitHub or suitable remote hardware; retain failed evidence and fixed acceptance limits |
 
