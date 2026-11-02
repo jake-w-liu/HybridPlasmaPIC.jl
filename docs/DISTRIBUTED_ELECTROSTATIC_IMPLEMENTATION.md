@@ -109,4 +109,7 @@ the stored common velocity half level, with the reported offset, and carries no
 exact discrete conservation guarantee. Three additional scalar reductions have
 unmeasured cost. No field or population is gathered.
 The source provides no changed-layout restart,
-collisions, subcycling, hybrid/EM composition, GPU path or measured cluster scaling.
+collisions, subcycling, hybrid composition, GPU path or measured cluster scaling.
+A separate [distributed EM source](DISTRIBUTED_EMPIC_IMPLEMENTATION.md) shares this
+transport with its canonical mover/current/field owners; its runtime acceptance
+and complete checkpoint integration remain open.

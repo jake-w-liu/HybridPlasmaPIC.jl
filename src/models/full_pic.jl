@@ -2367,6 +2367,39 @@ function _deposit_current_at_midpoints!(
     return es.Jraw
 end
 
+# Current projection and all-zero effective-wavevector policy share one owner.
+function _empic_current_mode!(buffers, k, delta, dt::T, I, dc) where {T}
+    D = length(k)
+    if !_spectral_mode_is_null(k)
+        original = ntuple(d -> buffers[d][I], Val(D))
+        corrected = _spectral_project_mode(original, k, -delta[I], dt)
+        for d = 1:D
+            buffers[d][I] = corrected[d]
+        end
+    elseif I != dc
+        # All-zero k covers the true DC mode AND every pure DC/Nyquist index
+        # combination (kvec zeros the per-axis Nyquist entry). Only DC is
+        # physical (net current, kept from the raw deposit). The Nyquist
+        # combinations are structurally outside the spectral operators'
+        # range: every derivative vanishes there, so raw deposition noise
+        # would integrate into E as an undamped random walk (a growing
+        # grid-Nyquist sawtooth felt by particles through the gather).
+        # Zero ALL current components there, exactly as _esirkepov_Jx!
+        # (longitudinal) and _deposit_Jy_at_midpoints! (transverse) do in
+        # EMPIC1D. Mixed modes (e.g. Nyquist in x with k_y ≠ 0)
+        # are deliberately left alone: the axis-Nyquist J component there
+        # is transverse to the effective wavevector — raw, like every
+        # transverse current — and the curl coupling on the remaining axes
+        # gives E a restoring term, so it stays bounded (verified in 2D:
+        # no secular (Nyq_x,k_y) growth over 500 steps, unlike the
+        # pre-fix pure-Nyquist modes, which grew without bound).
+        for c = 1:3
+            buffers[c][I] = zero(Complex{T})
+        end
+    end
+    return nothing
+end
+
 function _correct_current_continuity!(es::EMPIC{D,T}, dt::T) where {D,T}
     g = es.g
     buffers = (g.cbuf, g.tbuf, g.abuf)
@@ -2382,39 +2415,39 @@ function _correct_current_continuity!(es::EMPIC{D,T}, dt::T) where {D,T}
     dc = first(CartesianIndices(delta))          # the true k=0 mode (all indices 1)
     @inbounds for I in CartesianIndices(delta)
         k = _spectral_wavevector(g, I)
-        if !_spectral_mode_is_null(k)
-            original = ntuple(d -> buffers[d][I], Val(D))
-            corrected = _spectral_project_mode(original, k, -delta[I], dt)
-            for d = 1:D
-                buffers[d][I] = corrected[d]
-            end
-        elseif I != dc
-            # All-zero k covers the true DC mode AND every pure DC/Nyquist index
-            # combination (kvec zeros the per-axis Nyquist entry). Only DC is
-            # physical (net current, kept from the raw deposit). The Nyquist
-            # combinations are structurally outside the spectral operators'
-            # range: every derivative vanishes there, so raw deposition noise
-            # would integrate into E as an undamped random walk (a growing
-            # grid-Nyquist sawtooth felt by particles through the gather).
-            # Zero ALL current components there, exactly as _esirkepov_Jx!
-            # (longitudinal) and _deposit_Jy_at_midpoints! (transverse) do in
-            # EMPIC1D. Mixed modes (e.g. Nyquist in x with k_y ≠ 0)
-            # are deliberately left alone: the axis-Nyquist J component there
-            # is transverse to the effective wavevector — raw, like every
-            # transverse current — and the curl coupling on the remaining axes
-            # gives E a restoring term, so it stays bounded (verified in 2D:
-            # no secular (Nyq_x,k_y) growth over 500 steps, unlike the
-            # pre-fix pure-Nyquist modes, which grew without bound).
-            for c = 1:3
-                buffers[c][I] = zero(Complex{T})
-            end
-        end
+        _empic_current_mode!(buffers, k, delta, dt, I, dc)
     end
     for c = 1:3
         g.iplan * buffers[c]
         es.J[c] .= real.(buffers[c])
     end
     return es.J
+end
+
+@inline function _push_empic_velocities!(
+    s::ParticleSet{D,T},
+    Ep::NTuple{3,Vector{T}},
+    Bp::NTuple{3,Vector{T}},
+    dt::T,
+    relativistic::Bool,
+    speed::T,
+) where {D,T}
+    factor = _validated_boris_factor(s)
+    qm = _boris_native_factor(factor)
+    h = qm * dt / 2
+    scales = _boris_batch_scales(s.v, Ep, Bp, h, eachindex(s.weight))
+    if relativistic
+        certified =
+            _euler_batch_storage_safe(s.v, s.v, Ep, Bp) &&
+            _boris_rel_batch_admission(h, factor, dt, speed, scales...)
+        certified ? _empic_kicks!(s, Ep, Bp, factor, dt, speed, Val(true), Val(false)) :
+        _empic_kicks!(s, Ep, Bp, factor, dt, speed, Val(true), Val(true))
+    else
+        certified = first(_boris_batch_admission(s, h, factor, dt, scales...))
+        certified ? _empic_kicks!(s, Ep, Bp, factor, dt, speed, Val(false), Val(false)) :
+        _empic_kicks!(s, Ep, Bp, factor, dt, speed, Val(false), Val(true))
+    end
+    return s
 end
 
 @inline function _push_velocities!(
@@ -2424,22 +2457,7 @@ end
     Bp::NTuple{3,Vector{T}},
     dt::T,
 ) where {D,T}
-    factor = _validated_boris_factor(s)
-    qm = _boris_native_factor(factor)
-    h = qm * dt / 2
-    scales = _boris_batch_scales(s.v, Ep, Bp, h, eachindex(s.weight))
-    if es.relativistic
-        certified =
-            _euler_batch_storage_safe(s.v, s.v, Ep, Bp) &&
-            _boris_rel_batch_admission(h, factor, dt, es.c, scales...)
-        certified ? _empic_kicks!(s, Ep, Bp, factor, dt, es.c, Val(true), Val(false)) :
-        _empic_kicks!(s, Ep, Bp, factor, dt, es.c, Val(true), Val(true))
-    else
-        certified = first(_boris_batch_admission(s, h, factor, dt, scales...))
-        certified ? _empic_kicks!(s, Ep, Bp, factor, dt, es.c, Val(false), Val(false)) :
-        _empic_kicks!(s, Ep, Bp, factor, dt, es.c, Val(false), Val(true))
-    end
-    return s
+    return _push_empic_velocities!(s, Ep, Bp, dt, es.relativistic, es.c)
 end
 
 @inline function _drift_record_mid!(
@@ -2543,9 +2561,15 @@ function _empic_update_fields!(es::EMPIC{D,T}, g, c2, electric_parts, dt_previou
         _em_magnetic_update!(es.B[c], es.B[c], es.curlE[c], parts, dt_previous, dt)
     end
     magnetic_parts = _em_curl_parts!(es.curlB, es.B, g)
+    _empic_electric_update!(es.E, es.curlB, es.J, es.c, dt, c2, magnetic_parts)
+    return es
+end
+
+# Complete electric rows shared by serial and actual-pencil EM states.
+function _empic_electric_update!(E, curlB, J, speed, dt::T, c2, magnetic_parts) where {T}
     exact_coefficients = nothing
-    @inbounds for c = 1:3, I in eachindex(es.E[c])
-        old_E, derivative, current = es.E[c][I], es.curlB[c][I], es.J[c][I]
+    @inbounds for c = 1:3, I in eachindex(E[c])
+        old_E, derivative, current = E[c][I], curlB[c][I], J[c][I]
         magnetic = c2 * derivative
         forcing = magnetic - current
         increment = dt * forcing
@@ -2558,7 +2582,7 @@ function _empic_update_fields!(es::EMPIC{D,T}, g, c2, electric_parts, dt_previou
            (magnetic_parts !== nothing || isfinite(derivative)) &&
            isfinite(current)
             if exact_coefficients === nothing
-                exact_coefficients = _em_exact_update_coefficients(es.c, dt)
+                exact_coefficients = _em_exact_update_coefficients(speed, dt)
             end
             exact_derivative =
                 magnetic_parts === nothing ? _exact_rational(derivative) :
@@ -2566,9 +2590,9 @@ function _empic_update_fields!(es::EMPIC{D,T}, g, c2, electric_parts, dt_previou
             candidate =
                 _em_exact_electric_update(old_E, exact_derivative, current, exact_coefficients)
         end
-        es.E[c][I] = candidate
+        E[c][I] = candidate
     end
-    return es
+    return E
 end
 
 function _substep_empic!(

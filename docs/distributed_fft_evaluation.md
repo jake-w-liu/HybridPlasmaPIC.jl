@@ -43,7 +43,9 @@ The [distributed ES collection](DISTRIBUTED_ELECTROSTATIC_IMPLEMENTATION.md) now
 adds actual-pencil ownership, complete CIC transport, migration, canonical
 leapfrog and collective charge/energy/momentum diagnostics.
 [Matching-layout ES checkpoint](DISTRIBUTED_ELECTROSTATIC_CHECKPOINT.md) is also
-source-implemented; broader hybrid/EM composition remains open.
+source-implemented. A separate [distributed EM core](DISTRIBUTED_EMPIC_IMPLEMENTATION.md)
+now composes canonical CIC/Boris/current/field owners on actual pencils; complete
+EM checkpoint integration and broader hybrid/EM families remain open.
 Runtime/compiler/resource acceptance is deferred during the implementation-first
 pass.
 
@@ -90,7 +92,9 @@ Primary source:
    forward/inverse wrappers and rank-owned field operators are implemented.**
    A [vacuum Maxwell source implementation](DISTRIBUTED_MAXWELL_IMPLEMENTATION.md)
    and [coupled ES source](DISTRIBUTED_ELECTROSTATIC_IMPLEMENTATION.md) now compose
-   them; runtime acceptance and broader hybrid/EM evolution remain open. Shock configurations with nonperiodic shock-normal physics use
+   them; a [coupled EM source](DISTRIBUTED_EMPIC_IMPLEMENTATION.md) is also available.
+   Runtime acceptance, EM checkpoint integration and broader hybrid/EM families
+   remain open. Shock configurations with nonperiodic shock-normal physics use
    slab/local finite-difference logic until a mixed distributed operator is
    designed and tested.
 4. Validate the extension with real `mpiexec` tests:

@@ -26,18 +26,6 @@ function _pencil_es_mode(::Type{T}) where {T}
     return nothing
 end
 
-function _pencil_es_population(ps::HybridPlasmaPIC.ParticleSet)
-    HybridPlasmaPIC._check_particle_storage_axes(ps)
-    HybridPlasmaPIC._require_particle_ordinary_stores(ps, "distributed electrostatic PIC")
-    HybridPlasmaPIC._particle_components_mightalias(ps) &&
-        throw(ArgumentError("distributed electrostatic particle components must be independent"))
-    HybridPlasmaPIC._validated_boris_factor(ps)
-    HybridPlasmaPIC._validate_particle_positions(ps)
-    HybridPlasmaPIC._require_finite_particle_velocities(ps, "distributed electrostatic PIC")
-    all(w -> isfinite(w) && HybridPlasmaPIC._stored_nonnegative(w), ps.weight) ||
-        throw(ArgumentError("distributed electrostatic weights must be finite and nonnegative"))
-    return nothing
-end
 
 function _pencil_es_storage(model)
     model.initialized !== model.primed && model.last_dt !== model.time ||
@@ -89,31 +77,13 @@ function _pencil_es_species(model::DistributedElectrostaticPIC{T,G,R,P}, species
             ps === model.owners[s] && (!factors || isequal((ps.q, ps.m), model._species_scalars[s])) ||
                 throw(ArgumentError("distributed electrostatic owners or factors changed; reinitialize or refresh"))
         end
-        values && _pencil_es_population(ps)
+        values && _pencil_pic_population(ps)
     end
     return nothing
 end
 
-function _pencil_es_phase_values(initialized::Bool, primed::Bool, last_dt::T, time::T, step::Int) where {T}
-    isfinite(time) && time >= zero(time) && step >= 0 ||
-        throw(ArgumentError("distributed electrostatic clock is invalid"))
-    isfinite(last_dt) && (primed ? HybridPlasmaPIC._stored_positive(last_dt) :
-                         HybridPlasmaPIC._particle_stored_zero(last_dt)) ||
-        throw(ArgumentError("distributed electrostatic last_dt must be positive exactly when primed"))
-    primed && !initialized &&
-        throw(ArgumentError("a primed distributed electrostatic model must be initialized"))
-    if step == 0
-        HybridPlasmaPIC._particle_stored_zero(time) && !primed ||
-            throw(ArgumentError("an unstepped distributed electrostatic model must have zero time and unprimed velocity"))
-    else
-        time > zero(time) && primed ||
-            throw(ArgumentError("a stepped distributed electrostatic model must have positive time and primed velocity"))
-    end
-    HybridPlasmaPIC._require_resolved_dt("distributed electrostatic history", last_dt)
-    return nothing
-end
 
-_pencil_es_phase(model) = _pencil_es_phase_values(
+_pencil_es_phase(model) = _pencil_pic_phase_values(
     model.initialized[], model.primed[], model.last_dt[], model.time[], model.step[],
 )
 
@@ -193,7 +163,7 @@ function HybridPlasmaPIC.distributed_electrostatic_pic(
         Base.require_one_based_indexing(species)
         all(ps -> ps isa _PencilParticle{T}, species) ||
             throw(ArgumentError("distributed electrostatic PIC requires Vector-backed particle storage"))
-        foreach(_pencil_es_population, species)
+        foreach(_pencil_pic_population, species)
         neutrality in (:require, :neutralize) ||
             throw(ArgumentError("neutrality must be :require or :neutralize"))
         grid_dc === :project || throw(ArgumentError("grid_dc must explicitly be :project"))
@@ -219,30 +189,10 @@ function HybridPlasmaPIC.distributed_electrostatic_pic(
     end
 end
 
-function _pencil_es_charges(model, species, context)
-    comm = model.g.fft.comm
-    local_charges = HybridPlasmaPIC._mpi_collective_stage(comm, context, "physical charge preparation") do
-        HybridPlasmaPIC._pic_collection_charges(model.g, zero(model.background_charge), species)
-    end
-    particle = _pencil_exact_scalar_sum(comm, context, "particle charge serialization", "particle charge accumulation") do
-        local_charges.particle
-    end
-    absolute = _pencil_exact_scalar_sum(comm, context, "absolute charge serialization", "absolute charge accumulation") do
-        local_charges.scale
-    end
-    return HybridPlasmaPIC._mpi_collective_stage(comm, context, "physical neutrality") do
-        background = HybridPlasmaPIC._exact_rational(model.background_charge) *
-                     prod(HybridPlasmaPIC._exact_rational, model.g.L)
-        charges = (particle = particle, background = background, net = particle + background,
-                   scale = absolute + abs(background))
-        HybridPlasmaPIC._espic_check_neutrality(model, charges)
-        charges
-    end
-end
 
 function _pencil_es_fields!(model, species, context)
-    _pencil_es_charges(model, species, context)
-    _pencil_deposit_charge!(model, species, context)
+    _pencil_pic_charges(model, species, context)
+    _pencil_deposit_cic!(model._candidate_rho, species, model.g, model._layout, model.background_charge, 0, context)
     # Explicit stored policy: do not weaken the standalone strict :require API.
     HybridPlasmaPIC.distributed_poisson_field!(model._candidate_E, model._candidate_rho, model.g; neutrality = :neutralize)
     return nothing
@@ -278,7 +228,7 @@ end
 function _pencil_es_final(model::DistributedElectrostaticPIC{T}, species, prepared, context) where {T}
     return HybridPlasmaPIC._mpi_collective_stage(model.g.fft.comm, context, "publication preparation") do
         length(prepared) == length(species) || throw(ArgumentError("incoming species count changed"))
-        foreach(_pencil_es_population, prepared)
+        foreach(_pencil_pic_population, prepared)
         _pencil_owned_particles(prepared, model.g, model._layout)
         _finite_vector_magnitude(model._candidate_E)
         _finite_magnitude(model._candidate_rho)
@@ -346,7 +296,7 @@ function HybridPlasmaPIC.step_espic!(model::DistributedElectrostaticPIC{T}, spec
     end
     HybridPlasmaPIC._particle_stored_zero(h) && return model
     staged = _pencil_es_stages!(model, species, context)
-    gathers = _pencil_gather(model, staged, context)
+    gathers = _pencil_gather(model.E, staged, model.g, model._layout, context)
     HybridPlasmaPIC._mpi_collective_stage(model.g.fft.comm, context, "canonical particle push") do
         for (ps, field) in zip(staged, gathers)
             HybridPlasmaPIC._espic_push!(ps, field, model.g, h, model.primed[], model.last_dt[])
@@ -376,7 +326,7 @@ function HybridPlasmaPIC.electrostatic_diagnostics(model::DistributedElectrostat
     HybridPlasmaPIC._mpi_collective_stage(model.g.fft.comm, context, "particle ownership") do
         _pencil_owned_particles(species, model.g, model._layout)
     end
-    charges = _pencil_es_charges(model, species, context)
+    charges = _pencil_pic_charges(model, species, context)
     grid_sum = _pencil_exact_scalar_sum(model.g.fft.comm, context, "grid charge preparation", "grid charge accumulation") do
         HybridPlasmaPIC._exact_float_sum(parent(model.rho))
     end

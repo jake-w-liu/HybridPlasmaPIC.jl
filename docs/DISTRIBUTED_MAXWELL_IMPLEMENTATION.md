@@ -5,8 +5,10 @@ Maxwell evolution on the existing periodic 3D CPU Float32/Float64 physical
 pencils. Import `PencilArrays` and `PencilFFTs` alongside HybridPlasmaPIC to load
 the optional extension. It supplies a field-only CAP-003 prerequisite. The separate
 [distributed ES model](DISTRIBUTED_ELECTROSTATIC_IMPLEMENTATION.md) now supplies
-particle ownership, complete CIC transport and electrostatic evolution; coupled
-hybrid/EM evolution and runtime acceptance remain open.
+particle ownership, complete CIC transport and electrostatic evolution. The separate coupled
+[EM source](DISTRIBUTED_EMPIC_IMPLEMENTATION.md) now supplies canonical CIC/Boris,
+corrected midpoint current and carried magnetic/velocity phase. Broader hybrid/EM
+families and runtime acceptance remain open.
 
 The current implementation-first pass adds no tests or runtime execution.
 Numerical/convergence, actual-rank failures/liveness, compiler/JET, formatting/CI
@@ -101,6 +103,6 @@ source-implement checksummed per-rank generations and detached collective restor
 through `save_mpi_checkpoint` / `load_mpi_checkpoint!`. Plans and communicators
 are not serialized. Restart/liveness acceptance is deferred; no archive adapter
 is supplied.
-Changed-layout restart, coupled particles, mixed/nonperiodic boundaries, backends
+Changed-layout restart, broader coupled families, mixed/nonperiodic boundaries, backends
 and multi-node scaling remain separate CAP-003 work. This source implementation
 does not complete that capability.

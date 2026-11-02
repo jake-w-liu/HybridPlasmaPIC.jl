@@ -3,6 +3,59 @@ const _PencilParticle{T} = HybridPlasmaPIC._ElectrostaticHostParticle{3,T}
 const _PencilNode = NTuple{3,Int}
 const _PencilCharge = Rational{BigInt}
 
+function _pencil_pic_population(ps::HybridPlasmaPIC.ParticleSet)
+    HybridPlasmaPIC._check_particle_storage_axes(ps)
+    HybridPlasmaPIC._require_particle_ordinary_stores(ps, "distributed PIC")
+    HybridPlasmaPIC._particle_components_mightalias(ps) &&
+        throw(ArgumentError("distributed PIC particle components must be independent"))
+    HybridPlasmaPIC._validated_boris_factor(ps)
+    HybridPlasmaPIC._validate_particle_positions(ps)
+    HybridPlasmaPIC._require_finite_particle_velocities(ps, "distributed PIC")
+    all(w -> isfinite(w) && HybridPlasmaPIC._stored_nonnegative(w), ps.weight) ||
+        throw(ArgumentError("distributed PIC weights must be finite and nonnegative"))
+    return nothing
+end
+
+function _pencil_pic_phase_values(initialized::Bool, primed::Bool, last_dt::T, time::T, step::Int) where {T}
+    isfinite(time) && time >= zero(time) && step >= 0 ||
+        throw(ArgumentError("distributed PIC clock is invalid"))
+    isfinite(last_dt) && (primed ? HybridPlasmaPIC._stored_positive(last_dt) :
+                         HybridPlasmaPIC._particle_stored_zero(last_dt)) ||
+        throw(ArgumentError("distributed PIC last_dt must be positive exactly when primed"))
+    primed && !initialized &&
+        throw(ArgumentError("a primed distributed PIC model must be initialized"))
+    if step == 0
+        HybridPlasmaPIC._particle_stored_zero(time) && !primed ||
+            throw(ArgumentError("an unstepped distributed PIC model must have zero time and unprimed velocity"))
+    else
+        time > zero(time) && primed ||
+            throw(ArgumentError("a stepped distributed PIC model must have positive time and primed velocity"))
+    end
+    HybridPlasmaPIC._require_resolved_dt("distributed PIC history", last_dt)
+    return nothing
+end
+
+function _pencil_pic_charges(model, species, context)
+    comm = model.g.fft.comm
+    local_charges = HybridPlasmaPIC._mpi_collective_stage(comm, context, "physical charge preparation") do
+        HybridPlasmaPIC._pic_collection_charges(model.g, zero(model.background_charge), species)
+    end
+    particle = _pencil_exact_scalar_sum(comm, context, "particle charge serialization", "particle charge accumulation") do
+        local_charges.particle
+    end
+    absolute = _pencil_exact_scalar_sum(comm, context, "absolute charge serialization", "absolute charge accumulation") do
+        local_charges.scale
+    end
+    return HybridPlasmaPIC._mpi_collective_stage(comm, context, "physical neutrality") do
+        background = HybridPlasmaPIC._exact_rational(model.background_charge) *
+                     prod(HybridPlasmaPIC._exact_rational, model.g.L)
+        charges = (particle = particle, background = background, net = particle + background,
+                   scale = absolute + abs(background))
+        HybridPlasmaPIC._espic_check_neutrality(model, charges)
+        charges
+    end
+end
+
 struct _PencilParticleLayout
     by_rank::Vector{NTuple{3,UnitRange{Int}}}
     rank::Int
@@ -174,19 +227,18 @@ function _pencil_migrate(species::Vector{P}, g, layout, context) where {P}
                 destination = prepared[s]
                 isequal((ps.q, ps.m), (destination.q, destination.m)) ||
                     throw(ArgumentError("incoming particle charge/mass differ from the species"))
-                _pencil_es_population(ps)
+                _pencil_pic_population(ps)
                 HybridPlasmaPIC.append_particles!(destination, ps)
             end
         end
-        foreach(_pencil_es_population, prepared)
+        foreach(_pencil_pic_population, prepared)
         _pencil_owned_particles(prepared, g, layout)
         prepared
     end
 end
 
-function _pencil_gather(model, species, context)
-    g, layout = model.g, model._layout
-    T = eltype(parent(model.rho))
+function _pencil_gather(components, species, g, layout, context)
+    T = eltype(parent(first(components)))
     requests, outgoing = HybridPlasmaPIC._mpi_collective_stage(g.fft.comm, context, "CIC request preparation") do
         sets = [Set{_PencilNode}() for _ in layout.by_rank]
         stamp = CartesianIndices((2, 2, 2))
@@ -203,7 +255,7 @@ function _pencil_gather(model, species, context)
     end
     chunks = HybridPlasmaPIC._mpi_alltoallv_bytes(outgoing, g.fft.comm)
     replies = HybridPlasmaPIC._mpi_collective_stage(g.fft.comm, context, "CIC field response preparation") do
-        fields = map(PencilArrays.global_view, model.E)
+        fields = map(PencilArrays.global_view, components)
         result = [UInt8[] for _ in layout.by_rank]
         for rank in eachindex(chunks)
             isempty(chunks[rank]) && continue
@@ -236,7 +288,7 @@ function _pencil_gather(model, species, context)
                 ghosts[node] = values
             end
         end
-        fields = map(PencilArrays.global_view, model.E)
+        fields = map(PencilArrays.global_view, components)
         stamp = CartesianIndices((2, 2, 2))
         gathers = NTuple{3,Vector{T}}[]
         field_at(node) = _pencil_contains(layout.by_rank[layout.rank], node) ?
@@ -248,7 +300,7 @@ function _pencil_gather(model, species, context)
                     field_at, _pencil_cic_stencil(ps, g, p), g.n, stamp, T,
                 )
                 all(isfinite, values) || throw(
-                    ArgumentError("distributed electrostatic gather exceeds the finite stored-field boundary"),
+                    ArgumentError("distributed PIC gather exceeds the finite stored-field boundary"),
                 )
                 for c = 1:3
                     output[c][p] = values[c]
@@ -262,25 +314,33 @@ end
 
 # Exact contributions cross ranks before division/rounding, so no partial
 # density or charge product needs to fit the working precision.
-function _pencil_deposit_charge!(model, species, context)
-    g, layout = model.g, model._layout
-    T = eltype(parent(model.rho))
-    sums, outgoing = HybridPlasmaPIC._mpi_collective_stage(g.fft.comm, context, "CIC charge preparation") do
-        exact = fill!(similar(model._candidate_rho, _PencilCharge), zero(_PencilCharge))
+function _pencil_deposit_cic!(out, species, g, layout, background, component::Int, context; midpoints = nothing)
+    T = eltype(parent(out))
+    sums, outgoing = HybridPlasmaPIC._mpi_collective_stage(g.fft.comm, context, "CIC moment preparation") do
+        0 <= component <= 3 || throw(ArgumentError("CIC moment component must be in 0:3"))
+        midpoints === nothing || length(midpoints) == length(species) ||
+            throw(ArgumentError("CIC midpoint rows must match species"))
+        exact = fill!(similar(out, _PencilCharge), zero(_PencilCharge))
         owned = PencilArrays.global_view(exact)
         packets = [Dict{_PencilNode,_PencilCharge}() for _ in layout.by_rank]
-        for ps in species
+        for (s, ps) in enumerate(species)
             charge = HybridPlasmaPIC._exact_rational(ps.q)
-            HybridPlasmaPIC._foreach_exact_moment_contribution(ps, (ps.weight,), g, HybridPlasmaPIC.CIC()) do node, weight
-                value = charge * weight
-                if !iszero(value)
-                    rank = _pencil_node_owner(layout, node)
-                    if rank == layout.rank
-                        owned[node...] += value
-                    else
-                        packets[rank][node] = get(packets[rank], node, zero(_PencilCharge)) + value
+            factors = component == 0 ? (ps.weight,) : (ps.weight, ps.v[component])
+            midpoints === nothing || HybridPlasmaPIC._swap_positions_with_midpoints!(ps, midpoints[s])
+            try
+                HybridPlasmaPIC._foreach_exact_moment_contribution(ps, factors, g, HybridPlasmaPIC.CIC()) do node, weight
+                    value = charge * weight
+                    if !iszero(value)
+                        rank = _pencil_node_owner(layout, node)
+                        if rank == layout.rank
+                            owned[node...] += value
+                        else
+                            packets[rank][node] = get(packets[rank], node, zero(_PencilCharge)) + value
+                        end
                     end
                 end
+            finally
+                midpoints === nothing || HybridPlasmaPIC._swap_positions_with_midpoints!(ps, midpoints[s])
             end
         end
         bytes = [isempty(packet) ? UInt8[] :
@@ -288,24 +348,23 @@ function _pencil_deposit_charge!(model, species, context)
         exact, bytes
     end
     chunks = HybridPlasmaPIC._mpi_alltoallv_bytes(outgoing, g.fft.comm)
-    return HybridPlasmaPIC._mpi_collective_stage(g.fft.comm, context, "CIC charge assembly and rounding") do
+    return HybridPlasmaPIC._mpi_collective_stage(g.fft.comm, context, "CIC moment assembly and rounding") do
         owned = PencilArrays.global_view(sums)
         for chunk in chunks
             isempty(chunk) && continue
             packet = HybridPlasmaPIC._deserialize_mpi_payload(Vector{Pair{_PencilNode,_PencilCharge}}, chunk)
             for (node, value) in packet
                 _pencil_contains(layout.by_rank[layout.rank], node) ||
-                    throw(ArgumentError("CIC charge contribution was delivered to a nonowner"))
+                    throw(ArgumentError("CIC moment contribution was delivered to a nonowner"))
                 owned[node...] += value
             end
         end
         Q = HybridPlasmaPIC._exact_rational
-        volume, background = prod(Q, g.dx), Q(model.background_charge)
-        out = parent(model._candidate_rho)
-        for I in eachindex(out, parent(sums))
-            value = HybridPlasmaPIC._from_exact(T, background + parent(sums)[I] / volume)
-            isfinite(value) || throw(ArgumentError("complete distributed charge density is not finite"))
-            out[I] = value
+        volume, offset = prod(Q, g.dx), Q(background)
+        for I in eachindex(parent(out), parent(sums))
+            value = HybridPlasmaPIC._from_exact(T, offset + parent(sums)[I] / volume)
+            isfinite(value) || throw(ArgumentError("complete distributed CIC moment is not finite"))
+            parent(out)[I] = value
         end
         nothing
     end

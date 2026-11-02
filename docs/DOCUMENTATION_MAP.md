@@ -66,7 +66,11 @@ rerun by this documentation-only audit.
   — static rank-owned electrostatic field, exact charge ledger and neutrality policy.
 - [docs/DISTRIBUTED_MAXWELL_IMPLEMENTATION.md](DISTRIBUTED_MAXWELL_IMPLEMENTATION.md)
   — rank-owned periodic vacuum field source, scalar/curl boundaries and deferred
-  runtime acceptance; coupled particles remain next work.
+  runtime acceptance; separate ES/EM coupled source models are available.
+- [docs/DISTRIBUTED_EMPIC_IMPLEMENTATION.md](DISTRIBUTED_EMPIC_IMPLEMENTATION.md)
+  — actual-pencil all-mobile nonrelativistic CIC/Boris, corrected current,
+  carried magnetic/velocity phase and scalar diagnostics; runtime acceptance
+  and complete checkpoint integration remain open.
 - [docs/DISTRIBUTED_MAXWELL_CHECKPOINT.md](DISTRIBUTED_MAXWELL_CHECKPOINT.md)
   — matching-layout physical-pencil restart, checksums, publication and restore scope.
 

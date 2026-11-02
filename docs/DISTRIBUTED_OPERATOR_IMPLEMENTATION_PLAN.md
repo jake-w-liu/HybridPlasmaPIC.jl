@@ -11,7 +11,10 @@ now composes these operators into synchronized field-only evolution. It retains
 the existing operator kernels, exact physical pencils and caller-owned lifecycle.
 Runtime/compiler/resources are deferred during the implementation-first pass;
 a [matching-layout physical-pencil checkpoint](DISTRIBUTED_MAXWELL_CHECKPOINT.md)
-is source-implemented. Coupled Maxwell particle evolution remains next work.
+is source-implemented. The separate [coupled EM core](DISTRIBUTED_EMPIC_IMPLEMENTATION.md)
+now supplies all-mobile nonrelativistic CIC/Boris, corrected current and carried
+magnetic/velocity phase; complete checkpoint integration and runtime acceptance
+remain open.
 
 The [static rank-owned Poisson field](DISTRIBUTED_POISSON_FIELD.md) also
 source-implements the canonical electrostatic mode over these transforms, with
@@ -145,9 +148,11 @@ uncontended window. Count global reductions, transposes and maximum rank-local
 storage explicitly. A single-machine MPI result does not establish multi-node
 scaling or GPU support. The first distributed ES source slice supplies CIC
 particle ownership, remote stencils and migration. CAP-003C/D still require broader
-hybrid/EM moments/evolution, collision composition, family-specific checkpoints
+hybrid/EM families, collision composition, complete EM checkpoint integration
 and actual-rank acceptance. Matching-layout ES checkpoint is source-implemented;
 its actual continuation/liveness/compiler/resource acceptance is deferred.
+A separate [distributed EM source](DISTRIBUTED_EMPIC_IMPLEMENTATION.md) now shares
+the transport and canonical current/mover/field expression owners.
 
 ## Progress
 

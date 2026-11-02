@@ -162,5 +162,6 @@ include("pencil_poisson.jl")
 include("pencil_particles.jl")
 include("pencil_electrostatic.jl")
 include("pencil_electrostatic_checkpoint.jl")
+include("pencil_empic.jl")
 
 end # module

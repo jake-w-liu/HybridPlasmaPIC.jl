@@ -43,7 +43,7 @@ function _pencil_es_checkpoint_common(record, model::DistributedElectrostaticPIC
     record.initialized === true && record.primed isa Bool &&
         record.last_dt isa T && record.time isa T && record.step isa Int ||
         throw(ArgumentError("Pencil electrostatic checkpoint requires typed initialized phase and clock"))
-    _pencil_es_phase_values(record.initialized, record.primed, record.last_dt, record.time, record.step)
+    _pencil_pic_phase_values(record.initialized, record.primed, record.last_dt, record.time, record.step)
     return nothing
 end
 
@@ -137,7 +137,7 @@ function HybridPlasmaPIC.save_mpi_checkpoint(dir, model::DistributedElectrostati
     HybridPlasmaPIC._mpi_collective_stage(comm, context, "save particle ownership") do
         _pencil_owned_particles(model.owners, model.g, model._layout)
     end
-    _pencil_es_charges(model, model.owners, context)
+    _pencil_pic_charges(model, model.owners, context)
     state = HybridPlasmaPIC._mpi_collective_stage(comm, context, "snapshot preparation") do
         merge(
             _pencil_es_checkpoint_config(model, nranks),
@@ -333,7 +333,7 @@ function HybridPlasmaPIC.load_mpi_checkpoint!(model::DistributedElectrostaticPIC
     end
     # This collective checks source values only. Destination clocks/phase and
     # particle values are still replaceable, and no field reconstruction occurs.
-    _pencil_es_charges(model, saved.particles, context)
+    _pencil_pic_charges(model, saved.particles, context)
     for (ps, replacement) in zip(model.owners, saved.particles)
         HybridPlasmaPIC._publish_particle_replacement!(ps, replacement)
         ps.q = replacement.q

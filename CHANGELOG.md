@@ -11,6 +11,16 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Added
 
+- Actual-pencil electromagnetic PIC adds all-mobile nonrelativistic CIC
+  collections with canonical original-factor Boris/prime/midpoint motion,
+  complete remote transport and migration, represented-mode current correction,
+  carried magnetic/velocity phase and staged eleven-field publication. Exact
+  global diagnostics separate physical/grid charge and phase. Shared serial
+  expressions and ES transport owners retain literal source inverses. No tests
+  added or run; runtime/collective/compiler/cost acceptance is deferred and
+  complete EM checkpoint is the next slice. See the
+  [EM source guide](docs/DISTRIBUTED_EMPIC_IMPLEMENTATION.md).
+
 - `YeePML` adds source-free causal directional ADE PML for serial D1–3 CPU
   Float32/64, separate target-lattice memories, original-duration midpoint KDK
   and signed exchange/field-defect ledgers. Distinct checkpoint/archive retains
