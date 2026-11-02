@@ -1244,8 +1244,12 @@ history. Supply the ion `ParticleSet` exactly when `mobile=true`; electron and
 ion storage must be independent. Particle workspaces are resized on restore;
 scratch values are recomputed during stepping. `EMPIC` collection schema 1 stores
 ordered arbitrary species, per-population mobility, neutrality/background policy
-and the common fast velocity phase alongside these fields. `EMPIC1D` collections
-use distinct schema 2 `:empic1d_collection` with required
+and the common fast velocity phase alongside these fields. Opted-in generic
+species schedules instead use schema2/policy1 with `species_stride` and
+`last_species_dt`; loading schema2 requires an opted-in destination. Fully
+validated generic schema1 without reserved schedule keys migrates only for an
+opted-in destination, using all-fast rows and saved last_sub_dt history.
+`EMPIC1D` collections use distinct schema 2 `:empic1d_collection` with required
 `polarization=:ex_ey_bz`, integer `schedule_policy=1`, ordered `species_stride`
 and `last_species_dt`, and physical `Ex/Ey/Bz/Jx/Jy/rho_n/rho_np1` fields.
 Only a fully validated specialized schema-1 payload without schedule fields

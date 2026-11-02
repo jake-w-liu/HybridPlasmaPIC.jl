@@ -4,14 +4,17 @@
 """
     EMPIC(g, species::AbstractVector; mobile=trues(length(species)),
           background_charge=0, neutrality=:require, charge_rtol=64eps(T),
-          c=5, shape=CIC(), n_sub=1, relativistic=false)
+          c=5, shape=CIC(), n_sub=1, species_stride=nothing, relativistic=false)
 
 Periodic CPU Float32/Float64 electromagnetic PIC with arbitrary finite species
-charges and positive masses. `mobile` selects populations that kick and drift at
-every Maxwell substep `dt/n_sub`. Fixed populations require zero stored velocity,
-deposit charge only and remain unchanged. NGP, CIC and TSC are supported.
-`relativistic=true` uses the existing relativistic prime/kick and supported
-stored-output domain. Independent species timesteps are not implemented.
+charges and positive masses. By default each mobile population kicks and drifts
+at every Maxwell substep `dt/n_sub`. Explicit `species_stride` opts into dividing
+integer kick schedules: mobile rows divide `n_sub`, fixed rows are zero. All
+mobile populations still drift and deposit current at every fast substep. Use
+[`set_empic_schedule!`](@ref) to change an opted-in future schedule. Fixed
+populations require zero stored velocity, deposit charge only and remain unchanged.
+NGP, CIC and TSC are supported. `relativistic=true` retains the existing prime/kick
+and supported stored-output domain. Nondividing/asynchronous timesteps are unsupported.
 
 `background_charge` is a fixed uniform charge density. `:require` uses the same
 exact physical-charge tolerance as electrostatic collections; `:neutralize`
@@ -19,7 +22,9 @@ explicitly supplies a uniform compensator, reported by diagnostics. Neither
 changes particle weights. Initialize with `init_empic!(state, species)` to bind
 ordered population identities and physical full-time velocities. Replacing or
 reordering populations requires initialization. Growth requires new velocities
-at the existing common fast half level. Zero dt preserves that phase.
+at each species' existing half level (the common fast level by default).
+Zero dt preserves that phase. Opted-in histories/schedules use collection schema2;
+default synchronous collections retain schema1.
 
 Particles, physical fields and clock publish after the complete operation
 succeeds. Scratch and shared FFT work may change on rejection. Concurrent calls
@@ -34,6 +39,7 @@ function EMPIC(
     g::FourierGrid{D,T},
     species::AbstractVector;
     mobile::AbstractVector{Bool} = trues(length(species)),
+    species_stride = nothing,
     background_charge = zero(T),
     neutrality::Symbol = :require,
     charge_rtol = 64eps(T),
@@ -59,7 +65,9 @@ function EMPIC(
     cT = _require_finite_positive_real("c", c, T)
     stage = _new_empic_state(g, 0, background, cT, shape, relativistic, false, one(T), ns, nothing)
     P = eltype(species)
-    work = _EMPICCollectionWork{D,T,P,typeof(stage),Nothing}(
+    schedule = species_stride === nothing ? nothing :
+               _empic_species_schedule(mobile, ns, species_stride, T)
+    work = _EMPICCollectionWork{D,T,P,typeof(stage),typeof(schedule)}(
         neutrality,
         rtol,
         BitVector(mobile),
@@ -68,7 +76,7 @@ function EMPIC(
         NTuple{D,Vector{T}}[],
         stage,
         Ref(false),
-        nothing,
+        schedule,
     )
     es = _new_empic_state(g, 0, background, cT, shape, relativistic, false, one(T), ns, work)
     _empic_collection_validate_species(es, species)
@@ -160,10 +168,10 @@ function _empic_collection_validate_storage(es::Union{EMPIC,EMPIC1D}, species)
     end
     for (i, a) in enumerate(schedule_arrays)
         axes(a, 1) == Base.OneTo(length(work.mobile)) ||
-            throw(ArgumentError("EMPIC1D schedule storage must have one row per population"))
+            throw(ArgumentError("electromagnetic schedule storage must have one row per population"))
         for b in (fields..., fft..., metadata..., gathers..., schedule_arrays[1:(i-1)]...)
             Base.mightalias(a, b) &&
-                throw(ArgumentError("EMPIC1D schedule storage must be independent"))
+                throw(ArgumentError("electromagnetic schedule storage must be independent"))
         end
     end
     clocks = (
@@ -389,7 +397,7 @@ function _empic_collection_prime!(stage::EMPIC{D,T}, work, sub_dt::T) where {D,T
             stage.Ep,
             stage.Bp,
             _validated_boris_factor(ps),
-            sub_dt / 2,
+            _empic_collection_prime_interval(work.schedule, i, sub_dt) / 2,
             nparticles(ps),
             stage.relativistic,
             stage.c,
@@ -399,15 +407,19 @@ function _empic_collection_prime!(stage::EMPIC{D,T}, work, sub_dt::T) where {D,T
     return stage
 end
 
-function _empic_collection_substep!(stage::EMPIC{D,T}, work, dt::T, previous::T, target) where {D,T}
+function _empic_collection_substep!(stage::EMPIC{D,T}, work, dt::T, previous::T, target, index) where {D,T}
     _empic_collection_charge!(stage.rho_n, stage, work, target)
     parts = _empic_center_magnetic!(stage, stage.g, previous)
     for (i, ps) in enumerate(work.staged)
         work.mobile[i] || continue
-        _ensure_empic_electron_buffers!(stage, nparticles(ps))
-        gather_vector!(stage.Ep, stage.E, ps, stage.g, stage.shape)
-        gather_vector!(stage.Bp, stage.Bc, ps, stage.g, stage.shape)
-        _push_velocities!(stage, ps, stage.Ep, stage.Bp, previous / 2 + dt / 2)
+        if _empic_collection_kick_due(work.schedule, i, index)
+            _ensure_empic_electron_buffers!(stage, nparticles(ps))
+            gather_vector!(stage.Ep, stage.E, ps, stage.g, stage.shape)
+            gather_vector!(stage.Bp, stage.Bc, ps, stage.g, stage.shape)
+            interval = _empic_collection_kick_interval(work.schedule, i, previous, dt)
+            _push_velocities!(stage, ps, stage.Ep, stage.Bp, interval)
+            _empic_collection_record_kick!(work.schedule, i)
+        end
         _drift_record_mid!(ps, work.midpoints[i], dt, stage.g.L)
         apply_periodic!(ps, ntuple(_ -> zero(T), Val(D)), stage.g.L)
         _require_finite_particle_velocities(ps, "electromagnetic collection output")
@@ -570,10 +582,8 @@ function EMPIC1D(
     cT = _require_finite_positive_real("c", c, T)
     stage = _new_empic1d_state(g, 0, background, cT, shape, relativistic, false, one(T), ns, nothing)
     P = eltype(species)
-    stride = _empic1d_stride_values(mobile, ns,
-        species_stride === nothing ? [active ? 1 : 0 for active in mobile] : species_stride)
-    schedule = _EMPIC1DSchedule{T}(stride, zeros(T, length(mobile)),
-        zeros(T, length(mobile)), zeros(T, length(mobile)))
+    schedule = _empic_species_schedule(mobile, ns,
+        species_stride === nothing ? [active ? 1 : 0 for active in mobile] : species_stride, T)
     work = _EMPICCollectionWork{1,T,P,typeof(stage),typeof(schedule)}(
         neutrality, rtol, BitVector(mobile), P[], _ElectrostaticHostParticle{1,T}[],
         NTuple{1,Vector{T}}[], stage, Ref(false), schedule,
@@ -610,7 +620,7 @@ function _empic_collection_prime!(stage::EMPIC1D{T}, work, sub_dt::T) where {T}
         gather_scalar!(stage.Eyp, stage.Ey, ps, stage.g, stage.shape)
         gather_scalar!(stage.Bzp, stage.Bz, ps, stage.g, stage.shape)
         _prime_empic1d!(ps.v, stage.Exp, stage.Eyp, stage.Bzp,
-            _validated_boris_factor(ps), work.schedule.new_species_dt[i] / 2,
+            _validated_boris_factor(ps), _empic_collection_prime_interval(work.schedule, i, sub_dt) / 2,
             nparticles(ps), stage.relativistic, stage.c)
     end
     _empic1d_prime_magnetic!(stage, stage.g, sub_dt)
@@ -671,15 +681,14 @@ function _empic_collection_substep!(stage::EMPIC1D{T}, work, dt::T, previous::T,
     parts = _empic1d_center_magnetic!(stage, g, previous, zero(T))
     for (i, ps) in enumerate(work.staged)
         work.mobile[i] || continue
-        if (index - 1) % work.schedule.stride[i] == 0
+        if _empic_collection_kick_due(work.schedule, i, index)
             _ensure_electron_buffers!(stage, nparticles(ps))
             gather_scalar!(stage.Exp, stage.Ex, ps, g, stage.shape)
             gather_scalar!(stage.Eyp, stage.Ey, ps, g, stage.shape)
             gather_scalar!(stage.Bzp, stage.Bzc, ps, g, stage.shape)
-            old_h = work.schedule.previous_species_dt[i]
-            new_h = work.schedule.new_species_dt[i]
-            _push_velocities!(stage, ps, stage.Exp, stage.Eyp, stage.Bzp, old_h / 2 + new_h / 2)
-            work.schedule.previous_species_dt[i] = new_h
+            interval = _empic_collection_kick_interval(work.schedule, i, previous, dt)
+            _push_velocities!(stage, ps, stage.Exp, stage.Eyp, stage.Bzp, interval)
+            _empic_collection_record_kick!(work.schedule, i)
         end
         _drift_record_mid!(ps, work.midpoints[i][1], dt, g.L[1])
         apply_periodic!(ps, (zero(T),), g.L)
@@ -700,10 +709,10 @@ end
 
 
 _empic_collection_schedule_arrays(::Nothing) = ()
-_empic_collection_schedule_arrays(schedule::_EMPIC1DSchedule) =
+_empic_collection_schedule_arrays(schedule::_EMPICSpeciesSchedule) =
     (schedule.stride, schedule.last_species_dt, schedule.new_species_dt, schedule.previous_species_dt)
 
-function _empic1d_validate_schedule(mobile, M, values)
+function _empic_validate_species_schedule(mobile, M, values)
     M isa Int && M >= 1 || throw(ArgumentError("n_sub must be a positive Int"))
     values isa AbstractVector && axes(values, 1) == Base.OneTo(length(mobile)) ||
         throw(ArgumentError("species_stride must have one integer row per population"))
@@ -720,12 +729,32 @@ function _empic1d_validate_schedule(mobile, M, values)
     return nothing
 end
 
-function _empic1d_stride_values(mobile, M, values)
-    _empic1d_validate_schedule(mobile, M, values)
+function _empic_species_stride_values(mobile, M, values)
+    _empic_validate_species_schedule(mobile, M, values)
     return Int[value for value in values]
 end
 
-function _empic1d_validate_history(mobile, history, step, full, fast, ::Type{T}) where {T}
+function _empic_species_schedule(mobile, M, values, ::Type{T}) where {T}
+    stride = _empic_species_stride_values(mobile, M, values)
+    return _EMPICSpeciesSchedule{T}(stride, zeros(T, length(mobile)),
+        zeros(T, length(mobile)), zeros(T, length(mobile)))
+end
+
+_empic_collection_prime_interval(::Nothing, i, fast) = fast
+_empic_collection_prime_interval(schedule::_EMPICSpeciesSchedule, i, fast) = schedule.new_species_dt[i]
+_empic_collection_kick_due(::Nothing, i, index) = true
+_empic_collection_kick_due(schedule::_EMPICSpeciesSchedule, i, index) =
+    (index - 1) % schedule.stride[i] == 0
+_empic_collection_kick_interval(::Nothing, i, previous, fast) = previous / 2 + fast / 2
+_empic_collection_kick_interval(schedule::_EMPICSpeciesSchedule, i, previous, fast) =
+    schedule.previous_species_dt[i] / 2 + schedule.new_species_dt[i] / 2
+_empic_collection_record_kick!(::Nothing, i) = nothing
+function _empic_collection_record_kick!(schedule::_EMPICSpeciesSchedule, i)
+    schedule.previous_species_dt[i] = schedule.new_species_dt[i]
+    return nothing
+end
+
+function _empic_validate_species_history(mobile, history, step, full, fast, ::Type{T}) where {T}
     history isa AbstractVector{T} && axes(history, 1) == Base.OneTo(length(mobile)) ||
         throw(ArgumentError("species timestep history must match population count and precision"))
     if step > 0
@@ -745,15 +774,15 @@ function _empic1d_validate_history(mobile, history, step, full, fast, ::Type{T})
 end
 
 _empic_collection_validate_schedule(es, ::Nothing) = nothing
-_empic_collection_validate_schedule(es, schedule::_EMPIC1DSchedule) =
-    _empic1d_validate_schedule(es.collection.mobile, es.n_sub, schedule.stride)
+_empic_collection_validate_schedule(es, schedule::_EMPICSpeciesSchedule) =
+    _empic_validate_species_schedule(es.collection.mobile, es.n_sub, schedule.stride)
 _empic_collection_validate_species_history(es, ::Nothing) = nothing
-_empic_collection_validate_species_history(es, schedule::_EMPIC1DSchedule{T}) where {T} =
-    _empic1d_validate_history(es.collection.mobile, schedule.last_species_dt,
+_empic_collection_validate_species_history(es, schedule::_EMPICSpeciesSchedule{T}) where {T} =
+    _empic_validate_species_history(es.collection.mobile, schedule.last_species_dt,
         es.step[], es.last_dt[], es.last_sub_dt[], T)
 
 _empic_collection_prepare_intervals!(::Nothing, mobile, es, dt, fast) = nothing
-function _empic_collection_prepare_intervals!(schedule::_EMPIC1DSchedule{T}, mobile, es, dt, fast) where {T}
+function _empic_collection_prepare_intervals!(schedule::_EMPICSpeciesSchedule{T}, mobile, es, dt, fast) where {T}
     for (i, active) in enumerate(mobile)
         h = active ? dt / (es.n_sub ÷ schedule.stride[i]) : zero(T)
         if active
@@ -768,24 +797,21 @@ function _empic_collection_prepare_intervals!(schedule::_EMPIC1DSchedule{T}, mob
 end
 
 _empic_collection_reset_intervals!(::Nothing) = nothing
-function _empic_collection_reset_intervals!(schedule::_EMPIC1DSchedule{T}) where {T}
+function _empic_collection_reset_intervals!(schedule::_EMPICSpeciesSchedule{T}) where {T}
     fill!(schedule.new_species_dt, zero(T))
     fill!(schedule.previous_species_dt, zero(T))
     return nothing
 end
 _empic_collection_publish_intervals!(::Nothing) = nothing
-_empic_collection_publish_intervals!(schedule::_EMPIC1DSchedule) =
+_empic_collection_publish_intervals!(schedule::_EMPICSpeciesSchedule) =
     copyto!(schedule.last_species_dt, schedule.previous_species_dt)
-
-_empic_collection_substep!(stage::EMPIC, work, dt, previous, target, index) =
-    _empic_collection_substep!(stage, work, dt, previous, target)
 
 _empic_collection_velocity_offsets(::Nothing, mobile, offset) =
     [active ? offset : zero(offset) for active in mobile]
-_empic_collection_velocity_offsets(schedule::_EMPIC1DSchedule{T}, mobile, offset) where {T} =
+_empic_collection_velocity_offsets(schedule::_EMPICSpeciesSchedule{T}, mobile, offset) where {T} =
     [active && !iszero(h) ? -h / 2 : zero(T) for (active, h) in zip(mobile, schedule.last_species_dt)]
 _empic_collection_schedule_diagnostics(::Nothing, result) = result
-_empic_collection_schedule_diagnostics(schedule::_EMPIC1DSchedule, result) =
+_empic_collection_schedule_diagnostics(schedule::_EMPICSpeciesSchedule, result) =
     merge(result, (species_stride = copy(schedule.stride), last_species_dt = copy(schedule.last_species_dt)))
 
 """
@@ -798,12 +824,31 @@ before configuration changes. Previous species and magnetic half intervals are
 preserved; the next positive step joins the old and new species half levels.
 The default all-fast state can be changed before or after initialization.
 """
-function set_empic1d_schedule!(es::EMPIC1D; n_sub::Integer = es.n_sub, species_stride = nothing)
+set_empic1d_schedule!(es::EMPIC1D; n_sub::Integer = es.n_sub, species_stride = nothing) =
+    _set_empic_collection_schedule!(es, n_sub, species_stride)
+
+"""
+    set_empic_schedule!(state::EMPIC; n_sub=state.n_sub, species_stride=nothing)
+
+Set future dividing species kick strides on an opted-in generic collection.
+Construct with explicit `species_stride` to opt in; a default synchronous state
+keeps its concrete Nothing schedule owner. The complete proposal is copied and
+validated before either configuration value changes. Prior species/fast histories
+are preserved, and `nothing` keeps current strides. Call only at completed
+external boundaries with no concurrent use.
+"""
+set_empic_schedule!(es::EMPIC; n_sub::Integer = es.n_sub, species_stride = nothing) =
+    _set_empic_collection_schedule!(es, n_sub, species_stride)
+
+function _set_empic_collection_schedule!(es, n_sub, species_stride)
     work = _empic_collection(es)
+    work.schedule isa _EMPICSpeciesSchedule || throw(
+        ArgumentError("construct EMPIC with explicit species_stride before setting a species schedule"),
+    )
     1 <= n_sub <= typemax(Int) || throw(ArgumentError("n_sub must be positive and fit Int"))
     ns = Int(n_sub)
     values = species_stride === nothing ? work.schedule.stride : species_stride
-    stride = _empic1d_stride_values(work.mobile, ns, values)
+    stride = _empic_species_stride_values(work.mobile, ns, values)
     _empic_collection_validate_phase(es)
     es.n_sub = ns
     work.schedule.stride = stride

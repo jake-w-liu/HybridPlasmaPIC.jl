@@ -118,7 +118,9 @@ kick only due species, but drift and deposit current from every mobile species
 at every h. Preserve one common field update and the existing numerical owners.
 
 Each specialized collection owns strides, authoritative `last_species_dt`
-and private history candidates; generic EMPIC keeps synchronous behavior.
+and private history candidates. Generic EMPIC keeps synchronous behavior by
+default and now shares this owner through an explicit dividing-schedule opt-in;
+see the [generic contract](EMPIC_SPECIES_IMPLEMENTATION.md).
 Stage histories with the entire external operation and publish only after all
 candidate checks. At step zero histories are stored zero; afterward each mobile
 history is finite/resolved and lies between saved last_sub_dt and last_dt, with

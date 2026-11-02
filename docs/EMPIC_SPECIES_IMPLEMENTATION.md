@@ -7,12 +7,17 @@ remains pending. Specialized planar `EMPIC1D` S1 collections are now source
 implemented, with exact integrated acceptance pending; see the S1 section below.
 Specialized S2 dividing per-species schedules are now source implemented with
 separate history and schema-2 migration; integrated acceptance remains pending.
+Generic D1–3 dividing kick schedules are now source implemented as an explicit
+constructor opt-in, sharing the S2 history owner; see the generic schedule section
+below. No tests were added or run for that extension during the implementation-first
+pass. Numerical/compiler/format and complete-operation cost acceptance is deferred.
 Broader collision composition, nonperiodic boundaries and resident MPI/GPU
 evolution remain open.
 
 A first [electromagnetic–local-Coulomb composition](COLLISIONAL_EMPIC.md) is now a
 source candidate for all-mobile ordinary-Vector generic collections with fixed
-dt, `n_sub=1`, nonrelativistic motion and consistent collision normalization.
+dt, `n_sub=1`, nonrelativistic motion, no species schedule owner and consistent
+collision normalization.
 It stages fields, scattering and advanced RNG before publication and has a
 distinct checkpoint schema. No tests were added or run; runtime acceptance and
 broader collision intersections remain open.
@@ -399,8 +404,9 @@ intersections remain open.
 `EMPIC1D(g, species; n_sub=M, species_stride=...)` now gives each mobile
 population a positive integer stride r dividing M. Default mobile rows are 1;
 fixed rows are 0. Every specialized collection has concrete schedule metadata,
-including all-fast and empty states. Generic `EMPIC` remains synchronous and the
-legacy count API retains its scalar numerical owners.
+including all-fast and empty states. Generic `EMPIC` remains synchronous by
+default; its new explicit opt-in is described below. The legacy count API retains
+its scalar numerical owners.
 
 For h=dt/M and H_s=dt/(M÷r_s), species s kicks at zero-based fast indices
 0,r_s,2r_s,... . Every mobile population drifts and deposits charge/current at
@@ -447,3 +453,56 @@ schedules do not establish a general nonlinear stability, temporal-order or
 exact fully discrete energy theorem. Nondividing/adaptive/asynchronous phases,
 mid-step checkpoints and broader CAP-008 integrations remain open. See the
 [canonical S1/S2 plan](EMPIC1D_SPECIES_IMPLEMENTATION_PLAN.md) for acceptance.
+
+
+## Generic D1–3 dividing kick schedules: source implemented
+
+`EMPIC(g,species; n_sub=M,species_stride=rows)` opts into the same dividing
+schedule/history owner as specialized S2, while retaining the actual generic
+three-vector force, midpoint current, continuity and Maxwell kernels. D1 retains
+both transverse polarizations; D2/D3 retain their full fields/velocities. Omitted
+or explicit `species_stride=nothing` keeps the original concrete Nothing owner,
+common-fast ordering, diagnostic keys and schema1. Explicit all-fast rows still
+opt in. Independent nondividing/adaptive/asynchronous phases are outside this slice.
+
+Mobile strides are positive integer divisors of M; fixed rows are zero. Bool,
+noninteger/out-of-Int values, wrong axes/counts and invalid divisibility reject.
+For h=dt/M and H_s=dt/(M÷r_s), kick at zero-based j divisible by r_s. All mobile
+species drift and deposit charge/current at **every h**, including intervals without a due kick;
+current is not reused from an earlier field step. Only due species gather common
+old E/centered B and call the canonical original-factor Boris owner. Common
+magnetic centering/update retains previous fast h, independently of coarse H_s.
+
+First-step priming uses H_s/2 for each velocity and h/2 for B. Later due kicks
+join the saved old species half interval and new half interval; interior events
+use the new H_s. The next completed boundary publishes each species' last used H
+with all particles/fields/clocks. Failure leaves authoritative history unchanged;
+private interval candidates may change. Zero dt validates but does not prime or
+consume a proposal. Empty and fixed rows preserve their declared zero/nonzero
+phase rules. Growth requires the existing per-species velocity half phase.
+
+`set_empic_schedule!(state; n_sub=state.n_sub,species_stride=nothing)` atomically
+copies/validates the future proposal on an opted-in generic state. Nothing keeps
+current strides. It cannot enable a default Nothing-owner state; construct a new
+opted-in state instead. The public specialized setter remains unchanged and
+shares this proposal owner. Future configuration changes preserve previous
+species/fast histories; do not infer old H from current knobs. Nominal diagnostic
+offsets are -last_species_dt/2 and magnetic -last_sub_dt/2, with copied schedule
+arrays. Rounded H_s need not equal r_s*h or exact public-clock timestamps.
+
+Scheduled generic state uses tag `:empic_collection`, schema2, Int policy1 and
+ordered stride/history, with the same complete generic physical payload.
+A scheduled destination explicitly migrates fully validated generic schema1
+without schedule keys to all-fast rows; advanced mobile H comes from its saved
+actual last_sub_dt, even if future n_sub had changed. Schema1 with reserved
+schedule keys and unknown versions/policies reject. Default destinations reject
+schema2 instead of discarding its phase. Scalar and specialized tags remain
+separate; archive container4 stays. Incoming saved M/stride/history replace old
+requested settings together after graph detachment and metadata/capacity
+preparation, with verbatim field/current restore and saved-mode particle admission.
+
+`CollisionalEMPICStepper` explicitly requires no schedule owner, even for all-fast
+M1, matching its existing common-fast collision and schema1 contract. Scheduled
+collision composition remains open. Source reduction checks cover default and
+specialized expressions; no runtime/JET/compiler/formatter, numerical or resource
+acceptance is claimed. No tests or executions were added for this implementation.

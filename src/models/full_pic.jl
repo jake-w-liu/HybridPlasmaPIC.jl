@@ -81,7 +81,7 @@
 #   (5) n_sub=1 vs n_sub=2 agree on the dispersion (convergence, few %);
 #   (6) a v≈0.9c relativistic electron beam does not blow up the field energy.
 
-mutable struct _EMPIC1DSchedule{T}
+mutable struct _EMPICSpeciesSchedule{T}
     stride::Vector{Int}
     last_species_dt::Vector{T}
     new_species_dt::Vector{T}

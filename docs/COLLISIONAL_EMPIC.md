@@ -10,8 +10,11 @@ collection with the existing cell-local `collide_coulomb!`. It supports CPU
 Float32/64 in one to three spatial dimensions, all three velocity components,
 ordinary Vector particle leaves, and arbitrary finite signed charges with
 positive masses and nonnegative weights. Every population is mobile. The inner
-state must have `n_sub=1`, `relativistic=false`, zero background charge and
-`neutrality=:require`. NGP, CIC and TSC retain their existing source/gather rules.
+state must have `n_sub=1`, `relativistic=false`, zero background charge,
+`neutrality=:require` and no species schedule owner. Opted-in scheduled states
+are rejected even with all-fast rows and `n_sub=1`; the wrapper's common-fast
+collision phase and schema 1 remain unchanged. NGP, CIC and TSC retain their
+existing source/gather rules.
 Nearest rounding and gradual underflow are required; no arithmetic mode is
 changed. The wrapper borrows the inner state exclusively.
 

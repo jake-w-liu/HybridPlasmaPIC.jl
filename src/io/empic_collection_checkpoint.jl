@@ -25,7 +25,7 @@ const _EMPIC_COLLECTION_CHECKPOINT_FIELDS = (
     :last_sub_dt,
 )
 
-const _EMPIC1D_SCHEDULE_CHECKPOINT_FIELDS =
+const _EMPIC_SPECIES_SCHEDULE_CHECKPOINT_FIELDS =
     (:schedule_policy, :species_stride, :last_species_dt)
 
 _empic_collection_checkpoint_integrator(::EMPIC) = :empic_collection
@@ -41,13 +41,27 @@ function _validate_empic_collection_checkpoint(s, st::_ElectromagneticCheckpoint
     return _validate_normalized_empic_collection_checkpoint(normalized, st, st.g)
 end
 
-_normalize_empic_collection_checkpoint(s, ::EMPIC) = s
+_empic_collection_checkpoint_schema(st) = _empic_collection(st).schedule === nothing ? 1 : 2
 
-function _normalize_empic_collection_checkpoint(s, st::EMPIC1D)
+function _normalize_empic_collection_checkpoint(s, st::EMPIC)
+    _validate_checkpoint_container(s, (:schema_version,))
+    if _empic_collection(st).schedule === nothing
+        any(k -> haskey(s, k), _EMPIC_SPECIES_SCHEDULE_CHECKPOINT_FIELDS) && throw(
+            ArgumentError("an unscheduled generic checkpoint cannot contain species schedule fields"),
+        )
+        return s
+    end
+    return _normalize_empic_species_schedule_checkpoint(s, st)
+end
+
+_normalize_empic_collection_checkpoint(s, st::EMPIC1D) =
+    _normalize_empic_species_schedule_checkpoint(s, st)
+
+function _normalize_empic_species_schedule_checkpoint(s, st)
     _validate_checkpoint_container(s, (:schema_version,))
     if s.schema_version === 1
-        any(k -> haskey(s, k), _EMPIC1D_SCHEDULE_CHECKPOINT_FIELDS) && throw(
-            ArgumentError("schema-1 EMPIC1D checkpoint cannot contain schedule fields"),
+        any(k -> haskey(s, k), _EMPIC_SPECIES_SCHEDULE_CHECKPOINT_FIELDS) && throw(
+            ArgumentError("schema-1 electromagnetic checkpoint cannot contain schedule fields"),
         )
         _validate_empic_collection_checkpoint_envelope(s, st, st.g, 1)
         T = typeof(st.n0)
@@ -71,14 +85,14 @@ function _validate_normalized_empic_collection_checkpoint(
     st::_ElectromagneticCheckpointStepper,
     g::FourierGrid{D,T},
 ) where {D,T}
-    version = st isa EMPIC1D ? 2 : 1
+    version = _empic_collection_checkpoint_schema(st)
     populations = _validate_empic_collection_checkpoint_envelope(s, st, g, version)
-    if st isa EMPIC1D
-        _validate_checkpoint_container(s, _EMPIC1D_SCHEDULE_CHECKPOINT_FIELDS)
+    if version == 2
+        _validate_checkpoint_container(s, _EMPIC_SPECIES_SCHEDULE_CHECKPOINT_FIELDS)
         s.schedule_policy === 1 ||
-            throw(ArgumentError("unsupported EMPIC1D checkpoint schedule policy"))
-        _empic1d_validate_schedule(s.mobile, s.n_sub, s.species_stride)
-        _empic1d_validate_history(
+            throw(ArgumentError("unsupported electromagnetic checkpoint schedule policy"))
+        _empic_validate_species_schedule(s.mobile, s.n_sub, s.species_stride)
+        _empic_validate_species_history(
             s.mobile, s.last_species_dt, s.step, s.last_dt, s.last_sub_dt, T,
         )
         metadata = (s.species_stride, s.last_species_dt)
@@ -202,12 +216,12 @@ function _empic_collection_checkpoint_state(
         last_dt = st.last_dt[],
         last_sub_dt = st.last_sub_dt[],
     )
-    if st isa EMPIC1D
+    st isa EMPIC1D && (state = merge(state, (polarization = :ex_ey_bz,)))
+    if work.schedule !== nothing
         return merge(
             state,
             (
                 schema_version = 2,
-                polarization = :ex_ey_bz,
                 schedule_policy = 1,
                 species_stride = copy(work.schedule.stride),
                 last_species_dt = copy(work.schedule.last_species_dt),
@@ -257,8 +271,9 @@ function _restore_empic_collection_checkpoint!(
     # copying one directly would overwrite a later source leaf.
     saved = deepcopy(s)
     _validate_normalized_empic_collection_checkpoint(saved, st, st.g)
-    stride = st isa EMPIC1D ?
-             _empic1d_stride_values(saved.mobile, saved.n_sub, saved.species_stride) : nothing
+    stride = work.schedule === nothing ? nothing :
+             _empic_species_stride_values(saved.mobile, saved.n_sub, saved.species_stride)
+    history = work.schedule === nothing ? nothing : T[value for value in saved.last_species_dt]
     # Reserve ordinary Vector capacity before any values or lengths publish.
     # Fixed strided views have already passed the exact-count preflight above.
     for (ps, record) in zip(species, saved.species)
@@ -277,9 +292,9 @@ function _restore_empic_collection_checkpoint!(
     end
     _restore_checkpoint_fields!(_empic_checkpoint_fields(st), saved.fields)
     st.c, st.shape, st.n_sub = saved.c, saved.shape, saved.n_sub
-    if st isa EMPIC1D
+    if work.schedule !== nothing
         work.schedule.stride = stride
-        copyto!(work.schedule.last_species_dt, saved.last_species_dt)
+        copyto!(work.schedule.last_species_dt, history)
     end
     st.relativistic = saved.relativistic
     st.time[], st.step[] = saved.time, saved.step

@@ -254,7 +254,7 @@ in the [implementation plan](docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md).
 |---|---|---|
 | **Hall-MHD** | periodic single-fluid Hall-MHD with algebraic electron closures; ion pressure `p_i = Ti·n`; the electron pressure force acts in both Ohm's law and the bulk momentum equation; explicit RK4 with divergence-free projection | `HallMHDModel`, `HallMHDState`, `step_hall_mhd!` |
 | **Electrostatic PIC** | arbitrary kinetic species on periodic CPU grids, explicit charge/background policy, shared spectral Poisson field and synchronized leapfrog in 1D/2D/3D; scalar electron compatibility | `ElectrostaticPIC` (or `Electrostatic1D`), `init_espic!`, `step_espic!` |
-| **Electromagnetic PIC** | periodic spectral current correction and Gauss initialization in 1D–3D; legacy electron/ion models; synchronous CPU arbitrary-species `EMPIC` collections and planar `EMPIC1D` dividing species schedules, with optional relativity, mobile/fixed populations and explicit neutrality policy ([contract and pending CI](docs/EMPIC_SPECIES_IMPLEMENTATION.md)) | `EMPIC`, `EMPIC1D`, `set_empic1d_schedule!`, `init_empic!`, `step_empic!`, `charge_conservation_residual`, `electromagnetic_diagnostics`, `total_momentum_relativistic` |
+| **Electromagnetic PIC** | periodic spectral current correction and Gauss initialization in 1D–3D; legacy electron/ion models; CPU arbitrary-species `EMPIC` collections with opt-in D1–3 dividing kick schedules and planar `EMPIC1D` schedules, with optional relativity, mobile/fixed populations and explicit neutrality policy ([contract and pending CI](docs/EMPIC_SPECIES_IMPLEMENTATION.md)) | `EMPIC`, `EMPIC1D`, `set_empic_schedule!`, `set_empic1d_schedule!`, `init_empic!`, `step_empic!`, `charge_conservation_residual`, `electromagnetic_diagnostics`, `total_momentum_relativistic` |
 | **Bounded Maxwell vacuum** | staggered Yee fields in 1D–3D with periodic or homogeneous conducting axes, synchronized second-order stepping, CFL rejection, compatible divergence and energy/Poynting diagnostics; native stencils under the normwise accuracy contract; [field-only checkpoint/archive source](docs/MAXWELL_VACUUM_CHECKPOINT.md), with restart acceptance deferred; particle coupling and absorbing layers remain separate models/work | `YeeGrid`, `MaxwellVacuum`, `step_maxwell!`, `yee_divergence!`, `yee_poynting_flux` |
 | **Distributed electrostatic PIC** | rank-owned periodic 3D CPU Float32/64 CIC collections, complete remote stencils, direct migration, shared leapfrog and exact charge/energy/momentum diagnostics; explicit `grid_dc=:project`; [source scope and deferred acceptance](docs/DISTRIBUTED_ELECTROSTATIC_IMPLEMENTATION.md); matching-layout checkpoint is the next slice | `distributed_electrostatic_pic`, `init_espic!`, `step_espic!`, `poisson_E!`, `electrostatic_diagnostics` |
 | **Distributed periodic Poisson field** | static rank-owned 3D CPU Float32/64 field solve, canonical mode arithmetic, exact represented neutrality or explicit uniform compensator, staged fields and exact charge ledger; [source scope and deferred acceptance](docs/DISTRIBUTED_POISSON_FIELD.md); composes with the distributed ES model | `distributed_poisson_field!` |
@@ -555,7 +555,8 @@ Independent views and shared Array/Ref parameters remain supported. Custom
 serializers own their reconstruction semantics; already-detached saved graphs
 cannot recover their original links. See the
 [configuration contract and limits](docs/CHECKPOINT_CONFIGURATION_PLAN.md).
-Hybrid, electrostatic, synchronous `EMPIC` and planar scheduled `EMPIC1D` collections use
+Hybrid, electrostatic, synchronous or opted-in scheduled `EMPIC`, and planar
+scheduled `EMPIC1D` collections use
 `save_checkpoint(path, st, species)` and
 `load_checkpoint!(st, species, path)`, preserving population order, charge, mass
 and particle data. Destination storage is retained; resizable arrays may change
@@ -567,9 +568,11 @@ diagnostics, configuration and electron/ion timestep history. For mobile ions, u
 `save_checkpoint(path, es, electrons, ions)` and
 `load_checkpoint!(es, electrons, ions, path)`; the destination must have matching
 ion mobility and independent species storage. `archive_run` accepts the same species.
-`EMPIC` collections retain ordered populations, per-population mobility and their
-shared fast phase. Specialized `EMPIC1D` collection schema 2 also preserves
-per-species strides and completed intervals, with explicit validated S1 migration.
+Default `EMPIC` collections retain ordered populations, per-population mobility
+and the common fast phase in schema 1. Explicit generic species schedules use
+schema 2/policy 1, with per-species strides/completed intervals and validated
+schema-1 migration only into opted-in destinations. Specialized `EMPIC1D`
+collection schema 2 retains its separate tag, polarization and S1 migration.
 New collection acceptance is recorded in [collection persistence and pending verification](docs/EMPIC_SPECIES_IMPLEMENTATION.md).
 Hall-MHD uses `save_checkpoint(path, hall)`, `load_checkpoint!(hall, path)`, and
 `archive_run(path, hall; rng_seed=...)`. It preserves the model, fluid and derived
@@ -716,8 +719,10 @@ EM and comparative campaigns remain in the
   implementation with dividing per-species kick schedules, every-fast drift/current
   and independent phase histories. Schema 2 includes explicit S1 migration.
   Exact-revision GitHub and resource acceptance remain pending in the
-  [S1/S2 tracker](docs/EMPIC1D_SPECIES_IMPLEMENTATION_PLAN.md); broader schedules
-  and backend/collision/boundary integrations remain open.
+  [S1/S2 tracker](docs/EMPIC1D_SPECIES_IMPLEMENTATION_PLAN.md). Generic D1–3
+  collections now share that schedule owner through explicit `species_stride`,
+  retaining all vector kernels and default synchronous behavior; [source contract](docs/EMPIC_SPECIES_IMPLEMENTATION.md).
+  Nondividing/adaptive schedules and backend/collision/boundary integrations remain open.
 - Collision/field composition covers fixed-step, first-order `HybridStepper`
   runs with ideal isothermal/evolving scalar electrons, S1/S2 transport or S3b
   original-quotient conduction on the CPU (stored-pressure extensions are CI-pending).

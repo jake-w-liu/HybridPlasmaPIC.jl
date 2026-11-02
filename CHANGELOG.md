@@ -11,6 +11,15 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Added
 
+- Generic D1–3 `EMPIC` collections gain explicit dividing species kick schedules
+  and `set_empic_schedule!`. They share the specialized schedule/history owner,
+  retain every-fast drift/current and full-vector physics, and stage histories
+  with the complete operation. Default synchronous state/schema 1 is preserved;
+  opted-in state has complete schema-2 restart and validated schema-1 migration.
+  Collisional EMPIC explicitly retains its unscheduled contract. Source-reviewed
+  only; no tests were added or run and runtime/resource acceptance is deferred.
+  See the [schedule guide](docs/EMPIC_SPECIES_IMPLEMENTATION.md).
+
 - Distributed ES diagnostics now include global three-component particle momentum.
   Original mass/weight/velocity products and rank sums remain exact until one final
   component rounding. Momentum retains the stored velocity half phase; no new

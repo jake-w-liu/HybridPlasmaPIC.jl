@@ -7,7 +7,8 @@
 First-order, fixed-step CPU composition of synchronous electromagnetic PIC and
 cell-local nonrelativistic [`collide_coulomb!`](@ref). Supports Float32/64 in
 D=1:3 with ordinary Vector particle leaves, all populations mobile, `n_sub=1`,
-zero background charge and `neutrality=:require`. `weight_to_number` explicitly
+zero background charge, `neutrality=:require` and no species schedule owner,
+even for opted-in all-fast `n_sub=1`. `weight_to_number` explicitly
 converts macro-weights to real-particle counts. The collision `epsilon0` and
 `weight_to_number` must resolve to the same positive value: with these stored
 weights, the Maxwell charge/current coefficient is `weight_to_number/epsilon0`.
@@ -74,6 +75,8 @@ function _validate_collisional_empic_model(inner::EMPIC{D,T}) where {D,T}
     T in (Float32, Float64) ||
         throw(ArgumentError("CollisionalEMPICStepper requires Float32 or Float64"))
     work = _empic_collection(inner)
+    work.schedule === nothing ||
+        throw(ArgumentError("CollisionalEMPICStepper requires an unscheduled generic EMPIC collection"))
     !inner.relativistic ||
         throw(ArgumentError("CollisionalEMPICStepper requires nonrelativistic EMPIC"))
     inner.n_sub == 1 || throw(ArgumentError("CollisionalEMPICStepper requires n_sub = 1"))

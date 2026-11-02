@@ -69,6 +69,9 @@ full/fast timestep history. Supply ions exactly when `mobile=true` for the legac
 electron/ion API. Synchronous `EMPIC` collections preserve their ordered arbitrary
 populations, mobility, neutrality/background policy, relativistic mode and c,
 and common fast velocity half level through collection checkpoint schema 1.
+Opted-in generic dividing schedules use schema2/policy1 and per-species strides
+and completed intervals. Their destinations must also be opted in; validated
+generic schema1 without schedule keys migrates explicitly to all-fast rows there.
 `EMPIC1D` collections use distinct schema 2 `:empic1d_collection`, required
 `polarization=:ex_ey_bz` and integer `schedule_policy=1`, ordered species strides
 and completed species intervals, and their seven specialized physical field arrays.
