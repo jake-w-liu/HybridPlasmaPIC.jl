@@ -518,19 +518,25 @@ overhead. Multi-node GPU efficiency remains open until actually measured.
 
 ## CAP-005 — nonlinear coupled implicit integration
 
-**Existing scope matters.** The analytic CN multiplier is a linear reference;
-the shock option is a finite fixed-point approximation with no solve residual
-check. Neither implements an implicit coupled kinetic-ion/fluid-electron step.
+**Existing scope matters.** The analytic CN multiplier is a linear reference.
+The [shock CN solve](SHOCK_CN_SOLVE_PLAN.md) now uses restarted GMRES for the
+frozen-moment reduced induction equation, recomputes its true linear residual
+and rejects failed convergence before public state publication. This replaced
+the former four-iterate approximation. Neither path implements an implicit
+coupled kinetic-ion/fluid-electron step.
 The [Stanier–Chacón–Chen method](https://arxiv.org/abs/1803.07158) provides a
 primary-source design reference for compatible cell-centered spatial operators,
 implicit midpoint, ion subcycling/orbit averages and conservation. Its properties
 must be re-derived for the selected implementation rather than inherited by name.
 
-- [ ] **005A: audit existing implicit-labelled paths.** Measure the four-iterate
-  shock solve's residual, amplification and timestep range; compare a small
-  assembled linear system solve. Decide whether to implement a converged solve
-  or explicitly name/bound the approximate scheme. Align `recommended_dt` and
-  documentation with the actual method. Preserve working resolved-step behavior.
+- [ ] **005A: audit existing implicit-labelled paths.** The shock path now
+  supplies a converged, true-residual-checked frozen-moment CN solve with explicit
+  tolerances/iteration limits and staged whole-step publication. Its
+  [scoped source and verification record](SHOCK_CN_SOLVE_PLAN.md) retains the
+  former approximation as history. Complete current-revision residual,
+  amplification/timestep-range and assembled-system acceptance; align
+  `recommended_dt` with the actual coupled resolution limits. This broader
+  milestone remains open.
 - [ ] **005B: residual and transaction.** Define the nonlinear unknowns, discrete
   equations, normalization, residual norms, absolute/relative tolerances,
   iteration limits and candidate-state ownership. Failed convergence returns a
