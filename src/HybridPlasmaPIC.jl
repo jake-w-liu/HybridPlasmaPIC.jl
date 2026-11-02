@@ -82,6 +82,7 @@ include("boundaries/yee_conductor.jl")
 
 # --- Coupling: deposition / gather / moments ---
 include("coupling/shapes.jl")
+include("coupling/tsc_derivatives.jl")
 include("coupling/deposit.jl")
 include("coupling/gather.jl")
 include("coupling/moments.jl")
@@ -138,6 +139,7 @@ include("models/hall_mhd.jl")
 include("fields/mixed_shock_operators.jl")
 include("fields/mixed_hall_projection.jl")
 include("models/gyrokinetics.jl")
+include("models/slab_gyrokinetic_pic.jl")
 
 # --- Diagnostics ---
 include("diagnostics/pressure_tensor.jl")
@@ -159,6 +161,7 @@ include("parallel/mpi.jl")
 # --- IO ---
 include("io/publication.jl")
 include("io/checkpoint.jl")
+include("io/slab_gyrokinetic_checkpoint.jl")
 include("io/implicit_hybrid_checkpoint.jl")
 include("io/maxwell_vacuum_checkpoint.jl")
 include("io/yee_conductive_layer_checkpoint.jl")
@@ -413,6 +416,7 @@ export PlasmaUnits, alfven_speed, gyrofrequency, inertial_length, to_SI, to_norm
 export coulomb_normalization
 export rh_branches
 export SpectralOperators, exp_filter!, dealias_two_thirds!, fft_friendly_size, with_fftw_wisdom
+export GyrocentreSet, SlabGyrokineticPIC, SlabGyrokineticFieldReport, slab_gyrokinetic_diagnostics
 export GuidingCentre,
     exb_drift, gradb_drift, curvature_drift, drift_velocity, push_guiding_centre!, gyroaverage
 export CAMCLStepper, init_camcl!, step_camcl!
@@ -454,7 +458,7 @@ export collide_bgk!, collide_coulomb!, collide_neutral_mcc!, ionize_mcc!
 export CoulombCollisionWorkspace
 export deposit_scalar_threaded!, density_threaded!
 export energy_budget, momentum_budget, jdotE_density, resistive_dissipation
-export archive_run, load_archive, sample_particles, operators_match
+export archive_run, load_archive, load_archive!, sample_particles, operators_match
 export initial_ramp!, ramp_width_scan, box_length_scan
 export PerpShock2D,
     init_shock2d!,

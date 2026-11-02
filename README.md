@@ -283,7 +283,8 @@ in the [implementation plan](docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md).
 | **Event-free 1D3V electromagnetic cloud PIC** | source candidate for synchronized Boris/Yee coupling with exact compatible longitudinal/transverse currents, PEC masks, scoped CFL/rest/impact guards, diagnostics and distinct restart; [scope and pending GitHub acceptance](docs/BOUNDED_PARTICLE_COUPLING_PLAN.md#event-free-1d3v-electromagnetic-source-candidate) | `YeeElectromagneticPIC`, `init!`, `step!`, `yee_electromagnetic_diagnostics` |
 | **Event-local longitudinal reflection** | nonrelativistic CPU Float32/64 finite-cloud source candidate on a closed 1D grid; at most one connected reflection cluster per external step, conservative carried remainder checks, staged wall ledgers and distinct restart; [scope and pending GitHub acceptance](docs/YEE_IMPACT_LONGITUDINAL.md) | `YeeImpactLongitudinalPIC`, `init!`, `step!`, `yee_impact_longitudinal_diagnostics` |
 | **Isolated passive longitudinal capture** | nonrelativistic CPU Float32/64 finite-cloud source candidate on a closed 1D grid; KDK with original forces, at most one uniquely isolated certified-passive capture per external step, full death current, dynamic exact plates, stable Vector compaction and distinct restart; [scope and pending GitHub acceptance](docs/YEE_ABSORBING_LONGITUDINAL.md) | `YeeAbsorbingLongitudinalPIC`, `init!`, `step!`, `yee_absorbing_longitudinal_diagnostics` |
-| **Fusion geometry / gyrokinetics / AMR** | toroidal metric operators, guiding-centre particle updates and finite-volume AMR primitives; a coupled gyrokinetic or adaptive plasma solver remains [planned](docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md#cap-006--geometry-gyrokinetics-and-adaptive-plasma-evolution) | `ToroidalGrid`, `metric_gradient`, `GuidingCentre`, `push_guiding_centre!`, `AMRGrid`, `refine` |
+| **Self-consistent slab gyrokinetics** | source-implemented CPU 3D full-f positive-ion gyrocentres, reciprocal ring-TSC coupling, full-k polarization/modified adiabatic electrons, collective RK4 and physical energy/complete restart; [model and pending acceptance](docs/SLAB_GYROKINETIC.md). Runtime, scientific and resource gates remain open | `GyrocentreSet`, `SlabGyrokineticPIC`, `init!`, `step!`, `slab_gyrokinetic_diagnostics` |
+| **Fusion geometry / AMR utilities** | toroidal metric operators, local guiding-centre updates and finite-volume AMR primitives; coupled toroidal and adaptive plasma solvers remain [planned](docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md#cap-006--geometry-gyrokinetics-and-adaptive-plasma-evolution) | `ToroidalGrid`, `metric_gradient`, `GuidingCentre`, `push_guiding_centre!`, `AMRGrid`, `refine` |
 | **KdV reference** | integrating-factor pseudo-spectral KdV solver + analytic soliton, used as a nonlinear-wave verification target | `kdv_solve`, `kdv_soliton` |
 
 The two event-free closed Yee source candidates retain exact original-geometry E/B
@@ -623,6 +624,13 @@ New collection acceptance is recorded in [collection persistence and pending ver
 Hall-MHD uses `save_checkpoint(path, hall)`, `load_checkpoint!(hall, path)`, and
 `archive_run(path, hall; rng_seed=...)`. It preserves the model, fluid and derived
 fields, retained hyperresistive stage values, and clock without particle arguments.
+The bounded slab gyrokinetic source saves full gyrocentre invariants/provenance,
+fields, quadrature, fixed policies and synchronous phase with
+`save_checkpoint(path, simulation, species)` and restores through
+`load_checkpoint!`. `archive_run(...; rng_seed=...)` uses the checksummed run
+container; `load_archive!(simulation, species, path)` validates and restores it.
+Species may be omitted for the bound populations. Continuation acceptance
+remains pending; see [the complete payload and limits](docs/SLAB_GYROKINETIC.md#diagnostics-and-restart).
 `save_run`/`load_run`/`archive_run`
 add schema versioning, SHA-256 checksums, and full reproducibility metadata
 (git commit, Julia version, project/manifest hashes, RNG seed, hardware).

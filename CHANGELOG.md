@@ -11,6 +11,16 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Added
 
+- `SlabGyrokineticPIC` and true `GyrocentreSet` populations add a bounded CPU
+  full-f electrostatic slab family: reciprocal ring-TSC coupling, full-k
+  polarization and modified adiabatic electrons, collective four-stage RK4
+  with endpoint field refresh, physical energy diagnostics and complete
+  synchronous checkpoint/archive restoration. Publication stages privately;
+  periodic wrapping reuses the canonical half-open coordinate owner. Source
+  review is complete; essential regressions are prepared for GitHub, with no
+  local Julia execution. Runtime, scientific and resource acceptance remain
+  open. See the [model and limits](docs/SLAB_GYROKINETIC.md).
+
 - `energy_budget.total` now composes original finite built-in reservoir
   expressions when normal-range/sign bounds cannot certify the associated
   native sum. Component values stay unchanged; the complete total can be finite

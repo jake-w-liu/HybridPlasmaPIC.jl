@@ -32,13 +32,18 @@ file ownership and handoffs.
 | Track | Worker | Complete deliverable | Current stage | Dependency |
 | --- | --- | --- | --- | --- |
 | Hall A | `cpu_model_factor_admission` | `OpenHallHybrid` core, mixed CIC, two-face sources/IDs/bounded RNG, projected field controller, exchange/energy diagnostics and guide | Implementation in progress | Published mixed Hall operators; freeze actual state/restore interface for B |
-| Hall B | `yee_longitudinal_coupled_implementation` | Complete Hall physical/source/RNG checkpoint, archive, restore and guide | Canonical IO preparation; wiring follows A interface freeze | Actual A state/configuration/source/report/commit hooks |
-| Gyrokinetics | `self_consistent_gyrokinetic_design` | `GyrocentreSet`, self-consistent full-f slab field/distribution/RK4, diagnostics, complete checkpoint/archive and guide | Implementation in progress after reviewed model contract | Registered SpectralOperators 0.1.8; independent of Hall A/B |
+| Hall B | `yee_longitudinal_coupled_implementation` | Complete Hall physical/source/RNG checkpoint, archive, restore and guide | Complete source frozen; final source-ledger amendment follows A | Actual A state/configuration/source/report/commit hooks |
+| Gyrokinetics | Root integration of `self_consistent_gyrokinetic_design` handoff | `GyrocentreSet`, self-consistent full-f slab field/distribution/RK4, diagnostics, complete checkpoint/archive and guide | Complete bounded source/callers reviewed; integrated essentials prepared for GitHub | Registered SpectralOperators 0.1.8; runtime/scientific/resource acceptance remains open |
+| Curvilinear next slice | `self_consistent_gyrokinetic_design` | A complete geometry/coupling/field/phase/persistence contract before production edits | Mapping actual owners and choosing bounded model | Coordinate/component/volume conventions and compatible operators; toroidal axis/walls remain explicit |
+| Implicit EM next slice | `yee_longitudinal_coupled_implementation` | A complete joint collection/field residual, nonlinear solve and physical continuation contract | Reading canonical current correction, Boris, Maxwell and nonlinear owners | EM continuity/work residual review; Hall persistence amendments take priority |
 | Integration and CI | Root | Compose shared registrations/docs, source review, dependency publication, commits/pushes and exact-revision CI closure | Active | Complete candidate handoffs and actual remote results |
 
 Hall and gyrokinetic implementations start from published `531f5ba` in separate
 worktrees. Current repair candidates and historical primary work remain isolated.
 No unfinished family is represented as runtime accepted.
+The slab integration candidate builds on the separate `bb7da93` correctness
+candidate; neither candidate has replaced `main`. The next two contracts do not
+authorize edits to current-family files or shared registrations.
 
 ## Exclusive file ownership
 

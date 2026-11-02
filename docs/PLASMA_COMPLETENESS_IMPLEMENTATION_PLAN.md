@@ -104,7 +104,7 @@ Source names below resolve to these canonical files:
 | GPU | Metal extension has deposit/gather/push methods; CUDA extension:1–68 has storage/telemetry hooks; `HybridFields` uses `Array` at field_state:12–29 | Partial kernels, not complete resident solvers, CAP-004; device availability is not numerical acceptance |
 | Implicit evolution | Linear Fourier reference and residual-checked reduced shock CN; separate [synchronous coupled hybrid source](IMPLICIT_HYBRID.md) | CPU periodic isothermal collections now have joint velocity/B residual, bounded Newton–GMRES, work-defect report and complete persistence source. Runtime/method acceptance, evolving pressure/orbit averages, EM and backends remain CAP-005 work |
 | Geometry | `ToroidalGrid`, metric gradient/divergence in curvilinear_mesh:20–49,90–235 | Geometry operators exist; no coupled toroidal plasma stepper, CAP-006A |
-| Gyrokinetics | `GuidingCentre`, local-field push and `gyroaverage` in gyrokinetics:559–645,823–876 | Single-particle/local sampling utilities; no self-consistent gyrokinetic distribution/field solve, CAP-006B |
+| Gyrokinetics | Local `GuidingCentre` utilities plus [self-consistent slab source](SLAB_GYROKINETIC.md) | Full-f gyrocentre collections, reciprocal ring-TSC, full-k polarization/modified adiabatic electrons, collective RK4, physical diagnostics and complete synchronous checkpoint/archive are source-implemented and reviewed. Exact-revision runtime/scientific/resource acceptance and broader geometry/physics remain CAP-006B work |
 | AMR | `AMRGrid` is a single 1D scalar level, adaptive_mesh_refinement:8–23; prolong/restrict/refine:322–366 | Transfer primitives; no adaptive plasma hierarchy, particle crossing or coupled timestep, CAP-006C |
 | External validation | Pinned external references plus case 34 parallel and case 35 oblique Hall production histories | Bounded production validation exists; complete manual campaigns, broader regimes, full profile replay and matched cost/accuracy comparisons remain CAP-007 work |
 | Kinetic species diversity | Arbitrary ES collections landed; CPU EMPIC collections with opt-in D1–3 dividing schedules and specialized EMPIC1D S1/S2, both with optional relativistic motion are source-implemented and reviewed | Exact-revision GitHub and resource acceptance, broader schedules and collision/boundary/partition/device composition remain CAP-008 work |
@@ -251,7 +251,7 @@ for active ownership.
 | 005B/C implicit hybrid | Root integration; canonical integrator + moment/Ohm owners | Explicit represented Boris-map/Faraday and work-defect contract | Full bounded synchronous CPU isothermal collection core/report/checkpoint/archive source implemented; [guide](IMPLICIT_HYBRID.md) | Exact-revision numerical, residual/convergence, failure/restart, compiler and cost acceptance; broader pressure/orbit-averaged models remain open |
 | 005D implicit EM / parallel geometry | Agent unassigned; EM/parallel/geometry owners | 005B/C method evidence; accepted relevant operators | Planned | Derive EM-specific continuity/work residual before adding a public method |
 | 006A curvilinear solver | Agent unassigned; mesh/coupling/model/I/O | Compatible geometry operators, chosen physical model | Partial primitives; no production callers found | Specify coordinate/component/volume conventions and coupled manufactured problem |
-| 006B self-consistent gyrokinetics | Assigned gyrokinetic implementation worker; new population/core/coupling/IO | Reviewed full-f slab model and registered SO 0.1.8; 006A remains required for toroidal claims | Complete model contract reviewed; source implementation in progress | Finish reciprocal ring-TSC collective evolution, field solve, diagnostics and full restart; exact-revision acceptance remains open |
+| 006B self-consistent gyrokinetics | Root integration of frozen population/core/coupling/IO source | Reviewed full-f slab model and registered SO 0.1.8; 006A remains required for toroidal claims | Complete bounded source and canonical callers reviewed; essential remote regressions prepared | Exact-revision runtime, field/reciprocity/convergence, failure/restart, compiler and resource acceptance; broader geometry/physics remain open |
 | 006C adaptive plasma hierarchy | Agent unassigned; AMR/coupling/model/I/O | Composite field method; 002/003/004 only where claimed | Partial scalar-level primitives | Design static ES hierarchy and crossing/self-force oracle before dynamic refinement |
 | 007A/B reference provenance + production dispersion | Canonical validation/reference owners; next campaign agent unassigned | Source/network/toolchain; accepted production solver | Pinned provenance, parallel production histories and oblique Hall case 35 landed; CI state is in the audit tracker | Complete manual campaigns and broaden thermal/kinetic/EM regimes, uncertainty and matched-cost comparisons; [production plan](PRODUCTION_DISPERSION_PLAN.md) |
 | 007C–E profiles, new physics, comparative costs | Agent unassigned; validation/benchmark owners | Accepted corresponding capability; datasets/hardware | Existing scalar comparisons inspected; campaigns unrun here | Freeze matched inputs/diagnostics/uncertainty and preserve raw reference outputs |
@@ -633,6 +633,18 @@ matched physical resolution. General stellarator equilibria and shaped separatri
 meshes require their own mapping/import/boundary slices before being advertised.
 
 ### CAP-006B: self-consistent gyrokinetic solver
+
+Current bounded source: [SlabGyrokineticPIC](SLAB_GYROKINETIC.md) evolves actual
+full-f gyrocentre collections and a common potential in a constant-B periodic
+3D slab. It includes ring-TSC deposition/potential derivatives, full-k
+polarization with modified adiabatic electrons, all collective RK4 stages and
+endpoint field refresh, energy diagnostics, and full physical checkpoint/archive
+continuation. Canonical source/callers were reviewed; the rounded-upper periodic
+coordinate case and public archive restoration were completed during review.
+Essential remote regressions are prepared, with no local Julia execution.
+These source changes do not close the runtime/scientific/resource gates below
+or supply toroidal geometry, evolving weights, collisions or electromagnetic
+gyrokinetics.
 
 - [ ] Choose and document a complete model before implementation: proposed first
   slice is electrostatic gyrokinetic ions with adiabatic electrons, explicit

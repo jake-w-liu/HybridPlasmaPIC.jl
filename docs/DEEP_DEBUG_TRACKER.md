@@ -58,6 +58,18 @@ rewritten as normwise bounds.
 
 ## Current progress
 
+The bounded self-consistent slab gyrokinetic family is source-implemented and
+reviewed in an isolated integration candidate: true gyrocentre phase space,
+reciprocal ring-TSC, full-k polarization/modified adiabatic electrons, collective
+RK4 plus endpoint field refresh, energy diagnostics and complete physical
+checkpoint/archive. Root checked canonical arithmetic/coupling/FFT/IO owners and
+completed public archive restoration and canonical half-open wrapping. Essential
+regressions cover uniform transport, a zonal Nyquist field, constant-potential
+force, zero/rejected steps and checkpoint/archive continuation; they have not
+been run locally. Exact-revision remote runtime, scientific and resource
+acceptance remain open. See the [model guide](SLAB_GYROKINETIC.md) and
+[current assignments](IMPLEMENTATION_WORKFLOW.md).
+
 The status below reconciles landed source with exact-revision CI and complete compiler-review receipts.
 This is a dated progress snapshot; linked GitHub runs provide live CI status.
 The historical primary checkout and its uncommitted radiation work
@@ -87,7 +99,7 @@ Current CI repairs, checked 2026-11-02:
   records 106,694 passes/12 failures on Julia 1.12.7 and 106,688 passes/18 failures
   on Julia 1.13.3. A four-file candidate removes unnecessary captured/dynamic
   validation paths and corrects the finite-cloud late-overflow fixture's charge;
-  every assertion and JET gate remains. Root reproduced32 text/source checks;
+  every assertion and JET gate remains. Root reproduced 32 text/source checks;
   candidate runtime/compiler acceptance is pending. The latest-only two stored-
   subnormal and four broad endpoint JET failures require measured observations;
   valid reinterpret endpoint controls pass108 assertions in that older run.

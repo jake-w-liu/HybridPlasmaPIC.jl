@@ -34,6 +34,11 @@ rerun by this documentation-only audit.
 
 ## Physics and API guides
 
+- [docs/SLAB_GYROKINETIC.md](SLAB_GYROKINETIC.md) — self-consistent full-f
+  electrostatic slab gyrocentres, reciprocal ring-TSC coupling, collective RK4,
+  full-k field/gauge gates, physical energy and complete checkpoint/archive.
+  Runtime, scientific and resource acceptance remain open.
+
 - [docs/MIXED_HALL_OPERATORS.md](MIXED_HALL_OPERATORS.md) — real mixed operators,
   raw full-Hall induction, represented transpose, exact face-work ledger and
   constrained field/rate projector; full shock and runtime acceptance remain open.
