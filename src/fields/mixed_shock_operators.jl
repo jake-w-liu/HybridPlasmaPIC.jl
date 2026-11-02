@@ -286,18 +286,8 @@ end
 
 _mixed_hall_arrays(w) = (w.pe, w.gradp..., w.ninv, w.E..., w.J..., w.lapJ..., w.rate...)
 
-"""
-    mixed_hall_rhs!(out, B, n, ui, physics, op, work)
-
-Raw full Hall/isothermal induction, with strict density and η=ηH=de2=0. Reuses
-canonical pressure, reciprocal, completed Ohm rows and Faraday sign. Original-
-product differentiated-source recovery is not supplied: source-risk events
-reject before publication. Return private borrowed E/J/pressure/reciprocal/rate
-and an exact stored-source face-work budget, valid until workspace reuse.
-No SAT, projection or time step is implicitly performed.
-"""
-function mixed_hall_rhs!(out::NTuple{3,Array{T,D}}, B::NTuple{3,Array{T,D}}, n::Array{T,D},
-    ui::NTuple{3,Array{T,D}}, physics::HybridModel, op::MixedShockOperators{D,T}, work::MixedHallWorkspace{D,T}) where {D,T}
+function _mixed_hall_electric!(B, n, ui, physics::HybridModel,
+    op::MixedShockOperators{D,T}, work::MixedHallWorkspace{D,T}; out = ()) where {D,T}
     physics.closure isa IsothermalElectrons{T} ||
         throw(ArgumentError("mixed Hall requires isothermal electrons at grid precision"))
     _require_finite_nonnegative_real("Te", physics.closure.Te, T)
@@ -324,6 +314,22 @@ function mixed_hall_rhs!(out::NTuple{3,Array{T,D}}, B::NTuple{3,Array{T,D}}, n::
     end
     risk = _ohm_field_rows!(work.E, ui, B, work.J, work.lapJ, work.gradp, work.ninv, zero(T), zero(T))
     foreach(a -> _mixed_finite(a, "mixed Hall electric field"), work.E)
+    return risk
+end
+
+"""
+    mixed_hall_rhs!(out, B, n, ui, physics, op, work)
+
+Raw full Hall/isothermal induction, with strict density and η=ηH=de2=0. Reuses
+canonical pressure, reciprocal, completed Ohm rows and Faraday sign. Original-
+product differentiated-source recovery is not supplied: source-risk events
+reject before publication. Return private borrowed E/J/pressure/reciprocal/rate
+and an exact stored-source face-work budget, valid until workspace reuse.
+No SAT, projection or time step is implicitly performed.
+"""
+function mixed_hall_rhs!(out::NTuple{3,Array{T,D}}, B::NTuple{3,Array{T,D}}, n::Array{T,D},
+    ui::NTuple{3,Array{T,D}}, physics::HybridModel, op::MixedShockOperators{D,T}, work::MixedHallWorkspace{D,T}) where {D,T}
+    risk = _mixed_hall_electric!(B, n, ui, physics, op, work; out)
     risk && throw(ArgumentError(
         "mixed Hall original-product Faraday range recovery is unsupported; a finite local Ohm field does not settle its differentiated source"))
     _mixed_curl!(work.rate, work.E, op)

@@ -288,3 +288,40 @@ function inject_face_1d!(
     nextid[] = firstid + ninjU
     return Ninj
 end
+
+
+"The new bounded reservoir caller exhausted its uniform-request budget."
+struct ReservoirDrawBudgetError <: Exception
+    limit::Int
+end
+Base.showerror(io::IO, err::ReservoirDrawBudgetError) =
+    print(io, "reservoir uniform-request budget exhausted (limit ", err.limit, ")")
+
+# Ephemeral: retain the stock scalar normal/flux owners and delegate each exact
+# uniform request. No broad Sampler method or replacement distribution.
+mutable struct _ReservoirDrawView{R<:Union{Random.Xoshiro,Random.MersenneTwister}} <: Random.AbstractRNG
+    rng::R
+    limit::Int
+    used::Int
+end
+function _reservoir_draw!(view::_ReservoirDrawView)
+    view.used < view.limit || throw(ReservoirDrawBudgetError(view.limit))
+    view.used += 1
+    return nothing
+end
+function Random.rand(view::_ReservoirDrawView)
+    _reservoir_draw!(view)
+    return rand(view.rng)
+end
+function Random.rand(view::_ReservoirDrawView, ::Type{Float32})
+    _reservoir_draw!(view)
+    return rand(view.rng, Float32)
+end
+function Random.rand(view::_ReservoirDrawView, ::Type{Float64})
+    _reservoir_draw!(view)
+    return rand(view.rng, Float64)
+end
+function Random.rand(view::_ReservoirDrawView, request::Random.UInt52{UInt64})
+    _reservoir_draw!(view)
+    return rand(view.rng, request)
+end

@@ -263,7 +263,8 @@ in the [implementation plan](docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md).
 
 | model | what it is | entry points |
 |---|---|---|
-| **Mixed Hall operators** | D2/3 CPU SBP-x/periodic-transverse raw isothermal full-Hall RHS, transpose, exact face-work ledger and constrained perpendicular field/rate projection; [source contract](docs/MIXED_HALL_OPERATORS.md). Runtime acceptance and complete coupled open-boundary shock remain open | `MixedShockOperators`, `MixedHallWorkspace`, `mixed_hall_rhs!`, `MixedHallProjectionWorkspace`, `project_mixed_field!`, `project_mixed_rate!` |
+| **Open Hall hybrid** | source-implemented CPU D2/3 isothermal positive-ion numerical reservoirs, SBP-volume CIC, projected full-Hall RK4 field trials, synchronous Boris/ballistic sources and complete physical/RNG restart; [model and pending acceptance](docs/OPEN_HALL_HYBRID.md). Restricted perpendicular face constraints; runtime, broader boundary physics and resource gates remain open | `OpenHallHybrid`, `OpenHallReservoir`, `init!`, `step!`, `open_hall_diagnostics` |
+| **Mixed Hall operators** | D2/3 CPU SBP-x/periodic-transverse raw isothermal full-Hall RHS, transpose, exact face-work ledger and constrained perpendicular field/rate projection; [source contract](docs/MIXED_HALL_OPERATORS.md). Runtime acceptance remains open; the separate coupled numerical-reservoir source is described above | `MixedShockOperators`, `MixedHallWorkspace`, `mixed_hall_rhs!`, `MixedHallProjectionWorkspace`, `project_mixed_field!`, `project_mixed_rate!` |
 | **Hall-MHD** | periodic single-fluid Hall-MHD with algebraic electron closures; ion pressure `p_i = Ti·n`; the electron pressure force acts in both Ohm's law and the bulk momentum equation; explicit RK4 with divergence-free projection | `HallMHDModel`, `HallMHDState`, `step_hall_mhd!` |
 | **Electrostatic PIC** | arbitrary kinetic species on periodic CPU grids, explicit charge/background policy, shared spectral Poisson field and synchronized leapfrog in 1D/2D/3D; scalar electron compatibility | `ElectrostaticPIC` (or `Electrostatic1D`), `init_espic!`, `step_espic!` |
 | **Electromagnetic PIC** | periodic spectral current correction and Gauss initialization in 1D–3D; legacy electron/ion models; CPU arbitrary-species `EMPIC` collections with opt-in D1–3 dividing kick schedules and planar `EMPIC1D` schedules, with optional relativity, mobile/fixed populations and explicit neutrality policy ([contract and pending CI](docs/EMPIC_SPECIES_IMPLEMENTATION.md)) | `EMPIC`, `EMPIC1D`, `set_empic_schedule!`, `set_empic1d_schedule!`, `init_empic!`, `step_empic!`, `charge_conservation_residual`, `electromagnetic_diagnostics`, `total_momentum_relativistic` |
@@ -631,6 +632,11 @@ fields, quadrature, fixed policies and synchronous phase with
 container; `load_archive!(simulation, species, path)` validates and restores it.
 Species may be omitted for the bound populations. Continuation acceptance
 remains pending; see [the complete payload and limits](docs/SLAB_GYROKINETIC.md#diagnostics-and-restart).
+`OpenHallHybrid` has a separate complete physical/source/RNG payload, including
+both last and cumulative face exchanges. Use the same explicit species forms
+of `save_checkpoint`, `load_checkpoint!`, `archive_run` and `load_archive!`.
+Continuation uses the full saved RNG rather than provenance seed metadata.
+Exact-revision acceptance remains pending; [restore contract](docs/OPEN_HALL_HYBRID_CHECKPOINT.md).
 `save_run`/`load_run`/`archive_run`
 add schema versioning, SHA-256 checksums, and full reproducibility metadata
 (git commit, Julia version, project/manifest hashes, RNG seed, hardware).

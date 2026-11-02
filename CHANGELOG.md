@@ -11,6 +11,17 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Added
 
+- `OpenHallHybrid` adds a separate synchronous CPU D2/3 isothermal positive-ion
+  numerical reservoir family with full Hall induction, actual SBP-volume CIC,
+  constrained projected RK4 trials, original-factor Boris velocities and two-face
+  births/exits. Bounded stock RNG requests, stable IDs, last/cumulative exchanges,
+  signed field/SAT/projection/energy ledgers and complete physical/RNG
+  checkpoint/archive prepare before publication. Six canonical seam extractions
+  retain literal legacy source inverses. Source review is complete and essentials
+  are prepared for GitHub; runtime, physical-boundary, compiler and resource
+  acceptance remain open. See the [model](docs/OPEN_HALL_HYBRID.md) and
+  [persistence contract](docs/OPEN_HALL_HYBRID_CHECKPOINT.md).
+
 - `SlabGyrokineticPIC` and true `GyrocentreSet` populations add a bounded CPU
   full-f electrostatic slab family: reciprocal ring-TSC coupling, full-k
   polarization and modified adiabatic electrons, collective four-stage RK4

@@ -101,6 +101,20 @@ function _isothermal_exact_energy(
     return _isothermal_finish_log_energy(T, _isothermal_log_terms(n, temperature, dx), offset)
 end
 
+# The coefficient includes the density and the caller's actual quadrature.
+function _isothermal_add_density_terms!(terms, density::Rational{BigInt}, coefficient)
+    density > 0 || throw(ArgumentError("density logarithms require positive represented density"))
+    odd = numerator(density)
+    exponent = -(ndigits(denominator(density); base = 2) - 1)
+    while iseven(odd)
+        odd >>= 1
+        exponent += 1
+    end
+    _isothermal_add_log!(terms, BigInt(2), coefficient * exponent)
+    _isothermal_add_log!(terms, odd, coefficient)
+    return terms
+end
+
 function _isothermal_log_terms(
     n::AbstractArray{T},
     temperature::C,
@@ -121,14 +135,7 @@ function _isothermal_log_terms(
     for (value, count) in counts
         density = Rational{BigInt}(value)
         coefficient = density * multiplier * count
-        odd = numerator(density)
-        exponent = -(ndigits(denominator(density); base = 2) - 1)
-        while iseven(odd)
-            odd >>= 1
-            exponent += 1
-        end
-        _isothermal_add_log!(terms, BigInt(2), coefficient * exponent)
-        _isothermal_add_log!(terms, odd, coefficient)
+        _isothermal_add_density_terms!(terms, density, coefficient)
     end
     return terms
 end

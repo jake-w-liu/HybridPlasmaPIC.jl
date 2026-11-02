@@ -391,6 +391,12 @@ function _moment_volume(g)
 end
 
 function _foreach_exact_moment_contribution(visit, ps, factors, g, shape)
+    return _foreach_exact_particle_contribution(ps, factors, g, shape, Val(:periodic)) do idx, value, p
+        visit(idx, value)
+    end
+end
+
+function _foreach_exact_particle_contribution(visit, ps, factors, g, shape, boundary)
     Q = Rational{BigInt}
     D = length(g.n)
     stamp = CartesianIndices(ntuple(_ -> width(shape), D))
@@ -406,8 +412,8 @@ function _foreach_exact_moment_contribution(visit, ps, factors, g, shape)
             for d = 1:D
                 weight *= _exact_rational(st[d][2][o[d]])
             end
-            idx = ntuple(d -> mod(st[d][1] + o[d] - 1, g.n[d]) + 1, D)
-            visit(idx, weight)
+            idx = _stencil_node_index(st, g.n, o, boundary)
+            visit(idx, weight, p)
         end
     end
     return nothing

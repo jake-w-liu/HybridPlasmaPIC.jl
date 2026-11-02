@@ -58,6 +58,18 @@ rewritten as normwise bounds.
 
 ## Current progress
 
+The separate bounded `OpenHallHybrid` core and complete persistence are now
+source-implemented and reviewed together: SBP-volume CIC, nonlinear full-Hall
+induction with explicit SAT/projection work, bounded paired RK4 trials,
+synchronous original-factor Boris/ballistic transport, both face reservoirs,
+stable IDs/full RNG and last/cumulative source/energy ledgers. Root read all
+new production files, both guides and six canonical seam changes; all six
+literal legacy inverses and ten author source checks passed, and thirteen
+frozen A/B files matched their receipts before integration amendments. Essential
+remote regressions are prepared. No local Julia execution or runtime,
+scientific-boundary, compiler or resource acceptance is claimed. See the
+[model](OPEN_HALL_HYBRID.md) and [full restore contract](OPEN_HALL_HYBRID_CHECKPOINT.md).
+
 The bounded self-consistent slab gyrokinetic family is source-implemented and
 reviewed in an isolated integration candidate: true gyrocentre phase space,
 reciprocal ring-TSC, full-k polarization/modified adiabatic electrons, collective

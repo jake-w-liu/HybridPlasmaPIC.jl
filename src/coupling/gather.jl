@@ -37,7 +37,9 @@ function gather_scalar!(
 end
 
 # One canonical vector gather row; distributed ownership supplies only the lookup.
-@inline function _gather_vector_stencil(field_at, st, n, stamp, ::Type{T}) where {T}
+@inline function _gather_vector_stencil(field_at, st, n, stamp, ::Type{T},
+    boundary = Val(:periodic), complete = Val(false)) where {T}
+    complete isa Val{true} && return _gather_vector_stencil_exact(field_at, st, n, stamp, T, boundary)
     ax = ay = az = zero(T)
     for c in stamp
         o = Tuple(c)
@@ -45,13 +47,31 @@ end
         for d = 1:length(n)
             w *= st[d][2][o[d]]
         end
-        idx = ntuple(d -> mod(st[d][1] + o[d] - 1, n[d]) + 1, length(n))
+        idx = _stencil_node_index(st, n, o, boundary)
         values = field_at(idx)
         ax += values[1] * w
         ay += values[2] * w
         az += values[3] * w
     end
     return ax, ay, az
+end
+
+# Complete the same stored per-axis stencil, with one publication per component.
+function _gather_vector_stencil_exact(field_at, st, n, stamp, ::Type{T}, boundary) where {T}
+    Q = _exact_rational
+    sums = (zero(Rational{BigInt}), zero(Rational{BigInt}), zero(Rational{BigInt}))
+    for c in stamp
+        o = Tuple(c)
+        weight = one(Rational{BigInt})
+        for d = 1:length(n)
+            weight *= Q(st[d][2][o[d]])
+        end
+        values = field_at(_stencil_node_index(st, n, o, boundary))
+        sums = ntuple(i -> sums[i] + Q(values[i]) * weight, 3)
+    end
+    out = map(x -> _from_exact(T, x), sums)
+    all(isfinite, out) || throw(ArgumentError("complete vector gather exceeds its materialized field range"))
+    return out
 end
 
 "Gather a 3-component grid field to particles using a shared interpolation stencil."

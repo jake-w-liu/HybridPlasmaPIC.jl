@@ -138,6 +138,9 @@ include("models/yee_absorbing_longitudinal_pic.jl")
 include("models/hall_mhd.jl")
 include("fields/mixed_shock_operators.jl")
 include("fields/mixed_hall_projection.jl")
+include("models/open_hall_hybrid.jl")
+include("coupling/mixed_cic.jl")
+include("boundaries/open_hall_reservoir.jl")
 include("models/gyrokinetics.jl")
 include("models/slab_gyrokinetic_pic.jl")
 
@@ -147,6 +150,7 @@ include("diagnostics/phase_space.jl")
 include("diagnostics/spectra.jl")
 include("diagnostics/relativistic_moments.jl")
 include("diagnostics/conservation.jl")        # energy/momentum budgets (needs kinetic_energy)
+include("diagnostics/open_hall_energy.jl")
 include("diagnostics/shock_surface.jl")       # shock diag (needs PerpShock2D/3D)
 include("diagnostics/synthetic_spacecraft.jl")
 include("diagnostics/ray_tracing.jl")         # WKB ray tracing (needs _require_finite_point3)
@@ -174,6 +178,7 @@ include("io/yee_absorbing_longitudinal_checkpoint.jl")
 include("io/collisional_checkpoint.jl")
 include("io/collisional_empic_checkpoint.jl")
 include("io/collisional_electrostatic_checkpoint.jl")
+include("io/open_hall_checkpoint.jl")
 include("io/metadata.jl")
 include("io/hdf5_output.jl")
 include("io/restart.jl")
@@ -416,6 +421,8 @@ export PlasmaUnits, alfven_speed, gyrofrequency, inertial_length, to_SI, to_norm
 export coulomb_normalization
 export rh_branches
 export SpectralOperators, exp_filter!, dealias_two_thirds!, fft_friendly_size, with_fftw_wisdom
+export OpenHallHybrid, OpenHallReservoir, OpenHallStepReport, OpenHallControllerError
+export ReservoirDrawBudgetError, open_hall_diagnostics
 export GyrocentreSet, SlabGyrokineticPIC, SlabGyrokineticFieldReport, slab_gyrokinetic_diagnostics
 export GuidingCentre,
     exb_drift, gradb_drift, curvature_drift, drift_velocity, push_guiding_centre!, gyroaverage

@@ -78,6 +78,13 @@ end
 
 @inline _periodic_cell_position(x, L, dx) = mod(x, L) / dx
 
+# Explicit geometry policy shared by exact deposition and vector gather.
+@inline _stencil_node_index(st, n, o, ::Val{:periodic}) =
+    ntuple(d -> mod(st[d][1] + o[d] - 1, n[d]) + 1, length(n))
+@inline _stencil_node_index(st, n, o, ::Val{:fold_x}) =
+    ntuple(d -> d == 1 ? clamp(st[d][1] + o[d], 1, n[d]) :
+        mod(st[d][1] + o[d] - 1, n[d]) + 1, length(n))
+
 Base.@propagate_inbounds @inline function _particle_cell_position(
     ps::ParticleSet{D,T},
     g::FourierGrid{D,T},

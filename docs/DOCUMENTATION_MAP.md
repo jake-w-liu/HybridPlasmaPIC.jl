@@ -34,6 +34,12 @@ rerun by this documentation-only audit.
 
 ## Physics and API guides
 
+- [docs/OPEN_HALL_HYBRID.md](OPEN_HALL_HYBRID.md) — synchronous mixed-grid full-Hall
+  numerical reservoirs, projected field controller, complete CIC/source/ID/RNG
+  evolution and signed physical/work diagnostics; remote acceptance remains open.
+- [docs/OPEN_HALL_HYBRID_CHECKPOINT.md](OPEN_HALL_HYBRID_CHECKPOINT.md) — full
+  physical/source/RNG schema, detached prepared restore and checksummed archives.
+
 - [docs/SLAB_GYROKINETIC.md](SLAB_GYROKINETIC.md) — self-consistent full-f
   electrostatic slab gyrocentres, reciprocal ring-TSC coupling, collective RK4,
   full-k field/gauge gates, physical energy and complete checkpoint/archive.
