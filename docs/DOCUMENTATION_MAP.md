@@ -33,6 +33,8 @@ rerun by this documentation-only audit.
 ## Physics and API guides
 
 - [docs/COLLISIONAL_HYBRID.md](COLLISIONAL_HYBRID.md)
+- [docs/COLLISIONAL_ELECTROSTATIC.md](COLLISIONAL_ELECTROSTATIC.md) — fixed-step
+  electrostatic PIC/local-Coulomb source composition, sole clock and RNG restart.
 - [docs/COLLISIONAL_EMPIC.md](COLLISIONAL_EMPIC.md) — field-first electromagnetic
   PIC/local-Coulomb source composition, fixed normalization and full RNG restart.
 - [docs/EVOLVING_ELECTRONS.md](EVOLVING_ELECTRONS.md) — stored pressure, transport

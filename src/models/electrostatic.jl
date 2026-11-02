@@ -739,6 +739,28 @@ function init_espic!(es::ElectrostaticPIC{D,T}, species::AbstractVector) where {
     return es
 end
 
+function _espic_collection_advance_candidate!(es, species, work, dtT)
+    _espic_prepare_stages!(es, species)
+    for ps in work.staged
+        _resize_espic_particle_workspaces!(es, nparticles(ps))
+        gather_vector!(es.Ep, es.E, ps, es.g, CIC())
+        _espic_push!(ps, es.Ep, es.g, dtT, es.primed[], es.last_dt[])
+    end
+    _espic_collection_fields!(es, work.staged)
+    return work
+end
+
+function _espic_collection_publish!(es, species, work, dtT)
+    for (ps, stage) in zip(species, work.staged)
+        foreach(copyto!, ps.x, stage.x)
+        foreach(copyto!, ps.v, stage.v)
+    end
+    _espic_publish_fields!(es, work)
+    es.primed[] = true
+    es.last_dt[] = dtT
+    return es
+end
+
 function step_espic!(es::ElectrostaticPIC{D,T}, species::AbstractVector, dt::Real) where {D,T}
     dtT =
         _require_resolved_dt("step_espic!", _validated_nonnegative_dt(T, dt; name = "step_espic!"))
@@ -751,21 +773,8 @@ function step_espic!(es::ElectrostaticPIC{D,T}, species::AbstractVector, dt::Rea
         throw(ArgumentError("electrostatic last_dt must be positive exactly when primed"))
     all(a -> all(isfinite, a), es.E) || throw(ArgumentError("electrostatic field must be finite"))
     iszero(dtT) && return es
-    _espic_prepare_stages!(es, species)
-    for ps in work.staged
-        _resize_espic_particle_workspaces!(es, nparticles(ps))
-        gather_vector!(es.Ep, es.E, ps, es.g, CIC())
-        _espic_push!(ps, es.Ep, es.g, dtT, es.primed[], es.last_dt[])
-    end
-    _espic_collection_fields!(es, work.staged)
-    for (ps, stage) in zip(species, work.staged)
-        foreach(copyto!, ps.x, stage.x)
-        foreach(copyto!, ps.v, stage.v)
-    end
-    _espic_publish_fields!(es, work)
-    es.primed[] = true
-    es.last_dt[] = dtT
-    return es
+    _espic_collection_advance_candidate!(es, species, work, dtT)
+    return _espic_collection_publish!(es, species, work, dtT)
 end
 
 """

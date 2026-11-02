@@ -1,5 +1,12 @@
 # CAP-010: collision/field composition and stochastic restart
 
+Current electrostatic addition (2026-11-02):
+[CollisionalElectrostaticPIC](COLLISIONAL_ELECTROSTATIC.md) source-implements
+fixed-step all-mobile CIC ES/local-Coulomb composition with a sole physical clock,
+new-position/carried-half scattering, matching normalization, private state/RNG
+staging and distinct complete restart. No tests were added or run; runtime/CI
+and resource acceptance remain deferred.
+
 Current electromagnetic addition (2026-11-02):
 [CollisionalEMPICStepper](COLLISIONAL_EMPIC.md) source-implements fixed-step
 all-mobile nonrelativistic generic EMPIC/local-Coulomb composition, new-position

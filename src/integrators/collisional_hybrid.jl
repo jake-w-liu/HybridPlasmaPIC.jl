@@ -144,6 +144,24 @@ end
 _validate_collisional_rng(rng) =
     throw(ArgumentError("CollisionalHybridStepper requires Xoshiro or MersenneTwister"))
 
+_collisional_rng_buffers(::Random.Xoshiro) = ()
+_collisional_rng_buffers(rng::Random.MersenneTwister) =
+    (rng.state.val, rng.vals, rng.ints)
+
+function _validate_collisional_rng_pair(live, candidate, context::AbstractString)
+    # Both stdlib owners validate fixed recurrence/cache sizes before any copy!.
+    # copy!(MersenneTwister) shares seed metadata; draws never mutate that seed.
+    _validate_collisional_rng(live)
+    _validate_collisional_rng(candidate)
+    live === candidate &&
+        throw(ArgumentError("$context live and candidate RNGs must be independent"))
+    for a in _collisional_rng_buffers(live), b in _collisional_rng_buffers(candidate)
+        _particle_arrays_mightalias(a, b) &&
+            throw(ArgumentError("$context RNG recurrence and caches must be independent"))
+    end
+    return nothing
+end
+
 function _validate_collisional_populations(species, g::FourierGrid{D,T}) where {D,T}
     species isa AbstractVector{<:ParticleSet{D,T}} ||
         throw(ArgumentError("collisional populations must match grid dimension and precision"))

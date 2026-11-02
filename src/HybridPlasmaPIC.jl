@@ -124,6 +124,7 @@ include("models/empic_transaction.jl")
 include("models/full_pic.jl")
 include("models/empic_collection.jl")
 include("integrators/collisional_empic.jl")
+include("integrators/collisional_electrostatic.jl")
 include("models/maxwell_vacuum.jl")
 include("models/yee_longitudinal_pic.jl")
 include("models/yee_electromagnetic_pic.jl")
@@ -160,6 +161,7 @@ include("io/yee_impact_longitudinal_checkpoint.jl")
 include("io/yee_absorbing_longitudinal_checkpoint.jl")
 include("io/collisional_checkpoint.jl")
 include("io/collisional_empic_checkpoint.jl")
+include("io/collisional_electrostatic_checkpoint.jl")
 include("io/metadata.jl")
 include("io/hdf5_output.jl")
 include("io/restart.jl")
@@ -240,6 +242,7 @@ export ElectronClosure,
 export HybridStepper,
     CollisionalHybridStepper,
     CollisionalEMPICStepper,
+    CollisionalElectrostaticPIC,
     init!,
     step!,
     kinetic_energy,

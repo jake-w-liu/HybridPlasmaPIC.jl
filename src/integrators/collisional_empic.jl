@@ -156,21 +156,8 @@ function CollisionalEMPICStepper(
     return st
 end
 
-_collisional_empic_rng_buffers(::Random.Xoshiro) = ()
-_collisional_empic_rng_buffers(rng::Random.MersenneTwister) =
-    (rng.state.val, rng.vals, rng.ints)
-
 function _validate_collisional_empic_rngs(st::CollisionalEMPICStepper)
-    # Both stdlib owners validate fixed recurrence/cache sizes before any copy!.
-    # copy!(MersenneTwister) shares seed metadata; draws never mutate that seed.
-    _validate_collisional_rng(st.rng)
-    _validate_collisional_rng(st.candidate_rng)
-    st.rng === st.candidate_rng &&
-        throw(ArgumentError("collisional EMPIC live and candidate RNGs must be independent"))
-    for a in _collisional_empic_rng_buffers(st.rng), b in _collisional_empic_rng_buffers(st.candidate_rng)
-        _particle_arrays_mightalias(a, b) &&
-            throw(ArgumentError("collisional EMPIC RNG recurrence and caches must be independent"))
-    end
+    _validate_collisional_rng_pair(st.rng, st.candidate_rng, "collisional EMPIC")
     sources = (
         species = st.species,
         identities = st.identities,

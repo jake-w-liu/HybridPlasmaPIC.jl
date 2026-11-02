@@ -37,6 +37,7 @@ Write a provenance-stamped, checksum-verified archive of the run state at `path`
 Supports [`HybridStepper`](@ref), [`CAMCLStepper`](@ref),
 [`Electrostatic1D`](@ref), [`ElectrostaticPIC`](@ref), [`EMPIC1D`](@ref), [`EMPIC`](@ref),
 [`HallMHDState`](@ref), [`MaxwellVacuum`](@ref), [`CollisionalHybridStepper`](@ref), [`CollisionalEMPICStepper`](@ref),
+[`CollisionalElectrostaticPIC`](@ref),
 [`YeeLongitudinalPIC`](@ref),
 [`YeeElectromagneticPIC`](@ref), [`YeeImpactLongitudinalPIC`](@ref),
 and [`YeeAbsorbingLongitudinalPIC`](@ref).
@@ -85,6 +86,10 @@ They retain the full advanced RNG, fixed configuration and completed source
 ledger; restored fields and charge/current snapshots are copied verbatim.
 The explicit positive collision permittivity and count conversion must be equal
 at the stored precision, as required by the Maxwell source normalization.
+Collisional ES archives use distinct `:collisional_espic` schema 1 with the nested
+ES E/ne/particle/phase state, full RNG, fixed equal positive collision permittivity
+and count conversion, and sole wrapper source clock/count. They restore physical
+fields verbatim and retain the new-position/carried-half collision policy.
 Field-only `MaxwellVacuum` archives retain synchronized fields, clock and actual
 Yee grid/boundary/speed configuration in a distinct schema, with no particle or
 waveform payload. Their defaults describe vacuum units and actual wall axes.
@@ -160,9 +165,23 @@ function archive_run(
     end
 end
 
+function archive_run(
+    path::AbstractString,
+    st::CollisionalElectrostaticPIC,
+    species::AbstractVector{<:ParticleSet};
+    kwargs...,
+)
+    _acquire_collisional_espic!(st)
+    try
+        return _archive_run(path, st, _checkpoint_state(st, species); kwargs...)
+    finally
+        st.busy[] = false
+    end
+end
+
 function _archive_run(
     path::AbstractString,
-    st::Union{_CheckpointStepper,HallMHDState,MaxwellVacuum,CollisionalHybridStepper,CollisionalEMPICStepper,_ClosedYeeCheckpointStepper},
+    st::Union{_CheckpointStepper,HallMHDState,MaxwellVacuum,CollisionalHybridStepper,CollisionalEMPICStepper,CollisionalElectrostaticPIC,_ClosedYeeCheckpointStepper},
     state;
     rng_seed::Integer,
     normalization::AbstractString = "Omega_ci",

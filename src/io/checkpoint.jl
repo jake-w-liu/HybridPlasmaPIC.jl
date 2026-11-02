@@ -1226,6 +1226,11 @@ its collision positions are at the new integer time and velocities remain at the
 carried fast half level. No second field or current snapshot is constructed.
 Both collision `epsilon0` and `weight_to_number` are explicit, positive and equal
 at the stored precision to match the unit Maxwell source coefficient.
+[`CollisionalElectrostaticPIC`](@ref) retains its distinct schema-1 ES collection
+state, field-then-collision policy, fixed normalization, full RNG and sole wrapper
+source clock/count. It saves initialized ready boundaries; count zero is unprimed,
+and advanced state retains the common carried half-time velocities. Collision
+`epsilon0` and `weight_to_number` are explicit, positive and equal at stored precision.
 For [`Electrostatic1D`](@ref) and [`ElectrostaticPIC`](@ref), save the electron
 particles, electric field, number density, background density, and priming/timestep
 state. Collection `ElectrostaticPIC` checkpoints also store ordered arbitrary
@@ -1303,7 +1308,7 @@ end
 
 function _save_checkpoint(
     path::AbstractString,
-    st::Union{_CheckpointStepper,HallMHDState,MaxwellVacuum,CollisionalHybridStepper,CollisionalEMPICStepper,_ClosedYeeCheckpointStepper},
+    st::Union{_CheckpointStepper,HallMHDState,MaxwellVacuum,CollisionalHybridStepper,CollisionalEMPICStepper,CollisionalElectrostaticPIC,_ClosedYeeCheckpointStepper},
     state,
 )
     _validate_checkpoint_state(state, st)
@@ -1352,6 +1357,12 @@ physical fields replace their values. The complete incoming RNG and inner state
 are detached and validated before publication; the source clock and both fast/full
 timestep histories restore with the RNG. No field projection or current refresh
 is performed on restore.
+`CollisionalElectrostaticPIC` similarly requires matching fixed populations,
+configuration and full RNG algorithm/runtime. Its nested E/ne and velocity phase
+restore verbatim, with the sole wrapper source clock/count; ES has no inner
+time/step counters. Destination old physical, clock and inner-phase values may be
+replaced after storage/configuration preflight. No Poisson solve or time
+reconstruction from count times timestep is performed.
 Electrostatic destinations must have the same background density `n0`, which
 is immutable; their saved fields, density, and leapfrog phase are restored directly.
 Electromagnetic destinations require the same ion mobility and concrete shape

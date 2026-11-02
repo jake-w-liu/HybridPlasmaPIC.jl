@@ -81,8 +81,13 @@ fixed-step all-mobile nonrelativistic electromagnetic composition with complete
 RNG/physical-state staging and restart. Its collision normalization must match
 the unit Maxwell coefficients. No tests were added or run; acceptance is deferred.
 
-The composed APIs' supported models, time levels and failure semantics are narrower than this
-stand-alone collision API; use that guide when choosing the composed run.
+[CollisionalElectrostaticPIC](COLLISIONAL_ELECTROSTATIC.md) supplies the analogous
+generic CIC ES source composition with its own sole clock, full private staging
+and RNG-complete restart. It requires matching field/collision normalization;
+acceptance is deferred and no tests were added or run.
+
+The composed APIs' supported models, time levels and failure semantics are narrower
+than this stand-alone collision API; use their guides when choosing a composed run.
 
 A stand-alone call's external RNG is not automatically captured by particle
 checkpoints. Retain that evolved RNG alongside the ordered particle state and

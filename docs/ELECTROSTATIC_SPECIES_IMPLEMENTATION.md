@@ -13,6 +13,13 @@ collections are now implemented with [acceptance pending](EMPIC_SPECIES_IMPLEMEN
 also implemented pending GitHub acceptance; multirate and backend integrations
 remain open.
 
+A bounded [local-Coulomb composition](COLLISIONAL_ELECTROSTATIC.md) is now source
+implemented for nonrelativistic all-mobile ordinary-Vector generic collections
+with fixed dt and consistent collision normalization. It stages the field map,
+scattering and advanced RNG before publication, owns a sole physical clock and
+has a distinct complete checkpoint. No tests were added or run; runtime acceptance
+and broader collision intersections remain open.
+
 ## Pre-edit brief (2026-10-25)
 
 - Mode: extend the existing periodic electrostatic solver.

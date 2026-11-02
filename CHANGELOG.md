@@ -11,6 +11,15 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Added
 
+- `CollisionalElectrostaticPIC` composes generic CPU Float32/64 CIC species
+  collections with canonical local Coulomb scattering at new positions and
+  carried half-time velocities. It owns the sole physical/source clock and
+  stages fields, particles and RNG before publication. A distinct full-RNG
+  checkpoint/archive retains the nested ES state. Fixed dt, zero background,
+  required neutrality and equal positive permittivity/count conversion define
+  the first scope. No tests were added or run; runtime/compiler/resource
+  acceptance is deferred. See the [guide](docs/COLLISIONAL_ELECTROSTATIC.md).
+
 - Serial `MaxwellVacuum` gains field-only checkpoint/archive overloads for D1–3
   CPU Float32/64 periodic/PEC Yee grids. A distinct schema records synchronized
   fields, exact configuration and clock; complete incoming validation/detachment
