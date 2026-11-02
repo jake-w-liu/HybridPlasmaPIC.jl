@@ -182,8 +182,9 @@ function _empic_collection_validate_storage(es::Union{EMPIC,EMPIC1D}, species)
     for (i, ps) in enumerate(species)
         _check_particle_storage_axes(ps)
         _require_particle_ordinary_stores(ps, "electromagnetic collection")
-        all(a -> a isa StridedVector, (ps.x..., ps.v..., ps.weight, ps.id, ps.tag)) ||
-            throw(ArgumentError("electromagnetic collections require CPU strided particle storage"))
+        all(a -> a isa StridedVector && _particle_batch_injective(a),
+            (ps.x..., ps.v..., ps.weight, ps.id, ps.tag)) ||
+            throw(ArgumentError("electromagnetic collections require injective CPU strided particle storage"))
         _particle_components_mightalias(ps) &&
             throw(ArgumentError("electromagnetic particle components must not alias"))
         for j = 1:(i-1)

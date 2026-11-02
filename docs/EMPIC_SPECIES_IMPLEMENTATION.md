@@ -16,7 +16,9 @@ and atomic-only storage through standard wrapper parents before collection alias
 checks. It covers every population and particle leaf. Fixed populations are also
 copied at publication, and checkpoint restore writes weights and provenance.
 Writable ordinary vectors, non-atomic Memory and writable views/reinterpretations
-remain supported. Host storage must support ordinary writes and expose aliases;
+remain supported. Electromagnetic collection particle leaves must also be
+injective: a strided view with multiple logical entries sharing one backing
+cell rejects before staging or restoration. Host storage must support ordinary writes and expose aliases;
 OS protection changes and arbitrary custom setter side effects are outside the
 publication guarantee. The shared check also serves ES collections and closed
 Yee models. Essential constructor/init/restore controls are present but unrun;

@@ -151,6 +151,11 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Fixed
 
+- Electromagnetic collection preflight now requires injective particle leaves,
+  rejecting repeated-cell strided views before staging or checkpoint restore.
+  Existing injective storage retains its admission. Source review only; runtime
+  validation is deferred during the current implementation-first pass.
+
 - The absent conduction-quotient validator now specializes on `HybridStepper`,
   resolving a dispatch ambiguity that blocked nonconducting evolving-pressure
   initialization, stepping and restart preflight. Real quotient-grid validation
