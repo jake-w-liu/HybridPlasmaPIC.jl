@@ -45,7 +45,8 @@ leapfrog and collective charge/energy/momentum diagnostics.
 [Matching-layout ES checkpoint](DISTRIBUTED_ELECTROSTATIC_CHECKPOINT.md) is also
 source-implemented. A separate [distributed EM core](DISTRIBUTED_EMPIC_IMPLEMENTATION.md)
 now composes canonical CIC/Boris/current/field owners on actual pencils; complete
-EM checkpoint integration and broader hybrid/EM families remain open.
+[Complete matching-layout EM checkpoint](DISTRIBUTED_EMPIC_CHECKPOINT.md) is also
+source-implemented; broader hybrid/EM families remain open.
 Runtime/compiler/resource acceptance is deferred during the implementation-first
 pass.
 
@@ -93,8 +94,8 @@ Primary source:
    A [vacuum Maxwell source implementation](DISTRIBUTED_MAXWELL_IMPLEMENTATION.md)
    and [coupled ES source](DISTRIBUTED_ELECTROSTATIC_IMPLEMENTATION.md) now compose
    them; a [coupled EM source](DISTRIBUTED_EMPIC_IMPLEMENTATION.md) is also available.
-   Runtime acceptance, EM checkpoint integration and broader hybrid/EM families
-   remain open. Shock configurations with nonperiodic shock-normal physics use
+   [Complete EM checkpoint source](DISTRIBUTED_EMPIC_CHECKPOINT.md) retains actual
+   state; runtime/restart acceptance and broader hybrid/EM families remain open. Shock configurations with nonperiodic shock-normal physics use
    slab/local finite-difference logic until a mixed distributed operator is
    designed and tested.
 4. Validate the extension with real `mpiexec` tests:

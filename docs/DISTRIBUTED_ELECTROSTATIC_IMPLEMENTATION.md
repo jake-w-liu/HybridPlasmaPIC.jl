@@ -112,4 +112,5 @@ The source provides no changed-layout restart,
 collisions, subcycling, hybrid composition, GPU path or measured cluster scaling.
 A separate [distributed EM source](DISTRIBUTED_EMPIC_IMPLEMENTATION.md) shares this
 transport with its canonical mover/current/field owners; its runtime acceptance
-and complete checkpoint integration remain open.
+and restart acceptance remain open. Its [complete matching-layout checkpoint
+source](DISTRIBUTED_EMPIC_CHECKPOINT.md) retains all EM current/endpoint/phase state.

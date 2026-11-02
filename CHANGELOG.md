@@ -11,6 +11,14 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Added
 
+- Actual-pencil EM PIC gains distinct matching-layout checkpoint/restart with
+  checksummed rank generations and complete eleven-field/current/endpoint phase
+  history. All ranks validate detached source state and prepare same-type leaves
+  plus derived counts before publication; stale destination values/counts can
+  be replaced. Existing ES/Maxwell/shared file mechanics stay unchanged. No tests
+  added or run; continuation/liveness/compiler/resource acceptance is deferred.
+  See the [EM checkpoint guide](docs/DISTRIBUTED_EMPIC_CHECKPOINT.md).
+
 - Actual-pencil electromagnetic PIC adds all-mobile nonrelativistic CIC
   collections with canonical original-factor Boris/prime/midpoint motion,
   complete remote transport and migration, represented-mode current correction,
@@ -18,7 +26,7 @@ records scoped verification and remaining exact-revision acceptance gates.
   global diagnostics separate physical/grid charge and phase. Shared serial
   expressions and ES transport owners retain literal source inverses. No tests
   added or run; runtime/collective/compiler/cost acceptance is deferred and
-  complete EM checkpoint is the next slice. See the
+  complete EM checkpoint is recorded separately below. See the
   [EM source guide](docs/DISTRIBUTED_EMPIC_IMPLEMENTATION.md).
 
 - `YeePML` adds source-free causal directional ADE PML for serial D1–3 CPU

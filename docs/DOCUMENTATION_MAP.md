@@ -70,7 +70,10 @@ rerun by this documentation-only audit.
 - [docs/DISTRIBUTED_EMPIC_IMPLEMENTATION.md](DISTRIBUTED_EMPIC_IMPLEMENTATION.md)
   — actual-pencil all-mobile nonrelativistic CIC/Boris, corrected current,
   carried magnetic/velocity phase and scalar diagnostics; runtime acceptance
-  and complete checkpoint integration remain open.
+  and restart acceptance remain open.
+- [docs/DISTRIBUTED_EMPIC_CHECKPOINT.md](DISTRIBUTED_EMPIC_CHECKPOINT.md)
+  — complete eleven-field/current/endpoint phase, checksummed rank generations
+  and detached stale-destination restore; runtime acceptance remains open.
 - [docs/DISTRIBUTED_MAXWELL_CHECKPOINT.md](DISTRIBUTED_MAXWELL_CHECKPOINT.md)
   — matching-layout physical-pencil restart, checksums, publication and restore scope.
 

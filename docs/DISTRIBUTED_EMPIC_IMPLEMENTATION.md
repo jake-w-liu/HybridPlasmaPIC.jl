@@ -9,9 +9,10 @@ replicate global fields/populations.
 
 The implementation-first pass adds no tests or execution. Package load,
 numerical/convergence, actual-rank rollback/liveness, compiler/JET, formatting/CI
-and complete-operation memory/cost acceptance remain deferred. Matching-layout
-complete checkpoint is a separately developed required slice B; until composed,
-this core alone does not supply end-to-end restart or complete CAP-003.
+and complete-operation memory/cost acceptance remain deferred. The complete
+[matching-layout checkpoint source](DISTRIBUTED_EMPIC_CHECKPOINT.md) now
+retains actual particles, eleven fields and phase. Its runtime acceptance and
+completion of CAP-003 remain open.
 
 ## Construction, ownership and phase
 
@@ -160,11 +161,12 @@ gather. Exact arithmetic, repeated routes, source normalization, derived-bound
 checks and scalar reductions have unmeasured cost. No zero-allocation, speedup or
 cluster scaling claim is made.
 
-Complete restart must preserve particles, E/B/J/rho_n/rho_np1 and phase/clocks
-verbatim through a distinct checksummed matching-layout schema. Count cache is
-derived from admitted incoming leaves; stale destination values/counts may be
-replaced without reading them as phase evidence. No field regeneration or migration
-belongs in restore. Slice B is required before this family is end-to-end complete.
+The [complete checkpoint source](DISTRIBUTED_EMPIC_CHECKPOINT.md) preserves
+particles, E/B/J/rho_n/rho_np1 and phase/clocks verbatim through a distinct
+checksummed matching-layout schema. Count cache derives from admitted incoming
+leaves; stale destination values/counts can be replaced without reading them as
+phase evidence. Restore performs no field regeneration or migration. Its actual
+continuation/liveness/compiler/resource acceptance remains deferred.
 Relativity, fixed populations, other shapes, schedules/subcycling, collisions,
 changed-layout restart, nonperiodic fields/particles, GPU and broad distributed
 hybrid/completeness remain separate work.
