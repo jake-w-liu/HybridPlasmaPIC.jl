@@ -8,7 +8,10 @@ Status: landed as standalone CPU operator `1b7b8b7` (2026-10-26);
 [all six exact-SHA jobs and complete compiler review pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40272777081). See the
 [allocation repair record](LOCAL_COULOMB_RATE_ALLOCATION_PLAN.md) for landing
 verification. The fixed-step CPU isothermal [CAP-010 composition](COLLISIONAL_HYBRID.md)
-has also landed; broader closures/models, MPI ownership and device kernels remain open.
+has also landed. [Actual-pencil collisional ES source](DISTRIBUTED_COLLISIONAL_ELECTROSTATIC.md)
+now uses admitted complete owned cells/global dx and full per-rank RNG/physical
+restart; actual-rank acceptance, broader MPI families, closures/models and device
+kernels remain open.
 Original base: `bf2a8bc615f514f8d2868934849bf44814140bbb`.
 Historical V10 candidate assembly: `c5e8472084dff861ae92d8ff6466edfaaeeebe44`; production baseline is unchanged from `1097076` and its accepted normalization prefix is retained.
 Evidence directory: `../HybridPlasmaPIC-audit-evidence/2026-10-23/local-multispecies-coulomb`.

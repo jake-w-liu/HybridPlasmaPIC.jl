@@ -114,3 +114,9 @@ A separate [distributed EM source](DISTRIBUTED_EMPIC_IMPLEMENTATION.md) shares t
 transport with its canonical mover/current/field owners; its runtime acceptance
 and restart acceptance remain open. Its [complete matching-layout checkpoint
 source](DISTRIBUTED_EMPIC_CHECKPOINT.md) retains all EM current/endpoint/phase state.
+
+A separate [distributed collisional ES source](DISTRIBUTED_COLLISIONAL_ELECTROSTATIC.md)
+now composes this private candidate with canonical local Coulomb scheduling on
+admitted complete owned cells. It adds fixed normalization/interval, per-rank
+RNG staging, a source ledger and complete physical/RNG persistence; actual-rank
+statistical/restart/resource acceptance remains deferred.

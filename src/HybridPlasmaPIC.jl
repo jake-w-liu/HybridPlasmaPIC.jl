@@ -374,6 +374,7 @@ export supported_extensions,
     distributed_maxwell_diagnostics,
     distributed_poisson_field!,
     distributed_electrostatic_pic,
+    distributed_collisional_electrostatic_pic,
     distributed_empic
 export gather_at,
     SyntheticProbe,

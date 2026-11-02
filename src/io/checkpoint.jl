@@ -595,24 +595,7 @@ function _validate_checkpoint_configuration_graph(configuration, graph, require_
     return nothing
 end
 
-function _validate_checkpoint_configuration(s, st, configuration)
-    _checkpoint_pointer_free_bits(typeof(configuration)) && return nothing
-    # Whether any visit reached an object logically, not only as backing storage.
-    owned = IdDict{Any,Bool}()
-    arrays = AbstractArray[]
-    function remember(value, logical = true)
-        # Equal immutable metadata can be shared by value without owning state.
-        # Its mutable children are still visited and registered independently.
-        (ismutable(value) || value isa AbstractArray) || return nothing
-        if haskey(owned, value)
-            owned[value] |= logical
-        else
-            owned[value] = logical
-            value isa AbstractArray && push!(arrays, value)
-        end
-        return nothing
-    end
-    remember_backing(buffer) = remember(buffer, false)
+function _register_checkpoint_configuration_owned!(remember, remember_backing, owned, s, st)
     # Configuration is replaced on restore, whereas these arrays are copied into
     # destination storage. Include the payload to reject retained incoming links.
     for name in keys(s)
@@ -633,6 +616,34 @@ function _validate_checkpoint_configuration(s, st, configuration)
         (g.plan, g.iplan, g.cbuf, g.tbuf, g.abuf, g.sbuf);
         backing = remember_backing,
     )
+    return nothing
+end
+
+function _validate_checkpoint_configuration(s, st, configuration)
+    return _validate_checkpoint_configuration_registered(configuration) do remember, remember_backing, owned
+        _register_checkpoint_configuration_owned!(remember, remember_backing, owned, s, st)
+    end
+end
+
+function _validate_checkpoint_configuration_registered(register_owned!, configuration)
+    _checkpoint_pointer_free_bits(typeof(configuration)) && return nothing
+    # Whether any visit reached an object logically, not only as backing storage.
+    owned = IdDict{Any,Bool}()
+    arrays = AbstractArray[]
+    function remember(value, logical = true)
+        # Equal immutable metadata can be shared by value without owning state.
+        # Its mutable children are still visited and registered independently.
+        (ismutable(value) || value isa AbstractArray) || return nothing
+        if haskey(owned, value)
+            owned[value] |= logical
+        else
+            owned[value] = logical
+            value isa AbstractArray && push!(arrays, value)
+        end
+        return nothing
+    end
+    remember_backing(buffer) = remember(buffer, false)
+    register_owned!(remember, remember_backing, owned)
     graph = IdDict{Any,NamedTuple{(:logical, :edges),Tuple{Bool,Vector{Tuple{Any,Bool}}}}}()
     function record(value, logical, edges)
         # Serialization has dedicated value codecs for these types; their private

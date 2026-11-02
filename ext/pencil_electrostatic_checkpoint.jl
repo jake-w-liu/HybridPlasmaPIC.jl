@@ -100,14 +100,32 @@ function _pencil_es_manifest(path, model, nranks)
     return record
 end
 
-function _pencil_es_envelope(manifest)
+_pencil_es_envelope(manifest) =
+    _pencil_es_prepared_envelope(manifest, :pencil_electrostatic_manifest, "Pencil electrostatic")
+
+function _pencil_es_prepared_envelope(manifest, tag, label)
     payload = HybridPlasmaPIC._serialize_mpi_payload(manifest)
-    HybridPlasmaPIC._check_mpi_count(length(payload), "Pencil electrostatic manifest payload")
+    HybridPlasmaPIC._check_mpi_count(length(payload), "$label manifest payload")
     return (
         schema = 1,
-        model = :pencil_electrostatic_manifest,
+        model = tag,
         payload = payload,
         sha256 = bytes2hex(HybridPlasmaPIC.SHA.sha256(payload)),
+    )
+end
+
+function _pencil_es_checkpoint_snapshot(model, rank, nranks)
+    merge(
+        _pencil_es_checkpoint_config(model, nranks),
+        (
+            initialized = model.initialized[], primed = model.primed[], last_dt = model.last_dt[],
+            time = model.time[], step = model.step[], rank = rank,
+        ),
+        _pencil_es_checkpoint_layout(model),
+        (
+            fields = (E = map(a -> copy(parent(a)), model.E), rho = copy(parent(model.rho))),
+            species = deepcopy([HybridPlasmaPIC._checkpoint_particle_state(ps) for ps in model.owners]),
+        ),
     )
 end
 
@@ -132,25 +150,17 @@ function HybridPlasmaPIC.save_mpi_checkpoint(dir, model::DistributedElectrostati
     comm = model.g.fft.comm
     rank, nranks = Int(MPI.Comm_rank(comm)), Int(MPI.Comm_size(comm))
     context = "Pencil electrostatic checkpoint"
-    raw_dir, _ = _pencil_es_checkpoint_agreement(model, dir, nranks)
+    raw_dir, common = _pencil_es_checkpoint_agreement(model, dir, nranks)
     _pencil_es_agreement(model, model.owners, context)
     HybridPlasmaPIC._mpi_collective_stage(comm, context, "save particle ownership") do
         _pencil_owned_particles(model.owners, model.g, model._layout)
     end
     _pencil_pic_charges(model, model.owners, context)
-    state = HybridPlasmaPIC._mpi_collective_stage(comm, context, "snapshot preparation") do
-        merge(
-            _pencil_es_checkpoint_config(model, nranks),
-            (
-                initialized = model.initialized[], primed = model.primed[], last_dt = model.last_dt[],
-                time = model.time[], step = model.step[], rank = rank,
-            ),
-            _pencil_es_checkpoint_layout(model),
-            (
-                fields = (E = map(a -> copy(parent(a)), model.E), rho = copy(parent(model.rho))),
-                species = deepcopy([HybridPlasmaPIC._checkpoint_particle_state(ps) for ps in model.owners]),
-            ),
-        )
+    state, phase = HybridPlasmaPIC._mpi_collective_stage(comm, context, "snapshot preparation") do
+        state = _pencil_es_checkpoint_snapshot(model, rank, nranks)
+        phase = (initialized = state.initialized, primed = state.primed, last_dt = state.last_dt,
+                 time = state.time, step = state.step)
+        state, phase
     end
     HybridPlasmaPIC._mpi_collective_stage(comm, context, "directory setup") do
         rank == 0 && mkpath(raw_dir)
@@ -174,29 +184,38 @@ function HybridPlasmaPIC.save_mpi_checkpoint(dir, model::DistributedElectrostati
             nothing, ""
         end
     end
+    return _pencil_es_write_prepared(directory, manifest_path, previous, owned_generation,
+        state, common, phase,
+        (prefix = _PENCIL_ES_GENERATION, tag = :pencil_electrostatic_manifest, label = "Pencil electrostatic"),
+        comm, rank, nranks, context)
+end
+
+# Fixed ES/new-composition generation mechanics; schemas and validation remain
+# explicit at their callers. EM persistence has a separate unchanged owner.
+function _pencil_es_write_prepared(directory, manifest_path, previous, owned_generation,
+    state, common, phase, policy, comm, rank, nranks, context)
     try
-        generation = _pencil_es_broadcast_generation(owned_generation, comm, rank)
+        generation = _pencil_checkpoint_broadcast_generation(owned_generation, comm, rank, policy.prefix, policy.label)
         HybridPlasmaPIC._mpi_collective_stage(comm, context, "rank write") do
-            location = _pencil_es_generation_path(directory, generation)
+            location = _pencil_checkpoint_generation_path(directory, generation, policy.prefix, policy.label)
             path = joinpath(location, HybridPlasmaPIC._mpi_checkpoint_rank_filename(rank + 1))
             !ispath(path) && !islink(path) ||
-                throw(ArgumentError("new Pencil electrostatic rank file already exists"))
+                throw(ArgumentError("new $(policy.label) rank file already exists"))
             HybridPlasmaPIC._atomic_serialize(path, state)
         end
         HybridPlasmaPIC._mpi_collective_stage(comm, context, "manifest publication") do
             if rank == 0
-                location = _pencil_es_generation_path(directory, owned_generation)
+                location = _pencil_checkpoint_generation_path(directory, owned_generation, policy.prefix, policy.label)
                 files = ntuple(r -> HybridPlasmaPIC._mpi_checkpoint_rank_filename(r), nranks)
-                digests = map(name -> _pencil_es_file_digest(joinpath(location, name)), files)
+                digests = map(name -> _pencil_checkpoint_file_digest(joinpath(location, name), policy.label), files)
                 manifest = merge(
-                    _pencil_es_checkpoint_config(model, nranks),
-                    (
-                        initialized = state.initialized, primed = state.primed, last_dt = state.last_dt,
-                        time = state.time, step = state.step, generation = owned_generation,
+                    common,
+                    (;
+                        phase..., generation = owned_generation,
                         rank_files = files, rank_sha256 = digests,
                     ),
                 )
-                HybridPlasmaPIC._atomic_serialize(manifest_path, _pencil_es_envelope(manifest))
+                HybridPlasmaPIC._atomic_serialize(manifest_path, _pencil_es_prepared_envelope(manifest, policy.tag, policy.label))
             end
         end
     catch original
@@ -204,7 +223,7 @@ function HybridPlasmaPIC.save_mpi_checkpoint(dir, model::DistributedElectrostati
         trace = catch_backtrace()
         try
             HybridPlasmaPIC._mpi_collective_stage(comm, context, "failed generation cleanup") do
-                rank == 0 && _pencil_es_remove_generation(directory, owned_generation, nranks)
+                rank == 0 && _pencil_checkpoint_remove_generation(directory, owned_generation, nranks, policy.prefix, policy.label)
             end
         catch cleanup_error
             (cleanup_error isa InterruptException || cleanup_error isa OutOfMemoryError || cleanup_error isa StackOverflowError) && rethrow()
@@ -215,12 +234,12 @@ function HybridPlasmaPIC.save_mpi_checkpoint(dir, model::DistributedElectrostati
     try
         HybridPlasmaPIC._mpi_collective_stage(comm, context, "superseded generation cleanup") do
             rank == 0 && previous !== nothing &&
-                _pencil_es_remove_generation(directory, previous.generation, nranks)
+                _pencil_checkpoint_remove_generation(directory, previous.generation, nranks, policy.prefix, policy.label)
         end
     catch cleanup_error
         (cleanup_error isa InterruptException || cleanup_error isa OutOfMemoryError || cleanup_error isa StackOverflowError) && rethrow()
         throw(CompositeException([
-            ErrorException("Pencil electrostatic checkpoint was published, but superseded-file cleanup failed"),
+            ErrorException("$(policy.label) checkpoint was published, but superseded-file cleanup failed"),
             CapturedException(cleanup_error, catch_backtrace()),
         ]))
     end
@@ -334,6 +353,10 @@ function HybridPlasmaPIC.load_mpi_checkpoint!(model::DistributedElectrostaticPIC
     # This collective checks source values only. Destination clocks/phase and
     # particle values are still replaceable, and no field reconstruction occurs.
     _pencil_pic_charges(model, saved.particles, context)
+    return _pencil_es_restore_prepared!(model, saved)
+end
+
+function _pencil_es_restore_prepared!(model, saved)
     for (ps, replacement) in zip(model.owners, saved.particles)
         HybridPlasmaPIC._publish_particle_replacement!(ps, replacement)
         ps.q = replacement.q

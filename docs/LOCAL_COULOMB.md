@@ -91,8 +91,11 @@ than this stand-alone collision API; use their guides when choosing a composed r
 
 A stand-alone call's external RNG is not automatically captured by particle
 checkpoints. Retain that evolved RNG alongside the ordered particle state and
-preserve the execution environment; recreate the derived workspace. GPU and
-distributed collision execution remain separate implementation work.
+preserve the execution environment; recreate the derived workspace. The separate
+[actual-pencil collisional ES source](DISTRIBUTED_COLLISIONAL_ELECTROSTATIC.md) now
+composes the same scheduler on admitted complete owned cells and retains the full
+per-rank stream with physical state. Actual-rank/statistical/restart acceptance,
+broader distributed families and GPU execution remain open.
 
 The [implementation tracker](LOCAL_MULTISPECIES_COULOMB_PLAN.md) records the
 verification history and remaining composition/backend scope.

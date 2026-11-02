@@ -35,6 +35,9 @@ rerun by this documentation-only audit.
 - [docs/COLLISIONAL_HYBRID.md](COLLISIONAL_HYBRID.md)
 - [docs/COLLISIONAL_ELECTROSTATIC.md](COLLISIONAL_ELECTROSTATIC.md) — fixed-step
   electrostatic PIC/local-Coulomb source composition, sole clock and RNG restart.
+- [docs/DISTRIBUTED_COLLISIONAL_ELECTROSTATIC.md](DISTRIBUTED_COLLISIONAL_ELECTROSTATIC.md)
+  — actual-pencil cell-local ES/Coulomb composition, sole inner clock/source
+  ledger and complete per-rank RNG/physical persistence; runtime acceptance open.
 - [docs/COLLISIONAL_EMPIC.md](COLLISIONAL_EMPIC.md) — field-first electromagnetic
   PIC/local-Coulomb source composition, fixed normalization and full RNG restart.
 - [docs/EVOLVING_ELECTRONS.md](EVOLVING_ELECTRONS.md) — stored pressure, transport

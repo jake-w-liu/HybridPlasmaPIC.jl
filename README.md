@@ -259,6 +259,7 @@ in the [implementation plan](docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md).
 | **Conductive Yee field layer** | graded scalar electric/magnetic conductivity in D1–3 CPU Float32/64, fixed-step midpoint damping around canonical Yee KDK, exact loss/work/defect ledgers and complete checkpoint/archive; [source contract](docs/YEE_CONDUCTIVE_LAYER.md); measured reflection/stability and coupled PIC integration remain open | `YeeConductiveLayer`, `init!`, `step_maxwell!`, `absorber_diagnostics` |
 | **Directional Yee PML** | source-free D1–3 CPU Float32/64 causal directional ADE memories, fixed-step midpoint KDK, signed exchange/field-defect budgets and full checkpoint/archive; [source contract](docs/YEE_PML.md); reflection/stability, runtime acceptance, general CPML and coupled PIC remain open | `YeePML`, `init!`, `step_maxwell!`, `pml_diagnostics` |
 | **Distributed electrostatic PIC** | rank-owned periodic 3D CPU Float32/64 CIC collections, complete remote stencils, direct migration, shared leapfrog and exact charge/energy/momentum diagnostics; explicit `grid_dc=:project`; [source scope and deferred acceptance](docs/DISTRIBUTED_ELECTROSTATIC_IMPLEMENTATION.md); [matching-layout checkpoint source](docs/DISTRIBUTED_ELECTROSTATIC_CHECKPOINT.md), with restart acceptance deferred | `distributed_electrostatic_pic`, `init_espic!`, `step_espic!`, `poisson_E!`, `electrostatic_diagnostics` |
+| **Distributed collisional ES PIC** | fixed-step 3D CPU ES/local-Coulomb source composition, owned-cell bins and complete per-rank RNG/physical checkpoint; zero background, required neutrality and equal positive permittivity/count conversion; [scope and deferred acceptance](docs/DISTRIBUTED_COLLISIONAL_ELECTROSTATIC.md) | `distributed_collisional_electrostatic_pic`, `init!`, `step!`, `electrostatic_diagnostics`, `save_mpi_checkpoint`, `load_mpi_checkpoint!` |
 | **Distributed electromagnetic PIC** | source implementation of rank-owned periodic 3D CPU Float32/64 all-mobile nonrelativistic CIC collections, canonical Boris/carried B phase, exact routed midpoint current, represented-mode continuity and staged publication; [scope and deferred acceptance](docs/DISTRIBUTED_EMPIC_IMPLEMENTATION.md); [complete matching-layout checkpoint source](docs/DISTRIBUTED_EMPIC_CHECKPOINT.md), with restart acceptance deferred | `distributed_empic`, `init_empic!`, `step_empic!`, `maxwell_cfl`, `electromagnetic_diagnostics` |
 | **Distributed periodic Poisson field** | static rank-owned 3D CPU Float32/64 field solve, canonical mode arithmetic, exact represented neutrality or explicit uniform compensator, staged fields and exact charge ledger; [source scope and deferred acceptance](docs/DISTRIBUTED_POISSON_FIELD.md); composes with the distributed ES model | `distributed_poisson_field!` |
 | **Distributed periodic Maxwell vacuum** | source implementation of rank-owned 3D CPU spectral KDK over physical PencilArrays, strict spectral CFL, staged fields and collective energy/divergence diagnostics; [scope and deferred acceptance](docs/DISTRIBUTED_MAXWELL_IMPLEMENTATION.md); [matching-layout checkpoint](docs/DISTRIBUTED_MAXWELL_CHECKPOINT.md) source is available, with restart acceptance deferred; separate coupled ES/EM source models are available | `distributed_maxwell_vacuum`, `step_maxwell!`, `maxwell_cfl`, `em_field_energy`, `distributed_maxwell_diagnostics` |
@@ -394,6 +395,12 @@ near-light Lorentz factor or an entire trajectory from rounded velocities.
   clock and full RNG restart. Uses nonrelativistic CPU CIC collections, zero
   background, required neutrality and matching positive permittivity/count
   conversion. Tests and runtime acceptance are deferred; [guide](docs/COLLISIONAL_ELECTROSTATIC.md).
+- `distributed_collisional_electrostatic_pic(inner, species; dt, rng, coulomb_log,
+  epsilon0, weight_to_number)` — actual-pencil fixed-step ES/local-Coulomb source
+  composition, with owned-cell bins, a sole inner clock/source ledger and complete
+  per-rank RNG/physical checkpoint. Uses the same zero-background/required-neutrality
+  normalization above plus explicit grid DC projection. Source-reviewed only;
+  [scope and deferred acceptance](docs/DISTRIBUTED_COLLISIONAL_ELECTROSTATIC.md).
 - `CollisionalEMPICStepper(inner, species; dt, rng, coulomb_log, epsilon0,
   weight_to_number)` — source-implemented fixed-step field-first generic EMPIC /
   local-Coulomb composition with full owned-RNG restart. Requires all-mobile CPU
@@ -746,9 +753,11 @@ EM and comparative campaigns remain in the
   [Generic electrostatic](docs/COLLISIONAL_ELECTROSTATIC.md) and
   [electromagnetic PIC composition](docs/COLLISIONAL_EMPIC.md) are also
   source-implemented in bounded fixed-step nonrelativistic scopes; acceptance
-  is deferred. Variable steps, higher-order
+  is deferred. A separate [actual-pencil collisional ES source](docs/DISTRIBUTED_COLLISIONAL_ELECTROSTATIC.md)
+  now adds complete owned cells, per-rank RNG staging and full physical/RNG restart.
+  Actual-rank/statistical/continuation acceptance is open. Variable steps, higher-order
   splitting, electron-ion heat exchange, anisotropic/inertial
-  composition, other models and sources, MPI cell ownership and device kernels
+  composition, other models and sources, broader MPI families and device kernels
   are separate open stages ([CAP-010](docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md)).
 - The [normalization repair](docs/NORMALIZATION_RANGE_PLAN.md)
   does not establish range correctness of every compound RayCon expression.

@@ -268,6 +268,20 @@ function HybridPlasmaPIC.poisson_E!(model::DistributedElectrostaticPIC)
     return model.E
 end
 
+# Includes canonical private first-step priming, but no public phase store.
+function _pencil_es_advance_candidate!(model, species, h, context)
+    staged = _pencil_es_stages!(model, species, context)
+    gathers = _pencil_gather(model.E, staged, model.g, model._layout, context)
+    HybridPlasmaPIC._mpi_collective_stage(model.g.fft.comm, context, "canonical particle push") do
+        for (ps, field) in zip(staged, gathers)
+            HybridPlasmaPIC._espic_push!(ps, field, model.g, h, model.primed[], model.last_dt[])
+        end
+    end
+    prepared = _pencil_migrate(staged, model.g, model._layout, context)
+    _pencil_es_fields!(model, prepared, context)
+    return prepared
+end
+
 """
     step_espic!(model::DistributedElectrostaticPIC, species, dt)
 
@@ -295,15 +309,7 @@ function HybridPlasmaPIC.step_espic!(model::DistributedElectrostaticPIC{T}, spec
         _pencil_owned_particles(species, model.g, model._layout)
     end
     HybridPlasmaPIC._particle_stored_zero(h) && return model
-    staged = _pencil_es_stages!(model, species, context)
-    gathers = _pencil_gather(model.E, staged, model.g, model._layout, context)
-    HybridPlasmaPIC._mpi_collective_stage(model.g.fft.comm, context, "canonical particle push") do
-        for (ps, field) in zip(staged, gathers)
-            HybridPlasmaPIC._espic_push!(ps, field, model.g, h, model.primed[], model.last_dt[])
-        end
-    end
-    prepared = _pencil_migrate(staged, model.g, model._layout, context)
-    _pencil_es_fields!(model, prepared, context)
+    prepared = _pencil_es_advance_candidate!(model, species, h, context)
     scalars = _pencil_es_final(model, species, prepared, context)
     _pencil_es_commit!(model, species, prepared, scalars; dt = h, clock = (next_time, next_step))
     model.primed[] = true

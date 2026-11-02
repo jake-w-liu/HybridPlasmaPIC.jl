@@ -285,8 +285,11 @@ candidates and numerical/resource evidence. No global cost optimum follows.
 - [ ] Accept the implemented ideal evolving-scalar, S1/S2 transport and S3b conduction extensions
   through exact-revision GitHub CI; ion-ion collisions leave pressure fixed,
   while existing field stages provide the applicable Ohmic/hyperresistive heat and conduction.
-- [ ] CAP-003 must supply cell-complete populations after migration; CAP-004 must
-  supply real device pairing/streams. The CPU slice closes neither backend gate.
+- [ ] Accept [actual-pencil collisional ES source](DISTRIBUTED_COLLISIONAL_ELECTROSTATIC.md):
+  migrated populations pass an explicit canonical collision-cell ownership gate,
+  use owned logical bins/global dx and persist full per-rank RNG/physical state.
+  Actual-rank/statistical/restart acceptance and broader MPI families remain open;
+  CAP-004 must still supply real device pairing/streams.
 
 ## CAP-002 — nonperiodic electromagnetic PIC
 
@@ -781,8 +784,13 @@ stochastic/physical, rollback/restart, compiler/CI and resource acceptance remai
 deferred. [Collisional electrostatic PIC](COLLISIONAL_ELECTROSTATIC.md) now also
 source-implements generic CIC ES composition with a sole wrapper clock, private
 state/RNG staging and complete restart; its acceptance is deferred. Specialized
-schedules, relativistic collisions, additional sources and backends remain
-separate work. This does not complete CAP-010.
+schedules, relativistic collisions, additional sources and broader backends remain
+separate work. [Actual-pencil collisional ES](DISTRIBUTED_COLLISIONAL_ELECTROSTATIC.md)
+now supplies fixed-step canonical owned-cell scattering with per-rank RNG staging,
+sole inner clock/source ledger and complete one-generation physical/RNG restart.
+Explicit cell ownership admission and equal field/collision normalization apply.
+Actual-rank/statistical/rollback/restart/compiler/resource acceptance remains open.
+This does not complete CAP-010.
 
 Add an explicitly owned evolution composition in the integrator layer; reuse
 collision, ionization, radiation and antenna owners rather than embedding copies

@@ -102,3 +102,6 @@ distributed_electrostatic_pic(args...; kwargs...) =
     _extension_missing(:pencilfft, :distributed_electrostatic_pic)
 
 distributed_empic(args...; kwargs...) = _extension_missing(:pencilfft, :distributed_empic)
+
+distributed_collisional_electrostatic_pic(args...; kwargs...) =
+    _extension_missing(:pencilfft, :distributed_collisional_electrostatic_pic)

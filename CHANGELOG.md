@@ -11,6 +11,16 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Added
 
+- Actual-pencil ES PIC gains fixed-step local Coulomb composition and complete
+  matching-layout physical/full-RNG checkpoint. Owned logical cells use original
+  global dx and canonical collision scheduling; an explicit cell-owner gate
+  precedes publication. Per-rank stock RNGs stage with particles/fields and the
+  sole inner clock/source ledger; metadata cannot alias writable recurrence
+  storage. Zero logs skip both RNG copies. Canonical Coulomb/graph/ES seams are
+  shared with source-preservation checks. No tests added or run; actual-rank,
+  statistical/restart/compiler/resource acceptance remains deferred. See the
+  [distributed collision guide](docs/DISTRIBUTED_COLLISIONAL_ELECTROSTATIC.md).
+
 - Actual-pencil EM PIC gains distinct matching-layout checkpoint/restart with
   checksummed rank generations and complete eleven-field/current/endpoint phase
   history. All ranks validate detached source state and prepare same-type leaves

@@ -31,7 +31,10 @@ end
     return nothing
 end
 
-function _validate_local_coulomb_species(species, g::FourierGrid{D,T}) where {D,T}
+_validate_local_coulomb_species(species, g::FourierGrid{D,T}) where {D,T} =
+    _validate_local_coulomb_species(species, Val(D), T)
+
+function _validate_local_coulomb_species(species, ::Val{D}, ::Type{T}) where {D,T}
     if species isa AbstractVector
         axes(species, 1) == Base.OneTo(length(species)) ||
             throw(ArgumentError("collide_coulomb!: species must use one-based axes"))
@@ -75,7 +78,10 @@ function CoulombCollisionWorkspace(
     g::FourierGrid{D,T},
 ) where {D,T}
     _validate_local_coulomb_species(species, g)
-    ncells = prod(g.n)
+    return _coulomb_workspace(species, T, prod(g.n))
+end
+
+function _coulomb_workspace(species, ::Type{T}, ncells::Int) where {T}
     populations = Vector{_CoulombCellWork{T}}(undef, length(species))
     for (a, ps) in enumerate(species)
         n = nparticles(ps)
@@ -118,12 +124,15 @@ function _require_coulomb_work_independent(array, other::_CoulombCellWork)
     return nothing
 end
 
-function _validate_coulomb_workspace(work, species, g::FourierGrid{D,T}, coulomb_log) where {D,T}
+_validate_coulomb_workspace(work, species, g::FourierGrid{D,T}, coulomb_log) where {D,T} =
+    _validate_coulomb_workspace(work, species, T, prod(g.n), coulomb_log)
+
+function _validate_coulomb_workspace(work, species, ::Type{T}, ncells::Int, coulomb_log) where {T}
     work isa CoulombCollisionWorkspace{T} ||
         throw(ArgumentError("collide_coulomb!: workspace precision must match the grid"))
     length(work.populations) == length(species) ||
         throw(DimensionMismatch("collide_coulomb!: workspace species count does not match"))
-    work.ncells == prod(g.n) ||
+    work.ncells == ncells ||
         throw(DimensionMismatch("collide_coulomb!: workspace grid cell count does not match"))
     for (a, buffers) in enumerate(work.populations)
         length(buffers.offset) == work.ncells + 1 && length(buffers.cursor) == work.ncells ||
@@ -177,7 +186,10 @@ function _validate_coulomb_logs(value, count::Int, ::Type{T}) where {T}
     return nothing
 end
 
-function _bin_coulomb_particles!(w::_CoulombCellWork, ps, g, strides)
+_bin_coulomb_particles!(w::_CoulombCellWork, ps, g, strides) =
+    _bin_coulomb_particles!(w, ps, p -> _particle_linear_cell(ps, g, p, strides))
+
+function _bin_coulomb_particles!(w::_CoulombCellWork, ps, cell_index)
     n = nparticles(ps)
     for array in w.velocity
         length(array) == n || resize!(array, n)
@@ -189,7 +201,7 @@ function _bin_coulomb_particles!(w::_CoulombCellWork, ps, g, strides)
     end
     fill!(w.offset, 0)
     @inbounds for p = 1:n
-        cell = iszero(ps.weight[p]) ? 0 : _particle_linear_cell(ps, g, p, strides)
+        cell = iszero(ps.weight[p]) ? 0 : cell_index(p)
         w.cell[p] = cell
         iszero(cell) || (w.offset[cell+1] += 1)
     end
@@ -285,17 +297,20 @@ function _coulomb_scaled_channel(dt, number_scale, logarithm, qa, qb, ma, mb, ep
     return fraction, power
 end
 
+_coulomb_channel_rate(pa, pb, g::FourierGrid, dt, epsilon, number_scale, logarithm) =
+    _coulomb_channel_rate(pa, pb, g.dx, dt, epsilon, number_scale, logarithm)
+
 function _coulomb_channel_rate(
     pa,
     pb,
-    g::FourierGrid{D,T},
+    widths::NTuple{D,T},
     dt,
     epsilon,
     number_scale,
     logarithm,
 ) where {D,T}
     fraction, power =
-        _coulomb_scaled_channel(dt, number_scale, logarithm, pa.q, pb.q, pa.m, pb.m, epsilon, g.dx)
+        _coulomb_scaled_channel(dt, number_scale, logarithm, pa.q, pb.q, pa.m, pb.m, epsilon, widths)
     # Preserve the existing native coefficient and its rounding point.
     native, extra = frexp(T(fraction))
     return _CoulombLocalRate{D,T}(
@@ -307,7 +322,7 @@ function _coulomb_channel_rate(
         pa.m,
         pb.m,
         epsilon,
-        g.dx,
+        widths,
         native,
         power + extra,
     )
@@ -673,6 +688,14 @@ function collide_coulomb!(
     end
     workspace === nothing || _validate_coulomb_workspace(workspace, species, g, coulomb_log)
     (isempty(species) || iszero(dtT)) && return species
+    _coulomb_active(species, coulomb_log, T) || return species
+    work = workspace === nothing ? CoulombCollisionWorkspace(species, g) : workspace
+    strides = _particle_cell_strides(g)
+    return _collide_coulomb_prepared!(species, g.dx, dtT, epsilon, number_scale, uf,
+        coulomb_log, rng, work, (ps, p) -> _particle_linear_cell(ps, g, p, strides))
+end
+
+function _coulomb_active(species, coulomb_log, ::Type{T}) where {T}
     active = false
     for a in eachindex(species), b = a:length(species)
         active |=
@@ -680,17 +703,20 @@ function collide_coulomb!(
             !iszero(species[b].q) &&
             !iszero(_coulomb_log_value(coulomb_log, a, b, T))
     end
-    active || return species
-    work = workspace === nothing ? CoulombCollisionWorkspace(species, g) : workspace
-    strides = _particle_cell_strides(g)
+    return active
+end
+
+# Validated geometry and work are supplied by the serial or rank-local owner.
+function _collide_coulomb_prepared!(species, widths::NTuple{D,T}, dtT, epsilon,
+    number_scale, uf, coulomb_log, rng, work, cell_index) where {D,T}
     for a in eachindex(species)
-        _bin_coulomb_particles!(work.populations[a], species[a], g, strides)
+        _bin_coulomb_particles!(work.populations[a], species[a], p -> cell_index(species[a], p))
     end
     for a in eachindex(species), b = a:length(species)
         pa, pb = species[a], species[b]
         logarithm = _coulomb_log_value(coulomb_log, a, b, T)
         (iszero(pa.q) || iszero(pb.q) || iszero(logarithm)) && continue
-        channel = _coulomb_channel_rate(pa, pb, g, dtT, epsilon, number_scale, logarithm)
+        channel = _coulomb_channel_rate(pa, pb, widths, dtT, epsilon, number_scale, logarithm)
         fa, fb = _coulomb_mass_fractions(pa.m, pb.m)
         wa, wb = work.populations[a], work.populations[b]
         for cell = 1:work.ncells

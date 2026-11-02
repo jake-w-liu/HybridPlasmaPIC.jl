@@ -52,8 +52,11 @@ momentum/energy conservation to roundoff; unequal weights inherit conservation
 in expectation. Finite collision intervals still have sampling/discretization
 error. No fixed bath, compensating reservoir, relativistic collision replacement,
 source injection, particle growth, subcycling, or device/distributed evolution
-is supplied. The periodic zero-mode, neutrality-tolerance, CIC/spectral and
-existing range/conditioning limits remain.
+is supplied by this serial model. A separate
+[actual-pencil collisional ES source](DISTRIBUTED_COLLISIONAL_ELECTROSTATIC.md)
+provides admitted owned-cell execution and full per-rank RNG/physical persistence,
+with runtime acceptance deferred. The periodic zero-mode, neutrality-tolerance,
+CIC/spectral and existing range/conditioning limits remain.
 
 ## Time levels, failure and ownership
 

@@ -25,11 +25,13 @@ function _require_finite_particle_positions(ps::ParticleSet{D}) where {D}
     return nothing
 end
 
-@inline function _particle_cell_strides(g::FourierGrid{D}) where {D}
+@inline _particle_cell_strides(g::FourierGrid) = _particle_cell_strides(g.n)
+
+@inline function _particle_cell_strides(n::NTuple{D,Int}) where {D}
     return ntuple(Val(D)) do d
         stride = 1
         for k = 1:(d-1)
-            stride *= g.n[k]
+            stride *= n[k]
         end
         stride
     end

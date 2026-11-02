@@ -162,6 +162,24 @@ function _validate_collisional_rng_pair(live, candidate, context::AbstractString
     return nothing
 end
 
+# Stock metadata is read-only across draws; copy! may share it between streams.
+_collisional_rng_metadata(::Random.Xoshiro) = ()
+_collisional_rng_metadata(rng::Random.MersenneTwister) = (rng.seed, rng.adv_jump)
+
+# Restore replaces stream values; only stock copy! destination storage is required.
+_validate_collisional_rng_storage(::Random.Xoshiro) = nothing
+function _validate_collisional_rng_storage(rng::Random.MersenneTwister)
+    Random.DSFMT.DSFMT_state(rng.state.val)
+    length(rng.vals) == Random.MT_CACHE_F && length(rng.ints) == (Random.MT_CACHE_I >> 4) ||
+        throw(ArgumentError("MersenneTwister copy destination has invalid cache storage"))
+    buffers = _collisional_rng_buffers(rng)
+    for i in eachindex(buffers), j = 1:(i-1)
+        _particle_arrays_mightalias(buffers[i], buffers[j]) &&
+            throw(ArgumentError("MersenneTwister recurrence and cache buffers must be independent"))
+    end
+    return nothing
+end
+
 function _validate_collisional_populations(species, g::FourierGrid{D,T}) where {D,T}
     species isa AbstractVector{<:ParticleSet{D,T}} ||
         throw(ArgumentError("collisional populations must match grid dimension and precision"))
