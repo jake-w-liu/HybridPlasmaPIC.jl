@@ -363,7 +363,8 @@ export supported_extensions,
     distributed_fourier_grid,
     distributed_field,
     distributed_maxwell_vacuum,
-    distributed_maxwell_diagnostics
+    distributed_maxwell_diagnostics,
+    distributed_poisson_field!
 export gather_at,
     SyntheticProbe,
     sample!,

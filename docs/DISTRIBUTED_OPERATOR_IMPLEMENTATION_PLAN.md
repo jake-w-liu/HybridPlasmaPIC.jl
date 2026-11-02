@@ -13,6 +13,11 @@ Runtime/compiler/resources are deferred during the implementation-first pass;
 a [matching-layout physical-pencil checkpoint](DISTRIBUTED_MAXWELL_CHECKPOINT.md)
 is source-implemented. Full coupled particle evolution remains next work.
 
+The [static rank-owned Poisson field](DISTRIBUTED_POISSON_FIELD.md) also
+source-implements the canonical electrostatic mode over these transforms, with
+exact represented charge admission and staged publication. Runtime/rank/resource
+acceptance and particle-coupled ES evolution remain open.
+
 ## Checked architecture and pre-edit brief
 
 - Mode: implement distributed physical storage and the periodic operator family.

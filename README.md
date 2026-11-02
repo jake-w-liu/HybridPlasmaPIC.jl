@@ -256,6 +256,7 @@ in the [implementation plan](docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md).
 | **Electrostatic PIC** | arbitrary kinetic species on periodic CPU grids, explicit charge/background policy, shared spectral Poisson field and synchronized leapfrog in 1D/2D/3D; scalar electron compatibility | `ElectrostaticPIC` (or `Electrostatic1D`), `init_espic!`, `step_espic!` |
 | **Electromagnetic PIC** | periodic spectral current correction and Gauss initialization in 1D–3D; legacy electron/ion models; synchronous CPU arbitrary-species `EMPIC` collections and planar `EMPIC1D` dividing species schedules, with optional relativity, mobile/fixed populations and explicit neutrality policy ([contract and pending CI](docs/EMPIC_SPECIES_IMPLEMENTATION.md)) | `EMPIC`, `EMPIC1D`, `set_empic1d_schedule!`, `init_empic!`, `step_empic!`, `charge_conservation_residual`, `electromagnetic_diagnostics`, `total_momentum_relativistic` |
 | **Bounded Maxwell vacuum** | staggered Yee fields in 1D–3D with periodic or homogeneous conducting axes, synchronized second-order stepping, CFL rejection, compatible divergence and energy/Poynting diagnostics; native stencils under the normwise accuracy contract; no particle coupling or absorbing layer | `YeeGrid`, `MaxwellVacuum`, `step_maxwell!`, `yee_divergence!`, `yee_poynting_flux` |
+| **Distributed periodic Poisson field** | static rank-owned 3D CPU Float32/64 field solve, canonical mode arithmetic, exact represented neutrality or explicit uniform compensator, staged fields and exact charge ledger; [source scope and deferred acceptance](docs/DISTRIBUTED_POISSON_FIELD.md); coupled particles remain open | `distributed_poisson_field!` |
 | **Distributed periodic Maxwell vacuum** | source implementation of rank-owned 3D CPU spectral KDK over physical PencilArrays, strict spectral CFL, staged fields and collective energy/divergence diagnostics; [scope and deferred acceptance](docs/DISTRIBUTED_MAXWELL_IMPLEMENTATION.md); [matching-layout checkpoint](docs/DISTRIBUTED_MAXWELL_CHECKPOINT.md) source is available, with restart acceptance deferred; coupled particles remain next work | `distributed_maxwell_vacuum`, `step_maxwell!`, `maxwell_cfl`, `em_field_energy`, `distributed_maxwell_diagnostics` |
 | **Prescribed-current Yee fields** | 1D current impulses on electric lattices, all-node charge including conducting surfaces, source work and fixed-step modified energy; [scope and example](docs/SOURCED_YEE_FIELDS.md) | `step_maxwell!(model, dt, impulse)`, `yee_electric_charge!`, `yee_source_work`, `yee_modified_energy` |
 | **Closed Yee static particle coupling** | CPU 1D point/CIC charge, longitudinal endpoint impulse and path voltage; optional finite physical-width triangular-cloud family with stationary work-adjoint field ([contract and pending CI](docs/BOUNDED_PARTICLE_COUPLING_PLAN.md)); point/CIC wall-contact models remain open; finite-cloud reflection and capture use separate coupled source candidates | `YeeChargeWorkspace`, `YeeTriangularCloud`, `yee_particle_charge!`, `yee_longitudinal_impulse!`, `yee_longitudinal_voltage`, `yee_longitudinal_field` |
@@ -607,6 +608,12 @@ work arrays or read-only metadata; detectable overlap is rejected collectively.
 The shared range guard also protects growth inside the unnormalized inverse
 before its final normalization; an independent finite-output convolution case
 is covered by the [inverse-range regression](docs/DISTRIBUTED_INVERSE_HEADROOM_REPAIR.md).
+The optional extension also source-implements a [static periodic Poisson field](docs/DISTRIBUTED_POISSON_FIELD.md),
+using the canonical serial mode owner with exact represented charge admission and
+an explicit compensator policy. This supplies the field solve for future
+domain-owned electrostatic particles; deposition/gather halos and migration remain
+open. No tests or runtime acceptance are added in this implementation pass.
+
 GPU backend storage is exposed through `particle_storage_backend`. The Metal
 extension includes particle gather, deposit and push kernels; the CUDA extension
 currently supplies storage and telemetry. Hybrid and EM field storage remains

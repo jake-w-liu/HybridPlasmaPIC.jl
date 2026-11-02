@@ -1,5 +1,28 @@
 const SpectralOperators = HybridPlasmaPIC.SpectralOperators
 
+# Exact scalar contributions only: physical fields remain rank-owned. Local
+# value/serialization and receive/decode/add failures agree before communication.
+function _pencil_exact_scalar_sum(f, comm, context, preparation, accumulation)
+    encoded = HybridPlasmaPIC._mpi_collective_stage(comm, context, preparation) do
+        value::Rational{BigInt} = f()
+        bytes = HybridPlasmaPIC._serialize_mpi_payload(value)
+        HybridPlasmaPIC._check_mpi_count(length(bytes), "distributed exact scalar")
+        bytes
+    end
+    total = zero(Rational{BigInt})
+    for rank = 0:(MPI.Comm_size(comm)-1)
+        count = MPI.Bcast(Cint(length(encoded)), rank, comm)
+        payload = HybridPlasmaPIC._mpi_collective_stage(comm, context, "receive allocation") do
+            MPI.Comm_rank(comm) == rank ? encoded : Vector{UInt8}(undef, count)
+        end
+        MPI.Bcast!(payload, rank, comm)
+        total = HybridPlasmaPIC._mpi_collective_stage(comm, context, accumulation) do
+            total + HybridPlasmaPIC._deserialize_mpi_payload(Rational{BigInt}, payload)
+        end
+    end
+    return total
+end
+
 struct DistributedFourierGrid{T,F,A,B,R}
     n::NTuple{3,Int}
     L::NTuple{3,T}

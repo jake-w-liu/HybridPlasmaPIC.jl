@@ -1,7 +1,7 @@
 # Distributed FFT Evaluation
 
 Evaluation date: 2026-06-26.
-Implementation update: 2026-10-26.
+Implementation update: 2026-11-02.
 
 ## Decision
 
@@ -36,7 +36,11 @@ local validation/planning errors. Its complete first matrix passes on 1, 2, 4
 and 8 ranks with Julia 1.12.7 and 1.13.2, including serial references for eleven
 transform families. Final acceptance is tracked in that plan. Distributed field
 operators are now implemented under the [operator contract](DISTRIBUTED_OPERATOR_IMPLEMENTATION_PLAN.md);
-coupled domain-owned evolution remains open.
+a separate [vacuum Maxwell model](DISTRIBUTED_MAXWELL_IMPLEMENTATION.md),
+[matching-layout field checkpoint](DISTRIBUTED_MAXWELL_CHECKPOINT.md) and
+[static Poisson field](DISTRIBUTED_POISSON_FIELD.md) are source-implemented.
+Their runtime/compiler/resource acceptance is deferred during the current
+implementation-first pass; particle-coupled domain-owned evolution remains open.
 
 The [roundtrip diagnostic repair](DISTRIBUTED_FFT_DIAGNOSTIC_PLAN.md) supports
 in-place FFT!, RFFT! and R2R! through their input view and shared output container.

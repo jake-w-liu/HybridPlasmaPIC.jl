@@ -46,6 +46,8 @@ rerun by this documentation-only audit.
   — one-cluster finite-cloud reflection, carried-error and restart source contract.
 - [docs/YEE_ABSORBING_LONGITUDINAL.md](YEE_ABSORBING_LONGITUDINAL.md)
   — one isolated passive full-cloud capture, force-jump certificate and restart.
+- [docs/DISTRIBUTED_POISSON_FIELD.md](DISTRIBUTED_POISSON_FIELD.md)
+  — static rank-owned electrostatic field, exact charge ledger and neutrality policy.
 - [docs/DISTRIBUTED_MAXWELL_IMPLEMENTATION.md](DISTRIBUTED_MAXWELL_IMPLEMENTATION.md)
   — rank-owned periodic vacuum field source, scalar/curl boundaries and deferred
   runtime acceptance; coupled particles remain next work.

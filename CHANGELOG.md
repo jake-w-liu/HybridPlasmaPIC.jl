@@ -11,6 +11,15 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Added
 
+- `distributed_poisson_field!` adds a static rank-owned periodic 3D CPU Float32/64
+  electrostatic field solve using the canonical serial Poisson mode and existing
+  distributed transforms. Exact represented neutrality or an explicit compensator
+  is required; three fields publish after collective success, with an exact charge
+  ledger. Scalar charge reduction shares the existing Maxwell energy transport
+  owner. No field is gathered. Source-reviewed only; runtime/compiler/resource
+  acceptance and coupled particles remain open. See the
+  [field guide](docs/DISTRIBUTED_POISSON_FIELD.md).
+
 - `CollisionalEMPICStepper` composes all-mobile CPU Float32/64 generic EMPIC
   collections with canonical local Coulomb scattering at the new positions and
   carried half-time velocities. Fields, particles, source clock and owned RNG

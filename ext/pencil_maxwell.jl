@@ -217,27 +217,18 @@ end
 function _distributed_maxwell_energy(model::DistributedMaxwellVacuum{T}) where {T}
     comm = model.g.fft.comm
     context = "Distributed Maxwell energy"
-    encoded = HybridPlasmaPIC._mpi_collective_stage(comm, context, "local energy preparation") do
-        energy = HybridPlasmaPIC._field_energy_rational(
+    total = _pencil_exact_scalar_sum(
+        comm,
+        context,
+        "local energy preparation",
+        "exact energy accumulation",
+    ) do
+        HybridPlasmaPIC._field_energy_rational(
             map(parent, model.fields.E),
             map(parent, model.fields.B),
             HybridPlasmaPIC._exact_rational(model.c)^2,
             model.g.dx,
         )
-        bytes = HybridPlasmaPIC._serialize_mpi_payload(energy)
-        HybridPlasmaPIC._check_mpi_count(length(bytes), "distributed Maxwell scalar energy")
-        bytes
-    end
-    total = zero(Rational{BigInt})
-    for rank = 0:(MPI.Comm_size(comm)-1)
-        count = MPI.Bcast(Cint(length(encoded)), rank, comm)
-        payload = HybridPlasmaPIC._mpi_collective_stage(comm, context, "receive allocation") do
-            MPI.Comm_rank(comm) == rank ? encoded : Vector{UInt8}(undef, count)
-        end
-        MPI.Bcast!(payload, rank, comm)
-        total = HybridPlasmaPIC._mpi_collective_stage(comm, context, "exact energy accumulation") do
-            total + HybridPlasmaPIC._deserialize_mpi_payload(Rational{BigInt}, payload)
-        end
     end
     return HybridPlasmaPIC._mpi_collective_stage(comm, context, "energy rounding") do
         HybridPlasmaPIC._from_exact(T, total)
