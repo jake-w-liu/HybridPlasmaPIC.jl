@@ -8,6 +8,7 @@ using Test
     include("test_implicit_em.jl")
     include("test_implicit_hybrid_phase.jl")
     include("test_static_composite_electrostatic.jl")
+    include("test_shared_scalar_shapes.jl")
     include("test_open_hall_hybrid.jl")
     include("test_yee_particle_charge.jl")
     include("test_yee_longitudinal_pic.jl")

@@ -56,15 +56,47 @@ end
 # and each accumulated cell is checked finite once at the end.
 # Factor products are formed left to right exactly as in the scalar kernel.
 @inline _moment_factor_value(values, p) = @inbounds values[firstindex(values)+p-1]
+@inline _moment_factor_product_ops(factors::Tuple, p, ops::_ScalarOps = _DefaultScalarOps()) =
+    _moment_factor_product_ops(Base.tail(factors), p, _moment_factor_value(first(factors), p), ops)
+@inline _moment_factor_product_ops(::Tuple{}, p, value, ops::_ScalarOps) = value
+@inline _moment_factor_product_ops(factors::Tuple, p, value, ops::_ScalarOps) =
+    _moment_factor_product_ops(Base.tail(factors), p,
+        _scalar_mul(ops, value, _moment_factor_value(first(factors), p)), ops)
 @inline _moment_factor_product(factors::Tuple, p) =
-    _moment_factor_product(Base.tail(factors), p, _moment_factor_value(first(factors), p))
-@inline _moment_factor_product(::Tuple{}, p, val) = val
-@inline _moment_factor_product(factors::Tuple, p, val) =
-    _moment_factor_product(Base.tail(factors), p, val * _moment_factor_value(first(factors), p))
+    _moment_factor_product_ops(factors, p)
+@inline _moment_factor_product(::Tuple{}, p, value) =
+    _moment_factor_product_ops((), p, value, _DefaultScalarOps())
+@inline _moment_factor_product(factors::Tuple, p, value) =
+    _moment_factor_product_ops(factors, p, value, _DefaultScalarOps())
 @inline _moment_factors_exact(factors::Tuple, p) =
     all(values -> _deposition_exact_operand(_moment_factor_value(values, p)), factors)
 @inline _moment_factors_nonzero(factors::Tuple, p) =
     all(values -> !iszero(_moment_factor_value(values, p)), factors)
+
+@inline function _moment_stencil_minimum(st::Tuple, ::Type{T},
+    ops::_ScalarOps = _DefaultScalarOps()) where {T}
+    smin = one(T)
+    for d = 1:length(st)
+        smin = _scalar_mul(ops, smin, minimum(w -> iszero(w) ? one(T) : w, st[d][2]))
+    end
+    return smin
+end
+
+@inline function _moment_particle_replay(value::T, factors_eligible::Bool,
+    factors_nonzero::Bool, smin, ops::_ScalarOps = _DefaultScalarOps()) where {T}
+    lost = _deposition_value_lost(value) || (iszero(value) && factors_nonzero) ||
+        (!iszero(value) && _scalar_mul(ops, abs(value), smin) < floatmin(T))
+    return (eligible = factors_eligible, lost = lost)
+end
+
+@inline function _moment_stencil_value(value, sfactors::Tuple,
+    ops::_ScalarOps = _DefaultScalarOps())
+    w = value
+    for d = 1:length(sfactors)
+        w = _scalar_mul(ops, w, sfactors[d])
+    end
+    return w
+end
 
 function _deposit_moments_kernel!(
     outs::NTuple{K,Array{T,D}},
@@ -95,17 +127,11 @@ function _deposit_moments_kernel!(
             # unity => smin > 0). If |val| * smin falls below floatmin, the
             # smallest contribution underflows to zero or subnormal; a field at
             # that scale loses it silently, so replay is required.
-            smin = one(T)
-            for d = 1:D
-                smin *= minimum(w -> iszero(w) ? one(T) : w, st[d][2])
-            end
+            smin = _moment_stencil_minimum(st, T)
             for k = 1:K
                 emask &= ~(UInt64(!exact[k]) << (k - 1))
-                lost_k =
-                    _deposition_value_lost(vals[k]) ||
-                    (iszero(vals[k]) && nonzero[k]) ||
-                    (!iszero(vals[k]) && abs(vals[k]) * smin < floatmin(T))
-                lmask |= UInt64(lost_k) << (k - 1)
+                replay = _moment_particle_replay(vals[k], exact[k], nonzero[k], smin)
+                lmask |= UInt64(replay.lost) << (k - 1)
             end
         end
         for c in stamp
@@ -114,10 +140,7 @@ function _deposit_moments_kernel!(
             sfactors = ntuple(d -> st[d][2][o[d]], D)
             checked && (all(_deposition_exact_operand, sfactors) || (emask = zero(UInt64)))
             for k = 1:K
-                w = vals[k]
-                for d = 1:D
-                    w = w * sfactors[d]
-                end
+                w = _moment_stencil_value(vals[k], sfactors)
                 outs[k][idx...] += w
             end
         end

@@ -142,7 +142,8 @@ end
 
 # ---------------------------------------------------------------- drift
 
-@inline _particle_coordinate_native(x, v, dt) = x + dt * v
+@inline _particle_coordinate_native(x, v, dt, ops::_ScalarOps = _DefaultScalarOps()) =
+    _scalar_add(ops, x, _scalar_mul(ops, dt, v))
 
 """
     _particle_coordinate(x, v, dt)
@@ -193,14 +194,17 @@ end
     bz::T,
     hq::T,
     ::Val{mode},
+    ops::_ScalarOps = _DefaultScalarOps(),
 ) where {T,mode}
-    ax = ex + (uy * bz - uz * by)
-    ay = ey + (uz * bx - ux * bz)
-    az = ez + (ux * by - uy * bx)
-    kx = hq * ax
-    ky = hq * ay
-    kz = hq * az
-    out = mode === :prime ? (ux - kx, uy - ky, uz - kz) : (ux + kx, uy + ky, uz + kz)
+    ax = _scalar_add(ops, ex, _scalar_sub(ops, _scalar_mul(ops, uy, bz), _scalar_mul(ops, uz, by)))
+    ay = _scalar_add(ops, ey, _scalar_sub(ops, _scalar_mul(ops, uz, bx), _scalar_mul(ops, ux, bz)))
+    az = _scalar_add(ops, ez, _scalar_sub(ops, _scalar_mul(ops, ux, by), _scalar_mul(ops, uy, bx)))
+    kx = _scalar_mul(ops, hq, ax)
+    ky = _scalar_mul(ops, hq, ay)
+    kz = _scalar_mul(ops, hq, az)
+    out = mode === :prime ?
+        (_scalar_sub(ops, ux, kx), _scalar_sub(ops, uy, ky), _scalar_sub(ops, uz, kz)) :
+        (_scalar_add(ops, ux, kx), _scalar_add(ops, uy, ky), _scalar_add(ops, uz, kz))
     return out, (ax, ay, az, kx, ky, kz)
 end
 
@@ -429,17 +433,28 @@ end
 # max|v|, max|E|, max|B| and the smallest nonzero Boris guard scale
 # S_p = max(|v_p|, |h E_p|) (same h*E products). Fields are per-particle vectors
 # or uniform numbers; samples are converted to T as the kick loops do.
+@inline function _boris_scale_record(v::NTuple{3,T}, e::NTuple{3,T}, b::NTuple{3,T},
+    hk::T, ops::_ScalarOps = _DefaultScalarOps()) where {T}
+    av = _abs3(v...)
+    emax = _abs3(e...)
+    bmax = _abs3(b...)
+    scale = max(av, _abs3(_scalar_mul(ops, hk, e[1]), _scalar_mul(ops, hk, e[2]),
+        _scalar_mul(ops, hk, e[3])))
+    return (vmax = av, emax = emax, bmax = bmax, scale = scale)
+end
+
 @inline function _boris_batch_scales(v, E, B, h::T, indices) where {T}
     vmax = emax = bmax = zero(T)
     smin = T(Inf)
     @inbounds for p in indices
         ex, ey, ez = _batch_sample(E[1], p, T), _batch_sample(E[2], p, T), _batch_sample(E[3], p, T)
         bx, by, bz = _batch_sample(B[1], p, T), _batch_sample(B[2], p, T), _batch_sample(B[3], p, T)
-        av = _abs3(_batch_sample(v[1], p, T), _batch_sample(v[2], p, T), _batch_sample(v[3], p, T))
-        vmax = max(vmax, av)
-        emax = max(emax, _abs3(ex, ey, ez))
-        bmax = max(bmax, _abs3(bx, by, bz))
-        smin = _batch_nonzero_min(smin, max(av, _abs3(h * ex, h * ey, h * ez)))
+        sample = (_batch_sample(v[1], p, T), _batch_sample(v[2], p, T), _batch_sample(v[3], p, T))
+        row = _boris_scale_record(sample, (ex, ey, ez), (bx, by, bz), h)
+        vmax = max(vmax, row.vmax)
+        emax = max(emax, row.emax)
+        bmax = max(bmax, row.bmax)
+        smin = _batch_nonzero_min(smin, row.scale)
     end
     return vmax, emax, bmax, smin
 end
@@ -538,8 +553,10 @@ end
            (smin >= floatmin(T) * T(256) * (one(T) + tau))
 end
 
-@inline _batch_kick_magnitude(e, factor::Number) = abs(factor * e)
-@inline _batch_kick_magnitude(e, factor::Tuple) = abs(factor[1] * (factor[2] * e))
+@inline _batch_kick_magnitude(e, factor::Number, ops::_ScalarOps = _DefaultScalarOps()) =
+    abs(_scalar_mul(ops, factor, e))
+@inline _batch_kick_magnitude(e, factor::Tuple, ops::_ScalarOps = _DefaultScalarOps()) =
+    abs(_scalar_mul(ops, factor[1], _scalar_mul(ops, factor[2], e)))
 
 # A prepass remains valid only if writes cannot change later velocity or field
 # reads. Matching injective velocity storage permits aligned in-place updates;
@@ -563,22 +580,29 @@ end
 # bound σ_p of the guard scale S_p = max(|u_p|, |k_p|): |u_p| for a moving
 # particle and, for u_p = 0, exactly |k_p| = |factor E_p| because then
 # E + u×B = E ± 0. `factor` is h*qm, or (h, qm) for the relativistic h*(qm*E).
+@inline function _euler_scale_record(u::NTuple{3,T}, e::NTuple{3,T}, b::NTuple{3,T},
+    factor, ops::_ScalarOps = _DefaultScalarOps()) where {T}
+    av = _abs3(u...)
+    emax = _abs3(e...)
+    bmax = _abs3(b...)
+    ak = max(_batch_kick_magnitude(e[1], factor, ops),
+        _batch_kick_magnitude(e[2], factor, ops), _batch_kick_magnitude(e[3], factor, ops))
+    scale = ifelse(iszero(av), ak, av)
+    return (vmax = av, emax = emax, bmax = bmax, scale = scale)
+end
+
 @inline function _euler_batch_scales(u, E, B, factor, indices, ::Type{T}) where {T}
     umax = emax = bmax = zero(T)
     smin = T(Inf)
     @inbounds for p in indices
         ex, ey, ez = _batch_sample(E[1], p, T), _batch_sample(E[2], p, T), _batch_sample(E[3], p, T)
         bx, by, bz = _batch_sample(B[1], p, T), _batch_sample(B[2], p, T), _batch_sample(B[3], p, T)
-        au = _abs3(_batch_sample(u[1], p, T), _batch_sample(u[2], p, T), _batch_sample(u[3], p, T))
-        ak = max(
-            _batch_kick_magnitude(ex, factor),
-            _batch_kick_magnitude(ey, factor),
-            _batch_kick_magnitude(ez, factor),
-        )
-        umax = max(umax, au)
-        emax = max(emax, _abs3(ex, ey, ez))
-        bmax = max(bmax, _abs3(bx, by, bz))
-        smin = _batch_nonzero_min(smin, ifelse(iszero(au), ak, au))
+        sample = (_batch_sample(u[1], p, T), _batch_sample(u[2], p, T), _batch_sample(u[3], p, T))
+        row = _euler_scale_record(sample, (ex, ey, ez), (bx, by, bz), factor)
+        umax = max(umax, row.vmax)
+        emax = max(emax, row.emax)
+        bmax = max(bmax, row.bmax)
+        smin = _batch_nonzero_min(smin, row.scale)
     end
     return umax, emax, bmax, smin
 end

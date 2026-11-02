@@ -722,26 +722,28 @@ end
     return _from_exact(T, Q(initial) + Q(op.h) * total / op.divisor)
 end
 
-@inline function (op::_RK4Affine{T})(initial::T, rate::T) where {T}
-    increment = op.coefficient * rate
-    value = initial + increment
-    T <: _RangeGuardedFloat || return value
-    all(isfinite, (initial, op.h, rate)) || return value
+@inline function _rk4_affine_native(op::_RK4Affine{T}, initial::T, rate::T,
+    ops::_ScalarOps = _DefaultScalarOps()) where {T}
+    increment = _scalar_mul(ops, op.coefficient, rate)
+    value = _scalar_add(ops, initial, increment)
+    T <: _RangeGuardedFloat || return (value = value, resolved = true)
+    all(isfinite, (initial, op.h, rate)) || return (value = value, resolved = true)
     resolved = op.native_context & _rk4_coefficient_in_range(op) &
         _kinematics_product_in_range(increment, op.coefficient, rate) &
         _rk4_sum_in_range(value, initial, increment)
-    return resolved ? value : _rk4_affine_exact(op, initial, (rate,), (1,))
+    return (value = value, resolved = resolved)
 end
 
-@inline function (op::_RK4Affine{T})(initial::T, k1::T, k2::T, k3::T, k4::T) where {T}
-    twice2, twice3 = 2 * k2, 2 * k3
-    sum12 = k1 + twice2
-    sum123 = sum12 + twice3
-    rate = sum123 + k4
-    increment = op.coefficient * rate
-    value = initial + increment
-    T <: _RangeGuardedFloat || return value
-    all(isfinite, (initial, op.h, k1, k2, k3, k4)) || return value
+@inline function _rk4_affine_native(op::_RK4Affine{T}, initial::T, k1::T, k2::T, k3::T, k4::T,
+    ops::_ScalarOps = _DefaultScalarOps()) where {T}
+    twice2, twice3 = _scalar_mul(ops, 2, k2), _scalar_mul(ops, 2, k3)
+    sum12 = _scalar_add(ops, k1, twice2)
+    sum123 = _scalar_add(ops, sum12, twice3)
+    rate = _scalar_add(ops, sum123, k4)
+    increment = _scalar_mul(ops, op.coefficient, rate)
+    value = _scalar_add(ops, initial, increment)
+    T <: _RangeGuardedFloat || return (value = value, resolved = true)
+    all(isfinite, (initial, op.h, k1, k2, k3, k4)) || return (value = value, resolved = true)
     resolved = op.native_context & _rk4_coefficient_in_range(op) &
         _kinematics_product_in_range(twice2, T(2), k2) &
         _kinematics_product_in_range(twice3, T(2), k3) &
@@ -750,7 +752,17 @@ end
         _rk4_sum_in_range(rate, sum123, k4) &
         _kinematics_product_in_range(increment, op.coefficient, rate) &
         _rk4_sum_in_range(value, initial, increment)
-    return resolved ? value : _rk4_affine_exact(op, initial, (k1, k2, k3, k4), (1, 2, 2, 1))
+    return (value = value, resolved = resolved)
+end
+
+@inline function (op::_RK4Affine{T})(initial::T, rate::T) where {T}
+    native = _rk4_affine_native(op, initial, rate)
+    return native.resolved ? native.value : _rk4_affine_exact(op, initial, (rate,), (1,))
+end
+
+@inline function (op::_RK4Affine{T})(initial::T, k1::T, k2::T, k3::T, k4::T) where {T}
+    native = _rk4_affine_native(op, initial, k1, k2, k3, k4)
+    return native.resolved ? native.value : _rk4_affine_exact(op, initial, (k1, k2, k3, k4), (1, 2, 2, 1))
 end
 
 # one RK4 substep of size h on canonical B (st.fields.B), frozen moments

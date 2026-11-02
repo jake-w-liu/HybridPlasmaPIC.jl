@@ -103,12 +103,23 @@ function compute_moments!(
     return f
 end
 
+@inline function _charge_moment_parts(acc, q, number_moment,
+    ops::_ScalarOps = _DefaultScalarOps())
+    increment = _scalar_mul(ops, q, number_moment)
+    value = _scalar_add(ops, acc, increment)
+    return (value = value, increment = increment)
+end
+@inline _ion_moment_value(moment, inverse, ops::_ScalarOps = _DefaultScalarOps()) =
+    _scalar_mul(ops, moment, inverse)
+@inline _hybrid_density_inverse(nv, ::Type{T}, ops::_ScalarOps = _DefaultScalarOps()) where {T} =
+    _scalar_div(ops, one(T), nv)
+
 function _normalize_ion_moments!(n::Array{T}, u, nfloor::T) where {T}
     @inbounds for I in eachindex(n)
-        inv = one(T) / max(n[I], nfloor)
-        u[1][I] *= inv
-        u[2][I] *= inv
-        u[3][I] *= inv
+        inv = _hybrid_density_inverse(max(n[I], nfloor), T)
+        u[1][I] = _ion_moment_value(u[1][I], inv)
+        u[2][I] = _ion_moment_value(u[2][I], inv)
+        u[3][I] = _ion_moment_value(u[3][I], inv)
     end
     return n
 end
@@ -122,9 +133,9 @@ end
 # Accumulate raw charge moments; normalize only after every species contributes.
 function _accumulate_charge_moments!(n, u, ps, g, shape, ntmp, mtmp, work)
     _deposit_density_momentum_moments!(ntmp, mtmp, ps, g, shape, work)
-    @. n += ps.q * ntmp
+    @. n = getproperty(_charge_moment_parts(n, ps.q, ntmp), :value)
     for c = 1:3
-        @. u[c] += ps.q * mtmp[c]
+        @. u[c] = getproperty(_charge_moment_parts(u[c], ps.q, mtmp[c]), :value)
     end
     return n
 end

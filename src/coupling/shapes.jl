@@ -114,10 +114,14 @@ end
     c = Int(_ngp_node(s))
     return (c, (one(T),))
 end
+@inline function _cic_weights(s::T, integer_base::Integer,
+    ops::_ScalarOps = _DefaultScalarOps()) where {T}
+    f = _scalar_sub(ops, s, integer_base)
+    return (_scalar_sub(ops, one(T), f), f)
+end
 @inline function _stencil1d(::CIC, s::T) where {T}
     i0 = floor(Int, s)
-    f = s - i0
-    return (i0, (one(T) - f, f))
+    return (i0, _cic_weights(s, i0))
 end
 @inline function _stencil1d(::TSC, s::T) where {T}
     c = round(Int, s)

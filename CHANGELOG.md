@@ -11,6 +11,15 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Added
 
+- Canonical particle, coupling, moment, Ohm and RK4 scalar rows now accept an
+  explicit device arithmetic policy. Default CPU entries retain their existing
+  operation order, validation and exact repairs. The CUDA arithmetic policy
+  remains opt-in and has separate pending device acceptance. Source review
+  preserves mixed-precision custom shape weights. Ten whole-file inverses and
+  all 48 Boris node expansions
+  were checked. Runtime/compiler/allocation and device acceptance remain pending;
+  this dependency does not itself provide a resident solver.
+
 - `StaticAMRHierarchy1D` and `StaticCompositeElectrostaticPIC` add a bounded CPU
   1D nested 2:1 composite electrostatic family: unique-leaf/shared-node ownership,
   one mixed Neumann solve, physical clouds, synchronous Verlet and coarse/fine

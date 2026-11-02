@@ -100,7 +100,7 @@ function _ohm_prep!(
             cnt += 1
             nv = nfloor
         end
-        ninv[I] = one(T) / nv
+        ninv[I] = _hybrid_density_inverse(nv, T)
     end
     fc[] = cnt
     return ninv
@@ -234,6 +234,41 @@ end
     return !isfinite(product) || abs(product) < floatmin(typeof(product))
 end
 
+@inline function _ohm_scalar_native(
+    v1,
+    v2,
+    b1,
+    b2,
+    j1,
+    j2,
+    ninv,
+    η,
+    current,
+    ηH,
+    lap,
+    pressure,
+    ops::_ScalarOps = _DefaultScalarOps(),
+)
+    m1, m2 = _scalar_mul(ops, v1, b2), _scalar_mul(ops, v2, b1)
+    h1, h2 = _scalar_mul(ops, j1, b2), _scalar_mul(ops, j2, b1)
+    cross = _scalar_sub(ops, h1, h2)
+    hall, ohmic, hyper = _scalar_mul(ops, cross, ninv), _scalar_mul(ops, η, current), _scalar_mul(ops, ηH, lap)
+    value = _scalar_sub(ops, _scalar_add(ops, _scalar_add(ops, -_scalar_sub(ops, m1, m2), hall), ohmic), hyper)
+    pressure_term = pressure === nothing ? zero(value) : _scalar_mul(ops, pressure, ninv)
+    pressure === nothing || (value = _scalar_sub(ops, value, pressure_term))
+    cold =
+        !isfinite(value) ||
+        _ohm_product_needs_completion(v1, b2, m1) ||
+        _ohm_product_needs_completion(v2, b1, m2) ||
+        _ohm_product_needs_completion(j1, b2, h1) ||
+        _ohm_product_needs_completion(j2, b1, h2) ||
+        _ohm_product_needs_completion(cross, ninv, hall) ||
+        _ohm_product_needs_completion(η, current, ohmic) ||
+        _ohm_product_needs_completion(ηH, lap, hyper) ||
+        (pressure !== nothing && _ohm_product_needs_completion(pressure, ninv, pressure_term))
+    return (value = value, needs_completion = cold)
+end
+
 @inline function _ohm_scalar_field_value(
     v1,
     v2,
@@ -249,23 +284,8 @@ end
     pressure,
     ::Val{report} = Val(false),
 ) where {report}
-    m1, m2 = v1 * b2, v2 * b1
-    h1, h2 = j1 * b2, j2 * b1
-    cross = h1 - h2
-    hall, ohmic, hyper = cross * ninv, η * current, ηH * lap
-    value = -(m1 - m2) + hall + ohmic - hyper
-    pressure_term = pressure === nothing ? zero(value) : pressure * ninv
-    pressure === nothing || (value -= pressure_term)
-    cold =
-        !isfinite(value) ||
-        _ohm_product_needs_completion(v1, b2, m1) ||
-        _ohm_product_needs_completion(v2, b1, m2) ||
-        _ohm_product_needs_completion(j1, b2, h1) ||
-        _ohm_product_needs_completion(j2, b1, h2) ||
-        _ohm_product_needs_completion(cross, ninv, hall) ||
-        _ohm_product_needs_completion(η, current, ohmic) ||
-        _ohm_product_needs_completion(ηH, lap, hyper) ||
-        (pressure !== nothing && _ohm_product_needs_completion(pressure, ninv, pressure_term))
+    native = _ohm_scalar_native(v1, v2, b1, b2, j1, j2, ninv, η, current, ηH, lap, pressure)
+    value, cold = native.value, native.needs_completion
     if !cold
         return report ? (value, false) : value
     end
@@ -777,7 +797,7 @@ function _ohm_ninv!(ninv::Array{T,D}, n::Array{T,D}, nfloor::T, fc::Base.RefValu
             cnt += 1
             nv = nfloor
         end
-        ninv[I] = one(T) / nv
+        ninv[I] = _hybrid_density_inverse(nv, T)
     end
     fc[] = cnt
     return ninv

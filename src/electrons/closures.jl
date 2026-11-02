@@ -224,7 +224,9 @@ function PolytropicElectrons(pe0::Real, n0::Real, γ::Real)
     return PolytropicElectrons{T}(pe0T, n0T, γT)
 end
 
-electron_pressure!(pe, n, c::IsothermalElectrons) = (@. pe = c.Te * n; pe)
+@inline _isothermal_pressure_value(Te, n, ops::_ScalarOps = _DefaultScalarOps()) =
+    _scalar_mul(ops, Te, n)
+electron_pressure!(pe, n, c::IsothermalElectrons) = (@. pe = _isothermal_pressure_value(c.Te, n); pe)
 # Floor the base at 0: particle-deposited densities are ≥0 (so this is a no-op for hybrid/full-PIC),
 # but a Hall-MHD RK4 predictor stage can transiently undershoot a cell below 0, and (neg)^γ with a
 # non-integer γ throws an uncontrolled DomainError. pe→0 there (continuous, since 0^γ=0 for γ>0);

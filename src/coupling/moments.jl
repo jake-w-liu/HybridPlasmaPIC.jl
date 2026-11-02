@@ -439,9 +439,10 @@ end
 # Preserve the two existing ordinary evaluation orders: public moments divide
 # the raw sum then multiply by charge; EMPIC multiplies by charge/volume. Both
 # use the same complete expression if an intermediate loses range.
-@inline function _moment_candidate(raw, coefficient, volume, ::Val{:postscale})
-    density = raw / volume
-    value = density * coefficient
+@inline function _moment_candidate(raw, coefficient, volume, ::Val{:postscale},
+    ops::_ScalarOps = _DefaultScalarOps())
+    density = _scalar_div(ops, raw, volume)
+    value = _scalar_mul(ops, density, coefficient)
     lost =
         _deposition_range_lost(density) ||
         (iszero(density) && !iszero(raw)) ||
@@ -449,9 +450,10 @@ end
     return value, lost
 end
 
-@inline function _moment_candidate(raw, coefficient, volume, ::Val{:prescale})
-    scale = coefficient / volume
-    value = scale * raw
+@inline function _moment_candidate(raw, coefficient, volume, ::Val{:prescale},
+    ops::_ScalarOps = _DefaultScalarOps())
+    scale = _scalar_div(ops, coefficient, volume)
+    value = _scalar_mul(ops, scale, raw)
     lost =
         _deposition_range_lost(scale) ||
         (iszero(scale) && !iszero(coefficient)) ||

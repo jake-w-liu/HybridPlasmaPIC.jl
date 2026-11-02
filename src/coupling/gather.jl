@@ -38,20 +38,20 @@ end
 
 # One canonical vector gather row; distributed ownership supplies only the lookup.
 @inline function _gather_vector_stencil(field_at, st, n, stamp, ::Type{T},
-    boundary = Val(:periodic), complete = Val(false)) where {T}
+    boundary = Val(:periodic), complete = Val(false), ops::_ScalarOps = _DefaultScalarOps()) where {T}
     complete isa Val{true} && return _gather_vector_stencil_exact(field_at, st, n, stamp, T, boundary)
     ax = ay = az = zero(T)
     for c in stamp
         o = Tuple(c)
         w = one(T)
         for d = 1:length(n)
-            w *= st[d][2][o[d]]
+            w = _scalar_mul(ops, w, st[d][2][o[d]])
         end
         idx = _stencil_node_index(st, n, o, boundary)
         values = field_at(idx)
-        ax += values[1] * w
-        ay += values[2] * w
-        az += values[3] * w
+        ax = _scalar_add(ops, ax, _scalar_mul(ops, values[1], w))
+        ay = _scalar_add(ops, ay, _scalar_mul(ops, values[2], w))
+        az = _scalar_add(ops, az, _scalar_mul(ops, values[3], w))
     end
     return ax, ay, az
 end

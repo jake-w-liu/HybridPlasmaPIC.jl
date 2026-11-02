@@ -14,10 +14,11 @@ completeness. Comparative leadership requires reproducible external benchmarks.
 
 The [parallel implementation workflow](IMPLEMENTATION_WORKFLOW.md) records current
 workers, exclusive file ownership, dependencies and separate implementation,
-review and CI stages. Root integrates the reviewed static composite ES source.
-Two workers implement the resident CUDA family and its disjoint shared scalar
-seams; a third has frozen the compatible implicit-EM current/gather contract
-for root review. Root owns shared registrations/docs, dependency release and CI closure.
+review and CI stages. Static composite ES is reviewed and submitted to GitHub CI.
+The resident CUDA and compatible implicit-EM workers implement disjoint families.
+Root integrates the frozen shared scalar dependencies; another worker diagnoses
+the new absorption CI failures. Root owns registrations/docs, dependency release
+and CI closure.
 
 Current user instruction (2026-11-02): review canonical source and callers,
 and close the correctness and GitHub CI loop for every push. Run package,
@@ -91,8 +92,16 @@ exact-zero preparation ahead of publication. Essential GitHub checks cover an
 independent Neumann matrix solve, analytic charged crossing, rejection and stale
 physical restore; they are unrun locally. See the [guide](STATIC_COMPOSITE_ELECTROSTATIC.md).
 Runtime/scientific/self-force/resource gates and dynamic AMR remain open.
-The CUDA contract and exact shared APIs are approved; two disjoint implementation
-workers are active. A separate source audit records missing duration/clock
+The CUDA contract and exact shared APIs are approved. Its eleven shared scalar
+dependency files are now reviewed/integrated: four opt-in arithmetic operations,
+canonical mover/scale/coupling/moment/native Ohm/RK rows and unchanged CPU default
+entry prefixes. Root reproduced 171 author source/default-expansion checks,
+including ten whole-file inverses and all 48 Boris nodes. Review removed a new
+same-type restriction on reachable mixed-precision custom shape weights; every
+prior range predicate and exact fallback remains. Numerical/compiler/format/
+allocation acceptance and actual NVIDIA lowering/execution remain pending.
+The device family and paired orbit-current/gather implicit EM implement in
+separate paths. A separate source audit records missing duration/clock
 admission in existing phase owners; those repairs are queued with their actual
 full-step or substep semantics preserved. No milestone advances for source
 presence or queued CI.
@@ -147,7 +156,8 @@ Current CI repairs, checked 2026-11-02:
   formatting also fails. Candidate `f1eb13f` retains the checks and alias
   protections, separates tuple-family traversal and applies the actual formatter
   patch. Its [validation run](https://github.com/jake-w-liu/SpectralOperators.jl/actions/runs/41436256658)
-  passes formatting; all four Julia jobs remain queued in the checked snapshot.
+  passes formatting and all 27,939 assertions on actual Julia 1.13.3 Linux;
+  three Julia jobs remain queued in the checked snapshot.
   It has not replaced `main` or been registered.
 - At historical `8adce3e`, [essentials run 41385075678](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41385075678)
   records 106,694 passes/12 failures on Julia 1.12.7 and 106,688 passes/18 failures
@@ -158,6 +168,13 @@ Current CI repairs, checked 2026-11-02:
   subnormal and four broad endpoint JET failures require measured observations;
   valid reinterpret endpoint controls pass108 assertions in that older run.
   Auxiliary observations run separately after the unchanged strict tests.
+- Candidate `bb7da93` minimum-Julia [longitudinal job](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41442148118/job/125266382813)
+  completed with 106,888 passes/22 failures/zero errors on actual Julia 1.12.7.
+  All impact, longitudinal and broad Yee groups pass; the failures are 18
+  absorption snapshot comparisons and four absorption JET assertions. Root read
+  the complete summary and actual reports. Snapshot value/equality and dynamic
+  history-validator diagnosis is active; no numerical or JET gate is relaxed.
+  The separate after-test observation completed and is auxiliary evidence only.
 - Historical `06fa658` [conduction run 41377913235](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41377913235)
   records 5,292 passes/two strict Faraday equality failures on latest Julia with
   SO 0.1.8. Its recorded dyadic/without-inactive-Ex comparisons match the oracle;
@@ -203,7 +220,7 @@ Current CI repairs, checked 2026-11-02:
 | Bounded scalar Hybrid Faraday | Scalar `de2=ηH=0` stages retain original represented constitutive products on finite product-range events through the existing dyadic FFT owner; shared serial/replicated-MPI kernels retain their numerical-phase ownership | [Bounded scope and remaining source work](IDEAL_FORCE_SOURCE_RANGE_WORK_ORDER.md): exact GitHub CI pending; normal swallowed variation, general FFT conditioning, broader operators/backends, full lifecycle and resource acceptance remain open |
 | Scalar pressure source completion | Ideal and S1 Ohmic stages reuse complete signed pressure on range events; per-axis routing is paired with the registered SO 0.1.8 floor for certified axis-null conditioning | [Pressure range plan](SCALAR_PRESSURE_RATE_RANGE_PLAN.md): signed mixed-axis reconstruction, exact GitHub CI and public resource acceptance remain pending. General active-mode conditioning, standalone Euler and later RK scaling remain separate |
 | RK4 affine range | Guarded original-duration combinations are shared by HybridStepper B-only and B/pressure stages, preserving represented rates and ordinary expressions. [Historical focused run](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41289773560) passes all 23 groups / 22,400 assertions on each actual Julia 1.12.7/1.13.3, including coefficient/weighted sums, native bits, public Ohmic heating and 10 substep-resolution controls | Root checked complete logs and byte-identical current affine owner/four test files. [Scoped contract](TRANSPORT_SOURCE_RANGE_PLAN.md#original-duration-rk4-affine-combinations): current full/compiler/format/resources and later conduction/coupled changes remain unaccepted |
-| Serial curl headroom, storage and scaled terms | SpectralOperators main `8bf69f4` contains D1 active-transverse headroom, nine serial storage guards and the borrowed scaled-curl API over one derivative owner. Root source inverses preserve ordinary arithmetic. Candidate `f1eb13f` specializes tuple-family traversal and applies the actual formatter patch, retaining every gate | Main [run 41378026613](https://github.com/jake-w-liu/SpectralOperators.jl/actions/runs/41378026613) failed 45 zero-allocation checks per Julia job and formatting. Candidate [run 41436256658](https://github.com/jake-w-liu/SpectralOperators.jl/actions/runs/41436256658) passes formatting; four Julia jobs remain queued. Numerical/allocation/ordinary-bit acceptance, original-E antenna adoption and release remain pending. 0.1.9 is unregistered/untagged; HPIC still requires registered 0.1.8 |
+| Serial curl headroom, storage and scaled terms | SpectralOperators main `8bf69f4` contains D1 active-transverse headroom, nine serial storage guards and the borrowed scaled-curl API over one derivative owner. Root source inverses preserve ordinary arithmetic. Candidate `f1eb13f` specializes tuple-family traversal and applies the actual formatter patch, retaining every gate | Main [run 41378026613](https://github.com/jake-w-liu/SpectralOperators.jl/actions/runs/41378026613) failed 45 zero-allocation checks per Julia job and formatting. Candidate [run 41436256658](https://github.com/jake-w-liu/SpectralOperators.jl/actions/runs/41436256658) passes formatting and 27,939 assertions on actual Julia 1.13.3 Linux; three Julia jobs remain queued. Numerical/allocation/ordinary-bit acceptance, original-E antenna adoption and release remain pending. 0.1.9 is unregistered/untagged; HPIC still requires registered 0.1.8 |
 | Scalar pressure/Faraday diagnosis | Historical [SO-0.1.8 consumer CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41279917633) retains two exact-array Faraday failures on each actual Julia 1.12.7/1.13.3. Historical [S3a essentials at 33f9a687](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41291045814) reach all 33 groups with 5,140 passes and two strict Faraday failures per runtime (SO0.1.8/JET0.13.1); current assertions remain. Existing pressure essentials now print canonical replay risks/scales, native/original-source results, copied curl-null-Ex control and actual stage versus unchanged independent matrix oracles | Strict assertions remain; the normal common-scale explanation is an untested hypothesis. Probe runtime, actual branch/scale cause and exact-head acceptance remain pending GitHub. [Bounded contract](IDEAL_FORCE_SOURCE_RANGE_WORK_ORDER.md#remote-pressurefaraday-diagnosis) |
 | Electron transport S2 (hyperresistivity) | Serial periodic CPU implementation includes positive Nyquist-completed heat and complete represented field/pressure/Faraday sources; requires registered SO 0.1.8 with focused exact-matrix consumer controls | [Implementation and verification tracker](TRANSPORT_SOURCE_RANGE_PLAN.md): exact-revision GitHub CI and full resource acceptance remain pending. Bounded scalar `ηH=0` original-product completion is implemented separately; general original-product admission, source-aware hyperresistivity and later transport stages remain open |
 | Electron conduction S3b (CAP-011) | `ConductingElectrons` prepares original exact `Q(pe)/Q(n)`, removes each axis null background, uses two normalized terms and the full stored-k/Nyquist operator, then projects rational line means before complete signed pressure publication; required restart policy 2 rejects policy 1 | Exact preparation/projection properties have source review; FFTW accuracy remains qualified. Compact independent source, range, retry and policy controls await GitHub. Broader conditioning, complete-step costs, transport models/backends and total coupled acceptance remain open. [Declared scope](EVOLVING_ELECTRONS.md#constant-isotropic-conduction-source-candidate) |

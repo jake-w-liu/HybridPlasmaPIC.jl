@@ -224,9 +224,10 @@ mean code or runtime verification is complete. “Scope proposal” marks the
 additional CAP-008–011 model expansion. Root owns integration, tracker consistency,
 commit/push and CI. A named subsystem below is a code owner; an unassigned
 implementation agent is explicitly unassigned, not implicitly running.
-Current assignments (2026-11-02): root integrates reviewed static composite ES;
-two workers implement the approved resident CUDA family and its disjoint shared
-scalar seams. A third has frozen a compatible implicit-EM contract for review.
+Current assignments (2026-11-02): static composite ES is reviewed and submitted;
+the approved resident CUDA and compatible implicit-EM families implement in
+disjoint paths. Root integrates the frozen shared scalar dependencies; another
+worker diagnoses the newly completed absorption CI failures.
 Hall, slab, periodic shear and synchronous implicit EM are source-complete
 and await remote acceptance. Root owns shared registrations, current docs, dependency
 publication, source integration and remote CI. Earlier audit assignments and
@@ -242,7 +243,7 @@ for active ownership.
 | 003C/D distributed coupled solvers | MPI orchestration + canonical solver owners | 003A/B and accepted serial solver | Rank-owned periodic Maxwell, coupled CIC ES/EM and isothermal hybrid source with global scalar diagnostics implemented | Maxwell, ES, EM and hybrid matching-layout checkpoint source implemented; broader closures/EM families and runtime/rank/restart validation remain open |
 | 003E cluster scale/restart | Agent unassigned; benchmark/MPI/I/O | 003C/D; real multi-node allocation | Hardware campaign pending | Freeze strong/weak scaling and changed-layout restart workloads before requesting/running resources |
 | 004A GPU primitive closure | Root; extensions and coupling | Current kernel gates and exact-SHA CI | Metal uniform push and NGP have green CI. Current gathered preflight source adds guarded canonical native publication and explicit field-storage admission; historical V1 allocation, V2–V5 latency and V6 calibration failures remain retained | Accept current source on GitHub and actual Metal, including native bits, compiler and both fixed cost matrices. The 1.5 latency and 8 KiB additional-allocation limits remain unchanged; [historical results do not accept this source](METAL_GATHERED_VALIDATION_PLAN.md) |
-| 004B/C resident solver families | CUDA family worker plus disjoint shared-scalar-seam worker; root owns SO/registration | 004A; actual CUDA/cuFFT/kernel/range/phase/private-public/transfer/full-persistence contract and frozen callable seams | Complete first-family v2 contract approved; source implementation active in nine new family paths plus eleven shared-seam paths | Review source and default legacy expansions, publish actual SO dependency APIs, then remote compiler/numerical/device/resource acceptance; no resident runtime acceptance yet |
+| 004B/C resident solver families | CUDA family worker; root integrates frozen shared-scalar dependencies and owns SO/registration | 004A; actual CUDA/cuFFT/kernel/range/phase/private-public/transfer/full-persistence contract and frozen callable seams | Complete first-family v2 contract approved; nine new family paths implementing; eleven shared dependencies reviewed/integrated with mixed-precision shape compatibility retained | Review complete device source, publish actual SO dependency APIs, then exact-revision compiler/numerical/device/resource acceptance; no resident runtime acceptance yet |
 | 004D multi-GPU | Agent unassigned; MPI + device extensions | 003C/D, 004B/C; real devices/network | Hardware/integration pending | Establish buffer ownership/staging contract and matched device/rank oracle |
 | 005A existing CN-labelled paths | Shock3d and integrator stability owners | Independent linear-system oracle | Shock CN `ce52836` and [linear CN](LINEAR_CN_RANGE_PLAN.md) `03e4eb3` have green exact-SHA CI | Continue with 005B/C; preserve separate resource regressions and corrections |
 | Magnetic timestep correctness | Root; `recommended_dt` and both RK4 stage owners | Independent frozen Hall/damping mode and exact stability polynomial | [Certified polygon repair](RK4_MIXED_STABILITY_PLAN.md) passes both runtime campaigns and full compiler/resource gates | `a7fb3c8` retains its failed packet-allocation CI; the later containing `fd0a168` is green. The separate BigFloat repair has the revision-specific outcome below |
