@@ -388,6 +388,13 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Fixed
 
+- Implicit hybrid ready/checkpoint validation rejects `last_dt > time` even
+  when its solve report matches the malformed history. Canonical nonnegative
+  clock addition requires this bound; varying durations remain supported.
+  The physical solver and IO publication are unchanged. Essential remote phase
+  regressions are prepared; exact-revision CI remains required.
+
+
 - Impact longitudinal validation now checks certificate buffers directly and
   projects only the relevant history/grid values. Checkpoint population wrappers
   retain their concrete storage, and required-key validation avoids an

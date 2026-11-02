@@ -6,6 +6,7 @@ using Test
     include("test_slab_gyrokinetic.jl")
     include("test_sheared_hybrid.jl")
     include("test_implicit_em.jl")
+    include("test_implicit_hybrid_phase.jl")
     include("test_open_hall_hybrid.jl")
     include("test_yee_particle_charge.jl")
     include("test_yee_longitudinal_pic.jl")

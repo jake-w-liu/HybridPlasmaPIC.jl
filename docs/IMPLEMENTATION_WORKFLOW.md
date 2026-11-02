@@ -102,7 +102,8 @@ Existing-owner extraction recovers each complete old file by literal
 expansion, preserving arithmetic, defaults, validation and try/finally order.
 The final eight-file freeze passed all 29 source inverse/ownership checks; root
 checked the adopted hashes and all three whole-file inverses. The new EM phase
-rejects last_dt>time. Its analogous old hybrid check is a separate follow-on.
+rejects last_dt>time. A separate follow-on now repairs the analogous hybrid
+phase owner; its prior exact extraction receipt remains intact.
 The nonlinear driver serves these two actual implicit families; it is not a
 new public solver framework.
 

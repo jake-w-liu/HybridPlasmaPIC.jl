@@ -131,7 +131,7 @@ cancellation propagate. Counter overflow also propagates before publication.
 Accepted positions, velocities, B, E and moments are all integer-time values.
 There is no priming or half-velocity conversion. Count zero has stored-zero time
 and timestep history and no successful report. An advanced state has positive
-finite time and positive resolved `last_dt`; time advances by actual stored
+finite time and positive resolved `last_dt <= time`; time advances by actual stored
 additions, never `count*h`. Positive `dt` requires a resolved half step and strict
 stored clock progress. An originally nonzero timestep that converts to stored
 zero is rejected, including a tiny negative value that becomes -0. An originally zero timestep validates the

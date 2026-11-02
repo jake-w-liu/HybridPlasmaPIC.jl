@@ -173,8 +173,8 @@ function _implicit_hybrid_phase_values(initialized, time::T, step::Int, last_dt:
         _particle_stored_zero(time) && _particle_stored_zero(last_dt) && report === nothing ||
             throw(ArgumentError("unstepped implicit hybrid requires zero clock/history and no solve report"))
     else
-        initialized && time > zero(T) && _stored_positive(last_dt) ||
-            throw(ArgumentError("advanced implicit hybrid requires initialized positive clock/history"))
+        initialized && time > zero(T) && _stored_positive(last_dt) && last_dt <= time ||
+            throw(ArgumentError("advanced implicit hybrid requires initialized positive clock/history with last_dt <= time"))
         _require_resolved_dt("implicit hybrid history", last_dt)
         _implicit_hybrid_validate_report(report, T, time, step, last_dt)
     end

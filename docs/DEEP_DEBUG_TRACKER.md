@@ -75,8 +75,9 @@ current in every residual/probe, shared bounded nonlinear driver, separate actua
 constraints, four exact signed work pieces and full physical IO. Three existing
 owners recover literally; root reproduced all 29 author inverse/ownership checks
 and checked the final eight file hashes. Review added last_dt<=time admission,
-without imposing time=count*last_dt. The same existing implicit-hybrid phase gap
-is recorded for a separate follow-on, preserving the extraction proof here.
+without imposing time=count*last_dt. A separate follow-on now applies that
+same necessary clock bound to the existing implicit-hybrid phase owner. The original extraction proof remains
+pinned to its earlier source revision.
 Essential GitHub checks are prepared; runtime/scientific/resource gates stay open.
 See the [model guide](IMPLICIT_EM.md).
 
