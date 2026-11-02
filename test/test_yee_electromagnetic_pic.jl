@@ -41,6 +41,9 @@ function fixture(::Type{T}; collection = false, transverse = true, width = T(0.1
 end
 pops(ps::ParticleSet) = (ps,)
 pops(species::AbstractVector) = species
+energy_record(st::YeeElectromagneticPIC) =
+    (st.last_modified_energy_defect[], st.last_physical_energy_change[])
+energy_record(st::YeeLongitudinalPIC) = (st.last_energy_defect[],)
 function snapshot(st, particles)
     return deepcopy((
         [(p.x, p.v, p.weight, p.id, p.tag, p.q, p.m) for p in pops(particles)],
@@ -53,8 +56,7 @@ function snapshot(st, particles)
         st.right_plate_charge[],
         st.last_impulse,
         st.last_work[],
-        st.last_modified_energy_defect[],
-        st.last_physical_energy_change[],
+        energy_record(st)...,
     ))
 end
 
