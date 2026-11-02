@@ -330,8 +330,9 @@ ledger satisfy the coupled method.
   The next [event-local reflection plan](BOUNDED_PARTICLE_COUPLING_PLAN.md#planned-event-local-reflection)
   specifies one cluster and two rational-duration KDK chunks, explicit contact
   residuals and staged wall ledgers. Exact source-row/work prerequisites are
-  extracted, but carried original-trajectory coverage, the wall method and its
-  independent force-driven convergence/restart gates remain open.
+  extracted. The conditional carried-error design is reviewed, while its
+  enforcement, the wall method and its independent force-driven
+  convergence/restart gates remain open.
 
 - [ ] **002C: absorbing/radiating boundaries.** Add a measured absorbing layer
   with configurable thickness/profile and accounted energy removal; inject

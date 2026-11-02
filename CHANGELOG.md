@@ -11,6 +11,11 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Added
 
+- Private canonical Yee exact-sum and candidate-conversion owners retain raw
+  charge/current for future field-invariant certificates, preserving the existing
+  exact wrapper and public routing. The conditional carried wall-coverage design
+  is documented; wall stages and runtime acceptance remain pending.
+
 - Private exact source-row and unrounded source-work owners provide prerequisites
   for a future rational-duration longitudinal event method. Existing native,
   exact and public callers retain their expressions and signed-zero behavior;

@@ -368,9 +368,15 @@ end
     return true
 end
 
-@noinline function _yee_charge_exact_candidate!(work, species, old, new, g, mode, entries, shape)
+# Retain the canonical unrounded deposition for coupled invariant certificates.
+# Private callers retain the existing charge/current preflight responsibility.
+function _yee_charge_exact_sums(species, old, new, g, mode, shape)
     sums = fill(zero(Rational{BigInt}), Base.checked_add(g.n[1], 1))
     _yee_charge_kernel!(sums, species, old, new, g, Val(true), mode, shape)
+    return sums
+end
+
+function _yee_charge_store_exact_candidate!(work, sums, entries)
     T = eltype(work.candidate)
     for i = 1:entries
         candidate = _from_exact(T, sums[i])
@@ -379,6 +385,11 @@ end
         work.candidate[i] = candidate
     end
     return nothing
+end
+
+@noinline function _yee_charge_exact_candidate!(work, species, old, new, g, mode, entries, shape)
+    sums = _yee_charge_exact_sums(species, old, new, g, mode, shape)
+    return _yee_charge_store_exact_candidate!(work, sums, entries)
 end
 
 function _yee_charge_apply!(out, species, old, new, g::YeeGrid{1}, work, mode, shape)

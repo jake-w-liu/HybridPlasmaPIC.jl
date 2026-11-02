@@ -448,7 +448,8 @@ memory remain unmeasured. Regression and compiler assertions retain their gates.
 
 ## Planned event-local reflection
 
-Design reviewed 2026-11-01; **not implemented or runtime-accepted**. The next
+Method design reviewed 2026-11-01; carried-error design reviewed 2026-11-02.
+**The wall model is not implemented or runtime-accepted.** The next
 bounded-wall candidate is a distinct longitudinal CPU Float32/64 model with
 at most one common contact cluster and two synchronized local KDK
 (kick-drift-kick) chunks per external step. Existing event-free models keep their methods and restart tags.
@@ -510,10 +511,15 @@ for the stronger wall contract, not a runtime result or an impossibility claim.
 
 - [x] Specify the one-cluster map, rational durations, represented-contact
   policy and local physical-tube bounds; independently review their limits.
-- [ ] Complete and review carried uncertainty through the event and remainder.
+- [x] Review the conditional [carried-error contract](BOUNDED_EVENT_COVERAGE_CONTRACT.md)
+  through the event and remainder, retaining state, invariant and timing errors.
+  Its original-start coverage premises still need implementation and remote gates.
 - [x] Source extraction of the canonical duration-free exact longitudinal row
   and unrounded work value, preserving existing methods by literal expansion.
   Direct runtime/inference/format acceptance remains pending on GitHub.
+- [x] Extract the canonical raw charge/current sum and its existing candidate
+  conversion so a future stage can retain Istar without lifting rounded current.
+  Existing public/current routing remains; GitHub acceptance is pending.
 - [ ] Implement staged reflection, diagnostics and distinct restart policies.
 - [ ] On GitHub, run essential independent force-driven impact refinement,
   branch/cluster failures, complete rollback and restart controls. Preserve

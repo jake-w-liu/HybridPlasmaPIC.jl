@@ -51,6 +51,48 @@ end
     end
 end
 
+@testset "Canonical unrounded Yee charge and current values" begin
+    H = HybridPlasmaPIC
+    for T in (Float32, Float64), shape in (CIC(), YeeTriangularCloud(T(0.25)))
+        g = YeeGrid((2,), (one(T),))
+        ps = population(T, T[0, 0.5])
+        ps.weight .= T[1, 0.5]
+        species, old, new = (ps,), (copy(ps.x[1]),), (T[0.5, 0],)
+        original = (state(ps), map(copy, old), map(copy, new))
+        work = YeeChargeWorkspace(g)
+        for mode in (Val(:charge), Val(:impulse))
+            charging = mode isa Val{:charge}
+            before, after = charging ? (nothing, nothing) : (old, new)
+            entries = charging ? 3 : 2
+            expected = if shape isa CIC
+                first(charging ? O.charge(species, old, 2, one(T)) :
+                      O.impulse(species, old, new, 2, one(T)))
+            else
+                charging ? O.cloud_charge(species, old, 2, one(T), shape.half_width) :
+                O.cloud_impulse(species, old, new, 2, one(T), shape.half_width)
+            end
+            raw = @inferred H._yee_charge_exact_sums(species, before, after, g, mode, shape)
+            @test length(raw) == 3
+            @test raw[1:entries] == expected
+            if shape isa YeeTriangularCloud
+                # These physical-volume fractions cannot be recovered from rounded current.
+                @test any(value -> O.rat(T(value)) != value, expected)
+            end
+            saved = copy(raw)
+            @test H._yee_charge_store_exact_candidate!(work, raw, entries) === nothing
+            @test isequal(work.candidate[1:entries], T.(expected))
+            @test raw == saved
+            @test H._yee_charge_exact_candidate!(work, species, before, after,
+                g, mode, entries, shape) === nothing
+            @test isequal(work.candidate[1:entries], T.(expected))
+            bad = copy(raw)
+            bad[entries] = 2 * O.rat(floatmax(T))
+            @test_throws ArgumentError H._yee_charge_store_exact_candidate!(work, bad, entries)
+            @test isequal((state(ps), old, new), original)
+        end
+    end
+end
+
 @testset "Closed CIC charge and path impulse" begin
     for T in (Float32, Float64), length in (one(T), T(0.1))
         g = YeeGrid((8,), (length,))
