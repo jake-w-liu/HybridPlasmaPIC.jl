@@ -65,11 +65,12 @@ the trial E is divergence-projected onto the endpoint charge and the trial B is
 projected divergence-free, and the midpoint fields entering the gathers and
 curls are the means of the old and these published endpoint fields. Newton rows
 still act on the raw unknown, so at convergence the unknown's longitudinal parts
-match the published fields only to the nonlinear tolerance; publishing in the
-residual keeps the endpoint Gauss defect and magnetic divergence at the 256eps
-constraint gates that would otherwise reject converged nonuniform steps. No
-field/current is held to an explicit predictor. There is no projection after the
-nonlinear solve.
+match the published fields only to the nonlinear tolerance. Publishing inside
+the residual keeps the endpoint Gauss defect and magnetic divergence at FFT
+rounding, within the 256eps constraint gates; without it those defects equal the
+divergence of the solver residual and the gates reject converged nonuniform
+steps. No field/current is held to an explicit predictor. There is no
+projection after the nonlinear solve.
 
 The existing bounded Newton/forward-Jv/restarted-GMRES/Armijo algorithm is shared
 with the synchronous hybrid family. Defaults are nonlinear_rtol=sqrt(eps(T)),
