@@ -204,6 +204,7 @@ function _archive_run(
         CollisionalElectrostaticPIC,
         ImplicitHybridStepper,
         ImplicitEMPICStepper,
+        ImplicitYeeEMPICStepper,
         SlabGyrokineticPIC,
         OpenHallHybrid,
         ShearedPeriodicHybridPIC,

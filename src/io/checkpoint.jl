@@ -594,6 +594,10 @@ function _validate_checkpoint_configuration_graph(configuration, graph, require_
     return nothing
 end
 
+# FFT plans and scratch belong to the spectral solver and cannot be restored as
+# detached configuration; a plain Yee geometry grid owns no solver scratch.
+_checkpoint_owned_scratch(g::FourierGrid) = (g.plan, g.iplan, g.cbuf, g.tbuf, g.abuf, g.sbuf)
+_checkpoint_owned_scratch(::YeeGrid) = ()
 function _register_checkpoint_configuration_owned!(remember, remember_backing, owned, s, st)
     # Configuration is replaced on restore, whereas these arrays are copied into
     # destination storage. Include the payload to reject retained incoming links.
@@ -609,12 +613,7 @@ function _register_checkpoint_configuration_owned!(remember, remember_backing, o
         name in (:g, :model, :shape) && continue
         _visit_checkpoint_objects(remember, getfield(st, name); backing = remember_backing)
     end
-    g = st.g
-    _visit_checkpoint_objects(
-        remember,
-        (g.plan, g.iplan, g.cbuf, g.tbuf, g.abuf, g.sbuf);
-        backing = remember_backing,
-    )
+    _visit_checkpoint_objects(remember, _checkpoint_owned_scratch(st.g); backing = remember_backing)
     return nothing
 end
 
@@ -1349,6 +1348,7 @@ function _save_checkpoint(
         CollisionalElectrostaticPIC,
         ImplicitHybridStepper,
         ImplicitEMPICStepper,
+        ImplicitYeeEMPICStepper,
         SlabGyrokineticPIC,
         OpenHallHybrid,
         ShearedPeriodicHybridPIC,

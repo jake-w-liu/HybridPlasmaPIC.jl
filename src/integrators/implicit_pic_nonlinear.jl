@@ -1,4 +1,4 @@
-# Exactly two synchronous PIC families share the existing bounded nonlinear
+# Exactly three synchronous PIC families share the existing bounded nonlinear
 # algorithm. Physics residuals, scales, trial-domain errors and reports stay in
 # their owning models; this is not a public solver callback interface.
 _implicit_pic_residual!(out, st::ImplicitHybridStepper, z) = _implicit_hybrid_residual!(out, st, z)
@@ -57,7 +57,7 @@ function _implicit_pic_jv!(out::Vector{T}, A::_ImplicitHybridJacobian, p::Vector
 end
 
 function _implicit_pic_solve!(
-    st::Union{ImplicitHybridStepper,ImplicitEMPICStepper},
+    st::Union{ImplicitHybridStepper,ImplicitEMPICStepper,ImplicitYeeEMPICStepper},
     ::Type{T},
 ) where {T}
     w, controls = st.work, st.controls

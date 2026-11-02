@@ -93,6 +93,7 @@ include("coupling/sheared_hybrid_coupling.jl")
 include("coupling/yee_charge.jl")
 include("coupling/composite_cloud.jl")
 include("coupling/yee_transverse.jl")
+include("coupling/periodic_yee_cloud.jl")
 
 # --- Electrons + hybrid model + field state ---
 include("electrons/closures.jl")
@@ -135,6 +136,7 @@ include("integrators/collisional_empic.jl")
 include("integrators/collisional_electrostatic.jl")
 include("integrators/implicit_hybrid.jl")
 include("integrators/implicit_em.jl")
+include("integrators/implicit_yee_em.jl")
 include("integrators/implicit_pic_nonlinear.jl")
 include("models/maxwell_vacuum.jl")
 include("models/yee_conductive_layer.jl")
@@ -162,6 +164,7 @@ include("diagnostics/spectra.jl")
 include("diagnostics/relativistic_moments.jl")
 include("diagnostics/conservation.jl")        # energy/momentum budgets (needs kinetic_energy)
 include("diagnostics/implicit_em.jl")
+include("diagnostics/implicit_yee_em.jl")
 include("diagnostics/open_hall_energy.jl")
 include("diagnostics/shock_surface.jl")       # shock diag (needs PerpShock2D/3D)
 include("diagnostics/synthetic_spacecraft.jl")
@@ -182,6 +185,7 @@ include("io/slab_gyrokinetic_checkpoint.jl")
 include("io/sheared_hybrid_checkpoint.jl")
 include("io/implicit_hybrid_checkpoint.jl")
 include("io/implicit_em_checkpoint.jl")
+include("io/implicit_yee_em_checkpoint.jl")
 include("io/maxwell_vacuum_checkpoint.jl")
 include("io/yee_conductive_layer_checkpoint.jl")
 include("io/yee_pml_checkpoint.jl")
@@ -280,6 +284,9 @@ export HybridStepper,
     ImplicitEMSolveReport,
     ImplicitEMConvergenceError,
     implicit_em_diagnostics,
+    ImplicitYeeEMPICStepper,
+    CompatibleYeeSolveReport,
+    implicit_yee_em_diagnostics,
     CollisionalHybridStepper,
     CollisionalEMPICStepper,
     CollisionalElectrostaticPIC,

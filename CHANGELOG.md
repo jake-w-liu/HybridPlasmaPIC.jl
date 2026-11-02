@@ -11,6 +11,16 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Added
 
+- `ImplicitYeeEMPICStepper` adds a separate synchronous CPU 1D3V all-mobile,
+  exact-neutral periodic Yee cloud midpoint Vlasov–Maxwell family on exactly
+  tiled periodic grids. Every trial rebuilds exact endpoint transport, charge
+  and the same-coefficient orbit current/gather from one velocity/E/By/Bz
+  unknown, publishes a Gauss-consistent endpoint Ex from the exact endpoint
+  charge and solved mean, and shares the bounded Newton/Jv/GMRES/Armijo driver.
+  Constant Bx, exact work/defect ledgers, 256eps constraint gates, diagnostics
+  and full checkpoint/archive persistence are included. See the
+  [model](docs/IMPLICIT_YEE_EM.md).
+
 - Canonical particle, coupling, moment, Ohm and RK4 scalar rows now accept an
   explicit device arithmetic policy. Default CPU entries retain their existing
   operation order, validation and exact repairs. The CUDA arithmetic policy
@@ -406,6 +416,14 @@ records scoped verification and remaining exact-revision acceptance gates.
   runtime/compiler/format and complete-step resource acceptance remain pending.
 
 ### Fixed
+
+- `ImplicitEMPICStepper` now publishes divergence-consistent endpoint fields
+  inside every residual: trial E is projected onto the endpoint charge and
+  trial B is projected divergence-free before midpoint fields, gathers, curls
+  and constraint gates are evaluated. Previously the endpoint Gauss defect and
+  magnetic divergence equalled the divergence of the residual, bounded only by
+  the nonlinear tolerance, so the 256eps gates rejected converged nonuniform
+  Float64 steps in 1D–3D. Newton rows and the Jacobian are unchanged.
 
 - Completed-clock admission checks the preceding duration at the existing live
   and checkpoint owners for closed Yee, pencil PIC, open Hall, legacy hybrid,

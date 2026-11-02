@@ -6,6 +6,7 @@ using Test
     include("test_slab_gyrokinetic.jl")
     include("test_sheared_hybrid.jl")
     include("test_implicit_em.jl")
+    include("test_implicit_yee_em.jl")
     include("test_implicit_hybrid_phase.jl")
     include("test_static_composite_electrostatic.jl")
     include("test_shared_scalar_shapes.jl")
