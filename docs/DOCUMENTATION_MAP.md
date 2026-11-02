@@ -33,6 +33,8 @@ rerun by this documentation-only audit.
 ## Physics and API guides
 
 - [docs/COLLISIONAL_HYBRID.md](COLLISIONAL_HYBRID.md)
+- [docs/COLLISIONAL_EMPIC.md](COLLISIONAL_EMPIC.md) — field-first electromagnetic
+  PIC/local-Coulomb source composition, fixed normalization and full RNG restart.
 - [docs/EVOLVING_ELECTRONS.md](EVOLVING_ELECTRONS.md) — stored pressure, transport
   and the bounded original-quotient conduction source candidate (policy 2).
 - [docs/LOCAL_COULOMB.md](LOCAL_COULOMB.md)

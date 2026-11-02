@@ -454,6 +454,11 @@ function step_empic!(es::Union{EMPIC,EMPIC1D}, species::AbstractVector, dt::Real
     sub_dt = _require_resolved_dt("step_empic! substep dt/n_sub", dtT / es.n_sub)
     sub_dt > zero(T) || throw(ArgumentError("dt/n_sub must be representable and positive"))
     next_time, next_step = _validated_step_clock(es.time[], es.step[], sub_dt, es.n_sub)
+    _empic_collection_advance_candidate!(es, species, work, charges, dtT, sub_dt, next_time, next_step)
+    return _empic_collection_publish!(es, work; particles = true)
+end
+
+function _empic_collection_advance_candidate!(es, species, work, charges, dtT, sub_dt, next_time, next_step)
     _empic_collection_prepare_intervals!(work.schedule, work.mobile, es, dtT, sub_dt)
     _empic_collection_prepare!(es, species)
     stage = work.stage
@@ -468,7 +473,7 @@ function step_empic!(es::Union{EMPIC,EMPIC1D}, species::AbstractVector, dt::Real
     end
     stage.time[], stage.step[] = next_time, next_step
     stage.last_dt[], stage.last_sub_dt[] = dtT, sub_dt
-    return _empic_collection_publish!(es, work; particles = true)
+    return stage
 end
 
 """

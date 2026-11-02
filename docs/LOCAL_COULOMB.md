@@ -76,7 +76,12 @@ This call is a stand-alone operator. For coupled evolution, the package provides
 CPU ideal isothermal/evolving-scalar or S1/S2 transport splitting and
 RNG-complete checkpoint/archive continuation. Stored-pressure extensions await
 exact-revision CI; transport composition requires `de2=0`.
-Its supported models, time levels and failure semantics are narrower than this
+[CollisionalEMPICStepper](COLLISIONAL_EMPIC.md) additionally source-implements a
+fixed-step all-mobile nonrelativistic electromagnetic composition with complete
+RNG/physical-state staging and restart. Its collision normalization must match
+the unit Maxwell coefficients. No tests were added or run; acceptance is deferred.
+
+The composed APIs' supported models, time levels and failure semantics are narrower than this
 stand-alone collision API; use that guide when choosing the composed run.
 
 A stand-alone call's external RNG is not automatically captured by particle

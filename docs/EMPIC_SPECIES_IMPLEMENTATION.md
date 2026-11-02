@@ -7,7 +7,15 @@ remains pending. Specialized planar `EMPIC1D` S1 collections are now source
 implemented, with exact integrated acceptance pending; see the S1 section below.
 Specialized S2 dividing per-species schedules are now source implemented with
 separate history and schema-2 migration; integrated acceptance remains pending.
-Collisions, nonperiodic boundaries and resident MPI/GPU evolution remain open.
+Broader collision composition, nonperiodic boundaries and resident MPI/GPU
+evolution remain open.
+
+A first [electromagnetic–local-Coulomb composition](COLLISIONAL_EMPIC.md) is now a
+source candidate for all-mobile ordinary-Vector generic collections with fixed
+dt, `n_sub=1`, nonrelativistic motion and consistent collision normalization.
+It stages fields, scattering and advanced RNG before publication and has a
+distinct checkpoint schema. No tests were added or run; runtime acceptance and
+broader collision intersections remain open.
 
 ## Ordinary-store admission (2026-11-01)
 

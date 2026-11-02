@@ -11,6 +11,15 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Added
 
+- `CollisionalEMPICStepper` composes all-mobile CPU Float32/64 generic EMPIC
+  collections with canonical local Coulomb scattering at the new positions and
+  carried half-time velocities. Fields, particles, source clock and owned RNG
+  stage before publication; a distinct schema preserves the complete RNG and
+  nested field/particle state. Fixed dt, nonrelativistic motion, `n_sub=1`, zero
+  background, required neutrality and equal positive collision permittivity/count
+  conversion define this first scope. No tests were added or run; runtime and
+  resource acceptance are deferred. See the [guide](docs/COLLISIONAL_EMPIC.md).
+
 - Physical-pencil vacuum Maxwell state gains `save_mpi_checkpoint` and
   `load_mpi_checkpoint!` overloads with a distinct matching-layout schema, streamed
   rank-file SHA-256 digests, a checksummed manifest, guarded generation publication

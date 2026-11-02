@@ -1,6 +1,14 @@
 # CAP-010: collision/field composition and stochastic restart
 
-Current extensions (2026-11-01): ideal evolving scalar pressure, fixed-step
+Current electromagnetic addition (2026-11-02):
+[CollisionalEMPICStepper](COLLISIONAL_EMPIC.md) source-implements fixed-step
+all-mobile nonrelativistic generic EMPIC/local-Coulomb composition, new-position
+carried-half scattering, matching field/collision normalization, staged RNG/state
+and distinct complete restart. No tests were added or run; runtime/compiler/CI
+and resource acceptance remain deferred. The design and evidence history below
+continues to describe the hybrid composition.
+
+Current hybrid extensions (2026-11-01): ideal evolving scalar pressure, fixed-step
 S1/S2 transport and S3b original-quotient conduction composition are
 implemented. Exact-revision GitHub verification is pending. See the scoped trackers below.
 

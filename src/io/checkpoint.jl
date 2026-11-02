@@ -1218,6 +1218,13 @@ the positive-ion validation used by collection stepping.
 including its full advanced RNG, source ledger, fixed configuration and all
 public hybrid fields. Its versioned payload requires the same Julia runtime and
 platform; the RNG seed alone does not describe a stochastic continuation.
+[`CollisionalEMPICStepper`](@ref) uses a distinct schema-1 payload containing its
+generic EMPIC collection state, fixed field-then-collision policy and timestep,
+full RNG and completed source ledger. It saves only initialized ready boundaries;
+its collision positions are at the new integer time and velocities remain at the
+carried fast half level. No second field or current snapshot is constructed.
+Both collision `epsilon0` and `weight_to_number` are explicit, positive and equal
+at the stored precision to match the unit Maxwell source coefficient.
 For [`Electrostatic1D`](@ref) and [`ElectrostaticPIC`](@ref), save the electron
 particles, electric field, number density, background density, and priming/timestep
 state. Collection `ElectrostaticPIC` checkpoints also store ordered arbitrary
@@ -1290,7 +1297,7 @@ end
 
 function _save_checkpoint(
     path::AbstractString,
-    st::Union{_CheckpointStepper,HallMHDState,CollisionalHybridStepper,_ClosedYeeCheckpointStepper},
+    st::Union{_CheckpointStepper,HallMHDState,CollisionalHybridStepper,CollisionalEMPICStepper,_ClosedYeeCheckpointStepper},
     state,
 )
     _validate_checkpoint_state(state, st)
@@ -1331,6 +1338,13 @@ shape, collision normalization, RNG algorithm, per-population counts, charges
 and masses. They restore the saved full RNG and public state in place without
 resizing particles. Construct a fresh matching wrapper before loading; do not
 call `init!` after loading, since that resets the physical clock.
+`CollisionalEMPICStepper` additionally requires matching fixed electromagnetic
+configuration and split policy. Its ordinary Vector destinations keep fixed
+counts and storage while saved weights, provenance, phase space and nested
+physical fields replace their values. The complete incoming RNG and inner state
+are detached and validated before publication; the source clock and both fast/full
+timestep histories restore with the RNG. No field projection or current refresh
+is performed on restore.
 Electrostatic destinations must have the same background density `n0`, which
 is immutable; their saved fields, density, and leapfrog phase are restored directly.
 Electromagnetic destinations require the same ion mobility and concrete shape

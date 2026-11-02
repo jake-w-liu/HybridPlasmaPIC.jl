@@ -383,6 +383,12 @@ near-light Lorentz factor or an entire trajectory from rounded velocities.
   clock and RNG; `save_checkpoint`/`load_checkpoint!`/`archive_run` persist the
   advanced RNG; zero logarithms reproduce `HybridStepper` exactly.
   [Composition guide](docs/COLLISIONAL_HYBRID.md).
+- `CollisionalEMPICStepper(inner, species; dt, rng, coulomb_log, epsilon0,
+  weight_to_number)` — source-implemented fixed-step field-first generic EMPIC /
+  local-Coulomb composition with full owned-RNG restart. Requires all-mobile CPU
+  nonrelativistic populations, `n_sub=1`, zero background, required neutrality and
+  matching positive permittivity/count conversion. Tests and runtime acceptance
+  are deferred; see the [scope and normalization](docs/COLLISIONAL_EMPIC.md).
 - `collide_bgk!(ps, ν, dt)` — BGK relaxation toward the set's own drifting
   Maxwellian, conserving momentum and energy exactly.
 - `collide_neutral_mcc!` / `ionize_mcc!` — Monte-Carlo elastic scattering off
@@ -694,7 +700,10 @@ EM and comparative campaigns remain in the
   and backend/collision/boundary integrations remain open.
 - Collision/field composition covers fixed-step, first-order `HybridStepper`
   runs with ideal isothermal/evolving scalar electrons, S1/S2 transport or S3b
-  original-quotient conduction on the CPU (stored-pressure extensions are CI-pending). Variable steps, higher-order
+  original-quotient conduction on the CPU (stored-pressure extensions are CI-pending).
+  [Generic electromagnetic PIC composition](docs/COLLISIONAL_EMPIC.md) is also
+  source-implemented in a bounded fixed-step nonrelativistic scope; acceptance
+  is deferred. Variable steps, higher-order
   splitting, electron-ion heat exchange, anisotropic/inertial
   composition, other models and sources, MPI cell ownership and device kernels
   are separate open stages ([CAP-010](docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md)).

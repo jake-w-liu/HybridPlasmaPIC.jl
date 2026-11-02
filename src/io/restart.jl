@@ -35,7 +35,8 @@
 Write a provenance-stamped, checksum-verified archive of the run state at `path`.
 Supports [`HybridStepper`](@ref), [`CAMCLStepper`](@ref),
 [`Electrostatic1D`](@ref), [`ElectrostaticPIC`](@ref), [`EMPIC1D`](@ref), [`EMPIC`](@ref),
-[`HallMHDState`](@ref), [`CollisionalHybridStepper`](@ref), [`YeeLongitudinalPIC`](@ref),
+[`HallMHDState`](@ref), [`CollisionalHybridStepper`](@ref), [`CollisionalEMPICStepper`](@ref),
+[`YeeLongitudinalPIC`](@ref),
 [`YeeElectromagneticPIC`](@ref), [`YeeImpactLongitudinalPIC`](@ref),
 and [`YeeAbsorbingLongitudinalPIC`](@ref).
 
@@ -77,6 +78,12 @@ Hall-MHD archives contain the model, fluid and public derived fields, retained
 stage `lapJ`, and clock; no particle argument or timestep history is needed.
 Collisional archives add the complete advanced RNG state and completed source
 ledger through the same versioned state owner as stochastic checkpoints.
+Collisional EMPIC archives use their distinct schema-1 field-then-collision policy
+and nested generic EMPIC physical state, including the preceding drift current.
+They retain the full advanced RNG, fixed configuration and completed source
+ledger; restored fields and charge/current snapshots are copied verbatim.
+The explicit positive collision permittivity and count conversion must be equal
+at the stored precision, as required by the Maxwell source normalization.
 Closed-Yee archives retain their distinct completed-state schemas and restore
 physical fields verbatim. Impact longitudinal state additionally retains its
 root-refinement budget, exact wall/electric impulses, counts and carried error
@@ -135,9 +142,23 @@ function archive_run(
     end
 end
 
+function archive_run(
+    path::AbstractString,
+    st::CollisionalEMPICStepper,
+    species::AbstractVector{<:ParticleSet};
+    kwargs...,
+)
+    _acquire_collisional_empic!(st)
+    try
+        return _archive_run(path, st, _checkpoint_state(st, species); kwargs...)
+    finally
+        st.busy[] = false
+    end
+end
+
 function _archive_run(
     path::AbstractString,
-    st::Union{_CheckpointStepper,HallMHDState,CollisionalHybridStepper,_ClosedYeeCheckpointStepper},
+    st::Union{_CheckpointStepper,HallMHDState,CollisionalHybridStepper,CollisionalEMPICStepper,_ClosedYeeCheckpointStepper},
     state;
     rng_seed::Integer,
     normalization::AbstractString = "Omega_ci",
