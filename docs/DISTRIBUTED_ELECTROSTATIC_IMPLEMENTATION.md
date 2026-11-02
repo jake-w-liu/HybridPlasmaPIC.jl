@@ -5,7 +5,9 @@ physical PencilFFTs pencils: owned density/E, rank-local particles, complete CIC
 stencils, direct migration and a common leapfrog phase. This is the first coupled
 CAP-003 slice. Runtime, numerical, compiler, format and resource acceptance remain
 deferred during the implementation-first pass; no tests or executions were added.
-Matching-layout checkpoint is the next source slice, not supplied by this one.
+[Matching-layout checkpoint](DISTRIBUTED_ELECTROSTATIC_CHECKPOINT.md) now
+retains complete particles, density/E and variable-step phase in a distinct
+checksummed generation; runtime/restart acceptance is deferred.
 
 Load PencilArrays/PencilFFTs with HybridPlasmaPIC, construct a
 `distributed_fourier_grid`, then call

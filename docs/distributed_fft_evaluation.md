@@ -41,8 +41,9 @@ a separate [vacuum Maxwell model](DISTRIBUTED_MAXWELL_IMPLEMENTATION.md),
 [static Poisson field](DISTRIBUTED_POISSON_FIELD.md) are source-implemented.
 The [distributed ES collection](DISTRIBUTED_ELECTROSTATIC_IMPLEMENTATION.md) now
 adds actual-pencil ownership, complete CIC transport, migration, canonical
-leapfrog and collective charge/energy/momentum diagnostics. Matching-layout ES
-checkpoint is the next source slice; broader hybrid/EM composition remains open.
+leapfrog and collective charge/energy/momentum diagnostics.
+[Matching-layout ES checkpoint](DISTRIBUTED_ELECTROSTATIC_CHECKPOINT.md) is also
+source-implemented; broader hybrid/EM composition remains open.
 Runtime/compiler/resource acceptance is deferred during the implementation-first
 pass.
 

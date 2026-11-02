@@ -55,7 +55,10 @@ rerun by this documentation-only audit.
   — one isolated passive full-cloud capture, force-jump certificate and restart.
 - [docs/DISTRIBUTED_ELECTROSTATIC_IMPLEMENTATION.md](DISTRIBUTED_ELECTROSTATIC_IMPLEMENTATION.md)
   — actual-pencil ES particle ownership, complete CIC transport, migration, phase
-  and charge ledgers; checkpoint next and runtime acceptance deferred.
+  and charge ledgers; runtime acceptance deferred.
+- [docs/DISTRIBUTED_ELECTROSTATIC_CHECKPOINT.md](DISTRIBUTED_ELECTROSTATIC_CHECKPOINT.md)
+  — matching actual-layout ES generations, complete particles/fields/phase and
+  detached all-rank restore; runtime acceptance deferred.
 - [docs/DISTRIBUTED_POISSON_FIELD.md](DISTRIBUTED_POISSON_FIELD.md)
   — static rank-owned electrostatic field, exact charge ledger and neutrality policy.
 - [docs/DISTRIBUTED_MAXWELL_IMPLEMENTATION.md](DISTRIBUTED_MAXWELL_IMPLEMENTATION.md)

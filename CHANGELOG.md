@@ -11,6 +11,15 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Added
 
+- Actual-pencil electrostatic PIC gains initialized-boundary matching-layout
+  checkpoint/restart. A distinct checksummed generation retains complete local
+  particles, density/E and variable-step phase; all ranks validate detached
+  sources and prepare same-type replacements before publication. Stale destination
+  values and changed local counts are supported by the source contract. Seven
+  file/checksum helpers are shared with Maxwell while its schema/orchestration
+  stays unchanged. No tests were added or run; restart/liveness/compiler/resource
+  acceptance remains deferred. See the [checkpoint guide](docs/DISTRIBUTED_ELECTROSTATIC_CHECKPOINT.md).
+
 - `YeeConductiveLayer` adds a graded scalar electric/magnetic conductivity layer
   for D1–3 CPU Float32/64 Yee vacuum fields. Fixed-step midpoint damping surrounds
   the unchanged KDK candidate, with exact actual loss, source work and signed
@@ -41,7 +50,7 @@ records scoped verification and remaining exact-revision acceptance gates.
   `grid_dc=:project` and separate physical/grid charge ledgers define neutrality.
   Particles, density/E and clock publish after collective success. No tests were
   added or run; runtime/compiler/resource acceptance is deferred. Matching-layout
-  checkpoint is the next slice. See the [guide](docs/DISTRIBUTED_ELECTROSTATIC_IMPLEMENTATION.md).
+  checkpoint source is now supplied separately. See the [guide](docs/DISTRIBUTED_ELECTROSTATIC_IMPLEMENTATION.md).
 
 - `CollisionalElectrostaticPIC` composes generic CPU Float32/64 CIC species
   collections with canonical local Coulomb scattering at new positions and

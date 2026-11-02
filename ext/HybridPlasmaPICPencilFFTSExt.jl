@@ -156,9 +156,11 @@ end
 
 include("pencil_fourier.jl")
 include("pencil_maxwell.jl")
+include("pencil_checkpoint.jl")
 include("pencil_maxwell_checkpoint.jl")
 include("pencil_poisson.jl")
 include("pencil_particles.jl")
 include("pencil_electrostatic.jl")
+include("pencil_electrostatic_checkpoint.jl")
 
 end # module

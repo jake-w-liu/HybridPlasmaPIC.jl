@@ -19,7 +19,9 @@ exact represented charge admission and staged publication. Runtime/rank/resource
 acceptance remains open. The [distributed ES source](DISTRIBUTED_ELECTROSTATIC_IMPLEMENTATION.md)
 now adds actual-pencil particle ownership, complete CIC transport, migration and
 the canonical leapfrog mover, with explicit represented-grid DC projection and
-separate charge ledgers. Matching-layout ES checkpoint is the next slice.
+separate charge ledgers. [Matching-layout ES checkpoint](DISTRIBUTED_ELECTROSTATIC_CHECKPOINT.md)
+source now retains complete particles, fields and variable-step phase with detached
+all-rank restore; restart acceptance is deferred.
 
 ## Checked architecture and pre-edit brief
 
@@ -144,7 +146,8 @@ storage explicitly. A single-machine MPI result does not establish multi-node
 scaling or GPU support. The first distributed ES source slice supplies CIC
 particle ownership, remote stencils and migration. CAP-003C/D still require broader
 hybrid/EM moments/evolution, collision composition, family-specific checkpoints
-and actual-rank acceptance; ES checkpoint is the next source slice.
+and actual-rank acceptance. Matching-layout ES checkpoint is source-implemented;
+its actual continuation/liveness/compiler/resource acceptance is deferred.
 
 ## Progress
 

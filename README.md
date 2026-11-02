@@ -257,7 +257,7 @@ in the [implementation plan](docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md).
 | **Electromagnetic PIC** | periodic spectral current correction and Gauss initialization in 1D–3D; legacy electron/ion models; CPU arbitrary-species `EMPIC` collections with opt-in D1–3 dividing kick schedules and planar `EMPIC1D` schedules, with optional relativity, mobile/fixed populations and explicit neutrality policy ([contract and pending CI](docs/EMPIC_SPECIES_IMPLEMENTATION.md)) | `EMPIC`, `EMPIC1D`, `set_empic_schedule!`, `set_empic1d_schedule!`, `init_empic!`, `step_empic!`, `charge_conservation_residual`, `electromagnetic_diagnostics`, `total_momentum_relativistic` |
 | **Bounded Maxwell vacuum** | staggered Yee fields in 1D–3D with periodic or homogeneous conducting axes, synchronized second-order stepping, CFL rejection, compatible divergence and energy/Poynting diagnostics; native stencils under the normwise accuracy contract; [field-only checkpoint/archive source](docs/MAXWELL_VACUUM_CHECKPOINT.md), with restart acceptance deferred; particle coupling and absorbing layers remain separate models/work | `YeeGrid`, `MaxwellVacuum`, `step_maxwell!`, `yee_divergence!`, `yee_poynting_flux` |
 | **Conductive Yee field layer** | graded scalar electric/magnetic conductivity in D1–3 CPU Float32/64, fixed-step midpoint damping around canonical Yee KDK, exact loss/work/defect ledgers and complete checkpoint/archive; [source contract](docs/YEE_CONDUCTIVE_LAYER.md); PML, measured reflection and coupled PIC integration remain open | `YeeConductiveLayer`, `init!`, `step_maxwell!`, `absorber_diagnostics` |
-| **Distributed electrostatic PIC** | rank-owned periodic 3D CPU Float32/64 CIC collections, complete remote stencils, direct migration, shared leapfrog and exact charge/energy/momentum diagnostics; explicit `grid_dc=:project`; [source scope and deferred acceptance](docs/DISTRIBUTED_ELECTROSTATIC_IMPLEMENTATION.md); matching-layout checkpoint is the next slice | `distributed_electrostatic_pic`, `init_espic!`, `step_espic!`, `poisson_E!`, `electrostatic_diagnostics` |
+| **Distributed electrostatic PIC** | rank-owned periodic 3D CPU Float32/64 CIC collections, complete remote stencils, direct migration, shared leapfrog and exact charge/energy/momentum diagnostics; explicit `grid_dc=:project`; [source scope and deferred acceptance](docs/DISTRIBUTED_ELECTROSTATIC_IMPLEMENTATION.md); [matching-layout checkpoint source](docs/DISTRIBUTED_ELECTROSTATIC_CHECKPOINT.md), with restart acceptance deferred | `distributed_electrostatic_pic`, `init_espic!`, `step_espic!`, `poisson_E!`, `electrostatic_diagnostics` |
 | **Distributed periodic Poisson field** | static rank-owned 3D CPU Float32/64 field solve, canonical mode arithmetic, exact represented neutrality or explicit uniform compensator, staged fields and exact charge ledger; [source scope and deferred acceptance](docs/DISTRIBUTED_POISSON_FIELD.md); composes with the distributed ES model | `distributed_poisson_field!` |
 | **Distributed periodic Maxwell vacuum** | source implementation of rank-owned 3D CPU spectral KDK over physical PencilArrays, strict spectral CFL, staged fields and collective energy/divergence diagnostics; [scope and deferred acceptance](docs/DISTRIBUTED_MAXWELL_IMPLEMENTATION.md); [matching-layout checkpoint](docs/DISTRIBUTED_MAXWELL_CHECKPOINT.md) source is available, with restart acceptance deferred; coupled particles remain next work | `distributed_maxwell_vacuum`, `step_maxwell!`, `maxwell_cfl`, `em_field_energy`, `distributed_maxwell_diagnostics` |
 | **Prescribed-current Yee fields** | 1D current impulses on electric lattices, all-node charge including conducting surfaces, source work and fixed-step modified energy; [scope and example](docs/SOURCED_YEE_FIELDS.md) | `step_maxwell!(model, dt, impulse)`, `yee_electric_charge!`, `yee_source_work`, `yee_modified_energy` |
@@ -534,6 +534,11 @@ and ordered collections in a shared directory. Recoverable save failures before
 publication preserve the previous checkpoint. Keep the same grid/layout and
 exclusive directory access during checkpoint I/O; schema 1 checkpoints remain
 readable. A cleanup error after publication leaves the new checkpoint usable.
+The actual-pencil
+[ES model](docs/DISTRIBUTED_ELECTROSTATIC_CHECKPOINT.md) and
+[vacuum Maxwell model](docs/DISTRIBUTED_MAXWELL_CHECKPOINT.md) have distinct
+matching-layout source schemas and checksummed generations; their runtime/restart
+acceptance is deferred.
 
 **I/O.** Field-only `MaxwellVacuum` has [checkpoint/archive source support](docs/MAXWELL_VACUUM_CHECKPOINT.md)
 with distinct synchronized field/clock state and deferred runtime acceptance.
@@ -627,9 +632,10 @@ an explicit compensator policy. The [distributed electrostatic collection](docs/
 now composes it with actual-pencil particle ownership, complete remote CIC
 stencils, direct migration and the shared leapfrog mover. It requires explicit
 `grid_dc=:project` and reports physical and represented-grid charge ledgers
-separately. Matching-layout ES checkpoint is the next slice; broader distributed
-hybrid/EM composition and scaling remain open. No tests or runtime acceptance
-are added in this implementation pass.
+separately. [Matching-layout ES checkpoint source](docs/DISTRIBUTED_ELECTROSTATIC_CHECKPOINT.md)
+retains particles, fields and variable-step phase with detached all-rank restore;
+restart acceptance, broader distributed hybrid/EM composition and scaling remain
+open. No tests or runtime acceptance are added in this implementation pass.
 
 GPU backend storage is exposed through `particle_storage_backend`. The Metal
 extension includes particle gather, deposit and push kernels; the CUDA extension
