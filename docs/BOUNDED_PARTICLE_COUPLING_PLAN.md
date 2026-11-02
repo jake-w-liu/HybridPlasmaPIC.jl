@@ -556,22 +556,27 @@ acceptance remains a separate gate.
   behavior on the exact integrated GitHub revision.
 - [x] Extract private duration-free exact source-row and unrounded rational
   source-work owners; existing native, exact and public expressions are preserved
-  by helper expansion. This does not implement or reroute an event method.
+  by helper expansion. The reflection source candidate consumes these owners.
 - [ ] Accept direct signed-zero/range/work and unchanged-caller controls on the
-  exact integrated GitHub revision before using these event prerequisites.
-- [ ] Event-local reflection with crossing, grazing/contact and repeated-impact
-  rules, atomic coupled failure and wall momentum/charge/work ledgers.
+  exact integrated GitHub revision, including their event consumer.
+- [x] Source candidate for one-cluster longitudinal reflection with branch and
+  carried-error checks, atomic failure and wall momentum/charge/work ledgers.
+- [ ] Accept independent impact convergence, branch/common-time rejection and
+  rollback/restart on GitHub; broader repeated-impact dynamics remain open.
 - [x] Source candidate for event-free longitudinal Verlet coupling, energy/Gauss
   diagnostics, uniform background and exact isolated free plates.
 - [ ] Accept the coupled candidate on the exact integrated GitHub revision.
 - [x] Source candidate for synchronized EM physical/modified-energy and Gauss
   diagnostics with distinct complete checkpoint/archive.
-- [ ] Accept EM diagnostics/restart; add wall/plate event history.
+- [ ] Accept EM diagnostics/restart; transverse wall/plate events remain open.
 - [x] Distinct source checkpoint/archive schema for initialized event-free
   longitudinal fields, ordered particles, fixed phase and exposed diagnostics.
-- [ ] Accept longitudinal and EM restart regressions; add wall/history restart.
+- [x] Distinct source checkpoint/archive for completed longitudinal reflection,
+  root budget, wall/electric ledgers and carried error histories.
+- [ ] Accept event-free longitudinal, EM and reflection restart regressions.
 - [ ] Absorption/injection/circuits, relativistic coupling, higher dimensions,
   GPU/MPI and broader physical validation.
 
-The existing reflecting utility and prescribed-source field step do not supply
-these missing pieces. Retained force and impact-convergence failures remain open.
+The coupled source candidates require their exact-revision GitHub acceptance;
+the reflecting utility and prescribed-source field step retain separate contracts.
+Retained force and impact-convergence failures remain open.
