@@ -35,9 +35,9 @@ its companion solvers and the open completeness roadmap: [README](../README.md),
 [electron energy contract](HYBRID_ENERGY_MODEL_PLAN.md) and the two
 [ray-tracing](superpowers/specs/2026-07-05-ray-tracing-design.md) /
 [Raycon](superpowers/specs/2026-07-05-raycon-port-notes.md) specifications.
-`src/HybridPlasmaPIC.jl:7` mentions an implementation checklist in the repository
-root; no such file is present at this revision. This plan does not reconstruct an
-unavailable specification from memory.
+The current module docstring links directly to this plan as the implementation
+checklist. The repository contracts above provide the basis for this expanded
+work; this plan does not reconstruct an unavailable original specification.
 
 **Scope distinction:** CAP-001–007 expand gaps already present in the repository's
 roadmap into implementable work. CAP-008–011 are proposed model-scope expansions
