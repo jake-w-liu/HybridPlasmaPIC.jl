@@ -44,7 +44,8 @@ magnetic KDK stages. Each scalar affine stage retains the converted duration and
 speed exactly before one final rounding. This intentionally defines a new map,
 not ordinary EMPIC/Yee bit identity; exact scalar arithmetic has unmeasured cost.
 The source is the represented distributed curl, whose FFT/range limits still
-apply. There is no original-field derivative range recovery or restart adapter.
+apply. There is no original-field derivative range recovery. Matching-layout
+checkpoint overloads are described in `docs/DISTRIBUTED_MAXWELL_CHECKPOINT.md`.
 Nearest rounding and gradual underflow are required. Concurrent use of the model
 or its grid is unsupported. See `docs/DISTRIBUTED_MAXWELL_IMPLEMENTATION.md`.
 """

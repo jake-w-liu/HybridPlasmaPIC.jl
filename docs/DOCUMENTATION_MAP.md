@@ -46,7 +46,9 @@ rerun by this documentation-only audit.
   — one isolated passive full-cloud capture, force-jump certificate and restart.
 - [docs/DISTRIBUTED_MAXWELL_IMPLEMENTATION.md](DISTRIBUTED_MAXWELL_IMPLEMENTATION.md)
   — rank-owned periodic vacuum field source, scalar/curl boundaries and deferred
-  runtime acceptance; physical-pencil restart and coupled particles remain next work.
+  runtime acceptance; coupled particles remain next work.
+- [docs/DISTRIBUTED_MAXWELL_CHECKPOINT.md](DISTRIBUTED_MAXWELL_CHECKPOINT.md)
+  — matching-layout physical-pencil restart, checksums, publication and restore scope.
 
 ## Implementation, audit and design records
 

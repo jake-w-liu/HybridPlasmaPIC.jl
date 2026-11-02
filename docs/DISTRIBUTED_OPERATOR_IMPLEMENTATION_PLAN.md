@@ -10,7 +10,8 @@ The separate [rank-owned periodic vacuum Maxwell source](DISTRIBUTED_MAXWELL_IMP
 now composes these operators into synchronized field-only evolution. It retains
 the existing operator kernels, exact physical pencils and caller-owned lifecycle.
 Runtime/compiler/resources are deferred during the implementation-first pass;
-physical-pencil checkpoint and full coupled particle evolution remain next work.
+a [matching-layout physical-pencil checkpoint](DISTRIBUTED_MAXWELL_CHECKPOINT.md)
+is source-implemented. Full coupled particle evolution remains next work.
 
 ## Checked architecture and pre-edit brief
 

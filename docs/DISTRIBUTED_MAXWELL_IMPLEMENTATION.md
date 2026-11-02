@@ -94,9 +94,11 @@ and array reuse are implemented here. Diagnostics exchange scalar energy payload
 in rank order and are outside the step hot path. No timing, scaling, allocation
 ceiling or optimized/zero-allocation claim has been measured.
 
-This initial field slice supplies no checkpoint/archive adapter. A physical-pencil
-rank-generation checkpoint with matching layout is the next source implementation;
-plans/communicators must not be serialized or passed through the hybrid schema.
+[Matching-layout checkpoint](DISTRIBUTED_MAXWELL_CHECKPOINT.md) overloads now
+source-implement checksummed per-rank generations and detached collective restore
+through `save_mpi_checkpoint` / `load_mpi_checkpoint!`. Plans and communicators
+are not serialized. Restart/liveness acceptance is deferred; no archive adapter
+is supplied.
 Changed-layout restart, coupled particles, mixed/nonperiodic boundaries, backends
 and multi-node scaling remain separate CAP-003 work. This source implementation
 does not complete that capability.

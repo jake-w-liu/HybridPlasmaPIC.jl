@@ -11,14 +11,22 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Added
 
+- Physical-pencil vacuum Maxwell state gains `save_mpi_checkpoint` and
+  `load_mpi_checkpoint!` overloads with a distinct matching-layout schema, streamed
+  rank-file SHA-256 digests, a checksummed manifest, guarded generation publication
+  and detached all-rank restore preflight. Plans and communicators are omitted;
+  changed-layout restart and archives remain separate work. Source-reviewed only;
+  restart/liveness/compiler/resource acceptance is deferred. See the
+  [checkpoint guide](docs/DISTRIBUTED_MAXWELL_CHECKPOINT.md).
+
 - `distributed_maxwell_vacuum` adds rank-owned periodic 3D CPU Float32/64 field
   evolution over the existing physical PencilArrays and collective curl owners.
   Synchronized KDK uses complete scalar affine updates, a strict downward spectral
   CFL bound and staged six-field publication. Global energy exchanges exact scalar
   contributions; diagnostics retain divergence residuals. No full field is
   gathered. Runtime/compiler/resource acceptance is deferred during the current
-  implementation pass; matching-layout restart and coupled particle evolution
-  remain next work. See the [field guide](docs/DISTRIBUTED_MAXWELL_IMPLEMENTATION.md).
+  implementation pass; matching-layout restart is source-implemented, while
+  coupled particle evolution remains next work. See the [field guide](docs/DISTRIBUTED_MAXWELL_IMPLEMENTATION.md).
 
 - `YeeAbsorbingLongitudinalPIC` adds a nonrelativistic CPU Float32/64 finite-cloud
   source candidate on a closed longitudinal 1D Yee grid. It admits zero captures
