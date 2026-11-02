@@ -11,6 +11,15 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Added
 
+- `distributed_electrostatic_pic` adds a rank-owned periodic 3D CPU Float32/64
+  CIC collection using actual physical pencil ownership, complete remote stencil
+  transport, direct particle migration and the canonical leapfrog mover. Exact
+  original-factor charge contributions route before density rounding; explicit
+  `grid_dc=:project` and separate physical/grid charge ledgers define neutrality.
+  Particles, density/E and clock publish after collective success. No tests were
+  added or run; runtime/compiler/resource acceptance is deferred. Matching-layout
+  checkpoint is the next slice. See the [guide](docs/DISTRIBUTED_ELECTROSTATIC_IMPLEMENTATION.md).
+
 - `CollisionalElectrostaticPIC` composes generic CPU Float32/64 CIC species
   collections with canonical local Coulomb scattering at new positions and
   carried half-time velocities. It owns the sole physical/source clock and
@@ -33,8 +42,8 @@ records scoped verification and remaining exact-revision acceptance gates.
   is required; three fields publish after collective success, with an exact charge
   ledger. Scalar charge reduction shares the existing Maxwell energy transport
   owner. No field is gathered. Source-reviewed only; runtime/compiler/resource
-  acceptance and coupled particles remain open. See the
-  [field guide](docs/DISTRIBUTED_POISSON_FIELD.md).
+  acceptance remains open. The distributed ES model now composes this field owner;
+  see the [field guide](docs/DISTRIBUTED_POISSON_FIELD.md).
 
 - `CollisionalEMPICStepper` composes all-mobile CPU Float32/64 generic EMPIC
   collections with canonical local Coulomb scattering at the new positions and

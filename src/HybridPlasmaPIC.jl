@@ -368,7 +368,8 @@ export supported_extensions,
     distributed_field,
     distributed_maxwell_vacuum,
     distributed_maxwell_diagnostics,
-    distributed_poisson_field!
+    distributed_poisson_field!,
+    distributed_electrostatic_pic
 export gather_at,
     SyntheticProbe,
     sample!,

@@ -390,13 +390,8 @@ function _moment_volume(g)
     return (; volume, finite, lost)
 end
 
-# Exact arithmetic uses the stored represented factors and coefficients, not
-# rounded products or a materialized volume. Stencils have the same deterministic
-# contract as the shared deposit/gather pair. This bounded replay happens only
-# after eligible finite-input range loss and reuses the package's rounding owner.
-function _exact_moment(ps, factors, g, shape, coefficient)
+function _foreach_exact_moment_contribution(visit, ps, factors, g, shape)
     Q = Rational{BigInt}
-    sums = fill(zero(Q), g.n)
     D = length(g.n)
     stamp = CartesianIndices(ntuple(_ -> width(shape), D))
     for p = 1:nparticles(ps)
@@ -412,8 +407,21 @@ function _exact_moment(ps, factors, g, shape, coefficient)
                 weight *= _exact_rational(st[d][2][o[d]])
             end
             idx = ntuple(d -> mod(st[d][1] + o[d] - 1, g.n[d]) + 1, D)
-            sums[idx...] += weight
+            visit(idx, weight)
         end
+    end
+    return nothing
+end
+
+# Exact arithmetic uses the stored represented factors and coefficients, not
+# rounded products or a materialized volume. Stencils have the same deterministic
+# contract as the shared deposit/gather pair. This bounded replay happens only
+# after eligible finite-input range loss and reuses the package's rounding owner.
+function _exact_moment(ps, factors, g, shape, coefficient)
+    Q = Rational{BigInt}
+    sums = fill(zero(Q), g.n)
+    _foreach_exact_moment_contribution(ps, factors, g, shape) do idx, weight
+        sums[idx...] += weight
     end
     scale = _exact_rational(coefficient) / prod(_exact_rational(dx) for dx in g.dx)
     for I in eachindex(sums)

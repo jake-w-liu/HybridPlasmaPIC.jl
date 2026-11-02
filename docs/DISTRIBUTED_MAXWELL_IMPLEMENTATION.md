@@ -3,8 +3,10 @@
 `distributed_maxwell_vacuum(grid; c=1)` is a source implementation of source-free
 Maxwell evolution on the existing periodic 3D CPU Float32/Float64 physical
 pencils. Import `PencilArrays` and `PencilFFTs` alongside HybridPlasmaPIC to load
-the optional extension. It supplies a field-only CAP-003 prerequisite; particle
-ownership, deposition/gather halos and coupled hybrid/ES/EM evolution remain open.
+the optional extension. It supplies a field-only CAP-003 prerequisite. The separate
+[distributed ES model](DISTRIBUTED_ELECTROSTATIC_IMPLEMENTATION.md) now supplies
+particle ownership, complete CIC transport and electrostatic evolution; coupled
+hybrid/EM evolution and runtime acceptance remain open.
 
 The current implementation-first pass adds no tests or runtime execution.
 Numerical/convergence, actual-rank failures/liveness, compiler/JET, formatting/CI

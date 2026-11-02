@@ -90,7 +90,7 @@ Source names below resolve to these canonical files:
 | Hall-MHD | `HallMHDModel`, `HallMHDState`, `step_hall_mhd!`; `test_hall_mhd.jl`, `test_io_hall_mhd.jl` | A periodic solver exists; it is not a general geometry/closure solver |
 | Coulomb collisions | Canonical homogeneous and local collection `collide_coulomb!`; `CollisionalHybridStepper` | Local self/cross CPU operator and fixed-step isothermal hybrid/RNG restart exist; ideal evolving-scalar, S1/S2 transport and S3b conduction extensions await CI, bounded generic collisional ES/EMPIC source is implemented with deferred acceptance; broader compositions and parallel/device support remain |
 | Nonperiodic EM | Periodic `EMPIC`; separate Yee vacuum/prescribed-current fields; closed 1D PEC charge/impulse/path voltage plus optional finite physical-width cloud static coupling | B2a, optional cloud, event-free longitudinal/1D3V EM, one-cluster reflection and one isolated passive longitudinal capture/restart source are implemented. Exact-head GitHub numerical/JET/CI and resource acceptance, general capture laws, multiple clusters/captures, transverse walls, field absorbers and backends remain CAP-002 work |
-| Distributed evolution | Replicated-field MPI reference, rank-owned Fourier operators, static Poisson field and periodic vacuum Maxwell physical-pencil field source | Field-only spectral KDK and global scalar diagnostics are source-implemented; matching-layout field restart is source-implemented; exact-head runtime/restart/resource acceptance, coupled particle solvers and cluster scaling remain CAP-003 work |
+| Distributed evolution | Replicated-field MPI reference, rank-owned Fourier operators, static Poisson/vacuum Maxwell and a coupled ES physical-pencil source | ES ownership, complete CIC transport, direct migration, canonical leapfrog and exact charge/energy ledgers are source-implemented; Maxwell matching-layout restart is source-implemented. ES checkpoint is next; exact-head runtime/restart/resource acceptance, hybrid/EM composition and cluster scaling remain CAP-003 work |
 | GPU | Metal extension has deposit/gather/push methods; CUDA extension:1–68 has storage/telemetry hooks; `HybridFields` uses `Array` at field_state:12–29 | Partial kernels, not complete resident solvers, CAP-004; device availability is not numerical acceptance |
 | Implicit evolution | Linear Fourier amplitudes in `semi_implicit.jl`; subsequent `ce52836` adds a residual-checked `ShockCNWorkspace` solve and full-step rollback ([contract](SHOCK_CN_SOLVE_PLAN.md)) | Limited field-only paths exist; nonlinear coupled particle/field solve remains missing, CAP-005 |
 | Geometry | `ToroidalGrid`, metric gradient/divergence in curvilinear_mesh:20–49,90–235 | Geometry operators exist; no coupled toroidal plasma stepper, CAP-006A |
@@ -406,9 +406,16 @@ with a distinct checksummed generation schema and detached all-rank preflight;
 restart acceptance is deferred. The [static periodic Poisson field](DISTRIBUTED_POISSON_FIELD.md)
 now also supplies a source implementation using the canonical mode owner, exact
 represented charge admission and staged fields; runtime acceptance is deferred.
-Domain-owned particle moments,
-gather/deposition, migration and full hybrid/ES/EM composition remain open. No
-global field gather occurs in this field step; it does not complete CAP-003.
+The [distributed ES source](DISTRIBUTED_ELECTROSTATIC_IMPLEMENTATION.md) now
+composes actual-pencil CIC anchor ownership, complete remote gather/deposition,
+direct migration and the canonical leapfrog mover with that field solve. Exact
+charge contributions route before density rounding; required explicit
+`grid_dc=:project` and separate physical/grid ledgers avoid a hidden neutrality
+assumption. Particles, density/E and clock stage before collective publication.
+Matching-layout ES checkpoint is the next slice. Broader hybrid/EM moments,
+collisions, backends, runtime/restart acceptance and cluster scaling remain open.
+No global field/population gather occurs in these source paths; CAP-003 remains
+incomplete and its acceptance checkboxes remain open.
 
 The accepted dependency decision is PencilFFTs for periodic 3D transforms. Its
 [documented local/global index and permuted-output layouts](https://jipolanco.github.io/PencilFFTs.jl/dev/tutorial/)

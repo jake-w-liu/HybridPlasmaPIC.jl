@@ -1170,13 +1170,15 @@ function _mpi_alltoallv_bytes(send_chunks::AbstractVector{<:AbstractVector{UInt8
         comm,
     )
 
-    chunks = Vector{Vector{UInt8}}(undef, ncomm)
-    for i = 1:ncomm
-        n = Int(recv_counts[i])
-        offset = Int(recv_displacements[i])
-        chunks[i] = n == 0 ? UInt8[] : recvbuf[(offset+1):(offset+n)]
+    return _mpi_collective_stage(comm, "MPI byte transport", "receive assembly") do
+        chunks = Vector{Vector{UInt8}}(undef, ncomm)
+        for i = 1:ncomm
+            n = Int(recv_counts[i])
+            offset = Int(recv_displacements[i])
+            chunks[i] = n == 0 ? UInt8[] : recvbuf[(offset+1):(offset+n)]
+        end
+        chunks
     end
-    return chunks
 end
 
 function _mpi_rank_for_logical(ctx::MPICartesianCommunicator{D}, logical_rank::Integer) where {D}

@@ -98,3 +98,5 @@ distributed_maxwell_diagnostics(args...; kwargs...) =
     _extension_missing(:pencilfft, :distributed_maxwell_diagnostics)
 distributed_poisson_field!(args...; kwargs...) =
     _extension_missing(:pencilfft, :distributed_poisson_field!)
+distributed_electrostatic_pic(args...; kwargs...) =
+    _extension_missing(:pencilfft, :distributed_electrostatic_pic)

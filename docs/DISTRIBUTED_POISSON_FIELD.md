@@ -3,8 +3,10 @@
 `distributed_poisson_field!(E, rho, grid; neutrality=:require)` supplies a static
 3D CPU Float32/64 electrostatic field solve on the existing physical pencils.
 It reuses the canonical serial Poisson mode map and the existing distributed
-transforms. It is a field prerequisite for distributed ES evolution; particle
-ownership, deposition/gather halos, migration and a coupled step remain open.
+transforms. The [distributed ES collection](DISTRIBUTED_ELECTROSTATIC_IMPLEMENTATION.md)
+composes it with actual-pencil ownership, complete CIC transport, migration and
+the shared leapfrog step. Broader distributed families and runtime acceptance
+remain open.
 
 Import PencilArrays and PencilFFTs with HybridPlasmaPIC, construct a
 `distributed_fourier_grid`, and allocate rho and three independent E components

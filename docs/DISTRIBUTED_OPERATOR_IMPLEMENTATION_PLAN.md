@@ -3,20 +3,23 @@
 Design source review: 2026-10-26. HPIC `00f7922`; sibling SpectralOperators
 `cc515cf`, version 0.1.2. These identify the initial design baseline. Stages
 P–D later landed; the [audit tracker](DEEP_DEBUG_TRACKER.md) owns their accepted
-revisions and CI. Resource/scaling closure and coupled distributed solvers remain
-open under the [completeness plan](PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md).
+revisions and CI. Resource/scaling closure and broader distributed solver families
+remain open under the [completeness plan](PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md).
 
 The separate [rank-owned periodic vacuum Maxwell source](DISTRIBUTED_MAXWELL_IMPLEMENTATION.md)
 now composes these operators into synchronized field-only evolution. It retains
 the existing operator kernels, exact physical pencils and caller-owned lifecycle.
 Runtime/compiler/resources are deferred during the implementation-first pass;
 a [matching-layout physical-pencil checkpoint](DISTRIBUTED_MAXWELL_CHECKPOINT.md)
-is source-implemented. Full coupled particle evolution remains next work.
+is source-implemented. Coupled Maxwell particle evolution remains next work.
 
 The [static rank-owned Poisson field](DISTRIBUTED_POISSON_FIELD.md) also
 source-implements the canonical electrostatic mode over these transforms, with
 exact represented charge admission and staged publication. Runtime/rank/resource
-acceptance and particle-coupled ES evolution remain open.
+acceptance remains open. The [distributed ES source](DISTRIBUTED_ELECTROSTATIC_IMPLEMENTATION.md)
+now adds actual-pencil particle ownership, complete CIC transport, migration and
+the canonical leapfrog mover, with explicit represented-grid DC projection and
+separate charge ledgers. Matching-layout ES checkpoint is the next slice.
 
 ## Checked architecture and pre-edit brief
 
@@ -138,8 +141,10 @@ inverse normalization, alias overwrite and dropped-rank-error mutants.
 Timing is a separate frozen workload gate with parent/control measurements in an
 uncontended window. Count global reductions, transposes and maximum rank-local
 storage explicitly. A single-machine MPI result does not establish multi-node
-scaling or GPU support. CAP-003C/D still require halo moments, particle ownership,
-real hybrid/ES/EM evolution, collision composition, checkpoint and restart tests.
+scaling or GPU support. The first distributed ES source slice supplies CIC
+particle ownership, remote stencils and migration. CAP-003C/D still require broader
+hybrid/EM moments/evolution, collision composition, family-specific checkpoints
+and actual-rank acceptance; ES checkpoint is the next source slice.
 
 ## Progress
 

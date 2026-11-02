@@ -76,6 +76,8 @@ end
 @inline width(::CIC) = 2
 @inline width(::TSC) = 3
 
+@inline _periodic_cell_position(x, L, dx) = mod(x, L) / dx
+
 Base.@propagate_inbounds @inline function _particle_cell_position(
     ps::ParticleSet{D,T},
     g::FourierGrid{D,T},
@@ -84,7 +86,7 @@ Base.@propagate_inbounds @inline function _particle_cell_position(
 ) where {D,T}
     x = ps.x[d][p]
     isfinite(x) || throw(ArgumentError("particle position x[$d][$p] must be finite"))
-    return mod(x, g.L[d]) / g.dx[d]
+    return _periodic_cell_position(x, g.L[d], g.dx[d])
 end
 
 function _validate_particle_positions(ps::ParticleSet{D}) where {D}

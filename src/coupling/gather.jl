@@ -36,6 +36,24 @@ function gather_scalar!(
     return out
 end
 
+# One canonical vector gather row; distributed ownership supplies only the lookup.
+@inline function _gather_vector_stencil(field_at, st, n, stamp, ::Type{T}) where {T}
+    ax = ay = az = zero(T)
+    for c in stamp
+        o = Tuple(c)
+        w = one(T)
+        for d = 1:length(n)
+            w *= st[d][2][o[d]]
+        end
+        idx = ntuple(d -> mod(st[d][1] + o[d] - 1, n[d]) + 1, length(n))
+        values = field_at(idx)
+        ax += values[1] * w
+        ay += values[2] * w
+        az += values[3] * w
+    end
+    return ax, ay, az
+end
+
 "Gather a 3-component grid field to particles using a shared interpolation stencil."
 function gather_vector!(
     out::NTuple{3,<:AbstractVector{T}},
@@ -57,17 +75,8 @@ function gather_vector!(
     output_indices = zip(eachindex(out[1]), eachindex(out[2]), eachindex(out[3]))
     @inbounds for (p, oi) in enumerate(output_indices)
         st = ntuple(d -> _stencil1d(shape, _particle_cell_position(ps, g, d, p)), D)
-        ax = ay = az = zero(T)
-        for c in stamp
-            o = Tuple(c)
-            w = one(T)
-            for d = 1:D
-                w *= st[d][2][o[d]]
-            end
-            idx = ntuple(d -> mod(st[d][1] + o[d] - 1, n[d]) + 1, D)
-            ax += field[1][idx...] * w
-            ay += field[2][idx...] * w
-            az += field[3][idx...] * w
+        ax, ay, az = _gather_vector_stencil(st, n, stamp, T) do idx
+            (field[1][idx...], field[2][idx...], field[3][idx...])
         end
         out[1][oi[1]] = ax
         out[2][oi[2]] = ay

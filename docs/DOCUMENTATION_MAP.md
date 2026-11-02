@@ -50,6 +50,9 @@ rerun by this documentation-only audit.
   — one-cluster finite-cloud reflection, carried-error and restart source contract.
 - [docs/YEE_ABSORBING_LONGITUDINAL.md](YEE_ABSORBING_LONGITUDINAL.md)
   — one isolated passive full-cloud capture, force-jump certificate and restart.
+- [docs/DISTRIBUTED_ELECTROSTATIC_IMPLEMENTATION.md](DISTRIBUTED_ELECTROSTATIC_IMPLEMENTATION.md)
+  — actual-pencil ES particle ownership, complete CIC transport, migration, phase
+  and charge ledgers; checkpoint next and runtime acceptance deferred.
 - [docs/DISTRIBUTED_POISSON_FIELD.md](DISTRIBUTED_POISSON_FIELD.md)
   — static rank-owned electrostatic field, exact charge ledger and neutrality policy.
 - [docs/DISTRIBUTED_MAXWELL_IMPLEMENTATION.md](DISTRIBUTED_MAXWELL_IMPLEMENTATION.md)
