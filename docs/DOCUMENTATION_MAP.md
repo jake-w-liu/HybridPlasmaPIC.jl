@@ -77,6 +77,9 @@ rerun by this documentation-only audit.
 - [docs/DISTRIBUTED_EMPIC_CHECKPOINT.md](DISTRIBUTED_EMPIC_CHECKPOINT.md)
   — complete eleven-field/current/endpoint phase, checksummed rank generations
   and detached stale-destination restore; runtime acceptance remains open.
+- [docs/DISTRIBUTED_HYBRID_IMPLEMENTATION.md](DISTRIBUTED_HYBRID_IMPLEMENTATION.md)
+  — actual-pencil isothermal ion collections, frozen-midpoint RK4, endpoint
+  predictor and scalar diagnostics; runtime acceptance remains open.
 - [docs/DISTRIBUTED_MAXWELL_CHECKPOINT.md](DISTRIBUTED_MAXWELL_CHECKPOINT.md)
   — matching-layout physical-pencil restart, checksums, publication and restore scope.
 

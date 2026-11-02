@@ -142,6 +142,11 @@ function recommended_dt(
     η::Real = 0.0,
     ηH::Real = 0.0,
 ) where {D,T}
+    return _recommended_dt_geometry(g, T; NB, integrator, safety, d_i, Ω_ci, η, ηH)
+end
+
+function _recommended_dt_geometry(g, ::Type{T}; NB::Integer = 1, integrator::Symbol = :rk4,
+    safety::Real = 0.8, d_i::Real = 1.0, Ω_ci::Real = 1.0, η::Real = 0.0, ηH::Real = 0.0) where {T}
     for dx in g.dx
         _timestep_check_exponent(dx)
     end

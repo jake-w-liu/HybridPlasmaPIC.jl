@@ -144,6 +144,16 @@ function _ohm_Efield!(
             laplacian!(lapJ[c], J[c], g)
         end
     end
+    return _ohm_field_rows!(E, ui, B, J, lapJ, gradp, ninv, η, ηH)
+end
+
+# Pointwise Ohm owner shared by serial and actual-pencil orchestration.
+function _ohm_field_rows!(
+    E::NTuple{3,<:Array{T,D}}, ui::NTuple{3,<:Array{T,D}},
+    B::NTuple{3,<:Array{T,D}}, J::NTuple{3,<:Array{T,D}},
+    lapJ::NTuple{3,<:Array{T,D}}, gradp::NTuple{D,<:Array{T,D}},
+    ninv::Array{T,D}, η::T, ηH::T,
+) where {D,T}
     Bx, By, Bz = B
     ux, uy, uz = ui
     Jx, Jy, Jz = J
@@ -959,6 +969,10 @@ function faraday_rhs!(
     g::FourierGrid{D,T},
 ) where {D,T}
     curl!(dB, E, g)
+    return _faraday_negate!(dB)
+end
+
+function _faraday_negate!(dB::NTuple{3,<:Array{T,D}}) where {D,T}
     for c = 1:3
         dB[c] .*= -one(T)
     end

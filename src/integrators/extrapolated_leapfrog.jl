@@ -1459,7 +1459,12 @@ function _push_hybrid_population!(st, ws, ps::ParticleSet{D,T}, dtT::T, kick_dt:
     h = dtT / 2
     gather_vector!(ws.Ep, _particle_electric_field(st), ps, st.g, st.shape)
     gather_vector!(ws.Bp, st.fields.B, ps, st.g, st.shape)
-    st.step[] == 0 && _prime_leapfrog!(ps.v, ws.Ep, ws.Bp, factor, h, length(ps.weight))
+    return _push_hybrid_gathered!(ps, ws, factor, qm, h, dtT, kick_dt, st.step[] == 0, st.g.L)
+end
+
+# Fields have already been gathered; preserve the common prime/kick/drift map.
+function _push_hybrid_gathered!(ps::ParticleSet{D,T}, ws, factor, qm, h, dtT, kick_dt, prime::Bool, L) where {D,T}
+    prime && _prime_leapfrog!(ps.v, ws.Ep, ws.Bp, factor, h, length(ps.weight))
     hk = qm * kick_dt / 2
     scales = _boris_batch_scales(ps.v, ws.Ep, ws.Bp, hk, eachindex(ps.weight))
     kick, vbound = _boris_batch_admission(ps, hk, factor, kick_dt, scales...)
@@ -1469,9 +1474,9 @@ function _push_hybrid_population!(st, ws, ps::ParticleSet{D,T}, dtT::T, kick_dt:
         _hybrid_kick_drift!(ps, ws, factor, dtT, kick_dt, Val(true))
     end
     lo = ntuple(_ -> zero(T), D)
-    apply_periodic!(ps, lo, st.g.L)
+    apply_periodic!(ps, lo, L)
     midpoint = ParticleSet{D,T}(ws.xmid, ps.v, ps.weight, ps.id, ps.tag, ps.q, ps.m)
-    apply_periodic!(midpoint, lo, st.g.L)
+    apply_periodic!(midpoint, lo, L)
     return midpoint
 end
 

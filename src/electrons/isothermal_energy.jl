@@ -69,20 +69,32 @@ function _isothermal_finish_log_energy(
     end
     bits = precision(T) + 16
     while true
-        logtwo = _isothermal_atanh_log_bounds(Rational{BigInt}(1, 3), bits)
-        lower = upper = zero(Rational{BigInt})
-        for (base, coefficient) in terms
-            lo, hi = _isothermal_integer_log_bounds(BigInt(base), bits, logtwo)
-            lower += coefficient * (coefficient > 0 ? lo : hi)
-            upper += coefficient * (coefficient > 0 ? hi : lo)
-        end
+        lower, upper = _isothermal_log_bounds(terms, bits)
         lo, hi = _from_exact(T, lower), _from_exact(T, upper)
         isequal(lo, hi) && return lo
         bits = Base.checked_mul(bits, 2)
     end
 end
 
+# Rational enclosure of one represented log expression, without rounding.
+function _isothermal_log_bounds(terms::Dict{UInt64,Rational{BigInt}}, bits::Int)
+    logtwo = _isothermal_atanh_log_bounds(Rational{BigInt}(1, 3), bits)
+    lower = upper = zero(Rational{BigInt})
+    for (base, coefficient) in terms
+        lo, hi = _isothermal_integer_log_bounds(BigInt(base), bits, logtwo)
+        lower += coefficient * (coefficient > 0 ? lo : hi)
+        upper += coefficient * (coefficient > 0 ? hi : lo)
+    end
+    return lower, upper
+end
+
 function _isothermal_exact_energy(
+    n::AbstractArray{T}, temperature::C, dx,
+) where {T<:Union{Float32,Float64},C<:Union{Float32,Float64,Rational{BigInt}}}
+    return _isothermal_finish_log_energy(T, _isothermal_log_terms(n, temperature, dx))
+end
+
+function _isothermal_log_terms(
     n::AbstractArray{T},
     temperature::C,
     dx,
@@ -90,7 +102,7 @@ function _isothermal_exact_energy(
     all(isfinite, n) && isfinite(temperature) && all(isfinite, dx) ||
         throw(ArgumentError("the complete isothermal evaluator requires finite inputs"))
     multiplier = Rational{BigInt}(temperature) * prod(Rational{BigInt}, dx)
-    iszero(multiplier) && return zero(T)
+    iszero(multiplier) && return Dict{UInt64,Rational{BigInt}}()
     # Count stored densities before exact coefficient work. The counts are
     # integers, so this grouping preserves the complete logarithmic expression.
     counts = Dict{T,Int}()
@@ -111,7 +123,7 @@ function _isothermal_exact_energy(
         _isothermal_add_log!(terms, BigInt(2), coefficient * exponent)
         _isothermal_add_log!(terms, odd, coefficient)
     end
-    return _isothermal_finish_log_energy(T, terms)
+    return terms
 end
 
 

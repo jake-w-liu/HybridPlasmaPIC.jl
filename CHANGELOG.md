@@ -11,6 +11,18 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Added
 
+- `distributed_hybrid` adds actual-pencil positive-ion CIC collections with
+  massless isothermal electrons, strict density, canonical prime/Boris/midpoint
+  motion, frozen-moment RK4 subcycles and carried endpoint prediction. All
+  eighteen fields, particles, counts and phase stage before publication.
+  Diagnostics combine exact scalar mechanical sums and local log enclosures;
+  no global field/log dictionary is gathered. Existing numerical owners retain
+  literal whole-file inverses. Original-source differentiated Ohm range recovery
+  is explicitly unsupported. Complete checkpoint is a separate companion.
+  Source-reviewed only; no tests added or run. Actual-rank numerical, restart,
+  compiler and resource acceptance remain open. See the
+  [hybrid guide](docs/DISTRIBUTED_HYBRID_IMPLEMENTATION.md).
+
 - Actual-pencil ES PIC gains fixed-step local Coulomb composition and complete
   matching-layout physical/full-RNG checkpoint. Owned logical cells use original
   global dx and canonical collision scheduling; an explicit cell-owner gate
