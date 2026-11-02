@@ -6,6 +6,12 @@ P–D later landed; the [audit tracker](DEEP_DEBUG_TRACKER.md) owns their accept
 revisions and CI. Resource/scaling closure and coupled distributed solvers remain
 open under the [completeness plan](PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md).
 
+The separate [rank-owned periodic vacuum Maxwell source](DISTRIBUTED_MAXWELL_IMPLEMENTATION.md)
+now composes these operators into synchronized field-only evolution. It retains
+the existing operator kernels, exact physical pencils and caller-owned lifecycle.
+Runtime/compiler/resources are deferred during the implementation-first pass;
+physical-pencil checkpoint and full coupled particle evolution remain next work.
+
 ## Checked architecture and pre-edit brief
 
 - Mode: implement distributed physical storage and the periodic operator family.

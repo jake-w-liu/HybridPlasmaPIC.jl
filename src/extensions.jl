@@ -92,3 +92,7 @@ distributed_fft_roundtrip_error(args...; kwargs...) =
 distributed_fourier_grid(args...; kwargs...) =
     _extension_missing(:pencilfft, :distributed_fourier_grid)
 distributed_field(args...; kwargs...) = _extension_missing(:pencilfft, :distributed_field)
+distributed_maxwell_vacuum(args...; kwargs...) =
+    _extension_missing(:pencilfft, :distributed_maxwell_vacuum)
+distributed_maxwell_diagnostics(args...; kwargs...) =
+    _extension_missing(:pencilfft, :distributed_maxwell_diagnostics)

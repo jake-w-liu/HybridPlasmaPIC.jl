@@ -77,9 +77,11 @@ Primary source:
 1. Keep `SpectralOperators.jl` as the single-rank operator API and oracle.
 2. Add an optional distributed FFT extension around `PencilFFTs.jl` instead of
    adding `PencilFFTs` as an unconditional core dependency. **Done.**
-3. Limit the first integration to fully periodic 3D transforms. **Plans and
-   forward/inverse wrappers implemented; distributed field operators remain
-   open.** Shock configurations with nonperiodic shock-normal physics use
+3. Limit the first integration to fully periodic 3D transforms. **Plans,
+   forward/inverse wrappers and rank-owned field operators are implemented.**
+   A [vacuum Maxwell source implementation](DISTRIBUTED_MAXWELL_IMPLEMENTATION.md)
+   now composes them; runtime acceptance and coupled particle evolution remain
+   open. Shock configurations with nonperiodic shock-normal physics use
    slab/local finite-difference logic until a mixed distributed operator is
    designed and tested.
 4. Validate the extension with real `mpiexec` tests:

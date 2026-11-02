@@ -155,5 +155,6 @@ function HybridPlasmaPIC.distributed_fft_roundtrip_error(
 end
 
 include("pencil_fourier.jl")
+include("pencil_maxwell.jl")
 
 end # module

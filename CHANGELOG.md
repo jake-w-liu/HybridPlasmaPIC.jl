@@ -11,6 +11,15 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Added
 
+- `distributed_maxwell_vacuum` adds rank-owned periodic 3D CPU Float32/64 field
+  evolution over the existing physical PencilArrays and collective curl owners.
+  Synchronized KDK uses complete scalar affine updates, a strict downward spectral
+  CFL bound and staged six-field publication. Global energy exchanges exact scalar
+  contributions; diagnostics retain divergence residuals. No full field is
+  gathered. Runtime/compiler/resource acceptance is deferred during the current
+  implementation pass; matching-layout restart and coupled particle evolution
+  remain next work. See the [field guide](docs/DISTRIBUTED_MAXWELL_IMPLEMENTATION.md).
+
 - `YeeAbsorbingLongitudinalPIC` adds a nonrelativistic CPU Float32/64 finite-cloud
   source candidate on a closed longitudinal 1D Yee grid. It admits zero captures
   or one uniquely isolated certified-passive instantaneous capture per external
