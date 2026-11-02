@@ -15,10 +15,10 @@ completeness. Comparative leadership requires reproducible external benchmarks.
 The [parallel implementation workflow](IMPLEMENTATION_WORKFLOW.md) records current
 workers, exclusive file ownership, dependencies and separate implementation,
 review and CI stages. Static composite ES is reviewed and submitted to GitHub CI.
-The resident CUDA and compatible implicit-EM workers implement disjoint families.
-Root integrates the frozen shared scalar dependencies; another worker diagnoses
-the new absorption CI failures. Root owns registrations/docs, dependency release
-and CI closure.
+The resident CUDA and compatible implicit-EM workers have drafted disjoint families.
+Shared scalar dependencies are reviewed/pushed; root integrates the bounded
+absorption CI repair, while another worker closes completed-clock admission gaps.
+Root owns registrations/docs, dependency release and CI closure.
 
 Current user instruction (2026-11-02): review canonical source and callers,
 and close the correctness and GitHub CI loop for every push. Run package,
@@ -172,8 +172,11 @@ Current CI repairs, checked 2026-11-02:
   completed with 106,888 passes/22 failures/zero errors on actual Julia 1.12.7.
   All impact, longitudinal and broad Yee groups pass; the failures are 18
   absorption snapshot comparisons and four absorption JET assertions. Root read
-  the complete summary and actual reports. Snapshot value/equality and dynamic
-  history-validator diagnosis is active; no numerical or JET gate is relaxed.
+  the complete summary and actual reports. The reviewed two-file repair retains
+  every capture field in value snapshots and the same finite/nonnegative/zero
+  predicates through explicit scalar selections. Root reproduced 21 author
+  source checks, checked complete old-file inverses and actual Base equality/copy
+  sources. No numerical or JET assertion is changed; candidate validation is pending.
   The separate after-test observation completed and is auxiliary evidence only.
 - Historical `06fa658` [conduction run 41377913235](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41377913235)
   records 5,292 passes/two strict Faraday equality failures on latest Julia with

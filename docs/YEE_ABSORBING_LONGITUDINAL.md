@@ -159,11 +159,18 @@ departing-wall exemption. The canonical owners are the
 and shared [remainder/terminal maps](../src/models/yee_impact_longitudinal_pic.jl).
 The [reflection contract](BOUNDED_EVENT_COVERAGE_CONTRACT.md) has different
 fixed-source premises and does not itself certify this capture law. All these
-statements are conditional algebra; exact-source execution remains pending.
+statements are conditional algebra; full numerical, scientific and resource
+acceptance remains pending.
 
 Only essential fixed independent death/plate/work/passivity, force-jump refinement,
 late compaction rollback/retry, stable provenance/empty and strict detached restart
-controls are added to the existing full/longitudinal suites. All remain unrun for
-this source candidate. Multiple captures, general material absorption/emission,
-transverse walls, relativistic/device/distributed execution and wider physical/
-resource acceptance remain separate work.
+controls are included in the existing full/longitudinal suites. At `bb7da93`,
+[minimum-Julia essentials](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41442148118/job/125266382813)
+record 182 passes and 22 failures in these absorption groups on Julia 1.12.7:
+18 snapshot comparisons and four JET assertions. The repair retains every
+capture-record field in value-based snapshots and selects explicit history
+scalars in the canonical validator. Numerical maps, IO and every assertion remain
+unchanged; the repair requires exact-revision remote validation. Multiple
+captures, general material absorption/emission, transverse walls, relativistic/
+device/distributed execution and wider physical/resource acceptance remain
+separate work.

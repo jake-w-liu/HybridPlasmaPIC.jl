@@ -20,9 +20,16 @@ function state(::Type{T}, species; sigma = zero(T), width = Float64(1 / 16)) whe
 end
 function snapshot(st, input)
     species = input isa ParticleSet ? (input,) : input
+    history = H._ya_history_values(st)
+    if history.last_capture !== nothing
+        record = history.last_capture
+        names = fieldnames(typeof(record))
+        capture = NamedTuple{names}(ntuple(i -> getfield(record, i), fieldcount(typeof(record))))
+        history = merge(history, (last_capture = capture,))
+    end
     return deepcopy(([(map(copy, ps.x), map(copy, ps.v), copy(ps.weight), copy(ps.id),
         copy(ps.tag), ps.q, ps.m) for ps in species], map(copy, st.fields.E),
-        map(copy, st.fields.B), H._ya_history_values(st)))
+        map(copy, st.fields.B), history))
 end
 fieldenergy(E, dx) = O.rat(dx) / 2 * sum(abs2, O.rat.(E))
 function death_reference(charge, side, n, L, a)

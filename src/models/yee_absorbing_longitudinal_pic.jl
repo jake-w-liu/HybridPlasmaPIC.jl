@@ -244,12 +244,14 @@ function _ya_validate_history_values(s, st::YeeAbsorbingLongitudinalPIC{T}, spec
     _yee_validate_impulse(s.last_impulse, st.g)
     all(a -> all(_yl_stored_zero, a), (s.last_impulse[2], s.last_impulse[3])) ||
         throw(ArgumentError("absorbing transverse impulse must be stored zero"))
-    for name in (_YI_Q_HISTORY..., :right_plate_charge, :free_left_plate_charge,
-        :initial_right_plate_charge, :last_transport_work, :last_passivity_error, :last_field_energy_defect)
-        value = getproperty(s, name)
+    qhistory = _yi_q_history_values(s)
+    for (name, value) in zip((_YI_Q_HISTORY..., :right_plate_charge, :free_left_plate_charge,
+        :initial_right_plate_charge, :last_transport_work, :last_passivity_error, :last_field_energy_defect),
+        (qhistory..., s.right_plate_charge, s.free_left_plate_charge,
+            s.initial_right_plate_charge, s.last_transport_work, s.last_passivity_error, s.last_field_energy_defect))
         _yi_finite_q(value) || throw(ArgumentError("invalid absorbing rational history $name"))
     end
-    all(name -> getproperty(s, name) >= 0, (_YI_Q_HISTORY[2:end]..., :last_passivity_error)) ||
+    all(value -> value >= 0, (Base.tail(qhistory)..., s.last_passivity_error)) ||
         throw(ArgumentError("absorbing error bounds must be nonnegative"))
     s.initial_counts isa Vector{Int} && s.initial_charges isa Vector{_YeeImpactQ} &&
         length(s.initial_counts) == length(s.initial_charges) == length(species) ||
@@ -319,8 +321,8 @@ function _ya_validate_history_values(s, st::YeeAbsorbingLongitudinalPIC{T}, spec
         throw(ArgumentError("absorbing total work omits or duplicates death work"))
     if sum(s.last_wall_count) == 0
         s.last_capture === nothing && iszero(s.last_passivity_error) &&
-            all(name -> iszero(getproperty(s, name)), (:last_max_snap, :last_snap_energy_bound,
-                :last_predictor_time_error, :last_physical_time_error)) ||
+            all(iszero, (s.last_max_snap, s.last_snap_energy_bound,
+                s.last_predictor_time_error, s.last_physical_time_error)) ||
             throw(ArgumentError("no-capture step has capture records or event errors"))
     else
         r = s.last_capture
@@ -343,8 +345,8 @@ function _ya_validate_history_values(s, st::YeeAbsorbingLongitudinalPIC{T}, spec
         all(_yl_stored_zero, (s.time, s.last_dt, s.last_work, s.last_energy_defect,
             s.last_physical_energy_change, s.last_total_energy_defect)) &&
             all(a -> all(_yl_stored_zero, a), s.last_impulse) &&
-            all(name -> iszero(getproperty(s, name)), (_YI_Q_HISTORY..., :last_transport_work,
-                :last_passivity_error, :last_field_energy_defect)) ||
+            all(iszero, (qhistory..., s.last_transport_work,
+                s.last_passivity_error, s.last_field_energy_defect)) ||
             throw(ArgumentError("unadvanced absorbing histories must be zero"))
     end
     return nothing

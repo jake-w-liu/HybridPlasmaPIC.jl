@@ -407,6 +407,13 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Fixed
 
+- Absorbing Yee history validation selects the same rational/error fields
+  explicitly, preserving all predicates while avoiding heterogeneous dynamic
+  field arithmetic. Its restart/rollback snapshot helper compares every capture
+  field by value before detachment. Numerical maps, checkpoint schema and all
+  assertions/JET gates remain unchanged. The actual minimum-Julia parent run
+  retains 22 failures; exact-revision remote acceptance of this repair is pending.
+
 - Implicit hybrid ready/checkpoint validation rejects `last_dt > time` even
   when its solve report matches the malformed history. Canonical nonnegative
   clock addition requires this bound; varying durations remain supported.

@@ -62,11 +62,13 @@ repairs; new workers do not edit those family files.
 | Track | Worker | Complete deliverable | Current stage |
 | --- | --- | --- | --- |
 | Static composite-grid electrostatic PIC | Root integrated frozen `cpu_model_factor_admission` source | Nested hierarchy, global Neumann field solve, physical-cloud crossings, diagnostics and complete physical persistence | Seven-file v2 source reviewed/integrated/pushed; phase/preparation findings repaired; full/essential GitHub checks submitted |
-| First resident CUDA hybrid | `self_consistent_gyrokinetic_design` | Complete device field/particle lifecycle and physical persistence with actual CUDA/cuFFT APIs | Complete v2 contract and exact callable seams approved; nine new family files implementing |
+| First resident CUDA hybrid | Frozen `self_consistent_gyrokinetic_design` source, root review | Complete device field/particle lifecycle and physical persistence with actual CUDA/cuFFT APIs | Nine new files frozen; full root source review, dependency integration and remote/device acceptance pending |
 | Shared CUDA scalar dependencies | Root integration of frozen `cpu_model_factor_admission` v2 source | Canonical arithmetic/coupling/scale/native Ohm/RK4 extractions with existing default CPU expression/order retained | Eleven files reviewed/integrated; mixed-precision custom-shape restriction removed; remote acceptance pending |
-| Compatible implicit EM current/gather | `yee_longitudinal_coupled_implementation` | Paired orbit-averaged current/gather, midpoint field/particle solve and physical persistence | Complete 142-line contract approved and 29 source pins checked; five new files and minimal shared-driver third-family registration implementing |
-| Absorption CI repair | `cpu_model_factor_admission` | Diagnose actual 22 minimum-Julia snapshot/compiler failures without dropping saved fields or weakening JET | Independent source/equality/history-validator diagnosis active; frozen scalar dependencies untouched |
-| Integration and CI | Root | Shared registrations/docs, canonical source review, dependency publication, commits/pushes and exact-revision CI closure | Active alongside the independent tracks; existing clock-admission audit frozen for follow-up repair |
+| Compatible implicit EM current/gather | `yee_longitudinal_coupled_implementation` | Paired orbit-averaged current/gather, midpoint field/particle solve and physical persistence | Complete contract approved; five new files and minimal shared-driver registration drafted, author review underway |
+| Absorption CI repair | Root integrates frozen `cpu_model_factor_admission` source | Value snapshots retain every capture field; same canonical history predicates use explicit scalar selections | Two-file source reviewed/integrated; numerical/IO/assertion/JET owners preserved; remote validation pending |
+| Completed-clock admission | `cpu_model_factor_admission` | All eight audited full-step/fast-substep/source/budget phase owners and actual live/IO callers | Existing-owner implementation assigned above shared scalar source; numerical clock additions and EMPIC nominal intervals preserved |
+| Spectral scalar dependencies | `self_consistent_gyrokinetic_design` | Minimal canonical complex products and D1 curl descriptor; current CPU validation/scaling preserved | Independent single-file implementation assigned above the allocation-repair candidate; release and CI remain root-owned |
+| Integration and CI | Root | Shared registrations/docs, canonical source review, dependency publication, commits/pushes and exact-revision CI closure | Active alongside the independent tracks; clock-admission repairs implementing |
 
 The curvilinear contract keeps logical positions and Cartesian velocities,
 primary contravariant magnetic flux and a compatible covariant electric curl.
@@ -135,10 +137,27 @@ third-family union/header/adapters in `src/integrators/implicit_pic_nonlinear.jl
 The existing nonlinear algorithm body must remain byte-identical. Root retains
 all `shapes.jl` documentation edits, module/exports and outer IO registrations.
 
-**Absorption repair** owns `src/models/yee_absorbing_longitudinal_pic.jl` and
-`test/test_yee_absorbing_longitudinal_pic.jl`, with its model checkpoint file only
-if a source-backed finding requires it. Root owns docs/registration/CI. Existing
-numerical/assertion/JET limits and every physical snapshot field remain.
+**Frozen absorption repair** transfers its two files to root; its IO source,
+physics and every assertion remain unchanged. The freed worker owns only the
+existing completed-clock admission owners/callers from the eight-group audit.
+Root holds edits to those owners, including checkpoint phase validators, until
+that source freezes. No shapes/new CUDA/compatible-Yee/shared nonlinear owner is
+assigned to that clock task. Explicit EMPIC uses its stored fast duration; no
+full-step/species interval bound or time=count*duration rule is introduced.
+Existing finite nonnegative origins remain supported where established by the
+legacy hybrid and EMPIC APIs; a new zero-origin restriction is outside this repair.
+
+The clock worker owns these existing paths until freeze: `abstract_integrator.jl`,
+`extrapolated_leapfrog.jl`, `camcl.jl`, `collisional_electrostatic.jl` and
+`collisional_hybrid.jl` under `src/integrators/`; `yee_longitudinal_pic.jl`,
+`open_hall_hybrid.jl`, `empic_collection.jl`, `full_pic.jl`,
+`yee_conductive_layer.jl` and `yee_pml.jl` under `src/models/`;
+`src/parallel/mpi.jl`; `ext/pencil_particles.jl`; and `checkpoint.jl`,
+`empic_collection_checkpoint.jl`, `collisional_electrostatic_checkpoint.jl`,
+`collisional_checkpoint.jl`, `yee_conductive_layer_checkpoint.jl` and
+`yee_pml_checkpoint.jl` under `src/io/`. Root applies outer IO type registrations
+after that handoff. The SpectralOperators worker owns only its separate
+`src/differential_operators.jl`; its CUDA family files remain frozen.
 
 **Root** owns `src/HybridPlasmaPIC.jl`, existing extension includes, shared
 checkpoint/archive registrations, `Project.toml`, workflows, focused essentials,
@@ -172,8 +191,8 @@ model contracts and all remaining combinations.
 
 | Wave | Parallel work | Required boundary |
 | --- | --- | --- |
-| Current | Shared scalar integration; resident CUDA and compatible implicit EM implementation; actual absorption CI repair and SO closure | Complete physical lifecycle and persistence; no shared-file writers |
-| Next | Complete family source/IO review; canonical SO scalar dependencies; broader geometry and completed-phase admission repairs | CUDA needs reviewed shared scalar seams and real device acceptance; every new method keeps its own field/coupling/phase contract |
+| Current | Absorption repair integration; resident CUDA and compatible implicit EM source completion; eight-group clock admission and SO closure | Complete physical lifecycle and persistence; no shared-file writers |
+| Next | Complete family source/IO review; canonical SO scalar dependencies; broader geometry | CUDA needs reviewed shared scalar seams and real device acceptance; every new method keeps its own field/coupling/phase contract |
 | Following | Dynamic AMR and multidimensional hierarchy; broader electron transport/anisotropy/inertia; broader open EM particle/source boundaries | Composite field/particle ownership, term-specific energy balances and boundary charge/current accounting |
 | Composition | Extend accepted families across species, collisions/sources, schedules, MPI/device storage and restart | Explicit supported-combination matrix; no automatic claim from component availability |
 | Continuous | Independent physical validation, latest Julia, failure/restart checks and measured optimization | GitHub or suitable remote hardware; retain failed evidence and fixed acceptance limits |

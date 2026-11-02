@@ -226,8 +226,9 @@ commit/push and CI. A named subsystem below is a code owner; an unassigned
 implementation agent is explicitly unassigned, not implicitly running.
 Current assignments (2026-11-02): static composite ES is reviewed and submitted;
 the approved resident CUDA and compatible implicit-EM families implement in
-disjoint paths. Root integrates the frozen shared scalar dependencies; another
-worker diagnoses the newly completed absorption CI failures.
+disjoint paths. Shared scalar dependencies are reviewed/pushed; root integrates
+the frozen absorption CI repair, while another worker closes all eight audited
+completed-clock admission gaps without changing numerical clock arithmetic.
 Hall, slab, periodic shear and synchronous implicit EM are source-complete
 and await remote acceptance. Root owns shared registrations, current docs, dependency
 publication, source integration and remote CI. Earlier audit assignments and
