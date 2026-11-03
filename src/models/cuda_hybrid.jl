@@ -12,3 +12,5 @@ cuda_hybrid_host_snapshot(args...; kwargs...) =
     _extension_missing(:cuda, :cuda_hybrid_host_snapshot)
 cuda_hybrid_host_diagnostics(args...; kwargs...) =
     _extension_missing(:cuda, :cuda_hybrid_host_diagnostics)
+_validate_checkpoint_state(s, st::CUDAHybridStepper) =
+    _extension_missing(:cuda, :_validate_checkpoint_state)
