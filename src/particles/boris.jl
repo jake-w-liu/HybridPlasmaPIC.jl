@@ -254,7 +254,88 @@ end
             dt,
         ) &&
         return out
+    _boris_kick_dd(out, parts, vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, factor, dt) && return out
     return _boris_kick_repair(out, vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, factor, dt, range)
+end
+
+# Double-double certification tier between the a-priori certificate and the
+# exact replay. The canonical expression is replayed in rigorous Float64
+# double-double ball arithmetic through the existing _RelBorisBound ops.
+# |out - exact| <= |out - center| + radius, so the per-component check below
+# implies |out - exact| <= tolerance: with the tolerance identical to
+# _boris_exact_native_ok, anything certified here is also accepted by the
+# exact replay. The Float64 scale2's exponent can exceed the exact Rational
+# scale2's by at most one binade, so it is floored one lower and the
+# tolerance is never looser than the exact criterion's.
+struct _BorisDDOps <: _ScalarOps end
+@inline _boris_dd_lift(x::_RelBorisBound) = x
+@inline _boris_dd_lift(x::Real) = _rel_boris_dd(Float64(x))
+@inline _scalar_add(::_BorisDDOps, a, b) = _boris_dd_lift(a) + _boris_dd_lift(b)
+@inline _scalar_sub(::_BorisDDOps, a, b) = _boris_dd_lift(a) - _boris_dd_lift(b)
+@inline _scalar_mul(::_BorisDDOps, a, b) = _boris_dd_lift(a) * _boris_dd_lift(b)
+@inline _scalar_div(::_BorisDDOps, a, b) = _boris_dd_lift(a) / _boris_dd_lift(b)
+
+@noinline function _boris_kick_dd(
+    out::NTuple{3,T},
+    parts,
+    vx::T,
+    vy::T,
+    vz::T,
+    Ex::T,
+    Ey::T,
+    Ez::T,
+    Bx::T,
+    By::T,
+    Bz::T,
+    factor,
+    dt::T,
+) where {T}
+    all(_rel_prime_dd_operand, (vx, vy, vz, Ex, Ey, Ez, Bx, By, Bz, dt)) || return false
+    h = if factor isa _BorisSpeciesFactors
+        # The exact factor is q/m; dd division carries the stored quotient's
+        # residual exactly like _boris_exact_factor, whether or not it divides.
+        all(_rel_prime_dd_operand, (factor.q, factor.m)) || return false
+        _rel_boris_dd(Float64(factor.q)) / _rel_boris_dd(Float64(factor.m))
+    else
+        _rel_boris_dd(Float64(_boris_native_factor(factor)))
+    end
+    dd = _rel_boris_dd
+    dd_out, dd_parts = _boris_kick_parts(
+        dd(Float64(vx)),
+        dd(Float64(vy)),
+        dd(Float64(vz)),
+        dd(Float64(Ex)),
+        dd(Float64(Ey)),
+        dd(Float64(Ez)),
+        dd(Float64(Bx)),
+        dd(Float64(By)),
+        dd(Float64(Bz)),
+        h,
+        dd(Float64(dt)),
+        Val(false),
+        _BorisDDOps(),
+    )
+    all(_rel_boris_valid, dd_out) || return false
+    # The dd parts carry a rigorous lower bound on the exact scale2 of
+    # _boris_exact_native_ok, so the exponent below never exceeds the exact
+    # replay's and the tolerance is never looser.
+    ddx, ddy, ddz = dd(Float64(vx)), dd(Float64(vy)), dd(Float64(vz))
+    scale2 = max(
+        _rel_boris_lower(ddx * ddx + ddy * ddy + ddz * ddz),
+        _rel_boris_lower(
+            dd_parts[2] * dd_parts[2] + dd_parts[3] * dd_parts[3] + dd_parts[4] * dd_parts[4],
+        ),
+    )
+    e =
+        iszero(scale2) ? exponent(floatmin(T)) :
+        max(fld(exponent(scale2), 2), exponent(floatmin(T)))
+    tolerance = 4 * ldexp(1.0, e - precision(T) + 1)
+    return all(1:3) do c
+        node = dd_out[c]
+        center = node.center[1] + node.center[2]
+        isfinite(center + node.radius) || return false
+        return abs(Float64(out[c]) - center) + node.radius <= tolerance
+    end
 end
 
 # Exact replay uses the one canonical expression. No separately transcribed
