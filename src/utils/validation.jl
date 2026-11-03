@@ -1,16 +1,23 @@
 # validation.jl - runtime guards that must remain active in optimized runs.
 
 # Structural zeros use stored IEEE bits even when the caller enables FTZ.
+# The masked test runs in a @noinline integer helper: LLVM folds a float-domain
+# masked reinterpret into `fcmp oeq x, 0.0`, which honors caller FTZ/DAZ modes
+# and would flush a stored subnormal to zero.
+@noinline _stored_bits_zero(bits::U, mask::U) where {U<:Unsigned} = iszero(bits & mask)
 _particle_stored_zero(x) = iszero(x)
-_particle_stored_zero(x::Float16) = iszero(reinterpret(UInt16, x) & 0x7fff)
-_particle_stored_zero(x::Float32) = iszero(reinterpret(UInt32, x) & 0x7fffffff)
-_particle_stored_zero(x::Float64) = iszero(reinterpret(UInt64, x) & 0x7fffffffffffffff)
+_particle_stored_zero(x::Float16) = _stored_bits_zero(reinterpret(UInt16, x), UInt16(0x7fff))
+_particle_stored_zero(x::Float32) = _stored_bits_zero(reinterpret(UInt32, x), UInt32(0x7fffffff))
+_particle_stored_zero(x::Float64) =
+    _stored_bits_zero(reinterpret(UInt64, x), UInt64(0x7fffffffffffffff))
 
 # Callers validate finiteness separately; these predicates classify stored sign/zero.
 _stored_positive(x) = x > zero(x)
 _stored_nonnegative(x) = x >= zero(x)
-_stored_positive(x::Union{Float16,Float32,Float64}) = !signbit(x) && !_particle_stored_zero(x)
-_stored_nonnegative(x::Union{Float16,Float32,Float64}) = !signbit(x) || _particle_stored_zero(x)
+_stored_positive(x::Union{Float16,Float32,Float64}) =
+    !isnan(x) & !signbit(x) & !_particle_stored_zero(x)
+_stored_nonnegative(x::Union{Float16,Float32,Float64}) =
+    !isnan(x) & (!signbit(x) | _particle_stored_zero(x))
 
 function _require_all_finite(name::AbstractString, a, context::AbstractString)
     all(isfinite, a) || error("$(name) went non-finite ($(context))")
