@@ -180,9 +180,12 @@ end
 @inline _particle_reinterpret_injective(a, ::DenseVector) = true
 @inline _particle_reinterpret_injective(a, p::AbstractVector) = _particle_batch_injective(p)
 @inline _particle_reinterpret_injective(a, p::AbstractArray) =
-    a isa StridedVector && !iszero(stride(a, 1))
+    a isa StridedVector && !(a isa Base.ReinterpretArray) && !iszero(stride(a, 1))
+# ReinterpretArray is dispatched above; the exclusion keeps the abstract
+# analysis out of its Base-internal stride implementation.
 @inline _particle_batch_injective(a::AbstractVector) =
-    length(a) <= 1 || (a isa StridedVector && !iszero(stride(a, 1)))
+    length(a) <= 1 ||
+    (a isa StridedVector && !(a isa Base.ReinterpretArray) && !iszero(stride(a, 1)))
 
 # Dense/strided storage does not imply ordinary writes: Const is read-only,
 # and AtomicMemory requires atomic stores. Inspect standard wrapper parents

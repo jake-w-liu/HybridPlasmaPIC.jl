@@ -436,11 +436,14 @@ function _exact_float_sum(values::AbstractArray{T}) where {T<:Union{Float16,Floa
     total = zero(Int128)
     for value in values
         if !iszero(value)
-            fraction, e = frexp(value)
-            # Narrow to Float64 before ldexp: the binary fraction and p<=53 make
-            # the product an exact integer in Float64 for every input type, and
-            # the concrete call avoids JET's abstract-T invalid-builtin reports.
-            significand = Int128(ldexp(Float64(fraction), p))
+            # Widening to Float64 is exact for every supported T, so frexp of
+            # the widened value has the same signed fraction and exponent as
+            # frexp(value). The fraction has at most p significant bits, so
+            # fraction * 2^p is an exact integer below 2^53 in Float64. The
+            # concrete Float64 calls keep JET out of the union-T frexp/ldexp
+            # builtin chain.
+            fraction, e = frexp(Float64(value))
+            significand = Int128(ldexp(fraction, p))
             total += significand << (e - minimum_exponent)
         end
     end
