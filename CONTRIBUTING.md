@@ -29,7 +29,7 @@ single test file while developing, run it against the package project:
 julia --project=. test/test_hybrid.jl
 ```
 
-The suite is split into eight contiguous groups selected by `HPIC_TEST_GROUP`;
+The suite is split into eleven contiguous groups selected by `HPIC_TEST_GROUP`;
 unset or `all` runs everything in order, matching CI's group matrix. To run one
 group locally:
 

@@ -1,6 +1,8 @@
 using Test
 
-# HPIC_TEST_GROUP selects one suite group ("1".."8"); unset/"all" runs every group in order.
+# HPIC_TEST_GROUP selects one suite group ("1".."11"); unset/"all" runs every group in order.
+# Groups are contiguous slices rebalanced from measured CI timings; a handful of
+# unmeasured tail files were estimated at 5 min each when choosing boundaries.
 const HPIC_TEST_GROUPS = [
     [
         "test_exact_arithmetic.jl",
@@ -19,13 +21,13 @@ const HPIC_TEST_GROUPS = [
         "test_linear_cn_range.jl",
         "test_whistler_packet_allocation.jl",
         "test_whistler_bigint_count.jl",
-    ],
-    [
         "test_operators.jl",
         "test_spectral_extra.jl",
         "test_particles.jl",
         "test_gathered_midpoint_storage.jl",
         "test_gathered_field_storage.jl",
+    ],
+    [
         "test_particle_kinematics_range.jl",
         "test_boris_accuracy.jl",
         "test_native_device_factors.jl",
@@ -45,8 +47,6 @@ const HPIC_TEST_GROUPS = [
         "test_migration_storage.jl",
         "test_migration_storage_mpi.jl",
         "test_periodic_migration.jl",
-    ],
-    [
         "test_periodic_migration_mpi.jl",
         "test_particle_growth.jl",
         "test_ionization_growth_alias.jl",
@@ -77,9 +77,9 @@ const HPIC_TEST_GROUPS = [
         "test_transport_source_range.jl",
         "test_scalar_pressure_range.jl",
         "transport_hyperresistivity/edge_modes.jl",
+        "test_cgl.jl",
     ],
     [
-        "test_cgl.jl",
         "test_cgl_energy_range.jl",
         "test_cgl_energy_boundaries.jl",
         "test_cgl_energy_resources.jl",
@@ -88,6 +88,8 @@ const HPIC_TEST_GROUPS = [
         "test_forcing.jl",
         "test_hall_mhd.jl",
         "test_dispersion.jl",
+    ],
+    [
         "test_dispersion_oracle.jl",
         "test_ray_tracing.jl",
         "test_raycon.jl",
@@ -96,6 +98,8 @@ const HPIC_TEST_GROUPS = [
         "test_rk4_original_duration.jl",
         "test_timestep_bigfloat_context.jl",
         "test_provenance_log.jl",
+    ],
+    [
         "test_camcl.jl",
         "test_variable_steps.jl",
         "test_multispecies_hybrid.jl",
@@ -103,12 +107,10 @@ const HPIC_TEST_GROUPS = [
         "test_collisional_checkpoint.jl",
         "test_collisional_physics.jl",
         "test_multispecies_diagnostics.jl",
-        "test_step_clocks.jl",
     ],
+    ["test_step_clocks.jl", "test_shock.jl", "test_dimensions.jl"],
+    ["test_io.jl"],
     [
-        "test_shock.jl",
-        "test_dimensions.jl",
-        "test_io.jl",
         "test_extensions.jl",
         "test_gpu_backend.jl",
         "test_backend_memory_status.jl",
@@ -170,8 +172,6 @@ const HPIC_TEST_GROUPS = [
         "test_local_coulomb_resources.jl",
         "test_ionization_arithmetic.jl",
         "test_exact_square_root.jl",
-    ],
-    [
         "test_inject.jl",
         "test_mpi.jl",
         "test_mpi_checkpoint.jl",
@@ -179,6 +179,8 @@ const HPIC_TEST_GROUPS = [
         "test_moment_storage_mpi.jl",
         "test_multispecies_mpi.jl",
         "test_evolving_pressure_mpi.jl",
+    ],
+    [
         "test_espic.jl",
         "test_electrostatic_species.jl",
         "test_model_factor_admission.jl",
@@ -188,9 +190,9 @@ const HPIC_TEST_GROUPS = [
         "test_empic1d_species.jl",
         "test_empic_relativistic_species.jl",
         "test_empic1d.jl",
+        "test_bounded_maxwell.jl",
     ],
     [
-        "test_bounded_maxwell.jl",
         "test_yee_impact_longitudinal_pic.jl",
         "test_yee_absorbing_longitudinal_pic.jl",
         "test_sourced_yee.jl",
