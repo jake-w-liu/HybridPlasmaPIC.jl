@@ -1,5 +1,5 @@
 module TestLinearCNRange
-using HybridPlasmaPIC, Random, Test
+using HybridPlasmaPIC, Profile, Random, Test
 const H = HybridPlasmaPIC
 const Q = Rational{BigInt}
 dyadic(e) = e >= 0 ? (big(1) << e) // big(1) : big(1) // (big(1) << -e)
@@ -119,17 +119,23 @@ end
 
 # The unchanged ordinary arithmetic remains byte-for-byte compatible, while
 # corrected cancellation/range regions above use an independent component oracle.
-# @allocated reads a process-wide byte counter, and Pkg runs the test worker
-# with an interactive thread on Julia >= 1.12, so concurrent runtime work can add
-# bytes to a single measurement. These calls are deterministic and allocate the
-# same bytes every time, so the minimum of a few measurements is their own count.
-min_allocated(f) = minimum(_ -> (@allocated f()), 1:3)
-scalar_bytes(a, b) = min_allocated(() -> cn_multiplier(a, b))
+scalar_bytes(a, b) = @allocated cn_multiplier(a, b)
 legacy_scalar(a, b) = (1 - im * a * b / 2) / (1 + im * a * b / 2)
-legacy_scalar_bytes(a, b) = min_allocated(() -> legacy_scalar(a, b))
-packet_bytes(n, B0, n0, L) =
-    min_allocated(() -> run_whistler(; n, B0, n0, L, nsteps = 1, dt = 1e-6))
-frequency_bytes(n, L, c) = min_allocated(() -> H._whistler_omega(n, L, c))
+legacy_scalar_bytes(a, b) = @allocated legacy_scalar(a, b)
+# Julia counts a malloc-backed buffer by its usable size (malloc_usable_size on
+# Linux), which glibc can round differently for identical calls. A packet owns
+# such buffers, so compare its requested allocations and allocation count.
+function allocation_record(f)
+    f()
+    Profile.Allocs.clear()
+    Profile.Allocs.@profile sample_rate = 1 f()
+    records = sort!([(string(a.type), a.size) for a in Profile.Allocs.fetch().allocs])
+    Profile.Allocs.clear()
+    return (; records, count = @allocations f())
+end
+packet_record(n, B0, n0, L) =
+    allocation_record(() -> run_whistler(; n, B0, n0, L, nsteps = 1, dt = 1e-6))
+frequency_bytes(n, L, c) = @allocated H._whistler_omega(n, L, c)
 @testset "Ordinary CN compatibility and resources" begin
     for T in (Float16, Float32, Float64), (x, y) in ((0.3, 0.05), (40, 1.3), (-0.7, 0.1), (3, 2))
         a, b = T(x), T(y)
@@ -167,11 +173,10 @@ frequency_bytes(n, L, c) = min_allocated(() -> H._whistler_omega(n, L, c))
         end
     end
     for n in (8, 128), L in (2π, 8, 8.0)
-        packet_bytes(n, 1.0, 1.0, Float64(L))
-        ceiling = packet_bytes(n, 1.0, 1.0, Float64(L))
+        ceiling = packet_record(n, 1.0, 1.0, Float64(L))
+        @test !isempty(ceiling.records)
         for (B0, n0) in ((1, 1), (1, 1.0), (1.0, 1), (UInt128(1), Int8(1)))
-            packet_bytes(n, B0, n0, L)
-            @test packet_bytes(n, B0, n0, L) == ceiling
+            @test packet_record(n, B0, n0, L) == ceiling
             @test run_whistler(; n, B0, n0, L, nsteps = 1) ==
                   run_whistler(; n, B0 = 1.0, n0 = 1.0, L = Float64(L), nsteps = 1)
         end
