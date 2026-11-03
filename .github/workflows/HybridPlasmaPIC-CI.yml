@@ -40,7 +40,7 @@ jobs:
           julia --project=. -e '
             using Pkg
             Pkg.instantiate()
-            Pkg.test(; coverage = true)' 2>&1 | tee test-log.txt
+            Pkg.test()' 2>&1 | tee test-log.txt
       - name: Upload test log
         if: always()
         uses: actions/upload-artifact@v4
@@ -48,13 +48,6 @@ jobs:
           name: test-log-julia-${{ matrix.julia-version }}-group-${{ matrix.group }}
           path: test-log.txt
           if-no-files-found: warn
-      - uses: julia-actions/julia-processcoverage@v1
-        with:
-          directories: src
-      - uses: codecov/codecov-action@v4
-        with:
-          files: lcov.info
-          fail_ci_if_error: false
 
   mpi-smoke:
     name: Real MPI smoke (${{ matrix.ranks }}-rank)
