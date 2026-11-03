@@ -1,6 +1,6 @@
 # Parallel implementation workflow
 
-Updated 2026-11-02. The full simulator goal remains active and incomplete.
+Updated 2026-11-03. The full simulator goal remains active and incomplete.
 The [completeness plan](PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md) owns the full
 CAP-001–011 backlog; the [audit tracker](DEEP_DEBUG_TRACKER.md#current-progress)
 owns checked commits, failures and acceptance. This page owns current scheduling,
@@ -20,55 +20,65 @@ file ownership and handoffs.
 4. Freeze the small actual interface needed by a dependent track early. Continue
    independent work while that interface is prepared; do not duplicate its owner.
 5. Keep source implementation moving while GitHub jobs queue. Preserve failures
-   and investigate them in parallel. No local Julia/test/compiler/formatter,
-   numerical-proxy, device, build or profiling workloads.
+   and investigate them in parallel. Local formatting, package loading and
+   focused tests are allowed; the full suite runs on GitHub.
 6. Submit reviewed candidates through GitHub, retaining every existing numerical,
-   compiler, allocation and cost gate. Root pushes each completed fix or
-   implementation to `main` and checks its exact-revision CI. A failed candidate
-   stays unaccepted; a billing exception requires actual GitHub evidence.
+   compiler, allocation and cost gate. Root pushes each candidate to a
+   validation branch and fast-forwards `main` only after that exact revision
+   passes CI. A failed candidate stays unaccepted; a billing exception requires
+   actual GitHub evidence.
 
 ## Current source candidates
 
-| Family | Candidate | Source stage | Remote acceptance |
-| --- | --- | --- | --- |
-| Self-consistent full-f slab gyrokinetics | `08e1bf2`, branch `implement/slab-gyrokinetic-20261102` | Complete core, coupling, diagnostics and physical checkpoint/archive reviewed and integrated | [Full CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41446645551) and [essentials](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41446663047) submitted; no accepted result yet |
-| Synchronous open Hall numerical reservoirs | `cd78339`, branch `implement/open-hall-hybrid-20261102` | Complete Hall A/B source composed, including last/cumulative source records, full RNG, diagnostics and physical restore | [Full CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41448552638) and [essentials](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41448552969) submitted; no accepted result yet |
+`main` is `4618564`. It was fast-forwarded from `531f5ba` after
+[run 41672495637](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41672495637)
+passed all 26 jobs at that exact revision: Julia 1.12.7 and 1.13.3 across the
+11 test groups, formatting, and real MPI with 2, 4 and 8 ranks. Every family
+below is on `main` and CI accepted at that revision. Scientific and resource
+acceptance remain open for all of them.
 
-The periodic-shear candidate `c53ef77`, branch
-`implement/sheared-periodic-hybrid-20261102`, contains Hall and slab. Its
-[full](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41455172923) and
-[essential](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41455205769)
-checks are submitted and still unaccepted. The implicit EM candidate `d665c47` builds on it; its
-[full](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41457743663) and
-[essential](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41457768797)
-checks are submitted. Separate hybrid-clock fix `ae23c71` has
-[full](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41458375525) and
-[essential](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41458455218)
-checks submitted. Static composite ES composes on that exact source. None is
-runtime accepted; candidates remain off main while their gates are pending.
+| Family | Source commits |
+| --- | --- |
+| Self-consistent full-f slab gyrokinetics | `08e1bf2` |
+| Synchronous open Hall numerical reservoirs | `cd78339` |
+| Coupled periodic shear hybrid | `c53ef77` |
+| Synchronous coupled implicit EM | `d665c47`; Gauss/divergence-consistent residual fields `7bd8417` |
+| Compatible periodic Yee implicit EM | `e26cde9` |
+| Static composite electrostatic PIC | `5de5b35` |
+| Clock admission | `ae23c71`, `d8a327b` |
+| Shared CUDA scalar dependencies | `30cb6ee` (CPU paths only; no device lowering checked) |
+| Absorbing history repair | `462fbdb` |
+| Closed Yee validation | `bb7da93` |
 
-Static composite ES candidate `5de5b35` has
-[full](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41464074547) and
-[essential](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41464084616)
-checks submitted. Shared scalar dependencies compose on that exact source.
+The first complete sharded runs exposed failures that are fixed on `main`:
+the scalar pressure range test, which needs SpectralOperators 0.1.9 (`8bb4add`),
+stored-bit predicates under flush-to-zero (`5e32ffe`), a self-contradictory
+relativistic kinematics test (`8004115`), the Boris certification slowdown in
+`test_empic1d.jl` (`0365eda`, `5a5f9db`), JET package reports
+(now zero located, total at most 86), typed empty EMPIC checkpoint populations
+(`113729d`, `f36df4e`) and the linear CN allocation check
+([diagnosis](WHISTLER_ALLOCATION_CI_DIAGNOSIS.md#usable-size-accounting-2026-11-03)).
+Review of the JET work caught two regressions it had introduced: collisional
+wrapper type headers (`93786d4`) and a YeePML `UndefVarError` (`32f9c15`).
+Both are fixed and now have tests. Coverage upload was removed because no
+Codecov token is configured.
 
-Hall `cd78339` contains slab `08e1bf2` and correctness candidate `bb7da93`.
-Main remains `531f5ba`; none of those candidates is runtime accepted. Frozen
-author worktrees remain intact. Root owns their integration and any subsequent
-repairs; new workers do not edit those family files.
+The resident CUDA hybrid is on branch `implement/resident-cuda-hybrid-20261103`
+and is not on `main`. Its extension loads with CUDA.jl 6.5 but has not run on an
+NVIDIA device.
 
 ## Active assignments
 
 | Track | Worker | Complete deliverable | Current stage |
 | --- | --- | --- | --- |
-| Static composite-grid electrostatic PIC | Root integrated frozen `cpu_model_factor_admission` source | Nested hierarchy, global Neumann field solve, physical-cloud crossings, diagnostics and complete physical persistence | Seven-file v2 source reviewed/integrated/pushed; phase/preparation findings repaired; full/essential GitHub checks submitted |
-| First resident CUDA hybrid | Frozen `self_consistent_gyrokinetic_design` source, root review | Complete device field/particle lifecycle and physical persistence with actual CUDA/cuFFT APIs | Nine new files frozen; full root source review, dependency integration and remote/device acceptance pending |
-| Shared CUDA scalar dependencies | Root integration of frozen `cpu_model_factor_admission` v2 source | Canonical arithmetic/coupling/scale/native Ohm/RK4 extractions with existing default CPU expression/order retained | Eleven files reviewed/integrated; mixed-precision custom-shape restriction removed; remote acceptance pending |
-| Compatible implicit EM current/gather | Frozen `yee_longitudinal_coupled_implementation` source, root review | Paired orbit-averaged current/gather, midpoint field/particle solve and physical persistence | Five new files and minimal shared-driver registration frozen; root source review/integration and remote acceptance pending |
-| Absorption CI repair | Root integrates frozen `cpu_model_factor_admission` source | Value snapshots retain every capture field; same canonical history predicates use explicit scalar selections | Two-file source reviewed/integrated; numerical/IO/assertion/JET owners preserved; remote validation pending |
-| Completed-clock admission | Root integration of frozen `cpu_model_factor_admission` source | All eight audited full-step/fast-substep/source/budget phase owners and actual live/IO callers | Nineteen files reviewed/integrated; old clock arithmetic and legacy origins preserved; remote acceptance pending |
-| Spectral scalar dependencies | Frozen `self_consistent_gyrokinetic_design` source, root integration | Minimal canonical complex products and D1 curl descriptor; current CPU validation/scaling preserved | Single-file extraction frozen; root API/docs/CI integration and release pending |
-| Integration and CI | Root | Shared registrations/docs, canonical source review, dependency publication, commits/pushes and exact-revision CI closure | Active alongside independent CUDA audit and completed-family integration |
+| Static composite-grid electrostatic PIC | Root integrated frozen `cpu_model_factor_admission` source | Nested hierarchy, global Neumann field solve, physical-cloud crossings, diagnostics and complete physical persistence | On `main`; CI accepted at `4618564` |
+| First resident CUDA hybrid | Frozen `self_consistent_gyrokinetic_design` source, root review | Complete device field/particle lifecycle and physical persistence with actual CUDA/cuFFT APIs | Nine files integrated byte-identical after formatting on branch `implement/resident-cuda-hybrid-20261103`; abstract checkpoint seam added for JET; extension loads with CUDA.jl 6.5; NVIDIA execution pending |
+| Shared CUDA scalar dependencies | Root integration of frozen `cpu_model_factor_admission` v2 source | Canonical arithmetic/coupling/scale/native Ohm/RK4 extractions with existing default CPU expression/order retained | On `main`; CPU paths CI accepted at `4618564`; device lowering pending |
+| Compatible implicit EM current/gather | Frozen `yee_longitudinal_coupled_implementation` source, root review | Paired orbit-averaged current/gather, midpoint field/particle solve and physical persistence | Integrated as `e26cde9` after fixing duplicate struct fields and checkpoint scratch in the frozen source; on `main`, CI accepted |
+| Absorption CI repair | Root integrates frozen `cpu_model_factor_admission` source | Value snapshots retain every capture field; same canonical history predicates use explicit scalar selections | `462fbdb` on `main`; CI accepted |
+| Completed-clock admission | Root integration of frozen `cpu_model_factor_admission` source | All eight audited full-step/fast-substep/source/budget phase owners and actual live/IO callers | `d8a327b` on `main`; CI accepted |
+| Spectral scalar dependencies | Frozen `self_consistent_gyrokinetic_design` source, root integration | Minimal canonical complex products and D1 curl descriptor; current CPU validation/scaling preserved | SpectralOperators 0.1.9 registered (General #174587); HPIC requires 0.1.9 |
+| Integration and CI | Root | Shared registrations/docs, canonical source review, dependency publication, commits/pushes and exact-revision CI closure | 11-group CI on both runtimes; `main` at `4618564` |
 
 The curvilinear contract keeps logical positions and Cartesian velocities,
 primary contravariant magnetic flux and a compatible covariant electric curl.
@@ -189,8 +199,8 @@ model contracts and all remaining combinations.
 
 | Wave | Parallel work | Required boundary |
 | --- | --- | --- |
-| Current | Absorption repair integration; resident CUDA and compatible implicit EM source completion; eight-group clock admission and SO closure | Complete physical lifecycle and persistence; no shared-file writers |
-| Next | Complete family source/IO review; canonical SO scalar dependencies; broader geometry | CUDA needs reviewed shared scalar seams and real device acceptance; every new method keeps its own field/coupling/phase contract |
+| Current | Resident CUDA hybrid device acceptance on NVIDIA hardware; scientific and resource acceptance of the families now on `main` | Actual device lowering, semantics and cost; fixed physical comparisons and refinement |
+| Next | Broader geometry; remaining CAP families from the completeness plan | Every new method keeps its own field/coupling/phase contract |
 | Following | Dynamic AMR and multidimensional hierarchy; broader electron transport/anisotropy/inertia; broader open EM particle/source boundaries | Composite field/particle ownership, term-specific energy balances and boundary charge/current accounting |
 | Composition | Extend accepted families across species, collisions/sources, schedules, MPI/device storage and restart | Explicit supported-combination matrix; no automatic claim from component availability |
 | Continuous | Independent physical validation, latest Julia, failure/restart checks and measured optimization | GitHub or suitable remote hardware; retain failed evidence and fixed acceptance limits |

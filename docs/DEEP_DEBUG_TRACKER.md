@@ -61,6 +61,15 @@ rewritten as normwise bounds.
 
 ## Current progress
 
+On 2026-11-03, `main` advanced from `531f5ba` to `4618564` after exact-revision
+[run 41672495637](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41672495637)
+passed all 26 jobs. The [workflow](IMPLEMENTATION_WORKFLOW.md#current-source-candidates)
+lists the families and fixes it contains. The ±16/32-byte packet allocation
+variation on Ubuntu comes from Linux usable-size accounting
+([diagnosis](WHISTLER_ALLOCATION_CI_DIAGNOSIS.md#usable-size-accounting-2026-11-03));
+the earlier 4,768/6,352-byte failures remain unattributed. CI acceptance is not
+scientific or resource acceptance, and the milestone count is unchanged.
+
 The periodic curvilinear hybrid now has complete bounded source reviewed and
 integrated: seven new files for the J=1 shear geometry, physical field transforms,
 canonical complete TSC moments/gather, true continuous original-factor Lorentz
