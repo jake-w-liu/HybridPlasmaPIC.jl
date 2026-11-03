@@ -106,6 +106,7 @@ const HPIC_TEST_GROUPS = [
         "test_collisional_hybrid.jl",
         "test_collisional_checkpoint.jl",
         "test_collisional_physics.jl",
+        "test_collisional_wrappers.jl",
         "test_multispecies_diagnostics.jl",
     ],
     ["test_step_clocks.jl", "test_shock.jl", "test_dimensions.jl"],
