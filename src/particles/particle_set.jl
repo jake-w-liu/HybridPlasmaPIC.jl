@@ -171,21 +171,8 @@ end
 # arbitrary indexed view can visit the same backing location more than once.
 # Dense storage is injective at any length; strided wrappers check their stride.
 @inline _particle_batch_injective(::DenseVector) = true
-# ReinterpretArray forwards stride() to a packed-size reshape the compiler
-# cannot always resolve; dispatch on the parent storage instead so exotic
-# parents keep the stride check.
-@inline _particle_batch_injective(a::Base.ReinterpretArray) =
-    length(a) <= 1 || _particle_reinterpret_injective(a, parent(a))
-@inline _particle_reinterpret_injective(a, ::DenseArray) = true
-@inline _particle_reinterpret_injective(a, ::DenseVector) = true
-@inline _particle_reinterpret_injective(a, p::AbstractVector) = _particle_batch_injective(p)
-@inline _particle_reinterpret_injective(a, p::AbstractArray) =
-    a isa StridedVector && !(a isa Base.ReinterpretArray) && !iszero(stride(a, 1))
-# ReinterpretArray is dispatched above; the exclusion keeps the abstract
-# analysis out of its Base-internal stride implementation.
 @inline _particle_batch_injective(a::AbstractVector) =
-    length(a) <= 1 ||
-    (a isa StridedVector && !(a isa Base.ReinterpretArray) && !iszero(stride(a, 1)))
+    length(a) <= 1 || (a isa StridedVector && !iszero(stride(a, 1)))
 
 # Dense/strided storage does not imply ordinary writes: Const is read-only,
 # and AtomicMemory requires atomic stores. Inspect standard wrapper parents
