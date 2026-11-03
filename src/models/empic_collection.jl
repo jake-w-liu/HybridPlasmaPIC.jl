@@ -247,7 +247,7 @@ function _empic_collection_validate_populations(
         all(w -> (isfinite(w) && _stored_nonnegative(w))::Bool, ps.weight) ||
             throw(ArgumentError("electromagnetic weights must be finite and nonnegative"))
         !work.mobile[i] &&
-            !all(a -> all(_particle_stored_zero, a), ps.v) &&
+            !all(a -> all(_particle_stored_zero, a)::Bool, ps.v) &&
             throw(
                 ArgumentError(
                     "fixed electromagnetic populations require original stored zero velocity",

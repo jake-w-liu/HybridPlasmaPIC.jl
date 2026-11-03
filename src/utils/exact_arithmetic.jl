@@ -437,7 +437,10 @@ function _exact_float_sum(values::AbstractArray{T}) where {T<:Union{Float16,Floa
     for value in values
         if !iszero(value)
             fraction, e = frexp(value)
-            significand = Int128(ldexp(fraction, p))
+            # Narrow to Float64 before ldexp: the binary fraction and p<=53 make
+            # the product an exact integer in Float64 for every input type, and
+            # the concrete call avoids JET's abstract-T invalid-builtin reports.
+            significand = Int128(ldexp(Float64(fraction), p))
             total += significand << (e - minimum_exponent)
         end
     end
