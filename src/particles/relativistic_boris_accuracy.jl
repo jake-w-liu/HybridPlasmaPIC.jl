@@ -26,8 +26,9 @@ Base.one(::Type{_RelBorisBound{T}}) where {T} = _rel_boris_constant(T, 1)
     residual = _eft_abs_sum_bound((Float64(a.center), Float64(b.center), -Float64(z)))
     return _RelBorisBound(z, _boris_sum_error(a.radius, b.radius, residual))
 end
-@inline Base.:-(a::_RelBorisBound) = _RelBorisBound(-a.center, a.radius)
-@inline Base.:-(a::_RelBorisBound, b::_RelBorisBound) = a + (-b)
+@inline Base.:-(a::_RelBorisBound{T}) where {T<:_RangeGuardedFloat} =
+    _RelBorisBound(-a.center, a.radius)
+@inline Base.:-(a::_RelBorisBound{T}, b::_RelBorisBound{T}) where {T} = a + (-b)
 
 @inline function Base.:*(a::_RelBorisBound{T}, b::_RelBorisBound{T}) where {T<:_RangeGuardedFloat}
     z = a.center * b.center

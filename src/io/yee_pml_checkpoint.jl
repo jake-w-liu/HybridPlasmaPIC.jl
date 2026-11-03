@@ -164,12 +164,14 @@ function archive_run(
     path::AbstractString,
     model::YeePML;
     normalization::AbstractString = "epsilon0=1;mu0=1/c^2;directional_ADE_PML_kappa1_alpha0",
-    boundary_desc::AbstractString = join(
-        map(p -> p ? "periodic" : "pec", model.inner.g.periodic),
-        ",",
-    ) * ";directional_ADE_PML",
+    boundary_desc = nothing,
     kwargs...,
 )
+    boundary_desc === nothing && (
+        boundary_desc =
+            join(map(p -> p ? "periodic" : "pec", model.inner.g.periodic), ",")::String *
+            ";directional_ADE_PML"
+    )
     _yp_acquire!(model)
     try
         return _archive_run(

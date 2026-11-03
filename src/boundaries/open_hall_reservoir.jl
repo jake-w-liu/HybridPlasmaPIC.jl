@@ -134,7 +134,11 @@ function _open_hall_transport!(st::OpenHallHybrid{D,T}, h, plan) where {D,T}
             mass, charge = Q(ps.m) * Q(ps.weight[p]), Q(ps.q) * Q(ps.weight[p])
             kick_energy += mass * sum(Q(velocity[c])^2 - Q(old[c])^2 for c = 1:3) / 2
             kick_work += Q(h) * charge * sum((Q(old[c]) + Q(velocity[c])) * Q(E[c]) for c = 1:3) / 2
-            kick_momentum = ntuple(c -> kick_momentum[c] + mass * (Q(velocity[c]) - Q(old[c])), 3)
+            kick_momentum = (
+                kick_momentum[1] + mass * (Q(velocity[1]) - Q(old[1])),
+                kick_momentum[2] + mass * (Q(velocity[2]) - Q(old[2])),
+                kick_momentum[3] + mass * (Q(velocity[3]) - Q(old[3])),
+            )
         end
         retained = 0
         # Stable forward compaction is safe: every written index is <= p.

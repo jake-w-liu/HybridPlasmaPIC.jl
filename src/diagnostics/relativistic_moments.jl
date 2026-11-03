@@ -60,12 +60,19 @@ function _relativistic_particle_moments(species, c::T) where {T}
             end
         end
     end
-    values = ntuple(Val(4)) do i
-        active[i] || return zero(T)
-        value, resolved = _rel_prime_round_cell(T, sums[i][1], sums[i][2])
-        return resolved ? value : _relativistic_moment_exact(species, c, Val(i - 1))
-    end
+    values = (
+        _rel_moment_entry(T, species, c, active[1], sums[1], 1),
+        _rel_moment_entry(T, species, c, active[2], sums[2], 2),
+        _rel_moment_entry(T, species, c, active[3], sums[3], 3),
+        _rel_moment_entry(T, species, c, active[4], sums[4], 4),
+    )
     return values[1], (values[2], values[3], values[4])
+end
+
+function _rel_moment_entry(::Type{T}, species, c, isactive, sum, i) where {T}
+    isactive || return zero(T)
+    value, resolved = _rel_prime_round_cell(T, sum[1], sum[2])
+    return resolved ? value : _relativistic_moment_exact(species, c, Val(i - 1))
 end
 
 """

@@ -140,10 +140,10 @@ function CollisionalEMPICStepper(
     owned_rng = deepcopy(rng)
     st = CollisionalEMPICStepper(
         inner,
-        inner.g,
-        populations,
-        Tuple{Int,T,T}[(nparticles(ps), ps.q, ps.m) for ps in populations],
-        inner.c,
+        inner.g::FourierGrid{D,T},
+        populations::Vector{_ElectrostaticHostParticle{D,T}},
+        Tuple{Int,T,T}[(nparticles(ps), ps.q, ps.m) for ps in populations]::Vector{Tuple{Int,T,T}},
+        inner.c::T,
         inner.shape,
         work.charge_rtol,
         h,

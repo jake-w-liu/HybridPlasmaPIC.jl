@@ -18,11 +18,13 @@ function _polytropic_sum_boundary(left::T, right::T) where {T<:Union{Float32,Flo
     left == -T(Inf) && right == -floatmax(T) && return -_polytropic_midpoint_after(floatmax(T))
     return nothing
 end
+_polytropic_sum_boundary(left::Union{Float32,Float64}, right::Union{Float32,Float64}) =
+    _polytropic_sum_boundary(promote(left, right)...)
 
 function _polytropic_round_sum(::Type{T}, state) where {T<:Union{Float32,Float64}}
     lo, hi, exponent, lower_strict, upper_strict = state
-    left = _polytropic_round_scaled(T, lo, exponent)
-    right = _polytropic_round_scaled(T, hi, exponent)
+    left = _polytropic_round_scaled(T, lo, exponent)::T
+    right = _polytropic_round_scaled(T, hi, exponent)::T
     isequal(left, right) && return left
     boundary = _polytropic_sum_boundary(left, right)
     if boundary !== nothing
@@ -223,8 +225,8 @@ function _polytropic_exact_energy(
         state = _polytropic_scaled_sum_state(intervals, bits)
         value = _polytropic_round_sum(T, state)
         value === nothing || return value
-        left = _polytropic_round_scaled(T, state[1], state[3])
-        right = _polytropic_round_scaled(T, state[2], state[3])
+        left = _polytropic_round_scaled(T, state[1], state[3])::T
+        right = _polytropic_round_scaled(T, state[2], state[3])::T
         boundary = _polytropic_sum_boundary(left, right)
         # Adjacent half-subnormal boundaries take precedence over zero. Testing
         # zero instead would never decide an exact half-subnormal tie.

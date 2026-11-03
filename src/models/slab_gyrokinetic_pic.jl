@@ -589,9 +589,19 @@ function _sg_gather(st::SlabGyrokineticPIC{T}, stage, k, p) where {T}
     ring = _sg_ring(st, stage, k, p)
     for phase in st._phases
         sample = _sg_sample(st.work.phi, _sg_ring_point(ring, phase), st.g)
-        sums = ntuple(c -> _sg_stream_add(sums[c], sample[c]), 4)
+        sums = (
+            _sg_stream_add(sums[1], sample[1]),
+            _sg_stream_add(sums[2], sample[2]),
+            _sg_stream_add(sums[3], sample[3]),
+            _sg_stream_add(sums[4], sample[4]),
+        )
     end
-    values = ntuple(c -> _gyro_ring_mean(sums[c]..., st.nring, T), 4)
+    values = (
+        _gyro_ring_mean(sums[1]..., st.nring, T),
+        _gyro_ring_mean(sums[2]..., st.nring, T),
+        _gyro_ring_mean(sums[3]..., st.nring, T),
+        _gyro_ring_mean(sums[4]..., st.nring, T),
+    )
     all(isfinite, values) ||
         throw(ArgumentError("gyroaveraged potential/gradient is not representable"))
     return values

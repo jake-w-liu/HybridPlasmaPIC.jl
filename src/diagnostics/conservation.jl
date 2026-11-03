@@ -296,6 +296,7 @@ function energy_budget(
         !iszero(de2T) &&
         throw(ArgumentError("$(nameof(typeof(closure))) energy requires de2 = 0"))
     supported = T === Float32 || T === Float64
+    kinetic = magnetic = electron = nothing
     if supported
         kinetic =
             ps isa ParticleSet ? _kinetic_energy_checked((ps,), T, Val(true), Val(true)) :

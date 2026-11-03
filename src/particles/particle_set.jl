@@ -170,7 +170,7 @@ end
 # Sufficient injectivity for identity-aligned batch reads and writes. An
 # arbitrary indexed view can visit the same backing location more than once.
 @inline _particle_batch_injective(a::AbstractVector) =
-    length(a) <= 1 || (a isa StridedVector && !iszero(stride(a, 1)))
+    length(a) <= 1 || (a isa DenseVector || (a isa StridedVector && !iszero(stride(a, 1))))
 
 # Dense/strided storage does not imply ordinary writes: Const is read-only,
 # and AtomicMemory requires atomic stores. Inspect standard wrapper parents

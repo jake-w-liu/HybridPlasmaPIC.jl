@@ -304,6 +304,13 @@ function init!(model::YeePML{D,T}) where {D,T}
     end
 end
 
+_yp_memory_after(::Type{T}, ::Nothing, psi, derivative, r) where {T} = nothing
+function _yp_memory_after(::Type{T}, a, psi, derivative, r) where {T}
+    next = _from_exact(T, ((1 - r) * psi - 2r * derivative) / (1 + r))
+    isfinite(next) || throw(ArgumentError("PML stage produces a nonfinite memory"))
+    return next
+end
+
 # A frozen-source midpoint subflow. Canonical exact differences retain original
 # entries/dx, and delta is Q(h) or Q(h)/2, never an independently rounded duration.
 function _yp_stage!(
@@ -344,14 +351,7 @@ function _yp_stage!(
                 lambda = model._axis_rate[axis][_yee_node(electric, c, axis) ? 1 : 2][I[axis]]
                 r = delta * lambda / 2
                 flux = (derivative + psi) / (1 + r)
-                value = if a === nothing
-                    nothing
-                else
-                    next = _from_exact(T, ((1 - r) * psi - 2r * derivative) / (1 + r))
-                    isfinite(next) ||
-                        throw(ArgumentError("PML stage produces a nonfinite memory"))
-                    next
-                end
+                value = _yp_memory_after(T, a, psi, derivative, r)
                 (flux = flux, before = psi, after = value)
             end
             value = _yee_source_row_exact(

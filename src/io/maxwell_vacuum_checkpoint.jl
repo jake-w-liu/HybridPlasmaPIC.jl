@@ -133,9 +133,11 @@ function archive_run(
     path::AbstractString,
     model::MaxwellVacuum;
     normalization::AbstractString = "epsilon0=1;mu0=1/c^2",
-    boundary_desc::AbstractString = join(map(p -> p ? "periodic" : "pec", model.g.periodic), ","),
+    boundary_desc = nothing,
     kwargs...,
 )
+    boundary_desc === nothing &&
+        (boundary_desc = join(map(p -> p ? "periodic" : "pec", model.g.periodic), ",")::String)
     return _archive_run(
         path,
         model,

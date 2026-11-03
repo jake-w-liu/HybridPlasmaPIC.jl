@@ -118,10 +118,10 @@ function CollisionalElectrostaticPIC(
     owned_rng = deepcopy(rng)
     st = CollisionalElectrostaticPIC(
         inner,
-        inner.g,
-        populations,
-        Tuple{Int,T,T}[(nparticles(ps), ps.q, ps.m) for ps in populations],
-        work.charge_rtol,
+        inner.g::FourierGrid{D,T},
+        populations::Vector{_ElectrostaticHostParticle{D,T}},
+        Tuple{Int,T,T}[(nparticles(ps), ps.q, ps.m) for ps in populations]::Vector{Tuple{Int,T,T}},
+        work.charge_rtol::T,
         h,
         logs,
         copy(logs),

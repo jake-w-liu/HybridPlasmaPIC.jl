@@ -76,7 +76,11 @@ function _gather_vector_stencil_exact(field_at, st, n, stamp, ::Type{T}, boundar
             weight *= Q(st[d][2][o[d]])
         end
         values = field_at(_stencil_node_index(st, n, o, boundary))
-        sums = ntuple(i -> sums[i] + Q(values[i]) * weight, 3)
+        sums = (
+            sums[1] + Q(values[1]) * weight,
+            sums[2] + Q(values[2]) * weight,
+            sums[3] + Q(values[3]) * weight,
+        )
     end
     out = map(x -> _from_exact(T, x), sums)
     all(isfinite, out) ||

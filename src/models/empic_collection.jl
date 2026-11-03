@@ -200,7 +200,7 @@ function _empic_collection_validate_storage(es::Union{EMPIC,EMPIC1D}, species)
         _check_particle_storage_axes(ps)
         _require_particle_ordinary_stores(ps, "electromagnetic collection")
         all(
-            a -> a isa StridedVector && _particle_batch_injective(a),
+            a -> (a isa StridedVector && _particle_batch_injective(a))::Bool,
             (ps.x..., ps.v..., ps.weight, ps.id, ps.tag),
         ) || throw(
             ArgumentError(
@@ -244,7 +244,7 @@ function _empic_collection_validate_populations(
         _require_finite_particle_velocities(ps, "electromagnetic collection")
         _empic_collection_validate_polarization(es, ps, work.mobile[i])
         relativistic && _require_subluminal_velocities(ps, c, "electromagnetic collection")
-        all(w -> isfinite(w) && _stored_nonnegative(w), ps.weight) ||
+        all(w -> (isfinite(w) && _stored_nonnegative(w))::Bool, ps.weight) ||
             throw(ArgumentError("electromagnetic weights must be finite and nonnegative"))
         !work.mobile[i] &&
             !all(a -> all(_particle_stored_zero, a), ps.v) &&

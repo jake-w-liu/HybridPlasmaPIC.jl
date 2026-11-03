@@ -860,13 +860,20 @@ function step!(st::YeeAbsorbingLongitudinalPIC{T}, particles, dt::Real) where {T
         st._impulse[1][i] = value
     end
     foreach(a -> fill!(a, zero(T)), (st._impulse[2], st._impulse[3]))
-    cumulative_count =
-        ntuple(side -> Base.checked_add(st.cumulative_wall_count[side][], counts[side]), 2)
-    cumulative_wall = ntuple(side -> st.cumulative_wall_impulse[side][] + walls[side], 2)
-    cumulative_charge = ntuple(side -> st.cumulative_wall_charge[side][] + charges[side], 2)
-    cumulative_kinetic = ntuple(side -> st.cumulative_wall_kinetic[side][] + kinetic[side], 2)
-    cumulative_work = ntuple(side -> st.cumulative_wall_work[side][] + deathworks[side], 2)
-    cumulative_energy = ntuple(side -> st.cumulative_wall_energy[side][] + received[side], 2)
+    cumulative_count = (
+        Base.checked_add(st.cumulative_wall_count[1][], counts[1]),
+        Base.checked_add(st.cumulative_wall_count[2][], counts[2]),
+    )
+    cumulative_wall =
+        (st.cumulative_wall_impulse[1][] + walls[1], st.cumulative_wall_impulse[2][] + walls[2])
+    cumulative_charge =
+        (st.cumulative_wall_charge[1][] + charges[1], st.cumulative_wall_charge[2][] + charges[2])
+    cumulative_kinetic =
+        (st.cumulative_wall_kinetic[1][] + kinetic[1], st.cumulative_wall_kinetic[2][] + kinetic[2])
+    cumulative_work =
+        (st.cumulative_wall_work[1][] + deathworks[1], st.cumulative_wall_work[2][] + deathworks[2])
+    cumulative_energy =
+        (st.cumulative_wall_energy[1][] + received[1], st.cumulative_wall_energy[2][] + received[2])
     history = (
         initialized = true,
         time = next_time,

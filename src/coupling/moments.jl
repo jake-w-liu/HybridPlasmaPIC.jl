@@ -327,7 +327,7 @@ function _validate_moment_particle_storage(grids, ps, works)
     return nothing
 end
 
-function _validate_moment_particles(ps)
+function _validate_moment_particles(ps::ParticleSet)
     count = nparticles(ps)
     for a in (ps.x..., ps.v..., ps.weight)
         length(a) == count ||

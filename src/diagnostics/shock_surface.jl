@@ -176,7 +176,7 @@ end
 
 function _shock_ion_flux_state(sh::PerpShock{T}, ps::ParticleSet{1,T}) where {T}
     N, dx = sh.s.n, sh.s.dx
-    acc = zeros(T, N)
+    acc = zeros(T, N)::Vector{T}
     xp, vx, vy, vz, w = ps.x[1], ps.v[1], ps.v[2], ps.v[3], ps.weight
     _require_finite_real_sequence("particle positions", xp)
     _require_finite_real_sequence("particle velocities vx", vx)

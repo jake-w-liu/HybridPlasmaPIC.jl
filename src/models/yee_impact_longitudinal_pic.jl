@@ -947,9 +947,12 @@ function step!(st::YeeImpactLongitudinalPIC{T}, particles, dt::Real) where {T}
         isfinite(value) || throw(ArgumentError("net impact impulse does not round finite"))
         st._impulse[1][i] = value
     end
-    cumulative_count =
-        ntuple(side -> Base.checked_add(st.cumulative_wall_count[side][], counts[side]), 2)
-    cumulative_wall = ntuple(side -> st.cumulative_wall_impulse[side][] + walls[side], 2)
+    cumulative_count = (
+        Base.checked_add(st.cumulative_wall_count[1][], counts[1]),
+        Base.checked_add(st.cumulative_wall_count[2][], counts[2]),
+    )
+    cumulative_wall =
+        (st.cumulative_wall_impulse[1][] + walls[1], st.cumulative_wall_impulse[2][] + walls[2])
     qz = zero(_YeeImpactQ)
     snapenergy =
         cluster === nothing ? qz :
