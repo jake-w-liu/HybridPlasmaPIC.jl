@@ -21,14 +21,22 @@ jobs:
         with:
           version: ${{ matrix.julia-version }}
       - uses: julia-actions/cache@v2
-      - name: Instantiate package environment
-        run: julia --startup-file=no --project=. -e 'using Pkg; Pkg.instantiate(); Pkg.status()'
-      - name: Usable-size probe with the CI test flags
+      - name: Instantiate declared test environment
+        run: |
+          julia --startup-file=no -e '
+            using Pkg
+            Pkg.activate(joinpath(ENV["RUNNER_TEMP"], "test-env"))
+            Pkg.develop(path = ENV["GITHUB_WORKSPACE"])
+            Pkg.add(["Test", "Profile", "Random"])
+            Pkg.status()'
+      - name: Repeat the permanent linear CN test with the CI test flags
         shell: bash
         run: |
           mkdir -p "$RUNNER_TEMP/usable-evidence"
-          julia --startup-file=no --check-bounds=yes --depwarn=yes --threads=1,1 --project=. \
-            .github/diagnostics/usable_size_probe.jl 2>&1 | tee "$RUNNER_TEMP/usable-evidence/probe.log"
+          set -o pipefail
+          julia --startup-file=no --check-bounds=yes --depwarn=yes --threads=1,1 \
+            --project="$RUNNER_TEMP/test-env" \
+            .github/diagnostics/linear_cn_repeat.jl 2>&1 | tee "$RUNNER_TEMP/usable-evidence/repeat.log"
       - name: Preserve probe log
         if: always()
         uses: actions/upload-artifact@v4
