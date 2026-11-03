@@ -179,7 +179,10 @@ end
         _yee_charge_positions(after, particles, T)
         _yee_endpoint_aliases(buffers, before)
         _yee_endpoint_aliases(buffers, after)
-        before isa StridedVector{T} && after isa StridedVector{T} ||
+        # Same storage contract as `isa`, without narrowing the endpoints to the
+        # StridedVector union: that split sends inference through Base's
+        # ReinterpretArray indexing, which Julia 1.13 reports as a builtin error.
+        typeof(before) <: StridedVector{T} && typeof(after) <: StridedVector{T} ||
             throw(ArgumentError("Yee charge endpoints must use CPU strided vectors"))
     else
         before, after = nothing, nothing
