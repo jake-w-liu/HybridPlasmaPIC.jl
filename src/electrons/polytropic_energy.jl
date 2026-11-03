@@ -24,7 +24,7 @@ function _polytropic_round_sum(::Type{T}, state) where {T<:Union{Float32,Float64
     left = _polytropic_round_scaled(T, lo, exponent)::T
     right = _polytropic_round_scaled(T, hi, exponent)::T
     isequal(left, right) && return left
-    boundary = _polytropic_sum_boundary(left, right)
+    boundary = _polytropic_sum_boundary(promote(left, right)...)
     if boundary !== nothing
         lower_strict && _polytropic_dyadic_equal(lo, exponent, boundary) && return right
         upper_strict && _polytropic_dyadic_equal(hi, exponent, boundary) && return left
@@ -225,7 +225,7 @@ function _polytropic_exact_energy(
         value === nothing || return value
         left = _polytropic_round_scaled(T, state[1], state[3])::T
         right = _polytropic_round_scaled(T, state[2], state[3])::T
-        boundary = _polytropic_sum_boundary(left, right)
+        boundary = _polytropic_sum_boundary(promote(left, right)...)
         # Adjacent half-subnormal boundaries take precedence over zero. Testing
         # zero instead would never decide an exact half-subnormal tie.
         boundary === nothing && state[1] <= 0 <= state[2] && (boundary = zero(Rational{BigInt}))

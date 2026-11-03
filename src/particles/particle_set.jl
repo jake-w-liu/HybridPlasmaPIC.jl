@@ -171,6 +171,10 @@ end
 # arbitrary indexed view can visit the same backing location more than once.
 # Dense storage is injective at any length; strided wrappers check their stride.
 @inline _particle_batch_injective(::DenseVector) = true
+# ReinterpretArray forwards stride() to a packed-size reshape the compiler
+# cannot always resolve; its layout is injective exactly when its parent is.
+@inline _particle_batch_injective(a::Base.ReinterpretArray) =
+    length(a) <= 1 || _particle_batch_injective(a.parent)
 @inline _particle_batch_injective(a::AbstractVector) =
     length(a) <= 1 || (a isa StridedVector && !iszero(stride(a, 1)))
 

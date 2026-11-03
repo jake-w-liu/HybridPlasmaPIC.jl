@@ -306,7 +306,7 @@ end
 
 _yp_memory_after(::Type{T}, ::Nothing, psi, derivative, r) where {T} = nothing
 function _yp_memory_after(::Type{T}, a, psi, derivative, r) where {T}
-    next = _from_exact(T, ((1 - r) * psi - 2r * derivative) / (1 + r))
+    next = _from_exact(T, ((1 - r) * psi - 2r * derivative) / (1 + r))::T
     isfinite(next) || throw(ArgumentError("PML stage produces a nonfinite memory"))
     return next
 end
@@ -347,7 +347,7 @@ function _yp_stage!(
                 derivative =
                     _yee_difference_exact(source[source_component], I, axis, g, !electric)
                 a = old_memory[c][slot]
-                psi = a === nothing ? zero(_YeeLayerQ) : _exact_rational(a[I])
+                psi = a === nothing ? zero(_YeeLayerQ) : _exact_rational((a::Array{T})[I])
                 lambda = model._axis_rate[axis][_yee_node(electric, c, axis) ? 1 : 2][I[axis]]
                 r = delta * lambda / 2
                 flux = (derivative + psi) / (1 + r)

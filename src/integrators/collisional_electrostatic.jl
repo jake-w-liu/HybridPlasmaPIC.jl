@@ -35,7 +35,7 @@ setters and concurrent external mutation. Use independent states/grids/populatio
 for concurrent calls. The explicit Xoshiro or MersenneTwister is deeply detached;
 init preserves its stream, and restart retains its full same-runtime state.
 """
-mutable struct CollisionalElectrostaticPIC{D,T,S,R,L,G<:FourierGrid{D,T}}
+mutable struct CollisionalElectrostaticPIC{D,T,S,R,L,G<:FourierGrid{D,T},C}
     const inner::S
     const grid::G
     const species::Vector{_ElectrostaticHostParticle{D,T}}
@@ -48,7 +48,7 @@ mutable struct CollisionalElectrostaticPIC{D,T,S,R,L,G<:FourierGrid{D,T}}
     const weight_to_number::T
     const u_floor::T
     const rng::R
-    const candidate_rng::R
+    const candidate_rng::C
     const workspace::CoulombCollisionWorkspace{T}
     const busy::Threads.Atomic{Bool}
     phase::Symbol
@@ -124,10 +124,10 @@ function CollisionalElectrostaticPIC(
         work.charge_rtol::T,
         h,
         logs,
-        copy(logs),
-        epsilon,
-        number_scale,
-        uf,
+        copy(logs)::typeof(logs),
+        epsilon::T,
+        number_scale::T,
+        uf::T,
         owned_rng,
         deepcopy(owned_rng),
         CoulombCollisionWorkspace(populations, inner.g),

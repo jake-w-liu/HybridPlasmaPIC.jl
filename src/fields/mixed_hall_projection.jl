@@ -42,7 +42,7 @@ end
 
 function MixedHallProjectionWorkspace(op::MixedShockOperators{D,T}) where {D,T}
     _mixed_storage(op)
-    rows = _mixed_constraint_count(op)
+    rows = _mixed_constraint_count(op)::Int
     A() = zeros(T, op.n)
     V() = (A(), A(), A())
     solver = Krylov.MinresQlpWorkspace(rows, rows, Vector{T})
@@ -50,8 +50,8 @@ function MixedHallProjectionWorkspace(op::MixedShockOperators{D,T}) where {D,T}
         op.n,
         op.L,
         solver,
-        zeros(T, rows),
-        zeros(T, rows),
+        zeros(T, rows)::Vector{T},
+        zeros(T, rows)::Vector{T},
         A(),
         A(),
         A(),
@@ -90,7 +90,7 @@ _mixed_projection_arrays(w) = (
 function _mixed_projection_storage(w::MixedHallProjectionWorkspace{D,T}, op) where {D,T}
     w.n == op.n && w.L == op.L ||
         throw(ArgumentError("mixed projection workspace geometry changed"))
-    rows = _mixed_constraint_count(op)
+    rows = _mixed_constraint_count(op)::Int
     s = w.solver
     s isa Krylov.MinresQlpWorkspace{T,T,Vector{T}} ||
         throw(ArgumentError("mixed projection requires the concrete CPU MINRES-QLP workspace"))

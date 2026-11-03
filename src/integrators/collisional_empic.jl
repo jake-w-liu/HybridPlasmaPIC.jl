@@ -41,7 +41,7 @@ The explicit Xoshiro or MersenneTwister RNG is deeply detached from its caller.
 Initialization preserves its current stream. Checkpoints/archives retain full
 advanced RNG state and require the same Julia runtime/platform.
 """
-mutable struct CollisionalEMPICStepper{D,T,S,R,L,SH,G<:FourierGrid{D,T}}
+mutable struct CollisionalEMPICStepper{D,T,S,R,L,SH,G,C<:FourierGrid{D,T}}
     const inner::S
     const grid::G
     const species::Vector{_ElectrostaticHostParticle{D,T}}
@@ -56,7 +56,7 @@ mutable struct CollisionalEMPICStepper{D,T,S,R,L,SH,G<:FourierGrid{D,T}}
     const weight_to_number::T
     const u_floor::T
     const rng::R
-    const candidate_rng::R
+    const candidate_rng::C
     const workspace::CoulombCollisionWorkspace{T}
     const busy::Threads.Atomic{Bool}
     phase::Symbol
@@ -144,14 +144,14 @@ function CollisionalEMPICStepper(
         populations::Vector{_ElectrostaticHostParticle{D,T}},
         Tuple{Int,T,T}[(nparticles(ps), ps.q, ps.m) for ps in populations]::Vector{Tuple{Int,T,T}},
         inner.c::T,
-        inner.shape,
-        work.charge_rtol,
-        h,
+        inner.shape::ShapeFunction,
+        work.charge_rtol::T,
+        h::T,
         logs,
-        copy(logs),
-        epsilon,
-        number_scale,
-        uf,
+        copy(logs)::typeof(logs),
+        epsilon::T,
+        number_scale::T,
+        uf::T,
         owned_rng,
         deepcopy(owned_rng),
         CoulombCollisionWorkspace(populations, inner.g),
