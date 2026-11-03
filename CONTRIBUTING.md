@@ -29,6 +29,14 @@ single test file while developing, run it against the package project:
 julia --project=. test/test_hybrid.jl
 ```
 
+The suite is split into eight contiguous groups selected by `HPIC_TEST_GROUP`;
+unset or `all` runs everything in order, matching CI's group matrix. To run one
+group locally:
+
+```bash
+HPIC_TEST_GROUP=3 julia --project=. -e 'using Pkg; Pkg.test()'
+```
+
 Note that test files relying on a test-only dependency must be run through
 `Pkg.test()` so those packages are on the load path. In particular,
 `test_quality.jl` requires Aqua, `test_extensions.jl` requires HDF5, and

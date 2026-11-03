@@ -1,6 +1,8 @@
 using HybridPlasmaPIC, Test
+isdefined(@__MODULE__, :KineticRangeOracle) || include("kinetic_range_oracle.jl")
+isdefined(@__MODULE__, :CGLEnergyRangeOracle) || include("cgl_energy_range_oracle.jl")
 
-# Independent rational oracles are loaded by the preceding diagnostic tests.
+# Independent rational oracles are loaded from kinetic_range_oracle.jl and cgl_energy_range_oracle.jl.
 @testset "Complete CGL, particle and magnetic reservoirs in one budget" begin
     Q = Rational{BigInt}
     for T in (Float32, Float64), D = 1:3

@@ -1,6 +1,7 @@
 using HybridPlasmaPIC, Test
+isdefined(@__MODULE__, :CGLEnergyRangeOracle) || include("cgl_energy_range_oracle.jl")
 
-# Uses the independent CGLEnergyRangeOracle from test_cgl_energy_range.jl.
+# Uses the independent CGLEnergyRangeOracle from cgl_energy_range_oracle.jl.
 @testset "CGL finite-looking overflow midpoint and decisive tails" begin
     O = CGLEnergyRangeOracle
     for T in (Float32, Float64)

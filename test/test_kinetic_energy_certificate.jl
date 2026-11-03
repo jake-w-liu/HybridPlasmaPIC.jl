@@ -1,4 +1,5 @@
 using HybridPlasmaPIC, Test, Random
+isdefined(@__MODULE__, :KineticRangeOracle) || include("kinetic_range_oracle.jl")
 
 @testset "Kinetic forward-error enclosures vs exact expressions" begin
     Q = Rational{BigInt}

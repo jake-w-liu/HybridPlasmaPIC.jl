@@ -1,6 +1,7 @@
 using HybridPlasmaPIC, Test, Random
+isdefined(@__MODULE__, :KineticRangeOracle) || include("kinetic_range_oracle.jl")
 
-# Uses KineticRangeOracle from test_kinetic_energy_range.jl.
+# Uses the independent KineticRangeOracle from kinetic_range_oracle.jl.
 @testset "Kinetic small normalized weights keep ordinary outputs and allocations" begin
     rng = MersenneTwister(249852)
     for T in (Float32, Float64),

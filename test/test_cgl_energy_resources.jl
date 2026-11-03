@@ -1,4 +1,5 @@
 using HybridPlasmaPIC, Test
+isdefined(@__MODULE__, :CGLEnergyRangeOracle) || include("cgl_energy_range_oracle.jl")
 
 @testset "CGL ordinary zero cells retain output and zero allocations" begin
     O = CGLEnergyRangeOracle

@@ -396,6 +396,10 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Changed
 
+- The full test suite is sharded into eight contiguous groups selected by
+  `HPIC_TEST_GROUP`; CI runs a group x Julia matrix while an unset variable
+  still runs everything in order.
+
 - Fixed `EMPIC` and `EMPIC1D` collection populations share original stored-zero
   velocity admission, independent of arithmetic zero comparison under FTZ.
   Signed zeros remain accepted; essential lifecycle and restore checks await

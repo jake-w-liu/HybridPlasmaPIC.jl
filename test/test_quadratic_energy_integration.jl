@@ -1,6 +1,7 @@
 using HybridPlasmaPIC, Test
+isdefined(@__MODULE__, :KineticRangeOracle) || include("kinetic_range_oracle.jl")
 
-# KineticRangeOracle supplies independent rational rounding-cell checks.
+# KineticRangeOracle from kinetic_range_oracle.jl supplies independent rational rounding-cell checks.
 @testset "Complete particle, magnetic and stored-pressure energy in one budget" begin
     Q = Rational{BigInt}
     for T in (Float32, Float64), D = 1:3
