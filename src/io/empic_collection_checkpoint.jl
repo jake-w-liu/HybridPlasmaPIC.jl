@@ -169,7 +169,7 @@ function _validate_empic_collection_checkpoint_envelope(
         throw(ArgumentError("advanced electromagnetic checkpoint must be initialized"))
     s.species isa AbstractVector && axes(s.species, 1) == Base.OneTo(length(s.species)) ||
         throw(ArgumentError("checkpoint species must be an ordered one-based vector"))
-    populations = ParticleSet{D,T}[_checkpoint_species(record, Val(D), T) for record in s.species]
+    populations = [_checkpoint_species(record, Val(D), T) for record in s.species]
     _empic_collection_validate_populations(st, populations, s.c, s.relativistic)
     _validate_checkpoint_fields(s.fields, _empic_checkpoint_fields(st))
     arrays = _empic_collection_checkpoint_arrays(st, s.fields)
