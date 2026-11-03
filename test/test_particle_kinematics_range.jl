@@ -333,18 +333,32 @@ end
                 @test_throws ArgumentError H._boris_rel(w..., E..., B..., qm, dt, c)
             elseif kinematics_supported_velocity(historical, c)
                 rel_valid_parent += 1
-                actual = H._boris_rel(w..., E..., B..., qm, dt, c)
-                if !isequal(actual, historical)
-                    # Check every changed tuple against the independent
-                    # physical oracle. Difference selects verification work;
-                    # only the oracle decides whether a change is permitted.
-                    # Unchanged tuples receive no accuracy classification.
-                    reference, scale = boris_rel_reference(w, E, B, qm, dt, c)
-                    old_ok = rel_ok(historical, reference, scale)
-                    new_ok =
-                        rel_ok(actual, reference, scale) && kinematics_supported_velocity(actual, c)
-                    rel += old_ok || !new_ok
-                    rel_accuracy_repaired += 1
+                reference, scale = boris_rel_reference(w, E, B, qm, dt, c)
+                # The strict contract publishes in-domain or rejects; a rounded
+                # oracle leaving the cone may end either way, but anything the
+                # owner returns must itself be supported.
+                actual = try
+                    H._boris_rel(w..., E..., B..., qm, dt, c)
+                catch e
+                    e isa ArgumentError || rethrow(e)
+                    nothing
+                end
+                reference_supported = kinematics_supported_velocity(T.(reference), c)
+                reference_supported && @test actual !== nothing
+                if actual !== nothing
+                    @test kinematics_supported_velocity(actual, c)
+                    if !isequal(actual, historical) && reference_supported
+                        # Check every changed tuple against the independent
+                        # physical oracle. Difference selects verification work;
+                        # only the oracle decides whether a change is permitted.
+                        # Unchanged tuples receive no accuracy classification.
+                        old_ok = rel_ok(historical, reference, scale)
+                        new_ok =
+                            rel_ok(actual, reference, scale) &&
+                            kinematics_supported_velocity(actual, c)
+                        rel += old_ok || !new_ok
+                        rel_accuracy_repaired += 1
+                    end
                 end
             else
                 # Preserve every original input. Only the independently
