@@ -40,10 +40,11 @@ import JET
         println()
     end
     @test isempty(located_reports)
-    # Measured 2026-11-03 with Julia 1.12.7 / 1.13.3 and JET 0.13.1: the
-    # dependency/Base-located baseline after the package-located fixes, driven
-    # mostly by new solver paths through Krylov/MPI/Serialization.
-    JET_TOTAL_BASELINE = 89
+    # Measured 2026-11-03 with JET 0.13.1 once package-located reports reached
+    # zero: 86 on Julia 1.12.7 and 79 on 1.13.3. All remaining reports are
+    # located in dependencies or Base, mostly on solver paths through
+    # Krylov/MPI/Serialization; the cap is the larger measurement.
+    JET_TOTAL_BASELINE = 86
     @test length(reports) <= JET_TOTAL_BASELINE
     # Retain the validated byte-vector payload type through nested decoding,
     # including when optional packages add unrelated read methods.

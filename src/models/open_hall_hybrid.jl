@@ -1219,8 +1219,8 @@ function OpenHallHybrid(
     rng isa Union{Random.Xoshiro,Random.MersenneTwister} ||
         throw(ArgumentError("open Hall requires Xoshiro or MersenneTwister"))
     _validate_collisional_rng(rng)
-    candidate_rng = deepcopy(rng)
-    _validate_collisional_rng_pair(rng, candidate_rng, "open Hall")
+    rngs = _open_hall_rng_pair(rng)
+    _validate_collisional_rng_pair(rngs[1], rngs[2], "open Hall")
     fields = HybridFields{D,T}(op.n)
     if B === nothing
         Q = _exact_rational
@@ -1244,45 +1244,55 @@ function OpenHallHybrid(
         _open_hall_configuration(op, physics, scalars, ids, records, targets, sat_speeds, controls),
     )
     ns = length(owners)
-    st = OpenHallHybrid(
-        op,
-        physics,
-        CIC(),
-        fields,
-        owners::Vector{_ElectrostaticHostParticle{D,T}},
-        scalars::Vector{Tuple{T,T}},
-        counts::Vector{Int},
-        ids::Vector{UInt64},
-        records::Vector{NTuple{2,OpenHallReservoir{T}}},
-        fluxes::Vector{NTuple{2,T}},
-        targets::NTuple{2,NTuple{2,T}},
-        sat_speeds::NTuple{2,T},
-        controls,
-        configuration,
-        rng,
-        candidate_rng,
-        zeros(_OpenHallQ, 2ns),
-        ones(UInt64, ns),
-        ones(UInt64, ns),
-        [_OpenHallExchange() for _ = 1:ns],
-        [_OpenHallExchange() for _ = 1:2ns],
-        [_OpenHallExchange() for _ = 1:2ns],
-        [_OpenHallExchange() for _ = 1:2ns],
-        [_OpenHallExchange() for _ = 1:2ns],
-        zero(_OpenHallQ),
-        _OpenHallCumulative(),
-        Ref(false),
-        Ref(zero(T)),
-        Ref(0),
-        Ref(zero(T)),
-        nothing,
-        _open_hall_workspace(op),
-        false,
+    st = _open_hall_publish(
+        (
+            op,
+            physics,
+            CIC(),
+            fields,
+            owners::Vector{_ElectrostaticHostParticle{D,T}},
+            scalars::Vector{Tuple{T,T}},
+            counts::Vector{Int},
+            ids::Vector{UInt64},
+            records::Vector{NTuple{2,OpenHallReservoir{T}}},
+            fluxes::Vector{NTuple{2,T}},
+            targets::NTuple{2,NTuple{2,T}},
+            sat_speeds::NTuple{2,T},
+            controls,
+            configuration,
+        ),
+        rngs,
+        (
+            zeros(_OpenHallQ, 2ns),
+            ones(UInt64, ns),
+            ones(UInt64, ns),
+            [_OpenHallExchange() for _ = 1:ns],
+            [_OpenHallExchange() for _ = 1:2ns],
+            [_OpenHallExchange() for _ = 1:2ns],
+            [_OpenHallExchange() for _ = 1:2ns],
+            [_OpenHallExchange() for _ = 1:2ns],
+            zero(_OpenHallQ),
+            _OpenHallCumulative(),
+            Ref(false),
+            Ref(zero(T)),
+            Ref(0),
+            Ref(zero(T)),
+            nothing,
+            _open_hall_workspace(op),
+            false,
+        ),
     )
     _open_hall_binding(st, species; values = false, counts = false)
     _open_hall_storage(st) # Original opaque RNG metadata is checked before use.
     return st
 end
+
+# The borrowed RNG and its detached candidate share one concrete type R. Keeping
+# them as one Tuple{R,R} into a non-inlined publisher preserves that link for
+# inference; the caller-side Union{Xoshiro,MersenneTwister} would split them.
+_open_hall_rng_pair(rng::R) where {R} = (rng, deepcopy(rng)::R)
+@noinline _open_hall_publish(before::Tuple, rngs::Tuple{R,R}, after::Tuple) where {R} =
+    OpenHallHybrid(before..., rngs[1], rngs[2], after...)
 
 function _open_hall_pair_duration(h::T, level::Int) where {T}
     delta = ldexp(h, -level)

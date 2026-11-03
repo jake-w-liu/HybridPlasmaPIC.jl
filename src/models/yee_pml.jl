@@ -355,8 +355,10 @@ function _yp_stage!(
                 lambda = model._axis_rate[axis][_yee_node(electric, c, axis) ? 1 : 2][I[axis]]
                 r = delta * lambda / 2
                 flux = (derivative + psi) / (1 + r)
-                value = _yp_memory_after(T, a, psi, derivative, r)
-                (flux = flux, before = psi, after = value)
+                # A distinct name keeps this a closure local; reusing `value`
+                # would capture and box the enclosing row variable.
+                memory = _yp_memory_after(T, a, psi, derivative, r)
+                (flux = flux, before = psi, after = memory)
             end
             value = _yee_source_row_exact(
                 original + beta * delta * (terms[1].flux - terms[2].flux),
