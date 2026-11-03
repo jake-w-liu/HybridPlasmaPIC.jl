@@ -305,6 +305,10 @@ function init!(model::YeePML{D,T}) where {D,T}
 end
 
 _yp_memory_after(::Type{T}, ::Nothing, psi, derivative, r) where {T} = nothing
+# Dispatch on the memory slot keeps psi assigned on every inference split of
+# the Union{Array{T},Nothing} element type; an absent memory contributes zero.
+@inline _yp_slot_psi(::Nothing, I) = zero(_YeeLayerQ)
+@inline _yp_slot_psi(a::Array, I) = _exact_rational(a[I])
 function _yp_memory_after(::Type{T}, a, psi, derivative, r) where {T}
     next = _from_exact(T, ((1 - r) * psi - 2r * derivative) / (1 + r))::T
     isfinite(next) || throw(ArgumentError("PML stage produces a nonfinite memory"))
@@ -347,7 +351,7 @@ function _yp_stage!(
                 derivative =
                     _yee_difference_exact(source[source_component], I, axis, g, !electric)
                 a = old_memory[c][slot]
-                psi = a === nothing ? zero(_YeeLayerQ) : _exact_rational((a::Array{T})[I])
+                psi = _yp_slot_psi(a, I)
                 lambda = model._axis_rate[axis][_yee_node(electric, c, axis) ? 1 : 2][I[axis]]
                 r = delta * lambda / 2
                 flux = (derivative + psi) / (1 + r)

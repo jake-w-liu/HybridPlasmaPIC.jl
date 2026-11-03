@@ -137,8 +137,7 @@ function CollisionalEMPICStepper(
     _validate_collisional_rng(rng)
     _validate_checkpoint_configuration((species = species,), inner, (rng,))
     populations = Vector{_ElectrostaticHostParticle{D,T}}(species)
-    owned_rng = deepcopy(rng)
-    st = CollisionalEMPICStepper(
+    st = _collisional_empic_publish(
         inner,
         inner.g::FourierGrid{D,T},
         populations::Vector{_ElectrostaticHostParticle{D,T}},
@@ -152,8 +151,7 @@ function CollisionalEMPICStepper(
         epsilon::T,
         number_scale::T,
         uf::T,
-        owned_rng,
-        deepcopy(owned_rng),
+        deepcopy(rng),
         CoulombCollisionWorkspace(populations, inner.g),
         Threads.Atomic{Bool}(false),
         :uninitialized,
@@ -380,4 +378,52 @@ function electromagnetic_diagnostics(st::CollisionalEMPICStepper, species::Abstr
     finally
         st.busy[] = false
     end
+end
+
+# The rng/candidate_rng pair shares field type R; taking the owned RNG as a
+# type parameter inside a non-inlined publisher keeps the two values type-
+# linked for inference where the caller-side deepcopy union would split.
+@noinline function _collisional_empic_publish(
+    inner,
+    grid,
+    populations,
+    identities,
+    c,
+    shape,
+    rtol,
+    h,
+    logs,
+    logs_copy,
+    epsilon,
+    number_scale,
+    uf,
+    owned_rng::R,
+    workspace,
+    atomic,
+    label,
+    zero_dt,
+    step_count,
+) where {R}
+    return CollisionalEMPICStepper(
+        inner,
+        grid,
+        populations,
+        identities,
+        c,
+        shape,
+        rtol,
+        h,
+        logs,
+        logs_copy,
+        epsilon,
+        number_scale,
+        uf,
+        owned_rng,
+        deepcopy(owned_rng)::R,
+        workspace,
+        atomic,
+        label,
+        zero_dt,
+        step_count,
+    )
 end

@@ -192,6 +192,7 @@ const HPIC_TEST_GROUPS = [
         "test_empic_relativistic_species.jl",
         "test_empic1d.jl",
         "test_bounded_maxwell.jl",
+        "test_yee_pml.jl",
     ],
     [
         "test_yee_impact_longitudinal_pic.jl",
