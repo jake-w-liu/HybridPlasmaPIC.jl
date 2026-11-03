@@ -133,7 +133,7 @@ function archive_run(
     path::AbstractString,
     model::MaxwellVacuum;
     normalization::AbstractString = "epsilon0=1;mu0=1/c^2",
-    boundary_desc = nothing,
+    boundary_desc::Union{Nothing,AbstractString} = nothing,
     kwargs...,
 )
     boundary_desc === nothing &&

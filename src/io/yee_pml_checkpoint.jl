@@ -164,7 +164,7 @@ function archive_run(
     path::AbstractString,
     model::YeePML;
     normalization::AbstractString = "epsilon0=1;mu0=1/c^2;directional_ADE_PML_kappa1_alpha0",
-    boundary_desc = nothing,
+    boundary_desc::Union{Nothing,AbstractString} = nothing,
     kwargs...,
 )
     boundary_desc === nothing && (

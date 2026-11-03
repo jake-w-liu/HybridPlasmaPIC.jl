@@ -18,8 +18,6 @@ function _polytropic_sum_boundary(left::T, right::T) where {T<:Union{Float32,Flo
     left == -T(Inf) && right == -floatmax(T) && return -_polytropic_midpoint_after(floatmax(T))
     return nothing
 end
-_polytropic_sum_boundary(left::Union{Float32,Float64}, right::Union{Float32,Float64}) =
-    _polytropic_sum_boundary(promote(left, right)...)
 
 function _polytropic_round_sum(::Type{T}, state) where {T<:Union{Float32,Float64}}
     lo, hi, exponent, lower_strict, upper_strict = state

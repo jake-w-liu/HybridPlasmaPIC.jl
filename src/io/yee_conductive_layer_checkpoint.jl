@@ -143,7 +143,7 @@ function archive_run(
     path::AbstractString,
     model::YeeConductiveLayer;
     normalization::AbstractString = "epsilon0=1;mu0=1/c^2;scalar_matched_conductivity",
-    boundary_desc = nothing,
+    boundary_desc::Union{Nothing,AbstractString} = nothing,
     kwargs...,
 )
     boundary_desc === nothing && (
