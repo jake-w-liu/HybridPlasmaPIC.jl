@@ -119,11 +119,17 @@ end
 
 # The unchanged ordinary arithmetic remains byte-for-byte compatible, while
 # corrected cancellation/range regions above use an independent component oracle.
-scalar_bytes(a, b) = @allocated cn_multiplier(a, b)
+# @allocated reads a process-wide byte counter, and Pkg runs the test worker
+# with an interactive thread on Julia >= 1.12, so concurrent runtime work can add
+# bytes to a single measurement. These calls are deterministic and allocate the
+# same bytes every time, so the minimum of a few measurements is their own count.
+min_allocated(f) = minimum(_ -> (@allocated f()), 1:3)
+scalar_bytes(a, b) = min_allocated(() -> cn_multiplier(a, b))
 legacy_scalar(a, b) = (1 - im * a * b / 2) / (1 + im * a * b / 2)
-legacy_scalar_bytes(a, b) = @allocated legacy_scalar(a, b)
-packet_bytes(n, B0, n0, L) = @allocated run_whistler(; n, B0, n0, L, nsteps = 1, dt = 1e-6)
-frequency_bytes(n, L, c) = @allocated H._whistler_omega(n, L, c)
+legacy_scalar_bytes(a, b) = min_allocated(() -> legacy_scalar(a, b))
+packet_bytes(n, B0, n0, L) =
+    min_allocated(() -> run_whistler(; n, B0, n0, L, nsteps = 1, dt = 1e-6))
+frequency_bytes(n, L, c) = min_allocated(() -> H._whistler_omega(n, L, c))
 @testset "Ordinary CN compatibility and resources" begin
     for T in (Float16, Float32, Float64), (x, y) in ((0.3, 0.05), (40, 1.3), (-0.7, 0.1), (3, 2))
         a, b = T(x), T(y)
