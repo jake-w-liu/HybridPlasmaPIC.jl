@@ -170,6 +170,10 @@ function _validate_empic_collection_checkpoint_envelope(
     s.species isa AbstractVector && axes(s.species, 1) == Base.OneTo(length(s.species)) ||
         throw(ArgumentError("checkpoint species must be an ordered one-based vector"))
     populations = [_checkpoint_species(record, Val(D), T) for record in s.species]
+    # Concrete records give a concretely typed vector. An empty collection of
+    # untyped records infers Vector{Any}; keep the typed empty vector the
+    # collection validators require, as the original typed comprehension did.
+    eltype(populations) <: ParticleSet{D,T} || (populations = ParticleSet{D,T}[])
     _empic_collection_validate_populations(st, populations, s.c, s.relativistic)
     _validate_checkpoint_fields(s.fields, _empic_checkpoint_fields(st))
     arrays = _empic_collection_checkpoint_arrays(st, s.fields)
