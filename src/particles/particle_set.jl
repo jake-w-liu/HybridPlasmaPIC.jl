@@ -172,9 +172,15 @@ end
 # Dense storage is injective at any length; strided wrappers check their stride.
 @inline _particle_batch_injective(::DenseVector) = true
 # ReinterpretArray forwards stride() to a packed-size reshape the compiler
-# cannot always resolve; its layout is injective exactly when its parent is.
+# cannot always resolve; dispatch on the parent storage instead so exotic
+# parents keep the stride check.
 @inline _particle_batch_injective(a::Base.ReinterpretArray) =
-    length(a) <= 1 || _particle_batch_injective(a.parent)
+    length(a) <= 1 || _particle_reinterpret_injective(a, parent(a))
+@inline _particle_reinterpret_injective(a, ::DenseArray) = true
+@inline _particle_reinterpret_injective(a, ::DenseVector) = true
+@inline _particle_reinterpret_injective(a, p::AbstractVector) = _particle_batch_injective(p)
+@inline _particle_reinterpret_injective(a, p::AbstractArray) =
+    a isa StridedVector && !iszero(stride(a, 1))
 @inline _particle_batch_injective(a::AbstractVector) =
     length(a) <= 1 || (a isa StridedVector && !iszero(stride(a, 1)))
 
