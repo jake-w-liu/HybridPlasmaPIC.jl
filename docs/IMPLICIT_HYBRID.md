@@ -210,6 +210,25 @@ may change. No initialization, redeposition, Ohm recomputation, solve, projectio
 or leapfrog migration is performed. No midpoint/initial guess/Jv/Krylov/FFT work,
 plans or other scratch is persisted.
 
-This implementation has received source review only. No Julia, compiler, parser,
-numerical, convergence, temporal-order, dispersion, work-error, rollback/restart,
-resource or performance acceptance was executed in this implementation phase.
+## Acceptance status
+
+`test_implicit_hybrid.jl` exercises this family end to end on Julia 1.12.7 and
+1.13.3, Float32 and Float64: construction on a uniform lattice with two ion
+species, `init!`, `step!`, diagnostics and a zero-`dt` no-op; a fixed-point
+oracle solving the represented coupled equations by exact `Rational{BigInt}`
+Picard iteration (independent of the Newton/GMRES owner) matching accepted
+velocities, wrapped endpoint coordinates, the unchanged uniform `B` and the
+endpoint Ohm field within a bounded multiple of the stored solve tolerance;
+`step!`-before-`init!`, nonpositive/nonfinite `dt` and public-field corruption
+rejections leaving state and prior report bitwise intact; a bounded-solver
+exhaustion (`max_newton = 0`) failing as `ImplicitHybridConvergenceError` with
+untouched state and report; and checkpoint save/restore into a separately
+constructed destination continuing bitwise through further steps.
+
+Still open for 005B/C acceptance: non-uniform (genuinely spatial) residual
+oracles, temporal-order and dispersion measurements, continuous/discrete work
+and momentum error ledgers, compiler/JET coverage of the package-located frames,
+resource/performance budgets, and the deferred evolving-pressure, orbit-average,
+dissipative and preconditioning extensions. `recommended_dt` remains a
+grid-level bound and does not accept the stepper (a `MethodError`), which is the
+recorded interface gap for this family.
