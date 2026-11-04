@@ -15,20 +15,24 @@ Source presence, a passing primitive test and a complete simulation are separate
 milestones. No current evidence establishes that the package is globally bug-free,
 fully optimized, or stronger than every external plasma code.
 
-**Recorded-milestone snapshot (2026-11-02):** 14 checked and 65 open
-checkbox items out of 79 (17.7% checked). This is an unweighted count of
+**Recorded-milestone snapshot (2026-11-04):** 23 checked and 56 open
+checkbox items out of 79 (29.1% checked). This is an unweighted count of
 this plan's recorded milestones. Checked source milestones can still await
 GitHub acceptance; the count is neither weighted physics/runtime completion
 nor a measured percentage of the full goal. All eleven CAP areas retain open
-work.
+work. The nine boxes checked on 2026-11-04 close only the gates their own text
+names. Each cites its evidence; resource gates kept in the linked family plans
+stay open.
 
-**Current validation policy (2026-11-02):** combine source/caller review with
-exact-revision GitHub CI for every push. Package, JET/compiler, formatting and
-MPI checks run remotely; local Julia/device workloads remain excluded. Earlier
-source-only publications retain pending acceptance until their corresponding
-checks pass. Failed checks must be diagnosed and repaired without weakening
-assertions or acceptance limits. The [audit tracker](DEEP_DEBUG_TRACKER.md#current-progress)
-records the active runs and failures.
+**Current validation policy (2026-11-04):** combine source/caller review with
+exact-revision GitHub CI for every push. Local formatting, package loading and
+focused tests are allowed; the full package suite, MPI ranks and formatting
+gate run on GitHub. The JET gate requires zero package-located reports and at
+most the measured total. Earlier source-only publications retain pending
+acceptance until their corresponding checks pass. Failed checks must be
+diagnosed and repaired without weakening assertions or acceptance limits. The
+[audit tracker](DEEP_DEBUG_TRACKER.md#current-progress) records the active runs
+and failures.
 
 The canonical [complete energy-budget source](HYBRID_DIAGNOSTIC_RANGE_PLAN.md#current-complete-budget-source-2026-11-02)
 now composes finite built-in original reservoirs when normal-range/sign bounds
@@ -304,9 +308,12 @@ candidates and numerical/resource evidence. No global cost optimum follows.
   production workload and independently controlled timing acceptance.
 - [x] CAP-010 supplies fixed-step first-order isothermal CPU composition and full
   advanced-RNG/phase restart.
-- [ ] Accept the implemented ideal evolving-scalar, S1/S2 transport and S3b conduction extensions
+- [x] Accept the implemented ideal evolving-scalar, S1/S2 transport and S3b conduction extensions
   through exact-revision GitHub CI; ion-ion collisions leave pressure fixed,
   while existing field stages provide the applicable Ohmic/hyperresistive heat and conduction.
+  Accepted at `b5ce21a`: [run 41683122086](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41683122086)
+  ran all four collisional test files on Julia 1.12.7 and 1.13.3, with every
+  job green. Resource acceptance remains open in [the guide](COLLISIONAL_HYBRID.md#verification-status).
 - [ ] Accept actual-pencil [collisional ES](DISTRIBUTED_COLLISIONAL_ELECTROSTATIC.md)
   and [EM sources](DISTRIBUTED_COLLISIONAL_EMPIC.md): migrated populations pass an explicit canonical collision-cell ownership gate,
   use owned logical bins/global dx and persist full per-rank RNG/physical state.
@@ -483,11 +490,16 @@ cannot be reused as a local pencil index without a mapping.
   staggered locations where relevant, communicator lifecycle and physical-boundary
   ownership. Gate unequal partitions, thin/empty allowed partitions, all directions,
   periodic seams and shape-radius halos; reject impossible layouts collectively.
-- [ ] **003B: distributed operators.** Reuse FFT plans and implement derivative,
+- [x] **003B: distributed operators.** Reuse FFT plans and implement derivative,
   curl, Laplacian, projection/filter and normalization in actual pencil layouts.
   Gate analytic modes, DC/Nyquist, divergence/curl identities, transpose/inverse
   parity and preallocated plan reuse on 2/4/8 real ranks. Mixed nonperiodic
   SBP/Fourier operators are a separate accepted backend, not a periodic shortcut.
+  Evidenced at `b5ce21a`: the real MPI jobs of [run 41683122086](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41683122086)
+  ran the distributed FFT, derivative, operator, projection/filter,
+  inverse-range and workspace-allocation suites at 2, 4 and 8 ranks with no
+  failures. Stage E timing and transport inventory remain open in the
+  [operator plan](DISTRIBUTED_OPERATOR_IMPLEMENTATION_PLAN.md); scaling is 003E.
 - [ ] **003C: moments and full hybrid step.** Deposit local/ghost contributions,
   sum ghost moments once, apply species/rank summation before floors, then solve
   local fields and gather with complete halos. Migrate across any crossed domains
@@ -672,12 +684,16 @@ These source changes do not close the runtime/scientific/resource gates below
 or supply toroidal geometry, evolving weights, collisions or electromagnetic
 gyrokinetics.
 
-- [ ] Choose and document a complete model before implementation: proposed first
+- [x] Choose and document a complete model before implementation: proposed first
   slice is electrostatic gyrokinetic ions with adiabatic electrons, explicit
   equilibrium, ordering and long-wavelength/polarization approximation. Introduce
   a distribution/marker population with owned weights, parallel velocity,
   magnetic moment and equilibrium parameters; the existing single `GuidingCentre`
-  remains a local-field utility.
+  remains a local-field utility. [SLAB_GYROKINETIC.md](SLAB_GYROKINETIC.md)
+  documents the full-f electrostatic ions, modified adiabatic electrons, uniform
+  equilibrium and long-wavelength polarization. `GyrocentreSet` owns positions,
+  `vpar`, `mu` and weights; the stepper derives the uniform equilibrium density
+  from the marker inventory.
 - [ ] Implement marker evolution, gyroaveraged deposition/interpolation and the
   matching quasineutrality/polarization field equation, with gauge/nullspace
   handling and a free-energy diagnostic derived from the same approximation.
@@ -737,7 +753,7 @@ Canonical owners are `validation/`, `verification/`, the independent test oracle
 and reference metadata. Keep solver verification, model validity and external
 performance comparisons separate in reported results.
 
-- [ ] **007A: reproducible references.** Pin NHDS/Hybrid-VPIC source revisions,
+- [x] **007A: reproducible references.** Pin NHDS/Hybrid-VPIC source revisions,
   patches, compiler/build options, input decks, checksums, units, license and raw
   outputs. The [shared provenance implementation](EXTERNAL_REFERENCE_PROVENANCE_PLAN.md)
   replaces moving clones and unchecked cache reuse. Real pinned builds and all
@@ -745,6 +761,8 @@ performance comparisons separate in reported results.
   `95c5678`, with all six exact-SHA CI jobs and full compiler review complete.
   Missing/build-failed references stay
   failed/unavailable. This metadata does not establish a hermetic toolchain.
+  The original run's six job logs were rechecked on 2026-11-04; see the
+  provenance plan's progress list.
 - [ ] **007B: production dispersion.** Keep the independent eigenvalue comparison
   in case 27, but also measure frequencies/damping/growth from actual initialized
   hybrid/Hall/EM time series and compare with the applicable independent theory
@@ -807,14 +825,20 @@ same implementation, with explicit background/neutrality policy and per-species
 time levels. Never normalize away nonzero physical net charge silently.
 
 - [x] ES collections, shared Poisson source and charge/momentum/energy diagnostics.
-- [ ] Accept [synchronous CPU EM collections](EMPIC_SPECIES_IMPLEMENTATION.md):
+- [x] Accept [synchronous CPU EM collections](EMPIC_SPECIES_IMPLEMENTATION.md):
   summed charge-conserving currents, mobile/fixed populations, optional relativistic
   motion, physical diagnostics and restart are implemented; exact-revision GitHub
-  checks and full compiler review remain.
-- [ ] Accept [specialized EMPIC1D synchronous collections](EMPIC1D_SPECIES_IMPLEMENTATION_PLAN.md):
+  checks and full compiler review remain. Accepted at `b5ce21a`:
+  [run 41683122086](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41683122086)
+  passed `test_empic_species.jl` on both runtimes and the JET gate (zero
+  package-located reports). Complete-step cost acceptance remains open.
+- [x] Accept [specialized EMPIC1D synchronous collections](EMPIC1D_SPECIES_IMPLEMENTATION_PLAN.md):
   S1 source is implemented and reviewed, with the actual Ex/Ey/Bz solver,
   invariant planar inputs, staged publication and distinct persistence.
   Exact-revision GitHub runtime/compiler/format acceptance remains pending.
+  Accepted at `b5ce21a`: run 41683122086 passed `test_empic1d_species.jl` on
+  both runtimes, the JET gate including its EMPIC1D concrete calls, and
+  formatting. S1 resource acceptance remains open in the EMPIC1D plan.
 - [ ] Accept per-species dividing integer schedules: specialized S2 and the
   explicit generic D1–3 opt-in share velocity histories, future setters and
   every-fast drift/current with independent magnetic history. Both have complete
@@ -919,18 +943,22 @@ sources one by one with their own conservation/accuracy contracts.
   cell-local collisions between the field advance and the carried-E formation,
   persists the advanced RNG and source ledger in checkpoints/archives and rolls
   back the whole step including the RNG. [Guide and verified state](COLLISIONAL_HYBRID.md).
-- [ ] Accept the ideal `EvolvingElectrons` extension: implemented on the same
+- [x] Accept the ideal `EvolvingElectrons` extension: implemented on the same
   source schedule, with pressure/RNG rollback and schema-1 consistency checks;
   focused component, zero-log, restart and failure tests pass in the
   [scoped remote run](COLLISIONAL_HYBRID.md#verification-status); full CI remains pending.
-- [ ] Accept S1 `TransportElectrons` composition (`eta>=0`, `etaH=de2=0`):
+  Full CI passed at `b5ce21a` ([run 41683122086](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41683122086)).
+- [x] Accept S1 `TransportElectrons` composition (`eta>=0`, `etaH=de2=0`):
   optional outer force snapshot, canonical inner policy-1 persistence and
   pressure/force/RNG regression tests are implemented; exact-revision CI pending.
-- [ ] Accept the S2 admission extension (`eta>=0`, `etaH>=0`, `de2=0`): it reuses
+  Exact-revision CI passed at `b5ce21a` (run 41683122086).
+- [x] Accept the S2 admission extension (`eta>=0`, `etaH>=0`, `de2=0`): it reuses
   the same full-field/pressure/force/RNG owners and policy-1 persistence, with
   focused positive-hyperresistivity regressions passing in that scoped run;
   full exact-revision CI remains pending.
   Anisotropic/inertial composition and electron-ion heat exchange remain open.
+  Full exact-revision CI passed at `b5ce21a` (run 41683122086); the two
+  remaining items are separate extensions.
 - [ ] Persist complete RNG state/stream assignment, split phase, source clocks,
   ionization ID counters and external reservoir state. A saved initial seed alone
   does not specify continuation after random draws.

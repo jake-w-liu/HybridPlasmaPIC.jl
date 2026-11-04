@@ -1,7 +1,8 @@
 # CAP-008 specialized EMPIC1D species implementation
 
-Updated 2026-11-01. **S1 and S2 sources are implemented and reviewed;
-exact-revision GitHub acceptance remains pending.** The [audit tracker](DEEP_DEBUG_TRACKER.md) owns
+Updated 2026-11-04. **S1 and S2 sources are implemented and reviewed. Their
+exact-revision GitHub runtime, compiler and formatter checks pass at `b5ce21a`;
+resource acceptance remains pending.** The [audit tracker](DEEP_DEBUG_TRACKER.md) owns
 publication and CI status. This plan expands the specialized-model and multirate
 items in [CAP-008](PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md#cap-008--arbitrary-kinetic-species-in-esem).
 The [generic EMPIC collection contract](EMPIC_SPECIES_IMPLEMENTATION.md) remains
@@ -46,12 +47,12 @@ Private scratch may change on rejection; public destination identities remain.
 | S1 construction and orchestration | Source implemented | Ordered populations gather the same old fields, then sum currents before one specialized field update per fast interval |
 | S1 diagnostics and persistence | Source implemented | Physical moments and verbatim field restore, complete graph detachment, saved-mode validation, identity/capacity handling and layout rejection |
 | S1 source review and essential checks | Source reviewed; runtime pending | Legacy helper-expansion comparison and independent caller review; essential current/phase and failure/retry/restore controls registered; existing assertions retained |
-| S1 GitHub acceptance | Pending | Exact revision on minimum `1.12` and moving stable `1`; full neighboring tests, complete compiler review and formatter |
+| S1 GitHub acceptance | Accepted at `b5ce21a` ([run 41683122086](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41683122086), Julia 1.12.7 and 1.13.3) | Exact revision on minimum `1.12` and moving stable `1`; full neighboring tests, complete compiler review and formatter |
 | S1 resource acceptance | Pending | Remote complete init/step/restart cost versus specialized legacy path, actual hardware/runtime/threads, allocation traffic and peak memory distinguished |
 | S2 schedule/phase/schema design | Reviewed | Dividing strides, independent previous intervals, atomic future-configuration updates, nominal offsets and explicit S1 migration |
 | S2 construction and advance | Source implemented and reviewed | Due-event kicks with every-fast drift/current, whole-operation history staging and atomic future schedule setter; generic/scalar/all-fast source reductions retained |
 | S2 persistence and essential checks | Source implemented and reviewed; runtime pending | Schema 2/policy 1 and tagged S1 migration; independent interior-event, legacy, pair/unequal-mass refinement, rejection/retry and restart controls registered |
-| S2 GitHub/resource acceptance | Pending | Exact revision on minimum/latest Julia; full neighboring tests, complete unsuppressed compiler review, formatter and remote complete-operation cost/peak-memory evidence |
+| S2 GitHub/resource acceptance | GitHub runtime/compiler/formatter accepted at `b5ce21a` (run 41683122086); cost/peak-memory evidence pending | Exact revision on minimum/latest Julia; full neighboring tests, complete unsuppressed compiler review, formatter and remote complete-operation cost/peak-memory evidence |
 | Broader CAP-008 integration | Open | Collisions, boundaries, partition ownership, device residency and matched physical/cost validation |
 
 All Julia tests, compiler checks, formatter, builds and profiling run on GitHub

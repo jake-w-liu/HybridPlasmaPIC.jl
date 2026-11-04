@@ -6,10 +6,10 @@ for current integration and remaining work.
 
 Recorded status: pushed as `95c5678`; local implementation and validation gates passed.
 [Exact-SHA GitHub CI](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40186481856)
-finished successfully in the archived exact-revision workflow overview. This
-audit has not rechecked that original run's individual jobs and compiler forest;
-the containing `4724947` has checked six-job/compiler acceptance. Production
-dispersion and full shock-profile comparisons remain CAP-007B/C.
+finished successfully. Its six individual job logs and compiler forests were
+rechecked on 2026-11-04 (see Progress); the containing `4724947` also has checked
+six-job/compiler acceptance. Production dispersion and full shock-profile
+comparisons remain CAP-007B/C.
 
 ## Pre-edit brief
 
@@ -70,7 +70,13 @@ the unchanged case metrics.
 - [x] Review physics metrics, formatting, final diff and documentation.
 - [x] Push the locally verified slice to main as `95c5678`.
 - [x] Record original `95c5678` completed-success workflow metadata.
-- [ ] Recheck the original run's individual job receipts and complete compiler output; the workflow overview alone does not establish this review.
+- [x] Recheck the original run's individual job receipts and complete compiler output; the workflow overview alone does not establish this review.
+  Rechecked 2026-11-04 from the six job logs of run 40186481856 at `95c5678`.
+  Formatting and MPI with 2, 4 and 8 ranks succeeded. Julia 1.12.7 passed
+  723,186 of 723,186 assertions, and Julia 1.13.2 passed 723,187 of 723,187;
+  neither log contains a failed or errored test. JET 0.12.3 printed complete
+  forests of 24 and 21 reports (16 and 13 at HybridPlasmaPIC or
+  HybridPlasmaPIC.Raycon frames), which passed that revision's gate.
 - [x] Check containing `4724947`: [all six jobs and complete compiler review pass](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/40325153253), with checked ancestry from `95c5678`.
 
 ## Verification ledger

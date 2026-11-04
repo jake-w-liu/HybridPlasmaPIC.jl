@@ -68,7 +68,12 @@ lists the families and fixes it contains. The ±16/32-byte packet allocation
 variation on Ubuntu comes from Linux usable-size accounting
 ([diagnosis](WHISTLER_ALLOCATION_CI_DIAGNOSIS.md#usable-size-accounting-2026-11-03));
 the earlier 4,768/6,352-byte failures remain unattributed. CI acceptance is not
-scientific or resource acceptance, and the milestone count is unchanged.
+scientific or resource acceptance.
+
+On 2026-11-04, nine plan milestones whose remaining gate was exact-revision CI,
+the original 007A job logs, or model documentation were checked with their
+evidence. This raises the [completeness plan](PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md)
+count from 14 to 23 of 79. Their resource gates stay open in the family plans.
 
 The periodic curvilinear hybrid now has complete bounded source reviewed and
 integrated: seven new files for the J=1 shear geometry, physical field transforms,

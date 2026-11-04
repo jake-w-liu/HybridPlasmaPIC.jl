@@ -222,7 +222,7 @@ Record these separately for every bounded slice:
 | CI accepted | Exact-revision remote checks pass; record run, Julia versions and scope |
 | Scientifically/resource accepted | Required physical comparisons, refinement, real ranks/devices and fixed cost gates pass |
 
-The existing **14/79 (17.7%)** number counts checked roadmap milestones; it is
+The current **23/79 (29.1%)** number counts checked roadmap milestones; it is
 not a source-code completion percentage. Do not increase it for drafted code,
 line counts or queued CI. Update stage/owner/failures here and in the audit
 tracker at each handoff, integration and acceptance change.

@@ -189,14 +189,16 @@ The [focused run at `213ed8c`](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/
 passes all 2,729 assertions on each actual Julia 1.12.7 and 1.13.3, covering
 the three existing collisional test files listed below. This verifies those
 component, persistence and production-invariant cases. Full exact-revision
-package, formatting, compiler and resource acceptance remains pending. No new
-energy-conservation or splitting-order claim is made.
+package, formatting and compiler acceptance passed at `b5ce21a`
+([run 41683122086](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41683122086),
+Julia 1.12.7 and 1.13.3, all 26 jobs green); resource acceptance remains
+pending. No new energy-conservation or splitting-order claim is made.
 
 The `ConductingElectrons` composition extends these existing owners. Essential
 component/zero-log, temperature/outer-force alias, guard rollback and advanced-RNG
-checkpoint/archive controls are prepared in the same files. Their exact-revision
-GitHub runtime/compiler/format and resource acceptance remains pending; the
-historical S1/S2 result above does not validate this extension.
+checkpoint/archive controls are in the same files. Their exact-revision GitHub
+runtime, compiler and formatter checks passed in the same run; resource
+acceptance remains pending.
 
 The following historical results cover **isothermal electrons only**
 (2026-10-26, Julia 1.12.7 and 1.13.2):
