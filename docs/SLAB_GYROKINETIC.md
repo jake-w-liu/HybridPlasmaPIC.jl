@@ -153,5 +153,35 @@ verifies the shared run-container schema/checksum, then uses the same complete
 physical restore as `load_checkpoint!`; omitting species selects the bound owners.
 `load_archive(path)` remains a read-only data/provenance reader. A malformed
 container or rejected destination leaves the public physical phase unchanged.
-Runtime continuation, accuracy/refinement, package/JET,
-latest Julia and cost acceptance require exact-revision remote evidence.
+
+## Acceptance status
+
+`test_slab_gyrokinetic.jl` covers boundary wrapping, the zonal full-k
+polarization solve against an analytic amplitude, gather consistency, the
+zero/nonpositive-dt guards, the parallel free-stream characteristic, uniform
+equilibrium deposition, checkpoint and archive round-trips and the diagnostic
+inventory on Float32/Float64.
+
+`test_slab_gyrokinetic_oracles.jl` adds physics oracles on Julia 1.12.7 and
+1.13.3, Float32 and Float64: an independently coded ring-TSC deposit (three
+markers including finite and zero `mu`) matching `rho_gc` cell by cell and the
+stored radii matching `sqrt(2 m mu/(q^2 B0))`; an independent FFTW solve of
+`chi*(-Delta_perp)phi + alpha*P(phi) = rho` agreeing with `st.phi`, the stored
+symbol table `st._lambda` and a recomputed modal residual inside the receipt
+tolerance; per-marker E×B drift `-psi_y/B0` and parallel `vpar` transport on a
+y-structured sheared configuration, where uniform x/z lattices keep `rho`
+invariant so one RK4 step is an exact translation checked marker by marker;
+and independent quadratic-form recomputation of the polarization, electron
+free-energy, pairing-defect, parallel and magnetic-moment reservoirs. Guard
+coverage includes weight/mu invariant mutation rejections with serialized
+state intact and constructor domain failures (negative `mu`, `B0 <= 0`,
+`Te <= 0`, `nring < 3`).
+
+Still open for 006B acceptance: genuinely nonuniform-time (RK truncation)
+order measurement, an analytic linear-mode dispersion oracle, mirror/bounce
+orbits (absent in this constant-B model by contract), delta-f/weight-evolution
+variants, field-solve failure rollback through a stage failure rather than the
+boundary guards, independent-code (e.g. GX-class) comparison, marker/ring/field
+resource budgets and MPI/device coverage. Runtime continuation, accuracy/
+refinement, package/JET, latest Julia and cost acceptance require
+exact-revision remote evidence.
