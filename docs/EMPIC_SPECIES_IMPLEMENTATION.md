@@ -2,17 +2,25 @@
 
 Status: synchronous CPU `EMPIC` collections are implemented with optional
 relativistic motion. Both slices are integrated after independent root source
-and caller review; exact-revision GitHub runtime/compiler/format acceptance
-remains pending. Specialized planar `EMPIC1D` S1 collections are now source
-implemented, with exact integrated acceptance pending; see the S1 section below.
-Specialized S2 dividing per-species schedules are now source implemented with
-separate history and schema-2 migration; integrated acceptance remains pending.
+and caller review; their exact-revision GitHub runtime/compiler/format checks
+pass at `b5ce21a` (run 41683122086). Specialized planar `EMPIC1D` S1 collections
+are source implemented and passed the same run; see the S1 section below.
+Specialized S2 dividing per-species schedules are source implemented with
+separate history and schema-2 migration and passed the same run; resource
+acceptance remains pending.
 Generic D1–3 dividing kick schedules are now source implemented as an explicit
 constructor opt-in, sharing the S2 history owner; see the generic schedule section
-below. No tests were added or run for that extension during the implementation-first
-pass. Numerical/compiler/format and complete-operation cost acceptance is deferred.
-Broader collision composition, nonperiodic boundaries and resident MPI/GPU
-evolution remain open.
+below. `test_empic_species_schedule.jl` now covers them: an independent rational
+Boris oracle over due/fast events for D = 1–3, bitwise equivalence between an
+all-fast opt-in and the unscheduled collection, setter/copy/alias/corruption
+guards, schema-2 checkpoint/archive round-trips, schema-1 migration to all-fast
+rows, scheduled cold-mode refinement and relativistic failure rollback.
+Complete-operation cost acceptance is deferred; an indicative measurement
+(Float64, 8-cell 1-D grid, 2×64 particles, one `step_empic!`, Julia 1.12.7)
+recorded 98,448 B/1,324 allocations unscheduled, 113,328 B/1,617 with all-ones
+strides at `n_sub=4`, and 119,984 B/1,877 with `species_stride=[2,3]` at
+`n_sub=6`. Broader collision composition, nonperiodic boundaries and resident
+MPI/GPU evolution remain open.
 
 A first [electromagnetic–local-Coulomb composition](COLLISIONAL_EMPIC.md) is now a
 source candidate for all-mobile ordinary-Vector generic collections with fixed

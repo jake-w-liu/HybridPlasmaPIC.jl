@@ -188,6 +188,7 @@ const HPIC_TEST_GROUPS = [
         "test_electrostatic_species_diversity.jl",
         "test_empic.jl",
         "test_empic_species.jl",
+        "test_empic_species_schedule.jl",
         "test_empic1d_species.jl",
         "test_empic_relativistic_species.jl",
         "test_empic1d.jl",
