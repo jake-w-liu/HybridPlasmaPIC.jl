@@ -8,6 +8,7 @@ const HPIC_TEST_GROUPS = [
         "test_exact_arithmetic.jl",
         "test_exact_ieee_packing.jl",
         "test_slab_gyrokinetic.jl",
+        "test_slab_gyrokinetic_oracles.jl",
         "test_sheared_hybrid.jl",
         "test_implicit_em.jl",
         "test_implicit_yee_em.jl",
