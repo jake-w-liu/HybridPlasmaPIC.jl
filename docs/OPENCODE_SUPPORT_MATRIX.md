@@ -74,6 +74,30 @@ Every applicable family row must be exercised, where the model admits it, with:
 | F33 | Multi-GPU/multi-device | domain ownership + migration + device arrays | actual multiple devices/nodes | P15, P39 | not implemented; explicitly open |
 | F34 | Validation references (`validation/`) | pinned NHDS/Hybrid-VPIC provenance, production dispersion, oblique Hall/kinetic/thermal/EM, nonlinear shocks/reconnection/AMR/GK | named hardware and raw data | P25–P28 | reference infrastructure and some campaigns source/pass; broad independent and comparative campaigns open |
 
+## Focused case index
+
+Existing harnesses that must be read with each family row (full CI groups and
+focused suites are registered in `test/runtests.jl` and
+`.github/workflows/implementation-essentials.yml`):
+
+| Families | Existing focused case owners |
+|---|---|
+| F01, F25 | `test_hybrid.jl`, `test_multispecies_hybrid.jl`, `test_evolving_pressure*.jl`, `test_transport*.jl`, `test_cgl*.jl`, `test_hall_mhd.jl`, `test_camcl.jl` |
+| F02, F03 | `test_collisional_hybrid.jl`, `test_collisional_checkpoint.jl`, `test_collisional_physics.jl`, `test_collisional_wrappers.jl`, `test_collisional_cgl.jl`, `test_electron_ion_thermal_exchange.jl`, `test_electron_ion_overlap.jl` |
+| F04–F08 | `test_yee_longitudinal_pic.jl`, `test_yee_electromagnetic_pic.jl`, `test_yee_impact_longitudinal_pic.jl`, `test_yee_absorbing_longitudinal_pic.jl`, `test_yee_pml.jl`, `test_bounded_maxwell.jl`, `test_sourced_yee*.jl`, `test_yee_particle_charge.jl` |
+| F09–F11 | `test_espic.jl`, `test_electrostatic_species*.jl`, `test_empic*.jl`, `test_empic1d*.jl`, `test_empic_relativistic_species.jl`, `test_empic_persistent_schedule.jl`, `test_empic_coupled_error_control.jl` |
+| F12–F14 | `test_implicit_hybrid*.jl`, `test_implicit_em.jl`, `test_implicit_yee_em.jl`, `test_implicit_yee_transverse.jl` |
+| F15–F16 | `test_sheared_hybrid.jl`, `test_toroidal_annulus_hybrid.jl`, `test_fusion.jl` |
+| F17–F18 | `test_slab_gyrokinetic.jl`, `test_slab_gyrokinetic_oracles.jl` (gyrokinetic utilities are also exercised by these) |
+| F19–F22 | `test_static_composite_electrostatic.jl`, `test_dynamic_composite_electrostatic.jl`, `test_adaptive_composite_electrostatic.jl`, `test_periodic_adaptive_composite_electrostatic.jl` |
+| F23 | `test_open_hall_hybrid.jl` |
+| F24 | `test_shock*.jl`, `test_shock_cn.jl` |
+| F26 | `test_ray_tracing.jl`, `test_raycon.jl`, `test_forcing.jl`, `test_radiation_*.jl` |
+| F27 | `test_particle_growth.jl`, `test_ionization_*.jl`, `test_inject.jl` |
+| F28–F30 | `test_pencil_decomposition.jl`, `test_distributed_*.jl`, `test_mpi*.jl`, `test_*_mpi.jl`, `tools/ci_distributed_fft.jl` |
+| F31–F33 | `test_cuda_hybrid_host.jl`, `test_cuda_hybrid_device.jl` (device workflow), `test_metal_*.jl`, `test_gathered_*_metal.jl`, `test_ngp_metal_boundaries.jl`, `test_native_device_factors.jl` |
+| F34 | `validation/` campaigns; not a substitute for exact-head CI |
+
 ## Explicit non-claims
 
 - No row above is `complete`; the 23 legacy checked milestones remain the only

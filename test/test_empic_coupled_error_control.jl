@@ -185,7 +185,7 @@ function pair_reference(es,particles,h)
     JE=corrected_current(J0,rho0,rhoE,g,Float64(h))
     curlE0,curlB0=curl(start.E,g),curl(start.B,g)
     BE=ntuple(c->T.(start.B[c].-Float64(h).*curlE0[c]),3)
-    EE=ntuple(c->T.(start.E[c].+Float64(h)*Float64(es.c)^2.*curlB0[c].-Float64(h).*JE[c]),3)
+    EE=ntuple(c->T.(start.E[c].+Float64(h)*Float64(es.c)^2 .*curlB0[c].-Float64(h).*JE[c]),3)
     cursor=0
     for (s,ps) in enumerate(low),p in eachindex(ps.weight)
         cursor+=1;mobile[s] || continue
@@ -203,8 +203,8 @@ function pair_reference(es,particles,h)
     Jbar=ntuple(c->T.((Float64.(J0[c]).+Float64.(J1[c]))./2),3)
     JH=corrected_current(Jbar,rho0,rhoH,g,Float64(h))
     curlEE,curlBE=curl(EE,g),curl(BE,g)
-    BH=ntuple(c->T.(start.B[c].-Float64(h)/2.*(curlE0[c].+curlEE[c])),3)
-    EH=ntuple(c->T.(start.E[c].+Float64(h)*Float64(es.c)^2/2.*(curlB0[c].+curlBE[c]).-Float64(h).*JH[c]),3)
+    BH=ntuple(c->T.(start.B[c].-Float64(h)/2 .*(curlE0[c].+curlEE[c])),3)
+    EH=ntuple(c->T.(start.E[c].+Float64(h)*Float64(es.c)^2/2 .*(curlB0[c].+curlBE[c]).-Float64(h).*JH[c]),3)
     return (low=low,high=high,E_low=EE,B_low=BE,E_high=EH,B_high=BH,
         J_low=JE,J_high=JH,Jraw_high=Jbar,rho0=rho0,rho_low=rhoE,rho_high=rhoH,
         longitudinal=gradient_lift(Float64.(rhoH).-Float64.(rhoE),g))

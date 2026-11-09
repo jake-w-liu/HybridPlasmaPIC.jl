@@ -75,6 +75,18 @@ isothermal reports the 2-tuple path.
 | Focused suites | `source-representation` (includes `test_jet.jl`), `persistent-species` (parser path) and `implicit-hybrid-pressure` dispatched for `d95ba9c`. |
 | Full CI | Push run `42599058618` queued for `d95ba9c`. |
 
+## 2026-11-09 — controller adoption and AMR constructor repair
+
+| Item | Record |
+|---|---|
+| P30 source adoption | `dd2c268` applies the frozen nine-path controller patch with `git apply --whitespace=error-all`, registers `models/empic_coupled_error_control.jl` after `models/empic_collection.jl`, the diagnostic after `diagnostics/relativistic_moments.jl`, and the schema-4 IO after `io/empic_collection_checkpoint.jl`. Adds `test_empic_coupled_error_control.jl` to group 10 and a `coupled-empic` focused suite. |
+| P30 parser reconciliation | After apply, the report ternaries are at `empic_collection.jl:1480/1904` and use the correct explicit `:vector : :planar` form. No bare-symbol ternary remains in the nine paths. |
+| P30 source limits | Runtime, formatter, JET, native replay, scientific/effectivity and resource acceptance remain open. The constructor still rejects NGP; no NGP jump/error policy is claimed. |
+| P23/P24 confirmed defect | Historical jobs `128999430606`/`128999430909` at `57980ae` showed four `MethodError`s constructing `_CartesianAMRPatch` with a `BitVector` valid mask. The parametric default constructor does not convert that broadcast result to the declared `Vector{Bool}`. |
+| P23/P24 repair | `93acac8` uses `map(!, covered)`, which preserves the Boolean mask as `Vector{Bool}`. Focused `adaptive-composite-es` and `periodic-adaptive-composite-es` dispatched for the new head. |
+| G6 hardening | `93acac8` also requires the saved coupled checkpoint `integrator`, `particle_layout` and (for `EMPIC1D`) `polarization` values to match the destination, rather than checking only key presence. |
+| P00 evidence | `docs/OPENCODE_SUPPORT_MATRIX.md` now has family/geometry/closure/species/source/backend/precision/persistence rows. `docs/OPENCODE_PACKAGE_STATUS.md` is the live 44-package status. |
+
 ## Update rule
 
 Append dated entries with commit SHA, exact command/workflow URL, raw artifact

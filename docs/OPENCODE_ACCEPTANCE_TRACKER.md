@@ -1,8 +1,15 @@
 # OpenCode acceptance tracker
 
-Prepared 2026-11-09. Codex hands off and stops; OpenCode has not started.
+Prepared 2026-11-09. OpenCode execution started 2026-11-09 on the isolated
+handoff checkout.
 
 This is the complete crosswalk of the existing **79 milestones: 23 legacy checked, 56 open**. It preserves historical statuses; it is not a percentage of simulator correctness or complete physics. All 11 CAP areas retain work. The immutable source is commit `5aa628513fb854c96b2b387780edef1ea1faa66b`.
+
+Live operator state is in [OPENCODE_PACKAGE_STATUS.md](OPENCODE_PACKAGE_STATUS.md);
+P00/P01 evidence is in [OPENCODE_EXECUTION_LOG.md](OPENCODE_EXECUTION_LOG.md);
+the required combination index is in
+[OPENCODE_SUPPORT_MATRIX.md](OPENCODE_SUPPORT_MATRIX.md). No row below changes
+status without exact-source executable/science/resource evidence.
 
 Follow [the implementation plan](OPENCODE_IMPLEMENTATION_HANDOFF.md). Package source/CI/science/resource status is separate in [WORK_PACKAGES.json](../handoff/2026-11-09/WORK_PACKAGES.json); all 44 packages still require operator completion. Update the original roadmap and this crosswalk together, preserving IDs and evidence. A source file or unrelated green run never closes a row.
 

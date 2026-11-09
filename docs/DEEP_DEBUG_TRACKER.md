@@ -34,6 +34,17 @@ Each model guide owns its equations, centering and method-specific limits.
 
 **Handoff/stop snapshot (2026-11-09):** follow the [detailed OpenCode plan](OPENCODE_IMPLEMENTATION_HANDOFF.md) and [complete acceptance tracker](OPENCODE_ACCEPTANCE_TRACKER.md). All workers have finished and frozen their work; OpenCode has not started. Code baseline is `5aa6285`, CGL integrated but unexecuted. The nine-path controller is frozen and unadopted; flux conduction is an unapproved proposal. **VERIFIED current loader blocker:** `src/models/empic_collection.jl:1430/1854`, confirmed by [job 129005385324](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42570140304/job/129005385324) and the [MPI artifact](../handoff/2026-11-09/ci/MPI_FAILURE_ARTIFACT.json). New 91/99-report JET failures still need complete disposition. Main has not received this unaccepted stack. The plan and [priority register](../handoff/2026-11-09/ISSUE_REGISTER.json) supersede assignments and current-tense work descriptions in the dated development history below; those records retain their exact historical scope.
 
+**OpenCode execution entry (2026-11-09):** the packet verified PASS and the
+seven primary hashes still match. P01 repaired both parser ternaries and the new
+implicit-hybrid JET inference (`d95ba9c`), adopted the frozen nine-path
+projected Euler–Heun EMPIC controller with canonical registration (`dd2c268`),
+and repaired the Cartesian-AMR `_CartesianAMRPatch` valid-mask constructor plus
+schema-4 checkpoint tag admission (`93acac8`). Focused and full exact-head CI,
+formatter/JET recount, native replay and all scientific/resource/hardware gates
+remain open. See [the live package status](OPENCODE_PACKAGE_STATUS.md) and
+[the execution log](OPENCODE_EXECUTION_LOG.md); the 79-row statuses below are
+not raised by source presence.
+
 ### Development history before handoff
 
 Checked on 2026-11-09: main is `9b4d363806722319c2241e4af04ed1ed1da00119`.
