@@ -213,10 +213,20 @@ function _camr_query_data(
         end
         return nothing
     end
-    for I in (roots === nothing ? Iterators.product(ranges...) : roots)
+    function process_root(I)
         lower = ntuple(d -> _exact_rational(L[d]) * (I[d] - 1) / n[d], D)
         upper = ntuple(d -> _exact_rational(L[d]) * I[d] / n[d], D)
         visit((0, Tuple(I)), lower, upper)
+        return nothing
+    end
+    if roots === nothing
+        for I in Iterators.product(ranges...)
+            process_root(I)
+        end
+    else
+        for I in roots
+            process_root(I)
+        end
     end
     sort!(out)
     return out
