@@ -23,7 +23,13 @@ function _pacc_choose(N::BigInt, k::Int)
     end
     return result
 end
-function _pacc_axis_moments(x, lo, hi, a, L)
+function _pacc_axis_moments(
+    x::_CompositeQ,
+    lo::_CompositeQ,
+    hi::_CompositeQ,
+    a::_CompositeQ,
+    L::_CompositeQ,
+)
     first = floor(BigInt, (lo - x - a) / L) + 1
     last = ceil(BigInt, (hi - x + a) / L) - 1
     result = fill(zero(_CompositeQ), 3)
@@ -48,8 +54,12 @@ function _pacc_axis_moments(x, lo, hi, a, L)
                     result[c] += coefficient * values[1][c]
                 end
                 if order < degree
-                    values =
-                        [ntuple(c -> values[j+1][c] - values[j][c], 3) for j = 1:length(values)-1]
+                    differences = NTuple{3,_CompositeQ}[]
+                    for j = 1:(length(values)-1)
+                        left, right = values[j], values[j+1]
+                        push!(differences, (right[1] - left[1], right[2] - left[2], right[3] - left[3]))
+                    end
+                    values = differences
                 end
             end
         end

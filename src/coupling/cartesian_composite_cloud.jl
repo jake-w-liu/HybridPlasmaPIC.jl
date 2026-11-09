@@ -33,10 +33,16 @@ function _acc_span(mesh::CartesianAMRHierarchy{D}, x, widths) where {D}
     hi = ntuple(d -> min(_exact_rational(mesh.L[d]), x[d] + widths[d]), D)
     return _camr_query(mesh, lo, hi)
 end
-function _acc_particle_vectors(mesh::CartesianAMRHierarchy{D}, species, clouds) where {D}
+function _acc_particle_vectors(
+    mesh::CartesianAMRHierarchy{D},
+    species::AbstractVector,
+    clouds::Tuple,
+) where {D}
     count = length(mesh.masters)
     particle = fill(zero(_CompositeQ), count)
-    inside = mesh.periodic ? nothing : fill(zero(_CompositeQ), count)
+    # Always materialize the interior role so no conditional Nothing union reaches
+    # the master accumulation; periodic callers return before it is consumed.
+    inside = fill(zero(_CompositeQ), count)
     strata = mesh.periodic ? nothing : fill(zero(_CompositeQ), 3^D)
     bits, strata_axes = _camr_bits(Val(D)), _acc_strata(Val(D))
     widths = map(c -> _exact_rational(c.half_width), clouds)
@@ -86,7 +92,7 @@ function _acc_particle_vectors(mesh::CartesianAMRHierarchy{D}, species, clouds) 
                 full, volume = charge * unit_full, charge * unit_inside
                 for (master, coefficient) in mesh.rows[raw]
                     particle[master] += coefficient * full
-                    mesh.periodic || (inside[master] += coefficient * volume)
+                    inside[master] += coefficient * volume
                 end
             end
         end
@@ -108,8 +114,14 @@ function _acc_particle_vectors(mesh::CartesianAMRHierarchy{D}, species, clouds) 
     end
     return (particle = particle, inside = inside, strata = strata)
 end
-_acc_axis_moments(mesh, x, lo, hi, a, L) =
-    mesh.periodic ? _pacc_axis_moments(x, lo, hi, a, L) : _acc_moments(x, lo, hi, a, L)
+_acc_axis_moments(
+    mesh::CartesianAMRHierarchy,
+    x::_CompositeQ,
+    lo::_CompositeQ,
+    hi::_CompositeQ,
+    a::_CompositeQ,
+    L::_CompositeQ,
+) = mesh.periodic ? _pacc_axis_moments(x, lo, hi, a, L) : _acc_moments(x, lo, hi, a, L)
 function _acc_background(mesh, background)
     bkg = fill(zero(_CompositeQ), length(mesh.masters))
     rho = _exact_rational(background)
@@ -126,10 +138,10 @@ function _acc_background(mesh, background)
 end
 function _acc_source(
     mesh::CartesianAMRHierarchy{D},
-    species,
-    clouds,
+    species::AbstractVector,
+    clouds::Tuple,
     background;
-    periodic_neutrality = :require,
+    periodic_neutrality::Symbol = :require,
 ) where {D}
     charge = _acc_particle_vectors(mesh, species, clouds)
     mesh.periodic &&

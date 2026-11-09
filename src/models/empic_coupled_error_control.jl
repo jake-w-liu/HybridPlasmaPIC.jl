@@ -115,8 +115,8 @@ _ec_cost_sub(a, b) =
 function _ec_charge!(meter::_EMPICCoupledMeter, role::Symbol, count::Int)
     count >= 0 || throw(ArgumentError("coupled work charge must be nonnegative"))
     role in _EC_COST_KEYS || throw(ArgumentError("unknown coupled work role"))
-    limit = getproperty(meter.control, Symbol("max_", role))
-    next = Base.checked_add(getfield(meter, role), count)
+    limit = getproperty(meter.control, Symbol("max_", role))::Int
+    next = Base.checked_add(getfield(meter, role)::Int, count)
     next <= limit ||
         throw(ArgumentError("coupled $(role) work budget exhausted: required=$next, cap=$limit"))
     setfield!(meter, role, next)
@@ -371,10 +371,13 @@ function _ec_average_current(a, b, ::Type{T}) where {T}
     current = map(a.current, b.current) do left, right
         map((x, y) -> _from_exact(T, (_exact_rational(x) + _exact_rational(y)) / 2), left, right)
     end
-    dc =
-        a.dc === nothing ? nothing :
-        _from_exact(T, (_exact_rational(a.dc) + _exact_rational(b.dc)) / 2)
-    all(x -> all(isfinite, x), current) && (dc === nothing || isfinite(dc)) ||
+    if a.dc === nothing
+        all(x -> all(isfinite, x), current) ||
+            throw(ArgumentError("coupled averaged current is nonfinite"))
+        return (current = current, dc = nothing)
+    end
+    dc = _from_exact(T, (_exact_rational(a.dc) + _exact_rational(b.dc)) / 2)
+    all(x -> all(isfinite, x), current) && isfinite(dc) ||
         throw(ArgumentError("coupled averaged current is nonfinite"))
     return (current = current, dc = dc)
 end

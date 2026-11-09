@@ -47,8 +47,8 @@ function _em_lorentz_scaled_parts(
         gap = _exact_lorentz_gap(v..., c)
         gap > 0 || throw(ArgumentError("full-time Lorentz input has a nonpositive exact gap"))
         parallel = coefficient * sum(i -> V[i] * A[i], 1:3) / Q(c)^2
-        increment = ntuple(i -> increment[i] - parallel * V[i], 3)
-        return (coefficient = increment, gap = gap)
+        adjusted = ntuple(i -> increment[i] - parallel * V[i], 3)
+        return (coefficient = adjusted, gap = gap)
     end
     return (coefficient = increment, gap = one(Rational{BigInt}))
 end

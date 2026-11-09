@@ -209,11 +209,15 @@ function _electron_ion_stats(ps, bins, cell, velocity = ps.v)
         w = _exact_rational(ps.weight[p])
         weight += w
         v = ntuple(c -> _exact_rational(velocity[c][p]), 3)
-        momentum = ntuple(c -> momentum[c] + mass * w * v[c], 3)
+        momentum = (
+            momentum[1] + mass * w * v[1],
+            momentum[2] + mass * w * v[2],
+            momentum[3] + mass * w * v[3],
+        )
         kinetic += mass * w * sum(x -> x * x, v) / 2
     end
-    mean =
-        iszero(weight) ? (zero(Q), zero(Q), zero(Q)) : ntuple(c -> momentum[c] / (mass * weight), 3)
+    mean = iszero(weight) ? (zero(Q), zero(Q), zero(Q)) :
+        (momentum[1] / (mass * weight), momentum[2] / (mass * weight), momentum[3] / (mass * weight))
     thermal = kinetic - mass * weight * sum(x -> x * x, mean) / 2
     thermal >= 0 || throw(ArgumentError("electron-ion thermal energy must be nonnegative"))
     return (; weight, mean, kinetic, momentum, thermal, capacity = 3weight / 2, count)
@@ -334,8 +338,11 @@ function _electron_ion_publish!(bins, ps, cell, old, target, rng, source_velocit
                 ArgumentError("electron-ion component publication exceeded its rounding bound"),
             )
             bins.velocity[c][p] = value
-            momentum_bound =
-                ntuple(d -> momentum_bound[d] + (c == d ? mass * w * radius : zero(Q)), 3)
+            momentum_bound = (
+                momentum_bound[1] + (c == 1 ? mass * w * radius : zero(Q)),
+                momentum_bound[2] + (c == 2 ? mass * w * radius : zero(Q)),
+                momentum_bound[3] + (c == 3 ? mass * w * radius : zero(Q)),
+            )
             kinetic_bound += mass * w * (abs(frame) * radius + radius^2 / 2)
         end
     end
@@ -384,7 +391,11 @@ function _electron_ion_endpoint_bounds(ps, bins, cell)
         p = bins.index[k]
         w = _exact_rational(ps.weight[p])
         radius = _electron_ion_radius(ps.v[c][p])
-        momentum = ntuple(d -> momentum[d] + (c == d ? mass * w * radius : zero(Q)), 3)
+        momentum = (
+            momentum[1] + (c == 1 ? mass * w * radius : zero(Q)),
+            momentum[2] + (c == 2 ? mass * w * radius : zero(Q)),
+            momentum[3] + (c == 3 ? mass * w * radius : zero(Q)),
+        )
         kinetic += mass * w * (abs(_exact_rational(ps.v[c][p])) * radius + 3radius^2 / 2)
     end
     return momentum, kinetic
@@ -744,9 +755,16 @@ function _prepare_electron_ion_overlap!(config, work, inner, species, h, epsilon
         work.pressure[j] = pressure_after
         energy_defect += defect
         energy_bound += bound
-        momentum_defect =
-            ntuple(c -> momentum_defect[c] + after.momentum[c] - before.momentum[c], 3)
-        momentum_bound = ntuple(c -> momentum_bound[c] + materialized.momentum_bound[c], 3)
+        momentum_defect = (
+            momentum_defect[1] + after.momentum[1] - before.momentum[1],
+            momentum_defect[2] + after.momentum[2] - before.momentum[2],
+            momentum_defect[3] + after.momentum[3] - before.momentum[3],
+        )
+        momentum_bound = (
+            momentum_bound[1] + materialized.momentum_bound[1],
+            momentum_bound[2] + materialized.momentum_bound[2],
+            momentum_bound[3] + materialized.momentum_bound[3],
+        )
         push!(
             edges,
             (
@@ -1328,9 +1346,16 @@ function _validate_electron_ion_overlap_report(
         current[f] = row.after
         energy_defect += defect
         energy_bound += bound
-        momentum_defect =
-            ntuple(c -> momentum_defect[c] + row.after.momentum[c] - row.before.momentum[c], 3)
-        momentum_bound = ntuple(c -> momentum_bound[c] + row.materialized.momentum_bound[c], 3)
+        momentum_defect = (
+            momentum_defect[1] + row.after.momentum[1] - row.before.momentum[1],
+            momentum_defect[2] + row.after.momentum[2] - row.before.momentum[2],
+            momentum_defect[3] + row.after.momentum[3] - row.before.momentum[3],
+        )
+        momentum_bound = (
+            momentum_bound[1] + row.materialized.momentum_bound[1],
+            momentum_bound[2] + row.materialized.momentum_bound[2],
+            momentum_bound[3] + row.materialized.momentum_bound[3],
+        )
     end
     all(f -> current[f] == actual[f].statistics, eachindex(actual)) &&
         isequal(pressure, fields.pe) ||

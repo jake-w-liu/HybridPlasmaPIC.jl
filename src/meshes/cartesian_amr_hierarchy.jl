@@ -110,15 +110,15 @@ function _camr_bounds(a::Tuple{Int,NTuple{D,Int}}, L, denominators) where {D}
 end
 function _camr_query_data(
     n::NTuple{D,Int},
-    L,
-    refined,
-    leaves,
-    lo,
-    hi;
-    closed = false,
+    L::NTuple{D,T},
+    refined::Dict{Tuple{Int,NTuple{D,Int}},Int},
+    leaves::Dict{Tuple{Int,NTuple{D,Int}},Int},
+    lo::NTuple{D,_CompositeQ},
+    hi::NTuple{D,_CompositeQ};
+    closed::Bool = false,
     roots = nothing,
     segment = nothing,
-) where {D}
+) where {D,T<:Union{Float32,Float64}}
     any(d -> hi[d] < 0 || lo[d] > _exact_rational(L[d]) || lo[d] > hi[d], 1:D) && return Int[]
     ranges = ntuple(D) do d
         h = _exact_rational(L[d]) / n[d]
@@ -225,10 +225,10 @@ end
 function _camr_layout(
     n::NTuple{D,Int},
     L::NTuple{D,T},
-    specs,
-    denominators;
-    periodic = false,
-) where {D,T}
+    specs::R,
+    denominators::Vector{NTuple{D,Int}};
+    periodic::Bool = false,
+) where {D,T,R<:Tuple}
     refined = Dict{Tuple{Int,NTuple{D,Int}},Int}(a => k + 1 for (k, a) in enumerate(specs))
     patchcells = Vector{Vector{Tuple{Int,NTuple{D,Int}}}}()
     push!(patchcells, [(0, I) for I in _camr_indices(n)])
@@ -457,28 +457,48 @@ function _camr_layout(
                 throw(ArgumentError("Cartesian boundary constraint uses an interior master"))
         end
     end
+    # The periodic and nonperiodic branches meet here. Explicit assertions keep
+    # the generated constructor's concrete field types visible to inference;
+    # closures in the grounded branch otherwise box `rows` and `gauge`.
+    patches_t = patches::Vector{_CartesianAMRPatch{D}}
+    addresses_t = addresses::Vector{Tuple{Int,NTuple{D,Int}}}
+    lower_t = lower::Vector{NTuple{D,_CompositeQ}}
+    upper_t = upper::Vector{NTuple{D,_CompositeQ}}
+    volumes_t = volumes::Vector{_CompositeQ}
+    vertices_t = vertices::Vector{NTuple{D,_CompositeQ}}
+    corners_t = corners::Vector{Vector{Int}}
+    rows_t = rows::Vector{Vector{Pair{Int,_CompositeQ}}}
+    masters_t = masters::Vector{Int}
+    free_t = free::Vector{Int}
+    boundary_t = boundary::Vector{Int}
+    gauge_t = gauge::Int
+    free_index_t = free_index::Vector{Int}
+    faces_t = faces::Vector{_CartesianAMRFace{D}}
+    seams_t = seams::Vector{_CartesianAMRSeam{D}}
+    refined_t = refined::Dict{Tuple{Int,NTuple{D,Int}},Int}
+    leaf_index_t = leaf_index::Dict{Tuple{Int,NTuple{D,Int}},Int}
     return CartesianAMRHierarchy(
         n,
         L,
         specs,
         periodic,
-        patches,
-        addresses,
-        lower,
-        upper,
-        volumes,
-        vertices,
-        corners,
-        rows,
-        masters,
-        free,
-        boundary,
-        gauge,
-        free_index,
-        faces,
-        seams,
-        refined,
-        leaf_index,
+        patches_t,
+        addresses_t,
+        lower_t,
+        upper_t,
+        volumes_t,
+        vertices_t,
+        corners_t,
+        rows_t,
+        masters_t,
+        free_t,
+        boundary_t,
+        gauge_t,
+        free_index_t,
+        faces_t,
+        seams_t,
+        refined_t,
+        leaf_index_t,
     )
 end
 "Owned balanced 2D/3D dyadic hierarchy; each refinement is (level, logical-cell tuple)."

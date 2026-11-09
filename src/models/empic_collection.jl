@@ -698,7 +698,11 @@ function _empic_collection_begin_interval!(stage::EMPIC, work, target, previous)
     _empic_collection_charge!(stage.rho_n, stage, work, target)
     return _empic_center_magnetic!(stage, stage.g, previous)
 end
-function _empic_collection_gather!(stage::EMPIC, ps; initial = false)
+function _empic_collection_gather!(
+    stage::EMPIC{D,T},
+    ps::_ElectrostaticHostParticle{D,T};
+    initial = false,
+) where {D,T}
     _ensure_empic_electron_buffers!(stage, nparticles(ps))
     gather_vector!(stage.Ep, stage.E, ps, stage.g, stage.shape)
     gather_vector!(stage.Bp, initial ? stage.B : stage.Bc, ps, stage.g, stage.shape)
@@ -1083,7 +1087,11 @@ function _empic_collection_begin_interval!(stage::EMPIC1D{T}, work, target, prev
     _empic_collection_charge!(stage.rho_n, stage, work, target)
     return _empic1d_center_magnetic!(stage, stage.g, previous, zero(T))
 end
-function _empic_collection_gather!(stage::EMPIC1D, ps; initial = false)
+function _empic_collection_gather!(
+    stage::EMPIC1D{T},
+    ps::_ElectrostaticHostParticle{1,T};
+    initial = false,
+) where {T}
     _ensure_electron_buffers!(stage, nparticles(ps))
     gather_scalar!(stage.Exp, stage.Ex, ps, stage.g, stage.shape)
     gather_scalar!(stage.Eyp, stage.Ey, ps, stage.g, stage.shape)

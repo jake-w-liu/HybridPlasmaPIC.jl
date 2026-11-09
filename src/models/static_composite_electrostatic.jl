@@ -106,7 +106,12 @@ function _sce_values(mesh, species, factors)
 end
 
 function _sce_make_binding(species, sources, mesh, ::Type{T}; components = species) where {T}
-    owners = _ElectrostaticHostParticle{1,T}[ps::_ElectrostaticHostParticle{1,T} for ps in species]
+    owners = _ElectrostaticHostParticle{1,T}[]
+    for ps in species
+        ps isa _ElectrostaticHostParticle{1,T} ||
+            throw(ArgumentError("composite ES requires ordinary 1D grid-precision Vector particles"))
+        push!(owners, ps)
+    end
     arrays = Tuple[_sce_particle_arrays(ps) for ps in components]
     candidates = _ElectrostaticHostParticle{1,T}[]
     _pic_prepare_species_stages!(candidates, sources)
