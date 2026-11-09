@@ -17,12 +17,27 @@ const _RangeGuardedFloat = Union{Float16,Float32,Float64}
 
 # A full-time EM RHS keeps the complete scaled increment, not a rounded rate
 # or a finite Boris momentum map. The caller admits each materialized output.
-function _em_lorentz_scaled_parts(v::NTuple{3,T}, E::NTuple{3,T}, B::NTuple{3,T}, factor,
-    H::Rational{BigInt}, c::T, ::Val{rel}) where {T<:Union{Float32,Float64},rel}
-    all(isfinite, (v..., E..., B..., _boris_factor_operands(factor)..., c)) && c > 0 && H > 0 && denominator(H) > 0 ||
-        throw(ArgumentError("full-time Lorentz operands must be finite with positive c and interval"))
-    factor isa _BorisSpeciesFactors && !_stored_positive(factor.m) && throw(ArgumentError("full-time Lorentz mass must be positive"))
-    rel && !_supported_relativistic_output(v, c) && throw(ArgumentError("full-time Lorentz input is outside the supported velocity domain"))
+function _em_lorentz_scaled_parts(
+    v::NTuple{3,T},
+    E::NTuple{3,T},
+    B::NTuple{3,T},
+    factor,
+    H::Rational{BigInt},
+    c::T,
+    ::Val{rel},
+) where {T<:Union{Float32,Float64},rel}
+    all(isfinite, (v..., E..., B..., _boris_factor_operands(factor)..., c)) &&
+        c > 0 &&
+        H > 0 &&
+        denominator(H) > 0 || throw(
+        ArgumentError("full-time Lorentz operands must be finite with positive c and interval"),
+    )
+    factor isa _BorisSpeciesFactors &&
+        !_stored_positive(factor.m) &&
+        throw(ArgumentError("full-time Lorentz mass must be positive"))
+    rel &&
+        !_supported_relativistic_output(v, c) &&
+        throw(ArgumentError("full-time Lorentz input is outside the supported velocity domain"))
     Q = _exact_rational
     V, A, M = map(x -> map(Q, x), (v, E, B))
     coefficient = H * _boris_exact_factor(factor)
@@ -38,15 +53,24 @@ function _em_lorentz_scaled_parts(v::NTuple{3,T}, E::NTuple{3,T}, B::NTuple{3,T}
     return (coefficient = increment, gap = one(Rational{BigInt}))
 end
 
-function _em_lorentz_pair_output(v0::NTuple{3,T}, p0, p1, c::T, ::Val{rel}) where {T<:Union{Float32,Float64},rel}
+function _em_lorentz_pair_output(
+    v0::NTuple{3,T},
+    p0,
+    p1,
+    c::T,
+    ::Val{rel},
+) where {T<:Union{Float32,Float64},rel}
     Q = _exact_rational
     packets = p1 === nothing ? (p0,) : (p0, p1)
     weight = p1 === nothing ? one(Rational{BigInt}) : BigInt(1) // BigInt(2)
     for packet in packets
-        packet isa NamedTuple && keys(packet) == (:coefficient, :gap) &&
-            packet.coefficient isa NTuple{3,Rational{BigInt}} && packet.gap isa Rational{BigInt} &&
+        packet isa NamedTuple &&
+            keys(packet) == (:coefficient, :gap) &&
+            packet.coefficient isa NTuple{3,Rational{BigInt}} &&
+            packet.gap isa Rational{BigInt} &&
             all(x -> denominator(x) > 0, (packet.coefficient..., packet.gap)) &&
-            (rel ? 0 < packet.gap <= 1 : packet.gap == 1) || throw(ArgumentError("full-time Lorentz increment layout differs"))
+            (rel ? 0 < packet.gap <= 1 : packet.gap == 1) ||
+            throw(ArgumentError("full-time Lorentz increment layout differs"))
     end
     return ntuple(3) do component
         origin = Q(v0[component])
@@ -57,11 +81,15 @@ function _em_lorentz_pair_output(v0::NTuple{3,T}, p0, p1, c::T, ::Val{rel}) wher
             rational = origin
             radicands, coefficients = Rational{BigInt}[], Rational{BigInt}[]
             for packet in packets
-                rational += _combine_relativistic_radical!(radicands, coefficients,
-                    packet.gap, weight * packet.coefficient[component])
+                rational += _combine_relativistic_radical!(
+                    radicands,
+                    coefficients,
+                    packet.gap,
+                    weight * packet.coefficient[component],
+                )
             end
             rational == origin && all(iszero, coefficients) ? v0[component] :
-                _finish_relativistic_energy(T, rational, radicands, coefficients)
+            _finish_relativistic_energy(T, rational, radicands, coefficients)
         end
     end
 end

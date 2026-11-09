@@ -54,25 +54,42 @@ end
 
 function _normalize_empic_event_checkpoint(s)
     _reject_empic_coupled_checkpoint_fields(s)
-    _validate_checkpoint_container(s, (:schema_version, :schedule_policy, _EMPIC_EVENT_CHECKPOINT_FIELDS...))
+    _validate_checkpoint_container(
+        s,
+        (:schema_version, :schedule_policy, _EMPIC_EVENT_CHECKPOINT_FIELDS...),
+    )
     s.schema_version === 3 && s.schedule_policy === 2 && s.phase_policy === :persistent_event ||
         throw(ArgumentError("persistent schedules require schema3/policy2 without phase migration"))
     return s
 end
 
 function _empic_event_checkpoint_phase(wire, ::Type{T}) where {T}
-    wire isa NamedTuple && keys(wire) == (:time, :primed, :interval, :last, :next, :report) &&
-        _empic_event_q(wire.time) && wire.primed isa Bool &&
-        wire.interval isa Vector{T} && wire.last isa Vector{_EMPICEventQ} &&
+    wire isa NamedTuple &&
+        keys(wire) == (:time, :primed, :interval, :last, :next, :report) &&
+        _empic_event_q(wire.time) &&
+        wire.primed isa Bool &&
+        wire.interval isa Vector{T} &&
+        wire.last isa Vector{_EMPICEventQ} &&
         wire.next isa Vector{_EMPICEventQ} ||
         throw(ArgumentError("checkpoint persistent phase layout differs"))
-    return _EMPICEventPhase{T}(wire.time, wire.primed, wire.interval, wire.last, wire.next, wire.report)
+    return _EMPICEventPhase{T}(
+        wire.time,
+        wire.primed,
+        wire.interval,
+        wire.last,
+        wire.next,
+        wire.report,
+    )
 end
 
 function _empic_event_checkpoint_proposal_layout(p, ::Type{T}) where {T}
-    p isa NamedTuple && keys(p) == (:cap, :adaptive, :minimum, :limits, :budget) &&
-        p.cap isa Vector{T} && p.adaptive isa BitVector && p.minimum isa Vector{T} &&
-        p.budget isa Int && p.limits isa NamedTuple &&
+    p isa NamedTuple &&
+        keys(p) == (:cap, :adaptive, :minimum, :limits, :budget) &&
+        p.cap isa Vector{T} &&
+        p.adaptive isa BitVector &&
+        p.minimum isa Vector{T} &&
+        p.budget isa Int &&
+        p.limits isa NamedTuple &&
         keys(p.limits) == (:rotation, :electric, :travel, :growth) &&
         all(v -> v isa T, values(p.limits)) ||
         throw(ArgumentError("checkpoint persistent proposal layout differs"))
@@ -83,8 +100,16 @@ function _empic_event_checkpoint_arrays(s, populations, phase)
     p = s.event_proposal
     # Keep repeated semantic roles: a seen-object walk would erase a malformed
     # repeated leaf before the pairwise independence check could observe it.
-    arrays = AbstractArray[s.mobile, s.species, p.cap, p.adaptive, p.minimum,
-        phase.interval, phase.last, phase.next]
+    arrays = AbstractArray[
+        s.mobile,
+        s.species,
+        p.cap,
+        p.adaptive,
+        p.minimum,
+        phase.interval,
+        phase.last,
+        phase.next,
+    ]
     for value in values(s.fields)
         append!(arrays, value isa Tuple ? value : (value,))
     end
@@ -97,7 +122,8 @@ function _empic_event_checkpoint_arrays(s, populations, phase)
         left, right = _checkpoint_packed_chunks(a), _checkpoint_packed_chunks(b)
         # Packed flags also own their chunks; this catches a saved UInt64
         # particle-ID role retaining the same buffer across Julia versions.
-        aliased = _particle_arrays_mightalias(a, b) ||
+        aliased =
+            _particle_arrays_mightalias(a, b) ||
             (left !== nothing && _particle_arrays_mightalias(left, b)) ||
             (right !== nothing && _particle_arrays_mightalias(a, right)) ||
             (left !== nothing && right !== nothing && _particle_arrays_mightalias(left, right))
@@ -114,6 +140,10 @@ function _empic_event_checkpoint_live_links(s, st, species)
         # Closed Q fields are numeric value codecs; shared BigInt scalar values
         # neither own a second array role nor retain an executable resource.
         value isa Union{_EMPICEventQ,BigInt} && return nothing
+        # Immutable value records (control/proposal tuples and phase carriers)
+        # cannot retain executable resources on their own. Their mutable fields
+        # are visited separately, so only mutable objects and arrays are live.
+        (ismutable(value) || value isa AbstractArray) || return nothing
         live[value] = true
         value isa AbstractArray && push!(arrays, value)
         return nothing
@@ -121,11 +151,17 @@ function _empic_event_checkpoint_live_links(s, st, species)
     _visit_checkpoint_objects(remember, (st, species); backing = remember)
     function independent(value)
         value isa Union{_EMPICEventQ,BigInt} && return nothing
-        haskey(live, value) &&
-            throw(ArgumentError("checkpoint persistent source must not retain live solver objects"))
-        if value isa AbstractArray
-            any(a -> _particle_arrays_mightalias(value, a), arrays) &&
-                throw(ArgumentError("checkpoint persistent source must not alias live solver storage"))
+        if ismutable(value) || value isa AbstractArray
+            haskey(live, value) && throw(
+                ArgumentError(
+                    "checkpoint persistent source must not retain live solver objects ($(typeof(value)))",
+                ),
+            )
+            if value isa AbstractArray
+                any(a -> _particle_arrays_mightalias(value, a), arrays) && throw(
+                    ArgumentError("checkpoint persistent source must not alias live solver storage"),
+                )
+            end
         end
         return nothing
     end
@@ -149,15 +185,27 @@ function _empic_event_checkpoint_graph(s)
 end
 
 function _validate_empic_event_checkpoint(
-    s, st, g::FourierGrid{D,T}; destination = nothing,
+    s,
+    st,
+    g::FourierGrid{D,T};
+    destination = nothing,
 ) where {D,T}
     _normalize_empic_event_checkpoint(s)
-    required = (_EMPIC_COLLECTION_CHECKPOINT_FIELDS..., :schedule_policy,
-        _EMPIC_EVENT_CHECKPOINT_FIELDS..., (st isa EMPIC1D ? (:polarization,) : ())...)
+    required = (
+        _EMPIC_COLLECTION_CHECKPOINT_FIELDS...,
+        :schedule_policy,
+        _EMPIC_EVENT_CHECKPOINT_FIELDS...,
+        (st isa EMPIC1D ? (:polarization,) : ())...,
+    )
     _validate_checkpoint_container(s, required)
-    length(keys(s)) == length(required) && s.D isa Int && s.T === T &&
-        s.ncell isa typeof(g.n) && s.L isa typeof(g.L) && s.mobile isa BitVector &&
-        s.species isa Vector && all(i -> isassigned(s.species, i), eachindex(s.species)) ||
+    length(keys(s)) == length(required) &&
+        s.D isa Int &&
+        s.T === T &&
+        s.ncell isa typeof(g.n) &&
+        s.L isa typeof(g.L) &&
+        s.mobile isa BitVector &&
+        s.species isa Vector &&
+        all(i -> isassigned(s.species, i), eachindex(s.species)) ||
         throw(ArgumentError("checkpoint persistent envelope must have the closed schema3 layout"))
     for record in s.species
         record isa NamedTuple && keys(record) == _CHECKPOINT_PARTICLE_FIELDS ||
@@ -186,20 +234,42 @@ function _validate_empic_event_checkpoint(
     candidate = _empic_event_zero_phase(T, length(s.mobile))
     prepared = _EMPICEventSchedule{T}(proposal, phase, candidate, nothing, nothing)
     _empic_collection_validate_schedule(st, prepared)
-    _empic_event_phase_values(st, phase, populations, s.initialized,
-        s.time, s.step, s.last_dt, s.last_sub_dt; speed = s.c, fields = s.fields)
+    _empic_event_phase_values(
+        st,
+        phase,
+        populations,
+        s.initialized,
+        s.time,
+        s.step,
+        s.last_dt,
+        s.last_sub_dt;
+        speed = s.c,
+        fields = s.fields,
+    )
     return nothing
 end
 
 function _empic_event_checkpoint_state(st, common)
     schedule = _empic_collection(st).schedule
     phase = schedule.phase
-    state = merge(common, (
-        schema_version = 3, schedule_policy = 2, phase_policy = :persistent_event,
-        fields = _empic_event_fields(st), event_proposal = schedule.proposal,
-        event_phase = (time = phase.time, primed = phase.primed, interval = phase.interval,
-            last = phase.last, next = phase.next, report = phase.report),
-    ))
+    state = merge(
+        common,
+        (
+            schema_version = 3,
+            schedule_policy = 2,
+            phase_policy = :persistent_event,
+            fields = _empic_event_fields(st),
+            event_proposal = schedule.proposal,
+            event_phase = (
+                time = phase.time,
+                primed = phase.primed,
+                interval = phase.interval,
+                last = phase.last,
+                next = phase.next,
+                report = phase.report,
+            ),
+        ),
+    )
     _validate_empic_event_checkpoint(state, st, st.g)
     saved = deepcopy(state)
     _validate_empic_event_checkpoint(saved, st, st.g)
@@ -212,31 +282,42 @@ function _restore_empic_event_checkpoint!(st, species, s, g::FourierGrid{D,T}) w
     _empic_collection_validate_storage(st, species)
     length(species) == length(s.species) ||
         throw(ArgumentError("checkpoint population count does not match destination"))
-    all(ps -> ps isa eltype(work.owners), species) ||
-        throw(ArgumentError("population storage type changed; construct a new electromagnetic collection"))
+    all(ps -> ps isa eltype(work.owners), species) || throw(
+        ArgumentError(
+            "population storage type changed; construct a new electromagnetic collection",
+        ),
+    )
     for (ps, record) in zip(species, s.species)
         _validate_checkpoint_destination(ps, length(record.weight))
     end
     saved = deepcopy(s)
     _validate_empic_event_checkpoint(saved, st, g)
-    populations = ParticleSet{D,T}[_checkpoint_species(record, Val(D), T) for record in saved.species]
+    populations =
+        ParticleSet{D,T}[_checkpoint_species(record, Val(D), T) for record in saved.species]
     p = saved.event_proposal
-    proposal = _empic_event_proposal(saved.mobile, p.cap, p.adaptive, p.minimum, p.limits, p.budget, T)
+    proposal =
+        _empic_event_proposal(saved.mobile, p.cap, p.adaptive, p.minimum, p.limits, p.budget, T)
     phase = _empic_event_checkpoint_phase(saved.event_phase, T)
     candidate = _empic_event_zero_phase(T, length(saved.mobile))
-    configuration = _empic_event_configuration(st;
-        c = saved.c, shape = saved.shape, relativistic = saved.relativistic)
+    configuration = _empic_event_configuration(
+        st;
+        c = saved.c,
+        shape = saved.shape,
+        relativistic = saved.relativistic,
+    )
     clock = (saved.time, saved.step, saved.last_dt, saved.last_sub_dt)
-    shadow = saved.initialized ? _empic_event_shadow_values(
-        st, populations, saved.fields, species, configuration, clock,
-    ) : nothing
+    shadow =
+        saved.initialized ?
+        _empic_event_shadow_values(st, populations, saved.fields, species, configuration, clock) :
+        nothing
     # Capacity and every new authoritative/private object are prepared before
     # ordinary stores, with the same resource/concurrency boundary as old IO.
     for (ps, record) in zip(species, saved.species)
         count = length(record.weight)
         for a in (ps.x..., ps.v..., ps.weight, ps.id, ps.tag)
             if length(a) != count
-                a isa Vector || throw(ArgumentError("only Vector checkpoint destinations may resize"))
+                a isa Vector ||
+                    throw(ArgumentError("only Vector checkpoint destinations may resize"))
                 sizehint!(a, count)
             end
         end
@@ -246,7 +327,8 @@ function _restore_empic_event_checkpoint!(st, species, s, g::FourierGrid{D,T}) w
         _restore_checkpoint_particles!(ps, record)
     end
     _restore_checkpoint_fields!(_empic_event_fields(st), saved.fields)
-    st.c, st.shape, st.n_sub, st.relativistic = saved.c, saved.shape, saved.n_sub, saved.relativistic
+    st.c, st.shape, st.n_sub, st.relativistic =
+        saved.c, saved.shape, saved.n_sub, saved.relativistic
     st.time[], st.step[] = saved.time, saved.step
     st.last_dt[], st.last_sub_dt[] = saved.last_dt, saved.last_sub_dt
     schedule = work.schedule
@@ -260,7 +342,9 @@ end
 
 "Verify the archive checksum and restore an existing electromagnetic collection verbatim."
 function load_archive!(
-    st::_ElectromagneticCheckpointStepper, species::AbstractVector{<:ParticleSet}, path::AbstractString,
+    st::_ElectromagneticCheckpointStepper,
+    species::AbstractVector{<:ParticleSet},
+    path::AbstractString,
 )
     _empic_collection(st)
     loaded = load_run(path)
@@ -273,7 +357,8 @@ _empic_collection_checkpoint_schema(st) =
     (_empic_collection(st).schedule === nothing ? 1 : 2)
 
 function _normalize_empic_collection_checkpoint(s, st::EMPIC)
-    _empic_collection(st).schedule isa _EMPICCoupledSchedule && return _normalize_empic_coupled_checkpoint(s)
+    _empic_collection(st).schedule isa _EMPICCoupledSchedule &&
+        return _normalize_empic_coupled_checkpoint(s)
     _empic_collection(st).schedule isa _EMPICEventSchedule &&
         return _normalize_empic_event_checkpoint(s)
     _reject_empic_event_checkpoint_fields(s)
@@ -293,7 +378,8 @@ _normalize_empic_collection_checkpoint(s, st::EMPIC1D) =
     _normalize_empic_species_schedule_checkpoint(s, st)
 
 function _normalize_empic_species_schedule_checkpoint(s, st)
-    _empic_collection(st).schedule isa _EMPICCoupledSchedule && return _normalize_empic_coupled_checkpoint(s)
+    _empic_collection(st).schedule isa _EMPICCoupledSchedule &&
+        return _normalize_empic_coupled_checkpoint(s)
     _empic_collection(st).schedule isa _EMPICEventSchedule &&
         return _normalize_empic_event_checkpoint(s)
     _reject_empic_event_checkpoint_fields(s)
@@ -324,7 +410,8 @@ function _validate_normalized_empic_collection_checkpoint(
     st::_ElectromagneticCheckpointStepper,
     g::FourierGrid{D,T},
 ) where {D,T}
-    _empic_collection(st).schedule isa _EMPICCoupledSchedule && return _validate_empic_coupled_checkpoint(s, st, g)
+    _empic_collection(st).schedule isa _EMPICCoupledSchedule &&
+        return _validate_empic_coupled_checkpoint(s, st, g)
     _empic_collection(st).schedule isa _EMPICEventSchedule &&
         return _validate_empic_event_checkpoint(s, st, g)
     version = _empic_collection_checkpoint_schema(st)
@@ -469,7 +556,8 @@ function _empic_collection_checkpoint_state(
     species::AbstractVector{<:ParticleSet},
     ::FourierGrid{D,T},
 ) where {D,T}
-    _empic_collection(st).schedule isa _EMPICCoupledSchedule && return _empic_coupled_checkpoint_state(st, species)
+    _empic_collection(st).schedule isa _EMPICCoupledSchedule &&
+        return _empic_coupled_checkpoint_state(st, species)
     work = _empic_collection(st)
     _empic_collection_validate_species(st, species)
     _empic_collection_validate_phase(st)
@@ -504,7 +592,8 @@ function _restore_empic_collection_checkpoint!(
     s,
     ::FourierGrid{D,T},
 ) where {D,T}
-    _empic_collection(st).schedule isa _EMPICCoupledSchedule && return _restore_empic_coupled_checkpoint!(st, species, s, st.g)
+    _empic_collection(st).schedule isa _EMPICCoupledSchedule &&
+        return _restore_empic_coupled_checkpoint!(st, species, s, st.g)
     _empic_collection(st).schedule isa _EMPICEventSchedule &&
         return _restore_empic_event_checkpoint!(st, species, s, st.g)
     work = _empic_collection(st)

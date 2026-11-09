@@ -123,11 +123,35 @@ mutable struct ToroidalAnnulusHybridPIC{T,M,C,F}
         busy::Threads.Atomic{Bool},
     ) where {T,M,C,F}
         return new{T,M,C,F}(
-            mesh, closure, owners, beta, fields, pressure_reservoir,
-            div_rtol, div_atol, refresh_rtol, counts, qm, weights, components,
-            normal_flux, work, committed, configuration, initialized, time, step,
-            last_dt, initial_energy, outward_work, controller_work, stage_defect,
-            rk_defect, last_report, last_endpoint, busy,
+            mesh,
+            closure,
+            owners,
+            beta,
+            fields,
+            pressure_reservoir,
+            div_rtol,
+            div_atol,
+            refresh_rtol,
+            counts,
+            qm,
+            weights,
+            components,
+            normal_flux,
+            work,
+            committed,
+            configuration,
+            initialized,
+            time,
+            step,
+            last_dt,
+            initial_energy,
+            outward_work,
+            controller_work,
+            stage_defect,
+            rk_defect,
+            last_report,
+            last_endpoint,
+            busy,
         )
     end
 end
@@ -415,7 +439,7 @@ function ToroidalAnnulusHybridPIC(
     )
     normal = ntuple(2) do side
         radial = side == 1 ? 1 : owned.n[1]
-        Tuple(beta[1][radial, j, k] for k in 1:owned.n[3] for j in 1:owned.n[2])
+        Tuple(beta[1][radial, j, k] for k = 1:owned.n[3] for j = 1:owned.n[2])
     end
     z = zero(_CompositeQ)
     st = ToroidalAnnulusHybridPIC{T,typeof(owned),typeof(closure),typeof(fields)}(

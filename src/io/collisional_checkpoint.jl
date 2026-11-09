@@ -182,16 +182,15 @@ function _restore_checkpoint_state!(st::CollisionalHybridStepper, species::Abstr
     end
 end
 
-const _COLLISIONAL_THERMAL_CHECKPOINT_FIELDS = (
-    _COLLISIONAL_CHECKPOINT_FIELDS..., :electron_ion, :thermal_report,
-)
+const _COLLISIONAL_THERMAL_CHECKPOINT_FIELDS =
+    (_COLLISIONAL_CHECKPOINT_FIELDS..., :electron_ion, :thermal_report)
 
 const _COLLISIONAL_CGL_POLICY_FIELDS = (:cgl_policy_version, :cgl_force_floor, :cgl_force_operator)
-const _COLLISIONAL_CGL_CHECKPOINT_FIELDS = (
-    _COLLISIONAL_CHECKPOINT_FIELDS..., _COLLISIONAL_CGL_POLICY_FIELDS...,
-)
+const _COLLISIONAL_CGL_CHECKPOINT_FIELDS =
+    (_COLLISIONAL_CHECKPOINT_FIELDS..., _COLLISIONAL_CGL_POLICY_FIELDS...)
 _collisional_cgl_policy(::Type{T}) where {T} = (
-    cgl_policy_version = 1, cgl_force_floor = T(1e-12),
+    cgl_policy_version = 1,
+    cgl_force_floor = T(1e-12),
     cgl_force_operator = :global_invariants_trial_B_tensor,
 )
 
@@ -201,14 +200,28 @@ function _checkpoint_state(st::CollisionalHybridStepper, species::AbstractVector
         return merge(common, (schema = 4,), _collisional_cgl_policy(eltype(st.inner.fields.n)))
     end
     st.electron_ion === nothing && return common
-    _validate_electron_ion_report(st.thermal_report, st.electron_ion, st.inner,
-        st.species, st.inner.fields, st.source_time, st.source_count, st.dt,
-        st.epsilon0, st.weight_to_number)
+    _validate_electron_ion_report(
+        st.thermal_report,
+        st.electron_ion,
+        st.inner,
+        st.species,
+        st.inner.fields,
+        st.source_time,
+        st.source_count,
+        st.dt,
+        st.epsilon0,
+        st.weight_to_number,
+    )
     # The payload is subsequently validated by the common transport. Detach the
     # receipt now so that capture never needs to waive incoming/live links.
-    return merge(common, (schema = st.electron_ion.policy == 1 ? 2 : 3,
-        electron_ion = _electron_ion_configuration(st.electron_ion),
-        thermal_report = deepcopy(st.thermal_report)))
+    return merge(
+        common,
+        (
+            schema = st.electron_ion.policy == 1 ? 2 : 3,
+            electron_ion = _electron_ion_configuration(st.electron_ion),
+            thermal_report = deepcopy(st.thermal_report),
+        ),
+    )
 end
 
 function _validate_checkpoint_state(s, st::CollisionalHybridStepper)
@@ -236,8 +249,10 @@ function _validate_collisional_cgl_checkpoint(s, st::CollisionalHybridStepper{D,
         throw(ArgumentError("collisional CGL cannot carry scalar thermal exchange state"))
     _validate_collisional_model(st.inner)
     expected = _collisional_cgl_policy(T)
-    s.cgl_policy_version isa Int && s.cgl_policy_version === expected.cgl_policy_version &&
-        s.cgl_force_floor isa T && isequal(s.cgl_force_floor, expected.cgl_force_floor) &&
+    s.cgl_policy_version isa Int &&
+        s.cgl_policy_version === expected.cgl_policy_version &&
+        s.cgl_force_floor isa T &&
+        isequal(s.cgl_force_floor, expected.cgl_force_floor) &&
         s.cgl_force_operator === expected.cgl_force_operator ||
         throw(ArgumentError("collisional CGL force policy must match the destination"))
     legacy = merge(NamedTuple{_COLLISIONAL_CHECKPOINT_FIELDS}(s), (schema = 1,))
@@ -261,8 +276,10 @@ function _validate_thermal_checkpoint_storage(s, st)
     end
     legacy = NamedTuple{_COLLISIONAL_CHECKPOINT_FIELDS}(s)
     _register_checkpoint_configuration_owned!(remember, remember, owned, legacy, st.inner)
-    _visit_checkpoint_objects(remember, (st.transaction, st.workspace,
-        st.thermal_work, st.electron_ion, st.rng, st.thermal_report))
+    _visit_checkpoint_objects(
+        remember,
+        (st.transaction, st.workspace, st.thermal_work, st.electron_ion, st.rng, st.thermal_report),
+    )
     graph = IdDict{Any,NamedTuple{(:logical, :edges),Tuple{Bool,Vector{Tuple{Any,Bool}}}}}()
     function record(value, logical, edges)
         value isa Union{_ElectronIonQ,BigInt,Regex} && empty!(edges)
@@ -270,7 +287,11 @@ function _validate_thermal_checkpoint_storage(s, st)
         return nothing
     end
     function independent(value)
-        haskey(owned, value) && throw(ArgumentError("incoming thermal receipt must not link to saved or live simulation storage"))
+        haskey(owned, value) && throw(
+            ArgumentError(
+                "incoming thermal receipt must not link to saved or live simulation storage",
+            ),
+        )
         if value isa AbstractArray
             any(a -> _particle_arrays_mightalias(value, a), arrays) &&
                 throw(ArgumentError("incoming thermal receipt must not alias saved or live arrays"))
@@ -285,11 +306,13 @@ function _validate_thermal_checkpoint_storage(s, st)
         _validate_electron_ion_overlap_roles(s.thermal_report)
     elseif s.thermal_report isa NamedTuple && haskey(s.thermal_report, :cells)
         cells = s.thermal_report.cells
-        cells isa Vector{NamedTuple} || throw(ArgumentError("thermal receipt cells must be a standard Vector"))
+        cells isa Vector{NamedTuple} ||
+            throw(ArgumentError("thermal receipt cells must be a standard Vector"))
         roles = AbstractArray[cells]
         for cell in cells
             _electron_ion_record(cell, _ELECTRON_ION_CELL_KEYS)
-            cell.ions isa Vector{NamedTuple} || throw(ArgumentError("thermal receipt ions must be a standard Vector"))
+            cell.ions isa Vector{NamedTuple} ||
+                throw(ArgumentError("thermal receipt ions must be a standard Vector"))
             for other in roles
                 _particle_arrays_mightalias(cell.ions, other) &&
                     throw(ArgumentError("thermal receipt array roles must be independent"))
@@ -303,35 +326,59 @@ end
 function _validate_collisional_thermal_checkpoint(s, st::CollisionalHybridStepper{D,T}) where {D,T}
     st.electron_ion.policy == 2 && return _validate_collisional_overlap_checkpoint(s, st)
     _electron_ion_record(s, _COLLISIONAL_THERMAL_CHECKPOINT_FIELDS)
-    s.schema isa Int && s.schema == 2 || throw(ArgumentError("enabled electron-ion exchange requires collisional schema 2"))
+    s.schema isa Int && s.schema == 2 ||
+        throw(ArgumentError("enabled electron-ion exchange requires collisional schema 2"))
     expected = _electron_ion_configuration(st.electron_ion)
-    typeof(s.electron_ion) === typeof(expected) && isequal(s.electron_ion, expected) ||
-        throw(ArgumentError("electron-ion checkpoint configuration must match the bound destination"))
+    typeof(s.electron_ion) === typeof(expected) && isequal(s.electron_ion, expected) || throw(
+        ArgumentError("electron-ion checkpoint configuration must match the bound destination"),
+    )
     legacy = merge(NamedTuple{_COLLISIONAL_CHECKPOINT_FIELDS}(s), (schema = 1,))
     _validate_collisional_checkpoint1(legacy, st)
     _validate_thermal_checkpoint_storage(s, st)
     # Borrow validated incoming arrays only for private endpoint inspection;
     # public destination values and its old phase do not enter this report.
-    populations = [ParticleSet{D,T}(p.x, p.v, p.weight, p.id, p.tag, p.q, p.m) for p in s.inner.species]
-    _validate_electron_ion_report(s.thermal_report, st.electron_ion, st.inner,
-        populations, s.fields, s.source_time, s.source_count, s.dt,
-        s.epsilon0, s.weight_to_number)
+    populations =
+        [ParticleSet{D,T}(p.x, p.v, p.weight, p.id, p.tag, p.q, p.m) for p in s.inner.species]
+    _validate_electron_ion_report(
+        s.thermal_report,
+        st.electron_ion,
+        st.inner,
+        populations,
+        s.fields,
+        s.source_time,
+        s.source_count,
+        s.dt,
+        s.epsilon0,
+        s.weight_to_number,
+    )
     return nothing
 end
 
 function _validate_collisional_overlap_checkpoint(s, st::CollisionalHybridStepper{D,T}) where {D,T}
     _electron_ion_record(s, _COLLISIONAL_THERMAL_CHECKPOINT_FIELDS)
-    s.schema isa Int && s.schema == 3 || throw(ArgumentError("CIC/TSC thermal overlap requires collisional schema 3"))
+    s.schema isa Int && s.schema == 3 ||
+        throw(ArgumentError("CIC/TSC thermal overlap requires collisional schema 3"))
     expected = _electron_ion_configuration(st.electron_ion)
-    typeof(s.electron_ion) === typeof(expected) && isequal(s.electron_ion, expected) ||
-        throw(ArgumentError("thermal overlap checkpoint configuration must match the bound destination"))
+    typeof(s.electron_ion) === typeof(expected) && isequal(s.electron_ion, expected) || throw(
+        ArgumentError("thermal overlap checkpoint configuration must match the bound destination"),
+    )
     legacy = merge(NamedTuple{_COLLISIONAL_CHECKPOINT_FIELDS}(s), (schema = 1,))
     _validate_collisional_checkpoint1(legacy, st)
     _validate_thermal_checkpoint_storage(s, st)
-    populations = [ParticleSet{D,T}(p.x, p.v, p.weight, p.id, p.tag, p.q, p.m) for p in s.inner.species]
-    _validate_electron_ion_report(s.thermal_report, st.electron_ion, st.inner,
-        populations, s.fields, s.source_time, s.source_count, s.dt,
-        s.epsilon0, s.weight_to_number)
+    populations =
+        [ParticleSet{D,T}(p.x, p.v, p.weight, p.id, p.tag, p.q, p.m) for p in s.inner.species]
+    _validate_electron_ion_report(
+        s.thermal_report,
+        st.electron_ion,
+        st.inner,
+        populations,
+        s.fields,
+        s.source_time,
+        s.source_count,
+        s.dt,
+        s.epsilon0,
+        s.weight_to_number,
+    )
     return nothing
 end
 
@@ -362,9 +409,7 @@ function load_checkpoint!(
 end
 
 "Verify the archive checksum and use the existing locked stochastic restore."
-function load_archive!(
-    st::CollisionalHybridStepper, species::AbstractVector, path::AbstractString,
-)
+function load_archive!(st::CollisionalHybridStepper, species::AbstractVector, path::AbstractString)
     _acquire_collisional!(st)
     try
         loaded = load_run(path)

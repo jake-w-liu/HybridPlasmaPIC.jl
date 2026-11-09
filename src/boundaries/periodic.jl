@@ -10,8 +10,12 @@ end
 
 # Canonical original-Q periodic endpoint materialization. Transport bounds and
 # history capacity belong to the caller, not to this scalar wrap/lift map.
-function _periodic_represented_lift(ideal::Rational{BigInt}, period::T) where {T<:Union{Float32,Float64}}
-    isfinite(period) && _stored_positive(period) || throw(ArgumentError("periodic represented lift requires a finite positive period"))
+function _periodic_represented_lift(
+    ideal::Rational{BigInt},
+    period::T,
+) where {T<:Union{Float32,Float64}}
+    isfinite(period) && _stored_positive(period) ||
+        throw(ArgumentError("periodic represented lift requires a finite positive period"))
     L = _exact_rational(period)
     wrapped = _periodic_coordinate(ideal, zero(L), L, L)
     winding = BigInt((ideal - wrapped) / L)

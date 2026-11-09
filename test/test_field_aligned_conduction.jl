@@ -7,10 +7,12 @@ const Q = Rational{BigInt}
 # real k_N projector. No production derivative, preparation or FFT enters it.
 function row4(a, I::CartesianIndex{D}, d, g, nyquist = false) where {D}
     if nyquist
-        return abs(Q(g.kfull[d][3])) * sum(j ->
-            (iseven(I[d] - j) ? 1 : -1) * Q(a[CartesianIndex(
-                ntuple(c -> c == d ? j : I[c], D),
-            )]), 1:4) / 4
+        return abs(Q(g.kfull[d][3])) * sum(
+            j ->
+                (iseven(I[d] - j) ? 1 : -1) *
+                Q(a[CartesianIndex(ntuple(c -> c == d ? j : I[c], D))]),
+            1:4,
+        ) / 4
     end
     next = CartesianIndex(ntuple(c -> c == d ? mod1(I[c] + 1, 4) : I[c], D))
     previous = CartesianIndex(ntuple(c -> c == d ? mod1(I[c] - 1, 4) : I[c], D))
@@ -21,8 +23,8 @@ function reference(theta, B, parallel, perpendicular, g::FourierGrid{D}) where {
     grad = ntuple(d -> map(I -> row4(theta, I, d, g), CartesianIndices(g.n)), D)
     difference = Q(parallel) - Q(perpendicular)
     norm2 = map(I -> sum(c -> Q(B[c][I])^2, 1:3), CartesianIndices(g.n))
-    A(i, j, I) = (i == j ? Q(perpendicular) : zero(Q)) +
-        difference * Q(B[i][I]) * Q(B[j][I]) / norm2[I]
+    A(i, j, I) =
+        (i == j ? Q(perpendicular) : zero(Q)) + difference * Q(B[i][I]) * Q(B[j][I]) / norm2[I]
     out = zeros(Q, g.n)
     dissipation = zero(Q)
     for d = 1:D
@@ -37,9 +39,17 @@ function reference(theta, B, parallel, perpendicular, g::FourierGrid{D}) where {
     return out, dissipation
 end
 
-function fixture(::Type{T}, ::Val{D}; closure = FieldAlignedConductingElectrons(
-    T(2); κ_parallel = T(1 / 16), κ_perpendicular = T(1 / 64),
-), ηH = 0.0, shape = CIC()) where {T,D}
+function fixture(
+    ::Type{T},
+    ::Val{D};
+    closure = FieldAlignedConductingElectrons(
+        T(2);
+        κ_parallel = T(1 / 16),
+        κ_perpendicular = T(1 / 64),
+    ),
+    ηH = 0.0,
+    shape = CIC(),
+) where {T,D}
     g = FourierGrid(ntuple(_ -> 4, D), ntuple(_ -> T(4), D))
     ps = ParticleSet{D,T}(2 * prod(g.n))
     sine, cosine = T[0, 1, 0, -1], T[1, 0, -1, 0]
@@ -64,15 +74,20 @@ function fixture(::Type{T}, ::Val{D}; closure = FieldAlignedConductingElectrons(
 end
 
 function snapshot(st, ps)
-    return deepcopy((fields = H._hybrid_field_state(st.fields),
-        floor = st.fields.floor_count[], force = st.pressure_work.Eforce,
-        particles = H._checkpoint_particle_state(ps), clock = (st.time[], st.step[], st.last_dt[])))
+    return deepcopy((
+        fields = H._hybrid_field_state(st.fields),
+        floor = st.fields.floor_count[],
+        force = st.pressure_work.Eforce,
+        particles = H._checkpoint_particle_state(ps),
+        clock = (st.time[], st.step[], st.last_dt[]),
+    ))
 end
 
 @testset "Exact tensor target and two-preparation actual channels" begin
     for T in (Float32, Float64), D in (1, 2)
         g = FourierGrid(ntuple(_ -> 4, D), ntuple(_ -> T(4), D))
-        closure = FieldAlignedConductingElectrons(T(2); κ_parallel = T(3 / 8), κ_perpendicular = T(1 / 8))
+        closure =
+            FieldAlignedConductingElectrons(T(2); κ_parallel = T(3 / 8), κ_perpendicular = T(1 / 8))
         p = map(I -> T(3 + I[1] + (D == 2 ? I[2] : 0)), CartesianIndices(g.n))
         n = map(I -> T(2I[1] + 1), CartesianIndices(g.n))
         theta = Q.(p) ./ Q.(n)
@@ -89,14 +104,16 @@ end
         @test hcat(columns...) == transpose(hcat(columns...))
         actual = zeros(Q, g.n)
         work = H._field_aligned_storage(g, closure)
-        measured = H._field_aligned_conduction!(actual, theta, one(Q), closure, B, work, g; budget = true)
+        measured =
+            H._field_aligned_conduction!(actual, theta, one(Q), closure, B, work, g; budget = true)
         # Qualified small-grid FFT/preparation acceptance, not a global FFTW
         # bound or an assertion that the computed map is exactly self-adjoint.
         scale = max(norm(Float64.(target)), 1.0)
         @test norm(Float64.(actual - target)) <= 8192eps(T) * scale
         @test sum(actual) == 0
         @test measured >= 0
-        @test abs(Float64(sum(theta .* actual) + measured)) <= 8192eps(T) * scale * max(norm(Float64.(theta)), 1)
+        @test abs(Float64(sum(theta .* actual) + measured)) <=
+              8192eps(T) * scale * max(norm(Float64.(theta)), 1)
         reversed = zeros(Q, g.n)
         H._field_aligned_conduction!(reversed, theta, one(Q), closure, map(a -> -a, B), work, g)
         @test actual == reversed
@@ -112,7 +129,9 @@ end
                 huge_or_tiny = ntuple(c -> fill(ldexp(T(c), scale_exponent), g.n), 3)
                 rate .= 0
                 H._field_aligned_conduction!(rate, theta, one(Q), closure, huge_or_tiny, work, g)
-                expected = first(reference(theta, huge_or_tiny, closure.κ_parallel, closure.κ_perpendicular, g))
+                expected = first(
+                    reference(theta, huge_or_tiny, closure.κ_parallel, closure.κ_perpendicular, g),
+                )
                 @test norm(Float64.(rate - expected)) <= 8192eps(T) * scale
             end
         end
@@ -124,7 +143,8 @@ end
         st, ps = fixture(T, Val(D); shape, ηH = 0.01)
         init!(st, ps)
         before = snapshot(st, ps)
-        scratch = (st.pressure_work.quotient, H._field_aligned_arrays(st.pressure_work.conduction)...)
+        scratch =
+            (st.pressure_work.quotient, H._field_aligned_arrays(st.pressure_work.conduction)...)
         step!(st, ps, T(1 / 1024); NB = 2)
         @test !isequal(before.fields.pe, st.fields.pe)
         @test any(c -> !isequal(before.fields.B[c], st.fields.B[c]), 1:3)
@@ -134,7 +154,9 @@ end
         @test isequal(snapshot(st, ps), state)
         @test d.scope === :instantaneous && d.time == st.time[] && d.step == st.step[]
         @test d.internal_energy_rate == 0 && d.channel_dissipation >= 0
-        @test d.adjoint_defect == d.variance_rate + Q(H._pressure_heat_gamma(T(st.model.closure.γ))) * d.channel_dissipation
+        @test d.adjoint_defect ==
+              d.variance_rate +
+              Q(H._pressure_heat_gamma(T(st.model.closure.γ))) * d.channel_dissipation
         # Plain restore omits derived n; the diagnostic must redeposit it.
         saved_n = copy(st.fields.n)
         st.fields.n .= T(99)
@@ -153,8 +175,24 @@ end
                 @test isequal(snapshot(restored, particles), snapshot(st, ps))
             end
         end
-        @test all(i -> scratch[i] === (st.pressure_work.quotient, H._field_aligned_arrays(st.pressure_work.conduction)...)[i], eachindex(scratch))
-        @test isfinite(energy_budget(ps, st.fields.B, st.fields.n, st.model.closure, st.g; pe = st.fields.pe).total)
+        @test all(
+            i ->
+                scratch[i] === (
+                    st.pressure_work.quotient,
+                    H._field_aligned_arrays(st.pressure_work.conduction)...,
+                )[i],
+            eachindex(scratch),
+        )
+        @test isfinite(
+            energy_budget(
+                ps,
+                st.fields.B,
+                st.fields.n,
+                st.model.closure,
+                st.g;
+                pe = st.fields.pe,
+            ).total,
+        )
     end
 end
 
@@ -165,8 +203,10 @@ end
         left, ps = fixture(T, Val(1); closure, ηH)
         legacy = iszero(κ) ? TransportElectrons(T(2)) : ConductingElectrons(T(2); κ)
         right, qs = fixture(T, Val(1); closure = legacy, ηH)
-        init!(left, ps); init!(right, qs)
-        step!(left, ps, 1 / 1024); step!(right, qs, 1 / 1024)
+        init!(left, ps)
+        init!(right, qs)
+        step!(left, ps, 1 / 1024)
+        step!(right, qs, 1 / 1024)
         @test isequal(snapshot(left, ps), snapshot(right, qs))
         @test right.pressure_work.conduction === nothing
         @test left.pressure_work.conduction !== nothing
@@ -176,8 +216,8 @@ end
     st.fn .= st.fields.n
     foreach(c -> copyto!(st.fui[c], st.fields.ui[c]), 1:3)
     st.fields.ninv .= inv.(st.fn)
-    orientations = ((fill(1.0, 4), fill(2.0, 4), fill(2.0, 4)),
-        (fill(2.0, 4), fill(1.0, 4), fill(2.0, 4)))
+    orientations =
+        ((fill(1.0, 4), fill(2.0, 4), fill(2.0, 4)), (fill(2.0, 4), fill(1.0, 4), fill(2.0, 4)))
     rates = map(orientations) do B
         H._bpressure_rhs!(st.k1, st.pressure_work.kp[1], B, st.fields.pe, st, 1, 1)
         copy(st.pressure_work.kp[1])
@@ -185,11 +225,25 @@ end
     @test rates[1] != rates[2]
     original = snapshot(st, ps)
     for bad in (-1.0, Inf, NaN)
-        @test_throws ArgumentError FieldAlignedConductingElectrons(2.0; κ_parallel = 1.0, κ_perpendicular = bad)
-        @test_throws ArgumentError FieldAlignedConductingElectrons(2.0; κ_parallel = bad, κ_perpendicular = 1.0)
+        @test_throws ArgumentError FieldAlignedConductingElectrons(
+            2.0;
+            κ_parallel = 1.0,
+            κ_perpendicular = bad,
+        )
+        @test_throws ArgumentError FieldAlignedConductingElectrons(
+            2.0;
+            κ_parallel = bad,
+            κ_perpendicular = 1.0,
+        )
     end
-    @test_throws ArgumentError HybridStepper(FourierGrid((4,), (4.0f0,)),
-        HybridModel(FieldAlignedConductingElectrons(2.0; κ_parallel = 1.0, κ_perpendicular = 1e-100)), NGP(), 0)
+    @test_throws ArgumentError HybridStepper(
+        FourierGrid((4,), (4.0f0,)),
+        HybridModel(
+            FieldAlignedConductingElectrons(2.0; κ_parallel = 1.0, κ_perpendicular = 1e-100),
+        ),
+        NGP(),
+        0,
+    )
     for component in st.fields.B
         component[1] = 0
     end
@@ -213,9 +267,8 @@ end
         @test isequal(snapshot(st, ps), original)
     end
     old_work = st.pressure_work.conduction
-    st.pressure_work.conduction = H._FieldAlignedConductionWorkspace{1}(
-        st.pressure_work.quotient, old_work.gradient,
-    )
+    st.pressure_work.conduction =
+        H._FieldAlignedConductionWorkspace{1}(st.pressure_work.quotient, old_work.gradient)
     @test_throws ArgumentError step!(st, ps, 1 / 1024)
     @test isequal(snapshot(st, ps), original)
     st.pressure_work.conduction = old_work
@@ -223,24 +276,40 @@ end
     mktempdir() do dir
         path = joinpath(dir, "active.bin")
         save_checkpoint(path, st, ps)
-        dst, qs = fixture(T, Val(1); closure = FieldAlignedConductingElectrons(2.0; κ_parallel = 0.0))
-        identities = (dst.pressure_work.quotient, H._field_aligned_arrays(dst.pressure_work.conduction)...)
+        dst, qs =
+            fixture(T, Val(1); closure = FieldAlignedConductingElectrons(2.0; κ_parallel = 0.0))
+        identities =
+            (dst.pressure_work.quotient, H._field_aligned_arrays(dst.pressure_work.conduction)...)
         load_checkpoint!(dst, qs, path)
         @test dst.model.closure.κ_parallel == st.model.closure.κ_parallel
-        @test all(i -> identities[i] === (dst.pressure_work.quotient, H._field_aligned_arrays(dst.pressure_work.conduction)...)[i], eachindex(identities))
+        @test all(
+            i ->
+                identities[i] === (
+                    dst.pressure_work.quotient,
+                    H._field_aligned_arrays(dst.pressure_work.conduction)...,
+                )[i],
+            eachindex(identities),
+        )
         state = deserialize(path)
         before = snapshot(dst, qs)
-        for malformed in (merge(state, (conduction_policy_version = true,)),
+        for malformed in (
+            merge(state, (conduction_policy_version = true,)),
             merge(state, (conduction_direction = :isotropic,)),
-            merge(state, (B = ntuple(_ -> zeros(T, 4), 3),)))
+            merge(state, (B = ntuple(_ -> zeros(T, 4), 3),)),
+        )
             serialize(path, malformed)
             @test_throws ArgumentError load_checkpoint!(dst, qs, path)
             @test isequal(snapshot(dst, qs), before)
         end
-        step!(st, ps, 1 / 2048); step!(dst, qs, 1 / 2048)
+        step!(st, ps, 1 / 2048)
+        step!(dst, qs, 1 / 2048)
         @test isequal(snapshot(st, ps), snapshot(dst, qs))
     end
-    isotropic, qs = fixture(T, Val(1); closure = FieldAlignedConductingElectrons(2.0; κ_parallel = 0.1, κ_perpendicular = 0.1))
+    isotropic, qs = fixture(
+        T,
+        Val(1);
+        closure = FieldAlignedConductingElectrons(2.0; κ_parallel = 0.1, κ_perpendicular = 0.1),
+    )
     foreach(a -> fill!(a, 0), isotropic.fields.B)
     @test init!(isotropic, qs) === isotropic
     # Full spectral diffusion is not positivity preserving. The new anisotropic
@@ -249,9 +318,14 @@ end
     ions = ParticleSet{1,T}(8)
     load_lattice_1d!(ions, zero(T), g.L[1])
     set_density_weight!(ions, one(T), g)
-    negative = HybridStepper(g, HybridModel(FieldAlignedConductingElectrons(
-        T(2); κ_parallel = T(0.1), κ_perpendicular = T(0.025),
-    )), NGP(), 0)
+    negative = HybridStepper(
+        g,
+        HybridModel(
+            FieldAlignedConductingElectrons(T(2); κ_parallel = T(0.1), κ_perpendicular = T(0.025)),
+        ),
+        NGP(),
+        0,
+    )
     negative.fields.B[1] .= one(T)
     negative.fields.pe .= T[0, 0, 1, 0]
     init!(negative, ions)
@@ -263,14 +337,18 @@ end
 include("collisional_fixtures.jl")
 @testset "Ion-ion composition, RNG rollback and archive continuation" begin
     for logs in (0.0, 0.05)
-        closure = FieldAlignedConductingElectrons(2.0; κ_parallel = 0.0625, κ_perpendicular = 0.015625)
+        closure =
+            FieldAlignedConductingElectrons(2.0; κ_parallel = 0.0625, κ_perpendicular = 0.015625)
         st, ps = _composition_transport_fixture(Float64, Xoshiro; closure, logs)
         reference_st, reference_ps = _composition_transport_fixture(Float64, Xoshiro; closure, logs)
         init!(st, ps)
         init!(reference_st, reference_ps)
         step!(st, ps, st.dt)
         _composition_component!(reference_st, reference_ps)
-        @test isequal(_composition_physical(st, ps), _composition_physical(reference_st, reference_ps))
+        @test isequal(
+            _composition_physical(st, ps),
+            _composition_physical(reference_st, reference_ps),
+        )
         before = _composition_snapshot(st, ps)
         @test electron_conduction_diagnostics(st, ps).internal_energy_rate == 0
         @test isequal(_composition_snapshot(st, ps), before)
@@ -279,7 +357,8 @@ include("collisional_fixtures.jl")
             archive_run(path, st, ps; rng_seed = 712)
             restored, qs = _composition_transport_fixture(Float64, Xoshiro; closure, logs)
             load_archive!(restored, qs, path)
-            step!(st, ps, st.dt); step!(restored, qs, restored.dt)
+            step!(st, ps, st.dt)
+            step!(restored, qs, restored.dt)
             @test isequal(_composition_snapshot(st, ps), _composition_snapshot(restored, qs))
         end
         before = _composition_snapshot(st, ps)

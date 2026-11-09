@@ -447,7 +447,8 @@ function _implicit_hybrid_report_policy(st::ImplicitHybridStepper{D,T}, r) where
     c = st.controls
     expected = _from_exact(
         T,
-        _exact_rational(c.atol) + _exact_rational(c.rtol) * _exact_rational(solver.initial_residual),
+        _exact_rational(c.atol) +
+        _exact_rational(c.rtol) * _exact_rational(solver.initial_residual),
     )
     updates = BigInt(solver.newton_iterations)
     isequal(solver.tolerance, expected) &&

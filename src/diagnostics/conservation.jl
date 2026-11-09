@@ -376,7 +376,8 @@ preparations can produce a nonzero defect. Public state and RNG are unchanged;
 the grid's usual nonconcurrent FFT scratch contract still applies.
 """
 function electron_conduction_diagnostics(
-    st::HybridStepper{D,T}, species::_HybridPopulations{D,T},
+    st::HybridStepper{D,T},
+    species::_HybridPopulations{D,T},
 ) where {D,T}
     closure, g = st.model.closure, st.g
     closure isa FieldAlignedConductingElectrons ||
@@ -393,9 +394,8 @@ function electron_conduction_diagnostics(
             # Match the density row of _accumulate_charge_moments!, including
             # its stored per-population accumulation order, without computing
             # unused momentum or allocating a full public-field workspace.
-            @. density = getproperty(
-                _charge_moment_parts(density, population.q, number_density), :value,
-            )
+            @. density =
+                getproperty(_charge_moment_parts(density, population.q, number_density), :value)
         end
     end
     _validate_transport_density(density, T(st.model.nfloor), "conduction diagnostic")
@@ -407,8 +407,14 @@ function electron_conduction_diagnostics(
     if !iszero(_electron_conductivity(closure, T))
         _conduction_quotient!(quotient, st.fields.pe, density, g)
         dissipation = _field_aligned_conduction!(
-            source, quotient, coefficient, closure, st.fields.B,
-            _field_aligned_storage(g, closure), g; budget = true,
+            source,
+            quotient,
+            coefficient,
+            closure,
+            st.fields.B,
+            _field_aligned_storage(g, closure),
+            g;
+            budget = true,
         )
     end
     volume = prod(_exact_rational, g.dx)
@@ -444,10 +450,23 @@ function electron_ion_exchange_diagnostics(st::CollisionalHybridStepper, species
     try
         _validate_collisional_binding(st, species)
         _validate_collisional_boundary(st)
-        st.electron_ion === nothing && throw(ArgumentError("electron-ion exchange diagnostics require an enabled thermal configuration"))
-        _validate_electron_ion_report(st.thermal_report, st.electron_ion, st.inner,
-            st.species, st.inner.fields, st.source_time, st.source_count, st.dt,
-            st.epsilon0, st.weight_to_number)
+        st.electron_ion === nothing && throw(
+            ArgumentError(
+                "electron-ion exchange diagnostics require an enabled thermal configuration",
+            ),
+        )
+        _validate_electron_ion_report(
+            st.thermal_report,
+            st.electron_ion,
+            st.inner,
+            st.species,
+            st.inner.fields,
+            st.source_time,
+            st.source_count,
+            st.dt,
+            st.epsilon0,
+            st.weight_to_number,
+        )
         return deepcopy(st.thermal_report)
     finally
         st.busy[] = false

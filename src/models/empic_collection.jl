@@ -19,8 +19,14 @@ mutable struct _EMPICEventSchedule{T}
 end
 
 function _empic_event_zero_phase(::Type{T}, count) where {T}
-    return _EMPICEventPhase{T}(zero(_EMPICEventQ), false, zeros(T, count),
-        fill(zero(_EMPICEventQ), count), fill(zero(_EMPICEventQ), count), nothing)
+    return _EMPICEventPhase{T}(
+        zero(_EMPICEventQ),
+        false,
+        zeros(T, count),
+        fill(zero(_EMPICEventQ), count),
+        fill(zero(_EMPICEventQ), count),
+        nothing,
+    )
 end
 function _empic_event_scalar(name, value, ::Type{T}) where {T}
     value isa Real && isfinite(value) || throw(ArgumentError("$name must be finite and real"))
@@ -49,8 +55,9 @@ function _empic_event_proposal(mobile, cap, adaptive, minimum, limits, budget, :
             _require_resolved_dt("species_dt", upper[i])
             if flags[i]
                 minimum === nothing && throw(ArgumentError("adaptive rows require species_dt_min"))
-                zero(T) < lower[i] <= upper[i] ||
-                    throw(ArgumentError("adaptive minimum must be positive and no larger than its cap"))
+                zero(T) < lower[i] <= upper[i] || throw(
+                    ArgumentError("adaptive minimum must be positive and no larger than its cap"),
+                )
                 _require_resolved_dt("species_dt_min", lower[i])
             else
                 _particle_stored_zero(lower[i]) ||
@@ -70,26 +77,59 @@ function _empic_event_proposal(mobile, cap, adaptive, minimum, limits, budget, :
         result = NamedTuple{keys(limits)}(map(values(limits)) do value
             _empic_event_scalar("schedule limit", value, T)
         end)
-        ((all(>(zero(T)), values(result)) && result.growth >= one(T)) ||
-            (!any(flags) && isequal(result,
-                (rotation = zero(T), electric = zero(T), travel = zero(T), growth = one(T))))) ||
-            throw(ArgumentError("schedule limits must be positive, with growth at least one"))
+        (
+            (all(>(zero(T)), values(result)) && result.growth >= one(T)) || (
+                !any(flags) && isequal(
+                    result,
+                    (rotation = zero(T), electric = zero(T), travel = zero(T), growth = one(T)),
+                )
+            )
+        ) || throw(ArgumentError("schedule limits must be positive, with growth at least one"))
         result
     end
     return (cap = upper, adaptive = flags, minimum = lower, limits = policy, budget = Int(budget))
 end
-function _empic_collection_schedule(mobile, ns, stride, cap, adaptive, minimum, limits, budget, ::Type{T}, error_control = nothing) where {T}
-    error_control === nothing || return _empic_coupled_schedule(mobile, ns, stride, cap, adaptive, minimum, limits, budget, T, error_control)
+function _empic_collection_schedule(
+    mobile,
+    ns,
+    stride,
+    cap,
+    adaptive,
+    minimum,
+    limits,
+    budget,
+    ::Type{T},
+    error_control = nothing,
+) where {T}
+    error_control === nothing || return _empic_coupled_schedule(
+        mobile,
+        ns,
+        stride,
+        cap,
+        adaptive,
+        minimum,
+        limits,
+        budget,
+        T,
+        error_control,
+    )
     if cap === nothing
         all(isnothing, (adaptive, minimum, limits, budget)) ||
             throw(ArgumentError("persistent schedule options require species_dt"))
         return stride === nothing ? nothing : _empic_species_schedule(mobile, ns, stride, T)
     end
-    stride === nothing || throw(ArgumentError("species_stride and species_dt are mutually exclusive"))
+    stride === nothing ||
+        throw(ArgumentError("species_stride and species_dt are mutually exclusive"))
     proposal = _empic_event_proposal(mobile, cap, adaptive, minimum, limits, budget, T)
-    ns <= proposal.budget || throw(ArgumentError("base field partition exceeds persistent event budget"))
-    return _EMPICEventSchedule{T}(proposal, _empic_event_zero_phase(T, length(mobile)),
-        _empic_event_zero_phase(T, length(mobile)), nothing, nothing)
+    ns <= proposal.budget ||
+        throw(ArgumentError("base field partition exceeds persistent event budget"))
+    return _EMPICEventSchedule{T}(
+        proposal,
+        _empic_event_zero_phase(T, length(mobile)),
+        _empic_event_zero_phase(T, length(mobile)),
+        nothing,
+        nothing,
+    )
 end
 
 """
@@ -166,14 +206,21 @@ function EMPIC(
         throw(ArgumentError("electromagnetic collections require Float32 or Float64"))
     shape isa Union{NGP,CIC,TSC} ||
         throw(ArgumentError("electromagnetic collections require NGP, CIC or TSC"))
-    error_control === nothing || shape isa Union{CIC,TSC} || throw(ArgumentError("coupled error control requires CIC or TSC; NGP jump control is not implemented"))
+    error_control === nothing ||
+        shape isa Union{CIC,TSC} ||
+        throw(
+            ArgumentError(
+                "coupled error control requires CIC or TSC; NGP jump control is not implemented",
+            ),
+        )
     neutrality in (:require, :neutralize) ||
         throw(ArgumentError("neutrality must be :require or :neutralize"))
     _espic_validate_collection_type(species, g)
     axes(mobile, 1) == Base.OneTo(length(species)) ||
         throw(ArgumentError("mobile must have one Boolean per species with one-based axes"))
     n_sub >= 1 || throw(ArgumentError("n_sub must be ≥ 1"))
-    species_dt === nothing || (!(n_sub isa Bool) && n_sub <= typemax(Int)) ||
+    species_dt === nothing ||
+        (!(n_sub isa Bool) && n_sub <= typemax(Int)) ||
         throw(ArgumentError("persistent n_sub must be a positive fitting Int"))
     ns = Int(n_sub)
     background = _require_finite_real("background_charge", background_charge, T)
@@ -181,8 +228,18 @@ function EMPIC(
     cT = _require_finite_positive_real("c", c, T)
     stage = _new_empic_state(g, 0, background, cT, shape, relativistic, false, one(T), ns, nothing)
     P = eltype(species)
-    schedule = _empic_collection_schedule(mobile, ns, species_stride, species_dt,
-        species_adaptive, species_dt_min, schedule_limits, event_budget, T, error_control)
+    schedule = _empic_collection_schedule(
+        mobile,
+        ns,
+        species_stride,
+        species_dt,
+        species_adaptive,
+        species_dt_min,
+        schedule_limits,
+        event_budget,
+        T,
+        error_control,
+    )
     work = _EMPICCollectionWork{D,T,P,typeof(stage),typeof(schedule)}(
         neutrality,
         rtol,
@@ -388,7 +445,8 @@ function _empic_collection_validate_species(es::Union{EMPIC,EMPIC1D}, species)
     es.n_sub >= 1 || throw(ArgumentError("n_sub must be ≥ 1"))
     _empic_collection_validate_schedule(es, _empic_collection(es).schedule)
     schedule = _empic_collection(es).schedule
-    schedule isa _EMPICEventSchedule && es.n_sub > schedule.proposal.budget &&
+    schedule isa _EMPICEventSchedule &&
+        es.n_sub > schedule.proposal.budget &&
         throw(ArgumentError("base field partition exceeds persistent event budget"))
     return _empic_collection_validate_populations(es, species, es.c, es.relativistic)
 end
@@ -675,15 +733,20 @@ function _empic_collection_validate_phase(es::Union{EMPIC,EMPIC1D})
 end
 
 function step_empic!(es::Union{EMPIC,EMPIC1D}, species::AbstractVector, dt::Real)
-    es.collection !== nothing && es.collection.schedule isa _EMPICCoupledSchedule && return _empic_coupled_step!(es, species, dt)
+    es.collection !== nothing &&
+        es.collection.schedule isa _EMPICCoupledSchedule &&
+        return _empic_coupled_step!(es, species, dt)
     T = eltype(es.rho_n)
     dtT =
         _require_resolved_dt("step_empic!", _validated_nonnegative_dt(T, dt; name = "step_empic!"))
     charges = _empic_collection_validate_species(es, species)
     work = _empic_collection(es)
     if work.schedule isa _EMPICEventSchedule
-        isfinite(dt) && dt >= 0 && (iszero(dt) || !iszero(dtT)) ||
-            throw(ArgumentError("persistent duration must be nonnegative and nonzero inputs must survive conversion"))
+        isfinite(dt) && dt >= 0 && (iszero(dt) || !iszero(dtT)) || throw(
+            ArgumentError(
+                "persistent duration must be nonnegative and nonzero inputs must survive conversion",
+            ),
+        )
     end
     work.initialized[] ||
         throw(ArgumentError("initialize the electromagnetic collection before stepping"))
@@ -749,7 +812,9 @@ Offsets are nominal stage intervals, not exact timestamps relative to the rounde
 public clock. This explicit mover does not conserve discrete total energy exactly. Fixed populations have no velocity time offset.
 """
 function electromagnetic_diagnostics(es::Union{EMPIC,EMPIC1D}, species::AbstractVector)
-    es.collection !== nothing && es.collection.schedule isa _EMPICCoupledSchedule && return _empic_coupled_diagnostics(es, species)
+    es.collection !== nothing &&
+        es.collection.schedule isa _EMPICCoupledSchedule &&
+        return _empic_coupled_diagnostics(es, species)
     T = eltype(es.rho_n)
     charges = _empic_collection_validate_species(es, species)
     work = _empic_collection(es)
@@ -845,14 +910,21 @@ function EMPIC1D(
         throw(ArgumentError("electromagnetic collections require Float32 or Float64"))
     shape isa Union{NGP,CIC,TSC} ||
         throw(ArgumentError("electromagnetic collections require NGP, CIC or TSC"))
-    error_control === nothing || shape isa Union{CIC,TSC} || throw(ArgumentError("coupled error control requires CIC or TSC; NGP jump control is not implemented"))
+    error_control === nothing ||
+        shape isa Union{CIC,TSC} ||
+        throw(
+            ArgumentError(
+                "coupled error control requires CIC or TSC; NGP jump control is not implemented",
+            ),
+        )
     neutrality in (:require, :neutralize) ||
         throw(ArgumentError("neutrality must be :require or :neutralize"))
     _espic_validate_collection_type(species, g)
     axes(mobile, 1) == Base.OneTo(length(species)) ||
         throw(ArgumentError("mobile must have one Boolean per species with one-based axes"))
     n_sub >= 1 || throw(ArgumentError("n_sub must be ≥ 1"))
-    species_dt === nothing || (!(n_sub isa Bool) && n_sub <= typemax(Int)) ||
+    species_dt === nothing ||
+        (!(n_sub isa Bool) && n_sub <= typemax(Int)) ||
         throw(ArgumentError("persistent n_sub must be a positive fitting Int"))
     ns = Int(n_sub)
     background = _require_finite_real("background_charge", background_charge, T)
@@ -861,10 +933,21 @@ function EMPIC1D(
     stage =
         _new_empic1d_state(g, 0, background, cT, shape, relativistic, false, one(T), ns, nothing)
     P = eltype(species)
-    rows = species_dt === nothing && species_stride === nothing ?
+    rows =
+        species_dt === nothing && species_stride === nothing ?
         [active ? 1 : 0 for active in mobile] : species_stride
-    schedule = _empic_collection_schedule(mobile, ns, rows, species_dt,
-        species_adaptive, species_dt_min, schedule_limits, event_budget, T, error_control)
+    schedule = _empic_collection_schedule(
+        mobile,
+        ns,
+        rows,
+        species_dt,
+        species_adaptive,
+        species_dt_min,
+        schedule_limits,
+        event_budget,
+        T,
+        error_control,
+    )
     work = _EMPICCollectionWork{1,T,P,typeof(stage),typeof(schedule)}(
         neutrality,
         rtol,
@@ -1019,7 +1102,14 @@ function _empic_collection_drift!(stage::EMPIC1D{T}, work, i, dt) where {T}
         _require_subluminal_velocities(ps, stage.c, "electromagnetic collection output")
     return nothing
 end
-function _empic_collection_finish_interval!(stage::EMPIC1D{T}, work, parts, previous, dt, target) where {T}
+function _empic_collection_finish_interval!(
+    stage::EMPIC1D{T},
+    work,
+    parts,
+    previous,
+    dt,
+    target,
+) where {T}
     g = stage.g
     _empic_collection_current!(stage, work)
     _empic_collection_charge!(stage.rho_np1, stage, work, target)
@@ -1034,8 +1124,8 @@ end
 
 _empic_collection_schedule_arrays(::Nothing) = ()
 function _empic_collection_schedule_axes(schedule, a, count)
-    axes(a, 1) == Base.OneTo(count) || throw(
-        ArgumentError("electromagnetic schedule storage must have one row per population"))
+    axes(a, 1) == Base.OneTo(count) ||
+        throw(ArgumentError("electromagnetic schedule storage must have one row per population"))
     return nothing
 end
 _empic_collection_finish_candidate!(es, work, species) = nothing
@@ -1192,11 +1282,27 @@ On a constructor-selected full-time controller, `error_control` replaces its
 complete future proposal. Historical admission, pending deadlines and work stay
 owned by their accepted policy; no setter migrates a half phase.
 """
-set_empic1d_schedule!(es::EMPIC1D; n_sub::Integer = es.n_sub, species_stride = nothing,
-    species_dt = nothing, species_adaptive = nothing, species_dt_min = nothing,
-    schedule_limits = nothing, event_budget = nothing, error_control = nothing) =
-    _set_empic_collection_schedule!(es, n_sub, species_stride, species_dt,
-        species_adaptive, species_dt_min, schedule_limits, event_budget, error_control)
+set_empic1d_schedule!(
+    es::EMPIC1D;
+    n_sub::Integer = es.n_sub,
+    species_stride = nothing,
+    species_dt = nothing,
+    species_adaptive = nothing,
+    species_dt_min = nothing,
+    schedule_limits = nothing,
+    event_budget = nothing,
+    error_control = nothing,
+) = _set_empic_collection_schedule!(
+    es,
+    n_sub,
+    species_stride,
+    species_dt,
+    species_adaptive,
+    species_dt_min,
+    schedule_limits,
+    event_budget,
+    error_control,
+)
 
 """
     set_empic_schedule!(state::EMPIC; n_sub=state.n_sub, species_stride=nothing,
@@ -1216,28 +1322,72 @@ without retiming the current pending intervals. `nothing` retains each value.
 For a constructor-selected full-time controller, a complete `error_control`
 proposal updates future choices while retaining historical admission and work.
 """
-set_empic_schedule!(es::EMPIC; n_sub::Integer = es.n_sub, species_stride = nothing,
-    species_dt = nothing, species_adaptive = nothing, species_dt_min = nothing,
-    schedule_limits = nothing, event_budget = nothing, error_control = nothing) =
-    _set_empic_collection_schedule!(es, n_sub, species_stride, species_dt,
-        species_adaptive, species_dt_min, schedule_limits, event_budget, error_control)
+set_empic_schedule!(
+    es::EMPIC;
+    n_sub::Integer = es.n_sub,
+    species_stride = nothing,
+    species_dt = nothing,
+    species_adaptive = nothing,
+    species_dt_min = nothing,
+    schedule_limits = nothing,
+    event_budget = nothing,
+    error_control = nothing,
+) = _set_empic_collection_schedule!(
+    es,
+    n_sub,
+    species_stride,
+    species_dt,
+    species_adaptive,
+    species_dt_min,
+    schedule_limits,
+    event_budget,
+    error_control,
+)
 
-function _set_empic_collection_schedule!(es, n_sub, stride, cap, adaptive, minimum, limits, budget, error_control = nothing)
+function _set_empic_collection_schedule!(
+    es,
+    n_sub,
+    stride,
+    cap,
+    adaptive,
+    minimum,
+    limits,
+    budget,
+    error_control = nothing,
+)
     work = _empic_collection(es)
-    work.schedule isa _EMPICCoupledSchedule && return _empic_coupled_set!(es, n_sub, stride, cap, adaptive, minimum, limits, budget, error_control)
-    error_control === nothing || throw(ArgumentError("construct a coupled error-control owner before changing its control proposal"))
+    work.schedule isa _EMPICCoupledSchedule && return _empic_coupled_set!(
+        es,
+        n_sub,
+        stride,
+        cap,
+        adaptive,
+        minimum,
+        limits,
+        budget,
+        error_control,
+    )
+    error_control === nothing || throw(
+        ArgumentError(
+            "construct a coupled error-control owner before changing its control proposal",
+        ),
+    )
     if work.schedule isa _EMPICEventSchedule
         stride === nothing || throw(ArgumentError("persistent schedules do not use species_stride"))
         n_sub isa Integer && !(n_sub isa Bool) && 1 <= n_sub <= typemax(Int) ||
             throw(ArgumentError("n_sub must be a positive Int for persistent schedules"))
         old = work.schedule.proposal
-        proposed = _empic_event_proposal(work.mobile,
+        proposed = _empic_event_proposal(
+            work.mobile,
             cap === nothing ? old.cap : cap,
             adaptive === nothing ? old.adaptive : adaptive,
             minimum === nothing ? old.minimum : minimum,
             limits === nothing ? old.limits : limits,
-            budget === nothing ? old.budget : budget, eltype(es.rho_n))
-        n_sub <= proposed.budget || throw(ArgumentError("base field partition exceeds persistent event budget"))
+            budget === nothing ? old.budget : budget,
+            eltype(es.rho_n),
+        )
+        n_sub <= proposed.budget ||
+            throw(ArgumentError("base field partition exceeds persistent event budget"))
         _empic_collection_validate_schedule(es, work.schedule)
         _empic_collection_validate_phase(es)
         work.initialized[] && _empic_collection_validate_species(es, work.owners)
@@ -1281,8 +1431,8 @@ _empic_event_raw(es::EMPIC) = es.Jraw
 _empic_event_raw(es::EMPIC1D) = nothing
 _empic_event_fields(es::EMPIC) = merge(_empic_physical_fields(es), (Jraw = es.Jraw,))
 _empic_event_fields(es::EMPIC1D) = _empic_physical_fields(es)
-_empic_event_energy(es) = _field_energy_rational(_empic_event_E(es),
-    _empic_event_B(es), _exact_rational(es.c)^2, es.g.dx)
+_empic_event_energy(es) =
+    _field_energy_rational(_empic_event_E(es), _empic_event_B(es), _exact_rational(es.c)^2, es.g.dx)
 _empic_event_field_E(::EMPIC, fields) = fields.E
 _empic_event_field_E(::EMPIC1D, fields) = (fields.Ex, fields.Ey)
 _empic_event_field_B(::EMPIC, fields) = fields.B
@@ -1309,9 +1459,9 @@ function _empic_event_bounds(stage::EMPIC, ps)
         throw(ArgumentError("persistent sampled fields must be finite"))
     E = B = V = zero(_EMPICEventQ)
     for p in eachindex(ps.weight)
-        E = max(E, sum(Q(abs(stage.Ep[c][p])) for c in 1:3))
-        B = max(B, sum(Q(abs(stage.Bp[c][p])) for c in 1:3))
-        V = max(V, sum(Q(abs(ps.v[c][p])) for c in 1:3))
+        E = max(E, sum(Q(abs(stage.Ep[c][p])) for c = 1:3))
+        B = max(B, sum(Q(abs(stage.Bp[c][p])) for c = 1:3))
+        V = max(V, sum(Q(abs(ps.v[c][p])) for c = 1:3))
     end
     return E, B, V
 end
@@ -1323,18 +1473,35 @@ function _empic_event_bounds(stage::EMPIC1D, ps)
     for p in eachindex(ps.weight)
         E = max(E, Q(abs(stage.Exp[p])) + Q(abs(stage.Eyp[p])))
         B = max(B, Q(abs(stage.Bzp[p])))
-        V = max(V, sum(Q(abs(ps.v[c][p])) for c in 1:3))
+        V = max(V, sum(Q(abs(ps.v[c][p])) for c = 1:3))
     end
     return E, B, V
 end
-const _EMPIC_EVENT_KICK_KEYS = (:species, :time, :previous, :selected, :cap, :upper,
-    :minimum, :adaptive, :limits, :q, :m, :E1, :B1, :V1, :halvings, :bootstrap,
-    :duration, :duration_defect)
+const _EMPIC_EVENT_KICK_KEYS = (
+    :species,
+    :time,
+    :previous,
+    :selected,
+    :cap,
+    :upper,
+    :minimum,
+    :adaptive,
+    :limits,
+    :q,
+    :m,
+    :E1,
+    :B1,
+    :V1,
+    :halvings,
+    :bootstrap,
+    :duration,
+    :duration_defect,
+)
 function _empic_event_within(h, q, m, E, B, V, limits, c, dx)
     Q = _exact_rational
     return Q(h) * abs(Q(q)) * B <= Q(limits.rotation) * Q(m) &&
-        Q(h) * abs(Q(q)) * E <= Q(limits.electric) * Q(m) * Q(c) &&
-        Q(h) * V <= Q(limits.travel) * minimum(Q, dx)
+           Q(h) * abs(Q(q)) * E <= Q(limits.electric) * Q(m) * Q(c) &&
+           Q(h) * V <= Q(limits.travel) * minimum(Q, dx)
 end
 function _empic_event_interval_choice(stage, proposal, ps, i, previous, bootstrap)
     T, Q = eltype(ps), _exact_rational
@@ -1346,36 +1513,86 @@ function _empic_event_interval_choice(stage, proposal, ps, i, previous, bootstra
     if adaptive
         lower = proposal.minimum[i]
         while true
-            selected >= lower || throw(ArgumentError("adaptive species interval fell below species_dt_min"))
-            _empic_event_within(selected, ps.q, ps.m, E, B, V,
-                proposal.limits, stage.c, stage.g.dx) && break
-            halvings < proposal.budget || throw(ArgumentError("adaptive interval halving budget exhausted"))
+            selected >= lower ||
+                throw(ArgumentError("adaptive species interval fell below species_dt_min"))
+            _empic_event_within(
+                selected,
+                ps.q,
+                ps.m,
+                E,
+                B,
+                V,
+                proposal.limits,
+                stage.c,
+                stage.g.dx,
+            ) && break
+            halvings < proposal.budget ||
+                throw(ArgumentError("adaptive interval halving budget exhausted"))
             selected = _require_resolved_dt("adaptive species interval", selected / T(2))
             halvings += 1
         end
     end
-    return (selected = selected, cap = cap, upper = proposal.cap[i], minimum = proposal.minimum[i],
-        adaptive = adaptive, limits = proposal.limits, q = ps.q, m = ps.m, E1 = E, B1 = B, V1 = V, halvings = halvings)
+    return (
+        selected = selected,
+        cap = cap,
+        upper = proposal.cap[i],
+        minimum = proposal.minimum[i],
+        adaptive = adaptive,
+        limits = proposal.limits,
+        q = ps.q,
+        m = ps.m,
+        E1 = E,
+        B1 = B,
+        V1 = V,
+        halvings = halvings,
+    )
 end
 
 function _empic_event_decision(stage, schedule, ps, i, time, previous, bootstrap)
     T, Q, proposal = eltype(ps), _exact_rational, schedule.proposal
     choice = _empic_event_interval_choice(stage, proposal, ps, i, previous, bootstrap)
-    selected, cap, adaptive, E, B, V, halvings = choice.selected, choice.cap, choice.adaptive, choice.E1, choice.B1, choice.V1, choice.halvings
+    selected, cap, adaptive, E, B, V, halvings = choice.selected,
+    choice.cap,
+    choice.adaptive,
+    choice.E1,
+    choice.B1,
+    choice.V1,
+    choice.halvings
     prior = bootstrap ? selected : previous
     consumed = prior / T(2) + selected / T(2)
-    return (species = i, time = time, previous = prior,
-        selected = selected, cap = cap, upper = proposal.cap[i], minimum = proposal.minimum[i], adaptive = adaptive,
-        limits = proposal.limits, q = ps.q, m = ps.m, E1 = E, B1 = B, V1 = V,
-        halvings = halvings, bootstrap = bootstrap, duration = consumed,
-        duration_defect = Q(consumed) - (Q(prior) + Q(selected)) / 2)
+    return (
+        species = i,
+        time = time,
+        previous = prior,
+        selected = selected,
+        cap = cap,
+        upper = proposal.cap[i],
+        minimum = proposal.minimum[i],
+        adaptive = adaptive,
+        limits = proposal.limits,
+        q = ps.q,
+        m = ps.m,
+        E1 = E,
+        B1 = B,
+        V1 = V,
+        halvings = halvings,
+        bootstrap = bootstrap,
+        duration = consumed,
+        duration_defect = Q(consumed) - (Q(prior) + Q(selected)) / 2,
+    )
 end
 
 function _empic_event_configuration(es; c = es.c, shape = es.shape, relativistic = es.relativistic)
     work = _empic_collection(es)
-    return (c = c, shape = shape, relativistic = relativistic,
-        background = es.n0, neutrality = work.neutrality, charge_rtol = work.charge_rtol,
-        mobile = Tuple(work.mobile))
+    return (
+        c = c,
+        shape = shape,
+        relativistic = relativistic,
+        background = es.n0,
+        neutrality = work.neutrality,
+        charge_rtol = work.charge_rtol,
+        mobile = Tuple(work.mobile),
+    )
 end
 function _empic_event_shadow_values(es, populations, fields, bindings, configuration, clock)
     D, T = length(es.g.n), eltype(es.rho_n)
@@ -1384,38 +1601,56 @@ function _empic_event_shadow_values(es, populations, fields, bindings, configura
     detached = NamedTuple{keys(fields)}(map(values(fields)) do value
         value isa Tuple ? map(copy, value) : copy(value)
     end)
-    return (species = copies, fields = detached,
+    return (
+        species = copies,
+        fields = detached,
         bindings = Tuple[_empic_event_arrays(ps) for ps in bindings],
-        configuration = configuration, clock = clock)
+        configuration = configuration,
+        clock = clock,
+    )
 end
 function _empic_event_shadow(es, work, species)
     stage = work.stage
-    return _empic_event_shadow_values(es, work.staged, _empic_event_fields(stage),
-        species, _empic_event_configuration(es),
-        (stage.time[], stage.step[], stage.last_dt[], stage.last_sub_dt[]))
+    return _empic_event_shadow_values(
+        es,
+        work.staged,
+        _empic_event_fields(stage),
+        species,
+        _empic_event_configuration(es),
+        (stage.time[], stage.step[], stage.last_dt[], stage.last_sub_dt[]),
+    )
 end
 function _empic_event_shadow_matches(es, schedule)
     shadow, work = schedule.shadow, _empic_collection(es)
-    shadow isa NamedTuple && keys(shadow) == (:species, :fields, :bindings, :configuration, :clock) ||
+    shadow isa NamedTuple &&
+        keys(shadow) == (:species, :fields, :bindings, :configuration, :clock) ||
         throw(ArgumentError("persistent schedule has no valid committed shadow"))
     expected = _empic_event_configuration(es)
     isequal(shadow.configuration, expected) &&
         isequal(shadow.clock, (es.time[], es.step[], es.last_dt[], es.last_sub_dt[])) &&
         isequal(shadow.fields, _empic_event_fields(es)) &&
-        length(shadow.species) == length(shadow.bindings) == length(work.owners) ||
-        throw(ArgumentError("persistent source/field/clock changed; initialize from full-time data"))
+        length(shadow.species) == length(shadow.bindings) == length(work.owners) || throw(
+        ArgumentError("persistent source/field/clock changed; initialize from full-time data"),
+    )
     for (ps, saved, binding) in zip(work.owners, shadow.species, shadow.bindings)
         length(binding) == length(_empic_event_arrays(ps)) &&
             all(pair -> pair[1] === pair[2], zip(_empic_event_arrays(ps), binding)) &&
             isequal((ps.q, ps.m), (saved.q, saved.m)) &&
-            all(pair -> isequal(pair[1], pair[2]), zip(_empic_event_arrays(ps), _empic_event_arrays(saved))) ||
-            throw(ArgumentError("persistent particle source/phase/provenance changed; initialize from full-time data"))
+            all(
+                pair -> isequal(pair[1], pair[2]),
+                zip(_empic_event_arrays(ps), _empic_event_arrays(saved)),
+            ) || throw(
+            ArgumentError(
+                "persistent particle source/phase/provenance changed; initialize from full-time data",
+            ),
+        )
     end
     return nothing
 end
 function _empic_event_shadow_arrays(shadow)
     shadow === nothing && return AbstractArray[]
-    shadow isa NamedTuple && keys(shadow) == (:species, :fields, :bindings, :configuration, :clock) ||
+    shadow isa NamedTuple &&
+        keys(shadow) == (:species, :fields, :bindings, :configuration, :clock) ||
         throw(ArgumentError("persistent committed shadow layout changed"))
     # Bindings intentionally retain public component identities; their data is
     # not a second private storage role. The copied physical values are separate.
@@ -1430,21 +1665,49 @@ function _empic_event_shadow_arrays(shadow)
 end
 function _empic_event_report_arrays(report)
     report === nothing && return AbstractArray[]
-    arrays = AbstractArray[report.initial.interval, report.initial.last, report.initial.next,
-        report.intervals, report.edges, report.duration_defects, report.kicks, report.continuity,
-        report.segments, report.rho_start, report.rho_end, report.impulse...]
+    arrays = AbstractArray[
+        report.initial.interval,
+        report.initial.last,
+        report.initial.next,
+        report.intervals,
+        report.edges,
+        report.duration_defects,
+        report.kicks,
+        report.continuity,
+        report.segments,
+        report.rho_start,
+        report.rho_end,
+        report.impulse...,
+    ]
     report.raw_impulse === nothing || append!(arrays, report.raw_impulse)
     for segment in report.segments
-        append!(arrays, (segment.E_before..., segment.E_after..., segment.current...,
-            segment.rho_before, segment.rho_after))
+        append!(
+            arrays,
+            (
+                segment.E_before...,
+                segment.E_after...,
+                segment.current...,
+                segment.rho_before,
+                segment.rho_after,
+            ),
+        )
         segment.raw_current === nothing || append!(arrays, segment.raw_current)
     end
     return arrays
 end
 function _empic_collection_schedule_arrays(schedule::_EMPICEventSchedule)
     p, a, b = schedule.proposal, schedule.phase, schedule.candidate
-    arrays = AbstractArray[p.cap, p.adaptive, p.minimum, a.interval, a.last, a.next,
-        b.interval, b.last, b.next]
+    arrays = AbstractArray[
+        p.cap,
+        p.adaptive,
+        p.minimum,
+        a.interval,
+        a.last,
+        a.next,
+        b.interval,
+        b.last,
+        b.next,
+    ]
     append!(arrays, _empic_event_report_arrays(a.report))
     append!(arrays, _empic_event_report_arrays(b.report))
     append!(arrays, _empic_event_shadow_arrays(schedule.shadow))
@@ -1460,57 +1723,112 @@ function _empic_collection_validate_schedule(es, schedule::_EMPICEventSchedule{T
         throw(ArgumentError("persistent proposal layout changed"))
     _empic_event_proposal(es.collection.mobile, p.cap, p.adaptive, p.minimum, p.limits, p.budget, T)
     for phase in (schedule.phase, schedule.candidate)
-        all(a -> axes(a, 1) == Base.OneTo(length(es.collection.mobile)),
-            (phase.interval, phase.last, phase.next)) ||
-            throw(ArgumentError("persistent phase row geometry changed"))
+        all(
+            a -> axes(a, 1) == Base.OneTo(length(es.collection.mobile)),
+            (phase.interval, phase.last, phase.next),
+        ) || throw(ArgumentError("persistent phase row geometry changed"))
         phase.report === nothing || _empic_event_report_layout(es, phase.report)
     end
     return nothing
 end
 
-const _EMPIC_EVENT_REPORT_KEYS = (:kind, :start, :finish, :requested,
-    :public_before, :public_after, :budget, :n_sub, :bootstrap, :initial, :intervals,
-    :edges, :duration_defects, :kicks, :continuity, :charge_source_scale, :segments, :rho_start, :rho_end,
-    :impulse, :raw_impulse, :work_used, :work_raw, :field_before, :field_after,
-    :field_defect, :clock_defect)
+const _EMPIC_EVENT_REPORT_KEYS = (
+    :kind,
+    :start,
+    :finish,
+    :requested,
+    :public_before,
+    :public_after,
+    :budget,
+    :n_sub,
+    :bootstrap,
+    :initial,
+    :intervals,
+    :edges,
+    :duration_defects,
+    :kicks,
+    :continuity,
+    :charge_source_scale,
+    :segments,
+    :rho_start,
+    :rho_end,
+    :impulse,
+    :raw_impulse,
+    :work_used,
+    :work_raw,
+    :field_before,
+    :field_after,
+    :field_defect,
+    :clock_defect,
+)
 function _empic_event_report_layout(es, report)
     T, D = eltype(es.rho_n), length(es.g.n)
     report isa NamedTuple && keys(report) == _EMPIC_EVENT_REPORT_KEYS ||
         throw(ArgumentError("persistent report layout differs"))
-    report.kind === (es isa EMPIC ? :vector : :planar) && report.bootstrap isa Bool &&
-        report.budget isa Int && report.budget > 0 && report.n_sub isa Int &&
-        1 <= report.n_sub <= report.budget && report.requested isa T &&
-        report.public_before isa T && report.public_after isa T &&
+    report.kind === (es isa EMPIC ? :vector : :planar) &&
+        report.bootstrap isa Bool &&
+        report.budget isa Int &&
+        report.budget > 0 &&
+        report.n_sub isa Int &&
+        1 <= report.n_sub <= report.budget &&
+        report.requested isa T &&
+        report.public_before isa T &&
+        report.public_after isa T &&
         all(isfinite, (report.requested, report.public_before, report.public_after)) &&
-        report.requested > zero(T) && report.public_before >= zero(T) &&
+        report.requested > zero(T) &&
+        report.public_before >= zero(T) &&
         report.public_after > report.public_before &&
-        all(_empic_event_q, (report.start, report.finish, report.work_used, report.charge_source_scale,
-            report.field_before, report.field_after, report.field_defect, report.clock_defect)) ||
-        throw(ArgumentError("persistent report scalar source/clock values differ"))
-    report.initial isa NamedTuple && keys(report.initial) == (:primed, :interval, :last, :next) &&
-        report.initial.primed isa Bool && report.initial.interval isa Vector{T} &&
-        report.initial.last isa Vector{_EMPICEventQ} && report.initial.next isa Vector{_EMPICEventQ} &&
-        all(a -> axes(a, 1) == Base.OneTo(length(es.collection.mobile)),
-            (report.initial.interval, report.initial.last, report.initial.next)) &&
+        all(
+            _empic_event_q,
+            (
+                report.start,
+                report.finish,
+                report.work_used,
+                report.charge_source_scale,
+                report.field_before,
+                report.field_after,
+                report.field_defect,
+                report.clock_defect,
+            ),
+        ) || throw(ArgumentError("persistent report scalar source/clock values differ"))
+    report.initial isa NamedTuple &&
+        keys(report.initial) == (:primed, :interval, :last, :next) &&
+        report.initial.primed isa Bool &&
+        report.initial.interval isa Vector{T} &&
+        report.initial.last isa Vector{_EMPICEventQ} &&
+        report.initial.next isa Vector{_EMPICEventQ} &&
+        all(
+            a -> axes(a, 1) == Base.OneTo(length(es.collection.mobile)),
+            (report.initial.interval, report.initial.last, report.initial.next),
+        ) &&
         all(isfinite, report.initial.interval) &&
         all(_empic_event_q, (report.initial.last..., report.initial.next...)) ||
         throw(ArgumentError("persistent report initial phase differs"))
-    report.intervals isa Vector{T} && report.edges isa Vector{_EMPICEventQ} &&
-        report.duration_defects isa Vector{_EMPICEventQ} && report.continuity isa Vector{T} &&
-        report.kicks isa Vector && report.segments isa Vector &&
+    report.intervals isa Vector{T} &&
+        report.edges isa Vector{_EMPICEventQ} &&
+        report.duration_defects isa Vector{_EMPICEventQ} &&
+        report.continuity isa Vector{T} &&
+        report.kicks isa Vector &&
+        report.segments isa Vector &&
         all(v -> all(i -> isassigned(v, i), eachindex(v)), (report.kicks, report.segments)) ||
         throw(ArgumentError("persistent report event storage differs"))
     count = length(report.intervals)
-    count > 0 && length(report.edges) == count + 1 &&
-        length(report.duration_defects) == length(report.continuity) == length(report.segments) == count &&
-        length(report.kicks) <= report.budget && count <= report.budget - length(report.kicks) &&
+    count > 0 &&
+        length(report.edges) == count + 1 &&
+        length(report.duration_defects) ==
+        length(report.continuity) ==
+        length(report.segments) ==
+        count &&
+        length(report.kicks) <= report.budget &&
+        count <= report.budget - length(report.kicks) &&
         all(h -> isfinite(h) && h >= 2floatmin(T), report.intervals) &&
         all(x -> isfinite(x) && x >= zero(T), report.continuity) &&
         all(_empic_event_q, (report.edges..., report.duration_defects...)) ||
         throw(ArgumentError("persistent report event counts/ranges differ"))
-    all(a -> a isa Array{T,D} && size(a) == es.g.n && all(isfinite, a),
-        (report.rho_start, report.rho_end)) ||
-        throw(ArgumentError("persistent report charge snapshots differ"))
+    all(
+        a -> a isa Array{T,D} && size(a) == es.g.n && all(isfinite, a),
+        (report.rho_start, report.rho_end),
+    ) || throw(ArgumentError("persistent report charge snapshots differ"))
     components = es isa EMPIC ? 3 : 2
     report.impulse isa NTuple{components,Array{_EMPICEventQ,D}} &&
         all(a -> size(a) == es.g.n && all(_empic_event_q, a), report.impulse) ||
@@ -1525,16 +1843,20 @@ function _empic_event_report_layout(es, report)
             throw(ArgumentError("planar reports cannot invent a raw longitudinal current"))
     end
     for segment in report.segments
-        segment isa NamedTuple && keys(segment) == (:E_before, :E_after, :current, :raw_current,
-            :rho_before, :rho_after) ||
+        segment isa NamedTuple &&
+            keys(segment) ==
+            (:E_before, :E_after, :current, :raw_current, :rho_before, :rho_after) ||
             throw(ArgumentError("persistent segment source layout differs"))
-        all(v -> v isa NTuple{components,Array{T,D}} &&
-            all(a -> size(a) == es.g.n && all(isfinite, a), v),
-            (segment.E_before, segment.E_after, segment.current)) ||
-            throw(ArgumentError("persistent segment electric/current sources differ"))
-        all(a -> a isa Array{T,D} && size(a) == es.g.n && all(isfinite, a),
-            (segment.rho_before, segment.rho_after)) ||
-            throw(ArgumentError("persistent segment deposited charge differs"))
+        all(
+            v ->
+                v isa NTuple{components,Array{T,D}} &&
+                    all(a -> size(a) == es.g.n && all(isfinite, a), v),
+            (segment.E_before, segment.E_after, segment.current),
+        ) || throw(ArgumentError("persistent segment electric/current sources differ"))
+        all(
+            a -> a isa Array{T,D} && size(a) == es.g.n && all(isfinite, a),
+            (segment.rho_before, segment.rho_after),
+        ) || throw(ArgumentError("persistent segment deposited charge differs"))
         if es isa EMPIC
             segment.raw_current isa NTuple{3,Array{T,D}} &&
                 all(a -> size(a) == es.g.n && all(isfinite, a), segment.raw_current) ||
@@ -1547,29 +1869,60 @@ function _empic_event_report_layout(es, report)
     for kick in report.kicks
         kick isa NamedTuple && keys(kick) == _EMPIC_EVENT_KICK_KEYS ||
             throw(ArgumentError("persistent kick decision layout differs"))
-        kick.species isa Int && 1 <= kick.species <= length(es.collection.mobile) &&
-            es.collection.mobile[kick.species] && kick.bootstrap isa Bool &&
-            kick.adaptive isa Bool && kick.halvings isa Int && 0 <= kick.halvings <= report.budget &&
-            all(x -> x isa T && isfinite(x),
-                (kick.previous, kick.selected, kick.upper, kick.minimum, kick.q, kick.m, kick.duration)) &&
-            kick.previous >= 2floatmin(T) && kick.selected >= 2floatmin(T) &&
-            kick.upper >= kick.selected && kick.minimum >= zero(T) && kick.m > zero(T) &&
-            all(_empic_event_q, (kick.time, kick.cap, kick.E1, kick.B1, kick.V1, kick.duration_defect)) &&
+        kick.species isa Int &&
+            1 <= kick.species <= length(es.collection.mobile) &&
+            es.collection.mobile[kick.species] &&
+            kick.bootstrap isa Bool &&
+            kick.adaptive isa Bool &&
+            kick.halvings isa Int &&
+            0 <= kick.halvings <= report.budget &&
+            all(
+                x -> x isa T && isfinite(x),
+                (
+                    kick.previous,
+                    kick.selected,
+                    kick.upper,
+                    kick.minimum,
+                    kick.q,
+                    kick.m,
+                    kick.duration,
+                ),
+            ) &&
+            kick.previous >= 2floatmin(T) &&
+            kick.selected >= 2floatmin(T) &&
+            kick.upper >= kick.selected &&
+            kick.minimum >= zero(T) &&
+            kick.m > zero(T) &&
+            all(
+                _empic_event_q,
+                (kick.time, kick.cap, kick.E1, kick.B1, kick.V1, kick.duration_defect),
+            ) &&
             all(>=(zero(_EMPICEventQ)), (kick.E1, kick.B1, kick.V1)) &&
-            kick.limits isa NamedTuple && keys(kick.limits) == (:rotation, :electric, :travel, :growth) &&
+            kick.limits isa NamedTuple &&
+            keys(kick.limits) == (:rotation, :electric, :travel, :growth) &&
             all(x -> x isa T && isfinite(x), values(kick.limits)) ||
             throw(ArgumentError("persistent kick decision source values differ"))
     end
     return nothing
 end
 
-function _empic_event_report_valid(es, phase, species; speed = es.c, fields = _empic_event_fields(es))
+function _empic_event_report_valid(
+    es,
+    phase,
+    species;
+    speed = es.c,
+    fields = _empic_event_fields(es),
+)
     r, Q = phase.report, _exact_rational
     _empic_event_report_layout(es, r)
-    r.start >= 0 && r.finish == phase.time && r.finish - r.start == Q(r.requested) &&
-        first(r.edges) == r.start && last(r.edges) == r.finish &&
+    r.start >= 0 &&
+        r.finish == phase.time &&
+        r.finish - r.start == Q(r.requested) &&
+        first(r.edges) == r.start &&
+        last(r.edges) == r.finish &&
         r.bootstrap === !r.initial.primed &&
-        r.field_before >= 0 && r.field_after >= 0 &&
+        r.field_before >= 0 &&
+        r.field_after >= 0 &&
         r.charge_source_scale == _pic_collection_charges(es.g, es.n0, species).scale &&
         r.field_defect == r.field_after - r.field_before + r.work_used &&
         r.clock_defect == Q(r.public_after) - Q(r.public_before) - (r.finish - r.start) ||
@@ -1577,7 +1930,8 @@ function _empic_event_report_valid(es, phase, species; speed = es.c, fields = _e
     clock = r.public_before
     for i in eachindex(r.intervals)
         delta = r.edges[i+1] - r.edges[i]
-        delta > 0 && isequal(r.intervals[i], _empic_event_interval(eltype(r.intervals), delta)) &&
+        delta > 0 &&
+            isequal(r.intervals[i], _empic_event_interval(eltype(r.intervals), delta)) &&
             Q(r.intervals[i]) - delta == r.duration_defects[i] ||
             throw(ArgumentError("persistent report event duration/materialization differs"))
         nextclock, _ = _validated_step_clock(clock, 0, r.intervals[i])
@@ -1591,31 +1945,52 @@ function _empic_event_report_valid(es, phase, species; speed = es.c, fields = _e
         isequal(last(r.segments).rho_before, fields.rho_n) &&
         isequal(last(r.segments).rho_after, r.rho_end) &&
         isequal(r.rho_end, fields.rho_np1) &&
-        r.field_after == _field_energy_rational(_empic_event_field_E(es, fields),
-            _empic_event_field_B(es, fields), Q(speed)^2, es.g.dx) ||
-        throw(ArgumentError("persistent report differs from its actual saved endpoint"))
-    es isa EMPIC && !isequal(last(r.segments).raw_current, fields.Jraw) &&
+        r.field_after == _field_energy_rational(
+            _empic_event_field_E(es, fields),
+            _empic_event_field_B(es, fields),
+            Q(speed)^2,
+            es.g.dx,
+        ) || throw(ArgumentError("persistent report differs from its actual saved endpoint"))
+    es isa EMPIC &&
+        !isequal(last(r.segments).raw_current, fields.Jraw) &&
         throw(ArgumentError("persistent report raw current differs from its actual saved endpoint"))
     impulse = map(a -> fill(zero(_EMPICEventQ), size(a)), r.impulse)
-    raw_impulse = r.raw_impulse === nothing ? nothing :
+    raw_impulse =
+        r.raw_impulse === nothing ? nothing :
         map(a -> fill(zero(_EMPICEventQ), size(a)), r.raw_impulse)
     work_used, work_raw = zero(_EMPICEventQ), r.work_raw === nothing ? nothing : zero(_EMPICEventQ)
     volume = prod(Q, es.g.dx)
     for i in eachindex(r.segments)
         segment = r.segments[i]
-        i == 1 || isequal(r.segments[i-1].E_after, segment.E_before) ||
+        i == 1 ||
+            isequal(r.segments[i-1].E_after, segment.E_before) ||
             throw(ArgumentError("persistent segment electric history is discontinuous"))
-        i == 1 || isequal(r.segments[i-1].rho_after, segment.rho_before) ||
+        i == 1 ||
+            isequal(r.segments[i-1].rho_after, segment.rho_before) ||
             throw(ArgumentError("persistent segment charge history is discontinuous"))
-        work_used += _empic_event_work!(impulse, segment.current,
-            segment.E_before, segment.E_after, r.intervals[i], volume)
+        work_used += _empic_event_work!(
+            impulse,
+            segment.current,
+            segment.E_before,
+            segment.E_after,
+            r.intervals[i],
+            volume,
+        )
         if raw_impulse !== nothing
-            work_raw += _empic_event_work!(raw_impulse, segment.raw_current,
-                segment.E_before, segment.E_after, r.intervals[i], volume)
+            work_raw += _empic_event_work!(
+                raw_impulse,
+                segment.raw_current,
+                segment.E_before,
+                segment.E_after,
+                r.intervals[i],
+                volume,
+            )
         end
     end
-    isequal(impulse, r.impulse) && isequal(raw_impulse, r.raw_impulse) &&
-        work_used == r.work_used && isequal(work_raw, r.work_raw) ||
+    isequal(impulse, r.impulse) &&
+        isequal(raw_impulse, r.raw_impulse) &&
+        work_used == r.work_used &&
+        isequal(work_raw, r.work_raw) ||
         throw(ArgumentError("persistent current impulse/work differs from actual segment sources"))
     H, a, b = copy(r.initial.interval), copy(r.initial.last), copy(r.initial.next)
     mobile = es.collection.mobile
@@ -1634,7 +2009,8 @@ function _empic_event_report_valid(es, phase, species; speed = es.c, fields = _e
         r.start <= k.time < r.finish &&
             any(t -> t == k.time, r.edges[1:(end-1)]) &&
             (k.time > previous_time || (k.time == previous_time && i > previous_row)) &&
-            k.q == species[i].q && k.m == species[i].m ||
+            k.q == species[i].q &&
+            k.m == species[i].m ||
             throw(ArgumentError("persistent report kick ordering/source differs"))
         if r.bootstrap && k.time == r.start
             k.bootstrap && _particle_stored_zero(H[i]) && k.previous == k.selected ||
@@ -1643,31 +2019,61 @@ function _empic_event_report_valid(es, phase, species; speed = es.c, fields = _e
             !k.bootstrap && k.time == b[i] && k.previous == H[i] ||
                 throw(ArgumentError("persistent kick missed its pending deadline"))
         end
-        cap = k.adaptive && !k.bootstrap ? min(Q(k.upper), Q(k.limits.growth) * Q(k.previous)) : Q(k.upper)
+        cap =
+            k.adaptive && !k.bootstrap ? min(Q(k.upper), Q(k.limits.growth) * Q(k.previous)) :
+            Q(k.upper)
         cap == k.cap || throw(ArgumentError("persistent historical growth cap differs"))
         isequal(k.duration, k.previous / eltype(H)(2) + k.selected / eltype(H)(2)) &&
             k.duration_defect == Q(k.duration) - (Q(k.previous) + Q(k.selected)) / 2 ||
             throw(ArgumentError("persistent historical kick materialization differs"))
         expected = _empic_event_floor(eltype(H), cap)
-        for _ in 1:k.halvings
-            k.adaptive && !_empic_event_within(expected, k.q, k.m, k.E1, k.B1, k.V1,
-                k.limits, speed, es.g.dx) ||
+        for _ = 1:k.halvings
+            k.adaptive &&
+                !_empic_event_within(
+                    expected,
+                    k.q,
+                    k.m,
+                    k.E1,
+                    k.B1,
+                    k.V1,
+                    k.limits,
+                    speed,
+                    es.g.dx,
+                ) ||
                 throw(ArgumentError("persistent historical halving skipped an admitted interval"))
             expected = _require_resolved_dt("historical adaptive interval", expected / eltype(H)(2))
         end
-        isequal(expected, k.selected) || throw(ArgumentError("persistent historical halving differs"))
+        isequal(expected, k.selected) ||
+            throw(ArgumentError("persistent historical halving differs"))
         if k.adaptive
-            all(>(0), values(k.limits)) && k.limits.growth >= 1 &&
+            all(>(0), values(k.limits)) &&
+                k.limits.growth >= 1 &&
                 2floatmin(eltype(H)) <= k.minimum <= k.selected &&
-                _empic_event_within(k.selected, k.q, k.m, k.E1, k.B1, k.V1,
-                    k.limits, speed, es.g.dx) ||
-                throw(ArgumentError("persistent historical adaptive bounds differ"))
+                _empic_event_within(
+                    k.selected,
+                    k.q,
+                    k.m,
+                    k.E1,
+                    k.B1,
+                    k.V1,
+                    k.limits,
+                    speed,
+                    es.g.dx,
+                ) || throw(ArgumentError("persistent historical adaptive bounds differ"))
         else
-            _particle_stored_zero(k.minimum) && k.halvings == 0 &&
-                ((all(>(0), values(k.limits)) && k.limits.growth >= 1) ||
-                    isequal(k.limits, (rotation = zero(eltype(H)), electric = zero(eltype(H)),
-                        travel = zero(eltype(H)), growth = one(eltype(H))))) ||
-                throw(ArgumentError("persistent fixed decision carries adaptive history"))
+            _particle_stored_zero(k.minimum) &&
+                k.halvings == 0 &&
+                (
+                    (all(>(0), values(k.limits)) && k.limits.growth >= 1) || isequal(
+                        k.limits,
+                        (
+                            rotation = zero(eltype(H)),
+                            electric = zero(eltype(H)),
+                            travel = zero(eltype(H)),
+                            growth = one(eltype(H)),
+                        ),
+                    )
+                ) || throw(ArgumentError("persistent fixed decision carries adaptive history"))
         end
         H[i], a[i], b[i] = k.selected, k.time, k.time + Q(k.selected)
         previous_time, previous_row = k.time, i
@@ -1676,62 +2082,101 @@ function _empic_event_report_valid(es, phase, species; speed = es.c, fields = _e
         throw(ArgumentError("persistent pending phase differs from its actual decisions"))
     # Reuse the actual calendar selector to verify the whole historical field
     # partition, including base edges and due rows that cannot be omitted.
-    replay = _EMPICEventPhase{eltype(H)}(r.start, r.initial.primed, copy(r.initial.interval),
-        deepcopy(r.initial.last), deepcopy(r.initial.next), nothing)
+    replay = _EMPICEventPhase{eltype(H)}(
+        r.start,
+        r.initial.primed,
+        copy(r.initial.interval),
+        deepcopy(r.initial.last),
+        deepcopy(r.initial.next),
+        nothing,
+    )
     cursor, base = 1, 1
     for j in eachindex(r.intervals)
         time = r.edges[j]
         for i in eachindex(mobile)
             mobile[i] || continue
             if (r.bootstrap && j == 1) || replay.next[i] == time
-                cursor <= length(r.kicks) && r.kicks[cursor].species == i &&
+                cursor <= length(r.kicks) &&
+                    r.kicks[cursor].species == i &&
                     r.kicks[cursor].time == time ||
                     throw(ArgumentError("persistent partition omitted a due species kick"))
                 k = r.kicks[cursor]
-                replay.interval[i], replay.last[i], replay.next[i] = k.selected, time, time + Q(k.selected)
+                replay.interval[i], replay.last[i], replay.next[i] =
+                    k.selected, time, time + Q(k.selected)
                 cursor += 1
             end
         end
         edge, base = _empic_event_next(replay, mobile, time, r.finish, base, r.n_sub)
-        edge == r.edges[j+1] || throw(ArgumentError("persistent field partition differs from actual deadlines"))
+        edge == r.edges[j+1] ||
+            throw(ArgumentError("persistent field partition differs from actual deadlines"))
     end
-    cursor == length(r.kicks) + 1 || throw(ArgumentError("persistent partition carries an unused kick"))
+    cursor == length(r.kicks) + 1 ||
+        throw(ArgumentError("persistent partition carries an unused kick"))
     return nothing
 end
 
-function _empic_event_phase_values(es, phase, species, initialized, time, step, full, fast;
-    speed = es.c, fields = _empic_event_fields(es))
+function _empic_event_phase_values(
+    es,
+    phase,
+    species,
+    initialized,
+    time,
+    step,
+    full,
+    fast;
+    speed = es.c,
+    fields = _empic_event_fields(es),
+)
     T = eltype(es.rho_n)
-    phase isa _EMPICEventPhase{T} && _empic_event_q(phase.time) && phase.time >= 0 &&
-        initialized isa Bool && time isa T && step isa Int && full isa T && fast isa T ||
-        throw(ArgumentError("persistent phase scalar types differ"))
+    phase isa _EMPICEventPhase{T} &&
+        _empic_event_q(phase.time) &&
+        phase.time >= 0 &&
+        initialized isa Bool &&
+        time isa T &&
+        step isa Int &&
+        full isa T &&
+        fast isa T || throw(ArgumentError("persistent phase scalar types differ"))
     _validate_empic_clock_phase(time, step, full, fast)
     count = length(es.collection.mobile)
-    (species === nothing ? step == 0 : length(species) == count) && all(a -> axes(a, 1) == Base.OneTo(count),
-        (phase.interval, phase.last, phase.next)) &&
-        all(isfinite, phase.interval) && all(_empic_event_q, (phase.last..., phase.next...)) ||
+    (species === nothing ? step == 0 : length(species) == count) &&
+        all(a -> axes(a, 1) == Base.OneTo(count), (phase.interval, phase.last, phase.next)) &&
+        all(isfinite, phase.interval) &&
+        all(_empic_event_q, (phase.last..., phase.next...)) ||
         throw(ArgumentError("persistent phase population geometry differs"))
     if step == 0
-        !phase.primed && iszero(phase.time) && _particle_stored_zero(time) &&
-            all(_particle_stored_zero, phase.interval) && all(iszero, (phase.last..., phase.next...)) &&
-            phase.report === nothing || throw(ArgumentError("step-zero persistent state carries an advanced phase"))
+        !phase.primed &&
+            iszero(phase.time) &&
+            _particle_stored_zero(time) &&
+            all(_particle_stored_zero, phase.interval) &&
+            all(iszero, (phase.last..., phase.next...)) &&
+            phase.report === nothing ||
+            throw(ArgumentError("step-zero persistent state carries an advanced phase"))
     else
-        initialized && phase.primed && phase.time >= _exact_rational(full) &&
-            phase.report !== nothing || throw(ArgumentError("advanced persistent state lacks its phase/report"))
+        initialized &&
+            phase.primed &&
+            phase.time >= _exact_rational(full) &&
+            phase.report !== nothing ||
+            throw(ArgumentError("advanced persistent state lacks its phase/report"))
         for i in eachindex(es.collection.mobile)
             if es.collection.mobile[i]
-                phase.interval[i] >= 2floatmin(T) && phase.last[i] <= phase.time <= phase.next[i] &&
+                phase.interval[i] >= 2floatmin(T) &&
+                    phase.last[i] <= phase.time <= phase.next[i] &&
                     phase.next[i] - phase.last[i] == _exact_rational(phase.interval[i]) ||
                     throw(ArgumentError("persistent species deadline/half phase differs"))
             else
-                _particle_stored_zero(phase.interval[i]) && iszero(phase.last[i]) && iszero(phase.next[i]) ||
+                _particle_stored_zero(phase.interval[i]) &&
+                    iszero(phase.last[i]) &&
+                    iszero(phase.next[i]) ||
                     throw(ArgumentError("fixed species carries an active persistent phase"))
             end
         end
         _empic_event_report_valid(es, phase, species; speed, fields)
         r = phase.report
-        isequal(r.public_after, time) && isequal(r.requested, full) && isequal(last(r.intervals), fast) &&
-            r.bootstrap === (step == 1) || throw(ArgumentError("persistent report differs from completed public phase"))
+        isequal(r.public_after, time) &&
+            isequal(r.requested, full) &&
+            isequal(last(r.intervals), fast) &&
+            r.bootstrap === (step == 1) ||
+            throw(ArgumentError("persistent report differs from completed public phase"))
         if step == 1
             iszero(r.start) && _particle_stored_zero(r.public_before) ||
                 throw(ArgumentError("first persistent interval has an invalid origin"))
@@ -1741,8 +2186,16 @@ function _empic_event_phase_values(es, phase, species, initialized, time, step, 
 end
 function _empic_collection_validate_species_history(es, schedule::_EMPICEventSchedule)
     work = _empic_collection(es)
-    _empic_event_phase_values(es, schedule.phase, work.initialized[] ? work.owners : nothing,
-        work.initialized[], es.time[], es.step[], es.last_dt[], es.last_sub_dt[])
+    _empic_event_phase_values(
+        es,
+        schedule.phase,
+        work.initialized[] ? work.owners : nothing,
+        work.initialized[],
+        es.time[],
+        es.step[],
+        es.last_dt[],
+        es.last_sub_dt[],
+    )
     work.initialized[] && _empic_event_shadow_matches(es, schedule)
     return nothing
 end
@@ -1751,7 +2204,11 @@ function _empic_collection_reset_intervals!(schedule::_EMPICEventSchedule{T}) wh
     schedule.candidate_shadow = nothing
     return nothing
 end
-function _empic_collection_finish_candidate!(es, work::_EMPICCollectionWork{D,T,P,S,R}, species) where {D,T,P,S,R<:_EMPICEventSchedule}
+function _empic_collection_finish_candidate!(
+    es,
+    work::_EMPICCollectionWork{D,T,P,S,R},
+    species,
+) where {D,T,P,S,R<:_EMPICEventSchedule}
     work.schedule.candidate_shadow = _empic_event_shadow(es, work, species)
     return nothing
 end
@@ -1765,14 +2222,23 @@ _empic_collection_prime_interval(schedule::_EMPICEventSchedule, i, fast) =
     schedule.candidate.interval[i]
 _empic_collection_velocity_offsets(schedule::_EMPICEventSchedule, mobile, offset) = [
     mobile[i] && schedule.phase.primed ?
-        (schedule.phase.last[i] + schedule.phase.next[i]) / 2 - schedule.phase.time : zero(_EMPICEventQ)
-    for i in eachindex(mobile)]
+    (schedule.phase.last[i] + schedule.phase.next[i]) / 2 - schedule.phase.time :
+    zero(_EMPICEventQ) for i in eachindex(mobile)
+]
 function _empic_collection_schedule_diagnostics(schedule::_EMPICEventSchedule, result)
-    return merge(result, (schedule_policy = 2, source_time = deepcopy(schedule.phase.time),
-        public_clock_defect = _exact_rational(schedule.shadow.clock[1]) - schedule.phase.time,
-        species_dt = copy(schedule.proposal.cap), last_species_dt = copy(schedule.phase.interval),
-        last_kick = deepcopy(schedule.phase.last), next_kick = deepcopy(schedule.phase.next),
-        last_schedule_report = deepcopy(schedule.phase.report)))
+    return merge(
+        result,
+        (
+            schedule_policy = 2,
+            source_time = deepcopy(schedule.phase.time),
+            public_clock_defect = _exact_rational(schedule.shadow.clock[1]) - schedule.phase.time,
+            species_dt = copy(schedule.proposal.cap),
+            last_species_dt = copy(schedule.phase.interval),
+            last_kick = deepcopy(schedule.phase.last),
+            next_kick = deepcopy(schedule.phase.next),
+            last_schedule_report = deepcopy(schedule.phase.report),
+        ),
+    )
 end
 
 function _empic_event_budget(schedule, intervals, kicks)
@@ -1815,9 +2281,14 @@ function _empic_event_advance!(es, species, work, charges, duration::T) where {T
     stage = work.stage
     original = schedule.phase
     H, a, b = copy(original.interval), deepcopy(original.last), deepcopy(original.next)
-    schedule.candidate = _EMPICEventPhase{T}(deepcopy(original.time), original.primed, H, a, b, nothing)
-    initial = (primed = original.primed, interval = copy(original.interval),
-        last = deepcopy(original.last), next = deepcopy(original.next))
+    schedule.candidate =
+        _EMPICEventPhase{T}(deepcopy(original.time), original.primed, H, a, b, nothing)
+    initial = (
+        primed = original.primed,
+        interval = copy(original.interval),
+        last = deepcopy(original.last),
+        next = deepcopy(original.next),
+    )
     start, finish, time = original.time, original.time + Q(duration), original.time
     intervals, edges, defects, continuity = T[], _EMPICEventQ[deepcopy(time)], _EMPICEventQ[], T[]
     kicks, segments = NamedTuple[], NamedTuple[]
@@ -1836,7 +2307,8 @@ function _empic_event_advance!(es, species, work, charges, duration::T) where {T
     base = 1
     previous = stage.last_sub_dt[]
     if bootstrap
-        edge, base = _empic_event_next(schedule.candidate, work.mobile, time, finish, base, es.n_sub)
+        edge, base =
+            _empic_event_next(schedule.candidate, work.mobile, time, finish, base, es.n_sub)
         first_h = _empic_event_interval(T, edge - time)
         _empic_collection_prime!(stage, work, first_h)
         previous = first_h
@@ -1869,7 +2341,8 @@ function _empic_event_advance!(es, species, work, charges, duration::T) where {T
                 H[i], a[i], b[i] = decision.selected, time, time + Q(decision.selected)
             end
         end
-        edge, base = _empic_event_next(schedule.candidate, work.mobile, time, finish, base, es.n_sub)
+        edge, base =
+            _empic_event_next(schedule.candidate, work.mobile, time, finish, base, es.n_sub)
         h = _empic_event_interval(T, edge - time)
         next_time, _ = _validated_step_clock(stage.time[], es.step[], h)
         next_time > stage.time[] || throw(ArgumentError("persistent public clock cannot advance"))
@@ -1880,12 +2353,25 @@ function _empic_event_advance!(es, species, work, charges, duration::T) where {T
             work.mobile[i] && _empic_collection_drift!(stage, work, i, h)
         end
         _empic_collection_finish_interval!(stage, work, parts, previous, h, target)
-        push!(segments, (E_before = oldE, E_after = map(copy, _empic_event_E(stage)),
-            current = map(copy, _empic_event_J(stage)),
-            raw_current = raw === nothing ? nothing : map(copy, raw),
-            rho_before = copy(stage.rho_n), rho_after = copy(stage.rho_np1)))
-        used_work += _empic_event_work!(impulse, _empic_event_J(stage), oldE,
-            _empic_event_E(stage), h, volume)
+        push!(
+            segments,
+            (
+                E_before = oldE,
+                E_after = map(copy, _empic_event_E(stage)),
+                current = map(copy, _empic_event_J(stage)),
+                raw_current = raw === nothing ? nothing : map(copy, raw),
+                rho_before = copy(stage.rho_n),
+                rho_after = copy(stage.rho_np1),
+            ),
+        )
+        used_work += _empic_event_work!(
+            impulse,
+            _empic_event_J(stage),
+            oldE,
+            _empic_event_E(stage),
+            h,
+            volume,
+        )
         if raw !== nothing
             raw_work += _empic_event_work!(raw_impulse, raw, oldE, _empic_event_E(stage), h, volume)
         end
@@ -1901,20 +2387,47 @@ function _empic_event_advance!(es, species, work, charges, duration::T) where {T
     _, count = _validated_step_clock(es.time[], es.step[], zero(T))
     stage.step[], stage.last_dt[], stage.last_sub_dt[] = count, duration, previous
     field_after = _empic_event_energy(stage)
-    report = (kind = es isa EMPIC ? :vector : :planar, start = deepcopy(start), finish = deepcopy(finish),
-        requested = duration, public_before = public_before, public_after = stage.time[],
-        budget = schedule.proposal.budget, n_sub = es.n_sub, bootstrap = bootstrap, initial = initial,
-        intervals = intervals, edges = edges, duration_defects = defects, kicks = kicks,
-        continuity = continuity, charge_source_scale = charges.scale,
-        segments = segments, rho_start = rho_start, rho_end = copy(stage.rho_np1),
-        impulse = impulse, raw_impulse = raw_impulse, work_used = used_work, work_raw = raw_work,
-        field_before = field_before, field_after = field_after,
+    report = (
+        kind = es isa EMPIC ? :vector : :planar,
+        start = deepcopy(start),
+        finish = deepcopy(finish),
+        requested = duration,
+        public_before = public_before,
+        public_after = stage.time[],
+        budget = schedule.proposal.budget,
+        n_sub = es.n_sub,
+        bootstrap = bootstrap,
+        initial = initial,
+        intervals = intervals,
+        edges = edges,
+        duration_defects = defects,
+        kicks = kicks,
+        continuity = continuity,
+        charge_source_scale = charges.scale,
+        segments = segments,
+        rho_start = rho_start,
+        rho_end = copy(stage.rho_np1),
+        impulse = impulse,
+        raw_impulse = raw_impulse,
+        work_used = used_work,
+        work_raw = raw_work,
+        field_before = field_before,
+        field_after = field_after,
         field_defect = field_after - field_before + used_work,
-        clock_defect = Q(stage.time[]) - Q(public_before) - Q(duration))
+        clock_defect = Q(stage.time[]) - Q(public_before) - Q(duration),
+    )
     schedule.candidate = _EMPICEventPhase{T}(finish, true, H, a, b, report)
-    _empic_event_phase_values(es, schedule.candidate, work.staged, true,
-        stage.time[], stage.step[], stage.last_dt[], stage.last_sub_dt[];
-        fields = _empic_event_fields(stage))
+    _empic_event_phase_values(
+        es,
+        schedule.candidate,
+        work.staged,
+        true,
+        stage.time[],
+        stage.step[],
+        stage.last_dt[],
+        stage.last_sub_dt[];
+        fields = _empic_event_fields(stage),
+    )
     _empic_collection_finish_candidate!(es, work, species)
     _empic_collection_validate_storage(es, species)
     return stage

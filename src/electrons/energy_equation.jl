@@ -449,7 +449,14 @@ end
     end
     if !iszero(κ)
         _add_transport_conduction!(
-            exact, quotient, gamma_minus_one, κ, g, closure, B, conduction_work,
+            exact,
+            quotient,
+            gamma_minus_one,
+            κ,
+            g,
+            closure,
+            B,
+            conduction_work,
         )
     end
     nonzero, represented = _publish_complete_rate!(out, exact, context)

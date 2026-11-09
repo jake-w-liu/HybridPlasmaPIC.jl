@@ -7,7 +7,8 @@ end
 _field_aligned_storage(::FourierGrid, ::ElectronClosure) = nothing
 function _field_aligned_storage(g::FourierGrid{D}, ::FieldAlignedConductingElectrons) where {D}
     return _FieldAlignedConductionWorkspace{D}(
-        zeros(Rational{BigInt}, g.n), ntuple(_ -> zeros(Rational{BigInt}, g.n), D),
+        zeros(Rational{BigInt}, g.n),
+        ntuple(_ -> zeros(Rational{BigInt}, g.n), D),
     )
 end
 
@@ -16,7 +17,10 @@ _field_aligned_arrays(w::_FieldAlignedConductionWorkspace) = (w.norm2, w.gradien
 
 _validate_field_aligned_direction(::ElectronClosure, B, ::Type) = nothing
 function _validate_field_aligned_direction(
-    closure::FieldAlignedConductingElectrons, B, ::Type{T}, norm2 = nothing,
+    closure::FieldAlignedConductingElectrons,
+    B,
+    ::Type{T},
+    norm2 = nothing,
 ) where {T}
     parallel, perpendicular = _field_aligned_conductivities(closure, T)
     parallel == perpendicular && return nothing
@@ -91,8 +95,14 @@ function _field_aligned_diagonal(B, norm2, I, d, perpendicular, difference)
 end
 
 function _field_aligned_conduction!(
-    exact, quotient, coefficient, closure::FieldAlignedConductingElectrons,
-    B, w::_FieldAlignedConductionWorkspace{D}, g::FourierGrid{D,T}; budget = false,
+    exact,
+    quotient,
+    coefficient,
+    closure::FieldAlignedConductingElectrons,
+    B,
+    w::_FieldAlignedConductionWorkspace{D},
+    g::FourierGrid{D,T};
+    budget = false,
 ) where {D,T}
     _require_conduction_quotient(quotient, g)
     parallelT, perpendicularT = _field_aligned_conductivities(closure, T)
@@ -113,9 +123,11 @@ function _field_aligned_conduction!(
     if budget
         for I in eachindex(quotient)
             square = sum(d -> w.gradient[d][I]^2, 1:D)
-            aligned = iszero(difference) ? zero(Q) :
+            aligned =
+                iszero(difference) ? zero(Q) :
                 sum(d -> _exact_rational(B[d][I]) * w.gradient[d][I], 1:D)
-            dissipation += perpendicular * square +
+            dissipation +=
+                perpendicular * square +
                 (iszero(difference) ? zero(Q) : difference * aligned^2 / w.norm2[I])
         end
     end
@@ -124,7 +136,8 @@ function _field_aligned_conduction!(
         if !iszero(difference)
             for I in eachindex(flux)
                 aligned = sum(j -> _exact_rational(B[j][I]) * w.gradient[j][I], 1:D)
-                flux[I] = perpendicular * w.gradient[d][I] +
+                flux[I] =
+                    perpendicular * w.gradient[d][I] +
                     difference * _exact_rational(B[d][I]) * aligned / w.norm2[I]
             end
             _field_aligned_channel!(channel, flux, d, false, g)
@@ -135,7 +148,8 @@ function _field_aligned_conduction!(
         if iseven(g.n[d])
             _field_aligned_channel!(channel, quotient, d, true, g)
             for I in eachindex(flux, channel)
-                diagonal = iszero(difference) ? perpendicular :
+                diagonal =
+                    iszero(difference) ? perpendicular :
                     _field_aligned_diagonal(B, w.norm2, I, d, perpendicular, difference)
                 budget && (dissipation += diagonal * channel[I]^2)
                 flux[I] = diagonal * channel[I]
@@ -149,13 +163,19 @@ function _field_aligned_conduction!(
         end
     end
     # Equal coefficients retain policy-2 arithmetic even in a diagnostic call.
-    iszero(difference) &&
-        _add_conduction_pressure!(exact, quotient, coefficient * perpendicular, g)
+    iszero(difference) && _add_conduction_pressure!(exact, quotient, coefficient * perpendicular, g)
     return dissipation
 end
 
 function _add_transport_conduction!(
-    exact, quotient, coefficient, κ, g, closure::FieldAlignedConductingElectrons, B, work,
+    exact,
+    quotient,
+    coefficient,
+    κ,
+    g,
+    closure::FieldAlignedConductingElectrons,
+    B,
+    work,
 )
     _field_aligned_conduction!(exact, quotient, coefficient, closure, B, work, g)
     return nothing

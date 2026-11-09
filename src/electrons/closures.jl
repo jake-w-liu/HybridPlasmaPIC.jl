@@ -185,7 +185,9 @@ struct FieldAlignedConductingElectrons{T<:AbstractFloat} <: ElectronClosure
     κ_parallel::T
     κ_perpendicular::T
     function FieldAlignedConductingElectrons{T}(
-        γ::Real; κ_parallel::Real, κ_perpendicular::Real = 0,
+        γ::Real;
+        κ_parallel::Real,
+        κ_perpendicular::Real = 0,
     ) where {T<:AbstractFloat}
         gamma = _require_finite_real("γ", γ, T)
         gamma > one(T) || throw(ArgumentError("conducting electron γ must be greater than one"))
@@ -196,7 +198,9 @@ struct FieldAlignedConductingElectrons{T<:AbstractFloat} <: ElectronClosure
 end
 
 function FieldAlignedConductingElectrons(
-    γ::Real = 5 / 3; κ_parallel::Real, κ_perpendicular::Real = 0,
+    γ::Real = 5 / 3;
+    κ_parallel::Real,
+    κ_perpendicular::Real = 0,
 )
     T = float(promote_type(typeof(γ), typeof(κ_parallel), typeof(κ_perpendicular)))
     return FieldAlignedConductingElectrons{T}(γ; κ_parallel, κ_perpendicular)
@@ -217,9 +221,8 @@ const _ScalarTransportClosure =
 closure_gamma(c::FieldAlignedConductingElectrons) = c.γ
 _evolves_pressure(::FieldAlignedConductingElectrons) = true
 _transports_electrons(::FieldAlignedConductingElectrons) = true
-electron_pressure!(::Any, ::Any, ::FieldAlignedConductingElectrons) = throw(
-    ArgumentError("FieldAlignedConductingElectrons requires stored pressure; use ohms_law!"),
-)
+electron_pressure!(::Any, ::Any, ::FieldAlignedConductingElectrons) =
+    throw(ArgumentError("FieldAlignedConductingElectrons requires stored pressure; use ohms_law!"))
 closure_gamma(c::ConductingElectrons) = c.γ
 _evolves_pressure(::ConductingElectrons) = true
 _transports_electrons(::ConductingElectrons) = true

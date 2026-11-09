@@ -293,10 +293,15 @@ function _validate_checkpoint_conduction_state(s, ::ConductingElectrons)
 end
 
 function _validate_checkpoint_conduction_state(s, closure::FieldAlignedConductingElectrons)
-    _validate_checkpoint_container(s, (
-        :conduction_policy_version, :conduction_operator, :conduction_direction,
-        :conduction_preparation,
-    ))
+    _validate_checkpoint_container(
+        s,
+        (
+            :conduction_policy_version,
+            :conduction_operator,
+            :conduction_direction,
+            :conduction_preparation,
+        ),
+    )
     s.conduction_policy_version === _FIELD_ALIGNED_CONDUCTION_POLICY_VERSION &&
         s.conduction_operator === :odd_tensor_diagonal_nyquist &&
         s.conduction_direction === :original_Q_nonzero_projector &&
@@ -1482,7 +1487,9 @@ end
 
 "Verify the run-container checksum, then use the canonical hybrid checkpoint restore."
 function load_archive!(
-    st::HybridStepper{D,T}, species::_HybridPopulations{D,T}, path::AbstractString,
+    st::HybridStepper{D,T},
+    species::_HybridPopulations{D,T},
+    path::AbstractString,
 ) where {D,T}
     loaded = load_run(path)
     return _restore_checkpoint_state!(st, species, loaded.state)

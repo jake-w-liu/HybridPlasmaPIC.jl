@@ -1133,14 +1133,20 @@ end
     return !isfinite(value) || (!iszero(value) && !(bounds[1] <= magnitude <= bounds[2]))
 end
 
-function _em_continuity_scaled(g::FourierGrid{D,T}, rho_n, rho_np1, J, dt::T, meter = nothing) where {D,T}
+function _em_continuity_scaled(
+    g::FourierGrid{D,T},
+    rho_n,
+    rho_np1,
+    J,
+    dt::T,
+    meter = nothing,
+) where {D,T}
     delta = map(rho_np1, rho_n) do following, preceding
         complex(_exact_rational(following) - _exact_rational(preceding), zero(Rational{BigInt}))
     end
     density_hat = _em_dyadic_transform(delta, g, false, meter)
     current_hat = [
-        _em_dyadic_transform(map(value -> complex(_exact_rational(value)), field), g, false, meter) for
-        field in Iterators.take(J, D)
+        _em_dyadic_transform(map(value -> complex(_exact_rational(value)), field), g, false, meter) for field in Iterators.take(J, D)
     ]
     residual_hat = similar(density_hat)
     exact_dt = _exact_rational(dt)
@@ -1319,19 +1325,30 @@ function _em_exact_derivative(parts, i)
 end
 
 # One complete magnetic scalar row, shared by staggered and full-time callers.
-function _em_exact_magnetic_row(value::T, exact_increment::Rational{BigInt}, backward::Bool = false) where {T}
-    return _from_exact(T, backward ? _exact_rational(value) + exact_increment :
-        _exact_rational(value) - exact_increment)
+function _em_exact_magnetic_row(
+    value::T,
+    exact_increment::Rational{BigInt},
+    backward::Bool = false,
+) where {T}
+    return _from_exact(
+        T,
+        backward ? _exact_rational(value) + exact_increment :
+        _exact_rational(value) - exact_increment,
+    )
 end
 
 # Weighted derivatives retain their actual native parts and original Q scales.
 # The packet owns each part once; these temporary recipes borrow those operands.
 function _empic_weighted_derivative(stages, weights, role, component)
-    length(stages) == length(weights) && !isempty(stages) &&
-        all(w -> w isa Rational{BigInt} && denominator(w) > 0 && w >= 0, weights) && sum(weights) == 1 ||
+    length(stages) == length(weights) &&
+        !isempty(stages) &&
+        all(w -> w isa Rational{BigInt} && denominator(w) > 0 && w >= 0, weights) &&
+        sum(weights) == 1 ||
         throw(ArgumentError("full-time Maxwell derivative weights are invalid"))
-    return [(array, weight * scale) for (stage, weight) in zip(stages, weights)
-        for (array, scale) in getproperty(stage, role)[component]]
+    return [
+        (array, weight * scale) for (stage, weight) in zip(stages, weights) for
+        (array, scale) in getproperty(stage, role)[component]
+    ]
 end
 function _empic_full_time_field_update!(out, origin, stages, weights, h::T) where {T}
     H, coefficients = _exact_rational(h), _em_exact_update_coefficients(out.c, h)
@@ -1343,14 +1360,19 @@ function _empic_full_time_field_update!(out, origin, stages, weights, h::T) wher
     for component in eachindex(B)
         parts = _empic_weighted_derivative(stages, weights, :electric, component)
         for i in eachindex(B[component])
-            B[component][i] = _em_exact_magnetic_row(oldB[component][i], H * _em_exact_derivative(parts, i))
+            B[component][i] =
+                _em_exact_magnetic_row(oldB[component][i], H * _em_exact_derivative(parts, i))
         end
     end
     for component in eachindex(E)
         parts = _empic_weighted_derivative(stages, weights, :magnetic, component)
         for i in eachindex(E[component])
-            E[component][i] = _em_exact_electric_update(oldE[component][i],
-                _em_exact_derivative(parts, i), J[component][i], coefficients)
+            E[component][i] = _em_exact_electric_update(
+                oldE[component][i],
+                _em_exact_derivative(parts, i),
+                J[component][i],
+                coefficients,
+            )
         end
     end
     return out
@@ -2496,7 +2518,15 @@ function _correct_current_continuity!(es::EMPIC{D,T}, dt::T) where {D,T}
     return _empic_correct_current!(es.J, es.Jraw, es.rho_n, es.rho_np1, es.g, dt)
 end
 
-function _empic_correct_current!(J, Jraw, rho_n, rho_np1, g::FourierGrid{D,T}, dt::T, meter = nothing) where {D,T}
+function _empic_correct_current!(
+    J,
+    Jraw,
+    rho_n,
+    rho_np1,
+    g::FourierGrid{D,T},
+    dt::T,
+    meter = nothing,
+) where {D,T}
     _empic_fft_charge!(meter, 7)
     buffers = (g.cbuf, g.tbuf, g.abuf)
     for c = 1:3

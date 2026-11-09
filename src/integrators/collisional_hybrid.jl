@@ -89,7 +89,8 @@ function _validate_collisional_model(inner::HybridStepper{D,T}) where {D,T}
     T <: Union{Float32,Float64} ||
         throw(ArgumentError("CollisionalHybridStepper requires Float32 or Float64"))
     model = inner.model
-    model.closure isa Union{IsothermalElectrons,EvolvingElectrons,_ScalarTransportClosure,CGLElectrons} || throw(
+    model.closure isa
+    Union{IsothermalElectrons,EvolvingElectrons,_ScalarTransportClosure,CGLElectrons} || throw(
         ArgumentError(
             "CollisionalHybridStepper requires IsothermalElectrons, EvolvingElectrons, TransportElectrons, ConductingElectrons, FieldAlignedConductingElectrons or CGLElectrons",
         ),
@@ -325,27 +326,34 @@ function _validate_collisional_cgl_storage(st, ::CGLElectrons)
     saved = _collisional_field_arrays(values(_hybrid_field_state(w.fields)))
     live = _collisional_field_arrays(values(_hybrid_field_state(st.inner.fields)))
     for array in (saved..., live...)
-        size(array) == st.grid.n ||
-            throw(DimensionMismatch("collisional CGL fields and rollback must have full grid layout"))
+        size(array) == st.grid.n || throw(
+            DimensionMismatch("collisional CGL fields and rollback must have full grid layout"),
+        )
     end
     count = sum(first, st.identities; init = 0)
     for array in (w.x..., w.v...)
-        length(array) == count ||
-            throw(DimensionMismatch("collisional CGL particle rollback length must match fixed populations"))
+        length(array) == count || throw(
+            DimensionMismatch(
+                "collisional CGL particle rollback length must match fixed populations",
+            ),
+        )
     end
     _validate_collisional_rng_pair(st.rng, w.rng, "collisional CGL rollback")
     # Enumerate logical snapshot roles: the graph deliberately permits the same
     # Array owner to recur, but two rollback roles cannot share that storage.
     buffers = (saved..., w.x..., w.v..., _collisional_rng_buffers(w.rng)...)
-    for i in eachindex(buffers), j = 1:(i - 1)
+    for i in eachindex(buffers), j = 1:(i-1)
         _particle_arrays_mightalias(buffers[i], buffers[j]) &&
             throw(ArgumentError("collisional CGL rollback roles must have independent storage"))
     end
     # Stock RNG seed/advance metadata may be shared read-only by copy!. Only
     # recurrence/cache buffers enter the snapshot independence boundary.
-    _validate_checkpoint_configuration_registered(
-        (w.fields, w.x, w.v, _collisional_rng_buffers(w.rng)),
-    ) do remember, backing, owned
+    _validate_checkpoint_configuration_registered((
+        w.fields,
+        w.x,
+        w.v,
+        _collisional_rng_buffers(w.rng),
+    ),) do remember, backing, owned
         _register_checkpoint_configuration_owned!(remember, backing, owned, (;), st.inner)
         _visit_checkpoint_objects(remember, (st.species, st.workspace, st.rng); backing)
     end
@@ -567,10 +575,25 @@ _apply_electron_ion!(::Nothing, st, species, h) = nothing
 function _apply_electron_ion!(config::_ElectronIonThermalConfig, st, species, h)
     _electron_ion_active(config) || return nothing
     config.policy == 2 && return _prepare_electron_ion_overlap!(
-        config, st.thermal_work, st.inner, species, h, st.epsilon0, st.weight_to_number, st.rng,
+        config,
+        st.thermal_work,
+        st.inner,
+        species,
+        h,
+        st.epsilon0,
+        st.weight_to_number,
+        st.rng,
     )
-    return _prepare_electron_ion!(config, st.thermal_work, st.inner, species, h,
-        st.epsilon0, st.weight_to_number, st.rng)
+    return _prepare_electron_ion!(
+        config,
+        st.thermal_work,
+        st.inner,
+        species,
+        h,
+        st.epsilon0,
+        st.weight_to_number,
+        st.rng,
+    )
 end
 
 function _validate_electron_ion_binding(st::CollisionalHybridStepper)
@@ -585,9 +608,10 @@ function _validate_electron_ion_binding(st::CollisionalHybridStepper)
     _validate_coulomb_workspace(work.bins, st.species, st.grid, config.logarithm)
     arrays = (work.density, work.number_density, work.pressure)
     for i in eachindex(arrays)
-        size(arrays[i]) == st.grid.n || throw(DimensionMismatch("electron-ion scratch dimensions differ from the grid"))
+        size(arrays[i]) == st.grid.n ||
+            throw(DimensionMismatch("electron-ion scratch dimensions differ from the grid"))
         _validate_coulomb_work_array(arrays[i], st.species, config.logarithm)
-        for j = 1:(i - 1)
+        for j = 1:(i-1)
             _require_coulomb_independent(arrays[i], arrays[j])
         end
         for bins in work.bins.populations
@@ -596,9 +620,17 @@ function _validate_electron_ion_binding(st::CollisionalHybridStepper)
     end
     # Reuse the canonical native-resource/storage graph. Scratch must be separate
     # from fields, inner FFT/RK/predictor work, rollback, ion-ion work and RNG.
-    _validate_checkpoint_configuration_registered((arrays..., work.bins, config.logarithm)) do remember, backing, owned
+    _validate_checkpoint_configuration_registered((
+        arrays...,
+        work.bins,
+        config.logarithm,
+    )) do remember, backing, owned
         _register_checkpoint_configuration_owned!(remember, backing, owned, (;), st.inner)
-        _visit_checkpoint_objects(remember, (st.transaction, st.workspace, st.rng, st.coulomb_log, st.thermal_report); backing)
+        _visit_checkpoint_objects(
+            remember,
+            (st.transaction, st.workspace, st.rng, st.coulomb_log, st.thermal_report);
+            backing,
+        )
     end
     return nothing
 end
@@ -607,12 +639,16 @@ function _validate_electron_ion_clock(st::CollisionalHybridStepper)
     st.electron_ion === nothing && return nothing
     report = st.thermal_report
     if st.source_count == 0
-        report === nothing || throw(ArgumentError("unadvanced electron-ion state cannot carry a report"))
+        report === nothing ||
+            throw(ArgumentError("unadvanced electron-ion state cannot carry a report"))
     else
-        report_keys = st.electron_ion.policy == 1 ? _ELECTRON_ION_REPORT_KEYS : _ELECTRON_ION_OVERLAP_KEYS
+        report_keys =
+            st.electron_ion.policy == 1 ? _ELECTRON_ION_REPORT_KEYS : _ELECTRON_ION_OVERLAP_KEYS
         _electron_ion_record(report, report_keys)
-        report.policy === st.electron_ion.policy && isequal(report.time, st.source_time) &&
-            report.step === st.source_count && isequal(report.dt, st.dt) ||
+        report.policy === st.electron_ion.policy &&
+            isequal(report.time, st.source_time) &&
+            report.step === st.source_count &&
+            isequal(report.dt, st.dt) ||
             throw(ArgumentError("electron-ion report does not match the source clock"))
     end
     return nothing
@@ -622,17 +658,28 @@ function _commit_electron_ion_report!(st::CollisionalHybridStepper)
     st.electron_ion === nothing && return nothing
     if _electron_ion_active(st.electron_ion)
         report = st.thermal_work.pending
-        report !== nothing && isequal(report.time, st.source_time) && report.step == st.source_count ||
+        report !== nothing &&
+            isequal(report.time, st.source_time) &&
+            report.step == st.source_count ||
             throw(ArgumentError("electron-ion source did not prepare its completed report"))
         st.thermal_report = report
     else
         if st.electron_ion.policy == 2
-            st.thermal_report = _electron_ion_overlap_empty_report(st.electron_ion,
-                st.source_time, st.source_count, st.dt)
+            st.thermal_report = _electron_ion_overlap_empty_report(
+                st.electron_ion,
+                st.source_time,
+                st.source_count,
+                st.dt,
+            )
             return nothing
         end
-        st.thermal_report = (policy = 1, time = st.source_time, step = st.source_count,
-            dt = st.dt, cells = NamedTuple[])
+        st.thermal_report = (
+            policy = 1,
+            time = st.source_time,
+            step = st.source_count,
+            dt = st.dt,
+            cells = NamedTuple[],
+        )
     end
     return nothing
 end
