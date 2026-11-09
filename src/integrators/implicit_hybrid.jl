@@ -432,26 +432,29 @@ end
 
 function _implicit_hybrid_report_policy(st::ImplicitHybridStepper{D,T}, r) where {D,T}
     r === nothing && return nothing
-    if st.model.closure isa EvolvingElectrons
-        r isa _ImplicitHybridEvolvingReport{T} &&
-            isequal(r.pressure.gamma, T(st.model.closure.γ)) ||
+    solver = if st.model.closure isa EvolvingElectrons
+        r isa _ImplicitHybridEvolvingReport{T} ||
             throw(ArgumentError("implicit hybrid evolving report/model policy differs"))
-        r = r.solver
+        evolving = r::_ImplicitHybridEvolvingReport{T}
+        isequal(evolving.pressure.gamma, T(st.model.closure.γ)) ||
+            throw(ArgumentError("implicit hybrid evolving report/model policy differs"))
+        evolving.solver
     else
         r isa ImplicitHybridSolveReport{T} ||
             throw(ArgumentError("implicit hybrid isothermal report policy differs"))
+        r::ImplicitHybridSolveReport{T}
     end
     c = st.controls
     expected = _from_exact(
         T,
-        _exact_rational(c.atol) + _exact_rational(c.rtol) * _exact_rational(r.initial_residual),
+        _exact_rational(c.atol) + _exact_rational(c.rtol) * _exact_rational(solver.initial_residual),
     )
-    updates = BigInt(r.newton_iterations)
-    isequal(r.tolerance, expected) &&
-        r.newton_iterations <= c.max_newton &&
-        r.linear_iterations <= updates * c.max_linear &&
-        r.backtracks <= updates * c.max_backtrack &&
-        r.residual_evaluations >= updates + 2 ||
+    updates = BigInt(solver.newton_iterations)
+    isequal(solver.tolerance, expected) &&
+        solver.newton_iterations <= c.max_newton &&
+        solver.linear_iterations <= updates * c.max_linear &&
+        solver.backtracks <= updates * c.max_backtrack &&
+        solver.residual_evaluations >= updates + 2 ||
         throw(ArgumentError("implicit hybrid report differs from its fixed solver policy"))
     # Necessary metadata relations do not re-solve the preceding interval.
     return nothing
@@ -1077,10 +1080,15 @@ function _implicit_hybrid_linear_tick!(st)
     return false
 end
 
-function _implicit_hybrid_set_metrics!(st, metrics)
+function _implicit_hybrid_set_metrics!(st, metrics::Tuple{T,T}) where {T}
+    st.work.velocity_residual, st.work.magnetic_residual = metrics
+    return max(metrics[1], metrics[2])
+end
+
+function _implicit_hybrid_set_metrics!(st, metrics::Tuple{T,T,T}) where {T}
     st.work.velocity_residual, st.work.magnetic_residual = metrics[1], metrics[2]
-    st.model.closure isa EvolvingElectrons && (st.work.pressure_residual = metrics[3])
-    return max(metrics...)
+    st.work.pressure_residual = metrics[3]
+    return max(metrics[1], metrics[2], metrics[3])
 end
 
 function _implicit_hybrid_solve!(st::ImplicitHybridStepper{D,T}) where {D,T}

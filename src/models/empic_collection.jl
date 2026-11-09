@@ -1427,7 +1427,7 @@ function _empic_event_report_layout(es, report)
     T, D = eltype(es.rho_n), length(es.g.n)
     report isa NamedTuple && keys(report) == _EMPIC_EVENT_REPORT_KEYS ||
         throw(ArgumentError("persistent report layout differs"))
-    report.kind === (es isa EMPIC ? :vector :planar) && report.bootstrap isa Bool &&
+    report.kind === (es isa EMPIC ? :vector : :planar) && report.bootstrap isa Bool &&
         report.budget isa Int && report.budget > 0 && report.n_sub isa Int &&
         1 <= report.n_sub <= report.budget && report.requested isa T &&
         report.public_before isa T && report.public_after isa T &&
@@ -1851,7 +1851,7 @@ function _empic_event_advance!(es, species, work, charges, duration::T) where {T
     _, count = _validated_step_clock(es.time[], es.step[], zero(T))
     stage.step[], stage.last_dt[], stage.last_sub_dt[] = count, duration, previous
     field_after = _empic_event_energy(stage)
-    report = (kind = es isa EMPIC ? :vector :planar, start = deepcopy(start), finish = deepcopy(finish),
+    report = (kind = es isa EMPIC ? :vector : :planar, start = deepcopy(start), finish = deepcopy(finish),
         requested = duration, public_before = public_before, public_after = stage.time[],
         budget = schedule.proposal.budget, n_sub = es.n_sub, bootstrap = bootstrap, initial = initial,
         intervals = intervals, edges = edges, duration_defects = defects, kicks = kicks,
