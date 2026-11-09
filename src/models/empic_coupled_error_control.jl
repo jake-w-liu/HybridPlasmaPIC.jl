@@ -378,8 +378,7 @@ function _ec_average_current(a, b, ::Type{T}) where {T}
         map((x, y) -> _from_exact(T, (_exact_rational(x) + _exact_rational(y)) / 2), left, right)
     end
     if a.dc === nothing
-        b.dc === nothing ||
-            throw(ArgumentError("coupled branch current layouts differ"))
+        b.dc === nothing || throw(ArgumentError("coupled branch current layouts differ"))
         all(x -> all(isfinite, x), current) ||
             throw(ArgumentError("coupled averaged current is nonfinite"))
         return (current = current, dc = nothing)
@@ -872,8 +871,7 @@ function _ec_pair!(
     control,
     meter::Union{Nothing,_EMPICCoupledMeter},
 )
-    meter === nothing &&
-        throw(ArgumentError("coupled pair requires an active work meter"))
+    meter === nothing && throw(ArgumentError("coupled pair requires an active work meter"))
     meter = meter::_EMPICCoupledMeter
     T = eltype(stage.rho_n)
     D = length(stage.g.n)
@@ -1325,11 +1323,7 @@ function _empic_collection_validate_species_history(es, schedule::_EMPICCoupledS
     es.collection.initialized[] && _ec_shadow_matches(es, schedule)
     return nothing
 end
-function _ec_ready(
-    es::Union{EMPIC,EMPIC1D},
-    species::AbstractVector,
-    meter::_EMPICCoupledMeter,
-)
+function _ec_ready(es::Union{EMPIC,EMPIC1D}, species::AbstractVector, meter::_EMPICCoupledMeter)
     charges = _empic_collection_validate_species(es, species)
     work = es.collection
     work.initialized[] ||
@@ -1653,11 +1647,7 @@ function _ec_sum_work(intervals, kind)
         total_defect = total(:total_defect),
     )
 end
-function _empic_coupled_step!(
-    es::Union{EMPIC,EMPIC1D},
-    species::AbstractVector,
-    dt::Real,
-)
+function _empic_coupled_step!(es::Union{EMPIC,EMPIC1D}, species::AbstractVector, dt::Real)
     work = es.collection
     schedule = work.schedule
     _ec_acquire(schedule)

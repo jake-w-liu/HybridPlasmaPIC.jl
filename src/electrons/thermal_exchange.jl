@@ -220,8 +220,13 @@ function _electron_ion_stats(ps, bins, cell, velocity = ps.v)
         )
         kinetic += mass * w * sum(x -> x * x, v) / 2
     end
-    mean = iszero(weight) ? (zero(Q), zero(Q), zero(Q)) :
-        (momentum[1] / (mass * weight), momentum[2] / (mass * weight), momentum[3] / (mass * weight))
+    mean =
+        iszero(weight) ? (zero(Q), zero(Q), zero(Q)) :
+        (
+            momentum[1] / (mass * weight),
+            momentum[2] / (mass * weight),
+            momentum[3] / (mass * weight),
+        )
     thermal = kinetic - mass * weight * sum(x -> x * x, mean) / 2
     thermal >= 0 || throw(ArgumentError("electron-ion thermal energy must be nonnegative"))
     return (; weight, mean, kinetic, momentum, thermal, capacity = 3weight / 2, count)

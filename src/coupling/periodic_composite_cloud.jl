@@ -57,7 +57,10 @@ function _pacc_axis_moments(
                     differences = NTuple{3,_CompositeQ}[]
                     for j = 1:(length(values)-1)
                         left, right = values[j], values[j+1]
-                        push!(differences, (right[1] - left[1], right[2] - left[2], right[3] - left[3]))
+                        push!(
+                            differences,
+                            (right[1] - left[1], right[2] - left[2], right[3] - left[3]),
+                        )
                     end
                     values = differences
                 end

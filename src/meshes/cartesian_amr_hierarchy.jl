@@ -46,6 +46,54 @@ struct CartesianAMRHierarchy{D,T<:Union{Float32,Float64},R<:Tuple}
     seams::Vector{_CartesianAMRSeam{D}}
     refined::Dict{Tuple{Int,NTuple{D,Int}},Int}
     leaf_index::Dict{Tuple{Int,NTuple{D,Int}},Int}
+
+    function CartesianAMRHierarchy{D,T,R}(
+        nbase::NTuple{D,Int},
+        L::NTuple{D,T},
+        refinements::R,
+        periodic::Bool,
+        patches::Vector{_CartesianAMRPatch{D}},
+        addresses::Vector{Tuple{Int,NTuple{D,Int}}},
+        lower::Vector{NTuple{D,_CompositeQ}},
+        upper::Vector{NTuple{D,_CompositeQ}},
+        volumes::Vector{_CompositeQ},
+        vertices::Vector{NTuple{D,_CompositeQ}},
+        corners::Vector{Vector{Int}},
+        rows::Vector{Vector{Pair{Int,_CompositeQ}}},
+        masters::Vector{Int},
+        free::Vector{Int},
+        boundary::Vector{Int},
+        gauge::Int,
+        free_index::Vector{Int},
+        faces::Vector{_CartesianAMRFace{D}},
+        seams::Vector{_CartesianAMRSeam{D}},
+        refined::Dict{Tuple{Int,NTuple{D,Int}},Int},
+        leaf_index::Dict{Tuple{Int,NTuple{D,Int}},Int},
+    ) where {D,T<:Union{Float32,Float64},R<:Tuple}
+        return new{D,T,R}(
+            nbase,
+            L,
+            refinements,
+            periodic,
+            patches,
+            addresses,
+            lower,
+            upper,
+            volumes,
+            vertices,
+            corners,
+            rows,
+            masters,
+            free,
+            boundary,
+            gauge,
+            free_index,
+            faces,
+            seams,
+            refined,
+            leaf_index,
+        )
+    end
 end
 _camr_bits(::Val{D}) where {D} = [ntuple(d -> (k >> (d - 1)) & 1, D) for k = 0:((1<<D)-1)]
 function _camr_indices(n::NTuple{D,Int}) where {D}
@@ -164,10 +212,7 @@ function _camr_query_data(
     hi::NTuple{D,_CompositeQ};
     closed::Bool = false,
     roots::Union{Nothing,Vector{NTuple{D,Int}}} = nothing,
-    segment::Union{
-        Nothing,
-        Tuple{NTuple{D,_CompositeQ},NTuple{D,_CompositeQ}},
-    } = nothing,
+    segment::Union{Nothing,Tuple{NTuple{D,_CompositeQ},NTuple{D,_CompositeQ}}} = nothing,
 ) where {D,T<:Union{Float32,Float64}}
     any(d -> hi[d] < 0 || lo[d] > _exact_rational(L[d]) || lo[d] > hi[d], 1:D) && return Int[]
     ranges = ntuple(D) do d
@@ -737,8 +782,9 @@ function _camr_periodic_constraints(
         # the image tuple and dominates JET's inference tree for this builder.
         for bit in _camr_bits(Val(D))
             position = ntuple(
-                d -> iszero(x[d]) ? (iszero(bit[d]) ? zero(_CompositeQ) : _exact_rational(L[d])) :
-                    x[d],
+                d ->
+                    iszero(x[d]) ?
+                    (iszero(bit[d]) ? zero(_CompositeQ) : _exact_rational(L[d])) : x[d],
                 D,
             )
             for k in query(position, position)
