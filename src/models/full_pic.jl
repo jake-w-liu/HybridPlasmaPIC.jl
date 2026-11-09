@@ -1351,7 +1351,7 @@ function _empic_weighted_derivative(stages, weights, role, component)
     ]
 end
 function _empic_full_time_field_update!(
-    out::Union{EMPIC,EMPIC1D},
+    out,
     origin::NamedTuple,
     stages::Tuple,
     weights::Tuple,
