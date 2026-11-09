@@ -63,7 +63,7 @@ its publication record.
 | Periodic multidimensional AMR | Root adopted frozen parent/child handoff | Seam constraints, arbitrary-width clouds, physical neutral source, full-row gauge, represented multiwrap evolution/work and complete restart | Exact thirteen files reviewed/adopted on `123c4a2`; module and full/focused registration complete; all new acceptance pending |
 | Electron-ion thermal exchange | `post_devin_numeric_audit` | Reduced two-way NGP fluid-pressure/ion-thermal exchange, actual energy/entropy/rounding receipts and complete RNG restart | 178-line contract approved on `123c4a2`; five canonical production owners plus new guide active |
 | Coupled EMPIC error control | `dynamic_amr_es_implementation` | Common-phase projected embedded pair, original-factor RHS, shape-knot and controller/restart contract | Read-only derivation; no production approval yet |
-| New JET source regression | `annulus_loader_guide` | Preserve admitted storage precision, exact private construction and direct immutable normal-face values | All ten added report chains compared with unchanged prior 86; two canonical model owners approved, cap/filter unchanged |
+| New JET source regression | `annulus_loader_guide` | Preserve admitted storage precision, exact private construction and direct immutable normal-face values | All ten added report chains compared with unchanged prior 86; two-owner source reviewed/adopted, broad-input/face-order and focused whole-JET routes registered; remote acceptance pending, cap/filter unchanged |
 | Integration and CI | Root | Source review, shared registrations, current Markdown, commits/main publication and exact-head CI | Active alongside three parallel implementation tracks |
 
 ## Exclusive file writers
@@ -135,10 +135,10 @@ Root owns registration, exports, workflows, current global docs and integration.
 `particles/coulomb_local.jl` (only the shared pi refinement),
 `integrators/collisional_hybrid.jl`, `io/collisional_checkpoint.jl`,
 `diagnostics/conservation.jl` and new `ELECTRON_ION_THERMAL_EXCHANGE.md`.
-`annulus_loader_guide` exclusively writes `models/static_composite_electrostatic.jl`
-and `models/toroidal_annulus_hybrid_pic.jl` for the reviewed JET representation
-repair. `dynamic_amr_es_implementation` derives coupled error control read-only.
-Root does not apply formatter hunks to either active worker's paths before
+The two frozen JET representation owners,
+`models/static_composite_electrostatic.jl` and
+`models/toroidal_annulus_hybrid_pic.jl`, have transferred to root. `dynamic_amr_es_implementation` derives coupled error control read-only.
+Root does not apply formatter hunks to an active worker's paths before
 handoff. Every path above is under `src/` except the guide under `docs/`.
 Source/runtime/scientific/resource gates remain separate.
 

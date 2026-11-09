@@ -175,7 +175,14 @@ list. The repaired list follows the full runner order by including
 `test_transport_electrons_io.jl` before hyperresistivity; assertions are unchanged.
 Both focused reruns remain required. Separately, the `7ea6ae8` minimum-Julia
 group 11 reports 96 JET findings against the fixed cap of 86 and zero
-package-located findings. Source triage is active; the cap is unchanged.
+package-located findings. Full trace comparison retains all prior 86 diagnostics
+and identifies ten additions through canonical binding construction/stores and
+annular normal-face construction. The source repair preserves admitted precision
+with exact typed private constructors and direct immutable dense-face values;
+all numerical/validation/phase/IO bodies remain unchanged by literal inverses.
+Broad-element public-vector and previous face-order essentials plus a focused
+whole-JET route are registered. This repair still needs exact-head remote
+acceptance; the cap, filters and historical compiler ledger are unchanged.
 
 ## Historical implementation evidence through 2026-11-02
 

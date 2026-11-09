@@ -95,6 +95,21 @@ end
     for T in (Float32, Float64)
         @testset "$T" begin
             mesh, st, species = fixture(T)
+            broad = ToroidalAnnulusHybridPIC(
+                mesh,
+                Any[species...];
+                closure = st.closure,
+                beta0 = map(copy, st.beta),
+                pe0 = copy(st.fields.pe),
+                pressure_reservoir = st.pressure_reservoir,
+            )
+            @test all(broad.owners[i] === species[i] for i in eachindex(species))
+            # Retain the previous column-major face snapshot as an independent
+            # representation reference, including stored signed zero values.
+            old_normal = ntuple(2) do side
+                Tuple(vec(copy(view(st.beta[1], side == 1 ? 1 : mesh.n[1], :, :))))
+            end
+            @test isequal(broad._normal_flux, old_normal)
             point = (T(1 / 8), zero(T), zero(T))
             @test to_cartesian(mesh, point) == (T(19 / 8), zero(T), zero(T))
             @test to_logical(mesh, to_cartesian(mesh, point)) == point

@@ -19,6 +19,16 @@ struct _CompositeESBinding{T}
     candidates::Vector{_ElectrostaticHostParticle{1,T}}
     counts::Vector{Int}
     bins::_CompositeParticleBins
+
+    function _CompositeESBinding{T}(
+        owners::Vector{_ElectrostaticHostParticle{1,T}},
+        components::Vector{Tuple},
+        candidates::Vector{_ElectrostaticHostParticle{1,T}},
+        counts::Vector{Int},
+        bins::_CompositeParticleBins,
+    ) where {T}
+        return new{T}(owners, components, candidates, counts, bins)
+    end
 end
 
 struct StaticCompositeElectrostaticPIC{
@@ -96,7 +106,7 @@ function _sce_values(mesh, species, factors)
 end
 
 function _sce_make_binding(species, sources, mesh, ::Type{T}; components = species) where {T}
-    owners = _ElectrostaticHostParticle{1,T}[ps for ps in species]
+    owners = _ElectrostaticHostParticle{1,T}[ps::_ElectrostaticHostParticle{1,T} for ps in species]
     arrays = Tuple[_sce_particle_arrays(ps) for ps in components]
     candidates = _ElectrostaticHostParticle{1,T}[]
     _pic_prepare_species_stages!(candidates, sources)

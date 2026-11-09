@@ -33,6 +33,7 @@ on:
           - completed-clock
           - open-hall-hybrid
           - format-candidate
+          - source-representation
 
 permissions:
   contents: read
@@ -92,7 +93,7 @@ jobs:
           julia --project=. -e '
             using Pkg
             Pkg.instantiate()
-            if ENV["IMPLEMENTATION_SUITE"] in ("bounded-fields", "longitudinal-pic", "yee-electromagnetic-pic", "electron-conduction", "field-aligned-conduction")
+            if ENV["IMPLEMENTATION_SUITE"] in ("bounded-fields", "longitudinal-pic", "yee-electromagnetic-pic", "electron-conduction", "field-aligned-conduction", "source-representation")
               Pkg.add("JET")
             end'
           julia --project=. -e '
@@ -105,6 +106,7 @@ jobs:
               "implicit-hybrid-pressure" => ("test_implicit_hybrid_pressure.jl", "test_implicit_hybrid.jl", "test_implicit_hybrid_phase.jl", "test_scalar_pressure_range.jl", "test_evolving_pressure.jl", "test_evolving_pressure_accuracy.jl", "test_evolving_pressure_energy.jl", "test_transport_electrons.jl", "test_transport_electrons_io.jl", "test_transport_hyperresistivity.jl"),
               "implicit-yee-em" => ("test_implicit_yee_em.jl", "test_implicit_yee_transverse.jl"),
               "static-composite-es" => ("test_static_composite_electrostatic.jl", "test_dynamic_composite_electrostatic.jl"),
+              "source-representation" => ("test_static_composite_electrostatic.jl", "test_dynamic_composite_electrostatic.jl", "test_toroidal_annulus_hybrid.jl", "test_jet.jl"),
               "adaptive-composite-es" => ("test_adaptive_composite_electrostatic.jl", "test_static_composite_electrostatic.jl", "test_dynamic_composite_electrostatic.jl"),
               "periodic-adaptive-composite-es" => ("test_periodic_adaptive_composite_electrostatic.jl", "test_adaptive_composite_electrostatic.jl", "test_static_composite_electrostatic.jl", "test_dynamic_composite_electrostatic.jl", "test_implicit_yee_em.jl", "test_implicit_yee_transverse.jl"),
               "shared-cuda-scalars" => ("test_shared_scalar_shapes.jl", "test_moment_normalization.jl", "test_boris_accuracy.jl", "test_rk4_original_duration.jl", "test_ohm_scalar_range.jl", "test_hybrid.jl"),

@@ -27,7 +27,8 @@ end
             fine = StaticAMRHierarchy1D(4, T(8), ((1, 2, 2),))
             p = ParticleSet{1,T}(1)
             p.x[1][1], p.v[1][1] = T(7 / 2), T(3)
-            species = [p, ParticleSet{1,T}(0)]
+            # Public ordered vectors may have a broad element type.
+            species = Any[p, ParticleSet{1,T}(0)]
             st = DynamicCompositeElectrostaticPIC(
                 base,
                 species;

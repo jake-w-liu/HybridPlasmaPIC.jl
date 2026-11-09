@@ -90,6 +90,46 @@ mutable struct ToroidalAnnulusHybridPIC{T,M,C,F}
     last_report::Union{Nothing,ToroidalAnnulusStepReport{T}}
     last_endpoint::Union{Nothing,ToroidalAnnulusStageReport{T}}
     _busy::Threads.Atomic{Bool}
+
+    function ToroidalAnnulusHybridPIC{T,M,C,F}(
+        mesh::M,
+        closure::C,
+        owners::Vector{_ElectrostaticHostParticle{3,T}},
+        beta::NTuple{3,Array{T,3}},
+        fields::F,
+        pressure_reservoir::NTuple{2,T},
+        div_rtol::T,
+        div_atol::T,
+        refresh_rtol::T,
+        counts::Vector{Int},
+        qm::Vector{NTuple{2,T}},
+        weights::Vector{Vector{T}},
+        components::Vector{Tuple},
+        normal_flux::Tuple{Tuple,Tuple},
+        work::_TAHWork{T,F},
+        committed::_TAHStage{T},
+        configuration::NamedTuple,
+        initialized::Bool,
+        time::T,
+        step::Int,
+        last_dt::T,
+        initial_energy::_CompositeQ,
+        outward_work::_CompositeQ,
+        controller_work::_CompositeQ,
+        stage_defect::_CompositeQ,
+        rk_defect::_CompositeQ,
+        last_report::Union{Nothing,ToroidalAnnulusStepReport{T}},
+        last_endpoint::Union{Nothing,ToroidalAnnulusStageReport{T}},
+        busy::Threads.Atomic{Bool},
+    ) where {T,M,C,F}
+        return new{T,M,C,F}(
+            mesh, closure, owners, beta, fields, pressure_reservoir,
+            div_rtol, div_atol, refresh_rtol, counts, qm, weights, components,
+            normal_flux, work, committed, configuration, initialized, time, step,
+            last_dt, initial_energy, outward_work, controller_work, stage_defect,
+            rk_defect, last_report, last_endpoint, busy,
+        )
+    end
 end
 
 function _tah_configuration(st)
@@ -373,12 +413,15 @@ function ToroidalAnnulusHybridPIC(
         zeros(T, owned.n),
         zeros(T, owned.n),
     )
-    normal = ntuple(side -> Tuple(vec(copy(view(beta[1], side == 1 ? 1 : owned.n[1], :, :)))), 2)
+    normal = ntuple(2) do side
+        radial = side == 1 ? 1 : owned.n[1]
+        Tuple(beta[1][radial, j, k] for k in 1:owned.n[3] for j in 1:owned.n[2])
+    end
     z = zero(_CompositeQ)
     st = ToroidalAnnulusHybridPIC{T,typeof(owned),typeof(closure),typeof(fields)}(
         owned,
         closure,
-        _ElectrostaticHostParticle{3,T}[p for p in species],
+        _ElectrostaticHostParticle{3,T}[p::_ElectrostaticHostParticle{3,T} for p in species],
         beta,
         fields,
         reservoirs,
@@ -386,8 +429,8 @@ function ToroidalAnnulusHybridPIC(
         a,
         refresh,
         counts,
-        [(p.q, p.m) for p in species],
-        [copy(p.weight) for p in species],
+        NTuple{2,T}[(p.q, p.m) for p in species],
+        Vector{T}[copy(p.weight) for p in species],
         Tuple[_tah_particle_arrays(p) for p in species],
         normal,
         work,
