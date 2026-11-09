@@ -83,7 +83,7 @@ function _camr_hierarchy(
     refined::Dict{Tuple{Int,NTuple{D,Int}},Int},
     leaf_index::Dict{Tuple{Int,NTuple{D,Int}},Int},
 ) where {D,T,R<:Tuple}
-    return CartesianAMRHierarchy(
+    return CartesianAMRHierarchy{D,T,R}(
         n,
         L,
         specs,
@@ -722,10 +722,15 @@ function _camr_periodic_constraints(
     locations = copy(points)
     incident = [Tuple{Int,NTuple{D,_CompositeQ}}[] for _ in points]
     for (c, x) in enumerate(points)
-        choices =
-            ntuple(d -> iszero(x[d]) ? (zero(_CompositeQ), _exact_rational(L[d])) : (x[d],), D)
-        for image in Iterators.product(choices...)
-            position = Tuple(image)
+        # Enumerate the at most 2^D boundary images explicitly. A tuple of
+        # heterogeneous per-axis choices sent through Iterators.product boxes
+        # the image tuple and dominates JET's inference tree for this builder.
+        for bit in _camr_bits(Val(D))
+            position = ntuple(
+                d -> iszero(x[d]) ? (iszero(bit[d]) ? zero(_CompositeQ) : _exact_rational(L[d])) :
+                    x[d],
+                D,
+            )
             for k in query(position, position)
                 push!(incident[c], (k, position))
             end
