@@ -45,7 +45,7 @@ its publication record.
 | Boris certificate premises | Root integrates frozen `post_devin_numeric_audit` repair | Underflow-safe original quotient equality; DD range/mode/domain and outward-distance gates; symmetric zero products | Two canonical files reviewed/adopted; compact remote regressions prepared; executable acceptance pending |
 | Dynamic composite ES | Root adopts final five-file handoff | Real completed-boundary refine/coarsen, canonical charge/field reconstruction, mesh-energy exchange, physical steps and complete restart | Complete bounded source/caller/phase/IO review and registrations; essential remote acceptance pending |
 | Implicit Yee transverse acceptance | Root adopts frozen handoff | Independent true-Yee vacuum and unequal-species cold-plasma midpoint controls | Both references source-reviewed and registered; exact-head remote acceptance pending |
-| Physical-pencil model acceptance | `post_devin_numeric_audit` | Actual charged distributed ES/EM/hybrid and nonconstant Maxwell evolution, restore and continuation controls | Complete owner audit found missing real-model CI coverage; compact lifecycle checks implementing |
+| Physical-pencil model acceptance | Root adopts frozen lifecycle checks | Actual charged distributed ES/EM/hybrid and nonconstant Maxwell evolution, restore and continuation controls | Complete source review, independent initial density/Maxwell references and minimum/latest2-rank registration; remote execution pending |
 | Resident CUDA hybrid | Root holds frozen reconciled source | Complete resident D1/3V isothermal lifecycle, diagnostics and physical persistence | Nine files reconciled against current main; registration and actual NVIDIA acceptance remain open |
 | Integration and CI | Root | Source review, shared registrations, current Markdown, commits/main publication and exact-head CI | Active alongside the three independent workers |
 
@@ -74,7 +74,7 @@ is a validated no-op. Root owns includes/exports/writer unions/tests/workflows.
 full/focused registrations. Reference matrices use direct cyclic incidence and
 original species normalization, without production residual/current/curl helpers.
 
-**Physical-pencil acceptance worker owns only** new
+**Physical-pencil acceptance transfers to root:** new
 `test/test_distributed_models_core.jl` and `tools/ci_distributed_fft.jl` in its
 isolated worktree. Root owns workflow/docs integration. The completed audit
 covers actual model/checkpoint paths in `ext/pencil_*.jl`; any confirmed

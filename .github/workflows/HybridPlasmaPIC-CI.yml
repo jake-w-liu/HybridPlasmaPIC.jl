@@ -112,6 +112,14 @@ jobs:
           julia --project=. tools/ci_distributed_fft.jl metadata \
             "$RUNNER_TEMP/distributed-fft-env" "$MPI_RANKS" \
             2>&1 | tee distributed-fft-metadata.log
+      - name: Run physical-pencil model lifecycles
+        if: ${{ !cancelled() && matrix.ranks == 2 && steps.distributed-fft-setup.outcome == 'success' }}
+        timeout-minutes: 30
+        run: |
+          set -euo pipefail
+          julia --project=. tools/ci_distributed_fft.jl models \
+            "$RUNNER_TEMP/distributed-fft-env" 2 \
+            2>&1 | tee distributed-models.log
       - name: Upload mpi-smoke log
         if: always()
         uses: actions/upload-artifact@v4
@@ -122,6 +130,42 @@ jobs:
             distributed-fft-setup.log
             distributed-fft-core.log
             distributed-fft-metadata.log
+            distributed-models.log
+          if-no-files-found: warn
+
+  distributed-models-latest:
+    name: Physical-pencil models (latest Julia, 2-rank)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1'
+      - uses: julia-actions/cache@v2
+      - name: Prepare physical-pencil environment
+        timeout-minutes: 30
+        shell: bash
+        run: |
+          set -euo pipefail
+          julia --project=. tools/ci_distributed_fft.jl prepare \
+            "$RUNNER_TEMP/distributed-models-env" 2 \
+            2>&1 | tee distributed-models-setup.log
+      - name: Run physical-pencil model lifecycles
+        timeout-minutes: 30
+        shell: bash
+        run: |
+          set -euo pipefail
+          julia --project=. tools/ci_distributed_fft.jl models \
+            "$RUNNER_TEMP/distributed-models-env" 2 \
+            2>&1 | tee distributed-models.log
+      - name: Retain physical-pencil output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: distributed-models-latest-${{ github.sha }}
+          path: |
+            distributed-models-setup.log
+            distributed-models.log
           if-no-files-found: warn
 
   format:

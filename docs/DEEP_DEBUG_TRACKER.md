@@ -75,7 +75,9 @@ Current work:
   are source-reviewed and registered; exact-revision remote execution is pending.
 - Real physical-pencil ES/EM/hybrid/Maxwell evolution and checkpoint owners were
   read. Existing MPI CI covers primitives, not those actual model lifecycles;
-  compact charged evolution/restore/continuation controls are being implemented.
+  [compact charged lifecycle controls](DISTRIBUTED_MODEL_ACCEPTANCE.md) are now
+  registered on actual2 ranks for minimum/latest Julia. New execution remains
+  pending; primitive MPI success is not relabeled as physical-model acceptance.
 - The resident CUDA family is reconciled against current main and remains a
   separate candidate. Actual NVIDIA compiler, numerical, rollback and cost
   acceptance are open. This repository currently has no self-hosted runner

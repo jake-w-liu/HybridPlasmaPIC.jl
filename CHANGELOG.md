@@ -11,6 +11,12 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Added
 
+- Actual physical-pencil ES/EM/isothermal-hybrid and vacuum-Maxwell lifecycle
+  checks cover charged nonuniform evolution, rank ownership, one-rank rejection,
+  complete matching-layout restart and variable-step continuation. Independent
+  CIC density and Maxwell KDK references supplement full carried-state checks.
+  Minimum/latest Julia two-rank GitHub execution is registered and pending.
+
 - `DynamicCompositeElectrostaticPIC` adds completed-boundary 1D CPU refine/coarsen
   and base-field curvature adaptation over canonical physical-cloud Neumann/KDK
   epochs. Regrids preserve particles/global phase and record actual mesh-energy

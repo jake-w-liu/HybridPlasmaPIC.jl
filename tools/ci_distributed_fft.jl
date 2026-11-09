@@ -3,7 +3,8 @@ using Pkg
 
 length(ARGS) == 3 || error("Usage: ci_distributed_fft.jl MODE ENVIRONMENT RANKS")
 mode, environment, rank_text = ARGS
-mode in ("prepare", "core", "metadata") || error("Unsupported distributed FFT mode: $mode")
+mode in ("prepare", "core", "metadata", "models") ||
+    error("Unsupported distributed FFT mode: $mode")
 ranks = tryparse(Int, rank_text)
 ranks in (2, 4, 8) || error("Unsupported MPI rank count: $rank_text")
 environment = abspath(environment)
@@ -23,8 +24,10 @@ else
     launcher === nothing && error("MPI launcher unavailable")
     filename = if mode == "core"
         "test_distributed_fft_core.jl"
-    else
+    elseif mode == "metadata"
         "test_distributed_metadata_alias.jl"
+    else
+        "test_distributed_models_core.jl"
     end
     script = joinpath(repository, "test", filename)
     command = `$launcher -n $ranks $(Base.julia_cmd()) --project=$environment $script`
