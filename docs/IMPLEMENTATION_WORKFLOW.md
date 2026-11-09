@@ -63,8 +63,9 @@ its publication record.
 | Periodic multidimensional AMR | Root adopted frozen parent/child handoff | Seam constraints, arbitrary-width clouds, physical neutral source, full-row gauge, represented multiwrap evolution/work and complete restart | Exact thirteen files reviewed/adopted on `123c4a2`; module and full/focused registration complete; all new acceptance pending |
 | NGP electron-ion thermal exchange | Root integrates frozen source and independent essential | Reduced two-way fluid-pressure/ion-thermal exchange, actual energy/entropy/rounding receipts and complete RNG restart | Six frozen files and 352-line independent essential integrated/pushed at `c742258`; exact-head full/focused/format gates queued; science/resources open |
 | CIC/TSC thermal overlap | Root integrates frozen `post_devin_numeric_audit` source | Stored-shape adjoint incidence, ordered conservative positive edge exchange and complete report/RNG persistence | Five exact frozen files and independent 317-line essential reviewed/adopted on `c742258`; full/focused registration complete; all new runtime/scientific/resource acceptance pending |
-| CGL ion-ion collision composition | `post_devin_numeric_audit` | Actual anisotropic field/force/energy, source phase and complete restart contract | Read-only source/physics design; no implementation approval or production ownership |
-| Coupled EMPIC error control | `dynamic_amr_es_implementation`; child `periodic_controls` owns only new guide/essential | Full-time projected Euler/Heun pair, actual branch-charge correction, original-factor RHS and complete controller/restart | 415-line V3 contract approved on `566ddc1`; seven production paths and two independent guide/essential paths active; first mode admits CIC/TSC |
+| CGL ion-ion collision composition | Root integrates frozen `post_devin_numeric_audit` source | Actual anisotropic field/force/energy, source phase and complete restart | Four-file handoff reviewed/adopted on `5de6522`, bounded coefficient/doc refinements and 238-line independent essential integrated; full/focused registration complete, all new acceptance pending |
+| Flux-limited scalar electron conduction | `post_devin_numeric_audit` | Physical saturation, actual staged channels/entropy/balance and complete continuation contract | Read-only source/physics design; no production approval or ownership |
+| Coupled EMPIC error control | `dynamic_amr_es_implementation`; child `periodic_controls` owns new IO/guide/essential | Full-time projected Euler/Heun pair, actual branch-charge correction, original-factor RHS and complete controller/restart | 415-line V3 contract approved on `566ddc1`; parent six production paths and child three new paths active; first mode admits CIC/TSC |
 | New JET source regression | Root integrates frozen representation repair | Preserve admitted storage precision, exact private construction and direct immutable normal-face values | Two-owner repair pushed at `566ddc1`; broad-input/face-order and focused whole-JET routes registered; remote acceptance pending, cap/filter/ledger unchanged |
 | Integration and CI | Root | Source review, shared registrations, current Markdown, commits/main publication and exact-head CI | Active alongside controller implementation, independent controls and CGL design |
 
@@ -141,8 +142,14 @@ root. The CIC/TSC extension's five-file final handoff also transfers to root:
 The existing canonical stencil/deposit/gather/sorting and shared pi refinement
 are unchanged by that extension. Its B-only patch is relative to the exact
 frozen NGP baseline, checked against the actual `c742258` integration. Root owns
-the new overlap essential and shared registration. `post_devin_numeric_audit`
-now derives CGL ion-only composition read-only, without production ownership.
+the new overlap essential and shared registration. The final CGL handoff also
+transfers to root:
+`src/integrators/collisional_hybrid.jl`, `src/io/collisional_checkpoint.jl`,
+docstrings only in `src/electrons/closures.jl` and new `docs/COLLISIONAL_CGL.md`.
+Root owns its new essential and the old CGL rejection-control update. The
+thermal/field/force/collision/energy owners remain unchanged by that extension.
+`post_devin_numeric_audit` now derives flux-limited scalar conduction read-only,
+without production ownership.
 The two frozen JET representation owners,
 `models/static_composite_electrostatic.jl` and
 `models/toroidal_annulus_hybrid_pic.jl`, have transferred to root.
@@ -150,9 +157,9 @@ The two frozen JET representation owners,
 `src/particles/kinematics_range.jl`, `src/models/empic_collection.jl`,
 `src/models/full_pic.jl` and `src/io/empic_collection_checkpoint.jl`, plus new
 `src/models/empic_coupled_error_control.jl`,
-`src/diagnostics/empic_coupled_error_control.jl` and
-`src/io/empic_coupled_error_control_checkpoint.jl`.
+`src/diagnostics/empic_coupled_error_control.jl`.
 Its `periodic_controls` child exclusively writes new
+`src/io/empic_coupled_error_control_checkpoint.jl`,
 `docs/EMPIC_COUPLED_ERROR_CONTROL.md` and
 `test/test_empic_coupled_error_control.jl`. Existing modes and their schemas stay
 under literal inverse checks; the new full-time phase has a distinct schema.

@@ -5,11 +5,13 @@ self/interspecies Coulomb collisions ([`collide_coulomb!`](LOCAL_COULOMB.md)).
 Optional [electron–ion thermal moment exchange](ELECTRON_ION_THERMAL_EXCHANGE.md)
 adds a reduced two-way scalar-pressure/ion-thermal source; its new numerical,
 compiler/format, scientific and resource acceptance remains pending. The default
-`electron_ion=nothing` retains the existing ion-only schema-1 behavior. This
+`electron_ion=nothing` retains the ion-only source; scalar models keep schema 1.
+[Algebraic CGL composition](COLLISIONAL_CGL.md) uses full anisotropic rollback
+and distinct schema 4, with its new acceptance pending. This
 slice is **first order** and CPU-only. It supports Float32/Float64 in one to three
 spatial dimensions, periodic Fourier grids, positive-ion populations, standard
-Vector particle storage, NGP/CIC/TSC, ideal massless isothermal or evolving
-scalar electrons (`eta=etaH=de2=0`), and `TransportElectrons` or
+Vector particle storage, NGP/CIC/TSC, ideal massless isothermal/evolving scalar
+or algebraic CGL electrons (`eta=etaH=de2=0`), and `TransportElectrons` or
 `ConductingElectrons`/`FieldAlignedConductingElectrons` with constant
 `eta>=0`, `etaH>=0`, `de2=0`. The ordered populations, counts, charges,
 masses, model, normalization and positive timestep are fixed for the wrapper's
@@ -32,7 +34,9 @@ velocity (the `HybridStepper` convention). One nonzero step of size `h` from
 2. `collide_coulomb!` for the interval `h`, at the new positions and the
    half-level velocities, with the wrapper's RNG and workspace. The collision
    interval is the field interval, and its velocities sit at that interval's
-   midpoint. This ion-ion subflow leaves stored electron pressure fixed.
+   midpoint. This ion-ion subflow leaves stored scalar electron pressure fixed;
+   CGL retains fresh n/B and its constitutive electron tensor. CGL `pe` is scratch,
+   and its scalar thermal option remains disabled.
 3. With `electron_ion` enabled, the grid-gamma-5/3 thermal source exchanges
    actual ion kinetic energy with stored electron pressure. NGP uses a nodal
    star; CIC/TSC use ordered floor-frame/node overlap edges. The linked thermal
@@ -50,7 +54,8 @@ collision subflow. Skipping the final refresh (reusing pre-source E) is wrong: t
 next kick then lacks `h (q/m) dE`, where `dE` is the change of `-u_i×B` from
 the collisional change of the charge-weighted bulk velocity.
 
-For `EvolvingElectrons`, `TransportElectrons` or `ConductingElectrons`, set
+For `EvolvingElectrons`, `TransportElectrons`, `ConductingElectrons` or
+`FieldAlignedConductingElectrons`, set
 finite nonnegative `inner.fields.pe` before `init!`.
 Initialization preserves it, and collision feedback enters the next pressure
 interval through the refreshed moments. The default ion-only subflow adds no
@@ -180,9 +185,11 @@ entry value along with pressure and the RNG.
 Conducting state also requires integer inner `conduction_policy_version=2`,
 including for κ=0; missing, policy-1 or malformed versions reject before mutation.
 Field-aligned conduction instead uses required inner policy 3, including its
-zero-coefficient case. The outer schema remains 1 with thermal exchange disabled;
+zero-coefficient case. Scalar outer schema remains 1 with thermal exchange disabled;
 enabled NGP thermal exchange requires schema 2; CIC/TSC overlap requires schema 3.
 Both carry their complete fixed configuration and source report.
+CGL ion-only composition instead requires outer schema 4 and its fixed
+force-floor/operator policy; all anisotropic caches retain their actual bits.
 The destination must match the saved conduction coefficients as
 part of the fixed model, and quotient/transform scratch is not persisted.
 
@@ -250,7 +257,7 @@ records the design history and evidence.
 
 The reduced NGP and CIC/TSC thermal sources have their own linked guide and
 pending acceptance. Consistent drag and electron inertia, variable timesteps,
-higher-order splitting, anisotropic composition, CAM-CL, neutral/BGK sources,
+higher-order splitting, evolving/dissipative anisotropic composition, CAM-CL, neutral/BGK sources,
 ionization, radiation and GPU RNG/storage remain open. Separate bounded
 [collisional ES](COLLISIONAL_ELECTROSTATIC.md) and
 [EM](COLLISIONAL_EMPIC.md) families and their actual-pencil counterparts have

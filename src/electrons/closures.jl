@@ -331,19 +331,25 @@ and `p_∥ B²/n³=const` (frozen `J_∥`), so from reference values `p_⊥0, p_
 
 The electron pressure is then the gyrotropic tensor `P_e = p_⊥ I + (p_∥ − p_⊥) bb`,
 `b = B/|B|`, so the generalized Ohm's law carries `−(∇·P_e)/n` in place of the isotropic
-`−∇p_e/n`. In the isotropic limit `p_⊥0 = p_∥0 = p_e0` this reduces exactly to a scalar
-pressure. Unlike the scalar closures it depends on `B` (both magnitude and
+`−∇p_e/n`. Equal reference pressures specify an isotropic reference in the ideal
+parameterization; they do not imply an isotropic law away from it. A tensor field
+with `p_∥ = p_⊥` throughout reduces to scalar pressure. For positive stored
+coefficients and `n > 0`, `|B| > 0`, constitutive isotropy requires
+`B³/n² = C_∥/C_⊥`. In the exact equal-reference parameterization this ratio is
+`B0³/n0²`; the numerical model retains the constructor's rounded coefficients.
+Unlike the scalar closures it depends on `B` (both magnitude and
 direction), so the force `∇·P_e` is recomputed each B-subcycle stage rather than
-frozen once per step — freezing the field direction would misalign the stress and
-drive a numerical instability.
+frozen once per step. A step-frozen direction generally changes the stress and
+does not implement the same constitutive law.
 
-**Stability.** The pure double-adiabatic closure is well-posed and stable in the
-firehose-/mirror-**stable** regime (mild anisotropy, `p_∥ > p_⊥`, or isotropic). In a
-strongly **mirror-unstable** state (`β_⊥(p_⊥/p_∥ − 1) > 1`, i.e. `p_⊥ ≫ p_∥`) it is
-ill-posed — the fluid mirror mode grows without a short-wavelength cutoff (no kinetic /
-FLR stabilization) and the run blows up; that is a known property of the CGL model, not
-a solver bug. Use it in the stable regime, or add a firehose/mirror pressure limiter or
-a Landau-fluid closure for the unstable regime.
+**Stability.** Pressure anisotropy can drive firehose or mirror instabilities.
+Stability depends on the full model, equilibrium and resolved scales;
+`p_∥ > p_⊥` alone does not establish stability. CGL and kinetic mirror thresholds
+differ; see [Snyder, Hammett & Dorland (1997)](https://w3.pppl.gov/~hammett/gyrofluid/papers/snyder_pop97.pdf).
+This electron closure supplies no FLR/Landau stabilization or universal numerical
+stability guarantee. Unstable growth does not imply that every calculation must
+blow up. MHD thresholds are not admission boundaries for this kinetic-ion/Hall
+implementation; a limiter or kinetic closure would require its own model contract.
 """
 struct CGLElectrons{T} <: ElectronClosure
     Cperp::T   # p_⊥ / (n B)

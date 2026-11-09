@@ -186,8 +186,20 @@ const _COLLISIONAL_THERMAL_CHECKPOINT_FIELDS = (
     _COLLISIONAL_CHECKPOINT_FIELDS..., :electron_ion, :thermal_report,
 )
 
+const _COLLISIONAL_CGL_POLICY_FIELDS = (:cgl_policy_version, :cgl_force_floor, :cgl_force_operator)
+const _COLLISIONAL_CGL_CHECKPOINT_FIELDS = (
+    _COLLISIONAL_CHECKPOINT_FIELDS..., _COLLISIONAL_CGL_POLICY_FIELDS...,
+)
+_collisional_cgl_policy(::Type{T}) where {T} = (
+    cgl_policy_version = 1, cgl_force_floor = T(1e-12),
+    cgl_force_operator = :global_invariants_trial_B_tensor,
+)
+
 function _checkpoint_state(st::CollisionalHybridStepper, species::AbstractVector)
     common = _collisional_checkpoint1_state(st, species)
+    if st.model.closure isa CGLElectrons
+        return merge(common, (schema = 4,), _collisional_cgl_policy(eltype(st.inner.fields.n)))
+    end
     st.electron_ion === nothing && return common
     _validate_electron_ion_report(st.thermal_report, st.electron_ion, st.inner,
         st.species, st.inner.fields, st.source_time, st.source_count, st.dt,
@@ -200,6 +212,12 @@ function _checkpoint_state(st::CollisionalHybridStepper, species::AbstractVector
 end
 
 function _validate_checkpoint_state(s, st::CollisionalHybridStepper)
+    if st.model.closure isa CGLElectrons
+        return _validate_collisional_cgl_checkpoint(s, st)
+    end
+    if s isa NamedTuple && any(k -> haskey(s, k), _COLLISIONAL_CGL_POLICY_FIELDS)
+        throw(ArgumentError("non-CGL collisional state cannot carry CGL schema fields"))
+    end
     if st.electron_ion !== nothing
         return _validate_collisional_thermal_checkpoint(s, st)
     end
@@ -208,6 +226,24 @@ function _validate_checkpoint_state(s, st::CollisionalHybridStepper)
             throw(ArgumentError("schema-1 collisional state cannot carry thermal schema fields"))
     end
     return _validate_collisional_checkpoint1(s, st)
+end
+
+function _validate_collisional_cgl_checkpoint(s, st::CollisionalHybridStepper{D,T}) where {D,T}
+    _electron_ion_record(s, _COLLISIONAL_CGL_CHECKPOINT_FIELDS)
+    s.schema isa Int && s.schema == 4 ||
+        throw(ArgumentError("collisional CGL requires checkpoint schema 4"))
+    st.electron_ion === nothing && st.thermal_work === nothing && st.thermal_report === nothing ||
+        throw(ArgumentError("collisional CGL cannot carry scalar thermal exchange state"))
+    _validate_collisional_model(st.inner)
+    expected = _collisional_cgl_policy(T)
+    s.cgl_policy_version isa Int && s.cgl_policy_version === expected.cgl_policy_version &&
+        s.cgl_force_floor isa T && isequal(s.cgl_force_floor, expected.cgl_force_floor) &&
+        s.cgl_force_operator === expected.cgl_force_operator ||
+        throw(ArgumentError("collisional CGL force policy must match the destination"))
+    legacy = merge(NamedTuple{_COLLISIONAL_CHECKPOINT_FIELDS}(s), (schema = 1,))
+    _validate_collisional_checkpoint1(legacy, st)
+    _validate_collisional_cgl_coefficients(s.inner.model.closure)
+    return nothing
 end
 
 # Known closed rational value fields use the canonical integer value codec;

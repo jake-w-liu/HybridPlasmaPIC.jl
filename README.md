@@ -245,14 +245,17 @@ collisional composition has its stated first-order contract:
   `HybridStepper` composed with cell-local Coulomb collisions: each fixed step
   scatters the half-level velocities at the new positions for the full step,
   then forms the carried `E` from the scattered velocities. First order, CPU,
-  ideal massless isothermal/evolving electrons or constant Ohmic/hyperresistive
-  transport (`de2=0`). The field substep advances stored pressure with applicable
-  Ohmic/hyperresistive heating; ion-ion collisions hold pressure fixed. Checkpoints
+  ideal massless isothermal/evolving or algebraic CGL electrons, or constant
+  Ohmic/hyperresistive transport (`de2=0`). The field substep advances stored
+  scalar pressure with applicable heating; ion-ion collisions hold it fixed. Checkpoints
   carry pressure, the transport ion force and the advanced RNG. Optional
   [electron–ion thermal exchange](docs/ELECTRON_ION_THERMAL_EXCHANGE.md) couples
   NGP/CIC/TSC scalar pressure and actual ion thermal energy with accounted
   rounding and complete source/RNG restart. New stored-pressure/source extensions await CI;
   [scope and verified state](docs/COLLISIONAL_HYBRID.md).
+  [CGL composition](docs/COLLISIONAL_CGL.md) retains trial-B tensor force,
+  original invariant coefficients, full anisotropic rollback and schema4 restart;
+  its scalar thermal option remains disabled and new acceptance is pending.
 
 **Choosing dt.** `recommended_dt(g; NB = 1, integrator = :rk4, safety = 0.8,
 η = 0.0, ηH = 0.0)` returns a conservative particle step from the whistler CFL

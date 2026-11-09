@@ -168,8 +168,20 @@ Current work:
   317-line essential checks off-node D1–3 weights, physical rates, exact pair
   heat flux, actual budgets/feedback, cold/sparse/late undo and malformed/raw/archive
   continuation. All new runtime/scientific/resource acceptance remains pending.
-  CGL ion-only composition is now in read-only source/physics design. Consistent
-  electron-ion drag, inertia and backends remain open.
+  Consistent electron-ion drag, inertia and backends remain open.
+- [CGL ion-ion composition](COLLISIONAL_CGL.md) has complete source/guide review
+  and canonical integration: original invariant binding, full anisotropic
+  rollback, existing trial-B tensor force and distinct schema4 physical/RNG
+  restart through the single restore owner. The thermal/field/force/collision/
+  energy algorithms are unchanged. Root restricts the coefficient type to the
+  four documented floating types and distinguishes actual stored isotropy
+  `Cpar/Cperp` from ideal reference parameters. The independent 238-line essential
+  covers charged D1–3 composition, fresh source invariants, all anisotropic
+  fields, mixed precision/empty populations, real field/sampled-RNG rejection,
+  fixed-context wide coefficients and complete malformed/raw/archive continuation.
+  All new runtime/scientific/resource acceptance remains pending. Flux-limited
+  scalar conduction is now in read-only source/physics design; evolving local
+  two-pressure and electron collisional anisotropy remain open.
 - Coupled EMPIC error control has an approved 415-line V3 contract and active
   seven-path production implementation, with an independent guide/essential
   worker. It uses a full-time projected Euler/Heun pair, distinct endpoint
@@ -219,6 +231,16 @@ the same binding/range and dense-view source owners with runtime-library frame
 differences. The `566ddc1` repair and its whole-JET route remain unexecuted at
 this snapshot. These diagnostics establish a compiler gate failure, not a
 demonstrated wrong numerical result.
+
+The earlier `5fec151` candidate also fails both group-11 gates: actual Julia
+1.12.7/1.13.3 reports 94/87 whole-package findings against the unchanged 86 cap,
+with zero package-located findings. Root retained both raw logs and compared
+every displayed leaf and ordered frame chain: all match the reviewed `7ea6ae8`
+set, with only its two/one annular additions absent. All prior 86/79 chains
+remain; the same eight binding-construction/store additions enter source owners
+byte-identical between those revisions. The `566ddc1` canonical binding repair
+still requires its current-head compiler run. No additional numerical failure
+is established by these diagnostics.
 
 ## Historical implementation evidence through 2026-11-02
 

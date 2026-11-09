@@ -29,12 +29,17 @@ pressure and ion thermal energy before that recomputation. This is a fixed-step
 first-order Lie composition. Call `init!` before active stepping.
 
 Supports Float32/Float64, D=1:3, standard Vector particle storage, positive ions,
-NGP/CIC/TSC, ideal massless `IsothermalElectrons` or `EvolvingElectrons`, and
+NGP/CIC/TSC, ideal massless `IsothermalElectrons`, `EvolvingElectrons` or `CGLElectrons`, and
 `TransportElectrons`, `ConductingElectrons` or `FieldAlignedConductingElectrons`
 with constant `η ≥ 0`, `ηH ≥ 0`
 and `de2 = 0`. Conduction retains its original-quotient numerical policy and guard.
 With stored pressure, initialize `inner.fields.pe` before `init!`; the field
 substep evolves pressure and the ion-ion collision substep leaves it unchanged.
+CGL keeps its algebraic global invariants and recomputes the full pressure-tensor
+force at each trial-B stage. Its `pe` is scratch; no electron heat reservoir or
+scalar thermal exchange is admitted. Full anisotropic fields are rolled back and
+persisted under CGL schema 4. The existing force floor and raw-B energy limits
+remain; this composition adds no global conservation or stability theorem.
 Thermal exchange requires grid γ=T(5/3) and actual ne≥nfloor. NGP keeps its
 simultaneous nodal star; CIC/TSC use ordered positive frame/node overlap edges;
 it omits drag and finite electron momentum. Ohmic/hyperresistive heating and
@@ -84,9 +89,9 @@ function _validate_collisional_model(inner::HybridStepper{D,T}) where {D,T}
     T <: Union{Float32,Float64} ||
         throw(ArgumentError("CollisionalHybridStepper requires Float32 or Float64"))
     model = inner.model
-    model.closure isa Union{IsothermalElectrons,EvolvingElectrons,_ScalarTransportClosure} || throw(
+    model.closure isa Union{IsothermalElectrons,EvolvingElectrons,_ScalarTransportClosure,CGLElectrons} || throw(
         ArgumentError(
-            "CollisionalHybridStepper requires IsothermalElectrons, EvolvingElectrons, TransportElectrons, ConductingElectrons or FieldAlignedConductingElectrons",
+            "CollisionalHybridStepper requires IsothermalElectrons, EvolvingElectrons, TransportElectrons, ConductingElectrons, FieldAlignedConductingElectrons or CGLElectrons",
         ),
     )
     if _transports_electrons(model.closure)
@@ -97,6 +102,8 @@ function _validate_collisional_model(inner::HybridStepper{D,T}) where {D,T}
     end
     if model.closure isa IsothermalElectrons
         _require_finite_nonnegative_real("Te", model.closure.Te, T)
+    elseif model.closure isa CGLElectrons
+        _validate_collisional_cgl_coefficients(model.closure)
     else
         _validate_evolving_model(model, T)
     end
@@ -111,6 +118,17 @@ _collisional_closure_values(c::Union{EvolvingElectrons,TransportElectrons}) = (c
 _collisional_closure_values(c::ConductingElectrons) = (c.γ, c.κ)
 _collisional_closure_values(c::FieldAlignedConductingElectrons) =
     (c.γ, c.κ_parallel, c.κ_perpendicular)
+_collisional_closure_values(c::CGLElectrons) = (c.Cperp, c.Cpar)
+
+function _validate_collisional_cgl_coefficients(closure::CGLElectrons{C}) where {C}
+    C in (Float16, Float32, Float64, BigFloat) ||
+        throw(ArgumentError("collisional CGL requires standard floating invariant coefficients"))
+    for coefficient in (closure.Cperp, closure.Cpar)
+        isfinite(coefficient) && coefficient >= zero(C) ||
+            throw(ArgumentError("collisional CGL invariants must be finite and nonnegative"))
+    end
+    return nothing
+end
 
 # Composite identity compares BigFloat backing storage, which changes on
 # checkpoint copy. Bind the original scalar values instead of their addresses.
@@ -230,7 +248,7 @@ function CollisionalHybridStepper(
     owned_rng = deepcopy(rng)
     populations = Vector{_CollisionalPopulation{D,T}}(species)
     transaction = _CollisionalTransaction(
-        HybridFields{D,T}(inner.g.n),
+        HybridFields{D,T}(inner.g.n; anisotropic = is_anisotropic(inner.model.closure)),
         _transport_force_storage(inner.g, inner.model.closure),
         ntuple(_ -> zeros(T, count), D),
         ntuple(_ -> zeros(T, count), 3),
@@ -297,6 +315,40 @@ function _validate_collisional_fields(st::CollisionalHybridStepper)
     # positivity and independence checks before saving or mutating either state.
     _evolves_pressure(st.model.closure) && _validate_pressure_step_state(st.inner, st.species)
     _validate_collisional_force_storage(st, st.transaction.Eforce)
+    _validate_collisional_cgl_storage(st, st.model.closure)
+    return nothing
+end
+
+_validate_collisional_cgl_storage(st, ::ElectronClosure) = nothing
+function _validate_collisional_cgl_storage(st, ::CGLElectrons)
+    w = st.transaction
+    saved = _collisional_field_arrays(values(_hybrid_field_state(w.fields)))
+    live = _collisional_field_arrays(values(_hybrid_field_state(st.inner.fields)))
+    for array in (saved..., live...)
+        size(array) == st.grid.n ||
+            throw(DimensionMismatch("collisional CGL fields and rollback must have full grid layout"))
+    end
+    count = sum(first, st.identities; init = 0)
+    for array in (w.x..., w.v...)
+        length(array) == count ||
+            throw(DimensionMismatch("collisional CGL particle rollback length must match fixed populations"))
+    end
+    _validate_collisional_rng_pair(st.rng, w.rng, "collisional CGL rollback")
+    # Enumerate logical snapshot roles: the graph deliberately permits the same
+    # Array owner to recur, but two rollback roles cannot share that storage.
+    buffers = (saved..., w.x..., w.v..., _collisional_rng_buffers(w.rng)...)
+    for i in eachindex(buffers), j = 1:(i - 1)
+        _particle_arrays_mightalias(buffers[i], buffers[j]) &&
+            throw(ArgumentError("collisional CGL rollback roles must have independent storage"))
+    end
+    # Stock RNG seed/advance metadata may be shared read-only by copy!. Only
+    # recurrence/cache buffers enter the snapshot independence boundary.
+    _validate_checkpoint_configuration_registered(
+        (w.fields, w.x, w.v, _collisional_rng_buffers(w.rng)),
+    ) do remember, backing, owned
+        _register_checkpoint_configuration_owned!(remember, backing, owned, (;), st.inner)
+        _visit_checkpoint_objects(remember, (st.species, st.workspace, st.rng); backing)
+    end
     return nothing
 end
 

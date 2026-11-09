@@ -116,7 +116,7 @@ isdefined(@__MODULE__, :_composition_fixture) || include("collisional_fixtures.j
             HybridModel(IsothermalElectrons(0.02); ηH = eps()),
             HybridModel(IsothermalElectrons(0.02); de2 = eps()),
             HybridModel(PolytropicElectrons(1.0, 1.0, 5 / 3)),
-            HybridModel(CGLElectrons(0.6, 0.3, 1.0, 1.0)),
+            HybridModel(CGLElectrons(0.6, 0.3, 1.0, 1.0); de2 = eps()),
         )
             inner = HybridStepper(st.inner.g, model, CIC(), sum(length(p.weight) for p in ps))
             @test_throws ArgumentError make(inner)
