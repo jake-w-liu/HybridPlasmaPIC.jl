@@ -76,20 +76,37 @@ Current work:
   in its reviewed scope. Two independent transverse vacuum/cold-plasma oracles
   pass both minimum/latest focused jobs at `62f985f`: 366 assertions each,
   including 38 new transverse checks. Full integrated CI remains required.
+  Fresh source/algebra review qualifies published Ex accuracy: its physical
+  Ampere residual also contains continuity, old-Gauss and final-store primitives;
+  solver convergence alone does not bound it by the nonlinear tolerance. The
+  guide now states this actual contract; no production gate was changed.
 - Real physical-pencil ES/EM/hybrid/Maxwell evolution and checkpoint owners were
   read. Existing MPI CI covers primitives, not those actual model lifecycles;
   [compact charged lifecycle controls](DISTRIBUTED_MODEL_ACCEPTANCE.md) are now
-  registered on actual 2 ranks for minimum/latest Julia. New execution remains
-  pending; primitive MPI success is not relabeled as physical-model acceptance.
+  registered on actual 2 ranks for minimum/latest Julia. The first latest gate
+  passes the charged models, then stops in Maxwell's empty-collection test helper.
+  That helper is corrected; complete remote acceptance requires a successful
+  rerun. Primitive MPI success is not relabeled as physical-model acceptance.
 - The resident CUDA family is source-reviewed and integrated through the
   canonical optional-backend and IO registrations as an unaccepted candidate.
-  Actual NVIDIA compiler, numerical, rollback and cost acceptance are open. This repository currently has no self-hosted runner
+  The latest hosted extension/admission job passes 38 checks on actual Julia
+  1.13.3 at `38d1cd1`; its raw log and checkout were checked. Minimum-host and full
+  integrated gates remain pending. Actual NVIDIA compiler, numerical, rollback
+  and cost acceptance are open. This repository currently has no self-hosted runner
   listed by its Actions API; that does not establish hardware unavailability
   elsewhere.
+- A genuine toroidal-annulus hybrid family has eight draft files in its isolated
+  worktree. Its assigned worker is completing source/phase/IO review before root
+  integrates the shared map, module and writer seams. It is not yet executable
+  acceptance; axis, material walls, equilibrium/imports and backends remain open.
+- The implicit-hybrid worker is extending the canonical joint solve with evolving
+  scalar pressure, a third residual block, physical work accounting and schema2
+  restart. The approved five-file scope preserves the existing isothermal report
+  and schema1. Implementation and exact-revision remote acceptance are pending.
 
 The full runner explicitly registers the transverse Yee reference beside the
 existing family tests. MPI multi-rank and distributed FFT primitive tests run
-separately in the workflow; actual-pencil model coverage is being added.
+separately from the newly registered actual-pencil lifecycle gate.
 Registration alone is not an assertion-coverage proof. Scientific,
 independent-code, refinement, boundary/geometry/composition and measured resource
 work remain governed by the capability plans.

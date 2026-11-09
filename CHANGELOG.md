@@ -21,7 +21,7 @@ records scoped verification and remaining exact-revision acceptance gates.
   checks cover charged nonuniform evolution, rank ownership, one-rank rejection,
   complete matching-layout restart and variable-step continuation. Independent
   CIC density and Maxwell KDK references supplement full carried-state checks.
-  Minimum/latest Julia two-rank GitHub execution is registered and pending.
+  Minimum/latest Julia two-rank GitHub acceptance remains pending.
 
 - `DynamicCompositeElectrostaticPIC` adds completed-boundary 1D CPU refine/coarsen
   and base-field curvature adaptation over canonical physical-cloud Neumann/KDK

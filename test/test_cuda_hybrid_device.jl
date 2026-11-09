@@ -81,8 +81,13 @@ end
             cpu = HybridStepper(FourierGrid((n,), (Float64(n),)), model, CIC(), 0)
             foreach(copyto!, cpu.fields.B, seed)
             st = cuda_hybrid_stepper(
-                (n,), (Float64(n),), model, particles;
-                dt = h, NB = nb, B = map(dev, seed),
+                (n,),
+                (Float64(n),),
+                model,
+                particles;
+                dt = h,
+                NB = nb,
+                B = map(dev, seed),
             )
             init!(cpu, host)
             init!(st)
@@ -122,8 +127,13 @@ end
                 for (restore!, path) in ((load_checkpoint!, raw), (load_archive!, archive))
                     changed = map(device_particle, loaded_species(n, 2))
                     target = cuda_hybrid_stepper(
-                        (n,), (Float64(n),), model, changed;
-                        dt = h, NB = nb, B = map(dev, seed),
+                        (n,),
+                        (Float64(n),),
+                        model,
+                        changed;
+                        dt = h,
+                        NB = nb,
+                        B = map(dev, seed),
                     )
                     init!(target)
                     step!(target)
@@ -148,8 +158,12 @@ end
         particles = [device_particle(host)]
         seed = (fill(-0.0, 4), zeros(4), zeros(4))
         st = cuda_hybrid_stepper(
-            (4,), (4.0,), HybridModel(IsothermalElectrons(0.0)), particles;
-            dt = h, B = map(dev, seed),
+            (4,),
+            (4.0,),
+            HybridModel(IsothermalElectrons(0.0)),
+            particles;
+            dt = h,
+            B = map(dev, seed),
         )
         init!(st)
         before, roles = cuda_hybrid_host_snapshot(st), public_roles(st, particles)

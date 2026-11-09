@@ -228,18 +228,16 @@ mean code or runtime verification is complete. “Scope proposal” marks the
 additional CAP-008–011 model expansion. Root owns integration, tracker consistency,
 commit/push and CI. A named subsystem below is a code owner; an unassigned
 implementation agent is explicitly unassigned, not implicitly running.
-Current assignments (2026-11-02): static composite ES is reviewed and submitted;
-the approved resident CUDA and compatible implicit-EM families implement in
-disjoint paths. Shared scalar dependencies are reviewed/pushed; root integrates
-the frozen absorption and nineteen-file completed-clock repairs. All eight
-audited clock groups retain numerical clock arithmetic and legacy origins;
-remote acceptance is pending. An independent worker audits the frozen CUDA
-family while root integrates completed source.
-Hall, slab, periodic shear and synchronous implicit EM are source-complete
-and await remote acceptance. Root owns shared registrations, current docs, dependency
-publication, source integration and remote CI. Earlier audit assignments and
-quota failures describe historical work; the linked workflow is authoritative
-for active ownership.
+Current assignments (2026-11-09): root integrates reviewed CPU/CUDA candidates,
+repairs exact-head CI failures and owns shared registrations, current docs and
+main publication. Dynamic 1D ES and independent Yee/pencil controls are integrated
+in validation candidates; the latest CUDA hosted import/admission job passes 38
+checks, with actual device acceptance open. Two implementation tracks run in
+disjoint paths: a complete toroidal-annulus draft undergoing final source review,
+and canonical implicit-hybrid evolving scalar pressure with schema1 compatibility.
+Hall, slab, periodic shear and synchronous implicit EM are on main with remaining
+scientific/resource gates. Earlier audit assignments describe historical work;
+the linked workflow owns current exclusive file assignments.
 
 | Slice | Implementation owner / canonical code | Dependencies | State and checked evidence | Next concrete action |
 | --- | --- | --- | --- | --- |
@@ -250,7 +248,7 @@ for active ownership.
 | 003C/D distributed coupled solvers | MPI orchestration + canonical solver owners | 003A/B and accepted serial solver | Rank-owned periodic Maxwell, coupled CIC ES/EM and isothermal hybrid source with global scalar diagnostics implemented | Maxwell, ES, EM and hybrid matching-layout checkpoint source implemented; broader closures/EM families and runtime/rank/restart validation remain open |
 | 003E cluster scale/restart | Agent unassigned; benchmark/MPI/I/O | 003C/D; real multi-node allocation | Hardware campaign pending | Freeze strong/weak scaling and changed-layout restart workloads before requesting/running resources |
 | 004A GPU primitive closure | Root; extensions and coupling | Current kernel gates and exact-SHA CI | Metal uniform push and NGP have green CI. Current gathered preflight source adds guarded canonical native publication and explicit field-storage admission; historical V1 allocation, V2–V5 latency and V6 calibration failures remain retained | Accept current source on GitHub and actual Metal, including native bits, compiler and both fixed cost matrices. The 1.5 latency and 8 KiB additional-allocation limits remain unchanged; [historical results do not accept this source](METAL_GATHERED_VALIDATION_PLAN.md) |
-| 004B/C resident solver families | CUDA family worker; root integrates frozen shared-scalar dependencies and owns SO/registration | 004A; actual CUDA/cuFFT/kernel/range/phase/private-public/transfer/full-persistence contract and frozen callable seams | Complete first-family v2 contract approved; nine new family paths implementing; eleven shared dependencies reviewed/integrated with mixed-precision shape compatibility retained | Review complete device source, publish actual SO dependency APIs, then exact-revision compiler/numerical/device/resource acceptance; no resident runtime acceptance yet |
+| 004B/C resident solver families | CUDA family worker; root integrates frozen shared-scalar dependencies and owns SO/registration | 004A; actual CUDA/cuFFT/kernel/range/phase/private-public/transfer/full-persistence contract and frozen callable seams | Complete resident first-family source and canonical optional/IO integration reviewed; latest host gate passes 38 checks at `38d1cd1`; actual NVIDIA execution unverified | SO 0.1.9 is published; complete minimum-host/full exact-revision CI and actual device numerical/rollback/resource acceptance |
 | 004D multi-GPU | Agent unassigned; MPI + device extensions | 003C/D, 004B/C; real devices/network | Hardware/integration pending | Establish buffer ownership/staging contract and matched device/rank oracle |
 | 005A existing CN-labelled paths | Shock3d and integrator stability owners | Independent linear-system oracle | Shock CN `ce52836` and [linear CN](LINEAR_CN_RANGE_PLAN.md) `03e4eb3` have green exact-SHA CI | Continue with 005B/C; preserve separate resource regressions and corrections |
 | Magnetic timestep correctness | Root; `recommended_dt` and both RK4 stage owners | Independent frozen Hall/damping mode and exact stability polynomial | [Certified polygon repair](RK4_MIXED_STABILITY_PLAN.md) passes both runtime campaigns and full compiler/resource gates | `a7fb3c8` retains its failed packet-allocation CI; the later containing `fd0a168` is green. The separate BigFloat repair has the revision-specific outcome below |
@@ -258,11 +256,11 @@ for active ownership.
 | Original species charge/mass factors | Canonical kick, validation, prime/model/backend owners | Original q,m,dt and complete stored-input references | CPU public and nonrelativistic model kick threading, scalar/batch accuracy certificates and exact replay are implemented with the shared IEEE converter. Nonrelativistic priming/prediction include range/accuracy admission and exact endpoints. Both relativistic EMPIC owners retain factors through range replay and C1 publication; essential boundary, phase and checkpoint regressions are included | GitHub CI and complete resource/compiler acceptance remain open. [CPU implementation](BORIS_ACCURACY_IMPLEMENTATION.md); [CPU verification, normal relativistic accuracy and device follow-ons](PARTICLE_CHARGE_MASS_RANGE_PLAN.md) |
 | Coordinate exact-range closure | Canonical coordinate owner and full/midpoint/native-batch callers | Exact stored-input overflow classification plus unchanged four-ulp/finite-bit contract | Canonical CPU correction passes 4,786 new and 46,725 legacy assertions per runtime; 108 paired resource profiles retain all 36 ordinary 0 B profiles; full compiler/Aqua, formatting and 3,543 actual-Metal assertions per runtime pass | [Contract, proof and costs](PARTICLE_KINEMATICS_RANGE_PLAN.md#coordinate-overflow-follow-on): both broader model lanes pass 117,819 / 117,820 assertions; correctness commit `a29da03` passes all six exact-SHA jobs and complete compiler review (1,246,963 / 1,246,964 assertions on actual Julia 1.12.7 / 1.13.3; whole forests byte-equal accepted C1). The separate zero-product optimization passes 7,366 focused assertions and all 108 paired profiles per runtime, including all 36 affected profiles at 0 B; actual Metal passes 3,543 and legacy 46,725 per runtime; complete compiler/Aqua captures match both parents and composition preserves every tested source byte. Optimization `8d7473f` passes all six exact-SHA jobs and complete compiler review: 1,249,543 / 1,249,544 assertions, with whole forests byte-equal accepted C1 |
 | BigFloat timestep contexts | Root; canonical recommendation core | Independent positive-rate geometry, exact endpoint controls and production-mode witness | [Directed context repair](BIGFLOAT_TIMESTEP_CONTEXT_PLAN.md) passes isolated minimum/latest package, native bit/allocation, complete compiler/Aqua and formatting gates | `36d1794` CI completed: minimum Julia/formatting/MPI pass, latest Julia fails the separate packet allocation gate. Containing `fd0a168` is green with complete compiler review. NUM-001 runtime integration remains open |
-| 005B/C implicit hybrid | Root integration; canonical integrator + moment/Ohm owners | Explicit represented Boris-map/Faraday and work-defect contract | Full bounded synchronous CPU isothermal collection core/report/checkpoint/archive source implemented; [guide](IMPLICIT_HYBRID.md) | Exact-revision numerical, residual/convergence, failure/restart, compiler and cost acceptance; broader pressure/orbit-averaged models remain open |
+| 005B/C implicit hybrid | Root integration; canonical integrator + moment/Ohm owners | Explicit represented Boris-map/Faraday and work-defect contract | Bounded synchronous isothermal core/report/checkpoint/archive on main; approved canonical evolving-pressure extension implementing in five disjoint source owners; [guide](IMPLICIT_HYBRID.md) | Exact-revision numerical, residual/convergence, failure/restart, compiler and cost acceptance; broader pressure/orbit-averaged models remain open |
 | 005D implicit EM / parallel geometry | Root integration of frozen EM/field/nonlinear/IO source | Actual Boris/current-continuity/Maxwell and nonlinear owners | Complete bounded coupled source reviewed/integrated, three legacy inverses and all eight frozen file hashes checked; essential remote regressions prepared | Exact-revision numerical/constraint/work, failure/restart, compiler/resource gates; broader conservative/relativistic/backend methods remain open |
-| 006A curvilinear solver | Root integration of frozen mesh/coupling/model/IO source | Compatible geometry/component/volume conventions | Complete bounded periodic-shear core, diagnostics, loader and physical IO source reviewed/integrated | Exact-revision runtime, field/work/refinement, restore/compiler/resource gates; toroidal axis/walls remain separate |
+| 006A curvilinear solver | Root integration of frozen mesh/coupling/model/IO source | Compatible geometry/component/volume conventions | Bounded periodic-shear core on main; genuine coupled toroidal-annulus eight-file draft undergoing final source review | Integrate reviewed annular family then exact-revision field/particle/boundary/pressure/restart controls; axis/material-wall/equilibrium/backend and resource gates remain open |
 | 006B self-consistent gyrokinetics | Root integration of frozen population/core/coupling/IO source | Reviewed full-f slab model and registered SO 0.1.8; 006A remains required for toroidal claims | Complete bounded source and canonical callers reviewed; essential remote regressions prepared | Exact-revision runtime, field/reciprocity/convergence, failure/restart, compiler and resource acceptance; broader geometry/physics remain open |
-| 006C adaptive plasma hierarchy | Root integration of frozen static composite-ES source; AMR/field/coupling/model/IO | Real patch/covered/leaf ownership and composite field method | Complete bounded source reviewed/integrated, seven frozen file hashes and shared-helper inverse checked; essential remote regressions prepared | Exact-revision field/crossing/restart/compiler/self-force/resource gates; dynamic and multidimensional refinement remain later |
+| 006C adaptive plasma hierarchy | Root integration of frozen static composite-ES source; AMR/field/coupling/model/IO | Real patch/covered/leaf ownership and composite field method | Static composite ES on main; real dynamic 1D ES source integrated in candidates and focused 136 assertions pass per Julia line | Full integrated/scientific/resource acceptance; multidimensional/EM/subcycled/backend hierarchy remains open |
 | 007A/B reference provenance + production dispersion | Canonical validation/reference owners; next campaign agent unassigned | Source/network/toolchain; accepted production solver | Pinned provenance, parallel production histories and oblique Hall case 35 landed; CI state is in the audit tracker | Complete manual campaigns and broaden thermal/kinetic/EM regimes, uncertainty and matched-cost comparisons; [production plan](PRODUCTION_DISPERSION_PLAN.md) |
 | 007C–E profiles, new physics, comparative costs | Agent unassigned; validation/benchmark owners | Accepted corresponding capability; datasets/hardware | Existing scalar comparisons inspected; campaigns unrun here | Freeze matched inputs/diagnostics/uncertainty and preserve raw reference outputs |
 | 008 ES/EM arbitrary species | Canonical electrostatic/EM collection owners | Existing deposition, spectral Maxwell and phase owners | ES containing `4724947` passes all six jobs/compiler review. [EMPIC collections with generic/specialized dividing schedules](EMPIC_SPECIES_IMPLEMENTATION.md) implemented with shared ordinary-store admission, staged publication and persistence; new GitHub acceptance pending | Accept current sum/continuity, per-species phase, physical diagnostics, restart/migration and matched cost; nondividing/adaptive schedules and backends remain open |
@@ -538,8 +536,9 @@ make host scalar loops valid device kernels.
 - [ ] **004A: kernel contract closure.** Audit deposit/gather, push, wrapping,
   moments, pressure, sorting/growth and reductions on real hardware; include shape
   boundaries, empty/block-edge counts, invalid input/rollback and large index
-  ranges. Existing Metal tests cover primitives; CUDA currently lacks analogous
-  package particle/coupling kernels. Preserve honest precision support.
+  ranges. Metal primitive controls exist; the resident CUDA candidate now supplies
+  D1 CIC particle/coupling kernels and remote device controls, with execution and
+  broader kernel/model coverage still open. Preserve honest precision support.
 - [ ] **004B: one complete periodic solver.** Build storage/operator support and
   one complete hybrid stepping path with scalar algebraic closure, including
   initialization, diagnostics and restart. No per-step field/particle host copy,
@@ -599,8 +598,9 @@ must be re-derived for the selected implementation rather than inherited by name
 - [ ] **005C: coupled hybrid.** Periodic isothermal CPU collections, full-time
   fields/particles and complete fixed-policy/report persistence are source-
   implemented. Strict density and canonical original-factor Boris/moment/field
-  owners are reused. Evolving pressure, orbit averaging, selected dissipative
-  terms and preconditioning remain open. Accept the actual spatial/particle
+  owners are reused. The canonical evolving-pressure extension is being implemented;
+  orbit averaging, selected dissipative terms and preconditioning remain open.
+  Accept the actual spatial/particle
   residual, phase/order, work and momentum errors and restart before advancing
   this milestone; the represented defect report is not exact conservation.
 

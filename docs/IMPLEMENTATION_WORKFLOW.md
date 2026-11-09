@@ -45,9 +45,11 @@ its publication record.
 | Boris certificate premises | Root integrates frozen `post_devin_numeric_audit` repair | Underflow-safe original quotient equality; DD range/mode/domain and outward-distance gates; symmetric zero products | Both focused jobs pass 6,142 assertions each at `a15be1c`; formatter correction passes at `62f985f`; full integrated/compiler/resource acceptance open |
 | Dynamic composite ES | Root adopts final five-file handoff | Real completed-boundary refine/coarsen, canonical charge/field reconstruction, mesh-energy exchange, physical steps and complete restart | Complete source/registration review; minimum/latest focused jobs pass 136 each at `16321a9`; full integrated/scientific/resource acceptance open |
 | Implicit Yee transverse acceptance | Root adopts frozen handoff | Independent true-Yee vacuum and unequal-species cold-plasma midpoint controls | Both references pass minimum/latest focused jobs with 366 assertions each at `62f985f`; full integrated/scientific acceptance open |
-| Physical-pencil model acceptance | Root adopts frozen lifecycle checks | Actual charged distributed ES/EM/hybrid and nonconstant Maxwell evolution, restore and continuation controls | Complete source review, independent initial density/Maxwell references and minimum/latest 2-rank registration; remote execution pending |
-| Resident CUDA hybrid | Root integrates reviewed fourteen-file handoff | Complete resident D1/3V isothermal lifecycle, diagnostics and physical persistence | Canonical optional-backend/IO registrations adopted; separate-process minimum/latest host and actual NVIDIA controls registered; device acceptance remains open |
-| Integration and CI | Root | Source review, shared registrations, current Markdown, commits/main publication and exact-head CI | Active alongside the three independent workers |
+| Physical-pencil model acceptance | Root adopts frozen lifecycle checks | Actual charged distributed ES/EM/hybrid and nonconstant Maxwell evolution, restore and continuation controls | Charged latest controls passed before a Maxwell empty-population helper failure; helper corrected in CPU candidate `b8a5e7d`, complete remote rerun pending |
+| Resident CUDA hybrid | Root integrates reviewed fourteen-file handoff | Complete resident D1/3V isothermal lifecycle, diagnostics and physical persistence | Latest host job at `38d1cd1` passes 38 checks on Julia 1.13.3; minimum host, full integrated and actual NVIDIA acceptance remain open |
+| Toroidal annulus | `dynamic_amr_es_implementation`; child owns loader/guide/IO | Full coupled logical particles, metric magnetic field, adiabatic pressure, contact work and complete restart | Eight-file draft preserved; worker completing final source review before integration and remote acceptance |
+| Implicit evolving pressure | `post_devin_numeric_audit` | Canonical joint velocity/B/pe solve, third residual gate, signed physical ledger and schema2 persistence | Approved five-file extension implementing; existing isothermal 19-field report/schema1 preserved |
+| Integration and CI | Root | Source review, shared registrations, current Markdown, commits/main publication and exact-head CI | Active alongside the two implementation tracks |
 
 ## Exclusive file writers
 
@@ -87,6 +89,28 @@ Project compat and shared IO registrations. The canonical Boris repair is a
 shared dependency; no CUDA-specific quotient workaround is added. The repository
 Actions API currently lists no self-hosted runner; actual NVIDIA execution remains
 open and no hardware-unavailability conclusion is inferred.
+
+**Toroidal annulus worker owns eight new paths in its isolated worktree:**
+`src/meshes/toroidal_annulus_mesh.jl`,
+`src/coupling/toroidal_annulus_hybrid_coupling.jl`,
+`src/fields/toroidal_annulus_hybrid_operators.jl`,
+`src/models/toroidal_annulus_hybrid_pic.jl`,
+`src/diagnostics/toroidal_annulus_hybrid.jl`,
+`src/io/toroidal_annulus_hybrid_checkpoint.jl`,
+`src/initial_conditions/toroidal_annulus_hybrid.jl` and
+`docs/TOROIDAL_ANNULUS_HYBRID.md`. Root owns the canonical scalar map extraction,
+includes/exports/shared writer unions, essential remote controls and global docs.
+The child owns loader, guide and checkpoint IO; the parent owns the other five.
+
+**Implicit-pressure worker owns five existing paths in its isolated worktree:**
+`src/integrators/implicit_hybrid.jl`,
+`src/integrators/implicit_pic_nonlinear.jl` (scale dispatch only),
+`src/electrons/energy_equation.jl`,
+`src/integrators/extrapolated_leapfrog.jl` (literal shared-pressure extraction) and
+`src/io/implicit_hybrid_checkpoint.jl`, plus new
+`test/test_implicit_hybrid_pressure.jl`. The shared nonlinear algorithm and
+isothermal report/schema1 remain; root owns registrations, workflows, global
+docs and the closure/model docstrings. No overlapping writer is assigned.
 
 ## Handoff and verification
 

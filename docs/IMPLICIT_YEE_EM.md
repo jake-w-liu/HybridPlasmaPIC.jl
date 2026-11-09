@@ -82,22 +82,27 @@ predictor supplies the force, and no post-solve correction projects fields.
 
 Inside every residual the published endpoint Ex is rebuilt from the exact
 endpoint charge and the trial's solved mean by the same cyclic prefix used at
-initialization, and the published mean Ex follows from the old and published
-endpoint values. Newton rows still act on the unknown: the E-row residual is the
-equation evaluated at the unknown, so at convergence the unknown's longitudinal
-part matches the published Ex only to the nonlinear tolerance. The report's
-`exact_residuals` are these solver-row residuals; the stored per-node
-`exact_electric_residual` and the report's `field_residual_work` use the same
-equation evaluated at the published field, which satisfies endpoint Gauss up to
-the rounding of the stored Ex values. Without this publication the endpoint
-Gauss defect would be bounded only by the nonlinear tolerance, so the 256eps
-constraint gate would reject converged nonuniform steps.
+initialization. Its actual midpoint follows from the old and published values.
+The electric Newton rows still use the unknown field. The report's
+`exact_residuals` gate those solver rows; the stored per-node
+`exact_electric_residual` and report `field_residual_work` use the published field.
+Reconstruction separately enforces endpoint Gauss up to Ex-storage rounding.
+
+The published longitudinal Ampere residual need not fit the nonlinear tolerance.
+In exact stored-operand arithmetic it is `r = P*a + S*(C-G0) + eta`: `a` is the
+unknown-field Ampere row, `P` its constant/DC projection, `S` the zero-mean cyclic
+primitive, `C` the continuity defect, `G0` the old Gauss defect, and `eta` the final
+Ex-storage error. After fixed electric normalization, solver-row tolerance controls only the first
+term; the separately admitted source and storage terms also contribute. The final store
+need not preserve the intended Ex mean exactly. Physical constraint gates and
+actual residual-work receipts remain separate; no stronger published-row norm
+or exact physical-equation guarantee is implied by solver convergence.
 
 The shared bounded Newton/forward-Jv/restarted-GMRES/Armijo owner retains its
 actual action and fresh-final gates. Defaults are nonlinear_rtol=sqrt(eps(T)),
 nonlinear_atol=64eps(T), max_newton=20, max_linear=200, memory=20,
 max_backtrack=12 and max_jv_shrink=8. Three scales stay fixed during the solve.
-The new family also gates the original exact residual norms; a residual rounded
+The family also gates the original exact solver-row norms; a residual rounded
 to zero cannot certify an out-of-budget equation. Only owned trial-domain errors
 allow existing bounded shrink; other errors rethrow. Exhaustion rejects the
 whole operation, without a smaller-step retry.

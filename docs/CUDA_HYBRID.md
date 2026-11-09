@@ -37,12 +37,16 @@ from the ordinary extension tests. The main CI matrix checks exact CUDA 6.4.1
 on minimum Julia and supported CUDA 6.x on latest Julia. It imports the complete
 extension and checks dispatch, dependency provenance and pure host admission;
 it performs no resident evolution and establishes no NVIDIA numerical result.
+The latest hosted job at `38d1cd1` passes all 38 host checks on actual Julia
+1.13.3 ([job log](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42556458252/job/128963184703));
+root checked the raw log and exact checkout. Minimum-Julia host acceptance and
+full integrated acceptance remain pending.
 
 `test/test_cuda_hybrid_device.jl` requires functional CUDA/cuFFT and has no
 hardware skip. Its small odd/even cases compare complete resident evolution
 with the CPU discrete method, exercise an empty species, complete changed-count
 raw/archive continuation, and require a specific late private density rejection
-with unchanged public state. These new test files are source-reviewed and remain
+with unchanged public state. The device controls are source-reviewed and remain
 unexecuted at this integration checkpoint.
 
 The manual `cuda-device-essentials.yml` workflow requires a registered Linux x64
