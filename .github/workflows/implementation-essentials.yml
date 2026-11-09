@@ -101,7 +101,7 @@ jobs:
               "sheared-hybrid" => ("test_sheared_hybrid.jl",),
               "toroidal-annulus" => ("test_toroidal_annulus_hybrid.jl", "test_fusion.jl"),
               "implicit-em" => ("test_implicit_em.jl", "test_implicit_hybrid_phase.jl"),
-              "implicit-hybrid-pressure" => ("test_implicit_hybrid_pressure.jl", "test_implicit_hybrid.jl", "test_implicit_hybrid_phase.jl", "test_scalar_pressure_range.jl", "test_evolving_pressure.jl", "test_evolving_pressure_accuracy.jl", "test_evolving_pressure_energy.jl", "test_transport_electrons.jl", "test_transport_hyperresistivity.jl"),
+              "implicit-hybrid-pressure" => ("test_implicit_hybrid_pressure.jl", "test_implicit_hybrid.jl", "test_implicit_hybrid_phase.jl", "test_scalar_pressure_range.jl", "test_evolving_pressure.jl", "test_evolving_pressure_accuracy.jl", "test_evolving_pressure_energy.jl", "test_transport_electrons.jl", "test_transport_electrons_io.jl", "test_transport_hyperresistivity.jl"),
               "implicit-yee-em" => ("test_implicit_yee_em.jl", "test_implicit_yee_transverse.jl"),
               "static-composite-es" => ("test_static_composite_electrostatic.jl", "test_dynamic_composite_electrostatic.jl"),
               "adaptive-composite-es" => ("test_adaptive_composite_electrostatic.jl", "test_static_composite_electrostatic.jl", "test_dynamic_composite_electrostatic.jl"),

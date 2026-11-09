@@ -134,10 +134,11 @@ Current work:
   Review corrected a missing canonical duration gate and missing reference
   current volume factor before publication. Independent essentials are registered;
   all new runtime/scientific/resource acceptance remains pending.
-- The next contracts cover periodic multidimensional AMR, genuine coupled error
-  control and electron-ion thermal exchange. These are read-only design tracks
-  until their source-pinned APIs/physics and exclusive owner scopes are reviewed.
-  The full CAP-001–011 end-state remains required.
+- Periodic multidimensional AMR has an approved source-pinned contract and
+  active canonical implementation, with independent essentials and guide work.
+  Genuine coupled error control and electron-ion thermal exchange remain
+  read-only proposals pending their physics/API review. The full CAP-001–011
+  end-state remains required.
 
 The full runner explicitly registers the transverse Yee reference beside the
 existing family tests. MPI multi-rank and distributed FFT primitive tests run
@@ -155,6 +156,15 @@ preserve the intervening changes. The repair and newer source still require
 exact-head remote acceptance. A manual `format-candidate` preparation now
 produces a runner-generated patch; its completion is separate from the required
 full-CI formatting check. No physics/compiler/resource gate is removed.
+
+The `5703c95` pressure-focused jobs report 5,267 passing assertions and twelve
+errors each: `test_transport_hyperresistivity.jl:172` calls
+`transport_io_public_state`, whose defining IO test was missing from that focused
+list. The repaired list follows the full runner order by including
+`test_transport_electrons_io.jl` before hyperresistivity; assertions are unchanged.
+Both focused reruns remain required. Separately, the `7ea6ae8` minimum-Julia
+group 11 reports 96 JET findings against the fixed cap of 86 and zero
+package-located findings. Source triage is active; the cap is unchanged.
 
 ## Historical implementation evidence through 2026-11-02
 
