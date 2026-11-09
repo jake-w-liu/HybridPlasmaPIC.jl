@@ -21,8 +21,7 @@ _boris_exact_factor(f::_BorisSpeciesFactors) = _exact_rational(f.q) / _exact_rat
     qm = _boris_native_factor(factor)
     isfinite(qm) || return false
     q, m = factor.q, factor.m
-    if _boris_accuracy_mode() && all(isfinite, (q, m)) &&
-       !iszero(q) && !iszero(m) && !iszero(qm)
+    if _boris_accuracy_mode() && all(isfinite, (q, m)) && !iszero(q) && !iszero(m) && !iszero(qm)
         q_fraction, q_exponent = frexp(Float64(q))
         m_fraction, m_exponent = frexp(Float64(m))
         qm_fraction, qm_exponent = frexp(Float64(qm))

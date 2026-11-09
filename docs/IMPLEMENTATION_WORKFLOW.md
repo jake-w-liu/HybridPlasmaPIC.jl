@@ -44,8 +44,8 @@ its publication record.
 | --- | --- | --- | --- |
 | Boris certificate premises | Root integrates frozen `post_devin_numeric_audit` repair | Underflow-safe original quotient equality; DD range/mode/domain and outward-distance gates; symmetric zero products | Two canonical files reviewed/adopted; compact remote regressions prepared; executable acceptance pending |
 | Dynamic composite ES | `dynamic_amr_es_implementation` | Real completed-boundary refine/coarsen, canonical charge/field reconstruction, mesh-energy exchange, physical steps and complete restart | Full contract approved; five new files implementing |
-| Implicit Yee transverse acceptance | `cuda_resume_integration` | Independent true-Yee vacuum and unequal-species cold-plasma midpoint controls | Production source audit found no confirmed defect; compact two-case oracle implementation assigned |
-| Physical-pencil model audit | `post_devin_numeric_audit` | Actual distributed ES/EM/hybrid/Maxwell evolution/phase/collective/restore audit and required repairs | Read-only canonical mapping; production scope requires root approval |
+| Implicit Yee transverse acceptance | Root adopts frozen handoff | Independent true-Yee vacuum and unequal-species cold-plasma midpoint controls | Both references source-reviewed and registered; exact-head remote acceptance pending |
+| Physical-pencil model acceptance | `post_devin_numeric_audit` | Actual charged distributed ES/EM/hybrid and nonconstant Maxwell evolution, restore and continuation controls | Complete owner audit found missing real-model CI coverage; compact lifecycle checks implementing |
 | Resident CUDA hybrid | Root holds frozen reconciled source | Complete resident D1/3V isothermal lifecycle, diagnostics and physical persistence | Nine files reconciled against current main; registration and actual NVIDIA acceptance remain open |
 | Integration and CI | Root | Source review, shared registrations, current Markdown, commits/main publication and exact-head CI | Active alongside the three independent workers |
 
@@ -69,18 +69,18 @@ field on the new mesh and records actual signed mesh-energy exchange. Prior
 physical-step history keeps its own detached mesh/epoch. Same-topology adaptation
 is a validated no-op. Root owns includes/exports/writer unions/tests/workflows.
 
-**Implicit Yee acceptance worker owns only** new
-`test/test_implicit_yee_transverse.jl` and `docs/IMPLICIT_YEE_EM.md`. Its reference
-matrices use direct cyclic incidence and original species normalization, without
-calling production residual/current/curl helpers. Root owns test registration.
-Any production finding first receives a separate ownership transfer.
+**Implicit Yee acceptance transfers to root:** new
+`test/test_implicit_yee_transverse.jl`, `docs/IMPLICIT_YEE_EM.md` and canonical
+full/focused registrations. Reference matrices use direct cyclic incidence and
+original species normalization, without production residual/current/curl helpers.
 
-**Physical-pencil audit is read-only.** It covers the actual model and checkpoint
-paths in `ext/pencil_*.jl`, not just replicated-field MPI or Fourier primitives.
-No source writer is inferred from an audit assignment; root approves precise
-canonical repair paths after a confirmed finding.
+**Physical-pencil acceptance worker owns only** new
+`test/test_distributed_models_core.jl` and `tools/ci_distributed_fft.jl` in its
+isolated worktree. Root owns workflow/docs integration. The completed audit
+covers actual model/checkpoint paths in `ext/pencil_*.jl`; any confirmed
+production defect requires explicit canonical file ownership before editing.
 
-**CUDA source is frozen for root:** `src/models/cuda_hybrid.jl`, seven files under
+**CUDA worker reviews the existing nine-file freeze:** `src/models/cuda_hybrid.jl`, seven files under
 `ext/cuda_hybrid/` (`types`, `validation`, `kernels`, `fourier`, `evolution`,
 `snapshot`, `checkpoint`) and `docs/CUDA_HYBRID.md`. Root retains extension/module,
 Project compat and shared IO registrations. The canonical Boris repair is a

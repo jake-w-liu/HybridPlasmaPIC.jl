@@ -3,9 +3,11 @@
 `ImplicitYeeEMPICStepper` is a distinct source implementation of synchronous
 nonrelativistic CPU1D3V midpoint PIC. Its orbit-averaged current and electric
 gather consume the same original rational cloud coefficients. Numerical,
-compiler, restart, conditioning and cost acceptance remain pending remote CI.
-The source implementation is not a floating-point conservation or nonlinear
-stability theorem.
+compiler and restart regressions registered at main `9b4d363` passed the
+[26-job CI run](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41813949753).
+That result covers the existing regression scope; independent transverse
+acceptance described below remains unexecuted. The source implementation is
+not a floating-point conservation or nonlinear stability theorem.
 
 ## Supported model and use
 
@@ -160,5 +162,27 @@ closed-wall schemas reject without silent migration.
 
 D2/3 compatible paths/forms, broader spacing/width/transport, bounded walls,
 collisions, relativity, schedules and distributed/device paths remain open.
-Actual order/dispersion, convergence/failure/reuse/restart, compiler/format and
-complete-step resource acceptance require exact-head remote verification.
+
+## Acceptance scope
+
+The registered `test/test_implicit_yee_em.jl` regressions cover an analytic
+longitudinal DC response, nonuniform published Ex on odd/even Float32/64 grids,
+constraint/work receipts, persistence, failure preservation, constructor guards
+and diagnostics. The green run above does not establish transverse physics:
+those cases seed longitudinal electric fields and velocities.
+
+`test/test_implicit_yee_transverse.jl` adds two independent Float32/64 references:
+a four-cell vacuum Maxwell Cayley map assembled from cyclic Yee incidence,
+including both polarizations and the true Yee Nyquist mode; and a magnetized,
+exact-neutral two-population cold-plasma DC midpoint map with unequal original
+q/m and stationary x. Their exact rational matrices use no production
+residual/curl/current helper. They compare every physical endpoint, preserve
+constant Bx and absent channels, and check the actual constraints/work receipts.
+Both references are registered in full test group1 and the `implicit-yee-em`
+focused GitHub selector. This new test source has been reviewed but has not yet
+been executed; exact-head remote CI is required before acceptance.
+
+Actual order/dispersion, nonuniform transverse transport, nonlinear conditioning
+and complete-step resource acceptance remain open. Compiler/format and all
+registered regression acceptance must be repeated on each integrated head;
+past green CI is evidence only for its recorded revision and scope.

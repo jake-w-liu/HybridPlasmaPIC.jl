@@ -14,13 +14,15 @@ struct TSC <: ShapeFunction end
 """
     YeeTriangularCloud(half_width)
 
-Optional finite physical-width triangular charge cloud for the closed 1D Yee
-charge/current/voltage operators and [`yee_longitudinal_field`](@ref). The
-positive finite Float32/Float64 half-width is retained without conversion to
-grid precision. Hold it fixed under mesh refinement. This is a separate shape
-from the default point/CIC model, with particle-bound endpoint tail support;
-it is not a periodic deposit/gather or device shape. See the bounded-particle
-contract for its distinct wall response and remaining coupled-model work.
+Finite physical-width triangular charge cloud for the closed 1D Yee
+charge/current/voltage operators, [`yee_longitudinal_field`](@ref), and the
+compatible-periodic CPU [`ImplicitYeeEMPICStepper`](@ref). The positive finite
+Float32/Float64 half-width is retained without conversion to grid precision.
+Hold it fixed under mesh refinement. Closed-wall coupling retains particle-bound
+endpoint tails; the compatible-periodic model supplies its own periodization.
+This shape is separate from the default point/CIC model and is not supported by
+the collocated periodic deposit/gather or device APIs. See the bounded-particle
+and compatible-periodic model contracts for their distinct admitted domains.
 """
 struct YeeTriangularCloud{T<:Union{Float32,Float64}}
     half_width::T

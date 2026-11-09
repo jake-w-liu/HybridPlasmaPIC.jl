@@ -67,17 +67,22 @@ Current work:
 - Implement completed-boundary dynamic composite ES regridding, canonical
   charge/field reconstruction, explicit mesh-energy exchange and full restart.
   The approved bounded 1D contract leaves multidimensional/hybrid/EM AMR open.
-- Independently audit current compatible implicit Yee EM and add two small
-  transverse vacuum/cold-plasma checks missing from its earlier controls.
+- Compatible implicit Yee EM source audit found no confirmed production defect
+  in its reviewed scope. Two independent transverse vacuum/cold-plasma oracles
+  are source-reviewed and registered; exact-revision remote execution is pending.
+- Real physical-pencil ES/EM/hybrid/Maxwell evolution and checkpoint owners were
+  read. Existing MPI CI covers primitives, not those actual model lifecycles;
+  compact charged evolution/restore/continuation controls are being implemented.
 - The resident CUDA family is reconciled against current main and remains a
   separate candidate. Actual NVIDIA compiler, numerical, rollback and cost
   acceptance are open. This repository currently has no self-hosted runner
   listed by its Actions API; that does not establish hardware unavailability
   elsewhere.
 
-The source/test graph has 197 directly registered test files and 273 literal
-reachable test files. MPI multi-rank tests run separately in the workflow.
-This is registration evidence, not an assertion-coverage proof. Scientific,
+The full runner explicitly registers the transverse Yee reference beside the
+existing family tests. MPI multi-rank and distributed FFT primitive tests run
+separately in the workflow; actual-pencil model coverage is being added.
+Registration alone is not an assertion-coverage proof. Scientific,
 independent-code, refinement, boundary/geometry/composition and measured resource
 work remain governed by the capability plans.
 

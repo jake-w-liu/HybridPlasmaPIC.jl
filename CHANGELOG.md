@@ -11,6 +11,11 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Added
 
+- Independent compatible-Yee transverse references compare Float32/64 vacuum
+  Maxwell updates, including the true Yee Nyquist mode, and magnetized unequal-q/m
+  cold-plasma midpoint updates against exact rational Cayley maps. They are
+  registered in the full suite and focused GitHub checks; execution is pending.
+
 - `ImplicitYeeEMPICStepper` adds a separate synchronous CPU 1D3V all-mobile,
   exact-neutral periodic Yee cloud midpoint Vlasov–Maxwell family on exactly
   tiled periodic grids. Every trial rebuilds exact endpoint transport, charge
