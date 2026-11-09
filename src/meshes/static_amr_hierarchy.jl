@@ -13,6 +13,32 @@ struct _StaticAMRPatch1D
     leaf_first::Vector{Int}
     leaf_last::Vector{Int}
     nodes::Vector{Int}
+
+    function _StaticAMRPatch1D(
+        parent::Int,
+        level::Int,
+        first::Int,
+        ncell::Int,
+        valid::AbstractVector{Bool},
+        covered::AbstractVector{Bool},
+        leaf_index::Vector{Int},
+        leaf_first::Vector{Int},
+        leaf_last::Vector{Int},
+        nodes::Vector{Int},
+    )
+        return new(
+            parent,
+            level,
+            first,
+            ncell,
+            Vector{Bool}(valid),
+            Vector{Bool}(covered),
+            leaf_index,
+            leaf_first,
+            leaf_last,
+            nodes,
+        )
+    end
 end
 
 struct StaticAMRHierarchy1D{T<:Union{Float32,Float64},S<:Tuple}

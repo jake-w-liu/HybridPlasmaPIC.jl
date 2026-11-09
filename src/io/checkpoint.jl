@@ -254,8 +254,9 @@ function _validate_checkpoint_fields(saved, fields::NamedTuple)
 end
 
 function _restore_checkpoint_fields!(fields::NamedTuple, saved::NamedTuple)
-    saved_fields = NamedTuple{keys(fields)}(saved)
-    map(values(fields), values(saved_fields)) do destination, source
+    keys(fields) == keys(saved) ||
+        throw(ArgumentError("checkpoint field keys must match the destination"))
+    for (destination, source) in zip(values(fields), values(saved))
         if destination isa Tuple
             map(copyto!, destination, source)
         else
