@@ -1,9 +1,12 @@
 # Dynamic composite electrostatic PIC
 
-This source candidate adds completed-boundary mesh adaptation to the existing
-CPU 1D physical-cloud electrostatic solver. It has not been run through Julia,
-compiler, formatter or numerical tests locally; exact-revision GitHub acceptance
-and scientific/resource validation remain open. It does not complete D2/3,
+This family adds completed-boundary mesh adaptation to the existing CPU 1D
+physical-cloud electrostatic solver. At `16321a9`, the minimum/latest
+[focused GitHub run](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42553061121)
+passes 136 assertions per job, including 76 dynamic refine/step/coarsen,
+accounting/history/rejection and raw/archive continuation checks on Julia
+1.12.7 and 1.13.3. Both raw logs were checked. Full integrated CI and broader
+scientific/resource validation remain open. It does not complete D2/3,
 hybrid/EM, distributed/device or subcycled AMR.
 
 ## Construct and evolve
@@ -41,8 +44,8 @@ bounds. The first positive converted duration fixes all subsequent duration
 bits. Choose it for the finest planned hierarchy: refinement can tighten the
 canonical next-step rest-mode bound, and regridding does not relax that guard or
 silently change the fixed duration. Signed-zero steps validate the ready state
-and advance nothing. A nonzero
-original duration disappearing during conversion rejects. Nearest rounding and
+and advance nothing. A nonzero original duration disappearing during conversion
+rejects. Nearest rounding and
 gradual underflow are required. Species use ordinary Float32/64 `ParticleSet`
 vectors; signed q, positive m, nonnegative number weights, empty rows and tracers
 retain the static model's meaning and restrictions.

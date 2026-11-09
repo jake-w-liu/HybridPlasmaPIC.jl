@@ -12,13 +12,19 @@ CPU `push_uniform!`, `push_gathered!`, and nonrelativistic hybrid, electrostatic
 and electromagnetic model kick owners retain the original stored charge and
 mass in an immutable carrier constructed once per population call. Their
 native trial still uses the historical rounded quotient and operation order.
-Both scalar and batch admission require the range guard and a sufficient
-48-operation error bound. A failed certificate requests exact replay of the
-same expression with the original factors. Exact comparison retains valid
-native bits; unresolved output is rounded once. Aliased particle components
-cannot bypass the per-particle guard through a batch certificate.
+Scalar and batch admission first use the range guard and a sufficient
+48-operation error bound. A scalar native result that remains in range can also
+be certified by replaying the same expression in double-double balls, including
+original q/m division and the complete low-word/radius distance. This tier uses
+nearest/gradual mode, admitted operands and valid squared-norm scale bounds;
+it does not replace an out-of-range native result. If neither certificate
+succeeds, exact replay compares the same expression with the original factors.
+Valid native bits remain; unresolved output rounds once. Aliased particle
+components cannot bypass the per-particle guard through a batch certificate.
 
 The sufficient certificates require nearest rounding and gradual underflow.
+Original-quotient equality uses a normalized FMA residual, so underflow of a raw
+product residual cannot incorrectly remove quotient-rounding uncertainty.
 Other arithmetic modes use the exact cold path and the shared IEEE conversion
 owners. Native-retention comparisons also extract the stored IEEE bits through
 that shared owner. Generic arithmetic keeps its historical variadic sum;
@@ -94,6 +100,17 @@ storage condition shares the Euler predicate and adds no persistent state.
 The essential public regression distinguishes uniform batch kick-then-drift
 ordering from gathered per-particle kick/drift ordering using exact dyadics.
 Its execution and performance checks remain pending on GitHub.
+
+## Checked execution and remaining gates
+
+At `a15be1c`, [focused run 42551085835](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42551085835)
+passes 6,142 assertions per job on actual Julia 1.12.7 and 1.13.3. Both complete
+raw logs were checked against that head. This includes all 21 new quotient-
+residual, native-range, DD-domain/low-word, arithmetic-mode and symmetric-zero
+boundary assertions, plus existing original-factor and relativistic continuation
+controls. The runner's one-line formatting correction is applied at `62f985f`;
+its formatting job passes. Full integrated CI, broader physical accuracy and
+complete public compiler/resource gates remain distinct requirements.
 
 Implementation tracker:
 

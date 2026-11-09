@@ -725,9 +725,10 @@ canonical static physical epochs. It preserves particles and global fixed-dt
 phase, reconstructs the constrained new-mesh field, records actual signed mesh
 energy exchange, and retains preceding physical-step history on its own mesh.
 Distinct complete raw/archive persistence supports changed topology/counts and
-stale destination values. Source/caller/phase/IO review is complete; essential
-independent regrid/Verlet/accounting/history/restart checks are registered but
-unexecuted. Exact-head GitHub and scientific/resource acceptance remain open.
+stale destination values. Source/caller/phase/IO review is complete; independent
+regrid/Verlet/accounting/history/restart controls pass both minimum/latest jobs
+at `16321a9` ([run 42553061121](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42553061121)).
+Full integrated CI and broader scientific/resource acceptance remain open.
 The bounded 1D source does not close the broader hierarchy requirements below.
 
 - [ ] Add an owned hierarchy of patches, valid/ghost regions, refinement ratios,

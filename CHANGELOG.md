@@ -15,19 +15,21 @@ records scoped verification and remaining exact-revision acceptance gates.
   checks cover charged nonuniform evolution, rank ownership, one-rank rejection,
   complete matching-layout restart and variable-step continuation. Independent
   CIC density and Maxwell KDK references supplement full carried-state checks.
-  Minimum/latest Julia two-rank GitHub execution is registered and pending.
+  Minimum/latest Julia two-rank GitHub acceptance remains pending.
 
 - `DynamicCompositeElectrostaticPIC` adds completed-boundary 1D CPU refine/coarsen
   and base-field curvature adaptation over canonical physical-cloud Neumann/KDK
   epochs. Regrids preserve particles/global phase and record actual mesh-energy
   exchange. Diagnostics and distinct complete topology-aware checkpoint/archive
   persistence retain the prior physical step on its own mesh. Source is reviewed;
-  registered independent regrid/Verlet/history/continuation controls await GitHub.
+  independent regrid/Verlet/history/continuation controls pass minimum/latest
+  scoped run 42553061121; full integrated CI remains required.
 
 - Independent compatible-Yee transverse references compare Float32/64 vacuum
   Maxwell updates, including the true Yee Nyquist mode, and magnetized unequal-q/m
   cold-plasma midpoint updates against exact rational Cayley maps. They are
-  registered in the full suite and focused GitHub checks; execution is pending.
+  registered in the full suite and pass focused minimum/latest run 42552199520;
+  full integrated CI remains required.
 
 - `ImplicitYeeEMPICStepper` adds a separate synchronous CPU 1D3V all-mobile,
   exact-neutral periodic Yee cloud midpoint Vlasov–Maxwell family on exactly

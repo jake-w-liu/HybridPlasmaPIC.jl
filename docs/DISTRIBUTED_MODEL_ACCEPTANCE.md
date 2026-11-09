@@ -2,8 +2,13 @@
 
 The actual rank-owned models have a separate lifecycle gate from the replicated
 MPI reference and distributed FFT/operator/metadata tests. Source review and
-registration are complete; the new lifecycle checks have not yet executed.
-No convergence, scaling, compiler-resource or device result follows from them.
+registration are complete. The first latest-Julia2-rank run at `38d1cd1` passes
+3,728/3,725 charged ES/EM/hybrid assertions per rank. Maxwell's mode controls run,
+then its continuation helper fails on `copy(::Tuple{})` for the empty particle
+collection ([job log](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42556458252/job/128963184546)).
+The helper now collects population references for both tuples and vectors;
+complete minimum/latest acceptance requires a successful rerun. No convergence,
+scaling, compiler-resource or device result follows from these controls.
 
 `test/test_distributed_models_core.jl` constructs real charged electrostatic,
 electromagnetic and isothermal hybrid models on physical PencilArrays, plus

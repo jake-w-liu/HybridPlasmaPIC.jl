@@ -10,11 +10,7 @@ function _pencil_charged_species(comm)
         p = 0
         for k = 0:3, j = 0:3, i = 0:3
             p += 1
-            ps.x[1][p], ps.x[2][p], ps.x[3][p] = (
-                (i + 7 / 8) / 4,
-                (j + 7 / 8) / 4,
-                (k + 7 / 8) / 4,
-            )
+            ps.x[1][p], ps.x[2][p], ps.x[3][p] = ((i + 7 / 8) / 4, (j + 7 / 8) / 4, (k + 7 / 8) / 4)
             for c = 1:3
                 ps.v[c][p] = 2
             end
@@ -123,7 +119,7 @@ Base.@nospecializeinfer function _pencil_checkpoint_continuation(
     comm,
 )
     saved = _pencil_boundary(fields, species, phase, caches)
-    owners, parents = copy(species), map(parent, fields)
+    owners, parents = collect(species), map(parent, fields)
     directory = MPI.bcast(MPI.Comm_rank(comm) == 0 ? mktempdir() : "", 0, comm)
     try
         manifest = save_mpi_checkpoint(directory, model)

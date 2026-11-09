@@ -4,12 +4,19 @@ using HybridPlasmaPIC
 # Immutable reports contain BigInts; compare their fields by numeric value.
 function _dynamic_composite_snapshot(st, species)
     s = HybridPlasmaPIC._checkpoint_state(st, species)
-    values(r) = r === nothing ? nothing :
+    values(r) =
+        r === nothing ? nothing :
         NamedTuple{fieldnames(typeof(r))}(ntuple(i -> getfield(r, i), fieldcount(typeof(r))))
     epoch(e) = merge(e, (last_report = values(e.last_report),))
     history = s.history === nothing ? nothing : merge(s.history, (state = epoch(s.history.state),))
-    return merge(s, (current = epoch(s.current), history = history,
-        last_regrid_report = values(s.last_regrid_report)))
+    return merge(
+        s,
+        (
+            current = epoch(s.current),
+            history = history,
+            last_regrid_report = values(s.last_regrid_report),
+        ),
+    )
 end
 
 @testset "Dynamic composite electrostatic essentials" begin
@@ -21,8 +28,11 @@ end
             p = ParticleSet{1,T}(1)
             p.x[1][1], p.v[1][1] = T(7 / 2), T(3)
             species = [p, ParticleSet{1,T}(0)]
-            st = DynamicCompositeElectrostaticPIC(base, species;
-                shape = YeeTriangularCloud(T(1 / 4)))
+            st = DynamicCompositeElectrostaticPIC(
+                base,
+                species;
+                shape = YeeTriangularCloud(T(1 / 4)),
+            )
             init!(st, species)
             @test st.E == T[0, 1/4, 1, 1]
             @test st.phi == T[0, 0, -1/2, -5/2, -9/2]
@@ -46,12 +56,17 @@ end
             step!(st, species, h)
             # Exact KDK: vhalf=49/16, x1=273/64, endpoint field=111/128.
             @test p.x[1][1] == T(273 / 64) && p.v[1][1] == T(3247 / 1024)
-            @test all(pair -> pair[1] === pair[2], zip(leaves, (p.x[1], p.v..., p.weight, p.id, p.tag)))
+            @test all(
+                pair -> pair[1] === pair[2],
+                zip(leaves, (p.x[1], p.v..., p.weight, p.id, p.tag)),
+            )
             regrid!(st, species, base)
             @test st.step == 1 && st.time == h && st._state.step[] == 0
             @test st.E == T[0, 0, 111/128, 1]
             d = composite_electrostatic_diagnostics(st, species)
-            @test iszero(d.accounting_defect) && d.particle_charge == 1 && d.right_plate_charge == -1
+            @test iszero(d.accounting_defect) &&
+                  d.particle_charge == 1 &&
+                  d.right_plate_charge == -1
             @test d.last_physical_step.state.configuration.refinements == fine.refinements
             @test d.last_physical_step.global_step == 1 && d.last_physical_step.state.step == 1
             # Repeated regrid with no physical step retains the preceding OLD mesh history.
@@ -70,14 +85,18 @@ end
             @test_throws ArgumentError H._restore_checkpoint_state!(st, species, aliased)
             @test isequal(_dynamic_composite_snapshot(st, species), saved)
             mktempdir() do directory
-                checkpoint, archive = joinpath(directory, "dynamic.chk"), joinpath(directory, "dynamic.run")
+                checkpoint, archive =
+                    joinpath(directory, "dynamic.chk"), joinpath(directory, "dynamic.run")
                 save_checkpoint(checkpoint, st, species)
                 archive_run(archive, st, species; rng_seed = 0)
                 # A different topology/count and stale old values must be replaced, not reinitialized.
                 other = [ParticleSet{1,T}(2), ParticleSet{1,T}(0)]
                 other[1].x[1] .= T.((1, 2))
-                destination = DynamicCompositeElectrostaticPIC(base, other;
-                    shape = YeeTriangularCloud(T(1 / 4)))
+                destination = DynamicCompositeElectrostaticPIC(
+                    base,
+                    other;
+                    shape = YeeTriangularCloud(T(1 / 4)),
+                )
                 init!(destination, other)
                 other[1].x[1] .= T(NaN)
                 other[1].weight .= T(NaN)
@@ -102,8 +121,8 @@ end
             # Independent curvature rule on a base field: both interior cells tag.
             tagged = [ParticleSet{1,T}(1)]
             tagged[1].x[1][1] = T(7 / 2)
-            adaptive = DynamicCompositeElectrostaticPIC(base, tagged;
-                shape = YeeTriangularCloud(T(1 / 4)))
+            adaptive =
+                DynamicCompositeElectrostaticPIC(base, tagged; shape = YeeTriangularCloud(T(1 / 4)))
             init!(adaptive, tagged)
             adapt!(adaptive, tagged; threshold = T(1 / 4), buffer = 0)
             @test adaptive.mesh.refinements == ((1, 2, 3),)

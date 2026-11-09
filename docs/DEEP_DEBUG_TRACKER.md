@@ -60,24 +60,33 @@ tag target and complete release notes were read back. HPIC requires 0.1.9.
 
 Current work:
 
-- Repair canonical Boris certificate premises found by fresh source audit:
-  quotient residual underflow, DD range/mode/domain admission, full low-word
-  distance and symmetric exact-zero products. No tolerance is relaxed; new
-  executable acceptance is pending.
+- Canonical Boris certificate premises are repaired: quotient residual
+  underflow, DD range/mode/domain admission, full low-word distance and symmetric
+  exact-zero products. No tolerance is relaxed. Both minimum/latest focused jobs
+  pass at `a15be1c`: 6,142 assertions each, including all 21 new boundary checks;
+  full integrated compiler/CI/resource acceptance remains required.
 - Completed-boundary [dynamic composite ES](DYNAMIC_COMPOSITE_ELECTROSTATIC.md)
   is source-implemented and integrated: canonical field reconstruction, physical
   steps, actual mesh-energy exchange, old-mesh history and complete restart.
-  Root read the full five-file family/callers and added compact independent
-  controls; exact-head remote execution remains pending. Multidimensional,
-  hybrid/EM, subcycled and backend AMR remain open.
+  Root read the full five-file family/callers. Both minimum/latest focused jobs
+  pass at `16321a9`: 136 assertions each, including 76 new dynamic controls.
+  Full integrated CI and broader scientific/resource acceptance remain open.
+  Multidimensional, hybrid/EM, subcycled and backend AMR remain open.
 - Compatible implicit Yee EM source audit found no confirmed production defect
   in its reviewed scope. Two independent transverse vacuum/cold-plasma oracles
-  are source-reviewed and registered; exact-revision remote execution is pending.
+  pass both minimum/latest focused jobs at `62f985f`: 366 assertions each,
+  including 38 new transverse checks. Full integrated CI remains required.
+  Fresh source/algebra review qualifies published Ex accuracy: its physical
+  Ampere residual also contains continuity, old-Gauss and final-store primitives;
+  solver convergence alone does not bound it by the nonlinear tolerance. The
+  guide now states this actual contract; no production gate was changed.
 - Real physical-pencil ES/EM/hybrid/Maxwell evolution and checkpoint owners were
   read. Existing MPI CI covers primitives, not those actual model lifecycles;
   [compact charged lifecycle controls](DISTRIBUTED_MODEL_ACCEPTANCE.md) are now
-  registered on actual2 ranks for minimum/latest Julia. New execution remains
-  pending; primitive MPI success is not relabeled as physical-model acceptance.
+  registered on actual 2 ranks for minimum/latest Julia. The first latest gate
+  passes the charged models, then stops in Maxwell's empty-collection test helper.
+  That helper is corrected; complete remote acceptance requires a successful
+  rerun. Primitive MPI success is not relabeled as physical-model acceptance.
 - The resident CUDA family is reconciled against current main and remains a
   separate candidate. Actual NVIDIA compiler, numerical, rollback and cost
   acceptance are open. This repository currently has no self-hosted runner
