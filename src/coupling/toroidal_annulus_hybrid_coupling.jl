@@ -9,7 +9,7 @@ function _tah_particle_storage(p, ::Type{T}) where {T}
 end
 
 function _tah_independent(arrays)
-    for i in eachindex(arrays), j in 1:(i - 1)
+    for i in eachindex(arrays), j = 1:(i-1)
         _particle_arrays_mightalias(arrays[i], arrays[j]) &&
             throw(ArgumentError("annular public/private/source/geometry roles overlap"))
     end
@@ -23,23 +23,34 @@ function _tah_clone_species(species, ::Type{T}) where {T}
 end
 
 function _tah_particle_values(p, mesh)
-    isfinite(p.q) && p.q > 0 && isfinite(p.m) && p.m > 0 &&
+    isfinite(p.q) &&
+        p.q > 0 &&
+        isfinite(p.m) &&
+        p.m > 0 &&
         all(w -> isfinite(w) && w >= 0, p.weight) &&
-        all(a -> all(isfinite, a), (p.x..., p.v...)) ||
-        throw(ArgumentError("annular particles require finite phase space, positive q/m and nonnegative weights"))
+        all(a -> all(isfinite, a), (p.x..., p.v...)) || throw(
+        ArgumentError(
+            "annular particles require finite phase space, positive q/m and nonnegative weights",
+        ),
+    )
     all(x -> 0 <= x <= mesh.L[1], p.x[1]) ||
         throw(ArgumentError("annular particle stage leaves its admitted radial interval"))
     return nothing
 end
 
-function _particle_cell_position(p::ParticleSet{3,T}, mesh::ToroidalAnnulusGrid{T},
-    d::Int, marker::Int) where {T}
+function _particle_cell_position(
+    p::ParticleSet{3,T},
+    mesh::ToroidalAnnulusGrid{T},
+    d::Int,
+    marker::Int,
+) where {T}
     x = p.x[d][marker]
     isfinite(x) && (d != 1 || 0 <= x <= mesh.L[1]) ||
         throw(ArgumentError("annular CIC coordinate is outside its logical domain"))
-    coordinate = d == 1 ? x / mesh.dx[d] :
-        _periodic_cell_position(x, mesh.L[d], mesh.dx[d])
-    isfinite(coordinate) && _exact_rational(typemin(Int)) <= _exact_rational(coordinate) <=
+    coordinate = d == 1 ? x / mesh.dx[d] : _periodic_cell_position(x, mesh.L[d], mesh.dx[d])
+    isfinite(coordinate) &&
+        _exact_rational(typemin(Int)) <=
+        _exact_rational(coordinate) <=
         _exact_rational(typemax(Int) - 2) ||
         throw(ArgumentError("annular CIC coordinate is not safely Int-convertible"))
     return coordinate
@@ -50,10 +61,16 @@ function _tah_moments!(st, species)
     foreach(a -> fill!(a, zero(_CompositeQ)), sums)
     Q = _exact_rational
     for p in species
-        _foreach_exact_particle_contribution(p, (p.weight,), mesh, CIC(), Val(:fold_x)) do index, value, marker
+        _foreach_exact_particle_contribution(
+            p,
+            (p.weight,),
+            mesh,
+            CIC(),
+            Val(:fold_x),
+        ) do index, value, marker
             charge = Q(p.q) * value
             sums[1][index...] += charge
-            for c in 1:3
+            for c = 1:3
                 sums[c+1][index...] += charge * Q(p.v[c][marker])
             end
         end
@@ -61,10 +78,13 @@ function _tah_moments!(st, species)
     T = eltype(f.n)
     for I in CartesianIndices(f.n)
         volume = _tah_volume(mesh, I)
-        f.n[I] = _tah_round(T, sums[1][I] / volume, "annular actual density"; preserve_nonzero = true)
-        f.n[I] > 0 || throw(ArgumentError("annular actual density must be positive; no floor is supplied"))
-        f.ninv[I] = _tah_round(T, inv(Q(f.n[I])), "annular reciprocal density"; preserve_nonzero = true)
-        for c in 1:3
+        f.n[I] =
+            _tah_round(T, sums[1][I] / volume, "annular actual density"; preserve_nonzero = true)
+        f.n[I] > 0 ||
+            throw(ArgumentError("annular actual density must be positive; no floor is supplied"))
+        f.ninv[I] =
+            _tah_round(T, inv(Q(f.n[I])), "annular reciprocal density"; preserve_nonzero = true)
+        for c = 1:3
             f.Ji[c][I] = _tah_round(T, sums[c+1][I] / volume, "annular ion current")
             f.ui[c][I] = _tah_round(T, Q(f.Ji[c][I]) / Q(f.n[I]), "annular ion velocity")
         end

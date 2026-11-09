@@ -994,9 +994,8 @@ function _bpressure_rhs!(
             conduction_work = w.conduction,
         )
     else
-        active, derivative_risk = _prepare_scalar_pressure_rhs!(
-            outp, ptrial, w.ue, f.gradp, w.divue, f.J, γ, η, g,
-        )
+        active, derivative_risk =
+            _prepare_scalar_pressure_rhs!(outp, ptrial, w.ue, f.gradp, w.divue, f.J, γ, η, g)
         _add_transport_stage_sources!(st, outp)
         _complete_scalar_pressure_if_needed!(
             outp,

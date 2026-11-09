@@ -3,19 +3,21 @@ using HybridPlasmaPIC, Test, Serialization
 const H = HybridPlasmaPIC
 const Q = Rational{BigInt}
 
-record_values(r) = NamedTuple{fieldnames(typeof(r))}(
-    ntuple(i -> getfield(r, i), fieldcount(typeof(r))),
-)
+record_values(r) =
+    NamedTuple{fieldnames(typeof(r))}(ntuple(i -> getfield(r, i), fieldcount(typeof(r))))
 report_values(::Nothing) = nothing
 report_values(r::ImplicitHybridSolveReport) = record_values(r)
-report_values(r::NamedTuple) = (solver = record_values(r.solver), pressure = record_values(r.pressure))
+report_values(r::NamedTuple) =
+    (solver = record_values(r.solver), pressure = record_values(r.pressure))
 
 function snapshot(st, species)
     return deepcopy((
         fields = H._hybrid_field_state(st.fields),
         floor = st.fields.floor_count[],
-        populations = [(x = ps.x, v = ps.v, weight = ps.weight, id = ps.id,
-            tag = ps.tag, q = ps.q, m = ps.m) for ps in species],
+        populations = [
+            (x = ps.x, v = ps.v, weight = ps.weight, id = ps.id, tag = ps.tag, q = ps.q, m = ps.m)
+            for ps in species
+        ],
         counts = st._population_counts,
         phase = (st.initialized[], st.time[], st.step[], st.last_dt[]),
         report = report_values(st.last_report),
@@ -24,8 +26,10 @@ end
 
 function fixture(::Type{T}, ::Val{D}; cold = false, gamma = T(2), kwargs...) where {T,D}
     g = FourierGrid(ntuple(_ -> 4, D), ntuple(_ -> T(4), D))
-    species = [ParticleSet{D,T}(prod(g.n); q = one(T), m = T(2)),
-        ParticleSet{D,T}(prod(g.n); q = T(2), m = T(5))]
+    species = [
+        ParticleSet{D,T}(prod(g.n); q = one(T), m = T(2)),
+        ParticleSet{D,T}(prod(g.n); q = T(2), m = T(5)),
+    ]
     sine, cosine = T[0, 1, 0, -1], T[1, 0, -1, 0]
     for (s, ps) in enumerate(species), (p, I) in enumerate(CartesianIndices(g.n))
         for d = 1:D
@@ -38,8 +42,8 @@ function fixture(::Type{T}, ::Val{D}; cold = false, gamma = T(2), kwargs...) whe
     end
     st = ImplicitHybridStepper(g, HybridModel(EvolvingElectrons(gamma)), CIC(), species; kwargs...)
     for I in CartesianIndices(g.n)
-        st.fields.pe[I] = cold ? zero(T) :
-            one(T) + sum((cosine[I[d]] + sine[I[d]] / 2) / T(32d) for d = 1:D)
+        st.fields.pe[I] =
+            cold ? zero(T) : one(T) + sum((cosine[I[d]] + sine[I[d]] / 2) / T(32d) for d = 1:D)
         st.fields.B[1][I] = D == 1 ? T(1 / 4) : sine[I[2]] / 16
         st.fields.B[2][I] = D == 3 ? sine[I[3]] / 16 : cosine[I[1]] / 16
         st.fields.B[3][I] = T(1 / 2) + sine[I[1]] / 16
@@ -60,7 +64,8 @@ function pressure_reference(st::ImplicitHybridStepper{D,T}) where {D,T}
     w, g = st.work, st.g
     reference = zeros(Q, g.n)
     for I in CartesianIndices(g.n)
-        advection = sum(Q(w.electron_velocity[d][I]) * derivative4(w.midpoint.pe, I, d, g) for d = 1:D)
+        advection =
+            sum(Q(w.electron_velocity[d][I]) * derivative4(w.midpoint.pe, I, d, g) for d = 1:D)
         divergence = sum(derivative4(w.electron_velocity[d], I, d, g) for d = 1:D)
         reference[I] = -advection - Q(T(st.model.closure.γ)) * Q(w.midpoint.pe[I]) * divergence
     end
@@ -87,25 +92,37 @@ end
         @test any(c -> !isequal(old_B[c], st.fields.B[c]), 1:3)
         @test any(s -> !isequal(old_v[s], species[s].v), eachindex(species))
         @test all(x -> x >= zero(T), st.fields.pe)
-        @test all(i -> arrays[i] === H._implicit_hybrid_field_arrays(st.fields)[i], eachindex(arrays))
+        @test all(
+            i -> arrays[i] === H._implicit_hybrid_field_arrays(st.fields)[i],
+            eachindex(arrays),
+        )
         @test all(s -> species[s] === owners[s], eachindex(species))
         reference = pressure_reference(st)
         # Engineering budget for the small represented FFT vs exact four-row
         # matrix; the nonlinear residual bound below is a separate exact gate.
         budget = Q(256) * Q(eps(T)) * (1 + maximum(abs, reference))
         @test maximum(abs, Q.(w.pressure_rate) - reference) <= budget
-        independent_row = (Q.(st.fields.pe) - Q.(w.old.pe) - Q(h) * reference) ./ Q(w.pressure_scale)
-        @test maximum(abs, independent_row) <= Q(r.solver.tolerance) + Q(h) * budget / Q(w.pressure_scale)
+        independent_row =
+            (Q.(st.fields.pe) - Q.(w.old.pe) - Q(h) * reference) ./ Q(w.pressure_scale)
+        @test maximum(abs, independent_row) <=
+              Q(r.solver.tolerance) + Q(h) * budget / Q(w.pressure_scale)
         for d = 1:D
-            @test any(I -> !iszero(derivative4(w.midpoint.pe, I, d, st.g)), CartesianIndices(st.g.n))
+            @test any(
+                I -> !iszero(derivative4(w.midpoint.pe, I, d, st.g)),
+                CartesianIndices(st.g.n),
+            )
         end
         p = r.pressure
         @test p.delta_electron - p.pressure_rate_work == p.pressure_residual_energy
-        @test p.energy_change == p.delta_kinetic + p.delta_magnetic + p.delta_electron == sum(p.defects)
+        @test p.energy_change ==
+              p.delta_kinetic + p.delta_magnetic + p.delta_electron ==
+              sum(p.defects)
         diagnostics = implicit_hybrid_diagnostics(st, species)
         @test diagnostics.phase === :synchronous_integer
-        @test isequal(diagnostics.energy.electron_internal,
-            electron_internal_energy(st.fields.n, st.model.closure, st.g; pe = st.fields.pe))
+        @test isequal(
+            diagnostics.energy.electron_internal,
+            electron_internal_energy(st.fields.n, st.model.closure, st.g; pe = st.fields.pe),
+        )
         before, report = snapshot(st, species), st.last_report
         step!(st, species, zero(T))
         @test isequal(snapshot(st, species), before) && st.last_report === report
@@ -121,7 +138,8 @@ end
     z, out = copy(w.z), similar(w.z)
     nv, cells = 3sum(nparticles, species), length(st.fields.n)
     H._implicit_hybrid_residual!(out, st, z)
-    base_velocity, base_E, base_pressure = copy(out[1:nv]), map(copy, w.midpoint.E), copy(w.pressure_rate)
+    base_velocity, base_E, base_pressure =
+        copy(out[1:nv]), map(copy, w.midpoint.E), copy(w.pressure_rate)
     trial = copy(z)
     trial[nv+3cells+1] += 1 / 16
     H._implicit_hybrid_residual!(out, st, trial)
@@ -183,8 +201,12 @@ end
     end
     grid = FourierGrid((4,), (Float32(4),))
     particles = [ParticleSet{1,Float32}(0)]
-    @test_throws ArgumentError ImplicitHybridStepper(grid,
-        HybridModel(EvolvingElectrons(nextfloat(1.0))), CIC(), particles)
+    @test_throws ArgumentError ImplicitHybridStepper(
+        grid,
+        HybridModel(EvolvingElectrons(nextfloat(1.0))),
+        CIC(),
+        particles,
+    )
 end
 
 @testset "Schema2 complete checkpoint/archive and variable-step continuation" begin
@@ -200,7 +222,8 @@ end
         step!(st, species, T(1 / 64))
         step!(st, species, T(1 / 128))
         mktempdir() do directory
-            checkpoint, archive = joinpath(directory, "pressure.chk"), joinpath(directory, "pressure.run")
+            checkpoint, archive =
+                joinpath(directory, "pressure.chk"), joinpath(directory, "pressure.run")
             save_checkpoint(checkpoint, st, species)
             saved = deserialize(checkpoint)
             @test saved.schema === 2 && saved.integrator === :implicit_hybrid_midpoint
@@ -212,7 +235,12 @@ end
                 @test T(other_gamma) == T(gamma) && Q(other_gamma) != Q(gamma)
             end
             dest_species = [ParticleSet{1,T}(0; q = ps.q, m = ps.m) for ps in species]
-            restored = ImplicitHybridStepper(FourierGrid(st.g.n, st.g.L), deepcopy(st.model), CIC(), dest_species)
+            restored = ImplicitHybridStepper(
+                FourierGrid(st.g.n, st.g.L),
+                deepcopy(st.model),
+                CIC(),
+                dest_species,
+            )
             for a in H._implicit_hybrid_field_arrays(restored.fields)
                 fill!(a, T(NaN))
             end
@@ -231,8 +259,12 @@ end
             @test isequal(snapshot(restored, dest_species), snapshot(st, species))
             if T === Float64
                 mismatch_species = [ParticleSet{1,T}(0; q = ps.q, m = ps.m) for ps in species]
-                mismatch = ImplicitHybridStepper(FourierGrid(st.g.n, st.g.L),
-                    HybridModel(EvolvingElectrons(other_gamma)), CIC(), mismatch_species)
+                mismatch = ImplicitHybridStepper(
+                    FourierGrid(st.g.n, st.g.L),
+                    HybridModel(EvolvingElectrons(other_gamma)),
+                    CIC(),
+                    mismatch_species,
+                )
                 before = snapshot(mismatch, mismatch_species)
                 @test_throws ArgumentError load_checkpoint!(mismatch, mismatch_species, checkpoint)
                 @test isequal(snapshot(mismatch, mismatch_species), before)
@@ -247,15 +279,20 @@ end
             bad_pressure = deepcopy(saved)
             bad_pressure.fields.pe[1] = -one(T)
             values = record_values(saved.last_report.pressure)
-            bad_receipt = typeof(saved.last_report.pressure)(Base.values(merge(values,
-                (energy_change = values.energy_change + Q(1),)))...)
+            bad_receipt = typeof(saved.last_report.pressure)(
+                Base.values(merge(values, (energy_change = values.energy_change + Q(1),)))...,
+            )
             bad_report = merge(saved.last_report, (pressure = bad_receipt,))
-            for bad in (merge(saved, (schema = 1,)), bad_pressure,
-                merge(saved, (last_report = bad_report,)))
+            for bad in (
+                merge(saved, (schema = 1,)),
+                bad_pressure,
+                merge(saved, (last_report = bad_report,)),
+            )
                 serialize(checkpoint, bad)
                 before, report = snapshot(restored, dest_species), restored.last_report
                 @test_throws ArgumentError load_checkpoint!(restored, dest_species, checkpoint)
-                @test isequal(snapshot(restored, dest_species), before) && restored.last_report === report
+                @test isequal(snapshot(restored, dest_species), before) &&
+                      restored.last_report === report
             end
         end
     end

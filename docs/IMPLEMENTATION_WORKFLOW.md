@@ -24,6 +24,13 @@ exclusive file writers and handoffs.
 6. Record source implementation, source review, CI, scientific and resource
    acceptance separately. Real backend claims require the actual device/ranks.
 
+After a source handoff, dispatch `Implementation essentials` with
+`suite=format-candidate` to prepare the exact formatter patch on GitHub. The
+job runs the same Julia/formatter requirement as full CI and retains an artifact;
+successful preparation does not accept the input's formatting or physics.
+Review/apply the patch, then require the normal exact-head full checks. Apply
+changes only to root-owned paths; coordinate any hunk owned by an active worker.
+
 ## Verified baseline and current work
 
 Main is `9b4d363806722319c2241e4af04ed1ed1da00119` at this checked snapshot.
@@ -53,7 +60,7 @@ its publication record.
 | Nondividing species schedules | Root integrates frozen model and independent IO handoffs | Canonical EMPIC persistent events/current/phase/controller/work and schema3 | Five-file source reviewed/adopted; independent essentials registered; all new runtime/scientific/resource acceptance pending |
 | Field-aligned electron conduction | Root integrates frozen `post_devin_numeric_audit` handoff | Varying-B tensor transport in canonical B/pressure lifecycle and persistence | Eight-owner source and essential file reviewed/adopted on `5703c95`; module/guide/registration wired; all remote acceptance pending |
 | Persistent schedule IO | Root owns finalV3 | Complete schema3 pending calendar/controller/current/phase persistence | Released559-line owner adopted exact; canonical graph/codecs/transport preserved; new remote acceptance pending |
-| Periodic multidimensional AMR | `dynamic_amr_es_implementation`, read-only design | Seam constraints/periodized clouds, neutral source, gauge, evolution/work and full restart | Concrete next-stage contract in progress; no source edits until exact integrated base and owner approval |
+| Periodic multidimensional AMR | `dynamic_amr_es_implementation` | Seam constraints/periodized clouds, neutral source, gauge, evolution/work and full restart | Complete 203-line contract approved on `fc87d4f`; canonical implementation active, independent essentials/guide delegated |
 | Integration and CI | Root | Source review, shared registrations, current Markdown, commits/main publication and exact-head CI | Active alongside three parallel implementation tracks |
 
 ## Exclusive file writers
@@ -122,12 +129,15 @@ writer is assigned.
 guide and essential file, field-aligned conduction eight production paths and
 essential file, and persistent EMPIC model/IO/two guides/essential file have all
 transferred to root after final freezes. Root owns the generic checkpoint file,
-registrations, exports, workflows and global docs. The three former workers now
-read and derive periodic AMR, complete coupled error control and electron-ion
-exchange contracts. These new stages have no production writer until root
-reviews the actual physics/API and explicitly transfers exclusive paths. No
-agent edits a released source owner during integration. Source/runtime/scientific/
-resource gates remain separate.
+registrations, exports, workflows and global docs. The periodic AMR contract is
+now approved: its parent owns the seven canonical AMR production paths and
+grounded guide, new periodic cloud owner, plus only the shared lift extraction
+in `boundaries/periodic.jl` and its `integrators/implicit_yee_em.jl` caller. Its
+`periodic_controls` child exclusively owns the new periodic essential and guide.
+Complete coupled error control and electron-ion exchange remain read-only
+designs until their physics/API and exclusive paths are approved. Root's
+fourteen-file formatter repair has no overlap with periodic writers.
+Source/runtime/scientific/resource gates remain separate.
 
 ## Handoff and verification
 

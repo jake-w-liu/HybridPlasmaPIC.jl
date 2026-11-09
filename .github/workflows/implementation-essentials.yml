@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       suite:
-        description: Existing implementation regressions to run
+        description: Essential regressions or remote formatting preparation
         required: true
         type: choice
         default: electromagnetic-species
@@ -31,13 +31,46 @@ on:
           - shared-cuda-scalars
           - completed-clock
           - open-hall-hybrid
+          - format-candidate
 
 permissions:
   contents: read
 
 jobs:
+  format-candidate:
+    name: Prepare JuliaFormatter patch
+    if: ${{ inputs.suite == 'format-candidate' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.12'
+      - uses: julia-actions/cache@v2
+      - name: Prepare formatting with the required CI formatter
+        shell: bash
+        run: |
+          julia -e '
+            using Pkg
+            Pkg.add(PackageSpec(name = "JuliaFormatter", version = "1"))
+            using JuliaFormatter
+            unchanged = format(".")
+            println((julia = VERSION, formatter = Base.pkgversion(JuliaFormatter), input_already_formatted = unchanged))'
+          git diff --binary --output=formatter-candidate.patch
+          git diff --check
+          git diff --stat
+      - name: Retain the exact candidate formatting patch
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: formatter-candidate-${{ github.sha }}
+          path: formatter-candidate.patch
+          if-no-files-found: warn
+
   essentials:
     name: ${{ inputs.suite }} / Julia ${{ matrix.julia-version }}
+    if: ${{ inputs.suite != 'format-candidate' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:

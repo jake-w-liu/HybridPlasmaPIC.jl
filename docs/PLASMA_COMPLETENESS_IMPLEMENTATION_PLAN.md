@@ -237,9 +237,11 @@ has completed source review and root integration. Canonical implicit-hybrid
 evolving scalar pressure is integrated, preserving schema1. Grounded
 multidimensional adaptive ES, persistent species schedules and field-aligned
 scalar conduction now have reviewed source and canonical integration. Three
-workers derive the next periodic-AMR, coupled-error-control and electron-ion
-exchange contracts read-only; source edits need reviewed APIs/physics and
-exclusive owner scopes. Runtime, science and resources remain separate gates.
+workers cover the next periodic-AMR, coupled-error-control and electron-ion
+exchange stages. The periodic contract is reviewed and its canonical code and
+independent controls are being implemented in parallel; the other two remain
+read-only proposals until their physics/APIs and exclusive paths are approved.
+Runtime, science and resources remain separate gates.
 Hall, slab, periodic shear and synchronous implicit EM are on main with remaining
 scientific/resource gates. Earlier audit assignments describe historical work;
 the linked workflow owns current exclusive file assignments.

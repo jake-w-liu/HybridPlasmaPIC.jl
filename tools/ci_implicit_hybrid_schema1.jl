@@ -5,7 +5,8 @@ const H = HybridPlasmaPIC
 length(ARGS) == 3 || throw(ArgumentError("expected write|check, output directory, package root"))
 mode, directory, expected_root = ARGS
 mode in ("write", "check") || throw(ArgumentError("unsupported compatibility operation"))
-realpath(pkgdir(H)) == realpath(expected_root) || error("compatibility process loaded the wrong package source")
+realpath(pkgdir(H)) == realpath(expected_root) ||
+    error("compatibility process loaded the wrong package source")
 
 function fixture(::Type{T}; count = 4) where {T}
     g = FourierGrid((4,), (T(4),))
@@ -24,13 +25,22 @@ end
 
 function snapshot(st, species)
     report = st.last_report
-    values = report === nothing ? nothing : NamedTuple{fieldnames(typeof(report))}(
-        ntuple(i -> getfield(report, i), fieldcount(typeof(report))),
-    )
-    return deepcopy((fields = H._hybrid_field_state(st.fields), floor = st.fields.floor_count[],
-        species = [(x = p.x, v = p.v, weight = p.weight, id = p.id, tag = p.tag, q = p.q, m = p.m) for p in species],
+    values =
+        report === nothing ? nothing :
+        NamedTuple{fieldnames(typeof(report))}(
+            ntuple(i -> getfield(report, i), fieldcount(typeof(report))),
+        )
+    return deepcopy((
+        fields = H._hybrid_field_state(st.fields),
+        floor = st.fields.floor_count[],
+        species = [
+            (x = p.x, v = p.v, weight = p.weight, id = p.id, tag = p.tag, q = p.q, m = p.m) for
+            p in species
+        ],
         counts = st._population_counts,
-        phase = (st.initialized[], st.time[], st.step[], st.last_dt[]), report = values))
+        phase = (st.initialized[], st.time[], st.step[], st.last_dt[]),
+        report = values,
+    ))
 end
 
 @testset "Historical advanced implicit-hybrid schema1 / $mode" begin
@@ -64,7 +74,10 @@ end
                 @test st.last_report isa ImplicitHybridSolveReport{T}
                 @test isequal(snapshot(st, species), expected.before)
                 @test all(i -> species[i] === owners[i], eachindex(species))
-                @test all(i -> H._implicit_hybrid_field_arrays(st.fields)[i] === fields[i], eachindex(fields))
+                @test all(
+                    i -> H._implicit_hybrid_field_arrays(st.fields)[i] === fields[i],
+                    eachindex(fields),
+                )
                 step!(st, species, T(3 / 256))
                 @test isequal(snapshot(st, species), expected.after)
             end

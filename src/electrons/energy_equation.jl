@@ -576,13 +576,21 @@ function _transport_pressure_derivative_range_risk(
     return false
 end
 
-function _prepare_scalar_pressure_rhs!(out, pe, ue, gradpe, divu, J, γ, η, g::FourierGrid{D,T}) where {D,T}
+function _prepare_scalar_pressure_rhs!(
+    out,
+    pe,
+    ue,
+    gradpe,
+    divu,
+    J,
+    γ,
+    η,
+    g::FourierGrid{D,T},
+) where {D,T}
     divergence!(divu, ue, g)
-    derivative_risk = _transport_pressure_derivative_range_risk(
-        pe, ue, gradpe, g, _transport_derivative_gains(g),
-    )
-    active = _transport_pressure_rhs_with_activity!(
-        out, pe, ue, gradpe, divu, γ, J, η, false, Val(D),
-    )
+    derivative_risk =
+        _transport_pressure_derivative_range_risk(pe, ue, gradpe, g, _transport_derivative_gains(g))
+    active =
+        _transport_pressure_rhs_with_activity!(out, pe, ue, gradpe, divu, γ, J, η, false, Val(D))
     return active, derivative_risk
 end

@@ -7,11 +7,18 @@ const Q = Rational{BigInt}
 function fixture(::Type{T}) where {T}
     mesh = ToroidalAnnulusGrid((3, 3, 3); R0 = 2, r_inner = 1 / 4, r_outer = 1 / 2, T = T)
     count = (mesh.n[1] - 1) * mesh.n[2] * mesh.n[3]
-    species = [ParticleSet{3,T}(count; q = 1, m = 1),
-        ParticleSet{3,T}(count; q = 2, m = 3), ParticleSet{3,T}(0; q = 3, m = 5)]
+    species = [
+        ParticleSet{3,T}(count; q = 1, m = 1),
+        ParticleSet{3,T}(count; q = 2, m = 3),
+        ParticleSet{3,T}(0; q = 3, m = 5),
+    ]
     for (index, p) in enumerate(species[1:2])
-        load_toroidal_annulus_cold!(p, mesh; number_density = T(index == 1 ? 3 / 4 : 1 / 4),
-            velocity = (T(1 / 64), -T(1 / 128), T(1 / 32)))
+        load_toroidal_annulus_cold!(
+            p,
+            mesh;
+            number_density = T(index == 1 ? 3 / 4 : 1 / 4),
+            velocity = (T(1 / 64), -T(1 / 128), T(1 / 32)),
+        )
         p.id .= UInt64.(index * count .+ (1:count))
         p.tag .= UInt32(index)
     end
@@ -23,8 +30,13 @@ function fixture(::Type{T}) where {T}
         beta[3][I] *= one(T) + cospi(T(2) * u) / T(16)
         pressure[I] = T(1 / 8) * (one(T) + sinpi(T(2) * u) / T(8) + cospi(T(2) * v) / T(8))
     end
-    st = ToroidalAnnulusHybridPIC(mesh, species; beta0 = beta, pe0 = pressure,
-        pressure_reservoir = (T(1 / 4), T(1 / 32)))
+    st = ToroidalAnnulusHybridPIC(
+        mesh,
+        species;
+        beta0 = beta,
+        pe0 = pressure,
+        pressure_reservoir = (T(1 / 4), T(1 / 32)),
+    )
     return mesh, st, species
 end
 
@@ -38,18 +50,27 @@ function density_reference(mesh, species, ::Type{T}) where {T}
         fraction = ntuple(d -> s[d] - base[d], 3)
         for corner in CartesianIndices((2, 2, 2))
             weight = Q(p.q) * Q(p.weight[marker])
-            for d in 1:3
+            for d = 1:3
                 weight *= Q(corner[d] == 1 ? one(T) - fraction[d] : fraction[d])
             end
-            index = ntuple(d -> d == 1 ? clamp(base[d] + corner[d], 1, mesh.n[d]) :
-                mod(base[d] + corner[d] - 1, mesh.n[d]) + 1, 3)
+            index = ntuple(
+                d ->
+                    d == 1 ? clamp(base[d] + corner[d], 1, mesh.n[d]) :
+                    mod(base[d] + corner[d] - 1, mesh.n[d]) + 1,
+                3,
+            )
             charge[index...] += weight
         end
     end
     density = similar(charge, T)
     for I in CartesianIndices(charge)
-        volume = Q(mesh.tau)^2 * Q(mesh.r[I[1]]) * Q(mesh.R[I[1], I[2]]) *
-            Q(mesh.op.sbp.H[I[1]]) * Q(mesh.dx[2]) * Q(mesh.dx[3])
+        volume =
+            Q(mesh.tau)^2 *
+            Q(mesh.r[I[1]]) *
+            Q(mesh.R[I[1], I[2]]) *
+            Q(mesh.op.sbp.H[I[1]]) *
+            Q(mesh.dx[2]) *
+            Q(mesh.dx[3])
         density[I] = H._from_exact(T, charge[I] / volume)
     end
     return density
@@ -77,25 +98,49 @@ end
             point = (T(1 / 8), zero(T), zero(T))
             @test to_cartesian(mesh, point) == (T(19 / 8), zero(T), zero(T))
             @test to_logical(mesh, to_cartesian(mesh, point)) == point
-            @test_throws ArgumentError ToroidalAnnulusGrid((3, 4, 3); R0 = 2, r_inner = 1 / 4, r_outer = 1 / 2, T = T)
+            @test_throws ArgumentError ToroidalAnnulusGrid(
+                (3, 4, 3);
+                R0 = 2,
+                r_inner = 1 / 4,
+                r_outer = 1 / 2,
+                T = T,
+            )
             seed = toroidal_annulus_vacuum_flux(mesh; strength = T(1 / 2))
             @test all(iszero, seed[1]) && all(iszero, seed[2])
-            @test all(I -> seed[3][I] == H._from_exact(T,
-                Q(mesh.tau) * Q(mesh.r[I[1]]) / (2Q(mesh.R[I[1], I[2]]))), CartesianIndices(mesh.n))
+            @test all(
+                I ->
+                    seed[3][I] ==
+                    H._from_exact(T, Q(mesh.tau) * Q(mesh.r[I[1]]) / (2Q(mesh.R[I[1], I[2]]))),
+                CartesianIndices(mesh.n),
+            )
             # The first quiet marker is at the midpoint of the first actual cell.
             p = first(species)
-            marker = ntuple(d -> H._from_exact(T,
-                (Q(mesh.op.coordinates[d][1]) + Q(mesh.op.coordinates[d][2])) / 2), 3)
+            marker = ntuple(
+                d -> H._from_exact(
+                    T,
+                    (Q(mesh.op.coordinates[d][1]) + Q(mesh.op.coordinates[d][2])) / 2,
+                ),
+                3,
+            )
             @test ntuple(d -> p.x[d][1], 3) == marker
             r = H._from_exact(T, Q(mesh.r_inner) + Q(marker[1]))
             major = H._from_exact(T, Q(mesh.R0) + Q(r) * Q(cospi(T(2) * marker[2])))
-            cell = prod(Q(mesh.op.coordinates[d][2]) - Q(mesh.op.coordinates[d][1]) for d in 1:3)
-            @test p.weight[1] == H._from_exact(T, Q(T(3 / 4)) * Q(mesh.tau)^2 * Q(r) * Q(major) * cell)
+            cell = prod(Q(mesh.op.coordinates[d][2]) - Q(mesh.op.coordinates[d][1]) for d = 1:3)
+            @test p.weight[1] ==
+                  H._from_exact(T, Q(T(3 / 4)) * Q(mesh.tau)^2 * Q(r) * Q(major) * cell)
             invalid = ParticleSet{3,T}(length(p.weight); q = 0, m = 1)
             foreach(a -> fill!(a, NaN), (invalid.x..., invalid.v..., invalid.weight))
-            unchanged = map(copy, (invalid.x..., invalid.v..., invalid.weight, invalid.id, invalid.tag))
-            @test_throws ArgumentError load_toroidal_annulus_cold!(invalid, mesh; number_density = 1)
-            @test isequal((invalid.x..., invalid.v..., invalid.weight, invalid.id, invalid.tag), unchanged)
+            unchanged =
+                map(copy, (invalid.x..., invalid.v..., invalid.weight, invalid.id, invalid.tag))
+            @test_throws ArgumentError load_toroidal_annulus_cold!(
+                invalid,
+                mesh;
+                number_density = 1,
+            )
+            @test isequal(
+                (invalid.x..., invalid.v..., invalid.weight, invalid.id, invalid.tag),
+                unchanged,
+            )
             expected_density = density_reference(mesh, species, T)
             identities = leaves(st, species)
             @test init!(st, species) === st
@@ -107,9 +152,14 @@ end
             # A syntactically valid zero-step receipt must still describe the
             # actual contact, even before any completed interval exists.
             endpoint = st.last_endpoint
-            st.last_endpoint = typeof(endpoint)(ntuple(i ->
-                fieldnames(typeof(endpoint))[i] === :nu ? (zero(Q), zero(Q)) :
-                getfield(endpoint, i), fieldcount(typeof(endpoint)))...)
+            st.last_endpoint = typeof(endpoint)(
+                ntuple(
+                    i ->
+                        fieldnames(typeof(endpoint))[i] === :nu ? (zero(Q), zero(Q)) :
+                        getfield(endpoint, i),
+                    fieldcount(typeof(endpoint)),
+                )...,
+            )
             @test_throws ArgumentError step!(st, species, zero(T))
             @test isequal(st.fields, initial.fields)
             st.last_endpoint = endpoint
@@ -137,17 +187,23 @@ end
             @test !isequal(st.beta, initial.beta)
             @test !isequal(st.fields.pe, initial.fields.pe)
             @test all(pair -> pair[1] === pair[2], zip(identities, leaves(st, species)))
-            @test all(side -> all(pair -> Q(pair[1]) == Q(pair[2]),
-                zip(st.beta[1][side, :, :], initial.beta[1][side, :, :])), (1, mesh.n[1]))
+            @test all(
+                side -> all(
+                    pair -> Q(pair[1]) == Q(pair[2]),
+                    zip(st.beta[1][side, :, :], initial.beta[1][side, :, :]),
+                ),
+                (1, mesh.n[1]),
+            )
             d = toroidal_annulus_diagnostics(st)
             @test iszero(d.accounting_defect)
-            @test d.energy.total - d.initial_energy + d.cumulative_outward_work - d.cumulative_controller_work ==
-                d.cumulative_stage_defect + d.cumulative_rk_defect
+            @test d.energy.total - d.initial_energy + d.cumulative_outward_work -
+                  d.cumulative_controller_work == d.cumulative_stage_defect + d.cumulative_rk_defect
             @test all(r -> r.divergence <= r.divergence_tolerance, st.last_report.stages)
             @test step!(st, species, 3h / 2) === st
             saved = H._checkpoint_state(st, species)
             mktempdir() do directory
-                raw, archive = joinpath(directory, "annulus.bin"), joinpath(directory, "annulus.run")
+                raw, archive =
+                    joinpath(directory, "annulus.bin"), joinpath(directory, "annulus.run")
                 save_checkpoint(raw, st, species)
                 archive_run(archive, st, species; rng_seed = 0)
                 step!(st, species, 3h / 4)
@@ -157,17 +213,29 @@ end
                     init!(restored, populations)
                     retained = leaves(restored, populations)
                     make_stale!(restored, populations)
-                    result = format === :raw ? load_checkpoint!(restored, populations, raw) :
+                    result =
+                        format === :raw ? load_checkpoint!(restored, populations, raw) :
                         load_archive!(restored, populations, archive)
                     @test result === restored
                     @test isequal(H._checkpoint_state(restored, populations), saved)
-                    @test all(pair -> pair[1] === pair[2], zip(retained, leaves(restored, populations)))
+                    @test all(
+                        pair -> pair[1] === pair[2],
+                        zip(retained, leaves(restored, populations)),
+                    )
                     step!(restored, populations, 3h / 4)
                     @test isequal(H._checkpoint_state(restored, populations), future)
                 end
-                @test_throws ArgumentError H._restore_checkpoint_state!(st, species, merge(future, (schema = 2,)))
+                @test_throws ArgumentError H._restore_checkpoint_state!(
+                    st,
+                    species,
+                    merge(future, (schema = 2,)),
+                )
                 @test isequal(H._checkpoint_state(st, species), future)
-                @test_throws ArgumentError H._restore_checkpoint_state!(st, species, merge(future, (beta = st.beta,)))
+                @test_throws ArgumentError H._restore_checkpoint_state!(
+                    st,
+                    species,
+                    merge(future, (beta = st.beta,)),
+                )
                 @test isequal(H._checkpoint_state(st, species), future)
             end
         end

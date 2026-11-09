@@ -146,6 +146,16 @@ Registration alone is not an assertion-coverage proof. Scientific,
 independent-code, refinement, boundary/geometry/composition and measured resource
 work remain governed by the capability plans.
 
+Required formatting at `5703c95` fails in
+[job 128983114162](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42562939210/job/128983114162).
+The retained Julia 1.12.7/JuliaFormatter 1.0.62 log and generated fourteen-file
+patch establish a formatting failure. Root composed that exact patch with the
+later conduction source; inverse/reapply checks recover all prior files and
+preserve the intervening changes. The repair and newer source still require
+exact-head remote acceptance. A manual `format-candidate` preparation now
+produces a runner-generated patch; its completion is separate from the required
+full-CI formatting check. No physics/compiler/resource gate is removed.
+
 ## Historical implementation evidence through 2026-11-02
 
 The records below retain their original source review, failed candidates,

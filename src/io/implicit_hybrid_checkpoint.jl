@@ -56,7 +56,8 @@ function _checkpoint_state(st::ImplicitHybridStepper, species::AbstractVector)
     )
     # The evolving receipt is a known exact numeric record, validated by its
     # report owner. It is not opaque configuration or retained storage metadata.
-    metadata = st.model.closure isa EvolvingElectrons ? configuration : (configuration, st.last_report)
+    metadata =
+        st.model.closure isa EvolvingElectrons ? configuration : (configuration, st.last_report)
     _validate_checkpoint_configuration(state, st, metadata)
     # Capture itself is detached so the shared writer's validation observes the
     # same independent ordinary arrays that a deserialized payload must own.
@@ -94,8 +95,11 @@ function _validate_checkpoint_state(s, st::ImplicitHybridStepper{D,T}) where {D,
     all(n -> n >= T(st.model.nfloor), s.fields.n) || throw(
         ArgumentError("implicit hybrid checkpoint density must satisfy the strict floor bound"),
     )
-    st.model.closure isa EvolvingElectrons && _validate_evolving_pressure(s.fields.pe, st.g;
-        context = "implicit hybrid checkpoint electron pressure")
+    st.model.closure isa EvolvingElectrons && _validate_evolving_pressure(
+        s.fields.pe,
+        st.g;
+        context = "implicit hybrid checkpoint electron pressure",
+    )
     s.species isa Vector && length(s.species) == length(st.owners) ||
         throw(ArgumentError("implicit hybrid checkpoint requires its ordered population count"))
     populations = _ElectrostaticHostParticle{D,T}[]
@@ -144,7 +148,8 @@ function _validate_checkpoint_state(s, st::ImplicitHybridStepper{D,T}) where {D,
             )
         end
     end
-    metadata = st.model.closure isa EvolvingElectrons ? s.configuration : (s.configuration, s.last_report)
+    metadata =
+        st.model.closure isa EvolvingElectrons ? s.configuration : (s.configuration, s.last_report)
     _validate_checkpoint_configuration(s, st, metadata)
     return nothing
 end
