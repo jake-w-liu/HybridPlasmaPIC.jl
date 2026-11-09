@@ -709,7 +709,7 @@ function _camr_segment(mesh::CartesianAMRHierarchy{D}, x, y) where {D}
             end,
             D,
         )
-        for I in Iterators.product(ranges...)
+        for I in CartesianIndices(ranges)
             push!(roots, Tuple(I))
         end
     end

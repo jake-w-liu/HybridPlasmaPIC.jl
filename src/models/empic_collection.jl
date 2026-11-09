@@ -2272,7 +2272,14 @@ function _empic_event_next(phase, mobile, time, finish, base, M)
     end
     return edge, base
 end
-function _empic_event_work!(impulse, current, oldE, newE, h, volume)
+function _empic_event_work!(
+    impulse::Vector{_EMPICEventQ},
+    current::Tuple,
+    oldE::Tuple,
+    newE::Tuple,
+    h::T,
+    volume::_EMPICEventQ,
+) where {T<:AbstractFloat}
     Q, work = _exact_rational, zero(_EMPICEventQ)
     for c in eachindex(impulse), I in eachindex(impulse[c])
         amount = Q(h) * Q(current[c][I])
