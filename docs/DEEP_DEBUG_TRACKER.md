@@ -126,11 +126,18 @@ Current work:
   actual lifecycle controls are registered; all new remote/scientific/resource
   acceptance remains pending. The grounded boundary slice leaves periodic,
   neutral-Neumann, material, EM, subcycling and backend stages open.
-- Persistent nondividing EMPIC model/phase implementation continues alongside
-  independent schema3 IO. An exact seam and exclusive path transfer are approved;
-  model/guides/essentials and IO have separate writers. The AMR worker is deriving
-  the next periodic hierarchy contract read-only. Exclusive paths and handoffs
-  are recorded in the implementation workflow.
+- [Persistent species schedules](EMPIC_SPECIES_IMPLEMENTATION.md#persistent-nondividing-species-schedules)
+  have complete source review and exact five-file adoption: nominal deadlines,
+  all-row actual segment currents, once-chosen bootstrap, sampled-state limits,
+  physical clocks/work and fixed-source shadow. Schema3/policy2 restores the
+  full pending calendar, proposal, fields/Jraw and receipts without recentering.
+  Review corrected a missing canonical duration gate and missing reference
+  current volume factor before publication. Independent essentials are registered;
+  all new runtime/scientific/resource acceptance remains pending.
+- The next contracts cover periodic multidimensional AMR, genuine coupled error
+  control and electron-ion thermal exchange. These are read-only design tracks
+  until their source-pinned APIs/physics and exclusive owner scopes are reviewed.
+  The full CAP-001–011 end-state remains required.
 
 The full runner explicitly registers the transverse Yee reference beside the
 existing family tests. MPI multi-rank and distributed FFT primitive tests run

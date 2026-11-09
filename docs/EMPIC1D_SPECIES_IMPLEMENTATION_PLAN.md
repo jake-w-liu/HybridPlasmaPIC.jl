@@ -1,6 +1,13 @@
 # CAP-008 specialized EMPIC1D species implementation
 
-Updated 2026-11-04. **S1 and S2 sources are implemented and reviewed. Their
+S3 persistent nondividing/adaptive scheduling is a source candidate under the
+[canonical collection contract](EMPIC_SPECIES_IMPLEMENTATION.md#persistent-nondividing-species-schedules).
+It reuses the specialized Ex/Ey/Bz/current/Maxwell owners and preserves the
+original stored-v_z=0 restriction. Its schema3/policy2 phase has no implicit
+S1/S2 migration. Compact acceptance source is present but unexecuted locally;
+all S3 runtime/compiler/formatter, scientific and resource gates remain open.
+
+Updated 2026-11-09 for the S3 source handoff. **S1 and S2 sources are implemented and reviewed. Their
 exact-revision GitHub runtime, compiler and formatter checks pass at `b5ce21a`;
 resource acceptance remains pending.** The [audit tracker](DEEP_DEBUG_TRACKER.md) owns
 publication and CI status. This plan expands the specialized-model and multirate
@@ -53,6 +60,9 @@ Private scratch may change on rejection; public destination identities remain.
 | S2 construction and advance | Source implemented and reviewed | Due-event kicks with every-fast drift/current, whole-operation history staging and atomic future schedule setter; generic/scalar/all-fast source reductions retained |
 | S2 persistence and essential checks | Source implemented and reviewed; runtime pending | Schema 2/policy 1 and tagged S1 migration; independent interior-event, legacy, pair/unequal-mass refinement, rejection/retry and restart controls registered |
 | S2 GitHub/resource acceptance | GitHub runtime/compiler/formatter accepted at `b5ce21a` (run 41683122086); cost/peak-memory evidence pending | Exact revision on minimum/latest Julia; full neighboring tests, complete unsuppressed compiler review, formatter and remote complete-operation cost/peak-memory evidence |
+| S3 persistent calendar and heuristic | Source candidate; runtime unverified | Genuine pending deadlines across macro calls, actual all-row drift/current on each field segment, once-chosen bootstrap H, exact source/public clock separation, transactional future proposal and source-shadow policy |
+| S3 restart and essential controls | Source candidate; runtime unverified | Opt-in schema3/policy2, complete actual source/work receipt, original incoming graph checks, stale-destination restore and raw/archive continuation without phase rebasing |
+| S3 scientific/resource acceptance | Open | Coupled error control/refinement/energy evidence, full operation time/allocation/peak-memory measurements and composition/backend intersections |
 | Broader CAP-008 integration | Open | Collisions, boundaries, partition ownership, device residency and matched physical/cost validation |
 
 All Julia tests, compiler checks, formatter, builds and profiling run on GitHub
@@ -150,9 +160,9 @@ history rollback/retry, explicit migration and restart after changing a schedule
 before another advance. A compact independent interior-event oracle and positive
 pair/unequal-mass refinement signals must expose held currents and phase mistakes;
 observed orders apply only to those problems. Continuity for the split path does
-not establish general multirate accuracy or nonlinear stability. Nondividing,
-asynchronous/adaptive schedules and mid-step checkpoints require a later phase
-design. Extending specialized EMPIC1D to a second polarization also requires
+not establish general multirate accuracy or nonlinear stability. S3 has the
+separate persistent source contract linked above; mid-step checkpoints remain
+unsupported. Extending specialized EMPIC1D to a second polarization also requires
 additional fields/current, diagnostics and persistence; removing the planar
 check is insufficient.
 

@@ -50,9 +50,9 @@ its publication record.
 | Toroidal annulus | Root integrated final handoff | Full coupled logical particles, metric magnetic field, adiabatic pressure, contact work and complete restart | Reviewed source/registration pushed at `7ea6ae8`; full and focused remote acceptance pending |
 | Implicit evolving pressure | Root integrated final handoff | Canonical joint velocity/B/pe solve, third residual gate, signed physical ledger and schema2 persistence | Reviewed source/registration pushed at `5703c95`, including pinned old-schema raw/archive continuation; exact-head remote acceptance pending |
 | Multidimensional adaptive ES | Root integrates frozen `dynamic_amr_es_implementation` handoff | Genuine coupled D2/3 hierarchy, particle/field adaptation, work and restart | Seven production owners, guide and essential file reviewed/adopted; module/writer/remote registrations complete; all new acceptance pending |
-| Nondividing species schedules | `annulus_loader_guide` | Canonical EMPIC event/current/phase/schedule persistence | Persistent deadline/current/clock/schema3 contract reviewed; two source owners, two guides and compact essentials approved |
+| Nondividing species schedules | Root integrates frozen model and independent IO handoffs | Canonical EMPIC persistent events/current/phase/controller/work and schema3 | Five-file source reviewed/adopted; independent essentials registered; all new runtime/scientific/resource acceptance pending |
 | Field-aligned electron conduction | Root integrates frozen `post_devin_numeric_audit` handoff | Varying-B tensor transport in canonical B/pressure lifecycle and persistence | Eight-owner source and essential file reviewed/adopted on `5703c95`; module/guide/registration wired; all remote acceptance pending |
-| Persistent schedule IO | `post_devin_numeric_audit` | Complete schema3 pending calendar/controller/current/phase persistence | Exact model seam reviewed and single IO owner transferred/approved; implementation active independently of model |
+| Persistent schedule IO | Root owns finalV3 | Complete schema3 pending calendar/controller/current/phase persistence | Released559-line owner adopted exact; canonical graph/codecs/transport preserved; new remote acceptance pending |
 | Periodic multidimensional AMR | `dynamic_amr_es_implementation`, read-only design | Seam constraints/periodized clouds, neutral source, gauge, evolution/work and full restart | Concrete next-stage contract in progress; no source edits until exact integrated base and owner approval |
 | Integration and CI | Root | Source review, shared registrations, current Markdown, commits/main publication and exact-head CI | Active alongside three parallel implementation tracks |
 
@@ -118,22 +118,16 @@ The shared nonlinear algorithm and isothermal report/schema1 remain; root owns
 registrations, workflows, global docs and closure/model docstrings. No overlapping
 writer is assigned.
 
-**Approved next implementations:** the former annulus parent owns eight new
-multidimensional adaptive-ES source/guide paths and one essential file. Its child
-owns the two existing EMPIC collection/schedule source/IO files, their two species
-guides and one new essential file. The former pressure worker owns the eight
-field-aligned-conduction production paths and one essential file from its frozen
-contract, rebased onto `5703c95` before edits. These include shared closure,
-pressure, explicit-stage, diagnostic, collisional and generic checkpoint owners.
-The conduction worker's final eight-owner handoff has transferred to root, so
-root again owns the generic checkpoint file. The schedule owner retains model,
-guides and essentials; its IO path transfers to the independent IO worker only
-after an exact interface handoff; that handoff is now approved. Module, exports, workflows and global docs
-remain root-owned. No two workers edit the same canonical file. Accepted
-source/runtime/scientific/resource gates remain separate. The grounded AMR final
-handoff also transfers its seven production paths, guide and essential file to
-root. Its former worker designs the periodic stage read-only until a new base
-and exclusive paths are approved.
+**Current implementation ownership:** the grounded AMR seven production paths,
+guide and essential file, field-aligned conduction eight production paths and
+essential file, and persistent EMPIC model/IO/two guides/essential file have all
+transferred to root after final freezes. Root owns the generic checkpoint file,
+registrations, exports, workflows and global docs. The three former workers now
+read and derive periodic AMR, complete coupled error control and electron-ion
+exchange contracts. These new stages have no production writer until root
+reviews the actual physics/API and explicitly transfers exclusive paths. No
+agent edits a released source owner during integration. Source/runtime/scientific/
+resource gates remain separate.
 
 ## Handoff and verification
 

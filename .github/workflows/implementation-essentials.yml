@@ -10,6 +10,7 @@ on:
         default: electromagnetic-species
         options:
           - electromagnetic-species
+          - persistent-species
           - collisional-transport
           - particle-accuracy
           - electromagnetic-continuity
@@ -75,6 +76,7 @@ jobs:
               "completed-clock" => ("test_step_clocks.jl", "test_io_clock.jl"),
               "open-hall-hybrid" => ("test_open_hall_hybrid.jl",),
               "electromagnetic-species" => ("test_empic_species.jl", "test_empic1d_species.jl", "test_empic_relativistic_species.jl", "test_relativistic_energy_range.jl", "test_empic.jl", "test_empic1d.jl", "test_electrostatic_species_diversity.jl", "test_electrostatic_species.jl"),
+              "persistent-species" => ("test_empic_persistent_schedule.jl", "test_empic_species_schedule.jl", "test_empic_species.jl", "test_empic1d_species.jl", "test_empic_relativistic_species.jl"),
               "collisional-transport" => ("test_collisional_hybrid.jl", "test_collisional_checkpoint.jl", "test_collisional_physics.jl"),
               "particle-accuracy" => ("test_boris_accuracy.jl", "test_relativistic_species_factors.jl", "test_relativistic_output_closure.jl"),
               "electromagnetic-continuity" => ("test_empic_relativistic_species.jl",),

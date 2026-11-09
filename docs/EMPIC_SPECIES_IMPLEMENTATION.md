@@ -1,5 +1,12 @@
 # CAP-008 periodic electromagnetic species collections
 
+Persistent nondividing/adaptive species scheduling is a source candidate in
+`empic_collection.jl` and schema3 of `empic_collection_checkpoint.jl`; see
+[persistent schedules](#persistent-nondividing-species-schedules). Its compact
+acceptance source has not run. The historical results below do not accept this
+new mode; numerical, compiler, formatter, scientific and resource gates remain
+unverified for it.
+
 Status: synchronous CPU `EMPIC` collections are implemented with optional
 relativistic motion. Both slices are integrated after independent root source
 and caller review; their exact-revision GitHub runtime/compiler/format checks
@@ -458,8 +465,8 @@ relativistic rollback/retry and schema/migration/continuation checks are source
 implemented. All exact-integrated GitHub numerical/JET/Aqua/formatter and
 complete-step resource gates remain pending. No local Julia ran. Dividing
 schedules do not establish a general nonlinear stability, temporal-order or
-exact fully discrete energy theorem. Nondividing/adaptive/asynchronous phases,
-mid-step checkpoints and broader CAP-008 integrations remain open. See the
+exact fully discrete energy theorem. Persistent phases have a separate source
+candidate below; mid-step checkpoints and broader CAP-008 integrations remain open. See the
 [canonical S1/S2 plan](EMPIC1D_SPECIES_IMPLEMENTATION_PLAN.md) for acceptance.
 
 
@@ -471,7 +478,7 @@ three-vector force, midpoint current, continuity and Maxwell kernels. D1 retains
 both transverse polarizations; D2/D3 retain their full fields/velocities. Omitted
 or explicit `species_stride=nothing` keeps the original concrete Nothing owner,
 common-fast ordering, diagnostic keys and schema1. Explicit all-fast rows still
-opt in. Independent nondividing/adaptive/asynchronous phases are outside this slice.
+opt in. Persistent nondividing phases use the separate concrete schedule owner below.
 
 Mobile strides are positive integer divisors of M; fixed rows are zero. Bool,
 noninteger/out-of-Int values, wrong axes/counts and invalid divisibility reject.
@@ -514,3 +521,116 @@ M1, matching its existing common-fast collision and schema1 contract. Scheduled
 collision composition remains open. Source reduction checks cover default and
 specialized expressions; no runtime/JET/compiler/formatter, numerical or resource
 acceptance is claimed. No tests or executions were added for this implementation.
+
+## Persistent nondividing species schedules
+
+`EMPIC(g,species; species_dt=Hs,event_budget=K,n_sub=M)` and the specialized
+`EMPIC1D` collection opt into a persistent calendar. `species_dt` and
+`species_stride` are mutually exclusive. Supply one finite resolved positive
+cap per mobile population and stored zero for fixed rows. H may exceed the
+requested macro duration, need not divide it and need not be an integer multiple
+of a field interval. Nonzero scalar inputs that disappear in grid precision
+reject. `event_budget` is an explicit positive Int bounding field segments plus
+recorded kick decisions in each positive call; exhaustion rejects the whole
+candidate. Typed empty populations keep the same calendar rules.
+
+The exact rational source clock `source_time` orders base edges
+`tau_start+j*Q(dt)/M`, pending species deadlines and the macro endpoint. Equal
+deadlines coalesce; unequal deadlines remain separate. Each positive gap narrows
+once to an actual field interval h and must survive the canonical resolved-dt
+gate. Every actual repeated floating clock addition must advance. Tiny distinct
+events reject; they are not merged or moved onto a tick grid. `last_dt` remains
+the requested macro duration and `last_sub_dt` is the last actual field h.
+
+Each active row carries its actual H, last kick a and next deadline b with
+`b-a=Q(H)` and `a<=source_time<=b`. Its nominal velocity source timestamp is
+`(a+b)/2`, so the reported offset can be positive or negative. A right-edge due
+kick remains pending until the next positive call; zero dt validates and consumes
+no event. The public floating clock retains repeated actual-h addition.
+`public_clock_defect=Q(time)-source_time` and per-interval duration defects expose
+materialization differences. These nominal source coordinates are not an exact
+sample-time theorem for the rounded particle trajectory.
+
+At step zero choose each initial H once on unprimed full-time values. Delegate
+the row's H/2 velocity prime and the first actual field-h/2 magnetic prime, then
+reuse the initial decision for its first kick. Later due kicks consume the
+canonical represented old-H/2 plus new-H/2 duration; the receipt records that
+actual duration and its exact-factor discrepancy. B independently retains the
+actual previous field h. At every field segment, all due rows gather the same
+old E/centered B before any field update, and **every mobile row** drifts and
+deposits fresh midpoint current and charge. The existing original-factor Boris,
+relativistic C1/output admission, source replay, DC/Nyquist and Maxwell owners
+remain authoritative. Specialized `EMPIC1D` retains its planar restriction.
+
+Use `set_empic_schedule!` or `set_empic1d_schedule!` at a completed boundary to
+change future `n_sub`, `species_dt`, `species_adaptive`, `species_dt_min`,
+`schedule_limits` or `event_budget`. `nothing` retains that value. Prepare and
+validate the whole copied proposal before publication. A setter preserves
+pending H/a/b and preceding magnetic h; the next due kick uses its new proposal.
+It cannot switch between persistent, dividing and Nothing owners.
+
+Optional `species_adaptive` is a per-row Boolean vector. Adaptive rows require
+explicit positive resolved `species_dt_min` and a NamedTuple
+`schedule_limits=(rotation=...,electric=...,travel=...,growth=...)` of positive
+finite values with growth>=1. Fixed rows remain false/zero. At an actual due
+sample, E1/B1/V1 are maxima of particle L1 magnitudes of gathered fields and
+stored velocity. Starting at the cap, limited by growth*previousH after
+bootstrap, halve H until all exact original-factor bounds hold:
+
+```
+H*abs(q)*B1 <= rotation*m
+H*abs(q)*E1 <= electric*m*c
+H*V1        <= travel*minimum(dx)
+```
+
+Reject below the minimum or halving budget. These are explicitly supplied
+sampled-state resolution limits. They do not estimate local truncation error,
+guarantee future bounds during a pending interval, or provide coupled error
+control. No callback or RNG state is introduced. Full error control remains
+required work within CAP-008.
+
+New-mode source inventory is fixed between initializations: ordered counts,
+q/m, weights, provenance and ordinary component identities, plus committed
+particle/physical-field/clock values. Detached shadows detect external edits.
+Reinitialize using physically full-time inputs after forcing, injection, growth,
+replacement or other source edits; the implementation supplies no recentering.
+Existing default/dividing growth responsibilities remain as documented above.
+Candidates contain all calendar/controller/report/shadow changes, so rejection
+does not consume committed events. Scratch and shared FFT work may change.
+Concurrent calls require independent states, populations and grids.
+
+`last_schedule_report` retains actual partitions, due decisions, gathered
+resolution operands, both deposited-charge endpoints and actual E/current
+operands per segment. Generic raw and used current impulses are exact-factor
+`sum(Q(h)*Q(J))`; planar reports retain actual Jx/Jy without inventing a raw
+longitudinal channel. Work uses actual stored currents and exact midpoint E.
+Report validation recomputes these impulses/work, checks historical calendar
+and half-join algebra, and links the final source fields to the saved endpoint.
+`field_defect=field_after-field_before+work_used` is measured, not forced zero.
+Continuity observations retain the canonical spectral null-space and FFT
+conditioning qualifications; `charge_source_scale` retains the canonical exact
+absolute physical charge of the fixed source inventory, separately from the
+normalized residual. No exact total-energy, temporal-order, nonlinear
+stability, momentum, passivity or performance theorem follows from this mode.
+
+Schema3/policy2 and `phase_policy=:persistent_event` persist the complete future
+proposal, exact source clock, H/a/b, actual previous field h, current/source
+snapshots and report. Generic Jraw joins the new-mode physical inventory.
+Capture/output consumes no due event. Raw and checksummed archives share the
+canonical transport and restore owner. Restore admits stale overwritten old
+values, checks the original incoming graph against every retained live role
+before copying, builds an independent phase/shadow, and publishes saved species,
+provenance, fields and clock verbatim. It does not prime, project or silently
+rebase time. Old schema1/2 meanings and schema1-to-dividing migration remain;
+loading across persistent and old owner kinds rejects.
+
+The bounded report retains O(K*mesh) actual operands, and validation/shadow
+copies add complete-operation work. Allocation traffic, peak memory and elapsed
+time require remote measurement. The compact
+`test_empic_persistent_schedule.jl` supplies independent fixed-calendar/Boris,
+all-fast compatibility, adaptive-sample, all-row current, rollback and
+checkpoint/archive controls. It is unexecuted locally. Exact integrated remote
+runtime, compiler and formatter checks, coupled refinement/error campaigns,
+resource acceptance, source-growth/collision/boundary intersections and resident
+distributed/device evolution remain open. This source candidate does not close
+CAP-008.

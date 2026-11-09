@@ -11,6 +11,17 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Added
 
+- Opt-in persistent `EMPIC`/`EMPIC1D` species schedules retain exact nondividing
+  kick deadlines across macro steps, independently of actual field segments.
+  Canonical particle/current/continuity/Maxwell owners still advance every mobile
+  row per segment. Explicit sampled-state adaptive limits, future proposals,
+  source/public clocks, complete work receipts and fixed-source shadows have
+  distinct schema3/policy2 persistence and a checksum archive reader. Source
+  review corrected duration-materialization admission and reference-current
+  normalization before publication; compact independent controls are registered.
+  All new remote, scientific and resource acceptance remains pending. Full
+  coupled error control and source/composition/backend extensions remain open.
+
 - `CartesianAMRHierarchy` and `AdaptiveCompositeElectrostaticPIC` add coupled
   CPU 2D3V/3D3V grounded-box evolution: balanced dyadic patches, exact hanging
   Q1 constraints, full tensor physical clouds, cold matrix-free field solve,
