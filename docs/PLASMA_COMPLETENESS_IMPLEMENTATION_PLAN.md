@@ -109,7 +109,7 @@ Source names below resolve to these canonical files:
 | Implicit evolution | Linear Fourier reference, residual-checked shock CN, synchronous coupled hybrid/EM and compatible Yee EM | Existing isothermal/EM regressions pass scoped CI. Joint evolving-pressure source, third residual/work and complete schema2 restart are integrated; new exact-head acceptance remains pending. Orbit averages, preconditioning, method/order/dispersion, resources and backends remain CAP-005 work |
 | Geometry | Curvilinear operators plus [coupled toroidal-annulus hybrid source](TOROIDAL_ANNULUS_HYBRID.md) | CPU ions, metric magnetic flux, adiabatic pressure, contact/reservoir work and complete physical restart are integrated at7ea6ae8. New runtime/scientific/resource acceptance, solid-axis/material/equilibrium/import and backend stages remain CAP-006A work |
 | Gyrokinetics | Local `GuidingCentre` utilities plus [self-consistent slab source](SLAB_GYROKINETIC.md) | Full-f gyrocentre collections, reciprocal ring-TSC, full-k polarization/modified adiabatic electrons, collective RK4, physical diagnostics and complete synchronous checkpoint/archive are source-implemented and reviewed. Existing transport, deposit/field/drift/energy and invariant controls pass exact-revision CI; remaining order/dispersion/scientific/resource acceptance and broader geometry/physics remain CAP-006B work |
-| AMR | Scalar transfer primitives, static/dynamic1D Neumann families and [grounded D2/3 Q1 family](ADAPTIVE_COMPOSITE_ELECTROSTATIC.md) | Static controls and focused dynamic1D checks pass scoped CI. Grounded multidimensional hierarchy/particles/field/adaptation/work/full history/restart source is integrated at57980ae; all new remote acceptance remains pending. Periodic/Neumann/material, EM, subcycling, backend and scientific/resource stages remain CAP-006C work |
+| AMR | Scalar transfer primitives, static/dynamic1D Neumann families and [grounded D2/3 Q1 family](ADAPTIVE_COMPOSITE_ELECTROSTATIC.md) with a [periodic mode](PERIODIC_ADAPTIVE_COMPOSITE_ELECTROSTATIC.md) | Static controls and focused dynamic1D checks pass scoped CI. Grounded and periodic multidimensional hierarchy/particles/field/adaptation/work/full-history restart source is reviewed/integrated; all new remote acceptance remains pending. Neutral-Neumann/material, mixed axes, EM, subcycling, backend and scientific/resource stages remain CAP-006C work |
 | External validation | Pinned external references plus case 34 parallel and case 35 oblique Hall production histories | Bounded production validation exists; complete manual campaigns, broader regimes, full profile replay and matched cost/accuracy comparisons remain CAP-007 work |
 | Kinetic species diversity | Arbitrary ES collections landed; CPU EMPIC collections with opt-in D1–3 dividing schedules and specialized EMPIC1D S1/S2, both with optional relativistic motion are source-implemented and reviewed | Existing exact-revision GitHub controls pass; scientific/resource acceptance, broader schedules and collision/boundary/partition/device composition remain CAP-008 work |
 | Multidimensional shocks | Existing reduced shocks plus separate [OpenHallHybrid source](OPEN_HALL_HYBRID.md), built on real mixed operators | Bounded isothermal numerical reservoirs, full-Hall projected field trials, SBP CIC, synchronous particles/sources, energy and full RNG restart are source-implemented/reviewed. Existing numerical/rejection/continuation controls pass CI; physical-boundary/refinement/resource acceptance, evolving pressure and broader boundaries/backends remain CAP-009 work |
@@ -237,10 +237,11 @@ has completed source review and root integration. Canonical implicit-hybrid
 evolving scalar pressure is integrated, preserving schema1. Grounded
 multidimensional adaptive ES, persistent species schedules and field-aligned
 scalar conduction now have reviewed source and canonical integration. Three
-workers cover the next periodic-AMR, coupled-error-control and electron-ion
-exchange stages. The periodic contract is reviewed and its canonical code and
-independent controls are being implemented in parallel; the other two remain
-read-only proposals until their physics/APIs and exclusive paths are approved.
+workers now implement reduced electron-ion exchange, repair the new JET source
+representation regression and derive coupled EMPIC error control. Periodic AMR
+has completed source review/adoption and canonical integration with independent
+controls. The thermal contract is approved; coupled error control remains
+read-only until its constrained equations, phase and exact owner scopes close.
 Runtime, science and resources remain separate gates.
 Hall, slab, periodic shear and synchronous implicit EM are on main with remaining
 scientific/resource gates. Earlier audit assignments describe historical work;
@@ -756,9 +757,20 @@ species, performs multilevel curvature/hysteresis adaptation, records actual
 physical and mesh work, and restores complete changed-topology/count phase and
 old-mesh history. Root reviewed/adopted all seven production owners, guide and
 compact independent essentials; module/IO/remote registrations are complete.
-All new runtime, scientific and measured-resource gates remain open. The next
-periodic seam/neutral-source/gauge stage is being specified; neutral-Neumann,
-material, hybrid/EM synchronization, subcycling and backends remain required.
+All new runtime, scientific and measured-resource gates remain open. The shared
+periodic source stage is described below; neutral-Neumann, material, hybrid/EM
+synchronization, subcycling and backends remain required.
+
+The [periodic extension](PERIODIC_ADAPTIVE_COMPOSITE_ELECTROSTATIC.md) shares
+those owners and adds seam-before-hanging constraints, arbitrary original-width
+cloud image bands, strict physical neutrality or an explicit real uniform
+neutralizer, a gauge with fresh all-row residual admission, actual lifted
+multiwrap transport and wrapped adaptation/full restart. Root adopted the exact
+thirteen-file final source, corrected a missing tracer mass-admission guard and
+registered independent essentials. Grounded report/configuration/payload and
+compatible-Yee lift arithmetic retain literal source compatibility checks.
+All new executable/scientific/resource gates remain pending; neutral-Neumann,
+material/electrode, mixed axes, hybrid/EM, subcycling and backends remain open.
 
 - [ ] Add an owned hierarchy of patches, valid/ghost regions, refinement ratios,
   tagging/regridding and covered-cell accounting. Existing `AMRGrid` only stores

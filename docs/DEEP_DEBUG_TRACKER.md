@@ -100,8 +100,10 @@ Current work:
   eight-file source review and canonical map/module/writer integration. Actual
   particles, metric magnetic flux and adiabatic pressure evolve together, with
   explicit electrical/thermal reservoir work and full physical restart. Compact
-  independent geometry/source and coupled lifecycle controls are registered;
-  numerical/compiler/format/scientific/resource acceptance remains pending. Axis,
+  independent geometry/source and coupled lifecycle controls pass 3,861 checks
+  each on actual Julia 1.12.7/1.13.3 at `7ea6ae8`, including 94 coupled controls
+  ([focused run](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42560980780)).
+  Full compiler/format/scientific/resource acceptance remains pending. Axis,
   material walls, equilibrium/imports and backends remain open.
 - [Implicit hybrid](IMPLICIT_HYBRID.md) now has the canonical joint velocity/B/pe
   solve, exact third residual gate, complete signed pressure work and full
@@ -124,8 +126,8 @@ Current work:
   physical tensor clouds and actual KDK/work, multilevel regrids and complete
   old-mesh history/restart. Independent dense quadrature/constraint/field and
   actual lifecycle controls are registered; all new remote/scientific/resource
-  acceptance remains pending. The grounded boundary slice leaves periodic,
-  neutral-Neumann, material, EM, subcycling and backend stages open.
+  acceptance remains pending. The periodic extension below shares these owners;
+  neutral-Neumann, material, mixed axes, EM, subcycling and backends remain open.
 - [Persistent species schedules](EMPIC_SPECIES_IMPLEMENTATION.md#persistent-nondividing-species-schedules)
   have complete source review and exact five-file adoption: nominal deadlines,
   all-row actual segment currents, once-chosen bootstrap, sampled-state limits,
@@ -134,11 +136,20 @@ Current work:
   Review corrected a missing canonical duration gate and missing reference
   current volume factor before publication. Independent essentials are registered;
   all new runtime/scientific/resource acceptance remains pending.
-- Periodic multidimensional AMR has an approved source-pinned contract and
-  active canonical implementation, with independent essentials and guide work.
-  Genuine coupled error control and electron-ion thermal exchange remain
-  read-only proposals pending their physics/API review. The full CAP-001–011
-  end-state remains required.
+- [Periodic multidimensional AMR](PERIODIC_ADAPTIVE_COMPOSITE_ELECTROSTATIC.md)
+  has complete thirteen-file source review/adoption and canonical integration:
+  seam equivalence before hanging constraints, arbitrary-width exact image
+  bands, explicit physical neutrality, gauge/all-row residual admission, actual
+  lifted multiwrap paths, wrapped adaptation and complete old-mesh restart.
+  Root corrected the missing periodic tracer unit-mass admission guard; grounded
+  reports/schema and compatible-Yee lift arithmetic have literal source checks.
+  The 402-line independent essential is registered; all new remote, scientific
+  and resource acceptance remains pending.
+- Reduced electron-ion thermal exchange has an approved 178-line contract and
+  active implementation in five canonical production owners. Coupled EMPIC
+  error control remains in constrained-pair/phase derivation. A separate source
+  track repairs the ten new JET reports without changing the fixed cap. The
+  full CAP-001–011 end-state remains required.
 
 The full runner explicitly registers the transverse Yee reference beside the
 existing family tests. MPI multi-rank and distributed FFT primitive tests run

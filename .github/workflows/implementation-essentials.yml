@@ -28,6 +28,7 @@ on:
           - implicit-yee-em
           - static-composite-es
           - adaptive-composite-es
+          - periodic-adaptive-composite-es
           - shared-cuda-scalars
           - completed-clock
           - open-hall-hybrid
@@ -105,6 +106,7 @@ jobs:
               "implicit-yee-em" => ("test_implicit_yee_em.jl", "test_implicit_yee_transverse.jl"),
               "static-composite-es" => ("test_static_composite_electrostatic.jl", "test_dynamic_composite_electrostatic.jl"),
               "adaptive-composite-es" => ("test_adaptive_composite_electrostatic.jl", "test_static_composite_electrostatic.jl", "test_dynamic_composite_electrostatic.jl"),
+              "periodic-adaptive-composite-es" => ("test_periodic_adaptive_composite_electrostatic.jl", "test_adaptive_composite_electrostatic.jl", "test_static_composite_electrostatic.jl", "test_dynamic_composite_electrostatic.jl", "test_implicit_yee_em.jl", "test_implicit_yee_transverse.jl"),
               "shared-cuda-scalars" => ("test_shared_scalar_shapes.jl", "test_moment_normalization.jl", "test_boris_accuracy.jl", "test_rk4_original_duration.jl", "test_ohm_scalar_range.jl", "test_hybrid.jl"),
               "completed-clock" => ("test_step_clocks.jl", "test_io_clock.jl"),
               "open-hall-hybrid" => ("test_open_hall_hybrid.jl",),

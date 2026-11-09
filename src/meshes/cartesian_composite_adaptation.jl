@@ -38,7 +38,7 @@ end
 function _aca_geometry(mesh, refined, denominators)
     addresses = _aca_leaves(mesh.nbase,refined)
     bounds = [_camr_bounds(a,mesh.L,denominators) for a in addresses]
-    return (nbase = mesh.nbase,L = mesh.L,refined = Dict(a => i for (i,a) in enumerate(sort!(collect(refined)))),leaf_index = Dict(a => i for (i,a) in enumerate(addresses)),addresses = addresses,lower = first.(bounds),upper = last.(bounds))
+    return (nbase = mesh.nbase,L = mesh.L,periodic = mesh.periodic,refined = Dict(a => i for (i,a) in enumerate(sort!(collect(refined)))),leaf_index = Dict(a => i for (i,a) in enumerate(addresses)),addresses = addresses,lower = first.(bounds),upper = last.(bounds))
 end
 function _aca_ensure!(refined, address)
     ancestors = typeof(address)[]
@@ -75,9 +75,9 @@ function _aca_proposal(st::AdaptiveCompositeElectrostaticPIC{D,T}, refine_thresh
         centre = mean(a)
         sizes = denominators[a[1]+1]
         for d = 1:D
-            1 < a[2][d] < sizes[d] || continue
-            left = (a[1],ntuple(j -> a[2][j] - Int(j == d),D))
-            right = (a[1],ntuple(j -> a[2][j] + Int(j == d),D))
+            oldmesh.periodic || 1 < a[2][d] < sizes[d] || continue
+            left = (a[1],ntuple(j -> j == d ? (oldmesh.periodic && a[2][j] == 1 ? sizes[j] : a[2][j]-1) : a[2][j],D))
+            right = (a[1],ntuple(j -> j == d ? (oldmesh.periodic && a[2][j] == sizes[j] ? 1 : a[2][j]+1) : a[2][j],D))
             lm,rm = mean(left),mean(right)
             for c = 1:D
                 refine_flags(T[lm[c],centre[c],rm[c]],threshold)[2] && return true
@@ -103,7 +103,7 @@ function _aca_proposal(st::AdaptiveCompositeElectrostaticPIC{D,T}, refine_thresh
     tags = [a for a in _aca_leaves(oldmesh.nbase,refined) if a[1] < maximum_level && high(a,refine_threshold)]
     for a in tags
         sizes = denominators[a[1]+1]
-        ranges = ntuple(d -> (a[2][d]-min(margin,a[2][d]-1)):(a[2][d]+min(margin,sizes[d]-a[2][d])),D)
+        ranges = ntuple(d -> oldmesh.periodic ? _aca_periodic_buffer(a[2][d],sizes[d],margin) : ((a[2][d]-min(margin,a[2][d]-1)):(a[2][d]+min(margin,sizes[d]-a[2][d]))),D)
         total = 1
         for range in ranges
             total = Base.checked_mul(total,length(range))
@@ -116,7 +116,7 @@ function _aca_proposal(st::AdaptiveCompositeElectrostaticPIC{D,T}, refine_thresh
     while true
         geometry = _aca_geometry(oldmesh,refined,denominators)
         extra = Set{Tuple{Int,NTuple{D,Int}}}()
-        for k in eachindex(geometry.addresses), j in _camr_query(geometry,geometry.lower[k],geometry.upper[k]; closed = true)
+        for k in eachindex(geometry.addresses), j in _camr_neighbors(geometry,geometry.lower[k],geometry.upper[k])
             if geometry.addresses[k][1] + 1 < geometry.addresses[j][1]
                 push!(extra,geometry.addresses[k])
             end
@@ -128,7 +128,7 @@ function _aca_proposal(st::AdaptiveCompositeElectrostaticPIC{D,T}, refine_thresh
             balanced = Base.checked_add(balanced,1)
         end
     end
-    mesh = CartesianAMRHierarchy(oldmesh.nbase,oldmesh.L,Tuple(sort!(collect(refined))))
+    mesh = CartesianAMRHierarchy(oldmesh.nbase,oldmesh.L,Tuple(sort!(collect(refined)));periodic = oldmesh.periodic)
     selection = merge(selection,(max_level = maximum_level,buffer = margin,refine_tags = length(tags),coarsened = coarsened,balance_refined = balanced))
     return mesh,selection
 end
@@ -142,4 +142,11 @@ function adapt!(st::AdaptiveCompositeElectrostaticPIC{D,T},species::AbstractVect
     finally
         _ace_release(st)
     end
+end
+
+function _aca_periodic_buffer(index::Int,count::Int,margin::Int)
+    margin >= count ÷ 2 && return 1:count
+    # The short range has <=count entries. BigInt protects addition near Intmax;
+    # all wrapped indices are converted only after reducing into1:count.
+    return sort!(unique!([Int(mod(BigInt(index-1)+offset,count))+1 for offset = -margin:margin]))
 end

@@ -50,6 +50,8 @@ struct _AdaptiveCompositePhysical{D,T<:Union{Float32,Float64}}
     bins::_CompositeParticleBins
     solve_report::AdaptiveCompositeESSolveReport{T}
     step_report::Union{Nothing,AdaptiveCompositeESStepReport{D,T}}
+    transport::Union{Nothing,_PeriodicCompositeTransport{D,T}}
+    background_density::Union{Nothing,_CompositeQ}
 end
 mutable struct AdaptiveCompositeElectrostaticPIC{D,T<:Union{Float32,Float64},S,B,F}
     mesh::CartesianAMRHierarchy{D,T}
@@ -73,6 +75,7 @@ mutable struct AdaptiveCompositeElectrostaticPIC{D,T<:Union{Float32,Float64},S,B
     rtol::T
     atol::T
     maxiter::Int
+    periodic_neutrality::Symbol
     _factors::F
     _configuration::NamedTuple
     _state::Union{Nothing,_AdaptiveCompositePhysical{D,T}}
@@ -83,7 +86,8 @@ mutable struct AdaptiveCompositeElectrostaticPIC{D,T<:Union{Float32,Float64},S,B
     _busy::Threads.Atomic{Bool}
 end
 function _ace_configuration(st)
-    return (D = length(st.mesh.nbase), T = eltype(st.phi), nbase = st.mesh.nbase,
+    st.periodic_neutrality in (:require,:neutralize) && (st.mesh.periodic || st.periodic_neutrality === :require) || throw(ArgumentError("adaptive composite neutrality policy does not match its boundary"))
+    base = (D = length(st.mesh.nbase), T = eltype(st.phi), nbase = st.mesh.nbase,
         lengths = map(_sce_ieee_config, st.mesh.L), ratio = 2, ghosts = 0,
         clouds = map(c -> _sce_ieee_config(c.half_width), st.clouds), background = _sce_ieee_config(st.background_charge),
         factors = map(pair -> map(_sce_ieee_config, pair), st._factors),
@@ -92,6 +96,7 @@ function _ace_configuration(st)
         solve = :cold_scaled_jacobi_cg_original_residual_v1, force = :original_tensor_cloud_boris_v1,
         phase = :synchronous_global_fixed_duration_v1, adaptation = :multilevel_curvature_hysteresis_v1,
         arithmetic = :nearest_gradual, events = :strict_straight_path_interior_v1)
+    return st.mesh.periodic ? merge(base,(boundary = :periodic_torus_v1,field = :periodic_constrained_q1_original_gradient_v1,events = :represented_lifted_multitile_v1,periodic_neutrality = st.periodic_neutrality,gauge = :origin_master_zero_v1,harmonic_field = :zero_periodic_gradient_v1,periodization = :exact_integer_cubic_bands_v1)) : base
 end
 function _ace_populations(species, ::Val{D}, ::Type{T}) where {D,T}
     species isa AbstractVector || throw(ArgumentError("adaptive composite populations require an ordered vector"))
@@ -147,6 +152,7 @@ function _ace_physical_arrays(state; geometry = true)
     push!(arrays, state.phi)
     append!(arrays, (state.bins.offsets, state.bins.species, state.bins.particle))
     state.step_report === nothing || push!(arrays, state.step_report.crossings)
+    state.transport === nothing || append!(arrays,_pacc_transport_arrays(state.transport))
     if geometry
         append!(arrays, _camr_arrays(state.mesh))
         push!(arrays, state.operator.elements, state.operator.diagonal)
@@ -190,27 +196,33 @@ function _ace_acquire(st)
     return nothing
 end
 _ace_release(st) = (Threads.atomic_xchg!(st._busy, false); nothing)
-function _ace_physical(st::AdaptiveCompositeElectrostaticPIC{D,T}, mesh, species; operator = _acq_data(mesh), step_report = nothing) where {D,T}
+_ace_source(st,mesh,species) = _acc_source(mesh,species,st.clouds,st.background_charge;periodic_neutrality = st.periodic_neutrality)
+function _ace_physical(st::AdaptiveCompositeElectrostaticPIC{D,T}, mesh, species; operator = _acq_data(mesh), step_report = nothing,transport = nothing) where {D,T}
     _ace_values(mesh, species, st._factors)
-    source = _acc_source(mesh, species, st.clouds, st.background_charge)
+    source = _ace_source(st,mesh,species)
     phi, report = _acq_solve(operator, source.total, st.rtol, st.atol, st.maxiter)
     _acq_means(mesh, phi)
-    return _AdaptiveCompositePhysical{D,T}(mesh, operator, species, phi, _acc_bins(species, mesh), report, step_report)
+    return _AdaptiveCompositePhysical{D,T}(mesh, operator, species, phi, _acc_bins(species, mesh), report, step_report,transport,source isa _PeriodicCompositeSource ? source.background_density : nothing)
 end
 function _ace_physical_check(st, state)
     _camr_validate(state.mesh)
     _acq_validate(state.operator, state.mesh)
     _ace_values(state.mesh, state.species, st._factors)
     length(state.phi) == length(state.mesh.free) && all(isfinite, state.phi) || throw(ArgumentError("adaptive composite physical potential is invalid"))
-    source = _acc_source(state.mesh, state.species, st.clouds, st.background_charge)
+    source = _ace_source(st,state.mesh,state.species)
     _acq_report(state.operator, state.phi, source.total, state.solve_report, st.rtol, st.atol, st.maxiter)
+    if state.mesh.periodic
+        _sce_q_finite(state.background_density) && state.background_density == source.background_density || throw(ArgumentError("periodic composite bound background density differs"))
+    else
+        state.background_density === nothing || throw(ArgumentError("grounded composite has periodic background state"))
+    end
     _acq_means(state.mesh, state.phi)
     _acc_validate_bins(state.bins, state.species, state.mesh)
     _ace_independent(_ace_physical_arrays(state))
     return source
 end
 _ace_energy(state) = _kinetic_energy_rational(state.species) + _acq_energy(state.operator, state.phi)
-function _ace_inventory(state, source)
+function _ace_inventory(state, source::_AdaptiveCompositeSource)
     reaction, free = _acq_residual(state.operator, state.phi, source.total)
     wall = sum(reaction[state.mesh.boundary]; init = zero(_CompositeQ))
     tail = sum(source.tail; init = zero(_CompositeQ))
@@ -220,6 +232,15 @@ function _ace_inventory(state, source)
     residual = sum(free; init = zero(_CompositeQ))
     full + background + wall + residual == 0 && inside + background + wall + tail + residual == 0 || throw(ArgumentError("adaptive composite weak conductor charge closure failed"))
     return (particle = full, inside = inside, tail = tail, strata = Tuple(source.strata), background = background, free_conductor = wall, net_wall = wall + tail, free_residual_sum = residual)
+end
+function _ace_inventory(state,source::_PeriodicCompositeSource)
+    residual,_ = _acq_residual(state.operator,state.phi,source.total)
+    particle = sum(source.particle;init = zero(_CompositeQ))
+    background = sum(source.background;init = zero(_CompositeQ))
+    total = sum(source.total;init = zero(_CompositeQ))
+    residual_sum = sum(residual;init = zero(_CompositeQ))
+    particle+background == total == 0 && background == source.declared_background+source.neutralizing_charge && iszero(residual_sum) || throw(ArgumentError("periodic composite physical charge/null-mode closure failed"))
+    return (particle = particle,declared_background = source.declared_background,neutralizing_charge = source.neutralizing_charge,background = background,source_total = total,gauge_residual = residual[state.mesh.gauge],full_residual_sum = residual_sum)
 end
 function _ace_step_report(st::AdaptiveCompositeElectrostaticPIC{D,T}, state, time, step, dt, epoch_time, epoch_step) where {D,T}
     report = state.step_report
@@ -236,6 +257,11 @@ function _ace_step_report(st::AdaptiveCompositeElectrostaticPIC{D,T}, state, tim
     for event in report.crossings
         1 <= event.population <= length(state.species) && 1 <= event.particle <= length(state.species[event.population].weight) && 0 <= event.parameter <= 1 &&
         _sce_q_finite(event.parameter) && 1 <= event.from <= length(state.mesh.addresses) && 1 <= event.to <= length(state.mesh.addresses) && event.from != event.to && any(event.axes) || throw(ArgumentError("adaptive composite crossing receipt is invalid"))
+    end
+    if state.mesh.periodic
+        _pacc_transport_check(state.mesh,state.species,state.transport,report)
+    else
+        state.transport === nothing || throw(ArgumentError("grounded composite state has periodic transport"))
     end
     return nothing
 end
@@ -256,9 +282,9 @@ function _ace_phase_check(st::AdaptiveCompositeElectrostaticPIC{D,T}, state, his
     phase.physical_defect == phase.field_defect + phase.kick_defect + phase.trajectory_defect &&
     _ace_energy(state) - phase.initial_energy == phase.physical_defect + phase.mesh_work || throw(ArgumentError("adaptive composite cumulative energy ledger differs"))
     if iszero(n)
-        all(iszero, fields[2:5]) && state.step_report === nothing && history === nothing || throw(ArgumentError("unadvanced adaptive composite physical history is not empty"))
+        all(iszero, fields[2:5]) && state.step_report === nothing && state.transport === nothing && history === nothing || throw(ArgumentError("unadvanced adaptive composite physical history is not empty"))
     elseif n == en
-        isequal(t, et) && state.step_report === nothing || throw(ArgumentError("empty adaptive composite epoch has a step/time change"))
+        isequal(t, et) && state.step_report === nothing && state.transport === nothing || throw(ArgumentError("empty adaptive composite epoch has a step/time change"))
         _ace_validate_history(st, history, state, phase)
     else
         t > et && history === nothing || throw(ArgumentError("advanced adaptive composite epoch has stale prior history"))
@@ -299,8 +325,8 @@ function _ace_publish!(st, state, phi, owners, components, counts, history, phas
     st.initialized = true
     return st
 end
-"Coupled grounded-box 2D3V/3D3V PIC with fixed physical tensor clouds and adaptive Q1 fields."
-function AdaptiveCompositeElectrostaticPIC(mesh::CartesianAMRHierarchy{D,T}, species::AbstractVector; clouds::Tuple, background_charge = zero(T), rtol = sqrt(eps(T)), atol = zero(T), maxiter::Integer = 0) where {D,T}
+"Coupled 2D3V/3D3V PIC with fixed physical tensor clouds and grounded or periodic adaptive Q1 fields."
+function AdaptiveCompositeElectrostaticPIC(mesh::CartesianAMRHierarchy{D,T}, species::AbstractVector; clouds::Tuple, background_charge = zero(T), rtol = sqrt(eps(T)), atol = zero(T), maxiter::Integer = 0,periodic_neutrality::Symbol = :require) where {D,T}
     _sce_mode(); _camr_validate(mesh)
     length(clouds) == D && all(c -> c isa YeeTriangularCloud, clouds) || throw(ArgumentError("adaptive composite requires one original physical cloud per axis"))
     all(c -> isfinite(c.half_width) && _stored_positive(c.half_width), clouds) || throw(ArgumentError("adaptive composite original cloud widths must be finite positive"))
@@ -308,14 +334,16 @@ function AdaptiveCompositeElectrostaticPIC(mesh::CartesianAMRHierarchy{D,T}, spe
     relative, absolute = T(rtol), T(atol)
     isfinite(relative) && isfinite(absolute) && 0 <= relative < 1 && absolute >= 0 && (relative > 0 || absolute > 0) || throw(ArgumentError("adaptive composite converted tolerance pair is invalid"))
     0 <= maxiter <= typemax(Int) || throw(ArgumentError("adaptive composite iteration limit must be a nonnegative Int"))
+    periodic_neutrality in (:require,:neutralize) && (mesh.periodic || periodic_neutrality === :require) || throw(ArgumentError("adaptive composite neutrality policy does not match its boundary"))
     _ace_populations(species, Val(D), T)
     factors = Tuple(_validated_charge_mass(ps) for ps in species)
     _ace_values(mesh, species, factors)
     _ace_independent(_ace_particle_arrays(species))
-    owned = CartesianAMRHierarchy(mesh.nbase, mesh.L, mesh.refinements)
+    owned = CartesianAMRHierarchy(mesh.nbase, mesh.L, mesh.refinements;periodic = mesh.periodic)
     b = _yl_source_scalar("background_charge", background_charge, T)
+    mesh.periodic && periodic_neutrality === :require && !iszero(_pic_collection_charges(owned,b,species).net) && throw(ArgumentError("periodic composite Poisson requires exact physical neutrality"))
     z = zero(_CompositeQ)
-    st = AdaptiveCompositeElectrostaticPIC{D,T,typeof(clouds),typeof(b),typeof(factors)}(owned, zeros(T,length(owned.free)), zero(T), 0, zero(T), false, zero(T), 0, 0, z,z,z,z,z,z,nothing,clouds,b,relative,absolute,Int(maxiter),factors,(;),nothing,nothing,_ElectrostaticHostParticle{D,T}[ps for ps in species],Tuple[_sce_particle_arrays(ps) for ps in species],Int[length(ps.weight) for ps in species],Threads.Atomic{Bool}(false))
+    st = AdaptiveCompositeElectrostaticPIC{D,T,typeof(clouds),typeof(b),typeof(factors)}(owned, zeros(T,length(owned.free)), zero(T), 0, zero(T), false, zero(T), 0, 0, z,z,z,z,z,z,nothing,clouds,b,relative,absolute,Int(maxiter),periodic_neutrality,factors,(;),nothing,nothing,_ElectrostaticHostParticle{D,T}[ps for ps in species],Tuple[_sce_particle_arrays(ps) for ps in species],Int[length(ps.weight) for ps in species],Threads.Atomic{Bool}(false))
     st._configuration = _ace_configuration(st)
     _ace_storage(st, species)
     return st
@@ -352,16 +380,28 @@ function step!(st::AdaptiveCompositeElectrostaticPIC{D,T}, species::AbstractVect
         raw = _acq_raw_potential(old.mesh,old.phi)
         half, work = _exact_rational(tau)/2, zero(_CompositeQ)
         factors = [_boris_exact_factor(_validated_boris_factor(ps)) for ps in old.species]
-        for (before,after,factor) in zip(old.species,private,factors), p in eachindex(before.weight)
+        transport = old.mesh.periodic ? _pacc_transport(old.species,Val(D),T) : nothing
+        for (s,(before,after,factor)) in enumerate(zip(old.species,private,factors)), p in eachindex(before.weight)
             x = ntuple(d -> _exact_rational(before.x[d][p]),D)
             field = _acc_gather(old.mesh,raw,x,st.clouds)
             v0 = ntuple(c -> before.v[c][p],3)
             vhalf = _yee_particle_half_kick(v0,field,ntuple(_ -> zero(_CompositeQ),3),factor,half)
             all(isfinite,vhalf) || throw(ArgumentError("adaptive composite first kick is nonfinite"))
-            exact = ntuple(d -> x[d]+_exact_rational(tau)*_exact_rational(vhalf[d]),D)
-            _camr_locate(old.mesh,exact)
-            for d = 1:D
-                after.x[d][p] = _particle_coordinate(before.x[d][p],vhalf[d],tau)
+            if old.mesh.periodic
+                for d = 1:D
+                    ideal = _particle_coordinate(x[d],_exact_rational(vhalf[d]),_exact_rational(tau))
+                    represented = _periodic_represented_lift(ideal,old.mesh.L[d])
+                    after.x[d][p] = represented.wrapped
+                    transport.half_velocity[s][d][p] = vhalf[d]
+                    transport.winding[s][d][p] = represented.winding
+                    transport.defect[s][d][p] = represented.defect
+                end
+            else
+                exact = ntuple(d -> x[d]+_exact_rational(tau)*_exact_rational(vhalf[d]),D)
+                _camr_locate(old.mesh,exact)
+                for d = 1:D
+                    after.x[d][p] = _particle_coordinate(before.x[d][p],vhalf[d],tau)
+                end
             end
             charge = _yee_macrocharge(before,p,Val(true))
             for c = 1:3
@@ -384,7 +424,7 @@ function step!(st::AdaptiveCompositeElectrostaticPIC{D,T}, species::AbstractVect
             end
         end
         _ace_values(old.mesh,private,st._factors)
-        newsource = _acc_source(old.mesh,private,st.clouds,st.background_charge)
+        newsource = _ace_source(st,old.mesh,private)
         u0,u1 = _acq_master_potential(old.mesh,old.phi),_acq_master_potential(old.mesh,endpoint.phi)
         sourcework = -sum(i -> (u0[i]+u1[i])*(newsource.total[i]-oldsource.total[i])/2,eachindex(u0); init = zero(_CompositeQ))
         U0,U1,K0,K1 = _acq_energy(old.operator,old.phi),_acq_energy(old.operator,endpoint.phi),_kinetic_energy_rational(old.species),_kinetic_energy_rational(private)
@@ -392,8 +432,14 @@ function step!(st::AdaptiveCompositeElectrostaticPIC{D,T}, species::AbstractVect
         _,r0 = _acq_residual(old.operator,old.phi,oldsource.total)
         _,r1 = _acq_residual(old.operator,endpoint.phi,newsource.total)
         df == sum(i -> (u0[old.mesh.free[i]]+u1[old.mesh.free[i]])*(r1[i]-r0[i])/2,eachindex(r0); init = zero(_CompositeQ)) || throw(ArgumentError("adaptive composite original-operator field work identity failed"))
-        report = AdaptiveCompositeESStepReport{D,T}(tau,st.time,time,st.step,count,st.epoch_start_time,st.epoch_start_step,old.mesh.refinements,K0,K1,U0,U1,sourcework,work,df,dk,dx,U1-U0+K1-K0,endpoint.solve_report.max_residual,_acc_crossings(old.species,private,old.mesh))
-        state = _AdaptiveCompositePhysical{D,T}(old.mesh,old.operator,private,endpoint.phi,endpoint.bins,endpoint.solve_report,report)
+        if old.mesh.periodic
+            crossings,before_tiles,after_tiles = _pacc_crossings(old.mesh,transport.old_positions,private,transport.winding)
+            append!(transport.tiles_before,before_tiles);append!(transport.tiles_after,after_tiles)
+        else
+            crossings = _acc_crossings(old.species,private,old.mesh)
+        end
+        report = AdaptiveCompositeESStepReport{D,T}(tau,st.time,time,st.step,count,st.epoch_start_time,st.epoch_start_step,old.mesh.refinements,K0,K1,U0,U1,sourcework,work,df,dk,dx,U1-U0+K1-K0,endpoint.solve_report.max_residual,crossings)
+        state = _AdaptiveCompositePhysical{D,T}(old.mesh,old.operator,private,endpoint.phi,endpoint.bins,endpoint.solve_report,report,transport,endpoint.background_density)
         phase = merge(_ace_phase(st),(time = time,step = count,last_dt = tau,field_defect = st.field_defect+df,kick_defect = st.kick_defect+dk,trajectory_defect = st.trajectory_defect+dx,physical_defect = st.physical_defect+report.total_defect))
         phi = copy(state.phi)
         _ace_physical_check(st,state); _ace_phase_check(st,state,nothing,phase); _ace_prepared(st,state,species,phi,nothing)
@@ -408,7 +454,7 @@ end
 function _ace_regrid_report_check(st::AdaptiveCompositeElectrostaticPIC{D,T}, state, phase) where {D,T}
     r = phase.last_regrid_report
     r isa AdaptiveCompositeESRegridReport{D,T} && r.regrid == phase.regrid_count && r.step == phase.epoch_start_step && isequal(r.time,phase.epoch_start_time) && isequal(r.after_refinements,state.mesh.refinements) || throw(ArgumentError("adaptive composite regrid receipt chronology differs"))
-    before = CartesianAMRHierarchy(st.mesh.nbase,st.mesh.L,r.before_refinements)
+    before = CartesianAMRHierarchy(st.mesh.nbase,st.mesh.L,r.before_refinements;periodic = st.mesh.periodic)
     r.before_leaves == length(before.addresses) && r.after_leaves == length(state.mesh.addresses) && r.before_dofs == length(before.free) && r.after_dofs == length(state.mesh.free) && !isequal(r.before_refinements,r.after_refinements) || throw(ArgumentError("adaptive composite regrid topology receipt differs"))
     all(_sce_q_finite,(r.field_before,r.field_after,r.kinetic_before,r.kinetic_after,r.mesh_work,r.max_residual)) && all(>=(zero(_CompositeQ)),(r.field_before,r.field_after,r.kinetic_before,r.kinetic_after,r.max_residual)) && r.mesh_work == r.field_after-r.field_before && r.kinetic_before == r.kinetic_after || throw(ArgumentError("adaptive composite mesh-work receipt differs"))
     _ace_selection_check(r.selection,T)
@@ -416,10 +462,11 @@ function _ace_regrid_report_check(st::AdaptiveCompositeElectrostaticPIC{D,T}, st
         r.selection.max_level >= maximum(first,state.mesh.addresses) && r.selection.refine_tags <= r.before_leaves && r.selection.coarsened <= length(r.before_refinements) && r.selection.balance_refined <= length(r.after_refinements) || throw(ArgumentError("adaptive composite selection/topology bounds differ"))
         _aca_denominators(state.mesh.nbase,r.selection.max_level)
     end
-    _ace_inventory_check(r.before_inventory,D); _ace_inventory_check(r.after_inventory,D)
-    all(name -> isequal(getproperty(r.before_inventory,name),getproperty(r.after_inventory,name)),(:particle,:inside,:tail,:strata,:background)) || throw(ArgumentError("adaptive composite regrid changed physical source inventory"))
+    _ace_inventory_check(r.before_inventory,D;periodic = st.mesh.periodic); _ace_inventory_check(r.after_inventory,D;periodic = st.mesh.periodic)
+    preserved = st.mesh.periodic ? (:particle,:declared_background,:neutralizing_charge,:background,:source_total) : (:particle,:inside,:tail,:strata,:background)
+    all(name -> isequal(getproperty(r.before_inventory,name),getproperty(r.after_inventory,name)),preserved) || throw(ArgumentError("adaptive composite regrid changed physical source inventory"))
     if phase.step == phase.epoch_start_step
-        source = _acc_source(state.mesh,state.species,st.clouds,st.background_charge)
+        source = _ace_source(st,state.mesh,state.species)
         isequal(r.after_inventory,_ace_inventory(state,source)) && r.field_after == _acq_energy(state.operator,state.phi) && r.kinetic_after == _kinetic_energy_rational(state.species) && r.max_residual == state.solve_report.max_residual || throw(ArgumentError("adaptive composite regrid ending receipt differs from current physical state"))
     end
     return nothing
@@ -427,14 +474,14 @@ end
 function _ace_regrid!(st::AdaptiveCompositeElectrostaticPIC{D,T},species,mesh,selection) where {D,T}
     mesh isa CartesianAMRHierarchy{D,T} || throw(ArgumentError("adaptive composite regrid dimension/precision differs"))
     _camr_validate(mesh)
-    mesh.nbase == st.mesh.nbase && isequal(mesh.L,st.mesh.L) || throw(ArgumentError("adaptive composite regrid must preserve original base/domain"))
+    mesh.periodic == st.mesh.periodic && mesh.nbase == st.mesh.nbase && isequal(mesh.L,st.mesh.L) || throw(ArgumentError("adaptive composite regrid must preserve original base/domain"))
     isequal(mesh.refinements,st.mesh.refinements) && return st
     count = Base.checked_add(st.regrid_count,1)
-    owned = CartesianAMRHierarchy(mesh.nbase,mesh.L,mesh.refinements)
+    owned = CartesianAMRHierarchy(mesh.nbase,mesh.L,mesh.refinements;periodic = mesh.periodic)
     old = st._state
     private = _ace_copy(old.species,Val(D),T)
     state = _ace_physical(st,owned,private)
-    before,after = _ace_inventory(old,_acc_source(old.mesh,old.species,st.clouds,st.background_charge)),_ace_inventory(state,_acc_source(owned,private,st.clouds,st.background_charge))
+    before,after = _ace_inventory(old,_ace_source(st,old.mesh,old.species)),_ace_inventory(state,_ace_source(st,owned,private))
     U0,U1,K0,K1 = _acq_energy(old.operator,old.phi),_acq_energy(state.operator,state.phi),_kinetic_energy_rational(old.species),_kinetic_energy_rational(private)
     report = AdaptiveCompositeESRegridReport{D,T}(st.time,st.step,count,old.mesh.refinements,owned.refinements,length(old.mesh.addresses),length(owned.addresses),length(old.mesh.free),length(owned.free),U0,U1,K0,K1,U1-U0,before,after,state.solve_report.max_residual,selection)
     history = old.step_report === nothing ? st._history : (epoch_start_time = st.epoch_start_time,epoch_start_step = st.epoch_start_step,global_time = st.time,global_step = st.step,last_dt = st.last_dt,state = _ace_physical_payload(old))
@@ -453,7 +500,12 @@ function regrid!(st::AdaptiveCompositeElectrostaticPIC,species::AbstractVector,m
         _ace_release(st)
     end
 end
-function _ace_inventory_check(inventory,D)
+function _ace_inventory_check(inventory,D;periodic = false)
+    if periodic
+        names = (:particle,:declared_background,:neutralizing_charge,:background,:source_total,:gauge_residual,:full_residual_sum)
+        inventory isa NamedTuple && keys(inventory) == names && all(_sce_q_finite,values(inventory)) && inventory.background == inventory.declared_background+inventory.neutralizing_charge && inventory.particle+inventory.background == inventory.source_total == 0 && iszero(inventory.full_residual_sum) || throw(ArgumentError("periodic composite inventory schema/closure differs"))
+        return nothing
+    end
     names = (:particle,:inside,:tail,:strata,:background,:free_conductor,:net_wall,:free_residual_sum)
     inventory isa NamedTuple && keys(inventory) == names && inventory.strata isa Tuple && length(inventory.strata) == 3^D || throw(ArgumentError("adaptive composite inventory schema differs"))
     all(_sce_q_finite,(inventory.particle,inventory.inside,inventory.tail,inventory.strata...,inventory.background,inventory.free_conductor,inventory.net_wall,inventory.free_residual_sum)) &&

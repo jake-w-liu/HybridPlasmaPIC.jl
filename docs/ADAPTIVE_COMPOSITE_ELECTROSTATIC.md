@@ -1,10 +1,13 @@
-# Adaptive Cartesian composite electrostatic PIC
+# Adaptive Cartesian composite electrostatic PIC: grounded default
 
-This CPU family implements coupled 2D3V and 3D3V electrostatic particles and a
-multilevel Cartesian Q1 field. Source review, remote essential runtime checks,
+This guide describes the grounded default of the coupled CPU2D3V/3D3V
+Cartesian Q1 family. `CartesianAMRHierarchy(...;periodic=true)` selects the
+separate [periodic torus contract](PERIODIC_ADAPTIVE_COMPOSITE_ELECTROSTATIC.md),
+using the same canonical numerical/lifecycle owners and a distinct checkpoint
+kind. Grounded defaults and its existing checkpoint keys/reports are preserved. Source review, remote essential runtime checks,
 scientific convergence/self-force evidence and measured cost are separate
 acceptance stages. No runtime result is asserted by this new guide. CAP006C
-still requires periodic/neutral-Neumann/material boundary stages, hybrid/EM
+still requires neutral-Neumann/material and mixed-axis boundary stages, hybrid/EM
 synchronization, subcycling and distributed/device evolution.
 
 ## Construct and evolve
@@ -190,8 +193,9 @@ shared atomic serializer; archive uses the shared checksum container. Same-
 runtime continuation requires remote acceptance; cross-Julia serialization
 bitwise portability is not established.
 
-Periodic seam constraints and periodized clouds, neutral-Neumann face charges/
-gauge/full-row residual, material/electrode events/work, hybrid/EM compatible
+The periodic source stage has its own linked guide and remote/scientific gates.
+Neutral-Neumann face charges/gauge/full-row residual, material/electrode
+events/work, hybrid/EM compatible
 current/flux/divergence synchronization, local subcycling, partition/rebalance
 and device storage remain concrete later implementation stages. Scientific
 fixed-width convergence, h convergence, wall-image/interface self-force,

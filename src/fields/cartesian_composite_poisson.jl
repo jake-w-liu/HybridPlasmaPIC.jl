@@ -111,12 +111,15 @@ function _acq_residual(data, phi, source)
     return all, all[data.mesh.free]
 end
 function _acq_solve(data, source, rtol::T, atol::T, maxiter::Int) where {T}
+    data.mesh.periodic && !iszero(sum(source;init = zero(_CompositeQ))) && throw(ArgumentError("periodic Q1 solve requires exact original neutrality"))
     n = length(data.diagonal)
     iterations = iszero(maxiter) ? Base.checked_mul(2, n) : maxiter
-    target = _exact_rational(atol) + _exact_rational(rtol) * _acq_max(source[data.mesh.free])
-    scaled = _from_exact(T, target / data.scale)
+    observed = data.mesh.periodic ? source : source[data.mesh.free]
+    target = _exact_rational(atol) + _exact_rational(rtol) * _acq_max(observed)
+    divisor = data.scale * (data.mesh.periodic ? n : 1)
+    scaled = _from_exact(T, target / divisor)
     isfinite(scaled) || throw(ArgumentError("composite Q1 scaled tolerance exceeds represented range"))
-    _exact_rational(scaled) > target / data.scale && (scaled = prevfloat(scaled))
+    _exact_rational(scaled) > target / divisor && (scaled = prevfloat(scaled))
     rhs = [_from_exact(T, source[master] / data.scale) for master in data.mesh.free]
     all(isfinite, rhs) || throw(ArgumentError("composite Q1 scaled source exceeds represented range"))
     solver = Krylov.CgWorkspace(n, n, Vector{T})
@@ -126,15 +129,18 @@ function _acq_solve(data, source, rtol::T, atol::T, maxiter::Int) where {T}
     phi = copy(Krylov.solution(solver))
     all(isfinite, phi) || throw(ArgumentError("composite Q1 potential is nonfinite"))
     residual, free = _acq_residual(data, phi, source)
-    valid = solver.stats.solved && !solver.stats.inconsistent && !solver.stats.indefinite && _acq_max(free) <= target
-    valid || throw(ArgumentError("composite Q1 solve failed original residual/status admission: $(solver.stats.status), residual=$(_acq_max(free)), target=$target"))
-    report = AdaptiveCompositeESSolveReport{T}(solver.stats.niter, solver.stats.status, true, _acq_max(free), _acq_max(source[data.mesh.free]), target, data.scale)
+    admitted = data.mesh.periodic ? residual : free
+    valid = solver.stats.solved && !solver.stats.inconsistent && !solver.stats.indefinite && _acq_max(admitted) <= target
+    valid || throw(ArgumentError("composite Q1 solve failed original residual/status admission: $(solver.stats.status), residual=$(_acq_max(admitted)), target=$target"))
+    report = AdaptiveCompositeESSolveReport{T}(solver.stats.niter, solver.stats.status, true, _acq_max(admitted), _acq_max(observed), target, data.scale)
     return phi, report
 end
 function _acq_report(data, phi, source, report, rtol::T, atol::T, maxiter) where {T}
+    data.mesh.periodic && !iszero(sum(source;init = zero(_CompositeQ))) && throw(ArgumentError("periodic Q1 receipt requires exact original neutrality"))
     report isa AdaptiveCompositeESSolveReport{T} || throw(ArgumentError("composite solve receipt type differs"))
-    _, residual = _acq_residual(data, phi, source)
-    norm = _acq_max(source[data.mesh.free])
+    all_residual, free_residual = _acq_residual(data, phi, source)
+    residual = data.mesh.periodic ? all_residual : free_residual
+    norm = _acq_max(data.mesh.periodic ? source : source[data.mesh.free])
     target = _exact_rational(atol) + _exact_rational(rtol) * norm
     limit = iszero(maxiter) ? Base.checked_mul(2, length(phi)) : maxiter
     report.solved && 0 <= report.iterations <= limit && !isempty(report.status) &&

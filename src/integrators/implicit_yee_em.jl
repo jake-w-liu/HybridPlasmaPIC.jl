@@ -517,12 +517,9 @@ function _pyee_residual!(out::Vector{T}, st::ImplicitYeeEMPICStepper{T}, z::Vect
             drift = tau * w.average_velocity[1][index]
             abs(drift) < L || throw(_CompatibleYeeTrialError(:transport))
             ideal = _coordinate_eval(Val(true), x, w.average_velocity[1][index], tau)
-            wrapped = _periodic_coordinate(ideal, zero(L), L, L)
-            winding = Int((ideal - wrapped) / L)
-            rounded = _from_exact(T, wrapped)
-            rounded == g.L[1] && (winding += 1)
-            endpoint.x[1][p] = _periodic_coordinate(rounded, zero(T), g.L[1], g.L[1])
-            lifted = Q(endpoint.x[1][p]) + winding * L
+            represented = _periodic_represented_lift(ideal, g.L[1])
+            endpoint.x[1][p] = represented.wrapped
+            lifted = represented.lifted
             abs(lifted - x) < L || throw(_CompatibleYeeTrialError(:represented_transport))
             w.lift[index] = lifted
             w.path_error[index] = lifted - ideal

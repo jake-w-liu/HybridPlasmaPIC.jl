@@ -1,6 +1,8 @@
 const _ACE_PHASE_FIELDS = (:time,:step,:last_dt,:epoch_start_time,:epoch_start_step,:regrid_count,:initial_energy,:field_defect,:kick_defect,:trajectory_defect,:physical_defect,:mesh_work,:last_regrid_report)
 const _ACE_CHECKPOINT_FIELDS = (:integrator,:schema_version,:configuration,:phase,:initialized,:current,_ACE_PHASE_FIELDS...,:history)
 const _ACE_PHYSICAL_FIELDS = (:refinements,:species,:phi,:last_solve_report,:last_step_report)
+const _ACE_PERIODIC_PHYSICAL_FIELDS = (_ACE_PHYSICAL_FIELDS...,:background_density,:transport)
+_ace_checkpoint_kind(st) = st.mesh.periodic ? :periodic_adaptive_composite_es : :adaptive_composite_es
 const _ACE_HISTORY_FIELDS = (:epoch_start_time,:epoch_start_step,:global_time,:global_step,:last_dt,:state)
 function _ace_keys(record,names)
     _validate_checkpoint_container(record,names)
@@ -11,12 +13,13 @@ function _ace_particle_record(ps)
     return (x = map(copy,ps.x),v = map(copy,ps.v),weight = copy(ps.weight),id = copy(ps.id),tag = copy(ps.tag),q = ps.q,m = ps.m)
 end
 function _ace_physical_payload(state)
-    return (refinements = state.mesh.refinements,species = [_ace_particle_record(ps) for ps in state.species],phi = copy(state.phi),last_solve_report = deepcopy(state.solve_report),last_step_report = deepcopy(state.step_report))
+    core = (refinements = state.mesh.refinements,species = [_ace_particle_record(ps) for ps in state.species],phi = copy(state.phi),last_solve_report = deepcopy(state.solve_report),last_step_report = deepcopy(state.step_report))
+    return state.mesh.periodic ? merge(core,(background_density = deepcopy(state.background_density),transport = deepcopy(state.transport))) : core
 end
 # Structural role inventory deliberately ignores numerical values: old destination
 # particles/fields/phase may be stale when a valid incoming record replaces them.
 function _ace_payload_arrays(record,st::AdaptiveCompositeElectrostaticPIC{D,T}) where {D,T}
-    _ace_keys(record,_ACE_PHYSICAL_FIELDS)
+    _ace_keys(record,st.mesh.periodic ? _ACE_PERIODIC_PHYSICAL_FIELDS : _ACE_PHYSICAL_FIELDS)
     record.refinements isa Tuple && record.species isa Vector && length(record.species) == length(st._factors) && record.phi isa Vector{T} || throw(ArgumentError("adaptive composite physical payload layout differs"))
     arrays = Any[record.phi]
     for ps in record.species
@@ -33,6 +36,13 @@ function _ace_payload_arrays(record,st::AdaptiveCompositeElectrostaticPIC{D,T}) 
         record.last_step_report isa AdaptiveCompositeESStepReport{D,T} || throw(ArgumentError("adaptive composite saved step receipt type differs"))
         push!(arrays,record.last_step_report.crossings)
     end
+    if st.mesh.periodic
+        record.background_density isa _CompositeQ || throw(ArgumentError("periodic physical background density requires original Q"))
+        if record.transport !== nothing
+            record.transport isa _PeriodicCompositeTransport{D,T} || throw(ArgumentError("periodic saved transport type differs"))
+            append!(arrays,_pacc_transport_arrays(record.transport))
+        end
+    end
     return arrays
 end
 function _ace_history_arrays(history,st)
@@ -42,7 +52,7 @@ end
 function _ace_prepare_payload(st::AdaptiveCompositeElectrostaticPIC{D,T},record) where {D,T}
     _ace_independent(_ace_payload_arrays(record,st))
     all(a -> a isa Tuple{Int,NTuple{D,Int}},record.refinements) || throw(ArgumentError("adaptive composite saved cell addresses require canonical Int tuples"))
-    mesh = CartesianAMRHierarchy(st.mesh.nbase,st.mesh.L,record.refinements)
+    mesh = CartesianAMRHierarchy(st.mesh.nbase,st.mesh.L,record.refinements;periodic = st.mesh.periodic)
     isequal(record.refinements,mesh.refinements) || throw(ArgumentError("adaptive composite saved refinement order is not canonical"))
     populations = _ElectrostaticHostParticle{D,T}[]
     for particle in record.species
@@ -50,7 +60,7 @@ function _ace_prepare_payload(st::AdaptiveCompositeElectrostaticPIC{D,T},record)
     end
     _ace_values(mesh,populations,st._factors)
     private = _ace_copy(populations,Val(D),T)
-    state = _AdaptiveCompositePhysical{D,T}(mesh,_acq_data(mesh),private,copy(record.phi),_acc_bins(private,mesh),deepcopy(record.last_solve_report),deepcopy(record.last_step_report))
+    state = _AdaptiveCompositePhysical{D,T}(mesh,_acq_data(mesh),private,copy(record.phi),_acc_bins(private,mesh),deepcopy(record.last_solve_report),deepcopy(record.last_step_report),st.mesh.periodic ? deepcopy(record.transport) : nothing,st.mesh.periodic ? deepcopy(record.background_density) : nothing)
     _ace_physical_check(st,state)
     return state
 end
@@ -70,7 +80,7 @@ end
 function _ace_checkpoint_data(saved,st::AdaptiveCompositeElectrostaticPIC)
     _ace_storage(st,st._owners;counts = false)
     _ace_keys(saved,_ACE_CHECKPOINT_FIELDS)
-    saved.integrator === :adaptive_composite_es && saved.schema_version === 1 && saved.phase === :synchronous_integer && saved.initialized === true &&
+    saved.integrator === _ace_checkpoint_kind(st) && saved.schema_version === 1 && saved.phase === :synchronous_integer && saved.initialized === true &&
     typeof(saved.configuration) === typeof(st._configuration) && isequal(saved.configuration,st._configuration) || throw(ArgumentError("unsupported adaptive composite checkpoint family/schema/phase/configuration"))
     incoming = _ace_payload_arrays(saved.current,st)
     saved.history === nothing || append!(incoming,_ace_history_arrays(saved.history,st))
@@ -90,7 +100,7 @@ function _validate_checkpoint_state(saved,st::AdaptiveCompositeElectrostaticPIC)
 end
 function _ace_snapshot_locked(st,species)
     _ace_ready(st,species)
-    saved = deepcopy(merge((integrator = :adaptive_composite_es,schema_version = 1,configuration = st._configuration,phase = :synchronous_integer,initialized = true,current = _ace_physical_payload(st._state)),_ace_phase(st),(history = st._history,)))
+    saved = deepcopy(merge((integrator = _ace_checkpoint_kind(st),schema_version = 1,configuration = st._configuration,phase = :synchronous_integer,initialized = true,current = _ace_physical_payload(st._state)),_ace_phase(st),(history = st._history,)))
     _ace_checkpoint_data(saved,st)
     return saved
 end
@@ -150,7 +160,7 @@ function load_checkpoint!(st::AdaptiveCompositeElectrostaticPIC,species::Abstrac
         _ace_release(st)
     end
 end
-function archive_run(path::AbstractString,st::AdaptiveCompositeElectrostaticPIC,species::AbstractVector;boundary_desc::AbstractString = "grounded Cartesian composite box; particle-bound cloud tails",normalization::AbstractString = "epsilon0=1",kwargs...)
+function archive_run(path::AbstractString,st::AdaptiveCompositeElectrostaticPIC,species::AbstractVector;boundary_desc::AbstractString = st.mesh.periodic ? "periodic Cartesian composite torus" : "grounded Cartesian composite box; particle-bound cloud tails",normalization::AbstractString = "epsilon0=1",kwargs...)
     _ace_acquire(st)
     try
         return _archive_run(path,st,_ace_snapshot_locked(st,species);boundary_desc,normalization,kwargs...)

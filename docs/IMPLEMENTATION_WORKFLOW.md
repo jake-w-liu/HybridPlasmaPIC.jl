@@ -60,7 +60,10 @@ its publication record.
 | Nondividing species schedules | Root integrates frozen model and independent IO handoffs | Canonical EMPIC persistent events/current/phase/controller/work and schema3 | Five-file source reviewed/adopted; independent essentials registered; all new runtime/scientific/resource acceptance pending |
 | Field-aligned electron conduction | Root integrates frozen `post_devin_numeric_audit` handoff | Varying-B tensor transport in canonical B/pressure lifecycle and persistence | Eight-owner source and essential file reviewed/adopted on `5703c95`; module/guide/registration wired; all remote acceptance pending |
 | Persistent schedule IO | Root owns finalV3 | Complete schema3 pending calendar/controller/current/phase persistence | Released559-line owner adopted exact; canonical graph/codecs/transport preserved; new remote acceptance pending |
-| Periodic multidimensional AMR | `dynamic_amr_es_implementation` | Seam constraints/periodized clouds, neutral source, gauge, evolution/work and full restart | Complete 203-line contract approved on `fc87d4f`; canonical implementation active, independent essentials/guide delegated |
+| Periodic multidimensional AMR | Root adopted frozen parent/child handoff | Seam constraints, arbitrary-width clouds, physical neutral source, full-row gauge, represented multiwrap evolution/work and complete restart | Exact thirteen files reviewed/adopted on `123c4a2`; module and full/focused registration complete; all new acceptance pending |
+| Electron-ion thermal exchange | `post_devin_numeric_audit` | Reduced two-way NGP fluid-pressure/ion-thermal exchange, actual energy/entropy/rounding receipts and complete RNG restart | 178-line contract approved on `123c4a2`; five canonical production owners plus new guide active |
+| Coupled EMPIC error control | `dynamic_amr_es_implementation` | Common-phase projected embedded pair, original-factor RHS, shape-knot and controller/restart contract | Read-only derivation; no production approval yet |
+| New JET source regression | `annulus_loader_guide` | Preserve admitted storage precision, exact private construction and direct immutable normal-face values | All ten added report chains compared with unchanged prior 86; two canonical model owners approved, cap/filter unchanged |
 | Integration and CI | Root | Source review, shared registrations, current Markdown, commits/main publication and exact-head CI | Active alongside three parallel implementation tracks |
 
 ## Exclusive file writers
@@ -125,18 +128,18 @@ The shared nonlinear algorithm and isothermal report/schema1 remain; root owns
 registrations, workflows, global docs and closure/model docstrings. No overlapping
 writer is assigned.
 
-**Current implementation ownership:** the grounded AMR seven production paths,
-guide and essential file, field-aligned conduction eight production paths and
-essential file, and persistent EMPIC model/IO/two guides/essential file have all
-transferred to root after final freezes. Root owns the generic checkpoint file,
-registrations, exports, workflows and global docs. The periodic AMR contract is
-now approved: its parent owns the seven canonical AMR production paths and
-grounded guide, new periodic cloud owner, plus only the shared lift extraction
-in `boundaries/periodic.jl` and its `integrators/implicit_yee_em.jl` caller. Its
-`periodic_controls` child exclusively owns the new periodic essential and guide.
-Complete coupled error control and electron-ion exchange remain read-only
-designs until their physics/API and exclusive paths are approved. Root's
-fourteen-file formatter repair has no overlap with periodic writers.
+**Current implementation ownership:** all frozen conduction, grounded/periodic
+AMR, persistent-schedule and implicit-pressure paths have transferred to root.
+Root owns registration, exports, workflows, current global docs and integration.
+`post_devin_numeric_audit` exclusively writes `electrons/thermal_exchange.jl`,
+`particles/coulomb_local.jl` (only the shared pi refinement),
+`integrators/collisional_hybrid.jl`, `io/collisional_checkpoint.jl`,
+`diagnostics/conservation.jl` and new `ELECTRON_ION_THERMAL_EXCHANGE.md`.
+`annulus_loader_guide` exclusively writes `models/static_composite_electrostatic.jl`
+and `models/toroidal_annulus_hybrid_pic.jl` for the reviewed JET representation
+repair. `dynamic_amr_es_implementation` derives coupled error control read-only.
+Root does not apply formatter hunks to either active worker's paths before
+handoff. Every path above is under `src/` except the guide under `docs/`.
 Source/runtime/scientific/resource gates remain separate.
 
 ## Handoff and verification

@@ -95,6 +95,7 @@ include("coupling/sheared_hybrid_coupling.jl")
 include("coupling/yee_charge.jl")
 include("coupling/composite_cloud.jl")
 include("coupling/cartesian_composite_cloud.jl")
+include("coupling/periodic_composite_cloud.jl")
 include("coupling/yee_transverse.jl")
 include("coupling/periodic_yee_cloud.jl")
 

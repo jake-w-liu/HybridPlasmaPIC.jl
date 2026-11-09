@@ -15,10 +15,20 @@ struct _CartesianAMRFace{D}
     upper::NTuple{D,_CompositeQ}
     area::_CompositeQ
 end
+struct _CartesianAMRSeam{D}
+    axis::Int
+    left::Int
+    right::Int
+    lower::NTuple{D,_CompositeQ}
+    upper::NTuple{D,_CompositeQ}
+    area::_CompositeQ
+    shift::NTuple{D,Int}
+end
 struct CartesianAMRHierarchy{D,T<:Union{Float32,Float64},R<:Tuple}
     nbase::NTuple{D,Int}
     L::NTuple{D,T}
     refinements::R
+    periodic::Bool
     patches::Vector{_CartesianAMRPatch{D}}
     addresses::Vector{Tuple{Int,NTuple{D,Int}}}
     lower::Vector{NTuple{D,_CompositeQ}}
@@ -30,8 +40,10 @@ struct CartesianAMRHierarchy{D,T<:Union{Float32,Float64},R<:Tuple}
     masters::Vector{Int}
     free::Vector{Int}
     boundary::Vector{Int}
+    gauge::Int
     free_index::Vector{Int}
     faces::Vector{_CartesianAMRFace{D}}
+    seams::Vector{_CartesianAMRSeam{D}}
     refined::Dict{Tuple{Int,NTuple{D,Int}},Int}
     leaf_index::Dict{Tuple{Int,NTuple{D,Int}},Int}
 end
@@ -135,7 +147,7 @@ function _camr_query_data(n::NTuple{D,Int}, L, refined, leaves, lo, hi; closed =
 end
 _camr_query(mesh, lo, hi; closed = false) = _camr_query_data(mesh.nbase, mesh.L, mesh.refined, mesh.leaf_index, lo, hi; closed)
 function _camr_locate(mesh::CartesianAMRHierarchy{D}, x; trace = false) where {D}
-    all(d -> trace ? 0 <= x[d] <= _exact_rational(mesh.L[d]) : 0 < x[d] < _exact_rational(mesh.L[d]), 1:D) ||
+    all(d -> trace ? 0 <= x[d] <= _exact_rational(mesh.L[d]) : (mesh.periodic ? 0 <= x[d] < _exact_rational(mesh.L[d]) : 0 < x[d] < _exact_rational(mesh.L[d])), 1:D) ||
         throw(ArgumentError("Cartesian point is outside its admitted physical box"))
     index = ntuple(d -> min(mesh.nbase[d], floor(Int, x[d] * mesh.nbase[d] / _exact_rational(mesh.L[d])) + 1), D)
     a = (0, index)
@@ -161,7 +173,7 @@ function _camr_row(corners, rows, lower, upper, x)
     end
     return sort!([i => value for (i, value) in result if !iszero(value)]; by = first)
 end
-function _camr_layout(n::NTuple{D,Int}, L::NTuple{D,T}, specs, denominators) where {D,T}
+function _camr_layout(n::NTuple{D,Int}, L::NTuple{D,T}, specs, denominators; periodic = false) where {D,T}
     refined = Dict{Tuple{Int,NTuple{D,Int}},Int}(a => k + 1 for (k, a) in enumerate(specs))
     patchcells = Vector{Vector{Tuple{Int,NTuple{D,Int}}}}()
     push!(patchcells, [(0, I) for I in _camr_indices(n)])
@@ -220,6 +232,29 @@ function _camr_layout(n::NTuple{D,Int}, L::NTuple{D,T}, specs, denominators) whe
             end
         end
     end
+    seams = _CartesianAMRSeam{D}[]
+    if periodic
+        for k in eachindex(addresses)
+            for (lo,hi) in _camr_contact_images(L,lower[k],upper[k])
+                for j in query(lo,hi)
+                    abs(addresses[k][1]-addresses[j][1]) <= 1 || throw(ArgumentError("Cartesian periodic face/edge/corner neighbors violate 2:1 balance"))
+                end
+            end
+            for d = 1:D
+                upper[k][d] == _exact_rational(L[d]) || continue
+                lo = ntuple(j -> j == d ? zero(_CompositeQ) : lower[k][j],D)
+                hi = ntuple(j -> j == d ? zero(_CompositeQ) : upper[k][j],D)
+                for j in query(lo,hi)
+                    iszero(lower[j][d]) || continue
+                    l = ntuple(c -> c == d ? _exact_rational(L[d]) : max(lower[k][c],lower[j][c]),D)
+                    u = ntuple(c -> c == d ? _exact_rational(L[d]) : min(upper[k][c],upper[j][c]),D)
+                    all(c -> c == d || l[c] < u[c],1:D) || continue
+                    area = prod(c -> c == d ? one(_CompositeQ) : u[c]-l[c],1:D)
+                    push!(seams,_CartesianAMRSeam(d,k,j,l,u,area,ntuple(c -> Int(c == d),D)))
+                end
+            end
+        end
+    end
     points = NTuple{D,_CompositeQ}[]
     for k in eachindex(addresses), bit in _camr_bits(Val(D))
         push!(points, ntuple(d -> iszero(bit[d]) ? lower[k][d] : upper[k][d], D))
@@ -228,40 +263,45 @@ function _camr_layout(n::NTuple{D,Int}, L::NTuple{D,T}, specs, denominators) whe
     Base.checked_add(length(vertices), 1)
     rawindex = Dict(v => k for (k, v) in enumerate(vertices))
     corners = [[rawindex[ntuple(d -> iszero(bit[d]) ? lower[k][d] : upper[k][d], D)] for bit in _camr_bits(Val(D))] for k in eachindex(addresses)]
-    owners = zeros(Int, length(vertices))
-    for (v, x) in enumerate(vertices)
-        candidates = [k for k in query(x, x) if any(d -> x[d] != lower[k][d] && x[d] != upper[k][d], 1:D)]
-        isempty(candidates) || (owners[v] = first(sort!(candidates; by = k -> addresses[k])))
-    end
-    masters = findall(iszero, owners)
-    masterindex = zeros(Int, length(vertices))
-    for (i, raw) in enumerate(masters)
-        masterindex[raw] = i
-    end
-    births = [first(level for level = 0:length(denominators)-1 if all(d -> denominator(x[d] * denominators[level+1][d] / _exact_rational(L[d])) == 1, 1:D)) for x in vertices]
-    rows = [Pair{Int,_CompositeQ}[] for _ in vertices]
-    visiting = falses(length(vertices))
-    function expand(v)
-        isempty(rows[v]) || return rows[v]
-        visiting[v] && throw(ArgumentError("cyclic Cartesian hanging constraint"))
-        visiting[v] = true
-        if iszero(owners[v])
-            rows[v] = [masterindex[v] => one(_CompositeQ)]
-        else
-            k = owners[v]
-            for raw in corners[k]
-                births[raw] < births[v] || throw(ArgumentError("Cartesian hanging dependency does not lower vertex birth level"))
-                expand(raw)
-            end
-            rows[v] = _camr_row(corners[k], rows, lower[k], upper[k], vertices[v])
+    if periodic
+        rows,masters,gauge = _camr_periodic_constraints(n,L,denominators,vertices,corners,lower,upper,addresses,query)
+    else
+        owners = zeros(Int, length(vertices))
+        for (v, x) in enumerate(vertices)
+            candidates = [k for k in query(x, x) if any(d -> x[d] != lower[k][d] && x[d] != upper[k][d], 1:D)]
+            isempty(candidates) || (owners[v] = first(sort!(candidates; by = k -> addresses[k])))
         end
-        visiting[v] = false
-        all(pair -> pair.second >= 0, rows[v]) && sum(last, rows[v]; init = zero(_CompositeQ)) == 1 || throw(ArgumentError("Cartesian constraint lost positive partition of unity"))
-        return rows[v]
-    end
-    foreach(expand, eachindex(vertices))
-    for (v, x) in enumerate(vertices), k in query(x, x)
-        isequal(rows[v], _camr_row(corners[k], rows, lower[k], upper[k], x)) || throw(ArgumentError("Cartesian edge/corner constraint trace mismatch"))
+        masters = findall(iszero, owners)
+        masterindex = zeros(Int, length(vertices))
+        for (i, raw) in enumerate(masters)
+            masterindex[raw] = i
+        end
+        births = [first(level for level = 0:length(denominators)-1 if all(d -> denominator(x[d] * denominators[level+1][d] / _exact_rational(L[d])) == 1, 1:D)) for x in vertices]
+        rows = [Pair{Int,_CompositeQ}[] for _ in vertices]
+        visiting = falses(length(vertices))
+        function expand(v)
+            isempty(rows[v]) || return rows[v]
+            visiting[v] && throw(ArgumentError("cyclic Cartesian hanging constraint"))
+            visiting[v] = true
+            if iszero(owners[v])
+                rows[v] = [masterindex[v] => one(_CompositeQ)]
+            else
+                k = owners[v]
+                for raw in corners[k]
+                    births[raw] < births[v] || throw(ArgumentError("Cartesian hanging dependency does not lower vertex birth level"))
+                    expand(raw)
+                end
+                rows[v] = _camr_row(corners[k], rows, lower[k], upper[k], vertices[v])
+            end
+            visiting[v] = false
+            all(pair -> pair.second >= 0, rows[v]) && sum(last, rows[v]; init = zero(_CompositeQ)) == 1 || throw(ArgumentError("Cartesian constraint lost positive partition of unity"))
+            return rows[v]
+        end
+        foreach(expand, eachindex(vertices))
+        for (v, x) in enumerate(vertices), k in query(x, x)
+            isequal(rows[v], _camr_row(corners[k], rows, lower[k], upper[k], x)) || throw(ArgumentError("Cartesian edge/corner constraint trace mismatch"))
+        end
+        gauge = 0
     end
     for face in faces
         if face.left > 0 && face.right > 0
@@ -273,42 +313,50 @@ function _camr_layout(n::NTuple{D,Int}, L::NTuple{D,T}, specs, denominators) whe
             end
         end
     end
-    boundary = [i for (i, raw) in enumerate(masters) if any(d -> iszero(vertices[raw][d]) || vertices[raw][d] == _exact_rational(L[d]), 1:D)]
+    for seam in seams, bit in _camr_bits(Val(D))
+        x = ntuple(d -> iszero(bit[d]) ? seam.lower[d] : seam.upper[d],D)
+        y = ntuple(d -> x[d]-seam.shift[d]*_exact_rational(L[d]),D)
+        left = _camr_row(corners[seam.left],rows,lower[seam.left],upper[seam.left],x)
+        right = _camr_row(corners[seam.right],rows,lower[seam.right],upper[seam.right],y)
+        isequal(left,right) || throw(ArgumentError("Cartesian translated periodic face trace mismatch"))
+    end
+    boundary = periodic ? Int[] : [i for (i, raw) in enumerate(masters) if any(d -> iszero(vertices[raw][d]) || vertices[raw][d] == _exact_rational(L[d]), 1:D)]
     boundaryset = Set(boundary)
-    free = [i for i in eachindex(masters) if !(i in boundaryset)]
+    free = [i for i in eachindex(masters) if !(i in boundaryset) && i != gauge]
     isempty(free) && throw(ArgumentError("Cartesian grounded hierarchy has no free potential"))
     free_index = zeros(Int, length(masters))
     for (i, master) in enumerate(free)
         free_index[master] = i
     end
     for (v, x) in enumerate(vertices)
-        if any(d -> iszero(x[d]) || x[d] == _exact_rational(L[d]), 1:D)
+        if !periodic && any(d -> iszero(x[d]) || x[d] == _exact_rational(L[d]), 1:D)
             all(pair -> pair.first in boundaryset, rows[v]) || throw(ArgumentError("Cartesian boundary constraint uses an interior master"))
         end
     end
-    return CartesianAMRHierarchy(n, L, specs, patches, addresses, lower, upper, volumes, vertices, corners, rows, masters, free, boundary, free_index, faces, refined, leaf_index)
+    return CartesianAMRHierarchy(n, L, specs, periodic, patches, addresses, lower, upper, volumes, vertices, corners, rows, masters, free, boundary, gauge, free_index, faces, seams, refined, leaf_index)
 end
 "Owned balanced 2D/3D dyadic hierarchy; each refinement is (level, logical-cell tuple)."
-function CartesianAMRHierarchy(nbase::NTuple{D,Integer}, L::NTuple{D,T}, refinements = ()) where {D,T<:Union{Float32,Float64}}
+function CartesianAMRHierarchy(nbase::NTuple{D,Integer}, L::NTuple{D,T}, refinements = (); periodic::Bool = false) where {D,T<:Union{Float32,Float64}}
     D in (2, 3) || throw(ArgumentError("Cartesian AMR requires D=2 or D=3"))
     all(i -> 2 <= i < typemax(Int), nbase) || throw(ArgumentError("Cartesian base counts must be >=2 and fit node indices"))
     all(x -> isfinite(x) && _stored_positive(x), L) || throw(ArgumentError("Cartesian lengths must be finite positive original IEEE values"))
     n = map(Int, nbase)
     specs, denominators = _camr_specs(n, refinements)
-    return _camr_layout(n, L, specs, denominators)
+    return _camr_layout(n, L, specs, denominators; periodic)
 end
 function _camr_record(mesh)
     patch(p) = (p.parent, p.level, p.cells, p.valid, p.covered, p.leaves)
     face(f) = (f.axis, f.left, f.right, f.lower, f.upper, f.area)
-    return (mesh.nbase, mesh.L, mesh.refinements, map(patch, mesh.patches), mesh.addresses, mesh.lower, mesh.upper, mesh.volumes, mesh.vertices, mesh.corners, mesh.rows, mesh.masters, mesh.free, mesh.boundary, mesh.free_index, map(face, mesh.faces), mesh.refined, mesh.leaf_index)
+    seam(f) = (f.axis,f.left,f.right,f.lower,f.upper,f.area,f.shift)
+    return (mesh.nbase, mesh.L, mesh.refinements, mesh.periodic, map(patch, mesh.patches), mesh.addresses, mesh.lower, mesh.upper, mesh.volumes, mesh.vertices, mesh.corners, mesh.rows, mesh.masters, mesh.free, mesh.boundary, mesh.gauge, mesh.free_index, map(face, mesh.faces), map(seam,mesh.seams), mesh.refined, mesh.leaf_index)
 end
 function _camr_validate(mesh::CartesianAMRHierarchy)
-    expected = CartesianAMRHierarchy(mesh.nbase, mesh.L, mesh.refinements)
+    expected = CartesianAMRHierarchy(mesh.nbase, mesh.L, mesh.refinements; periodic = mesh.periodic)
     isequal(_camr_record(mesh), _camr_record(expected)) || throw(ArgumentError("Cartesian AMR derived geometry/constraint cache changed"))
     return nothing
 end
 function _camr_arrays(mesh)
-    arrays = Any[mesh.patches, mesh.addresses, mesh.lower, mesh.upper, mesh.volumes, mesh.vertices, mesh.corners, mesh.rows, mesh.masters, mesh.free, mesh.boundary, mesh.free_index, mesh.faces]
+    arrays = Any[mesh.patches, mesh.addresses, mesh.lower, mesh.upper, mesh.volumes, mesh.vertices, mesh.corners, mesh.rows, mesh.masters, mesh.free, mesh.boundary, mesh.free_index, mesh.faces, mesh.seams]
     append!(arrays, mesh.corners); append!(arrays, mesh.rows)
     for p in mesh.patches
         append!(arrays, (p.cells, p.valid, p.covered, p.leaves))
@@ -345,4 +393,89 @@ function _camr_segment(mesh::CartesianAMRHierarchy{D}, x, y) where {D}
     end
     lo, hi = ntuple(d -> min(x[d], y[d]), D), ntuple(d -> max(x[d], y[d]), D)
     return _camr_query_data(mesh.nbase, mesh.L, mesh.refined, mesh.leaf_index, lo, hi; closed = true, roots = sort!(collect(roots)), segment = (x, y))
+end
+
+# Opposite face/edge/corner images of a touching leaf or point. The caller's
+# canonical tree query only visits physical overlaps of these translated boxes.
+function _camr_contact_images(L::NTuple{D},lo,hi) where {D}
+    choices = ntuple(d -> iszero(lo[d]) ? (0,1) : (hi[d] == _exact_rational(L[d]) ? (0,-1) : (0,)),D)
+    result = Tuple{NTuple{D,_CompositeQ},NTuple{D,_CompositeQ}}[]
+    for shift in Iterators.product(choices...)
+        all(iszero,shift) && continue
+        push!(result,(ntuple(d -> lo[d]+shift[d]*_exact_rational(L[d]),D),ntuple(d -> hi[d]+shift[d]*_exact_rational(L[d]),D)))
+    end
+    return result
+end
+function _camr_neighbors(mesh,lo,hi)
+    result = _camr_query(mesh,lo,hi;closed = true)
+    if mesh.periodic
+        for (l,u) in _camr_contact_images(mesh.L,lo,hi)
+            append!(result,_camr_query(mesh,l,u;closed = true))
+        end
+    end
+    return sort!(unique!(result))
+end
+function _camr_periodic_constraints(n::NTuple{D},L,denominators,vertices,corners,lower,upper,addresses,query) where {D}
+    canonical = [ntuple(d -> mod(x[d],_exact_rational(L[d])),D) for x in vertices]
+    points = sort!(unique(canonical))
+    indices = Dict(x => i for (i,x) in enumerate(points))
+    classes = [indices[x] for x in canonical]
+    representatives = zeros(Int,length(points))
+    for (raw,c) in enumerate(classes)
+        iszero(representatives[c]) && (representatives[c] = raw)
+    end
+    owners = zeros(Int,length(points))
+    locations = copy(points)
+    incident = [Tuple{Int,NTuple{D,_CompositeQ}}[] for _ in points]
+    for (c,x) in enumerate(points)
+        choices = ntuple(d -> iszero(x[d]) ? (zero(_CompositeQ),_exact_rational(L[d])) : (x[d],),D)
+        for image in Iterators.product(choices...)
+            position = Tuple(image)
+            for k in query(position,position)
+                push!(incident[c],(k,position))
+            end
+        end
+        hanging = [entry for entry in incident[c] if any(d -> entry[2][d] != lower[entry[1]][d] && entry[2][d] != upper[entry[1]][d],1:D)]
+        if !isempty(hanging)
+            k,position = first(sort!(hanging;by = entry -> (addresses[entry[1]],entry[2])))
+            owners[c],locations[c] = k,position
+        end
+    end
+    masterclasses = findall(iszero,owners)
+    masters = representatives[masterclasses]
+    masterindex = zeros(Int,length(points))
+    for (i,c) in enumerate(masterclasses)
+        masterindex[c] = i
+    end
+    births = [first(level for level = 0:length(denominators)-1 if all(d -> denominator(x[d]*denominators[level+1][d]/_exact_rational(L[d])) == 1,1:D)) for x in points]
+    rows = [Pair{Int,_CompositeQ}[] for _ in points]
+    visiting = falses(length(points))
+    function expand(c)
+        isempty(rows[c]) || return rows[c]
+        visiting[c] && throw(ArgumentError("cyclic periodic Cartesian hanging constraint"))
+        visiting[c] = true
+        if iszero(owners[c])
+            rows[c] = [masterindex[c] => one(_CompositeQ)]
+        else
+            k = owners[c]
+            classcorners = classes[corners[k]]
+            for other in classcorners
+                births[other] < births[c] || throw(ArgumentError("periodic hanging dependency does not lower vertex birth level"))
+                expand(other)
+            end
+            rows[c] = _camr_row(classcorners,rows,lower[k],upper[k],locations[c])
+        end
+        visiting[c] = false
+        all(pair -> pair.second >= 0,rows[c]) && sum(last,rows[c];init = zero(_CompositeQ)) == 1 || throw(ArgumentError("periodic constraint lost positive partition"))
+        return rows[c]
+    end
+    foreach(expand,eachindex(points))
+    rawrows = [copy(rows[c]) for c in classes]
+    for c in eachindex(points),(k,position) in incident[c]
+        isequal(rows[c],_camr_row(corners[k],rawrows,lower[k],upper[k],position)) || throw(ArgumentError("periodic incident edge/corner trace mismatch"))
+    end
+    gaugeclass = indices[ntuple(_ -> zero(_CompositeQ),D)]
+    gauge = masterindex[gaugeclass]
+    gauge > 0 || throw(ArgumentError("periodic origin gauge is not an independent master"))
+    return rawrows,masters,gauge
 end
