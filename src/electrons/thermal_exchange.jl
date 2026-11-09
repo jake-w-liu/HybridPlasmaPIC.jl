@@ -183,7 +183,11 @@ function _electron_ion_node(ps::ParticleSet{D}, g, p) where {D}
     return LinearIndices(g.n)[index...]
 end
 
-function _electron_ion_density!(work, species, inner)
+function _electron_ion_density!(
+    work::_ElectronIonThermalWork,
+    species::AbstractVector,
+    inner::HybridStepper,
+)
     fill!(work.density, zero(eltype(work.density)))
     for ps in species
         density!(work.number_density, ps, inner.g, inner.shape)

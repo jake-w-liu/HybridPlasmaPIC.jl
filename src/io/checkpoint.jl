@@ -253,7 +253,7 @@ function _validate_checkpoint_fields(saved, fields::NamedTuple)
     return nothing
 end
 
-function _restore_checkpoint_fields!(fields::NamedTuple, saved)
+function _restore_checkpoint_fields!(fields::NamedTuple, saved::NamedTuple)
     saved_fields = NamedTuple{keys(fields)}(saved)
     map(values(fields), values(saved_fields)) do destination, source
         if destination isa Tuple

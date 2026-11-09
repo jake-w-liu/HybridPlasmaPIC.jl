@@ -2281,7 +2281,13 @@ function _empic_event_work!(impulse, current, oldE, newE, h, volume)
     end
     return work
 end
-function _empic_event_advance!(es, species, work, charges, duration::T) where {T}
+function _empic_event_advance!(
+    es::Union{EMPIC,EMPIC1D},
+    species::AbstractVector,
+    work::_EMPICCollectionWork,
+    charges,
+    duration::T,
+) where {T}
     schedule, Q = work.schedule, _exact_rational
     es.n_sub <= schedule.proposal.budget ||
         throw(ArgumentError("base field partition exceeds persistent event budget"))

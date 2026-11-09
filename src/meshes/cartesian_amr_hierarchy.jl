@@ -163,8 +163,11 @@ function _camr_query_data(
     lo::NTuple{D,_CompositeQ},
     hi::NTuple{D,_CompositeQ};
     closed::Bool = false,
-    roots = nothing,
-    segment = nothing,
+    roots::Union{Nothing,Vector{NTuple{D,Int}}} = nothing,
+    segment::Union{
+        Nothing,
+        Tuple{NTuple{D,_CompositeQ},NTuple{D,_CompositeQ}},
+    } = nothing,
 ) where {D,T<:Union{Float32,Float64}}
     any(d -> hi[d] < 0 || lo[d] > _exact_rational(L[d]) || lo[d] > hi[d], 1:D) && return Int[]
     ranges = ntuple(D) do d
@@ -399,12 +402,14 @@ function _camr_layout(
         ] for k in eachindex(addresses)
     ]
     if periodic
+        vertices_p = vertices::Vector{NTuple{D,_CompositeQ}}
+        corners_p = corners::Vector{Vector{Int}}
         rows, masters, gauge = _camr_periodic_constraints(
             n,
             L,
             denominators,
-            vertices,
-            corners,
+            vertices_p,
+            corners_p,
             lower,
             upper,
             addresses,

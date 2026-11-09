@@ -43,7 +43,7 @@ function _acc_particle_vectors(
     # Always materialize the interior role so no conditional Nothing union reaches
     # the master accumulation; periodic callers return before it is consumed.
     inside = fill(zero(_CompositeQ), count)
-    strata = mesh.periodic ? nothing : fill(zero(_CompositeQ), 3^D)
+    strata = fill(zero(_CompositeQ), 3^D)
     bits, strata_axes = _camr_bits(Val(D)), _acc_strata(Val(D))
     widths = map(c -> _exact_rational(c.half_width), clouds)
     for ps in species, p in eachindex(ps.weight)

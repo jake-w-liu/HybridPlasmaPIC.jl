@@ -862,16 +862,19 @@ function _ec_pair!(
     origin_species::AbstractVector,
     origin_fields::NamedTuple,
     mobile::BitVector,
-    target::S,
-    h::S,
-    delta::_EMPICCoupledQ,
-    time::S,
-    next_time::S,
-    source::_EMPICCoupledQ,
-    elapsed::_EMPICCoupledQ,
-    control::NamedTuple,
-    meter::_EMPICCoupledMeter,
-) where {S<:AbstractFloat}
+    target,
+    h,
+    delta,
+    time,
+    next_time,
+    source,
+    elapsed,
+    control,
+    meter::Union{Nothing,_EMPICCoupledMeter},
+)
+    meter === nothing &&
+        throw(ArgumentError("coupled pair requires an active work meter"))
+    meter = meter::_EMPICCoupledMeter
     T = eltype(stage.rho_n)
     D = length(stage.g.n)
     H = _exact_rational(h)
@@ -2000,8 +2003,9 @@ function _ec_report_check(
     r = phase.report
     T = eltype(es.rho_n)
     D = length(es.g.n)
-    r isa NamedTuple && keys(r) == _EC_REPORT_KEYS ||
-        throw(ArgumentError("coupled report has noncanonical fields"))
+    r isa NamedTuple || throw(ArgumentError("coupled report is absent"))
+    r = r::NamedTuple
+    keys(r) == _EC_REPORT_KEYS || throw(ArgumentError("coupled report has noncanonical fields"))
     _ec_closed(r)
     r.kind === (es isa EMPIC ? :vector : :planar) &&
         _ec_identical(r.control, _ec_control(r.control, T)) &&
