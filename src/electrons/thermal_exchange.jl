@@ -1434,6 +1434,7 @@ function _validate_electron_ion_report(
         isequal(report.dt, dt) &&
         report.cells isa Vector{NamedTuple} ||
         throw(ArgumentError("electron-ion receipt does not match its completed source clock"))
+    config isa _ElectronIonThermalConfig || return nothing
     if !_electron_ion_active(config)
         isempty(report.cells) ||
             throw(ArgumentError("inactive electron-ion state must have an empty receipt"))

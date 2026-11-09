@@ -11,7 +11,7 @@ Status values: `open`, `in progress`, `source reviewed`, `runtime accepted`,
 | Package | Status | Current evidence / next gate |
 |---|---|---|
 | P00 Freeze and reconcile | in progress | Packet verified PASS; seven primary hashes match; dirty primary untouched; support matrix created. Dependency/runtime versions and final owner sign-off still need exact-head records. |
-| P01 Close CI/compiler regressions | in progress | Parser repair `d95ba9c`; implicit-hybrid JET inference `d95ba9c`; AMR constructor repair `93acac8`. Exact-head focused/full CI, formatter artifact, JET recount and remaining failure disposition pending. |
+| P01 Close CI/compiler regressions | in progress | Parser repair `d95ba9c`; AMR constructor repair `93acac8`; package-located JET now 0 at `5cb3781`. Remaining blocker: whole-tree JET total 118/127 vs cap 86, formatter, and full exact-head CI. |
 | P02 Serial collision resources | open | Source + focused tests; resource/occupancy campaign not run. |
 | P03 Rank/device collisions | open | Depends P02/P08/P13; no real-rank/device acceptance. |
 | P04 Bounded Yee families | open | Source + focused tests; independent cavity/trajectory/work and event scope pending. |
@@ -33,14 +33,14 @@ Status values: `open`, `in progress`, `source reviewed`, `runtime accepted`,
 | P20 Full curvilinear/toroidal | open | Axis/material/equilibria/imports/backends missing. |
 | P21 Slab gyrokinetics | open | Source + focused; collective mode/FLR/free-energy/science pending. |
 | P22 Broader gyrokinetics | open | Geometry/collision/kinetic-EM/backends missing. |
-| P23 Adaptive ES boundaries | in progress | Cartesian AMR constructor defect fixed in `93acac8`; adaptive/periodic focused suites queued. Remaining material/electrode/mixed-axis and independent convergence gates open. |
+| P23 Adaptive ES boundaries | in progress | Constructor defect fixed in `93acac8`; adaptive and periodic-adaptive focused suites passed both Julia runtimes (runs 42602594357/42602603461). Material/electrode/mixed-axis, independent refinement and resource gates remain open. |
 | P24 Adaptive hybrid/EM/subcycling | open | Hybrid/EM AMR, subcycling and device hierarchy not implemented. |
 | P25 Pinned references/wave matrix | open | Existing campaigns; production oblique/kinetic/thermal/EM matrix and uncertainty pending. |
 | P26 Nonlinear profiles/datasets | open | Matched datasets/builds and full profiles pending. |
 | P27 Cross-family validation | open | Independent bounded EM/collision/GK/geometry/AMR/reconnection campaigns pending. |
 | P28 Error-matched effectiveness | open | No frozen comparative campaign. |
 | P29 Arbitrary species/schedules/IO | open | Source + focused; coupled controller adoption is P30. Full pending-deadline/failure/raw-archive acceptance pending. |
-| P30 Coupled controller | in progress | Frozen nine-path source adopted in `dd2c268` with canonical include/test registration; schema-4 tag hardening `93acac8`. Focused/full CI, NGP jump, true-error/effectivity, replay portability and resource gates pending. |
+| P30 Coupled controller | in progress | Nine-path source adopted in `dd2c268`; schema-4 tag hardening `93acac8`; focused essential passed both Julia runtimes at `0bf27af` (3556/3556 latest, run 42612416738) including reference, rollback, restart, relativistic C1 and view destinations. NGP jump, true-error/effectivity, replay portability, science and resource gates remain open. |
 | P31 Schedule/source/boundary/backend intersections | open | Depends P30/P35/P05/P09/P14. |
 | P32 Full-Hall open shock | open | Source + focused; physical boundary regime and sweeps pending. |
 | P33 Open pressure/transport/inertia | open | Depends P32/P40/P41. |

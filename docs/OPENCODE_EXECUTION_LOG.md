@@ -87,6 +87,20 @@ isothermal reports the 2-tuple path.
 | G6 hardening | `93acac8` also requires the saved coupled checkpoint `integrator`, `particle_layout` and (for `EMPIC1D`) `polarization` values to match the destination, rather than checking only key presence. |
 | P00 evidence | `docs/OPENCODE_SUPPORT_MATRIX.md` now has family/geometry/closure/species/source/backend/precision/persistence rows. `docs/OPENCODE_PACKAGE_STATUS.md` is the live 44-package status. |
 
+## 2026-11-09 — focused runtime results
+
+| Work | Exact head | Workflow/job | Actual runtimes | Result |
+|---|---|---|---|---|
+| Adaptive Cartesian composite ES | `93acac8` | `Implementation essentials` run [42602594357](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42602594357), jobs 129110455184/129110455209 | Julia 1.12.7 and 1.13.3 | pass, including `test_adaptive_composite_electrostatic.jl` and the static/dynamic consumers |
+| Periodic adaptive composite ES | `93acac8` | run [42602603461](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42602603461), jobs 129110480539/129110481234 | Julia 1.12.7 and 1.13.3 | pass, including the full periodic hierarchy/solver/restart essential |
+| Coupled projected Euler–Heun EMPIC | `0bf27af` | run [42612416738](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42612416738), jobs 129143913160/129143912693 | Julia 1.12.7 and 1.13.3 | pass, 3556/3556 on latest; full independent reference, cuts/seams, rejection/rollback, schema-4 restart, relativistic C1 and view destinations |
+| Exact-head JET recount | `5cb3781` | `source-representation` run [42631633211](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42631633211) | Julia 1.12.7 and 1.13.3 | package-located reports = 0; total reports 118/127 versus cap 86 — **still open** |
+
+The focused results establish the tested slices, not whole-package science or
+resource acceptance. The JET cap remains a P01 blocker: every remaining
+dependency/Base chain must be classified and reduced or the source must be
+restructured; the cap is not raised.
+
 ## Update rule
 
 Append dated entries with commit SHA, exact command/workflow URL, raw artifact

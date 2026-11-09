@@ -52,15 +52,14 @@ function _acc_particle_vectors(
             iszero(charge) && continue
         end
         x = ntuple(d -> _exact_rational(ps.x[d][p]), D)
-        factors = if mesh.periodic
-            nothing
-        else
-            ntuple(D) do d
-                a, L = widths[d], _exact_rational(mesh.L[d])
-                left, right =
-                    _yee_cloud_primitives(x[d], a)[2], _yee_cloud_primitives(x[d] - L, a)[2]
-                (1 - left, left - right, right)
+        factors = ntuple(D) do d
+            if mesh.periodic
+                return (zero(_CompositeQ), zero(_CompositeQ), zero(_CompositeQ))
             end
+            a, L = widths[d], _exact_rational(mesh.L[d])
+            left, right =
+                _yee_cloud_primitives(x[d], a)[2], _yee_cloud_primitives(x[d] - L, a)[2]
+            (1 - left, left - right, right)
         end
         (mesh.periodic || all(f -> all(>=(zero(_CompositeQ)), f) && sum(f) == 1, factors)) ||
             throw(ArgumentError("composite cloud axis strata lost unit mass"))
