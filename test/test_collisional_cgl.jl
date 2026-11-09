@@ -324,6 +324,9 @@ end
                 step!(target, tp, target.dt)
                 reference, rp = make()
                 H._restore_checkpoint_state!(reference, rp, H._checkpoint_state(st, ps))
+                @test reference.inner.time[] == st.inner.time[]
+                @test reference.inner.step[] == st.inner.step[]
+                @test reference.dt == st.dt
                 step!(reference, rp, reference.dt)
                 @test isequal(
                     _composition_snapshot(target, tp),
