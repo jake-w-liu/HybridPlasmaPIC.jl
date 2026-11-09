@@ -1350,7 +1350,13 @@ function _empic_weighted_derivative(stages, weights, role, component)
         (array, scale) in getproperty(stage, role)[component]
     ]
 end
-function _empic_full_time_field_update!(out, origin, stages, weights, h::T) where {T}
+function _empic_full_time_field_update!(
+    out::Union{EMPIC,EMPIC1D},
+    origin::NamedTuple,
+    stages::Tuple,
+    weights::Tuple,
+    h::T,
+) where {T}
     H, coefficients = _exact_rational(h), _em_exact_update_coefficients(out.c, h)
     E = out isa EMPIC ? out.E : (out.Ex, out.Ey)
     B = out isa EMPIC ? out.B : (out.Bz,)
@@ -2339,7 +2345,10 @@ function _enforce_gauss!(es::EMPIC{D,T}) where {D,T}
     return _empic_gauss!(es.E, es.rho_n, es.g)
 end
 
-@inline function _spectral_divergence_source!(g::FourierGrid{D,T}, source) where {D,T}
+@inline function _spectral_divergence_source!(
+    g::FourierGrid{D,T},
+    source::AbstractArray{T,D},
+) where {D,T}
     srchat = g.sbuf
     srchat .= source
     g.plan * srchat
@@ -2347,7 +2356,11 @@ end
 end
 @inline _spectral_divergence_source!(g::FourierGrid{D,T}, ::Nothing) where {D,T} =
     fill!(g.sbuf, zero(Complex{T}))
-function _spectral_divergence_project!(F, source, g::FourierGrid{D,T}) where {D,T}
+function _spectral_divergence_project!(
+    F::NTuple{3,Array{T,D}},
+    source,
+    g::FourierGrid{D,T},
+) where {D,T}
     srchat = _spectral_divergence_source!(g, source)
     buffers = (g.cbuf, g.tbuf, g.abuf)
     for c = 1:3

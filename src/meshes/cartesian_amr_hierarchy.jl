@@ -60,6 +60,53 @@ function _camr_indices(n::NTuple{D,Int}) where {D}
     end
     return result
 end
+function _camr_hierarchy(
+    n::NTuple{D,Int},
+    L::NTuple{D,T},
+    specs::R,
+    periodic::Bool,
+    patches::Vector{_CartesianAMRPatch{D}},
+    addresses::Vector{Tuple{Int,NTuple{D,Int}}},
+    lower::Vector{NTuple{D,_CompositeQ}},
+    upper::Vector{NTuple{D,_CompositeQ}},
+    volumes::Vector{_CompositeQ},
+    vertices::Vector{NTuple{D,_CompositeQ}},
+    corners::Vector{Vector{Int}},
+    rows::Vector{Vector{Pair{Int,_CompositeQ}}},
+    masters::Vector{Int},
+    free::Vector{Int},
+    boundary::Vector{Int},
+    gauge::Int,
+    free_index::Vector{Int},
+    faces::Vector{_CartesianAMRFace{D}},
+    seams::Vector{_CartesianAMRSeam{D}},
+    refined::Dict{Tuple{Int,NTuple{D,Int}},Int},
+    leaf_index::Dict{Tuple{Int,NTuple{D,Int}},Int},
+) where {D,T,R<:Tuple}
+    return CartesianAMRHierarchy(
+        n,
+        L,
+        specs,
+        periodic,
+        patches,
+        addresses,
+        lower,
+        upper,
+        volumes,
+        vertices,
+        corners,
+        rows,
+        masters,
+        free,
+        boundary,
+        gauge,
+        free_index,
+        faces,
+        seams,
+        refined,
+        leaf_index,
+    )
+end
 _camr_parent(a) = (a[1] - 1, map(i -> i ÷ 2 + Int(isodd(i)), a[2]))
 function _camr_children(a::Tuple{Int,NTuple{D,Int}}) where {D}
     level = Base.checked_add(a[1], 1)
@@ -477,7 +524,7 @@ function _camr_layout(
     seams_t = seams::Vector{_CartesianAMRSeam{D}}
     refined_t = refined::Dict{Tuple{Int,NTuple{D,Int}},Int}
     leaf_index_t = leaf_index::Dict{Tuple{Int,NTuple{D,Int}},Int}
-    return CartesianAMRHierarchy(
+    return _camr_hierarchy(
         n,
         L,
         specs,
@@ -648,16 +695,16 @@ function _camr_neighbors(mesh, lo, hi)
     return sort!(unique!(result))
 end
 function _camr_periodic_constraints(
-    n::NTuple{D},
-    L,
-    denominators,
-    vertices,
-    corners,
-    lower,
-    upper,
-    addresses,
+    n::NTuple{D,Int},
+    L::NTuple{D,T},
+    denominators::Vector{NTuple{D,Int}},
+    vertices::Vector{NTuple{D,_CompositeQ}},
+    corners::Vector{Vector{Int}},
+    lower::Vector{NTuple{D,_CompositeQ}},
+    upper::Vector{NTuple{D,_CompositeQ}},
+    addresses::Vector{Tuple{Int,NTuple{D,Int}}},
     query,
-) where {D}
+) where {D,T<:Union{Float32,Float64}}
     canonical = [ntuple(d -> mod(x[d], _exact_rational(L[d])), D) for x in vertices]
     points = sort!(unique(canonical))
     indices = Dict(x => i for (i, x) in enumerate(points))

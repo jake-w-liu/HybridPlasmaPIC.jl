@@ -299,7 +299,7 @@ function _ec_new_stage(
 ) where {T}
     return _new_empic1d_state(es.g, 0, es.n0, c, shape, relativistic, false, one(T), n_sub, nothing)
 end
-function _ec_restore_fields!(stage, fields)
+function _ec_restore_fields!(stage::Union{EMPIC,EMPIC1D}, fields::NamedTuple)
     _restore_checkpoint_fields!(_empic_event_fields(stage), fields)
     return stage
 end
@@ -331,7 +331,13 @@ function _ec_count_particles(species, mobile = nothing)
     end
     return count
 end
-function _ec_source!(rho, stage, species, target, meter)
+function _ec_source!(
+    rho,
+    stage::Union{EMPIC,EMPIC1D},
+    species::AbstractVector,
+    target,
+    meter::_EMPICCoupledMeter,
+)
     _ec_charge!(meter, :deposits, _ec_count_particles(species))
     return _empic_charge_sum!(rho, stage.ne, species, stage.g, stage.shape, stage.n0, target)
 end
@@ -372,10 +378,13 @@ function _ec_average_current(a, b, ::Type{T}) where {T}
         map((x, y) -> _from_exact(T, (_exact_rational(x) + _exact_rational(y)) / 2), left, right)
     end
     if a.dc === nothing
+        b.dc === nothing ||
+            throw(ArgumentError("coupled branch current layouts differ"))
         all(x -> all(isfinite, x), current) ||
             throw(ArgumentError("coupled averaged current is nonfinite"))
         return (current = current, dc = nothing)
     end
+    b.dc === nothing && throw(ArgumentError("coupled branch current layouts differ"))
     dc = _from_exact(T, (_exact_rational(a.dc) + _exact_rational(b.dc)) / 2)
     all(x -> all(isfinite, x), current) && isfinite(dc) ||
         throw(ArgumentError("coupled averaged current is nonfinite"))
@@ -507,7 +516,17 @@ function _ec_stencil_receipt(ps, g, shape)
         end, D) for p in eachindex(ps.weight)
     ]
 end
-function _ec_particle_branch!(destination, origin, euler, forces0, forces1, stage, mobile, h, which)
+function _ec_particle_branch!(
+    destination,
+    origin,
+    euler,
+    forces0,
+    forces1,
+    stage::Union{EMPIC,EMPIC1D},
+    mobile,
+    h,
+    which,
+)
     T = eltype(stage.rho_n)
     D = length(stage.g.n)
     H = _exact_rational(h)
@@ -587,7 +606,7 @@ function _ec_particle_branch!(destination, origin, euler, forces0, forces1, stag
     end
     return rows
 end
-function _ec_constraint(stage, meter)
+function _ec_constraint(stage::Union{EMPIC,EMPIC1D}, meter::_EMPICCoupledMeter)
     T = eltype(stage.rho_n)
     E = stage isa EMPIC ? stage.E : (stage.Ex, stage.Ey)
     B = stage isa EMPIC ? stage.B : (stage.Bz,)
@@ -747,7 +766,7 @@ function _ec_stage_power(species, forces, mobile)
     return result
 end
 function _ec_interval_work(
-    stage,
+    stage::Union{EMPIC,EMPIC1D},
     origin_species,
     low_species,
     high_species,
@@ -839,20 +858,20 @@ function _ec_interval_work(
     )
 end
 function _ec_pair!(
-    stage,
-    origin_species,
-    origin_fields,
-    mobile,
-    target,
-    h,
-    delta,
-    time,
-    next_time,
-    source,
-    elapsed,
-    control,
-    meter,
-)
+    stage::Union{EMPIC,EMPIC1D},
+    origin_species::AbstractVector,
+    origin_fields::NamedTuple,
+    mobile::BitVector,
+    target::T,
+    h::T,
+    delta::_EMPICCoupledQ,
+    time::T,
+    next_time::T,
+    source::_EMPICCoupledQ,
+    elapsed::_EMPICCoupledQ,
+    control::NamedTuple,
+    meter::_EMPICCoupledMeter,
+) where {T<:AbstractFloat}
     T = eltype(stage.rho_n)
     D = length(stage.g.n)
     H = _exact_rational(h)
@@ -1247,7 +1266,16 @@ function _ec_phase_scalar_check(es, phase, population_count::Int, initialized, c
     end
     return nothing
 end
-function _ec_validate_phase(es, phase, species, fields, initialized, clock, meter; replay = true)
+function _ec_validate_phase(
+    es::Union{EMPIC,EMPIC1D},
+    phase::_EMPICCoupledPhase,
+    species::AbstractVector,
+    fields::NamedTuple,
+    initialized::Bool,
+    clock::Tuple,
+    meter::_EMPICCoupledMeter;
+    replay::Bool = true,
+)
     _ec_phase_scalar_check(es, phase, length(species), initialized, clock)
     if initialized
         if iszero(clock[2])
@@ -1294,7 +1322,11 @@ function _empic_collection_validate_species_history(es, schedule::_EMPICCoupledS
     es.collection.initialized[] && _ec_shadow_matches(es, schedule)
     return nothing
 end
-function _ec_ready(es, species, meter)
+function _ec_ready(
+    es::Union{EMPIC,EMPIC1D},
+    species::AbstractVector,
+    meter::_EMPICCoupledMeter,
+)
     charges = _empic_collection_validate_species(es, species)
     work = es.collection
     work.initialized[] ||
@@ -1338,7 +1370,7 @@ function _ec_publish!(es, work, phase, shadow; particles)
     schedule.candidate, schedule.candidate_shadow = reset, nothing
     return es
 end
-function _empic_coupled_init!(es, species)
+function _empic_coupled_init!(es::Union{EMPIC,EMPIC1D}, species::AbstractVector)
     work = es.collection
     schedule = work.schedule
     _ec_acquire(schedule)
@@ -1618,7 +1650,11 @@ function _ec_sum_work(intervals, kind)
         total_defect = total(:total_defect),
     )
 end
-function _empic_coupled_step!(es, species, dt)
+function _empic_coupled_step!(
+    es::Union{EMPIC,EMPIC1D},
+    species::AbstractVector,
+    dt::Real,
+)
     work = es.collection
     schedule = work.schedule
     _ec_acquire(schedule)
@@ -1952,7 +1988,15 @@ function _ec_install_samples!(stage::EMPIC1D, ps, sample)
     copyto!(stage.Bzp, sample.B[3])
     return nothing
 end
-function _ec_report_check(es, phase, species, fields, clock, meter; replay = true)
+function _ec_report_check(
+    es::Union{EMPIC,EMPIC1D},
+    phase::_EMPICCoupledPhase,
+    species::AbstractVector,
+    fields::NamedTuple,
+    clock::Tuple,
+    meter::Union{Nothing,_EMPICCoupledMeter};
+    replay::Bool = true,
+)
     r = phase.report
     T = eltype(es.rho_n)
     D = length(es.g.n)
