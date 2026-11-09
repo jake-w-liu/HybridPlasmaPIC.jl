@@ -74,4 +74,12 @@ function HybridPlasmaPIC.disallow_scalar_indexing!(::Val{:cuda})
     return nothing
 end
 
+include("cuda_hybrid/types.jl")
+include("cuda_hybrid/validation.jl")
+include("cuda_hybrid/kernels.jl")
+include("cuda_hybrid/fourier.jl")
+include("cuda_hybrid/evolution.jl")
+include("cuda_hybrid/snapshot.jl")
+include("cuda_hybrid/checkpoint.jl")
+
 end # module

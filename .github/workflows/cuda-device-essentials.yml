@@ -1,0 +1,60 @@
+name: Resident CUDA device essentials
+
+# Manual execution requires a registered Linux x64 NVIDIA runner labelled cuda.
+# Hosted extension-load checks do not execute or certify these device tests.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  resident-cuda:
+    name: Resident CUDA / Julia ${{ matrix.julia-version }}
+    runs-on: [self-hosted, linux, x64, cuda]
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - julia-version: '1.12'
+            cuda-version: '6.4.1'
+          - julia-version: '1'
+            cuda-version: '6'
+    env:
+      CUDA_TEST_VERSION: ${{ matrix.cuda-version }}
+      CUDA_TEST_ENV: ${{ runner.temp }}/hpic-cuda-device-${{ github.run_id }}-${{ matrix.julia-version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: ${{ matrix.julia-version }}
+      - uses: julia-actions/cache@v2
+      - name: Prepare resident CUDA environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          julia --project=. -e '
+            using Pkg
+            Pkg.activate(ENV["CUDA_TEST_ENV"])
+            Pkg.develop(path = pwd())
+            version = ENV["CUDA_TEST_VERSION"]
+            # Test the exact declared floor; the other row resolves supported 6.x.
+            requirement = version == "6" ? version : VersionNumber(version)
+            Pkg.add(Pkg.PackageSpec(name = "CUDA", version = requirement))' \
+            2>&1 | tee cuda-device-setup.log
+      - name: Run actual NVIDIA lifecycle checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          julia --project="$CUDA_TEST_ENV" test/test_cuda_hybrid_device.jl \
+            2>&1 | tee cuda-device.log
+      - name: Retain device output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: resident-cuda-${{ matrix.julia-version }}-${{ github.sha }}
+          path: |
+            cuda-device-setup.log
+            cuda-device.log
+          if-no-files-found: warn

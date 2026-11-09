@@ -168,6 +168,57 @@ jobs:
             distributed-models.log
           if-no-files-found: warn
 
+  cuda-host:
+    name: CUDA extension load (Julia ${{ matrix.julia-version }}, host only)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - julia-version: '1.12'
+            cuda-version: '6.4.1'
+          - julia-version: '1'
+            cuda-version: '6'
+    env:
+      CUDA_TEST_VERSION: ${{ matrix.cuda-version }}
+      CUDA_TEST_ENV: ${{ runner.temp }}/hpic-cuda-host-env
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: ${{ matrix.julia-version }}
+      - uses: julia-actions/cache@v2
+      - name: Prepare CUDA extension environment
+        timeout-minutes: 30
+        shell: bash
+        run: |
+          set -euo pipefail
+          julia --project=. -e '
+            using Pkg
+            Pkg.activate(ENV["CUDA_TEST_ENV"])
+            Pkg.develop(path = pwd())
+            version = ENV["CUDA_TEST_VERSION"]
+            # Test the exact declared floor; the other row resolves supported 6.x.
+            requirement = version == "6" ? version : VersionNumber(version)
+            Pkg.add(Pkg.PackageSpec(name = "CUDA", version = requirement))' \
+            2>&1 | tee cuda-host-setup.log
+      - name: Load extension and check host admissions
+        timeout-minutes: 20
+        shell: bash
+        run: |
+          set -euo pipefail
+          julia --project="$CUDA_TEST_ENV" test/test_cuda_hybrid_host.jl \
+            2>&1 | tee cuda-host.log
+      - name: Retain host extension output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cuda-host-${{ matrix.julia-version }}-${{ github.sha }}
+          path: |
+            cuda-host-setup.log
+            cuda-host.log
+          if-no-files-found: warn
+
   format:
     name: Formatting check (JuliaFormatter)
     runs-on: ubuntu-latest

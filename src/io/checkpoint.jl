@@ -1349,6 +1349,7 @@ function _save_checkpoint(
         ImplicitHybridStepper,
         ImplicitEMPICStepper,
         ImplicitYeeEMPICStepper,
+        CUDAHybridStepper,
         SlabGyrokineticPIC,
         OpenHallHybrid,
         ShearedPeriodicHybridPIC,

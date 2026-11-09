@@ -11,6 +11,12 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Added
 
+- The optional resident `CUDAHybridStepper` family implements a single-device
+  D1/3V Float64 isothermal hybrid lifecycle with shared CIC/mover/Ohm/RK/Fourier
+  owners, magnetic subcycles, complete predictor/phase diagnostics and distinct
+  full physical checkpoint/archive persistence. CUDA 6.4.1 within 6.x is required;
+  the source is reviewed, while actual NVIDIA numerical/resource acceptance is open.
+
 - Actual physical-pencil ES/EM/isothermal-hybrid and vacuum-Maxwell lifecycle
   checks cover charged nonuniform evolution, rank ownership, one-rank rejection,
   complete matching-layout restart and variable-step continuation. Independent
@@ -22,12 +28,14 @@ records scoped verification and remaining exact-revision acceptance gates.
   epochs. Regrids preserve particles/global phase and record actual mesh-energy
   exchange. Diagnostics and distinct complete topology-aware checkpoint/archive
   persistence retain the prior physical step on its own mesh. Source is reviewed;
-  registered independent regrid/Verlet/history/continuation controls await GitHub.
+  independent regrid/Verlet/history/continuation controls pass on minimum/latest
+  Julia in scoped run 42553061121; full integrated CI remains required.
 
 - Independent compatible-Yee transverse references compare Float32/64 vacuum
   Maxwell updates, including the true Yee Nyquist mode, and magnetized unequal-q/m
   cold-plasma midpoint updates against exact rational Cayley maps. They are
-  registered in the full suite and focused GitHub checks; execution is pending.
+  registered in the full suite and pass focused minimum/latest GitHub checks
+  in run 42552199520; full integrated CI remains required.
 
 - `ImplicitYeeEMPICStepper` adds a separate synchronous CPU 1D3V all-mobile,
   exact-neutral periodic Yee cloud midpoint Vlasov–Maxwell family on exactly

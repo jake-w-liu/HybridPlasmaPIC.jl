@@ -5,8 +5,9 @@ nonrelativistic CPU1D3V midpoint PIC. Its orbit-averaged current and electric
 gather consume the same original rational cloud coefficients. Numerical,
 compiler and restart regressions registered at main `9b4d363` passed the
 [26-job CI run](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41813949753).
-That result covers the existing regression scope; independent transverse
-acceptance described below remains unexecuted. The source implementation is
+The independent transverse references subsequently passed on minimum/latest
+Julia at `62f985f` in [run 42552199520](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42552199520),
+with 366 assertions per job, including 38 new transverse checks. The source implementation is
 not a floating-point conservation or nonlinear stability theorem.
 
 ## Supported model and use
@@ -179,8 +180,9 @@ q/m and stationary x. Their exact rational matrices use no production
 residual/curl/current helper. They compare every physical endpoint, preserve
 constant Bx and absent channels, and check the actual constraints/work receipts.
 Both references are registered in full test group1 and the `implicit-yee-em`
-focused GitHub selector. This new test source has been reviewed but has not yet
-been executed; exact-head remote CI is required before acceptance.
+focused GitHub selector. The recorded two-job run above passed both references
+on Julia 1.12.7 and 1.13.3; every raw job log was checked against that revision.
+Full exact-head CI remains required before later integrated main publication.
 
 Actual order/dispersion, nonuniform transverse transport, nonlinear conditioning
 and complete-step resource acceptance remain open. Compiler/format and all
