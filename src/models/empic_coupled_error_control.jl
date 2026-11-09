@@ -862,16 +862,16 @@ function _ec_pair!(
     origin_species::AbstractVector,
     origin_fields::NamedTuple,
     mobile::BitVector,
-    target::T,
-    h::T,
+    target::S,
+    h::S,
     delta::_EMPICCoupledQ,
-    time::T,
-    next_time::T,
+    time::S,
+    next_time::S,
     source::_EMPICCoupledQ,
     elapsed::_EMPICCoupledQ,
     control::NamedTuple,
     meter::_EMPICCoupledMeter,
-) where {T<:AbstractFloat}
+) where {S<:AbstractFloat}
     T = eltype(stage.rho_n)
     D = length(stage.g.n)
     H = _exact_rational(h)
