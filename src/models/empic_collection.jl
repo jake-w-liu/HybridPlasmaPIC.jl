@@ -1966,7 +1966,7 @@ function _empic_event_report_valid(
     raw_impulse =
         r.raw_impulse === nothing ? nothing :
         map(a -> fill(zero(_EMPICEventQ), size(a)), r.raw_impulse)
-    work_used, work_raw = zero(_EMPICEventQ), r.work_raw === nothing ? nothing : zero(_EMPICEventQ)
+    work_used, work_raw = zero(_EMPICEventQ), zero(_EMPICEventQ)
     volume = prod(Q, es.g.dx)
     for i in eachindex(r.segments)
         segment = r.segments[i]
@@ -1985,6 +1985,7 @@ function _empic_event_report_valid(
             volume,
         )
         if raw_impulse !== nothing
+            raw_impulse = raw_impulse::Tuple
             work_raw += _empic_event_work!(
                 raw_impulse,
                 segment.raw_current,
@@ -1995,10 +1996,11 @@ function _empic_event_report_valid(
             )
         end
     end
+    computed_raw = raw_impulse === nothing ? nothing : work_raw
     isequal(impulse, r.impulse) &&
         isequal(raw_impulse, r.raw_impulse) &&
         work_used == r.work_used &&
-        isequal(work_raw, r.work_raw) ||
+        isequal(computed_raw, r.work_raw) ||
         throw(ArgumentError("persistent current impulse/work differs from actual segment sources"))
     H, a, b = copy(r.initial.interval), copy(r.initial.last), copy(r.initial.next)
     mobile = es.collection.mobile
@@ -2273,7 +2275,7 @@ function _empic_event_next(phase, mobile, time, finish, base, M)
     return edge, base
 end
 function _empic_event_work!(
-    impulse::Vector{_EMPICEventQ},
+    impulse::Tuple,
     current::Tuple,
     oldE::Tuple,
     newE::Tuple,
