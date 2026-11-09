@@ -109,7 +109,7 @@ Source names below resolve to these canonical files:
 | Implicit evolution | Linear Fourier reference and residual-checked reduced shock CN; separate [synchronous coupled hybrid source](IMPLICIT_HYBRID.md) | CPU periodic isothermal collections now have joint velocity/B residual, bounded Newton–GMRES, work-defect report and complete persistence source. Current synchronous hybrid/EM and compatible Yee EM regressions pass CI; method/order/dispersion/resource acceptance, evolving pressure/orbit averages and backends remain CAP-005 work |
 | Geometry | `ToroidalGrid`, metric gradient/divergence in curvilinear_mesh:20–49,90–235 | Geometry operators exist; no coupled toroidal plasma stepper, CAP-006A |
 | Gyrokinetics | Local `GuidingCentre` utilities plus [self-consistent slab source](SLAB_GYROKINETIC.md) | Full-f gyrocentre collections, reciprocal ring-TSC, full-k polarization/modified adiabatic electrons, collective RK4, physical diagnostics and complete synchronous checkpoint/archive are source-implemented and reviewed. Existing transport, deposit/field/drift/energy and invariant controls pass exact-revision CI; remaining order/dispersion/scientific/resource acceptance and broader geometry/physics remain CAP-006B work |
-| AMR | Existing scalar `AMRGrid` transfer primitives plus separate [static composite electrostatic source](STATIC_COMPOSITE_ELECTROSTATIC.md) | Nested 2:1 ownership, one global Neumann solve, physical-cloud coupling/crossings, exact work/rounding diagnostics and full physical restart are source-implemented and reviewed. Existing static matrix/crossing/rejection/restart controls pass CI. Self-force/scientific/resource acceptance and dynamic/multidimensional/EM hierarchy remain CAP-006C work; a dynamic completed-boundary ES family is implementing |
+| AMR | Existing scalar `AMRGrid` transfer primitives plus separate [static composite electrostatic source](STATIC_COMPOSITE_ELECTROSTATIC.md) | Nested 2:1 ownership, one global Neumann solve, physical-cloud coupling/crossings, exact work/rounding diagnostics and full physical restart are source-implemented and reviewed. Existing static matrix/crossing/rejection/restart controls pass CI. Self-force/scientific/resource acceptance and dynamic/multidimensional/EM hierarchy remain CAP-006C work; the separate dynamic completed-boundary 1D family is source-implemented, with remote acceptance pending |
 | External validation | Pinned external references plus case 34 parallel and case 35 oblique Hall production histories | Bounded production validation exists; complete manual campaigns, broader regimes, full profile replay and matched cost/accuracy comparisons remain CAP-007 work |
 | Kinetic species diversity | Arbitrary ES collections landed; CPU EMPIC collections with opt-in D1–3 dividing schedules and specialized EMPIC1D S1/S2, both with optional relativistic motion are source-implemented and reviewed | Existing exact-revision GitHub controls pass; scientific/resource acceptance, broader schedules and collision/boundary/partition/device composition remain CAP-008 work |
 | Multidimensional shocks | Existing reduced shocks plus separate [OpenHallHybrid source](OPEN_HALL_HYBRID.md), built on real mixed operators | Bounded isothermal numerical reservoirs, full-Hall projected field trials, SBP CIC, synchronous particles/sources, energy and full RNG restart are source-implemented/reviewed. Existing numerical/rejection/continuation controls pass CI; physical-boundary/refinement/resource acceptance, evolving pressure and broader boundaries/backends remain CAP-009 work |
@@ -713,16 +713,22 @@ Reject invalid equilibrium or failed field solve before committing the populatio
 
 ### CAP-006C: adaptive plasma hierarchy
 
-The first static 1D composite-ES bounded source is complete and reviewed:
-true nested 2:1 patch/leaf ownership, one global mixed Neumann solve, fixed
-physical triangular clouds, real coarse/fine crossings, signed work/rounding
-defects and complete matching-hierarchy IO. The scalar-source helper moves
-byte-identically to shared validation; cloud/force/plate owners stay canonical.
-Review corrected duration/clock admission and prepared initialization before
-publication. Essential remote matrix-solve, analytic charged-crossing and
-physical restart checks are prepared; no local Julia work was run.
-The [guide](STATIC_COMPOSITE_ELECTROSTATIC.md) owns this source contract.
-Runtime, self-force/resource and adaptive-hierarchy acceptance remain open.
+The [static 1D composite family](STATIC_COMPOSITE_ELECTROSTATIC.md) supplies
+nested 2:1 unique leaves, a global mixed Neumann solve, fixed physical clouds,
+coarse/fine crossings, actual work/rounding diagnostics and full physical IO.
+Its registered matrix, crossing and restart regressions pass the checked current
+main CI scope; self-force/scientific/resource validation remains open.
+
+The [dynamic completed-boundary family](DYNAMIC_COMPOSITE_ELECTROSTATIC.md)
+adds actual refine/coarsen and automatic base-field curvature tagging around
+canonical static physical epochs. It preserves particles and global fixed-dt
+phase, reconstructs the constrained new-mesh field, records actual signed mesh
+energy exchange, and retains preceding physical-step history on its own mesh.
+Distinct complete raw/archive persistence supports changed topology/counts and
+stale destination values. Source/caller/phase/IO review is complete; essential
+independent regrid/Verlet/accounting/history/restart checks are registered but
+unexecuted. Exact-head GitHub and scientific/resource acceptance remain open.
+The bounded 1D source does not close the broader hierarchy requirements below.
 
 - [ ] Add an owned hierarchy of patches, valid/ghost regions, refinement ratios,
   tagging/regridding and covered-cell accounting. Existing `AMRGrid` only stores

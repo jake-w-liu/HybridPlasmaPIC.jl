@@ -16,6 +16,7 @@ const HPIC_TEST_GROUPS = [
         "test_implicit_hybrid_phase.jl",
         "test_implicit_hybrid.jl",
         "test_static_composite_electrostatic.jl",
+        "test_dynamic_composite_electrostatic.jl",
         "test_shared_scalar_shapes.jl",
         "test_open_hall_hybrid.jl",
         "test_yee_particle_charge.jl",

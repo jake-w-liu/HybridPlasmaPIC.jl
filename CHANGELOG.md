@@ -11,6 +11,13 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Added
 
+- `DynamicCompositeElectrostaticPIC` adds completed-boundary 1D CPU refine/coarsen
+  and base-field curvature adaptation over canonical physical-cloud Neumann/KDK
+  epochs. Regrids preserve particles/global phase and record actual mesh-energy
+  exchange. Diagnostics and distinct complete topology-aware checkpoint/archive
+  persistence retain the prior physical step on its own mesh. Source is reviewed;
+  registered independent regrid/Verlet/history/continuation controls await GitHub.
+
 - Independent compatible-Yee transverse references compare Float32/64 vacuum
   Maxwell updates, including the true Yee Nyquist mode, and magnetized unequal-q/m
   cold-plasma midpoint updates against exact rational Cayley maps. They are

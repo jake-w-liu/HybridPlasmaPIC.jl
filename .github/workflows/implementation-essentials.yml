@@ -63,7 +63,7 @@ jobs:
               "sheared-hybrid" => ("test_sheared_hybrid.jl",),
               "implicit-em" => ("test_implicit_em.jl", "test_implicit_hybrid_phase.jl"),
               "implicit-yee-em" => ("test_implicit_yee_em.jl", "test_implicit_yee_transverse.jl"),
-              "static-composite-es" => ("test_static_composite_electrostatic.jl",),
+              "static-composite-es" => ("test_static_composite_electrostatic.jl", "test_dynamic_composite_electrostatic.jl"),
               "shared-cuda-scalars" => ("test_shared_scalar_shapes.jl", "test_moment_normalization.jl", "test_boris_accuracy.jl", "test_rk4_original_duration.jl", "test_ohm_scalar_range.jl", "test_hybrid.jl"),
               "completed-clock" => ("test_step_clocks.jl", "test_io_clock.jl"),
               "open-hall-hybrid" => ("test_open_hall_hybrid.jl",),

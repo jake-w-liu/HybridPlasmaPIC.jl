@@ -209,6 +209,7 @@ function _archive_run(
         OpenHallHybrid,
         ShearedPeriodicHybridPIC,
         StaticCompositeElectrostaticPIC,
+        DynamicCompositeElectrostaticPIC,
         _ClosedYeeCheckpointStepper,
     },
     state;

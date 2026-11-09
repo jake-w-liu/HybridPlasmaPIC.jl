@@ -43,7 +43,7 @@ its publication record.
 | Track | Worker / owner | Deliverable | Stage |
 | --- | --- | --- | --- |
 | Boris certificate premises | Root integrates frozen `post_devin_numeric_audit` repair | Underflow-safe original quotient equality; DD range/mode/domain and outward-distance gates; symmetric zero products | Two canonical files reviewed/adopted; compact remote regressions prepared; executable acceptance pending |
-| Dynamic composite ES | `dynamic_amr_es_implementation` | Real completed-boundary refine/coarsen, canonical charge/field reconstruction, mesh-energy exchange, physical steps and complete restart | Full contract approved; five new files implementing |
+| Dynamic composite ES | Root adopts final five-file handoff | Real completed-boundary refine/coarsen, canonical charge/field reconstruction, mesh-energy exchange, physical steps and complete restart | Complete bounded source/caller/phase/IO review and registrations; essential remote acceptance pending |
 | Implicit Yee transverse acceptance | Root adopts frozen handoff | Independent true-Yee vacuum and unequal-species cold-plasma midpoint controls | Both references source-reviewed and registered; exact-head remote acceptance pending |
 | Physical-pencil model acceptance | `post_devin_numeric_audit` | Actual charged distributed ES/EM/hybrid and nonconstant Maxwell evolution, restore and continuation controls | Complete owner audit found missing real-model CI coverage; compact lifecycle checks implementing |
 | Resident CUDA hybrid | Root holds frozen reconciled source | Complete resident D1/3V isothermal lifecycle, diagnostics and physical persistence | Nine files reconciled against current main; registration and actual NVIDIA acceptance remain open |

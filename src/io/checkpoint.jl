@@ -1353,6 +1353,7 @@ function _save_checkpoint(
         OpenHallHybrid,
         ShearedPeriodicHybridPIC,
         StaticCompositeElectrostaticPIC,
+        DynamicCompositeElectrostaticPIC,
         _ClosedYeeCheckpointStepper,
     },
     state,

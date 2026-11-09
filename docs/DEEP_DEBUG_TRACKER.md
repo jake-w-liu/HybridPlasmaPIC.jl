@@ -64,9 +64,12 @@ Current work:
   quotient residual underflow, DD range/mode/domain admission, full low-word
   distance and symmetric exact-zero products. No tolerance is relaxed; new
   executable acceptance is pending.
-- Implement completed-boundary dynamic composite ES regridding, canonical
-  charge/field reconstruction, explicit mesh-energy exchange and full restart.
-  The approved bounded 1D contract leaves multidimensional/hybrid/EM AMR open.
+- Completed-boundary [dynamic composite ES](DYNAMIC_COMPOSITE_ELECTROSTATIC.md)
+  is source-implemented and integrated: canonical field reconstruction, physical
+  steps, actual mesh-energy exchange, old-mesh history and complete restart.
+  Root read the full five-file family/callers and added compact independent
+  controls; exact-head remote execution remains pending. Multidimensional,
+  hybrid/EM, subcycled and backend AMR remain open.
 - Compatible implicit Yee EM source audit found no confirmed production defect
   in its reviewed scope. Two independent transverse vacuum/cold-plasma oracles
   are source-reviewed and registered; exact-revision remote execution is pending.

@@ -55,6 +55,7 @@ include("meshes/curvilinear_mesh.jl")
 include("meshes/periodic_shear_mesh.jl")
 include("meshes/adaptive_mesh_refinement.jl")
 include("meshes/static_amr_hierarchy.jl")
+include("meshes/dynamic_composite_adaptation.jl")
 include("fields/yee_fields.jl")
 
 # --- Particles ---
@@ -143,6 +144,8 @@ include("models/yee_conductive_layer.jl")
 include("models/yee_pml.jl")
 include("models/yee_longitudinal_pic.jl")
 include("models/static_composite_electrostatic.jl")
+include("models/dynamic_composite_electrostatic.jl")
+include("diagnostics/dynamic_composite_electrostatic.jl")
 include("models/yee_electromagnetic_pic.jl")
 include("models/yee_impact_longitudinal_pic.jl")
 include("models/yee_absorbing_longitudinal_pic.jl")
@@ -181,6 +184,7 @@ include("parallel/mpi.jl")
 include("io/publication.jl")
 include("io/checkpoint.jl")
 include("io/static_composite_electrostatic_checkpoint.jl")
+include("io/dynamic_composite_electrostatic_checkpoint.jl")
 include("io/slab_gyrokinetic_checkpoint.jl")
 include("io/sheared_hybrid_checkpoint.jl")
 include("io/implicit_hybrid_checkpoint.jl")
@@ -460,6 +464,7 @@ export set_empic1d_schedule!, set_empic_schedule!
 export electromagnetic_diagnostics
 export YeeLongitudinalPIC, yee_longitudinal_diagnostics
 export StaticAMRHierarchy1D, StaticCompositeElectrostaticPIC, StaticCompositeESReport
+export DynamicCompositeElectrostaticPIC, DynamicCompositeESRegridReport, regrid!, adapt!
 export composite_electrostatic_diagnostics, patch_electric_field
 export YeeElectromagneticPIC, yee_electromagnetic_diagnostics
 export YeeImpactLongitudinalPIC, yee_impact_longitudinal_diagnostics
