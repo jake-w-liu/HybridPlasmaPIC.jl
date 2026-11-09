@@ -160,6 +160,11 @@ include("models/slab_gyrokinetic_pic.jl")
 include("models/sheared_periodic_hybrid_pic.jl")
 include("models/cuda_hybrid.jl")
 include("initial_conditions/sheared_hybrid.jl")
+include("meshes/toroidal_annulus_mesh.jl")
+include("coupling/toroidal_annulus_hybrid_coupling.jl")
+include("fields/toroidal_annulus_hybrid_operators.jl")
+include("models/toroidal_annulus_hybrid_pic.jl")
+include("initial_conditions/toroidal_annulus_hybrid.jl")
 
 # --- Diagnostics ---
 include("diagnostics/pressure_tensor.jl")
@@ -170,6 +175,7 @@ include("diagnostics/conservation.jl")        # energy/momentum budgets (needs k
 include("diagnostics/implicit_em.jl")
 include("diagnostics/implicit_yee_em.jl")
 include("diagnostics/open_hall_energy.jl")
+include("diagnostics/toroidal_annulus_hybrid.jl")
 include("diagnostics/shock_surface.jl")       # shock diag (needs PerpShock2D/3D)
 include("diagnostics/synthetic_spacecraft.jl")
 include("diagnostics/ray_tracing.jl")         # WKB ray tracing (needs _require_finite_point3)
@@ -188,6 +194,7 @@ include("io/static_composite_electrostatic_checkpoint.jl")
 include("io/dynamic_composite_electrostatic_checkpoint.jl")
 include("io/slab_gyrokinetic_checkpoint.jl")
 include("io/sheared_hybrid_checkpoint.jl")
+include("io/toroidal_annulus_hybrid_checkpoint.jl")
 include("io/implicit_hybrid_checkpoint.jl")
 include("io/implicit_em_checkpoint.jl")
 include("io/implicit_yee_em_checkpoint.jl")
@@ -324,6 +331,9 @@ export MixedShockOperators,
     project_mixed_field!,
     project_mixed_rate!
 export PeriodicShearGrid, ShearedPeriodicHybridPIC, ShearedHybridFieldReport
+export ToroidalAnnulusGrid, ToroidalAnnulusHybridPIC
+export ToroidalAnnulusStageReport, ToroidalAnnulusStepReport
+export load_toroidal_annulus_cold!, toroidal_annulus_vacuum_flux, toroidal_annulus_diagnostics
 export to_logical, load_sheared_uniform!, sheared_hybrid_diagnostics
 export ToroidalGrid,
     gridsize,

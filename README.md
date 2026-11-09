@@ -95,8 +95,16 @@ A bounded [periodic shear hybrid](docs/SHEARED_PERIODIC_HYBRID.md) also has
 complete source for logical-position/Cartesian-velocity ions, mapped magnetic
 flux, collective RK4, physical diagnostics and synchronous checkpoint/archive
 continuation. It is CPU 3D with odd grids and one fixed nonorthogonal map.
-Runtime, scientific and resource acceptance remain open; toroidal geometry
-requires the further work in the [completeness plan](docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md).
+Runtime, scientific and resource acceptance remain open.
+
+A separate [toroidal-annulus hybrid](docs/TOROIDAL_ANNULUS_HYBRID.md) now has
+source for coupled logical-position/Cartesian-velocity ions, nonconstant metric
+magnetic flux and adiabatic electron pressure through all four RK4 stages.
+Electrical contacts and incoming pressure reservoirs have explicit signed work;
+complete physical checkpoint/archive state retains the synchronous phase.
+Minimum/latest runtime, scientific and resource acceptance are pending. Solid-axis
+regularity, material walls, equilibria/imports and backends remain in the
+[completeness plan](docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md).
 
 A separate [synchronous implicit EM family](docs/IMPLICIT_EM.md) now has complete
 CPU D1–3 source for a joint particle-velocity/E/B solve, canonical continuity
@@ -301,7 +309,8 @@ in the [implementation plan](docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md).
 | **Event-local longitudinal reflection** | nonrelativistic CPU Float32/64 finite-cloud source candidate on a closed 1D grid; at most one connected reflection cluster per external step, conservative carried remainder checks, staged wall ledgers and distinct restart; [scope and pending GitHub acceptance](docs/YEE_IMPACT_LONGITUDINAL.md) | `YeeImpactLongitudinalPIC`, `init!`, `step!`, `yee_impact_longitudinal_diagnostics` |
 | **Isolated passive longitudinal capture** | nonrelativistic CPU Float32/64 finite-cloud source candidate on a closed 1D grid; KDK with original forces, at most one uniquely isolated certified-passive capture per external step, full death current, dynamic exact plates, stable Vector compaction and distinct restart; [scope and pending GitHub acceptance](docs/YEE_ABSORBING_LONGITUDINAL.md) | `YeeAbsorbingLongitudinalPIC`, `init!`, `step!`, `yee_absorbing_longitudinal_diagnostics` |
 | **Self-consistent slab gyrokinetics** | source-implemented CPU 3D full-f positive-ion gyrocentres, reciprocal ring-TSC coupling, full-k polarization/modified adiabatic electrons, collective RK4 and physical energy/complete restart; [model and pending acceptance](docs/SLAB_GYROKINETIC.md). Runtime, scientific and resource gates remain open | `GyrocentreSet`, `SlabGyrokineticPIC`, `init!`, `step!`, `slab_gyrokinetic_diagnostics` |
-| **Fusion geometry / AMR utilities** | toroidal metric operators, local guiding-centre updates and finite-volume AMR primitives; coupled toroidal and broader multidimensional adaptive plasma solvers remain [planned](docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md#cap-006--geometry-gyrokinetics-and-adaptive-plasma-evolution) | `ToroidalGrid`, `metric_gradient`, `GuidingCentre`, `push_guiding_centre!`, `AMRGrid`, `refine` |
+| **Coupled toroidal-annulus hybrid** | source-implemented CPU 3D Float32/64 kinetic ions, metric magnetic flux, evolving adiabatic pressure, electrical/thermal contact work and full synchronous restart; [contract and pending runtime acceptance](docs/TOROIDAL_ANNULUS_HYBRID.md). Axis, material walls, equilibria/imports and backends remain open | `ToroidalAnnulusGrid`, `ToroidalAnnulusHybridPIC`, `load_toroidal_annulus_cold!`, `toroidal_annulus_vacuum_flux`, `toroidal_annulus_diagnostics` |
+| **Fusion geometry / AMR utilities** | toroidal metric operators, local guiding-centre updates and finite-volume AMR primitives; solid-axis toroidal and broader multidimensional adaptive plasma solvers remain [planned](docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md#cap-006--geometry-gyrokinetics-and-adaptive-plasma-evolution) | `ToroidalGrid`, `metric_gradient`, `GuidingCentre`, `push_guiding_centre!`, `AMRGrid`, `refine` |
 | **KdV reference** | integrating-factor pseudo-spectral KdV solver + analytic soliton, used as a nonlinear-wave verification target | `kdv_solve`, `kdv_soliton` |
 
 The two event-free closed Yee source candidates retain exact original-geometry E/B

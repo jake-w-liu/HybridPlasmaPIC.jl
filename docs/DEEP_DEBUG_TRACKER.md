@@ -95,10 +95,13 @@ Current work:
   and cost acceptance are open. This repository currently has no self-hosted runner
   listed by its Actions API; that does not establish hardware unavailability
   elsewhere.
-- A genuine toroidal-annulus hybrid family has eight draft files in its isolated
-  worktree. Its assigned worker is completing source/phase/IO review before root
-  integrates the shared map, module and writer seams. It is not yet executable
-  acceptance; axis, material walls, equilibrium/imports and backends remain open.
+- The genuine [toroidal-annulus hybrid](TOROIDAL_ANNULUS_HYBRID.md) has complete
+  eight-file source review and canonical map/module/writer integration. Actual
+  particles, metric magnetic flux and adiabatic pressure evolve together, with
+  explicit electrical/thermal reservoir work and full physical restart. Compact
+  independent geometry/source and coupled lifecycle controls are registered;
+  numerical/compiler/format/scientific/resource acceptance remains pending. Axis,
+  material walls, equilibrium/imports and backends remain open.
 - The implicit-hybrid worker is extending the canonical joint solve with evolving
   scalar pressure, a third residual block, physical work accounting and schema2
   restart. The approved five-file scope preserves the existing isothermal report

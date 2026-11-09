@@ -1353,6 +1353,7 @@ function _save_checkpoint(
         SlabGyrokineticPIC,
         OpenHallHybrid,
         ShearedPeriodicHybridPIC,
+        ToroidalAnnulusHybridPIC,
         StaticCompositeElectrostaticPIC,
         DynamicCompositeElectrostaticPIC,
         _ClosedYeeCheckpointStepper,

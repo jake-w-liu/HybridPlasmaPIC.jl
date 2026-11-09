@@ -74,8 +74,13 @@ function to_cartesian(g::ToroidalGrid{T}, r::Real, θ::Real, φ::Real) where {T}
     rT = _require_finite_real("r", r, T)
     θT = _require_finite_real("θ", θ, T)
     φT = _require_finite_real("φ", φ, T)
-    R = g.R0 + rT * cos(θT)
-    return (R * cos(φT), R * sin(φT), rT * sin(θT))
+    return _toroidal_cartesian_point(g.R0, rT, sin(θT), cos(θT), sin(φT), cos(φT))
+end
+
+# Share the point formula while callers own their coordinate/trigonometric policy.
+@inline function _toroidal_cartesian_point(R0, r, sin_theta, cos_theta, sin_phi, cos_phi)
+    R = R0 + r * cos_theta
+    return (R * cos_phi, R * sin_phi, r * sin_theta)
 end
 
 @inline _dperiodic(f, lo, hi, h) = (f[hi] - f[lo]) / (2h)

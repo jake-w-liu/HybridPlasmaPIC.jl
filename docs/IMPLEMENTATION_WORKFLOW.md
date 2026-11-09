@@ -47,9 +47,11 @@ its publication record.
 | Implicit Yee transverse acceptance | Root adopts frozen handoff | Independent true-Yee vacuum and unequal-species cold-plasma midpoint controls | Both references pass minimum/latest focused jobs with 366 assertions each at `62f985f`; full integrated/scientific acceptance open |
 | Physical-pencil model acceptance | Root adopts frozen lifecycle checks | Actual charged distributed ES/EM/hybrid and nonconstant Maxwell evolution, restore and continuation controls | Charged latest controls passed before a Maxwell empty-population helper failure; helper corrected in CPU candidate `b8a5e7d`, complete remote rerun pending |
 | Resident CUDA hybrid | Root integrates reviewed fourteen-file handoff | Complete resident D1/3V isothermal lifecycle, diagnostics and physical persistence | Latest host job at `38d1cd1` passes 38 checks on Julia 1.13.3; minimum host, full integrated and actual NVIDIA acceptance remain open |
-| Toroidal annulus | `dynamic_amr_es_implementation`; child owns loader/guide/IO | Full coupled logical particles, metric magnetic field, adiabatic pressure, contact work and complete restart | Eight-file draft preserved; worker completing final source review before integration and remote acceptance |
-| Implicit evolving pressure | `post_devin_numeric_audit` | Canonical joint velocity/B/pe solve, third residual gate, signed physical ledger and schema2 persistence | Approved five-file extension implementing; existing isothermal 19-field report/schema1 preserved |
-| Integration and CI | Root | Source review, shared registrations, current Markdown, commits/main publication and exact-head CI | Active alongside the two implementation tracks |
+| Toroidal annulus | Final source handed to root | Full coupled logical particles, metric magnetic field, adiabatic pressure, contact work and complete restart | Eight-file final source reviewed/adopted; root canonical map/module/writer integration and compact independent essentials prepared; all remote acceptance pending |
+| Implicit evolving pressure | `post_devin_numeric_audit` | Canonical joint velocity/B/pe solve, third residual gate, signed physical ledger and schema2 persistence | Five-file source plus compact essentials frozen for root review; existing isothermal 19-field report/schema1 preserved |
+| Multidimensional adaptive ES | `dynamic_amr_es_implementation` | Genuine coupled D2/3 hierarchy, particle/field adaptation, work and restart | Source-pinned contract in preparation; no production edits approved yet |
+| Nondividing species schedules | `annulus_loader_guide` | Canonical EMPIC event/current/phase/schedule persistence | Existing schedule owner and requirements under source review; no production edits approved yet |
+| Integration and CI | Root | Source review, shared registrations, current Markdown, commits/main publication and exact-head CI | Active alongside pressure integration and two next-stage designs |
 
 ## Exclusive file writers
 
@@ -90,7 +92,7 @@ shared dependency; no CUDA-specific quotient workaround is added. The repository
 Actions API currently lists no self-hosted runner; actual NVIDIA execution remains
 open and no hardware-unavailability conclusion is inferred.
 
-**Toroidal annulus worker owns eight new paths in its isolated worktree:**
+**Toroidal annulus final handoff transfers eight paths to root:**
 `src/meshes/toroidal_annulus_mesh.jl`,
 `src/coupling/toroidal_annulus_hybrid_coupling.jl`,
 `src/fields/toroidal_annulus_hybrid_operators.jl`,
@@ -100,7 +102,7 @@ open and no hardware-unavailability conclusion is inferred.
 `src/initial_conditions/toroidal_annulus_hybrid.jl` and
 `docs/TOROIDAL_ANNULUS_HYBRID.md`. Root owns the canonical scalar map extraction,
 includes/exports/shared writer unions, essential remote controls and global docs.
-The child owns loader, guide and checkpoint IO; the parent owns the other five.
+The former parent/child writers have frozen their source; root now owns the integrated eight.
 
 **Implicit-pressure worker owns five existing paths in its isolated worktree:**
 `src/integrators/implicit_hybrid.jl`,
@@ -111,6 +113,11 @@ The child owns loader, guide and checkpoint IO; the parent owns the other five.
 `test/test_implicit_hybrid_pressure.jl`. The shared nonlinear algorithm and
 isothermal report/schema1 remain; root owns registrations, workflows, global
 docs and the closure/model docstrings. No overlapping writer is assigned.
+
+**Next-stage designs only:** the former annulus parent maps multidimensional
+adaptive ES; its child maps nondividing EMPIC schedules. Both use separate clean
+worktrees and need a source-pinned canonical contract and root file assignment
+before production edits. They do not own the adopted annular or pressure files.
 
 ## Handoff and verification
 

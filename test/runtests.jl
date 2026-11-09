@@ -10,6 +10,7 @@ const HPIC_TEST_GROUPS = [
         "test_slab_gyrokinetic.jl",
         "test_slab_gyrokinetic_oracles.jl",
         "test_sheared_hybrid.jl",
+        "test_toroidal_annulus_hybrid.jl",
         "test_implicit_em.jl",
         "test_implicit_yee_em.jl",
         "test_implicit_yee_transverse.jl",

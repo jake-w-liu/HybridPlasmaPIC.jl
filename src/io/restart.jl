@@ -209,6 +209,7 @@ function _archive_run(
         SlabGyrokineticPIC,
         OpenHallHybrid,
         ShearedPeriodicHybridPIC,
+        ToroidalAnnulusHybridPIC,
         StaticCompositeElectrostaticPIC,
         DynamicCompositeElectrostaticPIC,
         _ClosedYeeCheckpointStepper,

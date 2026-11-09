@@ -11,6 +11,15 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Added
 
+- `ToroidalAnnulusHybridPIC` supplies coupled CPU 3D Float32/64 ions, magnetic
+  flux and adiabatic electron pressure on a positive-volume toroidal annulus.
+  Every RK4 stage refreshes real moments and fields; electrical contacts and
+  incoming thermal reservoirs retain actual signed work. Canonical CIC/Lorentz/
+  pressure/RK owners, detached diagnostics and complete guarded raw/archive
+  continuation are integrated. Source review is complete; essential remote
+  controls, full CI and scientific/resource acceptance remain pending. Solid-axis,
+  material-wall, equilibrium/import and backend stages remain open.
+
 - The optional resident `CUDAHybridStepper` family implements a single-device
   D1/3V Float64 isothermal hybrid lifecycle with shared CIC/mover/Ohm/RK/Fourier
   owners, magnetic subcycles, complete predictor/phase diagnostics and distinct

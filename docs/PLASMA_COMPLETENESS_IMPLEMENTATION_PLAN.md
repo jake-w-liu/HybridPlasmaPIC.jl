@@ -232,9 +232,11 @@ Current assignments (2026-11-09): root integrates reviewed CPU/CUDA candidates,
 repairs exact-head CI failures and owns shared registrations, current docs and
 main publication. Dynamic 1D ES and independent Yee/pencil controls are integrated
 in validation candidates; the latest CUDA hosted import/admission job passes 38
-checks, with actual device acceptance open. Two implementation tracks run in
-disjoint paths: a complete toroidal-annulus draft undergoing final source review,
-and canonical implicit-hybrid evolving scalar pressure with schema1 compatibility.
+checks, with actual device acceptance open. The toroidal-annulus source family
+has completed source review and root integration. Canonical implicit-hybrid
+evolving scalar pressure is frozen for root review, preserving schema1. Two
+independent workers now derive the next complete multidimensional adaptive-ES
+and nondividing species-schedule contracts before receiving source ownership.
 Hall, slab, periodic shear and synchronous implicit EM are on main with remaining
 scientific/resource gates. Earlier audit assignments describe historical work;
 the linked workflow owns current exclusive file assignments.
@@ -258,7 +260,7 @@ the linked workflow owns current exclusive file assignments.
 | BigFloat timestep contexts | Root; canonical recommendation core | Independent positive-rate geometry, exact endpoint controls and production-mode witness | [Directed context repair](BIGFLOAT_TIMESTEP_CONTEXT_PLAN.md) passes isolated minimum/latest package, native bit/allocation, complete compiler/Aqua and formatting gates | `36d1794` CI completed: minimum Julia/formatting/MPI pass, latest Julia fails the separate packet allocation gate. Containing `fd0a168` is green with complete compiler review. NUM-001 runtime integration remains open |
 | 005B/C implicit hybrid | Root integration; canonical integrator + moment/Ohm owners | Explicit represented Boris-map/Faraday and work-defect contract | Bounded synchronous isothermal core/report/checkpoint/archive on main; approved canonical evolving-pressure extension implementing in five disjoint source owners; [guide](IMPLICIT_HYBRID.md) | Exact-revision numerical, residual/convergence, failure/restart, compiler and cost acceptance; broader pressure/orbit-averaged models remain open |
 | 005D implicit EM / parallel geometry | Root integration of frozen EM/field/nonlinear/IO source | Actual Boris/current-continuity/Maxwell and nonlinear owners | Complete bounded coupled source reviewed/integrated, three legacy inverses and all eight frozen file hashes checked; essential remote regressions prepared | Exact-revision numerical/constraint/work, failure/restart, compiler/resource gates; broader conservative/relativistic/backend methods remain open |
-| 006A curvilinear solver | Root integration of frozen mesh/coupling/model/IO source | Compatible geometry/component/volume conventions | Bounded periodic-shear core on main; genuine coupled toroidal-annulus eight-file draft undergoing final source review | Integrate reviewed annular family then exact-revision field/particle/boundary/pressure/restart controls; axis/material-wall/equilibrium/backend and resource gates remain open |
+| 006A curvilinear solver | Root integration of frozen mesh/coupling/model/IO source | Compatible geometry/component/volume conventions | Bounded periodic-shear core on main; genuine coupled toroidal-annulus eight-file source reviewed and canonically integrated | Run exact-revision annular field/particle/boundary/pressure/restart controls; axis/material-wall/equilibrium/backend and resource gates remain open |
 | 006B self-consistent gyrokinetics | Root integration of frozen population/core/coupling/IO source | Reviewed full-f slab model and registered SO 0.1.8; 006A remains required for toroidal claims | Complete bounded source and canonical callers reviewed; essential remote regressions prepared | Exact-revision runtime, field/reciprocity/convergence, failure/restart, compiler and resource acceptance; broader geometry/physics remain open |
 | 006C adaptive plasma hierarchy | Root integration of frozen static composite-ES source; AMR/field/coupling/model/IO | Real patch/covered/leaf ownership and composite field method | Static composite ES on main; real dynamic 1D ES source integrated in candidates and focused 136 assertions pass per Julia line | Full integrated/scientific/resource acceptance; multidimensional/EM/subcycled/backend hierarchy remains open |
 | 007A/B reference provenance + production dispersion | Canonical validation/reference owners; next campaign agent unassigned | Source/network/toolchain; accepted production solver | Pinned provenance, parallel production histories and oblique Hall case 35 landed; CI state is in the audit tracker | Complete manual campaigns and broaden thermal/kinetic/EM regimes, uncertainty and matched-cost comparisons; [production plan](PRODUCTION_DISPERSION_PLAN.md) |
@@ -647,8 +649,18 @@ true continuous Lorentz rates, collective RK4/endpoint refresh, physical work/
 energy/flux diagnostics and full synchronous physical IO. Source review included
 the source-risk/Faraday, alias, phase and restart paths and repaired a receipt
 validation gap. Essential GitHub checks are prepared. This does not establish
-runtime/scientific/resource acceptance or the toroidal/axis/wall/equilibrium,
-variable-J/imported geometry and backend requirements below.
+runtime/scientific/resource acceptance or the full geometry requirements below.
+
+The distinct [toroidal-annulus hybrid](TOROIDAL_ANNULUS_HYBRID.md) now supplies
+coupled full-f ions, nonconstant positive-J magnetic flux and evolving adiabatic
+pressure through all four RK4 stages. Canonical folded-CIC/Lorentz/pressure owners,
+explicit electrical contacts/incoming thermal reservoirs, signed work/flux
+observations and full synchronous physical IO are integrated. Complete source
+and independent IO review found and repaired live-receipt and retained-loader-
+factor admission gaps. Compact independent source/lifecycle controls are
+registered, with all exact-revision runtime/scientific/resource gates pending.
+This annular cutout does not supply solid-axis regularity, actual material-wall
+events, toroidal equilibria/imports, general maps or parallel/device backends.
 
 - [ ] Define physical versus logical particle coordinates, vector/covector
   components, Jacobian-weighted densities, axis/outer-boundary regularity and

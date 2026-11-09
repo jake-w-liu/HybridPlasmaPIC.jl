@@ -20,6 +20,7 @@ on:
           - electron-conduction
           - slab-gyrokinetic
           - sheared-hybrid
+          - toroidal-annulus
           - implicit-em
           - implicit-yee-em
           - static-composite-es
@@ -61,6 +62,7 @@ jobs:
             suites = Dict(
               "slab-gyrokinetic" => ("test_slab_gyrokinetic.jl",),
               "sheared-hybrid" => ("test_sheared_hybrid.jl",),
+              "toroidal-annulus" => ("test_toroidal_annulus_hybrid.jl", "test_fusion.jl"),
               "implicit-em" => ("test_implicit_em.jl", "test_implicit_hybrid_phase.jl"),
               "implicit-yee-em" => ("test_implicit_yee_em.jl", "test_implicit_yee_transverse.jl"),
               "static-composite-es" => ("test_static_composite_electrostatic.jl", "test_dynamic_composite_electrostatic.jl"),
