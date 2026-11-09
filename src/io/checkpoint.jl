@@ -1384,6 +1384,7 @@ function _save_checkpoint(
         ToroidalAnnulusHybridPIC,
         StaticCompositeElectrostaticPIC,
         DynamicCompositeElectrostaticPIC,
+        AdaptiveCompositeElectrostaticPIC,
         _ClosedYeeCheckpointStepper,
     },
     state,

@@ -11,6 +11,15 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Added
 
+- `CartesianAMRHierarchy` and `AdaptiveCompositeElectrostaticPIC` add coupled
+  CPU 2D3V/3D3V grounded-box evolution: balanced dyadic patches, exact hanging
+  Q1 constraints, full tensor physical clouds, cold matrix-free field solve,
+  KDK and signed charge/field/kick/trajectory work. Real multilevel adaptation
+  records mesh-energy exchange and preserves prior physical-step history on its
+  own mesh. Complete topology/count-aware raw/archive persistence and compact
+  independent references are registered. Source review is complete; all new
+  numerical/compiler/format/scientific/resource acceptance remains pending.
+
 - `FieldAlignedConductingElectrons` adds varying-B tensor heat transport to
   canonical scalar-pressure stages, with diagonal Nyquist complements, two
   bounded gradient/flux preparations and complete signed-source publication.

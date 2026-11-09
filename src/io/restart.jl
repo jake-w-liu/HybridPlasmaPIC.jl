@@ -216,6 +216,7 @@ function _archive_run(
         ToroidalAnnulusHybridPIC,
         StaticCompositeElectrostaticPIC,
         DynamicCompositeElectrostaticPIC,
+        AdaptiveCompositeElectrostaticPIC,
         _ClosedYeeCheckpointStepper,
     },
     state;

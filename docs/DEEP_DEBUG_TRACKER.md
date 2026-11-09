@@ -71,7 +71,8 @@ Current work:
   Root read the full five-file family/callers. Both minimum/latest focused jobs
   pass at `16321a9`: 136 assertions each, including 76 new dynamic controls.
   Full integrated CI and broader scientific/resource acceptance remain open.
-  Multidimensional, hybrid/EM, subcycled and backend AMR remain open.
+  The separate grounded D2/3 family below adds multidimensional source;
+  hybrid/EM, subcycled and backend AMR remain open.
 - Compatible implicit Yee EM source audit found no confirmed production defect
   in its reviewed scope. Two independent transverse vacuum/cold-plasma oracles
   pass both minimum/latest focused jobs at `62f985f`: 366 assertions each,
@@ -117,13 +118,19 @@ Current work:
   preparations. Policy 3 retains full carry; missing plain/collisional archive
   readers delegate to canonical restore. All new runtime, compiler/format,
   scientific and resource acceptance remains pending.
-- Two approved implementations continue in parallel: multidimensional adaptive
-  ES with constrained Q1 fields and tensor physical clouds, and persistent
-  nondividing EMPIC source/kick phases. The AMR draft's seven production files
-  have an early full root source pass; final essentials/guide/review and adoption
-  are pending. Schedule model/phase implementation is active; an independent IO
-  worker is reading the approved contract before a frozen interface handoff.
-  Exclusive paths and handoffs are recorded in the implementation workflow.
+- [Adaptive D2/3 composite electrostatics](ADAPTIVE_COMPOSITE_ELECTROSTATIC.md)
+  has full seven-owner source review, exact final adoption and module/IO
+  registrations. It evolves signed/neutral species with constrained Q1 fields,
+  physical tensor clouds and actual KDK/work, multilevel regrids and complete
+  old-mesh history/restart. Independent dense quadrature/constraint/field and
+  actual lifecycle controls are registered; all new remote/scientific/resource
+  acceptance remains pending. The grounded boundary slice leaves periodic,
+  neutral-Neumann, material, EM, subcycling and backend stages open.
+- Persistent nondividing EMPIC model/phase implementation continues alongside
+  independent schema3 IO. An exact seam and exclusive path transfer are approved;
+  model/guides/essentials and IO have separate writers. The AMR worker is deriving
+  the next periodic hierarchy contract read-only. Exclusive paths and handoffs
+  are recorded in the implementation workflow.
 
 The full runner explicitly registers the transverse Yee reference beside the
 existing family tests. MPI multi-rank and distributed FFT primitive tests run

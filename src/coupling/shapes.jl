@@ -16,7 +16,9 @@ struct TSC <: ShapeFunction end
 
 Finite physical-width triangular charge cloud for the closed 1D Yee
 charge/current/voltage operators, [`yee_longitudinal_field`](@ref), and the
-compatible-periodic CPU [`ImplicitYeeEMPICStepper`](@ref). The positive finite
+compatible-periodic CPU [`ImplicitYeeEMPICStepper`](@ref). The grounded
+[`AdaptiveCompositeElectrostaticPIC`](@ref) uses one such cloud per axis in
+2D/3D tensor coupling. The positive finite
 Float32/Float64 half-width is retained without conversion to grid precision.
 Hold it fixed under mesh refinement. Closed-wall coupling retains particle-bound
 endpoint tails; the compatible-periodic model supplies its own periodization.

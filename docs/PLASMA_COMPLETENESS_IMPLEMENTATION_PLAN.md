@@ -745,6 +745,17 @@ at `16321a9` ([run 42553061121](https://github.com/jake-w-liu/HybridPlasmaPIC.jl
 Full integrated CI and broader scientific/resource acceptance remain open.
 The bounded 1D source does not close the broader hierarchy requirements below.
 
+The separate [multidimensional composite family](ADAPTIVE_COMPOSITE_ELECTROSTATIC.md)
+now supplies real CPU D2/3 balanced patches, constrained Q1 fields and full
+physical tensor clouds on a grounded box. It advances signed/neutral kinetic
+species, performs multilevel curvature/hysteresis adaptation, records actual
+physical and mesh work, and restores complete changed-topology/count phase and
+old-mesh history. Root reviewed/adopted all seven production owners, guide and
+compact independent essentials; module/IO/remote registrations are complete.
+All new runtime, scientific and measured-resource gates remain open. The next
+periodic seam/neutral-source/gauge stage is being specified; neutral-Neumann,
+material, hybrid/EM synchronization, subcycling and backends remain required.
+
 - [ ] Add an owned hierarchy of patches, valid/ghost regions, refinement ratios,
   tagging/regridding and covered-cell accounting. Existing `AMRGrid` only stores
   one scalar 1D level; its transfer arithmetic remains the local oracle.

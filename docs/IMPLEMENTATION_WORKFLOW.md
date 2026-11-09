@@ -49,10 +49,11 @@ its publication record.
 | Resident CUDA hybrid | Root integrates reviewed fourteen-file handoff | Complete resident D1/3V isothermal lifecycle, diagnostics and physical persistence | Latest host job at `38d1cd1` passes 38 checks on Julia 1.13.3; minimum host, full integrated and actual NVIDIA acceptance remain open |
 | Toroidal annulus | Root integrated final handoff | Full coupled logical particles, metric magnetic field, adiabatic pressure, contact work and complete restart | Reviewed source/registration pushed at `7ea6ae8`; full and focused remote acceptance pending |
 | Implicit evolving pressure | Root integrated final handoff | Canonical joint velocity/B/pe solve, third residual gate, signed physical ledger and schema2 persistence | Reviewed source/registration pushed at `5703c95`, including pinned old-schema raw/archive continuation; exact-head remote acceptance pending |
-| Multidimensional adaptive ES | `dynamic_amr_es_implementation` | Genuine coupled D2/3 hierarchy, particle/field adaptation, work and restart | Complete grounded-Q1/tensor-cloud/KDK/regrid/history contract reviewed; eight source paths and compact essentials approved |
+| Multidimensional adaptive ES | Root integrates frozen `dynamic_amr_es_implementation` handoff | Genuine coupled D2/3 hierarchy, particle/field adaptation, work and restart | Seven production owners, guide and essential file reviewed/adopted; module/writer/remote registrations complete; all new acceptance pending |
 | Nondividing species schedules | `annulus_loader_guide` | Canonical EMPIC event/current/phase/schedule persistence | Persistent deadline/current/clock/schema3 contract reviewed; two source owners, two guides and compact essentials approved |
 | Field-aligned electron conduction | Root integrates frozen `post_devin_numeric_audit` handoff | Varying-B tensor transport in canonical B/pressure lifecycle and persistence | Eight-owner source and essential file reviewed/adopted on `5703c95`; module/guide/registration wired; all remote acceptance pending |
-| Persistent schedule IO | `post_devin_numeric_audit`, reconnaissance until interface transfer | Complete schema3 pending calendar/controller/current/phase persistence | Reads approved contract; edits require exact frozen model seam and exclusive IO-path transfer from schedule owner |
+| Persistent schedule IO | `post_devin_numeric_audit` | Complete schema3 pending calendar/controller/current/phase persistence | Exact model seam reviewed and single IO owner transferred/approved; implementation active independently of model |
+| Periodic multidimensional AMR | `dynamic_amr_es_implementation`, read-only design | Seam constraints/periodized clouds, neutral source, gauge, evolution/work and full restart | Concrete next-stage contract in progress; no source edits until exact integrated base and owner approval |
 | Integration and CI | Root | Source review, shared registrations, current Markdown, commits/main publication and exact-head CI | Active alongside three parallel implementation tracks |
 
 ## Exclusive file writers
@@ -127,9 +128,12 @@ pressure, explicit-stage, diagnostic, collisional and generic checkpoint owners.
 The conduction worker's final eight-owner handoff has transferred to root, so
 root again owns the generic checkpoint file. The schedule owner retains model,
 guides and essentials; its IO path transfers to the independent IO worker only
-after an exact interface handoff. Module, exports, workflows and global docs
+after an exact interface handoff; that handoff is now approved. Module, exports, workflows and global docs
 remain root-owned. No two workers edit the same canonical file. Accepted
-source/runtime/scientific/resource gates remain separate.
+source/runtime/scientific/resource gates remain separate. The grounded AMR final
+handoff also transfers its seven production paths, guide and essential file to
+root. Its former worker designs the periodic stage read-only until a new base
+and exclusive paths are approved.
 
 ## Handoff and verification
 
