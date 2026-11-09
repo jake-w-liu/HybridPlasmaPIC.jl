@@ -159,7 +159,9 @@ function _empic_event_checkpoint_live_links(s, st, species)
             )
             if value isa AbstractArray
                 any(a -> _particle_arrays_mightalias(value, a), arrays) && throw(
-                    ArgumentError("checkpoint persistent source must not alias live solver storage"),
+                    ArgumentError(
+                        "checkpoint persistent source must not alias live solver storage",
+                    ),
                 )
             end
         end

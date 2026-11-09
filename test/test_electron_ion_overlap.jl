@@ -75,10 +75,7 @@ function moments(p, g, frame)
     W, m = sum((Q(p.weight[i]) for i in ids); init = zero(Q)), Q(p.m)
     P = ntuple(c -> sum((m * Q(p.weight[i]) * Q(p.v[c][i]) for i in ids); init = zero(Q)), 3)
     mean = iszero(W) ? ntuple(_ -> zero(Q), 3) : ntuple(c -> P[c] / (m * W), 3)
-    K = sum(
-        (m * Q(p.weight[i]) * sum(Q(p.v[c][i])^2 for c = 1:3) / 2 for i in ids);
-        init = zero(Q),
-    )
+    K = sum((m * Q(p.weight[i]) * sum(Q(p.v[c][i])^2 for c = 1:3) / 2 for i in ids); init = zero(Q))
     U = sum(
         (m * Q(p.weight[i]) * sum((Q(p.v[c][i]) - mean[c])^2 for c = 1:3) / 2 for i in ids);
         init = zero(Q),
