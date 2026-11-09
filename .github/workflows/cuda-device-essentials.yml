@@ -23,7 +23,7 @@ jobs:
             cuda-version: '6'
     env:
       CUDA_TEST_VERSION: ${{ matrix.cuda-version }}
-      CUDA_TEST_ENV: ${{ runner.temp }}/hpic-cuda-device-${{ github.run_id }}-${{ matrix.julia-version }}
+      CUDA_TEST_ENV_NAME: hpic-cuda-device-${{ github.run_id }}-${{ matrix.julia-version }}
     steps:
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v2
@@ -34,6 +34,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          export CUDA_TEST_ENV="$RUNNER_TEMP/$CUDA_TEST_ENV_NAME"
           julia --project=. -e '
             using Pkg
             Pkg.activate(ENV["CUDA_TEST_ENV"])
@@ -47,7 +48,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          julia --project="$CUDA_TEST_ENV" test/test_cuda_hybrid_device.jl \
+          julia --project="$RUNNER_TEMP/$CUDA_TEST_ENV_NAME" test/test_cuda_hybrid_device.jl \
             2>&1 | tee cuda-device.log
       - name: Retain device output
         if: always()
