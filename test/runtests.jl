@@ -202,6 +202,7 @@ const HPIC_TEST_GROUPS = [
         "test_empic_species.jl",
         "test_empic_species_schedule.jl",
         "test_empic_persistent_schedule.jl",
+        "test_empic_coupled_error_control.jl",
         "test_empic1d_species.jl",
         "test_empic_relativistic_species.jl",
         "test_empic1d.jl",

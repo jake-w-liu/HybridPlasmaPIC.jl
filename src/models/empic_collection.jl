@@ -78,7 +78,8 @@ function _empic_event_proposal(mobile, cap, adaptive, minimum, limits, budget, :
     end
     return (cap = upper, adaptive = flags, minimum = lower, limits = policy, budget = Int(budget))
 end
-function _empic_collection_schedule(mobile, ns, stride, cap, adaptive, minimum, limits, budget, ::Type{T}) where {T}
+function _empic_collection_schedule(mobile, ns, stride, cap, adaptive, minimum, limits, budget, ::Type{T}, error_control = nothing) where {T}
+    error_control === nothing || return _empic_coupled_schedule(mobile, ns, stride, cap, adaptive, minimum, limits, budget, T, error_control)
     if cap === nothing
         all(isnothing, (adaptive, minimum, limits, budget)) ||
             throw(ArgumentError("persistent schedule options require species_dt"))
@@ -95,7 +96,8 @@ end
     EMPIC(g, species::AbstractVector; mobile=trues(length(species)),
           background_charge=0, neutrality=:require, charge_rtol=64eps(T),
           c=5, shape=CIC(), n_sub=1, species_stride=nothing,
-          species_dt=nothing, event_budget=nothing, relativistic=false)
+          species_dt=nothing, event_budget=nothing, error_control=nothing,
+          relativistic=false)
 
 Periodic CPU Float32/Float64 electromagnetic PIC with arbitrary finite species
 charges and positive masses. By default each mobile population kicks and drifts
@@ -110,6 +112,12 @@ opts into persistent nondividing kick deadlines and is mutually exclusive with
 `species_stride`. All mobile rows still drift and supply current on every actual
 field segment. `species_adaptive`, `species_dt_min` and explicit `schedule_limits`
 enable a sampled-state resolution heuristic; it is not coupled error control.
+
+Explicit `error_control` with a persistent calendar selects the closed full-time
+projected Euler/Heun controller described in `docs/EMPIC_COUPLED_ERROR_CONTROL.md`.
+That policy supports CIC/TSC knot crossings, evaluates all mobile forces at both
+trial stages and uses schema4/policy3. NGP rejects at this opt-in boundary. Its
+measured embedded defect supplies no universal true-error or stability theorem.
 
 `background_charge` is a fixed uniform charge density. `:require` uses the same
 exact physical-charge tolerance as electrostatic collections; `:neutralize`
@@ -144,6 +152,7 @@ function EMPIC(
     species_dt_min = nothing,
     schedule_limits = nothing,
     event_budget = nothing,
+    error_control = nothing,
     background_charge = zero(T),
     neutrality::Symbol = :require,
     charge_rtol = 64eps(T),
@@ -157,6 +166,7 @@ function EMPIC(
         throw(ArgumentError("electromagnetic collections require Float32 or Float64"))
     shape isa Union{NGP,CIC,TSC} ||
         throw(ArgumentError("electromagnetic collections require NGP, CIC or TSC"))
+    error_control === nothing || shape isa Union{CIC,TSC} || throw(ArgumentError("coupled error control requires CIC or TSC; NGP jump control is not implemented"))
     neutrality in (:require, :neutralize) ||
         throw(ArgumentError("neutrality must be :require or :neutralize"))
     _espic_validate_collection_type(species, g)
@@ -172,7 +182,7 @@ function EMPIC(
     stage = _new_empic_state(g, 0, background, cT, shape, relativistic, false, one(T), ns, nothing)
     P = eltype(species)
     schedule = _empic_collection_schedule(mobile, ns, species_stride, species_dt,
-        species_adaptive, species_dt_min, schedule_limits, event_budget, T)
+        species_adaptive, species_dt_min, schedule_limits, event_budget, T, error_control)
     work = _EMPICCollectionWork{D,T,P,typeof(stage),typeof(schedule)}(
         neutrality,
         rtol,
@@ -185,6 +195,7 @@ function EMPIC(
         schedule,
     )
     es = _new_empic_state(g, 0, background, cT, shape, relativistic, false, one(T), ns, work)
+    _empic_coupled_bind!(es, schedule)
     _empic_collection_validate_species(es, species)
     return es
 end
@@ -339,6 +350,15 @@ function _empic_collection_validate_populations(
     relativistic::Bool,
 ) where {T}
     _empic_collection_validate_storage(es, species)
+    return _empic_collection_validate_population_values(es, species, c, relativistic)
+end
+
+function _empic_collection_validate_population_values(
+    es::Union{EMPIC,EMPIC1D},
+    species,
+    c::T,
+    relativistic::Bool,
+) where {T}
     work = _empic_collection(es)
     _require_finite_real("background_charge", es.n0, T)
     for (i, ps) in enumerate(species)
@@ -434,6 +454,7 @@ _empic_collection_seed_fields(es::EMPIC1D) = (es.Ex, es.Ey, es.Bz)
 function init_empic!(es::Union{EMPIC,EMPIC1D}, species::AbstractVector)
     T = eltype(es.rho_n)
     work = _empic_collection(es)
+    work.schedule isa _EMPICCoupledSchedule && return _empic_coupled_init!(es, species)
     all(ps -> ps isa eltype(work.owners), species) || throw(
         ArgumentError(
             "population storage type changed; construct a new electromagnetic collection state",
@@ -654,6 +675,7 @@ function _empic_collection_validate_phase(es::Union{EMPIC,EMPIC1D})
 end
 
 function step_empic!(es::Union{EMPIC,EMPIC1D}, species::AbstractVector, dt::Real)
+    es.collection !== nothing && es.collection.schedule isa _EMPICCoupledSchedule && return _empic_coupled_step!(es, species, dt)
     T = eltype(es.rho_n)
     dtT =
         _require_resolved_dt("step_empic!", _validated_nonnegative_dt(T, dt; name = "step_empic!"))
@@ -727,6 +749,7 @@ Offsets are nominal stage intervals, not exact timestamps relative to the rounde
 public clock. This explicit mover does not conserve discrete total energy exactly. Fixed populations have no velocity time offset.
 """
 function electromagnetic_diagnostics(es::Union{EMPIC,EMPIC1D}, species::AbstractVector)
+    es.collection !== nothing && es.collection.schedule isa _EMPICCoupledSchedule && return _empic_coupled_diagnostics(es, species)
     T = eltype(es.rho_n)
     charges = _empic_collection_validate_species(es, species)
     work = _empic_collection(es)
@@ -735,6 +758,10 @@ function electromagnetic_diagnostics(es::Union{EMPIC,EMPIC1D}, species::Abstract
     _empic_collection_bound(work, species)
     _empic_collection_validate_phase(es)
     _empic_collection_require_finite_fields(es)
+    return _empic_collection_moment_diagnostics(es, species, charges, work)
+end
+function _empic_collection_moment_diagnostics(es, species, charges, work)
+    T = eltype(es.rho_n)
     kinetic, momentum =
         es.relativistic ? _relativistic_particle_moments(species, es.c) :
         (kinetic_energy(species), total_momentum(species))
@@ -766,7 +793,8 @@ end
     EMPIC1D(g, species::AbstractVector; mobile=trues(length(species)),
             background_charge=0, neutrality=:require, charge_rtol=64eps(T),
             c=5, shape=CIC(), n_sub=1, species_stride=nothing,
-            species_dt=nothing, event_budget=nothing, relativistic=false)
+            species_dt=nothing, event_budget=nothing, error_control=nothing,
+            relativistic=false)
 
 Specialized periodic CPU Float32/64 PIC with fields `Ex/Ey/Bz` and ordered
 arbitrary finite species charges and positive masses. Every original stored
@@ -781,6 +809,10 @@ and TSC are supported.
 Alternatively, `species_dt` plus `event_budget` opts into the persistent
 nondividing schedule described by [`EMPIC`](@ref), including its fixed-source
 policy, optional sampled-state adaptation and schema3/policy2 restart.
+Adding the closed `error_control` proposal selects full-time CIC/TSC projected
+Euler/Heun evolution, complete signed work and schema4/policy3 restart, as
+specified in `docs/EMPIC_COUPLED_ERROR_CONTROL.md`. This constructor selection
+keeps the planar `Ex/Ey/Bz` polarization and explicitly rejects NGP.
 
 The background/neutrality, identity binding, variable fast phase and physical
 moment diagnostics follow the collection API of [`EMPIC`](@ref). Initialize
@@ -800,6 +832,7 @@ function EMPIC1D(
     species_dt_min = nothing,
     schedule_limits = nothing,
     event_budget = nothing,
+    error_control = nothing,
     background_charge = zero(T),
     neutrality::Symbol = :require,
     charge_rtol = 64eps(T),
@@ -812,6 +845,7 @@ function EMPIC1D(
         throw(ArgumentError("electromagnetic collections require Float32 or Float64"))
     shape isa Union{NGP,CIC,TSC} ||
         throw(ArgumentError("electromagnetic collections require NGP, CIC or TSC"))
+    error_control === nothing || shape isa Union{CIC,TSC} || throw(ArgumentError("coupled error control requires CIC or TSC; NGP jump control is not implemented"))
     neutrality in (:require, :neutralize) ||
         throw(ArgumentError("neutrality must be :require or :neutralize"))
     _espic_validate_collection_type(species, g)
@@ -830,7 +864,7 @@ function EMPIC1D(
     rows = species_dt === nothing && species_stride === nothing ?
         [active ? 1 : 0 for active in mobile] : species_stride
     schedule = _empic_collection_schedule(mobile, ns, rows, species_dt,
-        species_adaptive, species_dt_min, schedule_limits, event_budget, T)
+        species_adaptive, species_dt_min, schedule_limits, event_budget, T, error_control)
     work = _EMPICCollectionWork{1,T,P,typeof(stage),typeof(schedule)}(
         neutrality,
         rtol,
@@ -843,6 +877,7 @@ function EMPIC1D(
         schedule,
     )
     es = _new_empic1d_state(g, 0, background, cT, shape, relativistic, false, one(T), ns, work)
+    _empic_coupled_bind!(es, schedule)
     _empic_collection_validate_species(es, species)
     return es
 end
@@ -1153,12 +1188,15 @@ For a state constructed with `species_dt`, the persistent keywords instead
 replace its future proposal; `nothing` retains each current value. Pending
 intervals/deadlines remain intact and new choices apply at the next due kick.
 Dividing and persistent owner kinds cannot be switched by this setter.
+On a constructor-selected full-time controller, `error_control` replaces its
+complete future proposal. Historical admission, pending deadlines and work stay
+owned by their accepted policy; no setter migrates a half phase.
 """
 set_empic1d_schedule!(es::EMPIC1D; n_sub::Integer = es.n_sub, species_stride = nothing,
     species_dt = nothing, species_adaptive = nothing, species_dt_min = nothing,
-    schedule_limits = nothing, event_budget = nothing) =
+    schedule_limits = nothing, event_budget = nothing, error_control = nothing) =
     _set_empic_collection_schedule!(es, n_sub, species_stride, species_dt,
-        species_adaptive, species_dt_min, schedule_limits, event_budget)
+        species_adaptive, species_dt_min, schedule_limits, event_budget, error_control)
 
 """
     set_empic_schedule!(state::EMPIC; n_sub=state.n_sub, species_stride=nothing,
@@ -1175,15 +1213,19 @@ external boundaries with no concurrent use.
 For an opted-in persistent owner, copied `species_dt`, `species_adaptive`,
 `species_dt_min`, `schedule_limits` and `event_budget` replace future choices
 without retiming the current pending intervals. `nothing` retains each value.
+For a constructor-selected full-time controller, a complete `error_control`
+proposal updates future choices while retaining historical admission and work.
 """
 set_empic_schedule!(es::EMPIC; n_sub::Integer = es.n_sub, species_stride = nothing,
     species_dt = nothing, species_adaptive = nothing, species_dt_min = nothing,
-    schedule_limits = nothing, event_budget = nothing) =
+    schedule_limits = nothing, event_budget = nothing, error_control = nothing) =
     _set_empic_collection_schedule!(es, n_sub, species_stride, species_dt,
-        species_adaptive, species_dt_min, schedule_limits, event_budget)
+        species_adaptive, species_dt_min, schedule_limits, event_budget, error_control)
 
-function _set_empic_collection_schedule!(es, n_sub, stride, cap, adaptive, minimum, limits, budget)
+function _set_empic_collection_schedule!(es, n_sub, stride, cap, adaptive, minimum, limits, budget, error_control = nothing)
     work = _empic_collection(es)
+    work.schedule isa _EMPICCoupledSchedule && return _empic_coupled_set!(es, n_sub, stride, cap, adaptive, minimum, limits, budget, error_control)
+    error_control === nothing || throw(ArgumentError("construct a coupled error-control owner before changing its control proposal"))
     if work.schedule isa _EMPICEventSchedule
         stride === nothing || throw(ArgumentError("persistent schedules do not use species_stride"))
         n_sub isa Integer && !(n_sub isa Bool) && 1 <= n_sub <= typemax(Int) ||
@@ -1294,8 +1336,8 @@ function _empic_event_within(h, q, m, E, B, V, limits, c, dx)
         Q(h) * abs(Q(q)) * E <= Q(limits.electric) * Q(m) * Q(c) &&
         Q(h) * V <= Q(limits.travel) * minimum(Q, dx)
 end
-function _empic_event_decision(stage, schedule, ps, i, time, previous, bootstrap)
-    T, Q, proposal = eltype(ps), _exact_rational, schedule.proposal
+function _empic_event_interval_choice(stage, proposal, ps, i, previous, bootstrap)
+    T, Q = eltype(ps), _exact_rational
     E, B, V = _empic_event_bounds(stage, ps)
     adaptive = proposal.adaptive[i]
     cap = Q(proposal.cap[i])
@@ -1312,6 +1354,14 @@ function _empic_event_decision(stage, schedule, ps, i, time, previous, bootstrap
             halvings += 1
         end
     end
+    return (selected = selected, cap = cap, upper = proposal.cap[i], minimum = proposal.minimum[i],
+        adaptive = adaptive, limits = proposal.limits, q = ps.q, m = ps.m, E1 = E, B1 = B, V1 = V, halvings = halvings)
+end
+
+function _empic_event_decision(stage, schedule, ps, i, time, previous, bootstrap)
+    T, Q, proposal = eltype(ps), _exact_rational, schedule.proposal
+    choice = _empic_event_interval_choice(stage, proposal, ps, i, previous, bootstrap)
+    selected, cap, adaptive, E, B, V, halvings = choice.selected, choice.cap, choice.adaptive, choice.E1, choice.B1, choice.V1, choice.halvings
     prior = bootstrap ? selected : previous
     consumed = prior / T(2) + selected / T(2)
     return (species = i, time = time, previous = prior,

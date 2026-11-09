@@ -424,12 +424,13 @@ function _esirkepov_Jx!(
     return _esirkepov_Jx!(es, g, n, cb, tb, Jx0, dt)
 end
 
-function _esirkepov_Jx!(es::EMPIC1D{T}, Jx0::T, dt::T) where {T}
+function _esirkepov_Jx!(es::EMPIC1D{T}, Jx0::T, dt::T, meter = nothing) where {T}
     g = es.g
-    return _esirkepov_Jx!(es, g, g.n[1], g.cbuf, g.tbuf, Jx0, dt)
+    return _esirkepov_Jx!(es, g, g.n[1], g.cbuf, g.tbuf, Jx0, dt, meter)
 end
 
-function _esirkepov_Jx!(es::EMPIC1D{T}, g, n, cb, tb, Jx0::T, dt::T) where {T}
+function _esirkepov_Jx!(es::EMPIC1D{T}, g, n, cb, tb, Jx0::T, dt::T, meter = nothing) where {T}
+    _empic_fft_charge!(meter, 2)
     # ρ̂^{n+1} − ρ̂^n
     @inbounds for i = 1:n
         cb[i] = Complex{T}(es.rho_np1[i] - es.rho_n[i])
@@ -1005,6 +1006,9 @@ end
            _em_increment_lost_range(forcing, increment, candidate)
 end
 
+_empic_fft_charge!(::Nothing, count::Int) = nothing
+_empic_continuity_observe!(::Nothing, absolute, scale) = nothing
+
 function _em_exact_update_coefficients(c, dt)
     exact_dt = _exact_rational(dt)
     exact_c = _exact_rational(c)
@@ -1070,6 +1074,7 @@ function _em_dyadic_transform(
     values::Array{Complex{Rational{BigInt}},D},
     g::FourierGrid{D,T},
     inverse::Bool = false,
+    meter = nothing,
 ) where {D,T}
     ceil_log_n = 8sizeof(Int) - leading_zeros(length(values) - 1)
     # Reserve integer-sum headroom as well as overflow headroom. When the grid
@@ -1105,6 +1110,7 @@ function _em_dyadic_transform(
             occupied |= !iszero(work[I])
         end
         occupied || continue
+        _empic_fft_charge!(meter, 1)
         inverse ? (g.iplan * work) : (g.plan * work)
         @inbounds for I in eachindex(work)
             coefficient = _spectral_exact_complex(work[I])::Complex{Rational{BigInt}}
@@ -1127,13 +1133,13 @@ end
     return !isfinite(value) || (!iszero(value) && !(bounds[1] <= magnitude <= bounds[2]))
 end
 
-function _em_continuity_scaled(g::FourierGrid{D,T}, rho_n, rho_np1, J, dt::T) where {D,T}
+function _em_continuity_scaled(g::FourierGrid{D,T}, rho_n, rho_np1, J, dt::T, meter = nothing) where {D,T}
     delta = map(rho_np1, rho_n) do following, preceding
         complex(_exact_rational(following) - _exact_rational(preceding), zero(Rational{BigInt}))
     end
-    density_hat = _em_dyadic_transform(delta, g)
+    density_hat = _em_dyadic_transform(delta, g, false, meter)
     current_hat = [
-        _em_dyadic_transform(map(value -> complex(_exact_rational(value)), field), g) for
+        _em_dyadic_transform(map(value -> complex(_exact_rational(value)), field), g, false, meter) for
         field in Iterators.take(J, D)
     ]
     residual_hat = similar(density_hat)
@@ -1148,13 +1154,14 @@ function _em_continuity_scaled(g::FourierGrid{D,T}, rho_n, rho_np1, J, dt::T) wh
         end
         residual_hat[I] = density_hat[I] + exact_dt * divergence
     end
-    density = _em_dyadic_transform(density_hat, g, true)
-    residual = _em_dyadic_transform(residual_hat, g, true)
+    density = _em_dyadic_transform(density_hat, g, true, meter)
+    residual = _em_dyadic_transform(residual_hat, g, true, meter)
     rmax, scale = zero(Rational{BigInt}), zero(Rational{BigInt})
     @inbounds for I in eachindex(density)
         rmax = max(rmax, abs(real(residual[I])))
         scale = max(scale, abs(real(density[I])))
     end
+    _empic_continuity_observe!(meter, rmax, scale)
     return _from_exact(T, rmax / (iszero(scale) ? one(scale) : scale))
 end
 
@@ -1167,6 +1174,7 @@ end
     density,
     divergence,
     lost::Bool,
+    meter = nothing,
 ) where {D,T}
     rmax, scale = zero(T), zero(T)
     @inbounds for I in eachindex(density)
@@ -1190,8 +1198,9 @@ end
         end
     end
     if lost && isfinite(dt) && all(isfinite, rho_n) && all(isfinite, rho_np1)
-        return _em_continuity_scaled(g, rho_n, rho_np1, J, dt)
+        return _em_continuity_scaled(g, rho_n, rho_np1, J, dt, meter)
     end
+    _empic_continuity_observe!(meter, rmax, scale)
     return rmax / (scale > 0 ? scale : one(T))
 end
 
@@ -1201,6 +1210,7 @@ function _em_normalized_derivative_parts(
     axis,
     exponents,
     kexponents,
+    meter = nothing,
 ) where {T,D}
     parts = Tuple{Array{T,D},Rational{BigInt}}[]
     lo, hi = exponents
@@ -1209,6 +1219,7 @@ function _em_normalized_derivative_parts(
     lower, upper, needed = _em_scale_bounds(T, lo, hi, klo, khi, length(field))
     if !needed
         part = similar(field)
+        _empic_fft_charge!(meter, 2)
         deriv!(part, field, g, axis)
         push!(parts, (part, BigInt(1) // BigInt(1)))
         return parts
@@ -1236,6 +1247,7 @@ function _em_normalized_derivative_parts(
         end
         if nonzero
             part = similar(field)
+            _empic_fft_charge!(meter, 2)
             deriv!(part, work, g, axis)
             push!(parts, (part, _em_power_of_two(shift)))
         end
@@ -1244,15 +1256,17 @@ function _em_normalized_derivative_parts(
     return parts
 end
 
-function _em_derivative_parts!(out, field, g, axis)
+function _em_derivative_parts!(out, field, g, axis, meter = nothing)
+    _empic_fft_charge!(meter, 2)
     deriv!(out, field, g, axis)
     exponents = _em_field_exponents(field)
     kexponents = _em_field_exponents(g.kvec[axis])
     _em_scale_bounds(eltype(field), exponents..., kexponents..., length(field))[3] || return nothing
-    return _em_normalized_derivative_parts(field, g, axis, exponents, kexponents)
+    return _em_normalized_derivative_parts(field, g, axis, exponents, kexponents, meter)
 end
 
-function _em_curl_parts!(out, fields, g::FourierGrid{D,T}) where {D,T}
+function _em_curl_parts!(out, fields, g::FourierGrid{D,T}, meter = nothing) where {D,T}
+    _empic_fft_charge!(meter, D == 1 ? 4 : 6)
     curl!(out, fields, g)
     # Every component contributes to the canonical curl's common FFT scale,
     # including longitudinal components and diagonal field/axis pairs.
@@ -1275,6 +1289,7 @@ function _em_curl_parts!(out, fields, g::FourierGrid{D,T}) where {D,T}
                     plus,
                     exponents[minus],
                     kexponents[plus],
+                    meter,
                 ),
             )
         end
@@ -1285,6 +1300,7 @@ function _em_curl_parts!(out, fields, g::FourierGrid{D,T}) where {D,T}
                 minus,
                 exponents[plus],
                 kexponents[minus],
+                meter,
             )
             for (part, scale) in negative
                 push!(parts, (part, -scale))
@@ -1300,6 +1316,44 @@ function _em_exact_derivative(parts, i)
         result += scale * _exact_rational(part[i])
     end
     return result
+end
+
+# One complete magnetic scalar row, shared by staggered and full-time callers.
+function _em_exact_magnetic_row(value::T, exact_increment::Rational{BigInt}, backward::Bool = false) where {T}
+    return _from_exact(T, backward ? _exact_rational(value) + exact_increment :
+        _exact_rational(value) - exact_increment)
+end
+
+# Weighted derivatives retain their actual native parts and original Q scales.
+# The packet owns each part once; these temporary recipes borrow those operands.
+function _empic_weighted_derivative(stages, weights, role, component)
+    length(stages) == length(weights) && !isempty(stages) &&
+        all(w -> w isa Rational{BigInt} && denominator(w) > 0 && w >= 0, weights) && sum(weights) == 1 ||
+        throw(ArgumentError("full-time Maxwell derivative weights are invalid"))
+    return [(array, weight * scale) for (stage, weight) in zip(stages, weights)
+        for (array, scale) in getproperty(stage, role)[component]]
+end
+function _empic_full_time_field_update!(out, origin, stages, weights, h::T) where {T}
+    H, coefficients = _exact_rational(h), _em_exact_update_coefficients(out.c, h)
+    E = out isa EMPIC ? out.E : (out.Ex, out.Ey)
+    B = out isa EMPIC ? out.B : (out.Bz,)
+    oldE = out isa EMPIC ? origin.E : (origin.Ex, origin.Ey)
+    oldB = out isa EMPIC ? origin.B : (origin.Bz,)
+    J = out isa EMPIC ? out.J : (out.Jx, out.Jy)
+    for component in eachindex(B)
+        parts = _empic_weighted_derivative(stages, weights, :electric, component)
+        for i in eachindex(B[component])
+            B[component][i] = _em_exact_magnetic_row(oldB[component][i], H * _em_exact_derivative(parts, i))
+        end
+    end
+    for component in eachindex(E)
+        parts = _empic_weighted_derivative(stages, weights, :magnetic, component)
+        for i in eachindex(E[component])
+            E[component][i] = _em_exact_electric_update(oldE[component][i],
+                _em_exact_derivative(parts, i), J[component][i], coefficients)
+        end
+    end
+    return out
 end
 
 function _em_magnetic_update!(
@@ -1334,11 +1388,7 @@ function _em_magnetic_update!(
             exact_slope =
                 parts === nothing ? _exact_rational(slope) : _em_exact_derivative(parts, i)
             exact_increment = exact_interval * exact_slope
-            candidate = _from_exact(
-                T,
-                backward ? _exact_rational(value) + exact_increment :
-                _exact_rational(value) - exact_increment,
-            )
+            candidate = _em_exact_magnetic_row(value, exact_increment, backward)
         end
         out[i] = candidate
     end
@@ -2074,7 +2124,8 @@ Range-sensitive inputs retain the complete density and timestep-weighted
 current expression. Spectral input validation and FFT accuracy limits still
 apply, including loss of relative accuracy for ill-conditioned cancellations.
 """
-function charge_conservation_residual(es::EMPIC1D{T}, dt::Real) where {T}
+function charge_conservation_residual(es::EMPIC1D{T}, dt::Real, meter = nothing) where {T}
+    _empic_fft_charge!(meter, 4)
     g = es.g
     n = g.n[1]
     dtT = T(dt)
@@ -2094,7 +2145,7 @@ function charge_conservation_residual(es::EMPIC1D{T}, dt::Real) where {T}
     g.iplan * cb
     dJx = similar(es.Jx)
     deriv!(dJx, es.Jx, g, 1)                     # already Nyquist-free
-    return _em_continuity_finish(g, es.rho_n, es.rho_np1, (es.Jx,), dtT, cb, dJx, lost)
+    return _em_continuity_finish(g, es.rho_n, es.rho_np1, (es.Jx,), dtT, cb, dJx, lost, meter)
 end
 
 # ---------------------------------------------------------------- dimension-parametric EM PIC
@@ -2445,7 +2496,8 @@ function _correct_current_continuity!(es::EMPIC{D,T}, dt::T) where {D,T}
     return _empic_correct_current!(es.J, es.Jraw, es.rho_n, es.rho_np1, es.g, dt)
 end
 
-function _empic_correct_current!(J, Jraw, rho_n, rho_np1, g::FourierGrid{D,T}, dt::T) where {D,T}
+function _empic_correct_current!(J, Jraw, rho_n, rho_np1, g::FourierGrid{D,T}, dt::T, meter = nothing) where {D,T}
+    _empic_fft_charge!(meter, 7)
     buffers = (g.cbuf, g.tbuf, g.abuf)
     for c = 1:3
         buffers[c] .= Jraw[c]
@@ -2832,7 +2884,8 @@ scale instead of assuming a small relative value.
 Range-sensitive inputs retain the complete density and timestep-weighted
 current expression; spectral input validation and FFT accuracy limits still apply.
 """
-function charge_conservation_residual(es::EMPIC{D,T}, dt::Real) where {D,T}
+function charge_conservation_residual(es::EMPIC{D,T}, dt::Real, meter = nothing) where {D,T}
+    _empic_fft_charge!(meter, D + 3)
     g = es.g
     dtT = T(dt)
     dρhat = g.cbuf
@@ -2858,7 +2911,7 @@ function charge_conservation_residual(es::EMPIC{D,T}, dt::Real) where {D,T}
 
     dJ = similar(es.rho_n)
     divergence!(dJ, es.J, g)
-    return _em_continuity_finish(g, es.rho_n, es.rho_np1, es.J, dtT, dρrepr, dJ, lost)
+    return _em_continuity_finish(g, es.rho_n, es.rho_np1, es.J, dtT, dρrepr, dJ, lost, meter)
 end
 
 # Exact undo inventory for public relativistic steps; checkpoint payloads keep
