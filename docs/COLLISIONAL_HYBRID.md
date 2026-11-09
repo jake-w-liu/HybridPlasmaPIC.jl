@@ -1,12 +1,17 @@
 # Fixed-step collisional hybrid runs
 
 `CollisionalHybridStepper` composes the existing hybrid field step with local
-self/interspecies Coulomb collisions ([`collide_coulomb!`](LOCAL_COULOMB.md)). This
+self/interspecies Coulomb collisions ([`collide_coulomb!`](LOCAL_COULOMB.md)).
+Optional [electron–ion thermal moment exchange](ELECTRON_ION_THERMAL_EXCHANGE.md)
+adds a reduced two-way scalar-pressure/ion-thermal source; its new numerical,
+compiler/format, scientific and resource acceptance remains pending. The default
+`electron_ion=nothing` retains the existing ion-only schema-1 behavior. This
 slice is **first order** and CPU-only. It supports Float32/Float64 in one to three
 spatial dimensions, periodic Fourier grids, positive-ion populations, standard
 Vector particle storage, NGP/CIC/TSC, ideal massless isothermal or evolving
 scalar electrons (`eta=etaH=de2=0`), and `TransportElectrons` or
-`ConductingElectrons` with constant `eta>=0`, `etaH>=0`, `de2=0`. The ordered populations, counts, charges,
+`ConductingElectrons`/`FieldAlignedConductingElectrons` with constant
+`eta>=0`, `etaH>=0`, `de2=0`. The ordered populations, counts, charges,
 masses, model, normalization and positive timestep are fixed for the wrapper's
 lifetime. The bound model is detached at construction; comparisons retain the
 concrete model/closure type and original scalar values, including BigFloat
@@ -28,31 +33,35 @@ velocity (the `HybridStepper` convention). One nonzero step of size `h` from
    half-level velocities, with the wrapper's RNG and workspace. The collision
    interval is the field interval, and its velocities sit at that interval's
    midpoint. This ion-ion subflow leaves stored electron pressure fixed.
-3. Integer-time moments, Ohm's law and the carried-E recentering from the
+3. With `electron_ion` enabled, the NGP/grid-gamma-5/3 thermal source exchanges
+   actual ion kinetic energy with stored electron pressure. The linked thermal
+   guide owns its coefficients, rounding/entropy gates and limitations.
+4. Integer-time moments, Ohm's law and the carried-E recentering from the
    collided velocities, giving E at `t+h`. Transport refreshes the independently
    carried ion force as well as the full field; its predictor uses that force.
 
-The result is bitwise identical to `step!(inner, ...)`, then
+With thermal exchange disabled, the result is bitwise identical to `step!(inner, ...)`, then
 `collide_coulomb!(..., h; ...)`, then recomputing the moments and the closure's
 carried field/force before carried-E recentering; the composition forms E once
 instead of twice. This is a staggered
 first-order (Lie-type) split, not a symmetric split or a synchronized exact
-collision subflow. Skipping step 3 (reusing the pre-collision E) is wrong: the
+collision subflow. Skipping the final refresh (reusing pre-source E) is wrong: the
 next kick then lacks `h (q/m) dE`, where `dE` is the change of `-u_i×B` from
 the collisional change of the charge-weighted bulk velocity.
 
 For `EvolvingElectrons`, `TransportElectrons` or `ConductingElectrons`, set
 finite nonnegative `inner.fields.pe` before `init!`.
 Initialization preserves it, and collision feedback enters the next pressure
-interval through the refreshed moments. There is no electron-ion temperature
-equilibration, collisional electron heating or additional reservoir. Pressure
+interval through the refreshed moments. The default ion-only subflow adds no
+electron heat; the opt-in thermal source transfers energy between the existing
+pe and ion reservoirs. Pressure
 retains the canonical explicit-stage positivity checks and is never clipped.
 
 Transport retains `E = E_force + eta*J - etaH*laplacian(J)`, force-based ion
 kicks and the canonical stage-based positive Ohmic and hyperresistive pressure
 heat. S2's heat includes its stated Nyquist convention; see the
 [model and discrete balance](TRANSPORT_HYPERRESISTIVITY_PLAN.md).
-The collision substep adds no heat source.
+The ion-ion substep adds no electron heat source.
 The bounded [conduction model](EVOLVING_ELECTRONS.md#constant-isotropic-conduction-source-candidate)
 adds its original-quotient heat flux only in those field stages, using bounded
 two-term preparation, full stored-k/Nyquist and exact per-axis line-mean
@@ -97,8 +106,9 @@ store `nothing` for this snapshot and allocate no added force arrays. New
 complete-call allocation, memory and timing acceptance remains open.
 
 Coulomb logarithms may be a scalar or a symmetric channel matrix; zero entries
-disable channels. All-zero logs run exactly the plain `HybridStepper` step and
-leave the RNG unchanged. `epsilon0` and `weight_to_number` are explicit because
+disable channels. When thermal exchange is disabled, all-zero ion-ion logs run
+exactly the plain `HybridStepper` step and leave the RNG unchanged. With thermal
+exchange enabled, both sets of logarithms must be zero for that physical reduction. `epsilon0` and `weight_to_number` are explicit because
 macro-weights are not automatically real-particle counts. Use
 `coulomb_normalization` with your `PlasmaUnits` for a physical unit conversion;
 do not infer units from the example values below. `u_floor` is a velocity and
@@ -168,7 +178,10 @@ particles. The force is restored in place, and outer failures restore its
 entry value along with pressure and the RNG.
 Conducting state also requires integer inner `conduction_policy_version=2`,
 including for κ=0; missing, policy-1 or malformed versions reject before mutation.
-The existing outer schema remains 1. The destination must match the saved κ as
+Field-aligned conduction instead uses required inner policy 3, including its
+zero-coefficient case. The outer schema remains 1 with thermal exchange disabled;
+enabled thermal exchange requires schema 2 and its complete configuration/report.
+The destination must match the saved conduction coefficients as
 part of the fixed model, and quotient/transform scratch is not persisted.
 
 `archive_run(path, st, ions; rng_seed=42)` uses the same state and existing
@@ -233,7 +246,10 @@ The tests are `test/test_collisional_hybrid.jl`, `test_collisional_checkpoint.jl
 and `test_collisional_physics.jl`. The [composition plan](COLLISION_COMPOSITION_RESTART_PLAN.md)
 records the design history and evidence.
 
-Variable timesteps, second-order stochastic splitting, electron-ion heat
-exchange, anisotropic or inertial composition, CAM-CL,
-electrostatic/electromagnetic PIC, neutral/BGK sources, ionization, radiation,
-distributed cell ownership and GPU RNG/storage remain separate planned extensions.
+The reduced NGP thermal source has its own linked guide and pending acceptance.
+CIC/TSC thermal overlap, consistent drag and electron inertia, variable timesteps,
+higher-order splitting, anisotropic composition, CAM-CL, neutral/BGK sources,
+ionization, radiation and GPU RNG/storage remain open. Separate bounded
+[collisional ES](COLLISIONAL_ELECTROSTATIC.md) and
+[EM](COLLISIONAL_EMPIC.md) families and their actual-pencil counterparts have
+source implementations with their own deferred physical/runtime acceptance.

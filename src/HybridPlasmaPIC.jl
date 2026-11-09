@@ -116,6 +116,7 @@ include("electrons/field_aligned_conduction.jl")
 include("integrators/abstract_integrator.jl")
 include("integrators/gmres_storage.jl")
 include("integrators/extrapolated_leapfrog.jl")
+include("electrons/thermal_exchange.jl")
 include("integrators/collisional_hybrid.jl")
 include("integrators/camcl.jl")
 include("integrators/field_subcycling.jl")
@@ -314,6 +315,7 @@ export HybridStepper,
     cuda_hybrid_host_snapshot,
     cuda_hybrid_host_diagnostics,
     CollisionalHybridStepper,
+    ElectronIonThermalExchange,
     CollisionalEMPICStepper,
     CollisionalElectrostaticPIC,
     init!,
@@ -323,6 +325,7 @@ export HybridStepper,
     magnetic_energy,
     electron_internal_energy,
     electron_conduction_diagnostics,
+    electron_ion_exchange_diagnostics,
     mode_amplitude,
     recommended_dt
 export MHDState, rankine_hugoniot

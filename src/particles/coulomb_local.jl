@@ -403,17 +403,22 @@ end
 # Machin's identity and alternating remainders give rational lower/upper bounds
 # without changing or depending on process-wide MPFR precision/exponent limits.
 # A rational cannot equal pi; refine until the comparison has a certificate.
+@inline function _coulomb_pi_refine(a, b, ta, tb, n)
+    a += ta
+    b += tb
+    ta *= -(2n + 1) // (25 * (2n + 3))
+    tb *= -(2n + 1) // (239^2 * (2n + 3))
+    low = 16min(a, a + ta) - 4max(b, b + tb)
+    high = 16max(a, a + ta) - 4min(b, b + tb)
+    return a, b, ta, tb, low, high
+end
+
 @noinline function _coulomb_above_pi(value::Rational{BigInt})
     a, b = BigInt(0) // BigInt(1), BigInt(0) // BigInt(1)
     ta, tb = BigInt(1) // BigInt(5), BigInt(1) // BigInt(239)
     n = 0
     while true
-        a += ta
-        b += tb
-        ta *= -(2n + 1) // (25 * (2n + 3))
-        tb *= -(2n + 1) // (239^2 * (2n + 3))
-        low = 16min(a, a + ta) - 4max(b, b + tb)
-        high = 16max(a, a + ta) - 4min(b, b + tb)
+        a, b, ta, tb, low, high = _coulomb_pi_refine(a, b, ta, tb, n)
         value <= low && return false
         value >= high && return true
         n += 1

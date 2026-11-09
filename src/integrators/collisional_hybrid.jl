@@ -14,7 +14,8 @@ end
 
 """
     CollisionalHybridStepper(inner::HybridStepper, species::AbstractVector;
-        dt, rng, coulomb_log, epsilon0, weight_to_number, u_floor=1e-3)
+        dt, rng, coulomb_log, epsilon0, weight_to_number, u_floor=1e-3,
+        electron_ion=nothing)
 
 Fixed-step, first-order CPU composition of [`HybridStepper`](@ref) with cell-local
 [`collide_coulomb!`](@ref). Each nonzero `step!(stepper, species, dt)` pushes the
@@ -22,8 +23,10 @@ particles and advances B to `t+dt`, scatters the velocities for the interval `dt
 at the new positions (velocities stay at the half level `t+dt/2`), and then forms
 the integer-time moments and carried E from the scattered velocities. The result
 equals `step!(inner, ...)`, `collide_coulomb!(..., dt; ...)` and a recomputation
-of the moments, Ohm's law and carried E, without forming E twice. This is not a
-symmetric or second-order collision split. Call `init!` before active stepping.
+of the moments, Ohm's law and carried E, without forming E twice. Opt-in
+`electron_ion=ElectronIonThermalExchange(...)` then exchanges stored electron
+pressure and ion thermal energy before that recomputation. This is a fixed-step
+first-order Lie composition. Call `init!` before active stepping.
 
 Supports Float32/Float64, D=1:3, standard Vector particle storage, positive ions,
 NGP/CIC/TSC, ideal massless `IsothermalElectrons` or `EvolvingElectrons`, and
@@ -32,24 +35,25 @@ with constant `η ≥ 0`, `ηH ≥ 0`
 and `de2 = 0`. Conduction retains its original-quotient numerical policy and guard.
 With stored pressure, initialize `inner.fields.pe` before `init!`; the field
 substep evolves pressure and the ion-ion collision substep leaves it unchanged.
-Ohmic/hyperresistive heating and conduction occur only in the field stages; no
-electron-ion heat exchange is included. Transport rolls back its independently
+Thermal exchange additionally requires NGP, grid γ=T(5/3) and actual ne≥nfloor;
+it omits drag and finite electron momentum. Ohmic/hyperresistive heating and
+conduction occur only in the field stages. Transport rolls back its independently
 carried ion force as well as the full E. The ordered populations,
 counts, charges, masses, model and timestep are fixed; any other nonzero `dt` is
 rejected before state changes and `dt = 0` is a no-op that consumes no random
-draws. All-zero Coulomb logarithms reproduce plain `HybridStepper` stepping
-exactly. The wrapper borrows the inner stepper exclusively and deep-copies an
+draws. With both sources inactive the physical evolution reproduces plain
+`HybridStepper` stepping exactly. The wrapper borrows the inner stepper exclusively and deep-copies an
 explicit Xoshiro or MersenneTwister RNG; independent wrappers need independent
 inner steppers and populations.
 
 A failed operation restores particle positions/velocities, every public field,
-the clock, source ledger and RNG in place, so a retry draws the same numbers.
+the clock, source ledger/report and RNG in place, so a retry draws the same numbers.
 Private scratch (inner workspaces, collision bins) may change. Initialization
 resets the physical clock but preserves the current RNG stream.
 Checkpoint/restart retains the full advanced RNG state for the same Julia version
 and environment; a seed alone is only provenance.
 """
-mutable struct CollisionalHybridStepper{D,T,S,R,L,M,SH,G<:FourierGrid{D,T},F}
+mutable struct CollisionalHybridStepper{D,T,S,R,L,M,SH,G<:FourierGrid{D,T},F,X,W}
     const inner::S
     # Concrete, so the collision call dispatches statically and allocates nothing.
     const grid::G
@@ -67,6 +71,9 @@ mutable struct CollisionalHybridStepper{D,T,S,R,L,M,SH,G<:FourierGrid{D,T},F}
     const workspace::CoulombCollisionWorkspace{T}
     const transaction::_CollisionalTransaction{D,T,R,F}
     const busy::Threads.Atomic{Bool}
+    const electron_ion::X
+    const thermal_work::W
+    thermal_report::Union{Nothing,NamedTuple}
     phase::Symbol
     source_time::T
     source_count::Int
@@ -201,6 +208,7 @@ function CollisionalHybridStepper(
     epsilon0::Real,
     weight_to_number::Real,
     u_floor::Real = 1e-3,
+    electron_ion = nothing,
 ) where {D,T}
     _validate_collisional_model(inner)
     _validate_collisional_populations(species, inner.g)
@@ -215,6 +223,7 @@ function CollisionalHybridStepper(
     uf = _require_finite_positive_real("u_floor", u_floor, T)
     _validate_coulomb_logs(coulomb_log, length(species), T)
     logs = coulomb_log isa Real ? T(coulomb_log) : Matrix{T}(coulomb_log)
+    thermal = _bind_electron_ion(electron_ion, inner, species)
     _validate_collisional_rng(rng)
     _validate_checkpoint_configuration((;), inner, (rng,))
     owned_rng = deepcopy(rng)
@@ -244,11 +253,15 @@ function CollisionalHybridStepper(
         CoulombCollisionWorkspace(populations, inner.g),
         transaction,
         Threads.Atomic{Bool}(false),
+        thermal,
+        _electron_ion_work(thermal, inner, populations),
+        nothing,
         :uninitialized,
         zero(T),
         0,
     )
     _validate_collisional_fields(st)
+    _validate_electron_ion_binding(st)
     return st
 end
 
@@ -323,6 +336,7 @@ function _validate_collisional_binding(st::CollisionalHybridStepper, species)
     _validate_collisional_populations(st.species, st.grid)
     _validate_collisional_fields(st)
     _validate_collisional_rng(st.rng)
+    _validate_electron_ion_binding(st)
     return nothing
 end
 
@@ -337,6 +351,7 @@ function _validate_collisional_boundary(st::CollisionalHybridStepper)
         st.source_count == 0 ? iszero(inner.last_dt[]) && iszero(st.source_time) :
         isequal(inner.last_dt[], st.dt) && st.dt <= st.source_time
     ) || throw(ArgumentError("collisional timestep history does not match its fixed dt"))
+    _validate_electron_ion_clock(st)
     return nothing
 end
 
@@ -407,6 +422,8 @@ function _init_collisional!(st::CollisionalHybridStepper, species::AbstractVecto
         _validate_collisional_fields(st)
         st.source_time = st.inner.time[]
         st.source_count = st.inner.step[]
+        st.thermal_report = nothing
+        st.thermal_work === nothing || (st.thermal_work.pending = nothing)
         completed = true
         return st
     finally
@@ -421,21 +438,24 @@ end
 @inline _collisional_active(logs::Real) = !iszero(logs)
 @inline _collisional_active(logs::AbstractMatrix) = any(!iszero, logs)
 
-# The only HybridStepper source: scatter the half-level velocities at the new
-# positions for the full field interval before the carried E is formed. The
-# evolved electron pressure stays fixed during this ion-only subflow.
+# The canonical post-field source sees integer positions/pe and half-level v.
+# Its default ion-only subflow leaves pe fixed; opt-in thermal exchange follows
+# it before the existing owner recomputes moments, pressure force and carried E.
 function _apply_hybrid_source!(st::CollisionalHybridStepper, species, dtT)
-    collide_coulomb!(
-        species,
-        st.grid,
-        dtT;
-        coulomb_log = st.coulomb_log,
-        epsilon0 = st.epsilon0,
-        weight_to_number = st.weight_to_number,
-        u_floor = st.u_floor,
-        rng = st.rng,
-        workspace = st.workspace,
-    )
+    if st.electron_ion === nothing || _collisional_active(st.coulomb_log)
+        collide_coulomb!(
+            species,
+            st.grid,
+            dtT;
+            coulomb_log = st.coulomb_log,
+            epsilon0 = st.epsilon0,
+            weight_to_number = st.weight_to_number,
+            u_floor = st.u_floor,
+            rng = st.rng,
+            workspace = st.workspace,
+        )
+    end
+    _apply_electron_ion!(st.electron_ion, st, species, dtT)
     return nothing
 end
 
@@ -469,7 +489,7 @@ function _step_collisional!(st::CollisionalHybridStepper, species, h, NB)
     completed = false
     try
         inner = st.inner
-        if _collisional_active(st.coulomb_log)
+        if _collisional_active(st.coulomb_log) || _electron_ion_active(st.electron_ion)
             _step_hybrid!(inner, st.species, h, NB, st)
         else
             _step_hybrid!(inner, st.species, h, NB, nothing)
@@ -478,6 +498,7 @@ function _step_collisional!(st::CollisionalHybridStepper, species, h, NB)
         _validate_collisional_fields(st)
         st.source_time = inner.time[]
         st.source_count = inner.step[]
+        _commit_electron_ion_report!(st)
         completed = true
         return st
     finally
@@ -487,4 +508,69 @@ function _step_collisional!(st::CollisionalHybridStepper, species, h, NB)
         end
         st.phase = :ready
     end
+end
+
+_apply_electron_ion!(::Nothing, st, species, h) = nothing
+function _apply_electron_ion!(config::_ElectronIonThermalConfig, st, species, h)
+    _electron_ion_active(config) || return nothing
+    return _prepare_electron_ion!(config, st.thermal_work, st.inner, species, h,
+        st.epsilon0, st.weight_to_number, st.rng)
+end
+
+function _validate_electron_ion_binding(st::CollisionalHybridStepper)
+    config = st.electron_ion
+    if config === nothing
+        st.thermal_work === nothing && st.thermal_report === nothing ||
+            throw(ArgumentError("disabled electron-ion exchange cannot own thermal state"))
+        return nothing
+    end
+    _validate_electron_ion_config(config, st.inner, st.species)
+    work = st.thermal_work
+    _validate_coulomb_workspace(work.bins, st.species, st.grid, config.logarithm)
+    arrays = (work.density, work.number_density, work.pressure)
+    for i in eachindex(arrays)
+        size(arrays[i]) == st.grid.n || throw(DimensionMismatch("electron-ion scratch dimensions differ from the grid"))
+        _validate_coulomb_work_array(arrays[i], st.species, config.logarithm)
+        for j = 1:(i - 1)
+            _require_coulomb_independent(arrays[i], arrays[j])
+        end
+        for bins in work.bins.populations
+            _require_coulomb_work_independent(arrays[i], bins)
+        end
+    end
+    # Reuse the canonical native-resource/storage graph. Scratch must be separate
+    # from fields, inner FFT/RK/predictor work, rollback, ion-ion work and RNG.
+    _validate_checkpoint_configuration_registered((arrays..., work.bins, config.logarithm)) do remember, backing, owned
+        _register_checkpoint_configuration_owned!(remember, backing, owned, (;), st.inner)
+        _visit_checkpoint_objects(remember, (st.transaction, st.workspace, st.rng, st.coulomb_log, st.thermal_report); backing)
+    end
+    return nothing
+end
+
+function _validate_electron_ion_clock(st::CollisionalHybridStepper)
+    st.electron_ion === nothing && return nothing
+    report = st.thermal_report
+    if st.source_count == 0
+        report === nothing || throw(ArgumentError("unadvanced electron-ion state cannot carry a report"))
+    else
+        _electron_ion_record(report, _ELECTRON_ION_REPORT_KEYS)
+        report.policy === 1 && isequal(report.time, st.source_time) &&
+            report.step === st.source_count && isequal(report.dt, st.dt) ||
+            throw(ArgumentError("electron-ion report does not match the source clock"))
+    end
+    return nothing
+end
+
+function _commit_electron_ion_report!(st::CollisionalHybridStepper)
+    st.electron_ion === nothing && return nothing
+    if _electron_ion_active(st.electron_ion)
+        report = st.thermal_work.pending
+        report !== nothing && isequal(report.time, st.source_time) && report.step == st.source_count ||
+            throw(ArgumentError("electron-ion source did not prepare its completed report"))
+        st.thermal_report = report
+    else
+        st.thermal_report = (policy = 1, time = st.source_time, step = st.source_count,
+            dt = st.dt, cells = NamedTuple[])
+    end
+    return nothing
 end

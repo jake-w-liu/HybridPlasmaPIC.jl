@@ -248,8 +248,10 @@ collisional composition has its stated first-order contract:
   ideal massless isothermal/evolving electrons or constant Ohmic/hyperresistive
   transport (`de2=0`). The field substep advances stored pressure with applicable
   Ohmic/hyperresistive heating; ion-ion collisions hold pressure fixed. Checkpoints
-  carry pressure, the transport ion force and the advanced RNG. Stored-pressure
-  extensions await exact-revision CI;
+  carry pressure, the transport ion force and the advanced RNG. Optional
+  [electron–ion thermal exchange](docs/ELECTRON_ION_THERMAL_EXCHANGE.md) couples
+  NGP scalar pressure and actual ion thermal energy with accounted rounding and
+  complete source/RNG restart. New stored-pressure/source extensions await CI;
   [scope and verified state](docs/COLLISIONAL_HYBRID.md).
 
 **Choosing dt.** `recommended_dt(g; NB = 1, integrator = :rk4, safety = 0.8,
@@ -433,11 +435,13 @@ near-light Lorentz factor or an entire trajectory from rounded velocities.
   the whole call succeeds. [User guide](docs/LOCAL_COULOMB.md) and
   [two-species example](examples/local_coulomb.jl).
 - `CollisionalHybridStepper(inner, species; dt, rng, coulomb_log, epsilon0,
-  weight_to_number)` — runs these collisions inside each fixed `HybridStepper`
+  weight_to_number, electron_ion=nothing)` — runs these collisions inside each fixed `HybridStepper`
   step (after the push and field advance, before the carried `E` is formed) with
   an owned `Xoshiro`/`MersenneTwister`. A failed step restores particles, fields,
   clock and RNG; `save_checkpoint`/`load_checkpoint!`/`archive_run` persist the
-  advanced RNG; zero logarithms reproduce `HybridStepper` exactly.
+  advanced RNG. With thermal exchange disabled, zero ion-ion logarithms
+  reproduce `HybridStepper` exactly. Optional `ElectronIonThermalExchange`
+  supplies [reduced pressure/ion heat exchange](docs/ELECTRON_ION_THERMAL_EXCHANGE.md).
   [Composition guide](docs/COLLISIONAL_HYBRID.md).
 - `CollisionalElectrostaticPIC(inner, species; dt, rng, coulomb_log, epsilon0,
   weight_to_number)` — source-implemented fixed-step generic ES/local-Coulomb
@@ -853,8 +857,9 @@ EM and comparative campaigns remain in the
   and [collisional EM sources](docs/DISTRIBUTED_COLLISIONAL_EMPIC.md) now add
   admitted owned cells, per-rank RNG staging and full physical/RNG restart.
   Actual-rank/statistical/continuation acceptance is open. Variable steps, higher-order
-  splitting, electron-ion heat exchange, anisotropic-pressure/inertial
-  composition, other models and sources, broader MPI families and device kernels
+  splitting, broader electron-ion drag/inertia and shape-overlap exchange,
+  anisotropic-pressure/inertial composition, other models and sources, broader
+  MPI families and device kernels
   are separate open stages ([CAP-010](docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md)).
 - The [normalization repair](docs/NORMALIZATION_RANGE_PLAN.md)
   does not establish range correctness of every compound RayCon expression.

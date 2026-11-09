@@ -84,10 +84,11 @@ Current work:
 - Real physical-pencil ES/EM/hybrid/Maxwell evolution and checkpoint owners were
   read. Existing MPI CI covers primitives, not those actual model lifecycles;
   [compact charged lifecycle controls](DISTRIBUTED_MODEL_ACCEPTANCE.md) are now
-  registered on actual 2 ranks for minimum/latest Julia. The first latest gate
-  passes the charged models, then stops in Maxwell's empty-collection test helper.
-  That helper is corrected; complete remote acceptance requires a successful
-  rerun. Primitive MPI success is not relabeled as physical-model acceptance.
+  registered on actual 2 ranks for minimum/latest Julia. The corrected latest
+  job at `7ea6ae8` passes on actual Julia 1.13.3: charged rank summaries record
+  3,728/3,725 passing checks and vacuum-Maxwell 146/147. Its exact head, launcher
+  and raw log were checked. Minimum/full/scientific/resource acceptance remains
+  open. Primitive MPI success is not relabeled as physical-model acceptance.
 - The resident CUDA family is source-reviewed and integrated through the
   canonical optional-backend and IO registrations as an unaccepted candidate.
   The latest hosted extension/admission job passes 38 checks on actual Julia
@@ -145,11 +146,25 @@ Current work:
   reports/schema and compatible-Yee lift arithmetic have literal source checks.
   The 402-line independent essential is registered; all new remote, scientific
   and resource acceptance remains pending.
-- Reduced electron-ion thermal exchange has an approved 178-line contract and
-  active implementation in five canonical production owners. Coupled EMPIC
-  error control remains in constrained-pair/phase derivation. A separate source
-  track repairs the ten new JET reports without changing the fixed cap. The
-  full CAP-001–011 end-state remains required.
+- Reduced [NGP electron-ion thermal exchange](ELECTRON_ION_THERMAL_EXCHANGE.md)
+  has complete six-file source review/adoption and canonical integration. Its
+  positive backward-Euler star uses original normalized coefficients and exact
+  actual ion energy payment by stored pressure, with bounded materialization,
+  entropy admission, cold-frame RNG and complete schema2 continuation/rollback.
+  The independent 352-line essential covers physical coefficients, actual
+  moments/force, cold draws, sparse/late failure and raw/archive continuation.
+  It is registered in full/focused CI; all new executable, scientific and resource
+  acceptance remains pending. The separately approved CIC/TSC extension now
+  implements stored-shape overlap and conservative ordered edge exchange in
+  four production owners and the guide. Drag, inertia and backends remain open.
+- Coupled EMPIC error control has an approved 415-line V3 contract and active
+  seven-path production implementation, with an independent guide/essential
+  worker. It uses a full-time projected Euler/Heun pair, distinct endpoint
+  charges, original-factor force expressions, explicit attempted-work budgets
+  and complete distinct controller/restart. Its first mode admits CIC/TSC;
+  existing scheduling modes retain their contracts. No new runtime/order/error
+  effectivity or resource acceptance is inferred from the derivation.
+  The full CAP-001–011 end-state remains required.
 
 The full runner explicitly registers the transverse Yee reference beside the
 existing family tests. MPI multi-rank and distributed FFT primitive tests run
@@ -183,6 +198,14 @@ all numerical/validation/phase/IO bodies remain unchanged by literal inverses.
 Broad-element public-vector and previous face-order essentials plus a focused
 whole-JET route are registered. This repair still needs exact-head remote
 acceptance; the cap, filters and historical compiler ledger are unchanged.
+The latest-Julia `7ea6ae8` group 11 also fails: actual Julia 1.13.3 records 88
+reports against the same 86 cap and zero package-located reports. Full trace
+comparison preserves all prior 79 latest-runtime chains and finds nine additions.
+Six match the reviewed minimum-runtime additions; the remaining three traverse
+the same binding/range and dense-view source owners with runtime-library frame
+differences. The `566ddc1` repair and its whole-JET route remain unexecuted at
+this snapshot. These diagnostics establish a compiler gate failure, not a
+demonstrated wrong numerical result.
 
 ## Historical implementation evidence through 2026-11-02
 

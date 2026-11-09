@@ -427,6 +427,31 @@ function electron_conduction_diagnostics(
     )
 end
 
+"""
+    electron_ion_exchange_diagnostics(stepper::CollisionalHybridStepper, species)
+
+Return an independently owned numeric receipt for the last completed reduced
+electron-ion thermal source, or `nothing` immediately after initialization.
+Recheck its physical coefficients, actual stored endpoint reservoirs, rounding
+certificates and moment-entropy bound. This is source-split history, not an
+instantaneous collision rate or a conservation claim for the field integrator.
+The diagnostic performs private deposition/bins without drawing RNG values.
+"""
+function electron_ion_exchange_diagnostics(st::CollisionalHybridStepper, species::AbstractVector)
+    _acquire_collisional!(st)
+    try
+        _validate_collisional_binding(st, species)
+        _validate_collisional_boundary(st)
+        st.electron_ion === nothing && throw(ArgumentError("electron-ion exchange diagnostics require an enabled thermal configuration"))
+        _validate_electron_ion_report(st.thermal_report, st.electron_ion, st.inner,
+            st.species, st.inner.fields, st.source_time, st.source_count, st.dt,
+            st.epsilon0, st.weight_to_number)
+        return deepcopy(st.thermal_report)
+    finally
+        st.busy[] = false
+    end
+end
+
 function electron_conduction_diagnostics(st::CollisionalHybridStepper, species::AbstractVector)
     _acquire_collisional!(st)
     try

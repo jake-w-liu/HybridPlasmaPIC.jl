@@ -52,18 +52,19 @@ its publication record.
 | Boris certificate premises | Root integrates frozen `post_devin_numeric_audit` repair | Underflow-safe original quotient equality; DD range/mode/domain and outward-distance gates; symmetric zero products | Both focused jobs pass 6,142 assertions each at `a15be1c`; formatter correction passes at `62f985f`; full integrated/compiler/resource acceptance open |
 | Dynamic composite ES | Root adopts final five-file handoff | Real completed-boundary refine/coarsen, canonical charge/field reconstruction, mesh-energy exchange, physical steps and complete restart | Complete source/registration review; minimum/latest focused jobs pass 136 each at `16321a9`; full integrated/scientific/resource acceptance open |
 | Implicit Yee transverse acceptance | Root adopts frozen handoff | Independent true-Yee vacuum and unequal-species cold-plasma midpoint controls | Both references pass minimum/latest focused jobs with 366 assertions each at `62f985f`; full integrated/scientific acceptance open |
-| Physical-pencil model acceptance | Root adopts frozen lifecycle checks | Actual charged distributed ES/EM/hybrid and nonconstant Maxwell evolution, restore and continuation controls | Charged latest controls passed before a Maxwell empty-population helper failure; helper corrected in CPU candidate `b8a5e7d`, complete remote rerun pending |
+| Physical-pencil model acceptance | Root adopts frozen lifecycle checks | Actual charged distributed ES/EM/hybrid and nonconstant Maxwell evolution, restore and continuation controls | Actual two-rank latest job at `7ea6ae8` passes charged and vacuum-Maxwell controls on Julia 1.13.3; minimum/full/scientific/resource acceptance remains open |
 | Resident CUDA hybrid | Root integrates reviewed fourteen-file handoff | Complete resident D1/3V isothermal lifecycle, diagnostics and physical persistence | Latest host job at `38d1cd1` passes 38 checks on Julia 1.13.3; minimum host, full integrated and actual NVIDIA acceptance remain open |
-| Toroidal annulus | Root integrated final handoff | Full coupled logical particles, metric magnetic field, adiabatic pressure, contact work and complete restart | Reviewed source/registration pushed at `7ea6ae8`; full and focused remote acceptance pending |
+| Toroidal annulus | Root integrated final handoff | Full coupled logical particles, metric magnetic field, adiabatic pressure, contact work and complete restart | Focused minimum/latest jobs pass 3,861 checks each at `7ea6ae8`; full/compiler/scientific/resource acceptance remains open |
 | Implicit evolving pressure | Root integrated final handoff | Canonical joint velocity/B/pe solve, third residual gate, signed physical ledger and schema2 persistence | Reviewed source/registration pushed at `5703c95`, including pinned old-schema raw/archive continuation; exact-head remote acceptance pending |
 | Multidimensional adaptive ES | Root integrates frozen `dynamic_amr_es_implementation` handoff | Genuine coupled D2/3 hierarchy, particle/field adaptation, work and restart | Seven production owners, guide and essential file reviewed/adopted; module/writer/remote registrations complete; all new acceptance pending |
 | Nondividing species schedules | Root integrates frozen model and independent IO handoffs | Canonical EMPIC persistent events/current/phase/controller/work and schema3 | Five-file source reviewed/adopted; independent essentials registered; all new runtime/scientific/resource acceptance pending |
 | Field-aligned electron conduction | Root integrates frozen `post_devin_numeric_audit` handoff | Varying-B tensor transport in canonical B/pressure lifecycle and persistence | Eight-owner source and essential file reviewed/adopted on `5703c95`; module/guide/registration wired; all remote acceptance pending |
 | Persistent schedule IO | Root owns finalV3 | Complete schema3 pending calendar/controller/current/phase persistence | Released559-line owner adopted exact; canonical graph/codecs/transport preserved; new remote acceptance pending |
 | Periodic multidimensional AMR | Root adopted frozen parent/child handoff | Seam constraints, arbitrary-width clouds, physical neutral source, full-row gauge, represented multiwrap evolution/work and complete restart | Exact thirteen files reviewed/adopted on `123c4a2`; module and full/focused registration complete; all new acceptance pending |
-| Electron-ion thermal exchange | `post_devin_numeric_audit` | Reduced two-way NGP fluid-pressure/ion-thermal exchange, actual energy/entropy/rounding receipts and complete RNG restart | 178-line contract approved on `123c4a2`; five canonical production owners plus new guide active |
-| Coupled EMPIC error control | `dynamic_amr_es_implementation` | Common-phase projected embedded pair, original-factor RHS, shape-knot and controller/restart contract | Read-only derivation; no production approval yet |
-| New JET source regression | `annulus_loader_guide` | Preserve admitted storage precision, exact private construction and direct immutable normal-face values | All ten added report chains compared with unchanged prior 86; two-owner source reviewed/adopted, broad-input/face-order and focused whole-JET routes registered; remote acceptance pending, cap/filter unchanged |
+| NGP electron-ion thermal exchange | Root integrates frozen source and independent essential | Reduced two-way fluid-pressure/ion-thermal exchange, actual energy/entropy/rounding receipts and complete RNG restart | Six frozen files and 352-line independent essential reviewed/adopted; canonical exports and full/focused registration complete; all new runtime/scientific/resource acceptance pending |
+| CIC/TSC thermal overlap | `post_devin_numeric_audit` | Stored-shape adjoint incidence, ordered conservative positive edge exchange and complete report/RNG persistence | 171-line contract approved; four production owners and the thermal guide active on the composed frozen NGP baseline |
+| Coupled EMPIC error control | `dynamic_amr_es_implementation`; child `periodic_controls` owns only new guide/essential | Full-time projected Euler/Heun pair, actual branch-charge correction, original-factor RHS and complete controller/restart | 415-line V3 contract approved on `566ddc1`; seven production paths and two independent guide/essential paths active; first mode admits CIC/TSC |
+| New JET source regression | Root integrates frozen representation repair | Preserve admitted storage precision, exact private construction and direct immutable normal-face values | Two-owner repair pushed at `566ddc1`; broad-input/face-order and focused whole-JET routes registered; remote acceptance pending, cap/filter/ledger unchanged |
 | Integration and CI | Root | Source review, shared registrations, current Markdown, commits/main publication and exact-head CI | Active alongside three parallel implementation tracks |
 
 ## Exclusive file writers
@@ -131,15 +132,29 @@ writer is assigned.
 **Current implementation ownership:** all frozen conduction, grounded/periodic
 AMR, persistent-schedule and implicit-pressure paths have transferred to root.
 Root owns registration, exports, workflows, current global docs and integration.
-`post_devin_numeric_audit` exclusively writes `electrons/thermal_exchange.jl`,
-`particles/coulomb_local.jl` (only the shared pi refinement),
-`integrators/collisional_hybrid.jl`, `io/collisional_checkpoint.jl`,
-`diagnostics/conservation.jl` and new `ELECTRON_ION_THERMAL_EXCHANGE.md`.
+The NGP thermal six-file freeze and independent essential have transferred to
+root for integration without further production edits. For the CIC/TSC extension,
+`post_devin_numeric_audit` exclusively writes `src/electrons/thermal_exchange.jl`,
+`src/integrators/collisional_hybrid.jl`, `src/io/collisional_checkpoint.jl`,
+`src/diagnostics/conservation.jl` and `docs/ELECTRON_ION_THERMAL_EXCHANGE.md`.
+The existing canonical stencil/deposit/gather/sorting and shared pi refinement
+remain read-only to that extension. Its patch is relative to the exact frozen
+NGP baseline; root can publish that unchanged baseline during the extension.
 The two frozen JET representation owners,
 `models/static_composite_electrostatic.jl` and
-`models/toroidal_annulus_hybrid_pic.jl`, have transferred to root. `dynamic_amr_es_implementation` derives coupled error control read-only.
+`models/toroidal_annulus_hybrid_pic.jl`, have transferred to root.
+`dynamic_amr_es_implementation` exclusively writes the existing
+`src/particles/kinematics_range.jl`, `src/models/empic_collection.jl`,
+`src/models/full_pic.jl` and `src/io/empic_collection_checkpoint.jl`, plus new
+`src/models/empic_coupled_error_control.jl`,
+`src/diagnostics/empic_coupled_error_control.jl` and
+`src/io/empic_coupled_error_control_checkpoint.jl`.
+Its `periodic_controls` child exclusively writes new
+`docs/EMPIC_COUPLED_ERROR_CONTROL.md` and
+`test/test_empic_coupled_error_control.jl`. Existing modes and their schemas stay
+under literal inverse checks; the new full-time phase has a distinct schema.
 Root does not apply formatter hunks to an active worker's paths before
-handoff. Every path above is under `src/` except the guide under `docs/`.
+handoff. Paths without a prefix above are under `src/`.
 Source/runtime/scientific/resource gates remain separate.
 
 ## Handoff and verification
