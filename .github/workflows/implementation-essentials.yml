@@ -22,6 +22,7 @@ on:
           - sheared-hybrid
           - toroidal-annulus
           - implicit-em
+          - implicit-hybrid-pressure
           - implicit-yee-em
           - static-composite-es
           - shared-cuda-scalars
@@ -64,6 +65,7 @@ jobs:
               "sheared-hybrid" => ("test_sheared_hybrid.jl",),
               "toroidal-annulus" => ("test_toroidal_annulus_hybrid.jl", "test_fusion.jl"),
               "implicit-em" => ("test_implicit_em.jl", "test_implicit_hybrid_phase.jl"),
+              "implicit-hybrid-pressure" => ("test_implicit_hybrid_pressure.jl", "test_implicit_hybrid.jl", "test_implicit_hybrid_phase.jl", "test_scalar_pressure_range.jl", "test_evolving_pressure.jl", "test_evolving_pressure_accuracy.jl", "test_evolving_pressure_energy.jl", "test_transport_electrons.jl", "test_transport_hyperresistivity.jl"),
               "implicit-yee-em" => ("test_implicit_yee_em.jl", "test_implicit_yee_transverse.jl"),
               "static-composite-es" => ("test_static_composite_electrostatic.jl", "test_dynamic_composite_electrostatic.jl"),
               "shared-cuda-scalars" => ("test_shared_scalar_shapes.jl", "test_moment_normalization.jl", "test_boris_accuracy.jl", "test_rk4_original_duration.jl", "test_ohm_scalar_range.jl", "test_hybrid.jl"),
@@ -123,4 +125,34 @@ jobs:
         with:
           name: essentials-${{ inputs.suite }}-${{ matrix.julia-version }}-${{ github.sha }}
           path: implementation-essentials.log
+          if-no-files-found: warn
+      - name: Check out pre-pressure schema1 source
+        if: ${{ inputs.suite == 'implicit-hybrid-pressure' }}
+        uses: actions/checkout@v4
+        with:
+          ref: b8a5e7d366177a8a667eda9401b2ec996e980370
+          path: .hpic-pre-pressure
+      - name: Capture old schema1 and continue it with the candidate
+        if: ${{ inputs.suite == 'implicit-hybrid-pressure' }}
+        timeout-minutes: 20
+        shell: bash
+        run: |
+          set -euo pipefail
+          julia --project="$PWD/.hpic-pre-pressure" -e 'using Pkg; Pkg.instantiate()' \
+            2>&1 | tee implicit-hybrid-schema1-setup.log
+          julia --project="$PWD/.hpic-pre-pressure" tools/ci_implicit_hybrid_schema1.jl \
+            write "$RUNNER_TEMP/implicit-hybrid-schema1" "$PWD/.hpic-pre-pressure" \
+            2>&1 | tee implicit-hybrid-schema1-write.log
+          julia --project=. tools/ci_implicit_hybrid_schema1.jl \
+            check "$RUNNER_TEMP/implicit-hybrid-schema1" "$PWD" \
+            2>&1 | tee implicit-hybrid-schema1-check.log
+      - name: Retain historical schema1 observations
+        if: ${{ always() && inputs.suite == 'implicit-hybrid-pressure' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: implicit-hybrid-schema1-${{ matrix.julia-version }}-${{ github.sha }}
+          path: |
+            implicit-hybrid-schema1-setup.log
+            implicit-hybrid-schema1-write.log
+            implicit-hybrid-schema1-check.log
           if-no-files-found: warn

@@ -48,10 +48,11 @@ its publication record.
 | Physical-pencil model acceptance | Root adopts frozen lifecycle checks | Actual charged distributed ES/EM/hybrid and nonconstant Maxwell evolution, restore and continuation controls | Charged latest controls passed before a Maxwell empty-population helper failure; helper corrected in CPU candidate `b8a5e7d`, complete remote rerun pending |
 | Resident CUDA hybrid | Root integrates reviewed fourteen-file handoff | Complete resident D1/3V isothermal lifecycle, diagnostics and physical persistence | Latest host job at `38d1cd1` passes 38 checks on Julia 1.13.3; minimum host, full integrated and actual NVIDIA acceptance remain open |
 | Toroidal annulus | Final source handed to root | Full coupled logical particles, metric magnetic field, adiabatic pressure, contact work and complete restart | Eight-file final source reviewed/adopted; root canonical map/module/writer integration and compact independent essentials prepared; all remote acceptance pending |
-| Implicit evolving pressure | `post_devin_numeric_audit` | Canonical joint velocity/B/pe solve, third residual gate, signed physical ledger and schema2 persistence | Five-file source plus compact essentials frozen for root review; existing isothermal 19-field report/schema1 preserved |
+| Implicit evolving pressure | `post_devin_numeric_audit` | Canonical joint velocity/B/pe solve, third residual gate, signed physical ledger and schema2 persistence | Five-file source adopted and registered with compact essentials and pinned old-schema raw/archive continuation; exact-head remote acceptance pending |
 | Multidimensional adaptive ES | `dynamic_amr_es_implementation` | Genuine coupled D2/3 hierarchy, particle/field adaptation, work and restart | Source-pinned contract in preparation; no production edits approved yet |
 | Nondividing species schedules | `annulus_loader_guide` | Canonical EMPIC event/current/phase/schedule persistence | Existing schedule owner and requirements under source review; no production edits approved yet |
-| Integration and CI | Root | Source review, shared registrations, current Markdown, commits/main publication and exact-head CI | Active alongside pressure integration and two next-stage designs |
+| Anisotropic electron conduction | `post_devin_numeric_audit` | Varying-B tensor transport in canonical B/pressure lifecycle and persistence | Full-k/Nyquist/source/work and null-B contract in preparation; no production edits approved |
+| Integration and CI | Root | Source review, shared registrations, current Markdown, commits/main publication and exact-head CI | Active alongside three next-stage designs |
 
 ## Exclusive file writers
 
@@ -104,20 +105,22 @@ open and no hardware-unavailability conclusion is inferred.
 includes/exports/shared writer unions, essential remote controls and global docs.
 The former parent/child writers have frozen their source; root now owns the integrated eight.
 
-**Implicit-pressure worker owns five existing paths in its isolated worktree:**
+**Implicit-pressure final handoff transfers five existing paths to root:**
 `src/integrators/implicit_hybrid.jl`,
 `src/integrators/implicit_pic_nonlinear.jl` (scale dispatch only),
 `src/electrons/energy_equation.jl`,
 `src/integrators/extrapolated_leapfrog.jl` (literal shared-pressure extraction) and
 `src/io/implicit_hybrid_checkpoint.jl`, plus new
-`test/test_implicit_hybrid_pressure.jl`. The shared nonlinear algorithm and
-isothermal report/schema1 remain; root owns registrations, workflows, global
-docs and the closure/model docstrings. No overlapping writer is assigned.
+`test/test_implicit_hybrid_pressure.jl`. Root adopted the exact frozen V2 bytes.
+The shared nonlinear algorithm and isothermal report/schema1 remain; root owns
+registrations, workflows, global docs and closure/model docstrings. No overlapping
+writer is assigned.
 
 **Next-stage designs only:** the former annulus parent maps multidimensional
-adaptive ES; its child maps nondividing EMPIC schedules. Both use separate clean
-worktrees and need a source-pinned canonical contract and root file assignment
-before production edits. They do not own the adopted annular or pressure files.
+adaptive ES; its child maps nondividing EMPIC schedules. The former pressure
+worker derives anisotropic heat conduction. All three use
+separate clean worktrees and need source-pinned canonical contracts and root file
+assignments before production edits. They do not own adopted annular or pressure files.
 
 ## Handoff and verification
 

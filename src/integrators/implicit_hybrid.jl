@@ -32,6 +32,30 @@ struct ImplicitHybridSolveReport{T}
     range_status::Symbol
 end
 
+# Schema1 keeps the exported report's layout. Schema2 adds a known numeric
+# receipt; its exact values account for the represented map, not conservation.
+struct _ImplicitHybridPressureReport{T}
+    residual::T
+    exact_residual::Rational{BigInt}
+    scale::T
+    gamma::T
+    delta_kinetic::Rational{BigInt}
+    delta_magnetic::Rational{BigInt}
+    delta_electron::Rational{BigInt}
+    particle_work::Rational{BigInt}
+    ion_current_work::Rational{BigInt}
+    current_work::Rational{BigInt}
+    pressure_work::Rational{BigInt}
+    pressure_rate_work::Rational{BigInt}
+    pressure_residual_energy::Rational{BigInt}
+    defects::NTuple{6,Rational{BigInt}}
+    energy_change::Rational{BigInt}
+end
+const _ImplicitHybridEvolvingReport{T} = NamedTuple{
+    (:solver, :pressure),
+    Tuple{ImplicitHybridSolveReport{T},_ImplicitHybridPressureReport{T}},
+}
+
 "A bounded joint implicit solve failed before public state publication."
 struct ImplicitHybridConvergenceError{T} <: Exception
     reason::Symbol
@@ -43,7 +67,13 @@ struct ImplicitHybridConvergenceError{T} <: Exception
     residual_evaluations::Int
     backtracks::Int
     cause::Union{Nothing,CapturedException}
+    pressure_residual::Union{Nothing,T}
 end
+
+ImplicitHybridConvergenceError{T}(reason, velocity, magnetic, tolerance, newton, linear, evaluations, backtracks, cause) where {T} =
+    ImplicitHybridConvergenceError{T}(reason, velocity, magnetic, tolerance, newton, linear, evaluations, backtracks, cause, nothing)
+ImplicitHybridConvergenceError(reason, velocity::T, magnetic::T, tolerance::T, newton::Int, linear::Int, evaluations::Int, backtracks::Int, cause) where {T} =
+    ImplicitHybridConvergenceError{T}(reason, velocity, magnetic, tolerance, newton, linear, evaluations, backtracks, cause)
 
 function Base.showerror(io::IO, err::ImplicitHybridConvergenceError)
     print(
@@ -59,6 +89,7 @@ function Base.showerror(io::IO, err::ImplicitHybridConvergenceError)
         ", tolerance ",
         err.tolerance,
     )
+    err.pressure_residual === nothing || print(io, ", pressure residual ", err.pressure_residual)
     err.cause === nothing || (print(io, "; "); showerror(io, err.cause.ex))
 end
 
@@ -83,6 +114,7 @@ mutable struct _ImplicitHybridWorkspace{D,T}
     electron_velocity::NTuple{3,Array{T,D}}
     divergence::Array{T,D}
     rate::NTuple{3,Array{T,D}}
+    pressure_rate::Array{T,D}
     Ep::NTuple{3,Vector{T}}
     Bp::NTuple{3,Vector{T}}
     z::Vector{T}
@@ -98,10 +130,13 @@ mutable struct _ImplicitHybridWorkspace{D,T}
     h::T
     velocity_scale::T
     magnetic_scale::T
+    pressure_scale::T
     initial_residual::T
     tolerance::T
     velocity_residual::T
     magnetic_residual::T
+    pressure_residual::T
+    exact_pressure_residual::Rational{BigInt}
     newton_iterations::Int
     linear_iterations::Int
     residual_evaluations::Int
@@ -122,7 +157,7 @@ mutable struct ImplicitHybridStepper{D,T,G,M}
     const time::Base.RefValue{T}
     const step::Base.RefValue{Int}
     const last_dt::Base.RefValue{T}
-    last_report::Union{Nothing,ImplicitHybridSolveReport{T}}
+    last_report::Union{Nothing,ImplicitHybridSolveReport{T},_ImplicitHybridEvolvingReport{T}}
     busy::Bool
 end
 
@@ -137,9 +172,13 @@ function _implicit_hybrid_mode(::Type{T}) where {T}
 end
 
 function _implicit_hybrid_model(model::HybridModel, ::Type{T}) where {T}
-    model.closure isa IsothermalElectrons{T} ||
-        throw(ArgumentError("implicit hybrid requires isothermal electrons at grid precision"))
-    _require_finite_nonnegative_real("implicit hybrid Te", model.closure.Te, T)
+    if model.closure isa IsothermalElectrons{T}
+        _require_finite_nonnegative_real("implicit hybrid Te", model.closure.Te, T)
+    elseif model.closure isa EvolvingElectrons
+        _validate_evolving_model(model, T)
+    else
+        throw(ArgumentError("implicit hybrid requires isothermal electrons at grid precision or ideal evolving scalar electrons"))
+    end
     iszero(model.η) && iszero(model.ηH) && iszero(model.de2) ||
         throw(ArgumentError("implicit hybrid requires eta = etaH = de2 = 0"))
     return _require_finite_positive_real("implicit hybrid nfloor", model.nfloor, T)
@@ -177,7 +216,7 @@ end
 function _implicit_hybrid_configuration(st::ImplicitHybridStepper{D,T}) where {D,T}
     nf = _implicit_hybrid_model(st.model, T)
     c = st.controls
-    return (
+    configuration = (
         D = D,
         T = T,
         ncell = st.g.n,
@@ -205,6 +244,29 @@ function _implicit_hybrid_configuration(st::ImplicitHybridStepper{D,T}) where {D
         max_backtrack = c.max_backtrack,
         max_jv_shrink = c.max_jv_shrink,
     )
+    st.model.closure isa EvolvingElectrons || return configuration
+    # Fixed numeric configuration retains the original coefficient exactly,
+    # without retaining BigFloat backing storage or replacing the model on load.
+    gamma = _exact_rational(st.model.closure.γ)
+    model_signature = (
+        model_type = typeof(st.model),
+        closure_type = typeof(st.model.closure),
+        gamma_type = typeof(st.model.closure.γ),
+        gamma_grid = T(st.model.closure.γ),
+        gamma_numerator = string(numerator(gamma)),
+        gamma_denominator = string(denominator(gamma)),
+        η = st.model.η,
+        ηH = st.model.ηH,
+        nfloor = st.model.nfloor,
+        de2 = st.model.de2,
+    )
+    return merge(configuration, (
+        model = model_signature,
+        residual_policy = :boris_map_faraday_pressure_v2,
+        norm_policy = :fixed_three_block_infinity_v2,
+        pressure_policy = :represented_adiabatic_midpoint_v1,
+        pressure_report_policy = :exact_six_term_work_v1,
+    ))
 end
 
 function _implicit_hybrid_phase_values(
@@ -271,8 +333,48 @@ function _implicit_hybrid_validate_report(r, ::Type{T}, time, step, h) where {T}
     return nothing
 end
 
+function _implicit_hybrid_validate_report(r::_ImplicitHybridEvolvingReport{T}, ::Type{T}, time, step, h) where {T}
+    _implicit_hybrid_validate_report(r.solver, T, time, step, h)
+    p, Q = r.pressure, _exact_rational
+    exact = (
+        p.exact_residual, p.delta_kinetic, p.delta_magnetic, p.delta_electron,
+        p.particle_work, p.ion_current_work, p.current_work, p.pressure_work,
+        p.pressure_rate_work, p.pressure_residual_energy, p.defects..., p.energy_change,
+    )
+    all(x -> denominator(x) > 0, exact) ||
+        throw(ArgumentError("implicit hybrid pressure report exact values must be finite"))
+    isfinite(p.residual) && p.residual >= zero(T) &&
+        isfinite(p.scale) && p.scale >= one(T) &&
+        isfinite(p.gamma) && p.gamma > one(T) &&
+        0 <= p.exact_residual <= Q(r.solver.tolerance) &&
+        isequal(p.residual, _from_exact(T, p.exact_residual)) ||
+        throw(ArgumentError("implicit hybrid pressure report residual policy differs"))
+    p.delta_electron - p.pressure_rate_work == p.pressure_residual_energy &&
+        p.defects == (
+            p.delta_kinetic - p.particle_work,
+            p.particle_work - p.ion_current_work,
+            p.delta_magnetic + p.current_work,
+            p.ion_current_work - p.current_work - p.pressure_work,
+            p.pressure_residual_energy,
+            p.pressure_rate_work + p.pressure_work,
+        ) &&
+        p.energy_change == p.delta_kinetic + p.delta_magnetic + p.delta_electron == sum(p.defects) &&
+        isequal(r.solver.pressure_work, _from_exact(T, p.pressure_work)) ||
+        throw(ArgumentError("implicit hybrid complete pressure work identities differ"))
+    return nothing
+end
+
 function _implicit_hybrid_report_policy(st::ImplicitHybridStepper{D,T}, r) where {D,T}
     r === nothing && return nothing
+    if st.model.closure isa EvolvingElectrons
+        r isa _ImplicitHybridEvolvingReport{T} &&
+            isequal(r.pressure.gamma, T(st.model.closure.γ)) ||
+            throw(ArgumentError("implicit hybrid evolving report/model policy differs"))
+        r = r.solver
+    else
+        r isa ImplicitHybridSolveReport{T} ||
+            throw(ArgumentError("implicit hybrid isothermal report policy differs"))
+    end
     c = st.controls
     expected = _from_exact(
         T,
@@ -326,6 +428,7 @@ function _implicit_hybrid_failure(
         w.residual_evaluations,
         w.backtracks,
         cause,
+        st.model.closure isa EvolvingElectrons ? w.pressure_residual : nothing,
     )
 end
 
@@ -349,6 +452,7 @@ function _implicit_hybrid_work_arrays(w::_ImplicitHybridWorkspace)
         w.electron_velocity...,
         w.divergence,
         w.rate...,
+        w.pressure_rate,
         w.Ep...,
         w.Bp...,
         w.z,
@@ -430,7 +534,9 @@ function _implicit_hybrid_storage(st::ImplicitHybridStepper{D,T}) where {D,T}
     for ps in w.old_species
         old_count = Base.checked_add(old_count, length(ps.weight))
     end
-    n == _implicit_hybrid_dimension(g, old_count) &&
+    size(w.pressure_rate) == (st.model.closure isa EvolvingElectrons ? g.n : ntuple(_ -> 0, D)) ||
+        throw(DimensionMismatch("implicit hybrid pressure-rate storage differs"))
+    n == _implicit_hybrid_dimension(g, old_count, st.model.closure isa EvolvingElectrons) &&
         all(a -> length(a) == old_count, (w.Ep..., w.Bp...)) ||
         throw(DimensionMismatch("implicit hybrid particle work dimensions differ"))
     # Writers, cached bindings and particle containers are separate roles even
@@ -522,12 +628,14 @@ function _implicit_hybrid_boundary(st::ImplicitHybridStepper{D,T}) where {D,T}
         st.fields.floor_count[] == 0 || throw(
         ArgumentError("implicit hybrid public fields must be finite with inactive density floor"),
     )
+    st.model.closure isa EvolvingElectrons && _validate_evolving_pressure(st.fields.pe, st.g)
     return nothing
 end
 
-function _implicit_hybrid_dimension(g, particles::Int)
+function _implicit_hybrid_dimension(g, particles::Int, pressure::Bool = false)
     cells = foldl(Base.checked_mul, g.n; init = 1)
-    return Base.checked_mul(3, Base.checked_add(particles, cells))
+    base = Base.checked_mul(3, Base.checked_add(particles, cells))
+    return pressure ? Base.checked_add(base, cells) : base
 end
 
 function _implicit_hybrid_solver(::Type{T}, n, memory) where {T}
@@ -536,10 +644,10 @@ function _implicit_hybrid_solver(::Type{T}, n, memory) where {T}
     return s
 end
 
-function _implicit_hybrid_workspace(g::FourierGrid{D,T}, particles, controls) where {D,T}
+function _implicit_hybrid_workspace(g::FourierGrid{D,T}, particles, controls, pressure::Bool) where {D,T}
     vector() = ntuple(_ -> zeros(T, g.n), 3)
     particle_vector() = ntuple(_ -> zeros(T, particles), 3)
-    n = _implicit_hybrid_dimension(g, particles)
+    n = _implicit_hybrid_dimension(g, particles, pressure)
     return _ImplicitHybridWorkspace(
         HybridFields{D,T}(g.n),
         HybridFields{D,T}(g.n),
@@ -553,6 +661,7 @@ function _implicit_hybrid_workspace(g::FourierGrid{D,T}, particles, controls) wh
         vector(),
         zeros(T, g.n),
         vector(),
+        zeros(T, pressure ? g.n : ntuple(_ -> 0, D)),
         particle_vector(),
         particle_vector(),
         zeros(T, n),
@@ -568,10 +677,13 @@ function _implicit_hybrid_workspace(g::FourierGrid{D,T}, particles, controls) wh
         zero(T),
         one(T),
         one(T),
+        one(T),
         zero(T),
         zero(T),
         zero(T),
         zero(T),
+        zero(T),
+        zero(Rational{BigInt}),
         0,
         0,
         0,
@@ -585,7 +697,7 @@ function _implicit_hybrid_reserve!(st::ImplicitHybridStepper{D,T}, species) wher
     for ps in species
         total = Base.checked_add(total, length(ps.weight))
     end
-    n = _implicit_hybrid_dimension(st.g, total)
+    n = _implicit_hybrid_dimension(st.g, total, st.model.closure isa EvolvingElectrons)
     for stages in (w.old_species, w.midpoint_species, w.endpoint_species)
         _pic_prepare_species_stages!(stages, species)
     end
@@ -614,9 +726,11 @@ end
         nonlinear_atol=64eps(T), max_newton=20, max_linear=200, memory=20,
         max_backtrack=12, max_jv_shrink=8)
 
-Allocate a synchronous periodic CPU Float32/64 isothermal massless hybrid.
+Allocate a synchronous periodic CPU Float32/64 ideal massless hybrid with
+isothermal or independently evolving scalar electron pressure.
 Every ordinary Vector-backed positive-ion population is mobile. Seed `fields.B`
-and call `init!` with full-time velocities. The dimensionless solver defaults are
+and, for evolving electrons, nonnegative `fields.pe`, then call `init!` with
+full-time velocities. The dimensionless solver defaults are
 bounded policy, not convergence or physical-accuracy guarantees. No leapfrog
 conversion, orbit averaging, transport, source or timestep fallback is provided.
 See `docs/IMPLICIT_HYBRID.md` for the represented residual and work limitations.
@@ -663,7 +777,7 @@ function ImplicitHybridStepper(
         Tuple{T,T}[(ps.q, ps.m) for ps in owners],
         Int[length(ps.weight) for ps in owners],
         controls,
-        _implicit_hybrid_workspace(g, total, controls),
+        _implicit_hybrid_workspace(g, total, controls, model.closure isa EvolvingElectrons),
         Ref(false),
         Ref(zero(T)),
         Ref(0),
@@ -731,6 +845,9 @@ function _implicit_hybrid_residual!(
     # accepted/base norm as if that invalid trial had completed.
     w.velocity_residual = T(Inf)
     w.magnetic_residual = T(Inf)
+    pressure = st.model.closure isa EvolvingElectrons
+    w.pressure_residual = pressure ? T(Inf) : zero(T)
+    pressure && (w.exact_pressure_residual = zero(Rational{BigInt}))
     all(isfinite, z) || throw(_ImplicitHybridTrialError(:iterate_range))
     i = 0
     for (mid, old) in zip(w.midpoint_species, w.old_species)
@@ -750,8 +867,31 @@ function _implicit_hybrid_residual!(
         i += 1
         w.midpoint.B[c][I] = _implicit_hybrid_mean(w.old.B[c][I], z[i])
     end
+    if pressure
+        for I in eachindex(w.midpoint.pe)
+            i += 1
+            z[i] >= zero(T) || throw(_ImplicitHybridTrialError(:pressure_positivity))
+            w.midpoint.pe[I] = _implicit_hybrid_mean(w.old.pe[I], z[i])
+        end
+    end
     _implicit_hybrid_moments!(st, w.midpoint, w.midpoint_species; keep_momentum = true)
     _implicit_hybrid_ohm!(st, w.midpoint)
+    if pressure
+        electron_velocity!(w.electron_velocity, w.midpoint.ui, w.midpoint.J, w.midpoint.n;
+            nfloor = T(st.model.nfloor))
+        all(a -> all(isfinite, a), w.electron_velocity) ||
+            throw(_ImplicitHybridTrialError(:electron_velocity_range))
+        gamma = T(st.model.closure.γ)
+        active, derivative_risk = _prepare_scalar_pressure_rhs!(
+            w.pressure_rate, w.midpoint.pe, w.electron_velocity, w.midpoint.gradp,
+            w.divergence, w.midpoint.J, gamma, zero(T), g,
+        )
+        _complete_scalar_pressure_if_needed!(
+            w.pressure_rate, w.midpoint.pe, w.electron_velocity, w.midpoint.gradp,
+            w.divergence, w.midpoint.J, gamma, zero(T), active, g; derivative_risk,
+        )
+        all(isfinite, w.pressure_rate) || throw(_ImplicitHybridTrialError(:pressure_rate_range))
+    end
     i, offset = 0, 0
     vmax = zero(T)
     Q = _exact_rational
@@ -808,6 +948,22 @@ function _implicit_hybrid_residual!(
         bmax = max(bmax, abs(value))
     end
     w.magnetic_residual = bmax
+    if pressure
+        pmax = zero(T)
+        exactmax = zero(Rational{BigInt})
+        for I in eachindex(w.old.pe)
+            i += 1
+            exact = (Q(z[i]) - Q(w.old.pe[I]) - Q(w.h) * Q(w.pressure_rate[I])) / Q(w.pressure_scale)
+            value = _from_exact(T, exact)
+            isfinite(value) || throw(_ImplicitHybridTrialError(:residual_range))
+            out[i] = value
+            pmax = max(pmax, abs(value))
+            exactmax = max(exactmax, abs(exact))
+        end
+        w.pressure_residual = pmax
+        w.exact_pressure_residual = exactmax
+        return vmax, bmax, pmax
+    end
     return vmax, bmax
 end
 
@@ -829,7 +985,8 @@ function _implicit_hybrid_linear_tick!(st)
 end
 
 function _implicit_hybrid_set_metrics!(st, metrics)
-    st.work.velocity_residual, st.work.magnetic_residual = metrics
+    st.work.velocity_residual, st.work.magnetic_residual = metrics[1], metrics[2]
+    st.model.closure isa EvolvingElectrons && (st.work.pressure_residual = metrics[3])
     return max(metrics...)
 end
 
@@ -844,10 +1001,14 @@ function _implicit_hybrid_stage!(st::ImplicitHybridStepper{D,T}, species, h::T) 
     w.h = h
     w.velocity_scale = one(T)
     w.magnetic_scale = one(T)
+    w.pressure_scale = one(T)
     w.initial_residual = zero(T)
     w.tolerance = zero(T)
     w.velocity_residual = zero(T)
     w.magnetic_residual = zero(T)
+    w.pressure_residual = zero(T)
+    st.model.closure isa EvolvingElectrons &&
+        (w.exact_pressure_residual = zero(Rational{BigInt}))
     w.newton_iterations = 0
     w.linear_iterations = 0
     w.residual_evaluations = 0
@@ -864,6 +1025,13 @@ function _implicit_hybrid_stage!(st::ImplicitHybridStepper{D,T}, species, h::T) 
         value = w.old.B[c][I]
         w.z[i] = value
         w.magnetic_scale = max(w.magnetic_scale, abs(value))
+    end
+    if st.model.closure isa EvolvingElectrons
+        for value in w.old.pe
+            i += 1
+            w.z[i] = value
+            w.pressure_scale = max(w.pressure_scale, abs(value))
+        end
     end
     return nothing
 end
@@ -886,15 +1054,72 @@ function _implicit_hybrid_endpoint!(st::ImplicitHybridStepper{D,T}) where {D,T}
         i += 1
         w.endpoint.B[c][I] = w.z[i]
     end
+    if st.model.closure isa EvolvingElectrons
+        w.exact_pressure_residual <= _exact_rational(w.tolerance) ||
+            throw(_ImplicitHybridTrialError(:exact_pressure_residual))
+        for I in eachindex(w.endpoint.pe)
+            i += 1
+            w.z[i] >= zero(T) || throw(_ImplicitHybridTrialError(:pressure_positivity))
+            w.endpoint.pe[I] = w.z[i]
+        end
+    end
     _implicit_hybrid_moments!(st, w.endpoint, w.endpoint_species)
     _implicit_hybrid_ohm!(st, w.endpoint)
     return nothing
 end
 
+function _implicit_hybrid_pressure_report(st::ImplicitHybridStepper{D,T}, pressure_work) where {D,T}
+    w, Q = st.work, _exact_rational
+    volume, h = prod(Q.(st.g.dx)), Q(w.h)
+    gamma = T(st.model.closure.γ)
+    denominator = Q(gamma) - 1
+    delta_kinetic = _kinetic_energy_rational(w.endpoint_species) - _kinetic_energy_rational(w.old_species)
+    delta_magnetic = volume * (_field_square_sum_exact(w.endpoint.B) - _field_square_sum_exact(w.old.B)) / 2
+    delta_electron = _stored_pressure_energy_rational(w.endpoint.pe, gamma, st.g.dx) -
+        _stored_pressure_energy_rational(w.old.pe, gamma, st.g.dx)
+    particle_work = zero(Rational{BigInt})
+    offset = 0
+    for (old, endpoint) in zip(w.old_species, w.endpoint_species)
+        for p in eachindex(old.weight), c = 1:3
+            average = (Q(old.v[c][p]) + Q(endpoint.v[c][p])) / 2
+            particle_work += h * Q(old.q) * Q(old.weight[p]) * average * Q(w.Ep[c][offset+p])
+        end
+        offset += length(old.weight)
+    end
+    ion_work = current_work = rate_work = residual_energy = zero(Rational{BigInt})
+    for I in eachindex(w.old.pe)
+        for c = 1:3
+            electric = Q(w.midpoint.E[c][I])
+            ion_work += h * volume * Q(w.moment[c][I]) * electric
+            current_work += h * volume * Q(w.midpoint.J[c][I]) * electric
+        end
+        rate_work += h * volume * Q(w.pressure_rate[I]) / denominator
+        residual_energy += volume *
+            (Q(w.endpoint.pe[I]) - Q(w.old.pe[I]) - h * Q(w.pressure_rate[I])) / denominator
+    end
+    defects = (
+        delta_kinetic - particle_work,
+        particle_work - ion_work,
+        delta_magnetic + current_work,
+        ion_work - current_work - pressure_work,
+        residual_energy,
+        rate_work + pressure_work,
+    )
+    return _ImplicitHybridPressureReport(
+        w.pressure_residual, w.exact_pressure_residual, w.pressure_scale, gamma,
+        delta_kinetic, delta_magnetic, delta_electron, particle_work, ion_work,
+        current_work, pressure_work, rate_work, residual_energy, defects,
+        delta_kinetic + delta_magnetic + delta_electron,
+    )
+end
+
 function _implicit_hybrid_report(st::ImplicitHybridStepper{D,T}, time::T, step::Int) where {D,T}
     w, g = st.work, st.g
-    before = electron_internal_energy(w.old.n, st.model.closure, g)
-    after = electron_internal_energy(w.endpoint.n, st.model.closure, g)
+    pressure = st.model.closure isa EvolvingElectrons
+    before = pressure ? electron_internal_energy(w.old.n, st.model.closure, g; pe = w.old.pe) :
+        electron_internal_energy(w.old.n, st.model.closure, g)
+    after = pressure ? electron_internal_energy(w.endpoint.n, st.model.closure, g; pe = w.endpoint.pe) :
+        electron_internal_energy(w.endpoint.n, st.model.closure, g)
     !isnan(before) && !isnan(after) || throw(_ImplicitHybridTrialError(:free_energy_nan))
     electron_velocity!(
         w.electron_velocity,
@@ -946,6 +1171,9 @@ function _implicit_hybrid_report(st::ImplicitHybridStepper{D,T}, time::T, step::
         defect,
         finite_energy ? :represented_reservoir : :unresolved_free_energy_range,
     )
+    if pressure
+        report = (solver = report, pressure = _implicit_hybrid_pressure_report(st, pressure_work_exact))
+    end
     _implicit_hybrid_validate_report(report, T, time, step, w.h)
     _implicit_hybrid_report_policy(st, report)
     return report
@@ -968,7 +1196,7 @@ function _implicit_hybrid_commit!(
     time::T,
     step::Int,
     last_dt::T,
-    report::Union{Nothing,ImplicitHybridSolveReport{T}},
+    report::Union{Nothing,ImplicitHybridSolveReport{T},_ImplicitHybridEvolvingReport{T}},
 ) where {D,T}
     # Every leaf/type/count and field shape has already passed preparation.
     # Preserve public ParticleSet identities and field-array identities.
@@ -1002,12 +1230,14 @@ function init!(st::ImplicitHybridStepper{D,T}, species::AbstractVector) where {D
         _implicit_hybrid_binding(st, species)
         all(a -> all(isfinite, a), st.fields.B) ||
             throw(ArgumentError("implicit hybrid initial magnetic field must be finite"))
+        st.model.closure isa EvolvingElectrons && _validate_evolving_pressure(st.fields.pe, st.g)
         _implicit_hybrid_stage!(st, species, zero(T))
         w = st.work
         for ps in w.endpoint_species, d = 1:D, p in eachindex(ps.weight)
             ps.x[d][p] = _periodic_coordinate(ps.x[d][p], zero(T), st.g.L[d], st.g.L[d])
         end
         foreach(copyto!, w.endpoint.B, st.fields.B)
+        st.model.closure isa EvolvingElectrons && copyto!(w.endpoint.pe, st.fields.pe)
         try
             _implicit_hybrid_moments!(st, w.endpoint, w.endpoint_species)
             _implicit_hybrid_ohm!(st, w.endpoint)
@@ -1041,7 +1271,8 @@ end
 """
     step!(st::ImplicitHybridStepper, species, dt)
 
-Solve one synchronous joint velocity/B interval. A zero stored timestep is a
+Solve one synchronous joint velocity/B and, when active, scalar-pressure interval.
+A zero stored timestep is a
 validated no-op only for an originally zero input. Nonzero inputs must survive
 conversion. Positive timesteps require resolved half steps and strict clock
 progress. Newton/GMRES/probe/backtracking budgets are fixed; failure never retries
@@ -1114,7 +1345,9 @@ function implicit_hybrid_diagnostics(st::ImplicitHybridStepper, species = st.own
             last_dt = st.last_dt[],
             phase = :synchronous_integer,
             velocity_time_offset = zero(st.time[]),
-            energy = energy_budget(species, st.fields.B, st.fields.n, st.model.closure, st.g),
+            energy = st.model.closure isa EvolvingElectrons ?
+                energy_budget(species, st.fields.B, st.fields.n, st.model.closure, st.g; pe = st.fields.pe) :
+                energy_budget(species, st.fields.B, st.fields.n, st.model.closure, st.g),
             momentum = momentum_budget(species, st.fields.B, st.g),
             last_solve = st.last_report,
         )

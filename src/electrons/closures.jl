@@ -18,14 +18,17 @@ abstract type ElectronClosure end
     EvolvingElectrons(γ = 5/3)
 
 Adiabatic scalar electron pressure, evolved as a persistent `HybridFields.pe`
-state by `HybridStepper`. Set the initial pressure before `init!`; zero is a
-valid cold state. Requires finite `γ > 1` and an ideal massless `HybridModel`
+state by `HybridStepper` or `ImplicitHybridStepper`. Set the initial pressure
+before `init!`; zero is a valid cold state. Requires finite `γ > 1` and an ideal massless `HybridModel`
 (`η = ηH = de2 = 0`). CAM-CL and Hall-MHD reject this closure.
 
 The equation is `∂pe/∂t = −ue⋅∇pe − γ*pe*∇⋅ue`, with
 `ue=ui−J/max(n,nfloor)`. Pressure and B share each RK4 stage and are stored
-at integer time; particle velocity retains its half-time level. Pressure must
-be finite and nonnegative at every explicit stage. Rejected numerical steps
+at integer time; explicit particle velocity retains its half-time level.
+`ImplicitHybridStepper` instead solves ion velocity, B and pressure jointly at
+one synchronous integer-time boundary, with its own residual/work contract.
+Pressure must be finite and nonnegative at every admitted stage or implicit
+trial. Neither scheme is proved positivity preserving. Rejected numerical steps
 roll back public state and never clip pressure. Checkpoints preserve
 `pe`, and electron-energy diagnostics require it explicitly through `pe=`.
 No heating, heat flux, or discrete total-energy conservation is implied;

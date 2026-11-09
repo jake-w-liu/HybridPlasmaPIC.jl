@@ -13,7 +13,9 @@ frequency at `ω_pe` scales and enables collisionless reconnection at the `d_e` 
 `de2 = 0` recovers the massless (ideal) hybrid exactly.
 
 [`EvolvingElectrons`](@ref) requires `η = ηH = de2 = 0`; its independent
-pressure is initialized in `HybridStepper.fields.pe` before calling `init!`.
+pressure is initialized in `HybridStepper.fields.pe` or
+`ImplicitHybridStepper.fields.pe` before calling `init!`; the former uses coupled
+B/pressure RK4 with half-time ions, the latter a synchronous joint implicit solve.
 [`TransportElectrons`](@ref) and [`ConductingElectrons`](@ref) accept constant
 `η ≥ 0` and `ηH ≥ 0` with `de2 = 0`;
 nonzero coefficients must stay finite and nonzero at grid precision.

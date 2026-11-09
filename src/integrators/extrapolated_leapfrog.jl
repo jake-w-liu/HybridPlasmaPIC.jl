@@ -957,25 +957,8 @@ function _bpressure_rhs!(
             quotient = w.quotient,
         )
     else
-        divergence!(w.divue, w.ue, g)
-        derivative_risk = _transport_pressure_derivative_range_risk(
-            ptrial,
-            w.ue,
-            f.gradp,
-            g,
-            _transport_derivative_gains(g),
-        )
-        active = _transport_pressure_rhs_with_activity!(
-            outp,
-            ptrial,
-            w.ue,
-            f.gradp,
-            w.divue,
-            γ,
-            f.J,
-            η,
-            false,
-            Val(D),
+        active, derivative_risk = _prepare_scalar_pressure_rhs!(
+            outp, ptrial, w.ue, f.gradp, w.divue, f.J, γ, η, g,
         )
         _add_transport_stage_sources!(st, outp)
         _complete_scalar_pressure_if_needed!(
@@ -1004,46 +987,6 @@ function _bpressure_rhs!(
     return nothing
 end
 
-function _transport_input_stats(input::AbstractArray{T}) where {T}
-    magnitude = zero(T)
-    reference = first(input)
-    varies, finite = false, true
-    for value in input
-        magnitude = max(magnitude, abs(value))
-        varies |= value != reference
-        finite &= isfinite(value)
-    end
-    return (; magnitude, varies, finite)
-end
-
-# Bound the actual centered collocation row, including rounding of generated
-# mode metadata. This is a routing bound, not an FFTW forward-error theorem.
-function _transport_derivative_gains(g::FourierGrid{D,T}) where {D,T}
-    return ntuple(D) do d
-        n = g.n[d]
-        n <= 2 && return 0.0
-        k0 = Float64(abs(g.kfull[d][2]))
-        nu = nextfloat(Float64(n))
-        m = n ÷ 2
-        harmonic = Float64(m <= 1 ? 1 : 1 + ndigits(m - 1; base = 2))
-        u = Float64(eps(T)) / 2
-        gamma2 = nextfloat((2u) / (1 - 2u))
-        ideal = _transport_upmul(_transport_upmul(k0, nu / 2), harmonic)
-        metadata = _transport_upmul(_transport_upmul(_transport_upmul(k0, nu), nu / 4), gamma2)
-        _transport_upadd(ideal, metadata)
-    end
-end
-
-function _transport_channel_range_risk(stats, gain, g::FourierGrid{D,T}) where {D,T}
-    stats.finite || return true
-    (!stats.varies || iszero(gain) || iszero(stats.magnitude)) && return false
-    floor =
-        ldexp(floatmin(T), (length(g.cbuf) <= 1 ? 0 : ndigits(length(g.cbuf) - 1; base = 2)) + 4)
-    stats.magnitude < floor && return true
-    bound = _transport_upmul(gain, Float64(stats.magnitude))
-    return !isfinite(bound) || bound < Float64(32floatmin(T)) || bound > Float64(floatmax(T)) / 32
-end
-
 function _transport_stage_range_risk(st, ptrial, g::FourierGrid{D,T}, gains) where {D,T}
     f, w = st.fields, st.pressure_work
     for c = 1:3
@@ -1057,31 +1000,6 @@ function _transport_stage_range_risk(st, ptrial, g::FourierGrid{D,T}, gains) whe
         end
     end
     return _transport_pressure_derivative_range_risk(ptrial, w.ue, f.gradp, g, gains)
-end
-
-function _transport_pressure_derivative_range_risk(
-    ptrial,
-    ue,
-    gradp,
-    g::FourierGrid{D,T},
-    gains,
-) where {D,T}
-    velocity_max, symbol_gain = zero(T), zero(T)
-    for d = 1:D
-        stats = _transport_input_stats(ue[d])
-        _transport_channel_range_risk(stats, gains[d], g) && return true
-        velocity_max = max(velocity_max, stats.magnitude)
-        symbol_gain = max(symbol_gain, maximum(abs, g.kvec[d]))
-    end
-    safe = SpectralOperators._fft_safe_magnitude(T, length(g.cbuf), symbol_gain)
-    isone(SpectralOperators._fft_input_scale(velocity_max, safe)) || return true
-    for d = 1:D
-        g.n[d] <= 2 && continue
-        if _transport_axis_varies(ptrial, d)
-            maximum(abs, gradp[d]) < 32floatmin(T) && return true
-        end
-    end
-    return false
 end
 
 function _transport_rate_range_risk(

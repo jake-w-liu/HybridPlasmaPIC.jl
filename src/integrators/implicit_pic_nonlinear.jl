@@ -7,7 +7,9 @@ _implicit_pic_failure(st::ImplicitHybridStepper, reason, cause = nothing) =
 _implicit_pic_trial(::ImplicitHybridStepper, reason) = _ImplicitHybridTrialError(reason)
 _implicit_pic_trial_error(::ImplicitHybridStepper, err) = err isa _ImplicitHybridTrialError
 _implicit_pic_scale(st::ImplicitHybridStepper, i, nv) =
-    i <= nv ? st.work.velocity_scale : st.work.magnetic_scale
+    i <= nv ? st.work.velocity_scale :
+    (st.model.closure isa EvolvingElectrons && i > nv + 3length(st.work.old.n)) ?
+    st.work.pressure_scale : st.work.magnetic_scale
 _implicit_pic_set_metrics!(st::ImplicitHybridStepper, metrics) =
     _implicit_hybrid_set_metrics!(st, metrics)
 

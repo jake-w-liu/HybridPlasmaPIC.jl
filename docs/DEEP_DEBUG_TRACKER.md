@@ -102,10 +102,17 @@ Current work:
   independent geometry/source and coupled lifecycle controls are registered;
   numerical/compiler/format/scientific/resource acceptance remains pending. Axis,
   material walls, equilibrium/imports and backends remain open.
-- The implicit-hybrid worker is extending the canonical joint solve with evolving
-  scalar pressure, a third residual block, physical work accounting and schema2
-  restart. The approved five-file scope preserves the existing isothermal report
-  and schema1. Implementation and exact-revision remote acceptance are pending.
+- [Implicit hybrid](IMPLICIT_HYBRID.md) now has the canonical joint velocity/B/pe
+  solve, exact third residual gate, complete signed pressure work and full
+  schema2 restart. Original gamma type/value is retained without mutable numeric
+  backing in fixed configuration. The missing archive reader delegates to the
+  existing restore owner. Source review and registrations are complete;
+  minimum/latest spatial/coupling/failure/IO and historical schema1 continuation,
+  full CI, science and resources remain pending. The old 19-field isothermal
+  report/config/schema1 are preserved by literal source checks.
+- Next independent designs cover multidimensional adaptive ES, nondividing
+  EMPIC schedules and varying-B anisotropic electron conduction. Source-pinned
+  contracts precede production ownership; they do not yet supply implementations.
 
 The full runner explicitly registers the transverse Yee reference beside the
 existing family tests. MPI multi-rank and distributed FFT primitive tests run

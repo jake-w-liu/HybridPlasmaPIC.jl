@@ -226,8 +226,9 @@ collisional composition has its stated first-order contract:
   `ω·h < 2` per substep; two Ohm evaluations per substep instead of RK4's
   four). Algebraic scalar closures only.
 - **`ImplicitHybridStepper(g, model, CIC(), species; ...)`** (`init!`, `step!`) —
-  synchronous CPU Float32/64 periodic isothermal positive-ion collections. All
-  velocities and B enter one bounded Newton–GMRES Boris-map/Faraday solve.
+  synchronous CPU Float32/64 periodic positive-ion collections with isothermal or
+  independently evolving scalar electron pressure. All ion velocities, B and
+  active pe enter one bounded Newton–GMRES Boris-map/Faraday/pressure solve.
   Strict density, fresh residual gates, endpoint/report staging and complete
   checkpoint/archive are source-implemented. Load full-time velocities; no
   leapfrog priming or hidden timestep retry occurs. Numerical convergence,

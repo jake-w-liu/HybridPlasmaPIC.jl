@@ -1,8 +1,9 @@
 # Synchronous coupled implicit hybrid
 
-`ImplicitHybridStepper` advances every ion velocity and the magnetic field in one
-bounded nonlinear solve. This is a separate integer-time state. Load full-time
-particle velocities, seed `st.fields.B`, and call `init!(st, species)` before
+`ImplicitHybridStepper` advances every ion velocity, magnetic field and optional
+independent electron pressure in one bounded nonlinear solve. This is a separate
+integer-time state. Load full-time particle velocities, seed `st.fields.B` and,
+for `EvolvingElectrons`, finite nonnegative `st.fields.pe`. Call `init!(st, species)` before
 `step!(st, species, dt)`. `init!` wraps positions and computes the initial moments
 and Ohm fields privately before replacing the public state.
 
@@ -12,12 +13,16 @@ ordinary Vector-backed populations. Ion charges and masses must be finite and
 positive; weights finite and nonnegative. Every population is mobile. The
 isothermal electron temperature uses the grid precision and is finite and
 nonnegative; the density floor must remain positive at that precision.
-`η = ηH = de2 = 0`. There are no sources, collisions, evolving electron
-pressure, subcycles, transport, device or distributed execution in this family.
+`EvolvingElectrons` instead supplies independent stored pressure and a gamma
+that remains finite and greater than one at grid precision. Exact zero pressure
+is admitted. Original gamma type/value remains fixed restart configuration.
+`η = ηH = de2 = 0`. Sources, collisions, subcycles, dissipative transport, orbit
+averaging, preconditioning, device and distributed execution remain open.
 
 The stored normalization is the existing hybrid ion/Alfvén convention:
-`n = sum(q_s*n_s)`, `ui = sum(q_s*n_s*u_s)/n`, `J = curl(B)`, `pe = Te*n`, and
-`E = -ui × B + (J × B)/n - grad(pe)/n`. Magnetic energy has coefficient 1/2.
+`n = sum(q_s*n_s)`, `ui = sum(q_s*n_s*u_s)/n`, `J = curl(B)`, and
+`E = -ui × B + (J × B)/n - grad(pe)/n`. Isothermal pressure is `Te*n`; evolving
+pressure is an independent unknown. Magnetic energy has coefficient 1/2.
 Species use the canonical Boris map with their original charge and mass. No
 Maxwell speed or collision permittivity/count conversion is introduced.
 
@@ -33,6 +38,7 @@ reentry under this nonconcurrent-access premise; it is not a thread-safe lock.
 
 The unknown contains all new particle velocities `v1` and every component of
 `B1`, in population/component/particle order followed by component/grid order.
+Evolving runs append `p1` in grid order; their size is `3*Nparticles+4*Ncells`.
 For each residual evaluation, form complete stored-input means
 `vbar = RN((v0+v1)/2)` and `Bbar = RN((B0+B1)/2)`. Construct both physical lifts
 `ellmid = x0 + (h/2)*vbar` and `ell1 = x0 + h*vbar` with the canonical guarded
@@ -45,7 +51,9 @@ Deposit midpoint charge density and raw charge momentum `Mbar` with the canonica
 collection moments and `vbar`. Require every actual midpoint density to be finite
 and at least `nfloor` before normalization. The same strict condition applies to
 initial and completed endpoint moments. Denominator clipping is therefore
-inactive. Canonical Ohm uses `nbar`, `ubar`, `Bbar` and private zero inactive
+inactive. Evolving `pbar = RN((p0+p1)/2)` is installed before Ohm so the pressure
+unknown changes the same electric field and ion residual. Canonical Ohm uses
+`nbar`, `ubar`, `Bbar` and private zero inactive
 `lapJ` inputs. Gather its finite `Emid` and `Bbar` at the same midpoint positions.
 Let `vstar` be the guarded canonical Boris map of `v0` under these fields for `h`,
 and `Fmid = faraday_rhs!(Emid) = -curl(Emid)`.
@@ -57,7 +65,7 @@ existing exact rational conversion, define
 ```
 Gv = RN_T((Q(v1) - Q(vstar)) / Q(Sv))
 GB = RN_T((Q(B1) - Q(B0) - Q(h)*Q(Fmid)) / Q(SB))
-rho = max(maxabs(Gv), maxabs(GB))
+rho = max(maxabs(Gv), maxabs(GB), maxabs(Gp) when pressure is active)
 tau = RN_T(Q(atol) + Q(rtol)*Q(rho0))
 ```
 
@@ -65,13 +73,66 @@ The residual arithmetic retains the original stored operands and rounds once,
 including ordinary cases. It does not undo upstream FFT, scatter, normalization,
 gather or Boris rounding. It has no measured cost claim. Scales remain fixed;
 component errors are never divided by a population or grid count. `rho0` is a
-fresh residual at `(v0,B0)`; nonzero `rho0` requires positive finite `tau`.
+fresh residual at `(v0,B0)` or `(v0,B0,p0)`; nonzero `rho0` requires positive
+finite `tau`.
 
 The velocity equation is equality to the represented Boris map. A small residual
 is not an exact-arithmetic Lorentz equation, physical-energy certificate,
 unconditional stability guarantee or accuracy estimate for a multicell orbit.
 The represented odd Fourier derivatives retain their canonical zero-Nyquist
 policy. No new divergence projection or exact discrete continuity law is added.
+
+## Joint evolving pressure and physical work
+
+For `EvolvingElectrons`, freeze `Sp=max(1,maxabs(p0))` for the attempt, alongside
+Sv/SB. The reference one is the normalized pressure unit. Compute canonical
+`ue=ui-J/n`, its divergence and the completed ideal rate at the same midpoint:
+
+```text
+Fp = -ue dot grad(pbar) - gamma_grid*pbar*div(ue)
+Gp_exact = (Q(p1)-Q(p0)-Q(h)*Q(Fp))/Q(Sp)
+Gp = RN_T(Gp_exact)
+```
+
+The ordinary and range-complete scalar pressure owners are shared with explicit
+evolution. Explicit heating/completion ordering is preserved; this ideal caller
+adds no heat. The rounded third norm participates in the same bounded solve.
+A fresh final exact pressure norm must also fit Q(tau), so rounded zero alone
+cannot accept an out-of-budget equation. Endpoint pressure is copied directly
+from the accepted p1 before endpoint moments and Ohm completion.
+
+Initial, old, candidate, midpoint, endpoint and saved pressure must be finite
+and nonnegative. No clipping, log transform, post-solve advance, timestep retry
+or lagged-pressure predictor exists. The standalone stored Fp must be finite;
+a later h factor does not rescue an unrepresentable rate. Nonnegative admission
+is not a positivity-preservation theorem. At a partially zero pressure boundary,
+a mixed-sign forward-Jv direction can have no admissible positive perturbation;
+the bounded solver may reject. The all-cold block has an invariant zero equation,
+with actual solver execution still requiring remote acceptance.
+
+The isothermal last_report remains the existing exported 19-field report. Evolving
+runs use `(solver=that_common_report, pressure=private_numeric_receipt)`.
+The pressure receipt records rounded/exact pressure norms, Sp and gamma_grid,
+original stored-operand K/B/Ue changes and six signed measured work defects.
+With V=prod(Q(dx)), gamma=Q(gamma_grid), define
+
+```text
+Wp = h*sum_markers(q*w*((Q(v0)+Q(v1))/2) dot Q(Egather_mid))
+Wi = h*V*sum(Q(raw midpoint M) dot Q(Emid))
+WJ = h*V*sum(Q(Jmid) dot Q(Emid))
+P  = -h*V*sum(Q(ue) dot Q(gradpbar))
+H  = h*V*sum(Q(Fp))/(gamma-1)
+R  = V*sum(Q(p1)-Q(p0)-h*Q(Fp))/(gamma-1)
+```
+
+Here h denotes the exact represented stored duration. The exact thermal change
+obeys deltaUe-H=R. The six terms are
+`(deltaK-Wp, Wp-Wi, deltaB+WJ, Wi-WJ-P, R, H+P)` and sum exactly to
+`deltaK+deltaB+deltaUe`. R measures pressure solve work; H+P separately retains
+advection/compression/force and native derivative/mean/rounding mismatch. These
+are actual calculated values, not zero conservation placeholders. Gamma and
+energy use the same converted grid coefficient as canonical pressure evolution.
+No continuum energy/momentum theorem is transferred to this represented method.
 
 ## Bounded Newton and GMRES policy
 
@@ -119,7 +180,9 @@ report-derivative failure can still reject the attempt.
 
 `ImplicitHybridConvergenceError` records the reason, most recently completed
 attempted block norms (an incomplete block is Inf), tolerance, iteration/call
-counts and captured expected-domain cause when available. Initialization failures
+counts and captured expected-domain cause when available. Evolving failures also
+carry a separate optional pressure_residual; old isothermal constructor/display
+behavior is retained. Initialization failures
 before any residual attempt have zero solve counters/metrics. The internal callback
 counts completed Arnoldi iterations; users cannot install a callback or
 preconditioner. Only owned `_ImplicitHybridTrialError` is caught for shrink or
@@ -128,7 +191,7 @@ cancellation propagate. Counter overflow also propagates before publication.
 
 ## Physical phase, publication and diagnostics
 
-Accepted positions, velocities, B, E and moments are all integer-time values.
+Accepted positions, velocities, B, E, moments and active pe are all integer-time values.
 There is no priming or half-velocity conversion. Count zero has stored-zero time
 and timestep history and no successful report. An advanced state has positive
 finite time and positive resolved `last_dt <= time`; time advances by actual stored
@@ -147,7 +210,8 @@ failure, protected memory and concurrent mutation are outside this boundary.
 
 `implicit_hybrid_diagnostics(st, species)` returns the synchronous energy and
 momentum budgets, clock, zero velocity-time offset and last accepted report.
-The report retains both scaled residual blocks, scales, costs, canonical endpoint
+The common solver report retains velocity/B residual blocks, scales, costs and
+canonical endpoint
 electron free energies, pressure work and a density-continuity defect. With the
 actual canonical `ue = ui - J/n`, represented midpoint `gradp` and raw `Mbar`,
 
@@ -160,15 +224,17 @@ free_energy_defect = RN_T(Q(F1_T)-Q(F0_T)+pressure_work_exact)
 Work and the continuity combination accumulate stored factors exactly before
 final rounding. The standalone canonical `div(Mbar)` must complete first; this
 family does not fuse its range with a later h factor. `F0_T` and `F1_T` come from
-the canonical isothermal energy owner. NaN endpoints reject; if either endpoint
-is infinite, the report uses `:unresolved_free_energy_range` and
+the canonical closure energy owner (with explicit pe for evolving runs). NaN
+endpoints reject; if either endpoint is infinite, the report uses `:unresolved_free_energy_range` and
 `free_energy_defect = nothing`. Finite endpoints use `:represented_reservoir`;
 the resulting work/defect may themselves exceed T's range. The separate canonical
 [complete-budget source](HYBRID_DIAGNOSTIC_RANGE_PLAN.md#current-complete-budget-source-2026-11-02)
 retains original reservoir expressions for range-sensitive totals; it does not
 change this report's represented F0_T/F1_T boundary or its unresolved policy.
 
-This is a represented-reservoir diagnostic, not an exact electron-work theorem.
+The common report is a represented-reservoir diagnostic, not an exact electron-work theorem.
+For evolving runs the separate exact pressure receipt above supplies the full
+K/B/Ue split even when a displayed endpoint energy is infinite.
 The isothermal free-energy secant leaves continuity and nonlinear chain-rule/work
 defects, in addition to the actual normalization, quadrature, FFT, moment and
 Boris rounding. The [Stanier–Chacón–Chen reference](https://arxiv.org/abs/1803.07158)
@@ -179,8 +245,11 @@ single-midpoint represented-map method.
 ## Checkpoint and archive
 
 `save_checkpoint(path, st, species)`, `load_checkpoint!(st, species, path)` and
-`archive_run(path, st, species; rng_seed, ...)` use distinct schema 1
-`:implicit_hybrid_midpoint`. The existing atomic writer and schema-4 archive
+`archive_run(path, st, species; rng_seed, ...)` and
+`load_archive!(st, species, path)` share `:implicit_hybrid_midpoint`, with unchanged
+isothermal schema1 and distinct evolving-pressure schema2. The new archive read
+verifies load_run checksum and delegates to the same guarded prepared restore.
+The existing atomic writer and schema-4 archive
 checksum remain the file owners. The seed is provenance; this family has no RNG.
 
 The exact payload keys are `integrator`, `schema`, `configuration`, `phase`,
@@ -188,7 +257,15 @@ The exact payload keys are `integrator`, `schema`, `configuration`, `phase`,
 `last_report`. Configuration includes D/T/grid n/L/dx, the exact fixed normalized
 model/CIC/charge-mass binding, all resolved controls, and residual/quadrature/
 phase/moment/derivative/density/field/norm/solver policy tags. Unknown keys,
-other families/versions and mismatched fixed policy are rejected.
+other families/versions and mismatched fixed policy are rejected. Schema2 also
+binds pressure mean/residual/norm/work policy and the original model/closure/
+gamma type, effective grid gamma, original gamma exact numerator/denominator
+strings and original Float64 model scalars. This lossless fixed signature retains
+no mutable BigFloat backing; it never replaces or parses a destination model.
+Different original gammas that round to the same grid gamma still mismatch.
+Schema1 keeps its original tuple and report layout. Known exact numeric pressure
+receipts have explicit type/norm/gamma/signed-identity checks; opaque fixed
+configuration still passes the canonical graph validator.
 
 Only initialized completed states can be saved. Ordered x/v/weight/ID/tag/q/m
 and every public `_hybrid_field_state` array are saved verbatim: n/ui/B/E/J/pe/
@@ -228,7 +305,13 @@ constructed destination continuing bitwise through further steps.
 Still open for 005B/C acceptance: non-uniform (genuinely spatial) residual
 oracles, temporal-order and dispersion measurements, continuous/discrete work
 and momentum error ledgers, compiler/JET coverage of the package-located frames,
-resource/performance budgets, and the deferred evolving-pressure, orbit-average,
-dissipative and preconditioning extensions. `recommended_dt` remains a
+resource/performance budgets, and orbit-average, dissipative and preconditioning
+extensions. Evolving-pressure source is now implemented; its new actual spatial,
+independent four-node pressure-row, two-way coupling, cold/positivity/failure,
+full schema2 raw/archive and original BigFloat coefficient controls remain
+unexecuted pending exact-revision GitHub. The focused workflow also generates
+advanced schema1 raw/archive files at pinned pre-pressure b8a5e7d in a separate
+process and requires new-code restore/further continuation on both Julia lines;
+that compatibility execution is pending. `recommended_dt` remains a
 grid-level bound and does not accept the stepper (a `MethodError`), which is the
 recorded interface gap for this family.

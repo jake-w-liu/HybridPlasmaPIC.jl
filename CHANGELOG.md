@@ -11,6 +11,15 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Added
 
+- Canonical `ImplicitHybridStepper` now jointly solves ion velocity, B and
+  evolving scalar electron pressure, with fixed third residual scale, exact final
+  pressure gate, nonnegative admission, synchronous endpoint pe and complete
+  six-term stored-operand work receipt. Isothermal 19-field report/schema1 stay;
+  evolving schema2 preserves original coefficient identity and full phase. The
+  existing raw/archive owners now also provide the missing implicit-hybrid
+  archive reader. Source and compact essential controls are reviewed; runtime,
+  historical-schema continuation, compiler/format and full CI remain pending.
+
 - `ToroidalAnnulusHybridPIC` supplies coupled CPU 3D Float32/64 ions, magnetic
   flux and adiabatic electron pressure on a positive-volume toroidal annulus.
   Every RK4 stage refreshes real moments and fields; electrical contacts and
