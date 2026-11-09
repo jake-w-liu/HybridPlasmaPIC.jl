@@ -202,7 +202,7 @@ function _camr_layout(n::NTuple{D,Int}, L::NTuple{D,T}, specs, denominators; per
     for (k, cells) in enumerate(patchcells)
         parent = k == 1 ? 0 : (specs[k-1][1] == 0 ? 1 : refined[_camr_parent(specs[k-1])])
         covered = [haskey(refined, a) for a in cells]
-        push!(patches, _CartesianAMRPatch(parent, cells[1][1], cells, .!covered, covered, [get(leaf_index, a, 0) for a in cells]))
+        push!(patches, _CartesianAMRPatch(parent, cells[1][1], cells, map(!, covered), covered, [get(leaf_index, a, 0) for a in cells]))
     end
     query(lo, hi) = _camr_query_data(n, L, refined, leaf_index, lo, hi; closed = true)
     faces = _CartesianAMRFace{D}[]

@@ -55,7 +55,9 @@ function _ec_prepare_checkpoint(s,st,g::FourierGrid{D,T};destination=nothing) wh
     _normalize_empic_coupled_checkpoint(s)
     required=(_EMPIC_COLLECTION_CHECKPOINT_FIELDS...,(st isa EMPIC1D ? (:polarization,) : ())...,
         :schedule_policy,:phase_policy,_EMPIC_COUPLED_CHECKPOINT_FIELDS...)
-    keys(s)==required && s.D isa Int && s.T===T && s.ncell isa typeof(g.n) && s.L isa typeof(g.L) &&
+    keys(s)==required && s.integrator===_empic_collection_checkpoint_integrator(st) &&
+        s.particle_layout===:collection && (st isa EMPIC || s.polarization===:ex_ey_bz) &&
+        s.D isa Int && s.T===T && s.ncell isa typeof(g.n) && s.L isa typeof(g.L) &&
         s.mobile isa BitVector && s.species isa Vector && all(i -> isassigned(s.species,i),eachindex(s.species)) ||
         throw(ArgumentError("coupled checkpoint envelope has noncanonical fields or types"))
     for record in s.species
