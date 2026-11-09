@@ -393,6 +393,11 @@ function _add_conduction_pressure!(exact, quotient, coefficient, g::FourierGrid{
     return nothing
 end
 
+function _add_transport_conduction!(exact, quotient, coefficient, κ, g, closure, B, work)
+    _add_conduction_pressure!(exact, quotient, coefficient * _exact_rational(κ), g)
+    return nothing
+end
+
 @noinline function _complete_transport_pressure_rhs!(
     out::Array{T,D},
     pe,
@@ -405,6 +410,9 @@ end
     context = "complete transport pressure rate",
     κ::T = zero(T),
     quotient = nothing,
+    closure = nothing,
+    B = nothing,
+    conduction_work = nothing,
 ) where {D,T}
     exact = zeros(Rational{BigInt}, size(out))
     gamma = _exact_rational(γ)
@@ -440,8 +448,9 @@ end
         end
     end
     if !iszero(κ)
-        coefficient = gamma_minus_one * _exact_rational(κ)
-        _add_conduction_pressure!(exact, quotient, coefficient, g)
+        _add_transport_conduction!(
+            exact, quotient, gamma_minus_one, κ, g, closure, B, conduction_work,
+        )
     end
     nonzero, represented = _publish_complete_rate!(out, exact, context)
     nonzero && !represented && throw(ArgumentError("$context rounds entirely to zero in $T"))

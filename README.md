@@ -183,6 +183,13 @@ unverified. See
   and gradual underflow. FFTW accuracy remains qualified; policy-1 checkpoints
   are rejected under the required conduction policy 2.
   [Scope, timestep and pending verification](docs/EVOLVING_ELECTRONS.md#constant-isotropic-conduction-source-candidate).
+- `FieldAlignedConductingElectrons(γ=5/3; κ_parallel, κ_perpendicular=0)` —
+  varying-B tensor heat transport of scalar pressure, using the actual joint
+  stage field, all three B components and separate diagonal Nyquist channels.
+  Equal coefficients retain isotropic arithmetic; unequal coefficients require
+  nonzero B. Serial periodic CPU and fixed-step ion-ion composition are the
+  implemented scope, with complete policy-3 restart and fresh-density budgets.
+  [Source contract and pending acceptance](docs/FIELD_ALIGNED_CONDUCTION.md).
 - `CGLElectrons(p⊥0, p∥0, n0, B0)` — anisotropic double-adiabatic
   (Chew–Goldberger–Low): `p_⊥ ∝ n·B`, `p_∥ ∝ n³/B²`, entering Ohm's law
   through the full gyrotropic pressure-tensor force `−(∇·P_e)/n`. (Note the
@@ -518,7 +525,8 @@ A self-contained perpendicular collisionless-shock laboratory:
   additional anisotropic battery term. The reduced inertia reservoir closes
   the uniform-density fixed-ion field balance; moving-ion and dissipative energy accounting
   have further terms described in the [model balance](docs/HYBRID_ENERGY_MODEL_PLAN.md).
-  For `EvolvingElectrons`, `TransportElectrons` and `ConductingElectrons`, supply
+  For `EvolvingElectrons`, `TransportElectrons`, `ConductingElectrons` and
+  `FieldAlignedConductingElectrons`, supply
   `pe = st.fields.pe` explicitly. Budgets use
   the supplied particle velocities, which are staggered in hybrid runs;
   energy-convergence comparisons need reservoirs at a common time.
@@ -832,7 +840,8 @@ EM and comparative campaigns remain in the
   Nondividing/adaptive schedules and backend/collision/boundary integrations remain open.
 - Collision/field composition covers fixed-step, first-order `HybridStepper`
   runs with ideal isothermal/evolving scalar electrons, S1/S2 transport or S3b
-  original-quotient conduction on the CPU (stored-pressure extensions are CI-pending).
+  original-quotient isotropic or field-aligned scalar conduction on the CPU
+  (stored-pressure extensions are CI-pending).
   [Generic electrostatic](docs/COLLISIONAL_ELECTROSTATIC.md) and
   [electromagnetic PIC composition](docs/COLLISIONAL_EMPIC.md) are also
   source-implemented in bounded fixed-step nonrelativistic scopes; acceptance
@@ -840,7 +849,7 @@ EM and comparative campaigns remain in the
   and [collisional EM sources](docs/DISTRIBUTED_COLLISIONAL_EMPIC.md) now add
   admitted owned cells, per-rank RNG staging and full physical/RNG restart.
   Actual-rank/statistical/continuation acceptance is open. Variable steps, higher-order
-  splitting, electron-ion heat exchange, anisotropic/inertial
+  splitting, electron-ion heat exchange, anisotropic-pressure/inertial
   composition, other models and sources, broader MPI families and device kernels
   are separate open stages ([CAP-010](docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md)).
 - The [normalization repair](docs/NORMALIZATION_RANGE_PLAN.md)

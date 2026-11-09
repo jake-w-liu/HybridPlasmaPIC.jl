@@ -159,7 +159,67 @@ function ConductingElectrons(γ::Real = 5 / 3; κ::Real)
     return ConductingElectrons{T}(γ; κ)
 end
 
-const _ScalarTransportClosure = Union{TransportElectrons,ConductingElectrons}
+"""
+    FieldAlignedConductingElectrons(γ=5/3; κ_parallel, κ_perpendicular=0)
+
+Stored scalar electron pressure with field-aligned Fourier conduction on a
+serial periodic CPU `HybridStepper`. The conductivity tensor is
+`κ_perpendicular*I + (κ_parallel-κ_perpendicular)*B*B'/dot(B,B)` using the actual
+magnetic field at each joint B/pressure RK stage and all three field components.
+Unequal grid-resolved conductivities require nonzero B at every grid point.
+Equal conductivities use the isotropic operator of `ConductingElectrons`.
+
+Both coefficients must be finite, nonnegative and survive grid conversion.
+Active conduction uses original stored pressure/density quotients, exact
+projectors and two-term preparations of gradient and flux inputs. The real
+odd-gradient tensor has separate diagonal Nyquist complements. FFTW error and
+the coupled explicit RK map have no unconditional positivity or stability
+guarantee. Only the complete pressure source is rounded and range-checked.
+Policy-3 checkpoints retain the operator convention and carried ion force.
+Ion-ion collisional composition leaves pressure fixed during scattering.
+Electron-ion exchange, CGL pressure, implicit and distributed/device evolution
+are outside this closure's contract.
+"""
+struct FieldAlignedConductingElectrons{T<:AbstractFloat} <: ElectronClosure
+    γ::T
+    κ_parallel::T
+    κ_perpendicular::T
+    function FieldAlignedConductingElectrons{T}(
+        γ::Real; κ_parallel::Real, κ_perpendicular::Real = 0,
+    ) where {T<:AbstractFloat}
+        gamma = _require_finite_real("γ", γ, T)
+        gamma > one(T) || throw(ArgumentError("conducting electron γ must be greater than one"))
+        parallel = _field_aligned_coefficient("κ_parallel", κ_parallel, T)
+        perpendicular = _field_aligned_coefficient("κ_perpendicular", κ_perpendicular, T)
+        return new{T}(gamma, parallel, perpendicular)
+    end
+end
+
+function FieldAlignedConductingElectrons(
+    γ::Real = 5 / 3; κ_parallel::Real, κ_perpendicular::Real = 0,
+)
+    T = float(promote_type(typeof(γ), typeof(κ_parallel), typeof(κ_perpendicular)))
+    return FieldAlignedConductingElectrons{T}(γ; κ_parallel, κ_perpendicular)
+end
+
+function _field_aligned_coefficient(name, value, ::Type{T}) where {T}
+    converted = _require_finite_real(name, value, T)
+    _validate_conduction_mode(value)
+    value >= zero(value) && converted >= zero(T) ||
+        throw(ArgumentError("$name must be nonnegative"))
+    (_conduction_zero(value) || !_conduction_zero(converted)) ||
+        throw(ArgumentError("$name underflows to zero at conduction precision"))
+    return converted
+end
+
+const _ScalarTransportClosure =
+    Union{TransportElectrons,ConductingElectrons,FieldAlignedConductingElectrons}
+closure_gamma(c::FieldAlignedConductingElectrons) = c.γ
+_evolves_pressure(::FieldAlignedConductingElectrons) = true
+_transports_electrons(::FieldAlignedConductingElectrons) = true
+electron_pressure!(::Any, ::Any, ::FieldAlignedConductingElectrons) = throw(
+    ArgumentError("FieldAlignedConductingElectrons requires stored pressure; use ohms_law!"),
+)
 closure_gamma(c::ConductingElectrons) = c.γ
 _evolves_pressure(::ConductingElectrons) = true
 _transports_electrons(::ConductingElectrons) = true
@@ -187,6 +247,19 @@ function _electron_conductivity(closure::ConductingElectrons, ::Type{T}) where {
     (_conduction_zero(closure.κ) || !_conduction_zero(conductivity)) ||
         throw(ArgumentError("ConductingElectrons κ underflows to zero at grid precision"))
     return conductivity
+end
+
+function _field_aligned_conductivities(c::FieldAlignedConductingElectrons, ::Type{T}) where {T}
+    # Validate both original operands, including the smaller coefficient.
+    return (
+        _field_aligned_coefficient("κ_parallel", c.κ_parallel, T),
+        _field_aligned_coefficient("κ_perpendicular", c.κ_perpendicular, T),
+    )
+end
+
+function _electron_conductivity(c::FieldAlignedConductingElectrons, ::Type{T}) where {T}
+    parallel, perpendicular = _field_aligned_conductivities(c, T)
+    return max(parallel, perpendicular)
 end
 
 "Isothermal electrons: p_e = T_e · n  (T_e the normalized electron temperature)."

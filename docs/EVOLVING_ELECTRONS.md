@@ -13,7 +13,10 @@ Constant Ohmic heating is provided by
 [`TransportElectrons`](#constant-ohmic-transport), with its hyperresistive
 [extension](#constant-hyperresistive-transport). The bounded isotropic
 [conduction source candidate](#constant-isotropic-conduction-source-candidate)
-adds heat flux; anisotropic pressure evolution remains separate.
+adds isotropic heat flux. [Field-aligned scalar conduction](FIELD_ALIGNED_CONDUCTION.md)
+uses varying-B tensor heat transport with separate diagonal Nyquist channels
+and policy-3 restart; its remote acceptance is pending. Anisotropic pressure
+evolution remains separate.
 
 ## Initialize and advance
 

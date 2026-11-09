@@ -107,6 +107,7 @@ include("models/hybrid_pic.jl")               # HybridModel + compute_moments!
 include("electrons/ohms_law.jl")
 include("fields/sheared_hybrid_operators.jl")
 include("electrons/energy_equation.jl")
+include("electrons/field_aligned_conduction.jl")
 
 # --- Integrators ---
 include("integrators/abstract_integrator.jl")
@@ -268,6 +269,7 @@ export ElectronClosure,
     EvolvingElectrons,
     TransportElectrons,
     ConductingElectrons,
+    FieldAlignedConductingElectrons,
     IsothermalElectrons,
     PolytropicElectrons,
     CGLElectrons,
@@ -312,6 +314,7 @@ export HybridStepper,
     kinetic_energy_relativistic,
     magnetic_energy,
     electron_internal_energy,
+    electron_conduction_diagnostics,
     mode_amplitude,
     recommended_dt
 export MHDState, rankine_hugoniot

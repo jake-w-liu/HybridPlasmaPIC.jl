@@ -47,12 +47,13 @@ its publication record.
 | Implicit Yee transverse acceptance | Root adopts frozen handoff | Independent true-Yee vacuum and unequal-species cold-plasma midpoint controls | Both references pass minimum/latest focused jobs with 366 assertions each at `62f985f`; full integrated/scientific acceptance open |
 | Physical-pencil model acceptance | Root adopts frozen lifecycle checks | Actual charged distributed ES/EM/hybrid and nonconstant Maxwell evolution, restore and continuation controls | Charged latest controls passed before a Maxwell empty-population helper failure; helper corrected in CPU candidate `b8a5e7d`, complete remote rerun pending |
 | Resident CUDA hybrid | Root integrates reviewed fourteen-file handoff | Complete resident D1/3V isothermal lifecycle, diagnostics and physical persistence | Latest host job at `38d1cd1` passes 38 checks on Julia 1.13.3; minimum host, full integrated and actual NVIDIA acceptance remain open |
-| Toroidal annulus | Final source handed to root | Full coupled logical particles, metric magnetic field, adiabatic pressure, contact work and complete restart | Eight-file final source reviewed/adopted; root canonical map/module/writer integration and compact independent essentials prepared; all remote acceptance pending |
-| Implicit evolving pressure | `post_devin_numeric_audit` | Canonical joint velocity/B/pe solve, third residual gate, signed physical ledger and schema2 persistence | Five-file source adopted and registered with compact essentials and pinned old-schema raw/archive continuation; exact-head remote acceptance pending |
-| Multidimensional adaptive ES | `dynamic_amr_es_implementation` | Genuine coupled D2/3 hierarchy, particle/field adaptation, work and restart | Source-pinned contract in preparation; no production edits approved yet |
-| Nondividing species schedules | `annulus_loader_guide` | Canonical EMPIC event/current/phase/schedule persistence | Existing schedule owner and requirements under source review; no production edits approved yet |
-| Anisotropic electron conduction | `post_devin_numeric_audit` | Varying-B tensor transport in canonical B/pressure lifecycle and persistence | Full-k/Nyquist/source/work and null-B contract in preparation; no production edits approved |
-| Integration and CI | Root | Source review, shared registrations, current Markdown, commits/main publication and exact-head CI | Active alongside three next-stage designs |
+| Toroidal annulus | Root integrated final handoff | Full coupled logical particles, metric magnetic field, adiabatic pressure, contact work and complete restart | Reviewed source/registration pushed at `7ea6ae8`; full and focused remote acceptance pending |
+| Implicit evolving pressure | Root integrated final handoff | Canonical joint velocity/B/pe solve, third residual gate, signed physical ledger and schema2 persistence | Reviewed source/registration pushed at `5703c95`, including pinned old-schema raw/archive continuation; exact-head remote acceptance pending |
+| Multidimensional adaptive ES | `dynamic_amr_es_implementation` | Genuine coupled D2/3 hierarchy, particle/field adaptation, work and restart | Complete grounded-Q1/tensor-cloud/KDK/regrid/history contract reviewed; eight source paths and compact essentials approved |
+| Nondividing species schedules | `annulus_loader_guide` | Canonical EMPIC event/current/phase/schedule persistence | Persistent deadline/current/clock/schema3 contract reviewed; two source owners, two guides and compact essentials approved |
+| Field-aligned electron conduction | Root integrates frozen `post_devin_numeric_audit` handoff | Varying-B tensor transport in canonical B/pressure lifecycle and persistence | Eight-owner source and essential file reviewed/adopted on `5703c95`; module/guide/registration wired; all remote acceptance pending |
+| Persistent schedule IO | `post_devin_numeric_audit`, reconnaissance until interface transfer | Complete schema3 pending calendar/controller/current/phase persistence | Reads approved contract; edits require exact frozen model seam and exclusive IO-path transfer from schedule owner |
+| Integration and CI | Root | Source review, shared registrations, current Markdown, commits/main publication and exact-head CI | Active alongside three parallel implementation tracks |
 
 ## Exclusive file writers
 
@@ -116,11 +117,19 @@ The shared nonlinear algorithm and isothermal report/schema1 remain; root owns
 registrations, workflows, global docs and closure/model docstrings. No overlapping
 writer is assigned.
 
-**Next-stage designs only:** the former annulus parent maps multidimensional
-adaptive ES; its child maps nondividing EMPIC schedules. The former pressure
-worker derives anisotropic heat conduction. All three use
-separate clean worktrees and need source-pinned canonical contracts and root file
-assignments before production edits. They do not own adopted annular or pressure files.
+**Approved next implementations:** the former annulus parent owns eight new
+multidimensional adaptive-ES source/guide paths and one essential file. Its child
+owns the two existing EMPIC collection/schedule source/IO files, their two species
+guides and one new essential file. The former pressure worker owns the eight
+field-aligned-conduction production paths and one essential file from its frozen
+contract, rebased onto `5703c95` before edits. These include shared closure,
+pressure, explicit-stage, diagnostic, collisional and generic checkpoint owners.
+The conduction worker's final eight-owner handoff has transferred to root, so
+root again owns the generic checkpoint file. The schedule owner retains model,
+guides and essentials; its IO path transfers to the independent IO worker only
+after an exact interface handoff. Module, exports, workflows and global docs
+remain root-owned. No two workers edit the same canonical file. Accepted
+source/runtime/scientific/resource gates remain separate.
 
 ## Handoff and verification
 

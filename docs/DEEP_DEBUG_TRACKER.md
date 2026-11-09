@@ -110,9 +110,20 @@ Current work:
   minimum/latest spatial/coupling/failure/IO and historical schema1 continuation,
   full CI, science and resources remain pending. The old 19-field isothermal
   report/config/schema1 are preserved by literal source checks.
-- Next independent designs cover multidimensional adaptive ES, nondividing
-  EMPIC schedules and varying-B anisotropic electron conduction. Source-pinned
-  contracts precede production ownership; they do not yet supply implementations.
+- [Field-aligned scalar conduction](FIELD_ALIGNED_CONDUCTION.md) has complete
+  eight-owner source review, exact frozen adoption, module/diagnostic/IO wiring
+  and compact independent operator/lifecycle/restart controls. It uses actual
+  stage B, all three field components, diagonal Nyquist channels and two bounded
+  preparations. Policy 3 retains full carry; missing plain/collisional archive
+  readers delegate to canonical restore. All new runtime, compiler/format,
+  scientific and resource acceptance remains pending.
+- Two approved implementations continue in parallel: multidimensional adaptive
+  ES with constrained Q1 fields and tensor physical clouds, and persistent
+  nondividing EMPIC source/kick phases. The AMR draft's seven production files
+  have an early full root source pass; final essentials/guide/review and adoption
+  are pending. Schedule model/phase implementation is active; an independent IO
+  worker is reading the approved contract before a frozen interface handoff.
+  Exclusive paths and handoffs are recorded in the implementation workflow.
 
 The full runner explicitly registers the transverse Yee reference beside the
 existing family tests. MPI multi-rank and distributed FFT primitive tests run

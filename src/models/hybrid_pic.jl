@@ -16,9 +16,12 @@ frequency at `ω_pe` scales and enables collisionless reconnection at the `d_e` 
 pressure is initialized in `HybridStepper.fields.pe` or
 `ImplicitHybridStepper.fields.pe` before calling `init!`; the former uses coupled
 B/pressure RK4 with half-time ions, the latter a synchronous joint implicit solve.
-[`TransportElectrons`](@ref) and [`ConductingElectrons`](@ref) accept constant
+[`TransportElectrons`](@ref), [`ConductingElectrons`](@ref) and
+[`FieldAlignedConductingElectrons`](@ref) accept constant
 `η ≥ 0` and `ηH ≥ 0` with `de2 = 0`;
 nonzero coefficients must stay finite and nonzero at grid precision.
+Field-aligned scalar heat transport uses the actual stage B and requires a
+nonzero direction when the two effective conductivities differ.
 """
 struct HybridModel{C<:ElectronClosure}
     closure::C

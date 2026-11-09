@@ -201,3 +201,16 @@ function load_checkpoint!(
         st.busy[] = false
     end
 end
+
+"Verify the archive checksum and use the existing locked stochastic restore."
+function load_archive!(
+    st::CollisionalHybridStepper, species::AbstractVector, path::AbstractString,
+)
+    _acquire_collisional!(st)
+    try
+        loaded = load_run(path)
+        return _restore_checkpoint_state!(st, species, loaded.state)
+    finally
+        st.busy[] = false
+    end
+end

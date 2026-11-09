@@ -27,7 +27,8 @@ symmetric or second-order collision split. Call `init!` before active stepping.
 
 Supports Float32/Float64, D=1:3, standard Vector particle storage, positive ions,
 NGP/CIC/TSC, ideal massless `IsothermalElectrons` or `EvolvingElectrons`, and
-`TransportElectrons` or `ConductingElectrons` with constant `η ≥ 0`, `ηH ≥ 0`
+`TransportElectrons`, `ConductingElectrons` or `FieldAlignedConductingElectrons`
+with constant `η ≥ 0`, `ηH ≥ 0`
 and `de2 = 0`. Conduction retains its original-quotient numerical policy and guard.
 With stored pressure, initialize `inner.fields.pe` before `init!`; the field
 substep evolves pressure and the ion-ion collision substep leaves it unchanged.
@@ -77,7 +78,7 @@ function _validate_collisional_model(inner::HybridStepper{D,T}) where {D,T}
     model = inner.model
     model.closure isa Union{IsothermalElectrons,EvolvingElectrons,_ScalarTransportClosure} || throw(
         ArgumentError(
-            "CollisionalHybridStepper requires IsothermalElectrons, EvolvingElectrons, TransportElectrons or ConductingElectrons",
+            "CollisionalHybridStepper requires IsothermalElectrons, EvolvingElectrons, TransportElectrons, ConductingElectrons or FieldAlignedConductingElectrons",
         ),
     )
     if _transports_electrons(model.closure)
@@ -100,6 +101,8 @@ end
 _collisional_closure_values(c::IsothermalElectrons) = (c.Te,)
 _collisional_closure_values(c::Union{EvolvingElectrons,TransportElectrons}) = (c.γ,)
 _collisional_closure_values(c::ConductingElectrons) = (c.γ, c.κ)
+_collisional_closure_values(c::FieldAlignedConductingElectrons) =
+    (c.γ, c.κ_parallel, c.κ_perpendicular)
 
 # Composite identity compares BigFloat backing storage, which changes on
 # checkpoint copy. Bind the original scalar values instead of their addresses.

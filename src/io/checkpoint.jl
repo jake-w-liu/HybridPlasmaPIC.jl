@@ -282,12 +282,34 @@ end
 const _TRANSPORT_POLICY_VERSION = 1
 # Original pressure/density quotient preparation and projected conduction.
 const _CONDUCTION_POLICY_VERSION = 2
+const _FIELD_ALIGNED_CONDUCTION_POLICY_VERSION = 3
 
 _validate_checkpoint_conduction_state(s, ::ElectronClosure) = nothing
 function _validate_checkpoint_conduction_state(s, ::ConductingElectrons)
     _validate_checkpoint_container(s, (:conduction_policy_version,))
     s.conduction_policy_version === _CONDUCTION_POLICY_VERSION ||
         throw(ArgumentError("unsupported electron conduction checkpoint policy"))
+    return nothing
+end
+
+function _validate_checkpoint_conduction_state(s, closure::FieldAlignedConductingElectrons)
+    _validate_checkpoint_container(s, (
+        :conduction_policy_version, :conduction_operator, :conduction_direction,
+        :conduction_preparation,
+    ))
+    s.conduction_policy_version === _FIELD_ALIGNED_CONDUCTION_POLICY_VERSION &&
+        s.conduction_operator === :odd_tensor_diagonal_nyquist &&
+        s.conduction_direction === :original_Q_nonzero_projector &&
+        s.conduction_preparation === :two_term_axis_null_gradient_flux ||
+        throw(ArgumentError("unsupported field-aligned conduction checkpoint policy"))
+    # Admission follows the incoming model, including zero-to-active restore.
+    # The derived direction/gradient workspace is recomputed, never loaded.
+    T = eltype(s.pe)
+    _electron_conductivity(closure, T)
+    for array in (s.B..., s.E...)
+        _validate_pressure_finite(array, "field-aligned checkpoint field")
+    end
+    _validate_field_aligned_direction(closure, s.B, T)
     return nothing
 end
 
@@ -787,6 +809,12 @@ _pressure_checkpoint_state(st, ::ElectronClosure) = (pe = st.fields.pe,)
 _conduction_checkpoint_state(::ElectronClosure) = NamedTuple()
 _conduction_checkpoint_state(::ConductingElectrons) =
     (conduction_policy_version = _CONDUCTION_POLICY_VERSION,)
+_conduction_checkpoint_state(::FieldAlignedConductingElectrons) = (
+    conduction_policy_version = _FIELD_ALIGNED_CONDUCTION_POLICY_VERSION,
+    conduction_operator = :odd_tensor_diagonal_nyquist,
+    conduction_direction = :original_Q_nonzero_projector,
+    conduction_preparation = :two_term_axis_null_gradient_flux,
+)
 _pressure_checkpoint_state(st::HybridStepper, closure::_ScalarTransportClosure) = merge(
     (
         pe = st.fields.pe,
@@ -1389,6 +1417,11 @@ force is restored verbatim, never rebuilt from half-time particle moments.
 `ConductingElectrons` additionally requires integer `conduction_policy_version = 2`,
 including when κ is zero; policy-1 payloads are rejected before mutation. The
 saved model replaces γ/κ and derived quotient/transform scratch is not persisted.
+`FieldAlignedConductingElectrons` requires integer policy 3 and its exact tensor,
+Nyquist, direction and preparation tags. Incoming B is validated against the
+saved coefficients, including zero-to-active restore. Both original coefficients
+and gamma replace matching-concrete-type model values; derived norm and gradient
+scratch retain their identity and are not loaded.
 Collection destinations require the same number of ordered populations and
 matching dimension/precision. Each population keeps its existing storage while
 saved charge, mass, provenance and phase space replace its values. Every
@@ -1444,6 +1477,14 @@ original run with the same stepping inputs. Hall-MHD continues with
 """
 function load_checkpoint!(st::_CheckpointStepper, ps::ParticleSet, path::AbstractString)
     return _restore_checkpoint_state!(st, ps, deserialize(path))
+end
+
+"Verify the run-container checksum, then use the canonical hybrid checkpoint restore."
+function load_archive!(
+    st::HybridStepper{D,T}, species::_HybridPopulations{D,T}, path::AbstractString,
+) where {D,T}
+    loaded = load_run(path)
+    return _restore_checkpoint_state!(st, species, loaded.state)
 end
 
 function load_checkpoint!(st::HallMHDState, path::AbstractString)

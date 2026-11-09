@@ -30,7 +30,7 @@
 # closures use `nothing`, so their hot path carries no extra array storage.
 # `Eforce` is the transport-owned carried ion force and `saved_Eforce` its
 # rollback copy; both are `nothing` (zero storage) for EvolvingElectrons.
-mutable struct _PressureEvolutionWorkspace{D,T,F,C}
+mutable struct _PressureEvolutionWorkspace{D,T,F,C,A}
     ue::NTuple{3,Array{T,D}}
     divue::Array{T,D}
     kp::NTuple{4,Array{T,D}}
@@ -42,6 +42,7 @@ mutable struct _PressureEvolutionWorkspace{D,T,F,C}
     Eforce::F
     saved_Eforce::F
     quotient::C
+    conduction::A
 end
 
 _transport_force_storage(::FourierGrid, ::ElectronClosure) = nothing
@@ -50,12 +51,15 @@ _transport_force_storage(g::FourierGrid{D,T}, ::_ScalarTransportClosure) where {
 
 _conduction_quotient_storage(::FourierGrid, ::ElectronClosure) = nothing
 _conduction_quotient_storage(g::FourierGrid, ::ConductingElectrons) = zeros(Rational{BigInt}, g.n)
+_conduction_quotient_storage(g::FourierGrid, ::FieldAlignedConductingElectrons) =
+    zeros(Rational{BigInt}, g.n)
 
 function _pressure_workspace(g::FourierGrid{D,T}, closure, count) where {D,T}
     _evolves_pressure(closure) || return nothing
     force = _transport_force_storage(g, closure)
     quotient = _conduction_quotient_storage(g, closure)
-    return _PressureEvolutionWorkspace{D,T,typeof(force),typeof(quotient)}(
+    conduction = _field_aligned_storage(g, closure)
+    return _PressureEvolutionWorkspace{D,T,typeof(force),typeof(quotient),typeof(conduction)}(
         ntuple(_ -> zeros(T, g.n), 3),
         zeros(T, g.n),
         ntuple(_ -> zeros(T, g.n), 4),
@@ -67,6 +71,7 @@ function _pressure_workspace(g::FourierGrid{D,T}, closure, count) where {D,T}
         force,
         _transport_force_storage(g, closure),
         quotient,
+        conduction,
     )
 end
 
@@ -78,12 +83,15 @@ Workspace and configuration for time-stepping ions on grid `g` under `model`
 with deposition/gather `shape`. `N` is the initial total particle workspace
 length, resized as needed. Pass one proton `ParticleSet` or a vector of positive
 ion populations to [`init!`](@ref) and [`step!`](@ref), after setting the initial
-field in `stepper.fields.B`. With [`EvolvingElectrons`](@ref) or
-[`TransportElectrons`](@ref) or [`ConductingElectrons`](@ref), also set the finite, nonnegative initial pressure
+field in `stepper.fields.B`. With [`EvolvingElectrons`](@ref),
+[`TransportElectrons`](@ref), [`ConductingElectrons`](@ref) or
+[`FieldAlignedConductingElectrons`](@ref), also set finite nonnegative pressure
 in `stepper.fields.pe`; initialization preserves it. Algebraic closures compute
-pressure from their constitutive law. Both transport closures additionally
+pressure from their constitutive law. Scalar transport closures additionally
 allocate the carried ion force and its rollback copy (six grid arrays).
-`ConductingElectrons` also owns one derived exact pressure/density quotient grid.
+Conducting closures also own a derived exact pressure/density quotient grid.
+Field-aligned conduction adds a norm grid and D gradient grids; all are derived
+scratch, including when coefficients start at zero.
 """
 mutable struct HybridStepper{D,T,SH<:ShapeFunction,M<:HybridModel,W}
     g::FourierGrid{D,T}
@@ -191,8 +199,9 @@ end
     recommended_dt(stepper::HybridStepper; NB=1, safety=0.8, d_i=1, Ω_ci=1)
 
 Return a grid-precision downward-rounded recommendation using this RK4
-stepper's magnetic transport coefficients. For active [`ConductingElectrons`](@ref),
-also cap by the pure-conduction RK4 bound with `nfloor` as the conservative
+stepper's magnetic transport coefficients. For active [`ConductingElectrons`](@ref)
+or [`FieldAlignedConductingElectrons`](@ref), also cap by the frozen
+pure-conduction RK4 bound using the maximum effective conductivity and `nfloor` as the conservative
 density lower bound. The cap uses full Nyquist modes and counts magnetic/pressure
 subcycles. It does not bound pressure advection/compression, guarantee combined
 nonlinear stability or preserve positivity. A bound below the public
@@ -296,6 +305,23 @@ function _validate_pressure_storage(st::HybridStepper, ps)
     end
     _validate_transport_force_storage(st, ps, w.Eforce)
     _validate_conduction_quotient_storage(st, ps, w.quotient)
+    _validate_field_aligned_storage(st, ps, w.conduction)
+    return nothing
+end
+
+_validate_field_aligned_storage(st, ps, ::Nothing) = nothing
+function _validate_field_aligned_storage(st, ps, work::_FieldAlignedConductionWorkspace)
+    arrays = _field_aligned_arrays(work)
+    for (i, a) in enumerate(arrays)
+        # The same exact-grid role has the complete field/particle/FFT scan.
+        _validate_conduction_quotient_storage(st, ps, a)
+        _particle_arrays_mightalias(a, st.pressure_work.quotient) &&
+            throw(ArgumentError("field-aligned scratch must not alias electron quotient"))
+        for j = 1:(i-1)
+            _particle_arrays_mightalias(a, arrays[j]) &&
+                throw(ArgumentError("field-aligned scratch roles must be independent"))
+        end
+    end
     return nothing
 end
 
@@ -405,6 +431,10 @@ function _validate_transport_force_storage(
                 throw(ArgumentError("transport force must not alias electron quotient scratch"))
         end
     end
+    for b in _field_aligned_arrays(w.conduction), a in carried
+        _particle_arrays_mightalias(a, b) &&
+            throw(ArgumentError("transport force must not alias field-aligned scratch"))
+    end
     grids = (
         f.n,
         f.ui...,
@@ -473,6 +503,7 @@ function _validate_pressure_step_state(st::HybridStepper{D,T}, ps) where {D,T}
     for a in (st.fields.B..., st.fields.E...)
         _validate_pressure_finite(a, "evolving-pressure field input")
     end
+    _validate_field_aligned_direction(st.model.closure, st.fields.B, T)
     _validate_transport_step_inputs(st, ps, st.pressure_work.Eforce)
     return nothing
 end
@@ -675,8 +706,10 @@ Collection calls combine positive ion populations with their own charge and mass
 using charge-weighted moments. Populations require independent storage and a
 common time level. Reinitialize when adding populations loaded at a new physical
 velocity time level. Empty populations contribute zero moments.
-[`TransportElectrons`](@ref) and [`ConductingElectrons`](@ref) also compute the carried ion force and require
+[`TransportElectrons`](@ref), [`ConductingElectrons`](@ref) and
+[`FieldAlignedConductingElectrons`](@ref) also compute the carried ion force and require
 the initial density to be finite and at least `nfloor` in every cell.
+Unequal field-aligned conductivities require a nonzero seeded B direction.
 """
 function init!(st::HybridStepper{D,T}, ps::_HybridPopulations{D,T}) where {D,T}
     count = ps isa ParticleSet ? nparticles(ps) : _validate_hybrid_species(ps)
@@ -918,6 +951,7 @@ function _bpressure_rhs!(
     for a in Btrial
         _validate_pressure_finite(a, "evolving-pressure magnetic stage")
     end
+    _validate_field_aligned_direction(st.model.closure, Btrial, T)
     gradient!(f.gradp, ptrial, g)
     source_risk =
         _ohm_Efield!(st.Escr, st.fui, Btrial, f.J, f.lapJ, f.gradp, f.ninv, zero(T), zero(T), g)
@@ -955,6 +989,9 @@ function _bpressure_rhs!(
             g;
             κ,
             quotient = w.quotient,
+            closure = st.model.closure,
+            B = Btrial,
+            conduction_work = w.conduction,
         )
     else
         active, derivative_risk = _prepare_scalar_pressure_rhs!(
@@ -1126,6 +1163,9 @@ end
         g;
         κ,
         quotient = w.quotient,
+        closure = model.closure,
+        B = Btrial,
+        conduction_work = w.conduction,
     )
     _complete_transport_faraday_rhs!(outB, ideal, f.J, T(model.η), T(model.ηH), g)
     return nothing
@@ -1156,6 +1196,7 @@ function _rk4_Bp!(st::HybridStepper{D,T}, h::T, cycle) where {D,T}
     end
     @. w.ptmp = final(pe, w.kp[1], w.kp[2], w.kp[3], w.kp[4])
     _validate_evolving_pressure(w.ptmp, st.g; subcycle = cycle, stage = 5)
+    _validate_field_aligned_direction(st.model.closure, st.Btmp, T)
     for c = 1:3
         copyto!(B[c], st.Btmp[c])
     end
@@ -1584,6 +1625,10 @@ stay finite and at least `nfloor`, and the transaction also restores the
 carried force. [`ConductingElectrons`](@ref) adds constant isotropic conduction
 of original stage pressure/density quotients, with its scoped pure-conduction timestep
 guard and the same pressure rejection/rollback contract.
+[`FieldAlignedConductingElectrons`](@ref) uses the actual B at each stage for
+tensor conduction with diagonal Nyquist complements and the same complete-rate
+and phase transaction. Its pure-conduction guard does not establish combined
+varying-field/advection/RK stability or positivity.
 
 A nonzero `dt` below `2*floatmin(T)` throws an `ArgumentError` before any state
 changes. Particle kicks, priming, predictor and drifts follow the normwise range

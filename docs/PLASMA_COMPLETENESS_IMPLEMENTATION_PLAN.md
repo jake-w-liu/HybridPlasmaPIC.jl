@@ -235,8 +235,9 @@ in validation candidates; the latest CUDA hosted import/admission job passes 38
 checks, with actual device acceptance open. The toroidal-annulus source family
 has completed source review and root integration. Canonical implicit-hybrid
 evolving scalar pressure is integrated, preserving schema1. Three independent
-workers now derive the next complete multidimensional adaptive-ES, nondividing
-species-schedule and anisotropic-conduction contracts before source ownership.
+workers now implement reviewed multidimensional adaptive-ES, nondividing
+species-schedule and anisotropic-conduction contracts in exclusively assigned
+paths. Runtime, science and resources remain separate acceptance gates.
 Hall, slab, periodic shear and synchronous implicit EM are on main with remaining
 scientific/resource gates. Earlier audit assignments describe historical work;
 the linked workflow owns current exclusive file assignments.
@@ -1102,6 +1103,21 @@ is inferred. See the [canonical model and checks](EVOLVING_ELECTRONS.md#constant
   GitHub revision; measure complete-step BigInt/FFT work, allocation and memory.
 - [ ] Extend conditioning qualification and broader transport models/backends.
   Normalized-duration rate storage remains a separate implementation gate.
+
+**S3c source implementation (field-aligned scalar heat flux).** The separate
+`FieldAlignedConductingElectrons` closure uses actual B at every canonical joint
+RK stage, exact original-component projectors, real odd tensor gradients and
+diagonal Nyquist complements. Both gradient and generally nondyadic flux receive
+their own bounded preparations; the complete signed source is published once.
+Fresh-density instantaneous diagnostics retain measured adjoint error; policy 3
+and canonical raw/archive readers preserve complete carried phase, including
+fixed-step ion-ion composition. Source review, frozen adoption, module/IO
+integration and compact independent operator/lifecycle/IO registrations are
+complete. All new remote numerical,
+compiler/format, scientific and cost acceptance remains open; no milestone box
+changes. See the [full contract](FIELD_ALIGNED_CONDUCTION.md). State-dependent
+coefficients, flux limiting, exchange, evolving pressure tensors, full inertia,
+boundaries, implicit transport and MPI/device stages remain required.
 
 ## Additional risks requiring tests, not assertions
 

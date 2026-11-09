@@ -59,7 +59,11 @@ pressure is included; scalar transport closures also store their carried ion
 force and `transport_policy_version`. `ConductingElectrons` additionally requires
 integer `conduction_policy_version=2`, including for κ=0; γ/κ remain in its
 saved model and quotient/transform scratch is not persisted. Policy-1 conducting
-state cannot be restored under policy 2. All are covered by the unchanged
+state cannot be restored under policy 2. `FieldAlignedConductingElectrons`
+requires policy 3 and its tensor/Nyquist/direction/preparation tags; both original
+conductivities and gamma stay in the saved model. Derived norm/gradient scratch
+is not persisted. Plain and collisional `load_archive!` verify the checksum and
+delegate to their canonical checkpoint restore. All are covered by the unchanged
 schema-4 checksum; `load_archive` checks integrity, not destination compatibility.
 Electrostatic archives instead contain their electric field, density, immutable
 background density, and priming/timestep state alongside the particles and grid.

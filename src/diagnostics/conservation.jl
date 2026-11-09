@@ -86,7 +86,7 @@ end
 function _budget_electron_state(
     n::Array{T,D},
     B,
-    closure::Union{EvolvingElectrons,TransportElectrons,ConductingElectrons},
+    closure::Union{EvolvingElectrons,_ScalarTransportClosure},
     g,
     pe,
 ) where {T<:Union{Float32,Float64},D}
@@ -129,7 +129,7 @@ _budget_closure_eligible(c::PolytropicElectrons{<:Union{Float32,Float64}}) =
     all(isfinite, (c.pe0, c.n0, c.γ)) && c.pe0 >= 0 && c.n0 > 0 && c.γ > 0
 _budget_closure_eligible(c::CGLElectrons{<:Union{Float32,Float64}}) =
     isfinite(c.Cperp) && isfinite(c.Cpar)
-_budget_closure_eligible(::Union{EvolvingElectrons,TransportElectrons,ConductingElectrons}) = true
+_budget_closure_eligible(::Union{EvolvingElectrons,_ScalarTransportClosure}) = true
 
 # Only an inconclusive coarse whole-budget certificate requests this work.
 _budget_refine_electron_state(state, closure, dx) = state
@@ -167,7 +167,7 @@ function _budget_complete_total(
     volume = prod(_exact_rational, g.dx)
     quadratic = _kinetic_energy_rational(species) + _field_square_sum_exact(B) * volume / 2
     J === nothing || (quadratic += _exact_rational(de2) * _field_square_sum_exact(J) * volume / 2)
-    if closure isa Union{EvolvingElectrons,TransportElectrons,ConductingElectrons}
+    if closure isa Union{EvolvingElectrons,_ScalarTransportClosure}
         return _from_exact(
             T,
             quadratic + _stored_pressure_energy_rational(pe, electron.gamma, g.dx),
@@ -362,6 +362,80 @@ function momentum_budget(
     field = (zero(T), zero(T), zero(T))
     total = (p[1] + field[1], p[2] + field[2], p[3] + field[3])
     return (particle = p, total = total)
+end
+
+"""
+    electron_conduction_diagnostics(stepper, species)
+
+Instantaneous field-aligned conduction budget at the current integer-time
+pressure and B, using a private fresh deposition of the supplied ions. Returns
+exact rational integrals of the computed, unrounded conduction source, prepared
+channel dissipation and measured adjoint defect. This is neither the last RK
+stage's history nor the rounded complete pressure source. FFTW and the two
+preparations can produce a nonzero defect. Public state and RNG are unchanged;
+the grid's usual nonconcurrent FFT scratch contract still applies.
+"""
+function electron_conduction_diagnostics(
+    st::HybridStepper{D,T}, species::_HybridPopulations{D,T},
+) where {D,T}
+    closure, g = st.model.closure, st.g
+    closure isa FieldAlignedConductingElectrons ||
+        throw(ArgumentError("conduction diagnostics require FieldAlignedConductingElectrons"))
+    _validate_pressure_step_state(st, species)
+    density = zeros(T, g.n)
+    if species isa ParticleSet
+        density!(density, species, g, st.shape)
+    else
+        _validate_hybrid_species(species)
+        number_density = similar(density)
+        for population in species
+            density!(number_density, population, g, st.shape)
+            # Match the density row of _accumulate_charge_moments!, including
+            # its stored per-population accumulation order, without computing
+            # unused momentum or allocating a full public-field workspace.
+            @. density = getproperty(
+                _charge_moment_parts(density, population.q, number_density), :value,
+            )
+        end
+    end
+    _validate_transport_density(density, T(st.model.nfloor), "conduction diagnostic")
+    Q = Rational{BigInt}
+    source = zeros(Q, g.n)
+    quotient = zeros(Q, g.n)
+    coefficient = _exact_rational(_pressure_heat_gamma(T(closure.γ)))
+    dissipation = zero(Q)
+    if !iszero(_electron_conductivity(closure, T))
+        _conduction_quotient!(quotient, st.fields.pe, density, g)
+        dissipation = _field_aligned_conduction!(
+            source, quotient, coefficient, closure, st.fields.B,
+            _field_aligned_storage(g, closure), g; budget = true,
+        )
+    end
+    volume = prod(_exact_rational, g.dx)
+    variance_rate = volume * sum(I -> quotient[I] * source[I], eachindex(source))
+    channel_dissipation = volume * dissipation
+    return (
+        scope = :instantaneous,
+        time = st.time[],
+        step = st.step[],
+        pressure_time_offset = zero(T),
+        magnetic_time_offset = zero(T),
+        internal_energy_rate = volume * sum(source) / (_exact_rational(T(closure.γ)) - 1),
+        variance_rate = variance_rate,
+        channel_dissipation = channel_dissipation,
+        adjoint_defect = variance_rate + coefficient * channel_dissipation,
+    )
+end
+
+function electron_conduction_diagnostics(st::CollisionalHybridStepper, species::AbstractVector)
+    _acquire_collisional!(st)
+    try
+        _validate_collisional_binding(st, species)
+        _validate_collisional_boundary(st)
+        return electron_conduction_diagnostics(st.inner, st.species)
+    finally
+        st.busy[] = false
+    end
 end
 
 # ---------------------------------------------------------------- J·E work rate

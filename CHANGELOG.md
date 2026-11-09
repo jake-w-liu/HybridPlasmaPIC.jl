@@ -11,6 +11,15 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Added
 
+- `FieldAlignedConductingElectrons` adds varying-B tensor heat transport to
+  canonical scalar-pressure stages, with diagonal Nyquist complements, two
+  bounded gradient/flux preparations and complete signed-source publication.
+  Instantaneous diagnostics privately redeposit density and measure the channel
+  adjoint defect. Policy 3 preserves full carry and incoming direction admission;
+  plain and collisional archive readers delegate to canonical restore. Source
+  and essential independent controls are reviewed and registered; all new
+  runtime, scientific and resource acceptance remains pending.
+
 - Canonical `ImplicitHybridStepper` now jointly solves ion velocity, B and
   evolving scalar electron pressure, with fixed third residual scale, exact final
   pressure gate, nonnegative admission, synchronous endpoint pe and complete

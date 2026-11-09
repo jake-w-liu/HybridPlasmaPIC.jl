@@ -78,6 +78,7 @@ const HPIC_TEST_GROUPS = [
         "test_transport_electrons.jl",
         "test_transport_electrons_io.jl",
         "test_electron_conduction.jl",
+        "test_field_aligned_conduction.jl",
         "test_transport_hyperresistivity.jl",
         "test_transport_hyperresistive_range.jl",
         "test_transport_source_range.jl",
