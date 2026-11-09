@@ -265,7 +265,7 @@ function _camr_query_data(
         return nothing
     end
     if roots === nothing
-        for I in Iterators.product(ranges...)
+        for I in CartesianIndices(ranges)
             process_root(I)
         end
     else

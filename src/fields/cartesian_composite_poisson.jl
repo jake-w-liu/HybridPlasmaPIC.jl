@@ -13,6 +13,23 @@ struct _AdaptiveQ1Data{M}
     elements::Vector{Matrix{_CompositeQ}}
     diagonal::Vector{_CompositeQ}
     scale::_CompositeQ
+
+    function _AdaptiveQ1Data{M}(
+        mesh::M,
+        elements::Vector{Matrix{_CompositeQ}},
+        diagonal::Vector{_CompositeQ},
+        scale::_CompositeQ,
+    ) where {M}
+        return new{M}(mesh, elements, diagonal, scale)
+    end
+end
+function _AdaptiveQ1Data(
+    mesh::M,
+    elements::Vector{Matrix{_CompositeQ}},
+    diagonal::Vector{_CompositeQ},
+    scale::_CompositeQ,
+) where {M}
+    return _AdaptiveQ1Data{M}(mesh, elements, diagonal, scale)
 end
 _acq_max(a) = maximum(abs, a; init = zero(_CompositeQ))
 function _acq_element(lower::NTuple{D}, upper) where {D}
