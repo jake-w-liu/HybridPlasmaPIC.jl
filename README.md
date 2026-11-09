@@ -250,8 +250,8 @@ collisional composition has its stated first-order contract:
   Ohmic/hyperresistive heating; ion-ion collisions hold pressure fixed. Checkpoints
   carry pressure, the transport ion force and the advanced RNG. Optional
   [electron–ion thermal exchange](docs/ELECTRON_ION_THERMAL_EXCHANGE.md) couples
-  NGP scalar pressure and actual ion thermal energy with accounted rounding and
-  complete source/RNG restart. New stored-pressure/source extensions await CI;
+  NGP/CIC/TSC scalar pressure and actual ion thermal energy with accounted
+  rounding and complete source/RNG restart. New stored-pressure/source extensions await CI;
   [scope and verified state](docs/COLLISIONAL_HYBRID.md).
 
 **Choosing dt.** `recommended_dt(g; NB = 1, integrator = :rk4, safety = 0.8,
@@ -857,7 +857,7 @@ EM and comparative campaigns remain in the
   and [collisional EM sources](docs/DISTRIBUTED_COLLISIONAL_EMPIC.md) now add
   admitted owned cells, per-rank RNG staging and full physical/RNG restart.
   Actual-rank/statistical/continuation acceptance is open. Variable steps, higher-order
-  splitting, broader electron-ion drag/inertia and shape-overlap exchange,
+  splitting, Coulomb-consistent electron-ion drag and finite electron inertia,
   anisotropic-pressure/inertial composition, other models and sources, broader
   MPI families and device kernels
   are separate open stages ([CAP-010](docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md)).

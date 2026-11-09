@@ -436,6 +436,8 @@ Recheck its physical coefficients, actual stored endpoint reservoirs, rounding
 certificates and moment-entropy bound. This is source-split history, not an
 instantaneous collision rate or a conservation claim for the field integrator.
 The diagnostic performs private deposition/bins without drawing RNG values.
+NGP returns its policy-1 per-node receipt; CIC/TSC return policy-2 ordered
+overlap edge history, mesh/source defects and telescoping native budgets.
 """
 function electron_ion_exchange_diagnostics(st::CollisionalHybridStepper, species::AbstractVector)
     _acquire_collisional!(st)

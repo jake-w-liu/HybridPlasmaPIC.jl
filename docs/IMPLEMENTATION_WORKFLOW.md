@@ -61,11 +61,12 @@ its publication record.
 | Field-aligned electron conduction | Root integrates frozen `post_devin_numeric_audit` handoff | Varying-B tensor transport in canonical B/pressure lifecycle and persistence | Eight-owner source and essential file reviewed/adopted on `5703c95`; module/guide/registration wired; all remote acceptance pending |
 | Persistent schedule IO | Root owns finalV3 | Complete schema3 pending calendar/controller/current/phase persistence | Released559-line owner adopted exact; canonical graph/codecs/transport preserved; new remote acceptance pending |
 | Periodic multidimensional AMR | Root adopted frozen parent/child handoff | Seam constraints, arbitrary-width clouds, physical neutral source, full-row gauge, represented multiwrap evolution/work and complete restart | Exact thirteen files reviewed/adopted on `123c4a2`; module and full/focused registration complete; all new acceptance pending |
-| NGP electron-ion thermal exchange | Root integrates frozen source and independent essential | Reduced two-way fluid-pressure/ion-thermal exchange, actual energy/entropy/rounding receipts and complete RNG restart | Six frozen files and 352-line independent essential reviewed/adopted; canonical exports and full/focused registration complete; all new runtime/scientific/resource acceptance pending |
-| CIC/TSC thermal overlap | `post_devin_numeric_audit` | Stored-shape adjoint incidence, ordered conservative positive edge exchange and complete report/RNG persistence | 171-line contract approved; four production owners and the thermal guide active on the composed frozen NGP baseline |
+| NGP electron-ion thermal exchange | Root integrates frozen source and independent essential | Reduced two-way fluid-pressure/ion-thermal exchange, actual energy/entropy/rounding receipts and complete RNG restart | Six frozen files and 352-line independent essential integrated/pushed at `c742258`; exact-head full/focused/format gates queued; science/resources open |
+| CIC/TSC thermal overlap | Root integrates frozen `post_devin_numeric_audit` source | Stored-shape adjoint incidence, ordered conservative positive edge exchange and complete report/RNG persistence | Five exact frozen files and independent 317-line essential reviewed/adopted on `c742258`; full/focused registration complete; all new runtime/scientific/resource acceptance pending |
+| CGL ion-ion collision composition | `post_devin_numeric_audit` | Actual anisotropic field/force/energy, source phase and complete restart contract | Read-only source/physics design; no implementation approval or production ownership |
 | Coupled EMPIC error control | `dynamic_amr_es_implementation`; child `periodic_controls` owns only new guide/essential | Full-time projected Euler/Heun pair, actual branch-charge correction, original-factor RHS and complete controller/restart | 415-line V3 contract approved on `566ddc1`; seven production paths and two independent guide/essential paths active; first mode admits CIC/TSC |
 | New JET source regression | Root integrates frozen representation repair | Preserve admitted storage precision, exact private construction and direct immutable normal-face values | Two-owner repair pushed at `566ddc1`; broad-input/face-order and focused whole-JET routes registered; remote acceptance pending, cap/filter/ledger unchanged |
-| Integration and CI | Root | Source review, shared registrations, current Markdown, commits/main publication and exact-head CI | Active alongside three parallel implementation tracks |
+| Integration and CI | Root | Source review, shared registrations, current Markdown, commits/main publication and exact-head CI | Active alongside controller implementation, independent controls and CGL design |
 
 ## Exclusive file writers
 
@@ -133,13 +134,15 @@ writer is assigned.
 AMR, persistent-schedule and implicit-pressure paths have transferred to root.
 Root owns registration, exports, workflows, current global docs and integration.
 The NGP thermal six-file freeze and independent essential have transferred to
-root for integration without further production edits. For the CIC/TSC extension,
-`post_devin_numeric_audit` exclusively writes `src/electrons/thermal_exchange.jl`,
+root. The CIC/TSC extension's five-file final handoff also transfers to root:
+`src/electrons/thermal_exchange.jl`,
 `src/integrators/collisional_hybrid.jl`, `src/io/collisional_checkpoint.jl`,
 `src/diagnostics/conservation.jl` and `docs/ELECTRON_ION_THERMAL_EXCHANGE.md`.
 The existing canonical stencil/deposit/gather/sorting and shared pi refinement
-remain read-only to that extension. Its patch is relative to the exact frozen
-NGP baseline; root can publish that unchanged baseline during the extension.
+are unchanged by that extension. Its B-only patch is relative to the exact
+frozen NGP baseline, checked against the actual `c742258` integration. Root owns
+the new overlap essential and shared registration. `post_devin_numeric_audit`
+now derives CGL ion-only composition read-only, without production ownership.
 The two frozen JET representation owners,
 `models/static_composite_electrostatic.jl` and
 `models/toroidal_annulus_hybrid_pic.jl`, have transferred to root.

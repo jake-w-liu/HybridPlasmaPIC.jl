@@ -33,8 +33,9 @@ velocity (the `HybridStepper` convention). One nonzero step of size `h` from
    half-level velocities, with the wrapper's RNG and workspace. The collision
    interval is the field interval, and its velocities sit at that interval's
    midpoint. This ion-ion subflow leaves stored electron pressure fixed.
-3. With `electron_ion` enabled, the NGP/grid-gamma-5/3 thermal source exchanges
-   actual ion kinetic energy with stored electron pressure. The linked thermal
+3. With `electron_ion` enabled, the grid-gamma-5/3 thermal source exchanges
+   actual ion kinetic energy with stored electron pressure. NGP uses a nodal
+   star; CIC/TSC use ordered floor-frame/node overlap edges. The linked thermal
    guide owns its coefficients, rounding/entropy gates and limitations.
 4. Integer-time moments, Ohm's law and the carried-E recentering from the
    collided velocities, giving E at `t+h`. Transport refreshes the independently
@@ -180,7 +181,8 @@ Conducting state also requires integer inner `conduction_policy_version=2`,
 including for κ=0; missing, policy-1 or malformed versions reject before mutation.
 Field-aligned conduction instead uses required inner policy 3, including its
 zero-coefficient case. The outer schema remains 1 with thermal exchange disabled;
-enabled thermal exchange requires schema 2 and its complete configuration/report.
+enabled NGP thermal exchange requires schema 2; CIC/TSC overlap requires schema 3.
+Both carry their complete fixed configuration and source report.
 The destination must match the saved conduction coefficients as
 part of the fixed model, and quotient/transform scratch is not persisted.
 
@@ -246,8 +248,8 @@ The tests are `test/test_collisional_hybrid.jl`, `test_collisional_checkpoint.jl
 and `test_collisional_physics.jl`. The [composition plan](COLLISION_COMPOSITION_RESTART_PLAN.md)
 records the design history and evidence.
 
-The reduced NGP thermal source has its own linked guide and pending acceptance.
-CIC/TSC thermal overlap, consistent drag and electron inertia, variable timesteps,
+The reduced NGP and CIC/TSC thermal sources have their own linked guide and
+pending acceptance. Consistent drag and electron inertia, variable timesteps,
 higher-order splitting, anisotropic composition, CAM-CL, neutral/BGK sources,
 ionization, radiation and GPU RNG/storage remain open. Separate bounded
 [collisional ES](COLLISIONAL_ELECTROSTATIC.md) and

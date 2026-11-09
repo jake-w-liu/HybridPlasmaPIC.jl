@@ -40,7 +40,7 @@ function ElectronIonThermalExchange(; electron_mass::Real, coulomb_log, log_bits
     return ElectronIonThermalExchange(deepcopy(electron_mass), deepcopy(coulomb_log), log_bits)
 end
 
-struct _ElectronIonThermalConfig{T,N}
+struct _ElectronIonThermalConfig{T,N,S}
     electron_mass::T
     logarithm::Vector{T}
     binding::NTuple{N,T}
@@ -58,8 +58,8 @@ end
 
 _bind_electron_ion(::Nothing, inner, species) = nothing
 function _bind_electron_ion(request::ElectronIonThermalExchange, inner::HybridStepper{D,T}, species) where {D,T}
-    _evolves_pressure(inner.model.closure) && inner.shape isa NGP && iszero(inner.model.de2) ||
-        throw(ArgumentError("electron-ion thermal exchange requires stored scalar pressure, NGP and de2 = 0"))
+    _evolves_pressure(inner.model.closure) && inner.shape isa Union{NGP,CIC,TSC} && iszero(inner.model.de2) ||
+        throw(ArgumentError("electron-ion thermal exchange requires stored scalar pressure, NGP/CIC/TSC and de2 = 0"))
     T <: Union{Float32,Float64} ||
         throw(ArgumentError("electron-ion thermal exchange requires Float32 or Float64"))
     T(inner.model.closure.γ) == T(5 / 3) ||
@@ -72,7 +72,9 @@ function _bind_electron_ion(request::ElectronIonThermalExchange, inner::HybridSt
     bits = request.log_bits === nothing ? precision(T) + 16 : request.log_bits
     precision(T) + 16 <= bits <= 4096 ||
         throw(ArgumentError("log_bits must be between precision(T)+16 and 4096"))
-    return _ElectronIonThermalConfig(mass, logs, Tuple(logs), bits, 1)
+    return _ElectronIonThermalConfig{T,length(logs),typeof(inner.shape)}(
+        mass, logs, Tuple(logs), bits, _electron_ion_policy(inner.shape),
+    )
 end
 _bind_electron_ion(request, inner, species) =
     throw(ArgumentError("electron_ion must be nothing or ElectronIonThermalExchange"))
@@ -97,20 +99,32 @@ end
 _electron_ion_active(::Nothing) = false
 _electron_ion_active(config::_ElectronIonThermalConfig) = any(!iszero, config.logarithm)
 _electron_ion_configuration(::Nothing) = nothing
-_electron_ion_configuration(config::_ElectronIonThermalConfig) = (
+_electron_ion_configuration(config::_ElectronIonThermalConfig{T,N,NGP}) where {T,N} = (
     policy = config.policy, electron_mass = config.electron_mass,
     logarithm = config.binding, log_bits = config.log_bits,
 )
 
-function _validate_electron_ion_config(config::_ElectronIonThermalConfig{T}, inner, species) where {T}
-    config.policy == 1 && isfinite(config.electron_mass) && config.electron_mass > 0 ||
+_electron_ion_policy(::NGP) = 1
+_electron_ion_policy(::Union{CIC,TSC}) = 2
+_electron_ion_shape(::Type{CIC}) = :cic
+_electron_ion_shape(::Type{TSC}) = :tsc
+function _electron_ion_configuration(config::_ElectronIonThermalConfig{T,N,S}) where {T,N,S}
+    return (policy = config.policy, electron_mass = config.electron_mass,
+        logarithm = config.binding, log_bits = config.log_bits,
+        shape = _electron_ion_shape(S), frame = :periodic_floor_cell,
+        incidence = :exact_stored_shape_products, order = :species_frame_node,
+        publication = :current_frame_causal_node)
+end
+
+function _validate_electron_ion_config(config::_ElectronIonThermalConfig{T,N,S}, inner, species) where {T,N,S}
+    inner.shape isa S && config.policy == _electron_ion_policy(inner.shape) && isfinite(config.electron_mass) && config.electron_mass > 0 ||
         throw(ArgumentError("invalid electron-ion thermal policy or electron mass"))
     length(config.logarithm) == length(species) == length(config.binding) &&
         all(a -> isequal(config.logarithm[a], config.binding[a]) && isfinite(config.logarithm[a]) && config.logarithm[a] >= 0, eachindex(config.logarithm)) ||
         throw(ArgumentError("electron-ion Coulomb logarithms are fixed"))
     precision(T) + 16 <= config.log_bits <= 4096 ||
         throw(ArgumentError("invalid electron-ion entropy precision"))
-    _evolves_pressure(inner.model.closure) && inner.shape isa NGP &&
+    _evolves_pressure(inner.model.closure) && inner.shape isa Union{NGP,CIC,TSC} &&
         T(inner.model.closure.γ) == T(5 / 3) && iszero(inner.model.de2) ||
         throw(ArgumentError("electron-ion thermal model and shape are fixed"))
     return nothing
@@ -222,7 +236,7 @@ function _electron_ion_radius(value::T) where {T}
     return max(left, right) / 2
 end
 
-function _electron_ion_publish!(bins, ps, cell, old, target, rng)
+function _electron_ion_publish!(bins, ps, cell, old, target, rng, source_velocity = ps.v)
     T = eltype(ps.weight)
     Q = _ElectronIonQ
     if target == old.thermal
@@ -253,7 +267,7 @@ function _electron_ion_publish!(bins, ps, cell, old, target, rng)
         p = bins.index[k]
         w = _exact_rational(ps.weight[p])
         for c = 1:3
-            seed = iszero(old.thermal) ? bins.velocity[c][p] : ps.v[c][p]
+            seed = iszero(old.thermal) ? bins.velocity[c][p] : source_velocity[c][p]
             frame = old.mean[c] + scale * (_exact_rational(seed) - seed_mean[c])
             value = _from_exact(T, frame)
             radius = _electron_ion_radius(value)
@@ -313,7 +327,7 @@ function _electron_ion_endpoint_bounds(ps, bins, cell)
     return momentum, kinetic
 end
 
-function _electron_ion_coefficients(config, statistics, species, Ce, Te, volume, h, epsilon, number_scale, pi_bounds, ::Type{T}) where {T}
+function _electron_ion_coefficients(config, statistics, species, Ce, Te, volume, h, epsilon, number_scale, pi_bounds, ::Type{T}, incidence_weights = nothing) where {T}
     Q = _ElectronIonQ
     active = [!iszero(config.logarithm[a]) && !iszero(statistics[a].weight) for a in eachindex(species)]
     all_cold = iszero(Te) && all(a -> !active[a] || iszero(statistics[a].thermal), eachindex(species))
@@ -328,11 +342,210 @@ function _electron_ion_coefficients(config, statistics, species, Ce, Te, volume,
         mass, charge = _exact_rational(ps.m), _exact_rational(ps.q)
         S = Te / me + s.thermal / (s.capacity * mass)
         K = _exact_rational(h) * (Ce / s.capacity) * _exact_rational(number_scale) *
-            (s.weight / volume) * charge^2 * _exact_rational(config.logarithm[a]) /
+            ((incidence_weights === nothing ? s.weight : incidence_weights[a]) / volume) * charge^2 * _exact_rational(config.logarithm[a]) /
             (_exact_rational(epsilon)^2 * me * mass)
         push!(beta, _electron_ion_beta(T, K, S, pi_bounds))
     end
     return active, beta, all_cold
+end
+
+const _ELECTRON_ION_OVERLAP_KEYS = (
+    :policy, :time, :step, :dt, :shape, :frame_policy, :edge_order,
+    :density, :initial_pressure, :initial_frames, :incidence, :edges,
+    :frame_partition, :charge_defect, :energy_defect, :energy_bound,
+    :momentum_defect, :momentum_bound,
+)
+const _ELECTRON_ION_OVERLAP_FRAME_KEYS = (:species, :frame, :statistics)
+const _ELECTRON_ION_OVERLAP_INCIDENCE_KEYS = (:species, :frame, :node, :weight)
+const _ELECTRON_ION_OVERLAP_EDGE_KEYS = (
+    :species, :frame, :node, :weight, :beta, :cold,
+    :pressure_before, :pressure_after, :before, :after, :target,
+    :electron_target, :materialized, :entropy, :entropy_bounds, :energy_defect, :energy_bound,
+)
+
+function _electron_ion_overlap_empty_report(config::_ElectronIonThermalConfig{T,N,S}, time, step, dt) where {T,N,S}
+    Q = _ElectronIonQ
+    return (policy = 2, time = time, step = step, dt = dt, shape = _electron_ion_shape(S),
+        frame_policy = :periodic_floor_cell, edge_order = :species_frame_node,
+        density = nothing, initial_pressure = nothing, initial_frames = NamedTuple[],
+        incidence = NamedTuple[], edges = NamedTuple[], frame_partition = Q[],
+        charge_defect = Q[], energy_defect = zero(Q), energy_bound = zero(Q),
+        momentum_defect = (zero(Q), zero(Q), zero(Q)), momentum_bound = (zero(Q), zero(Q), zero(Q)))
+end
+
+function _electron_ion_overlap_layout!(work, species, inner)
+    _electron_ion_density!(work, species, inner)
+    strides = _particle_cell_strides(inner.g)
+    frames = NamedTuple[]
+    incidence = Dict{NTuple{3,Int},_ElectronIonQ}()
+    ncells = work.bins.ncells
+    for a in eachindex(species)
+        ps, bins = species[a], work.bins.populations[a]
+        _bin_coulomb_particles!(bins, ps, inner.g, strides)
+        for frame = 1:ncells
+            push!(frames, (species = a, frame = frame,
+                statistics = _electron_ion_stats(ps, bins, frame, bins.velocity)))
+        end
+        _foreach_exact_particle_contribution(ps, (ps.weight,), inner.g, inner.shape, Val(:periodic)) do index, weight, p
+            _electron_ion_finite(weight) && weight >= 0 ||
+                throw(ArgumentError("thermal overlap requires finite nonnegative stored shape factors"))
+            iszero(weight) && return nothing
+            node, frame = LinearIndices(inner.g.n)[index...], bins.cell[p]
+            key = (a, frame, node)
+            incidence[key] = get(incidence, key, zero(_ElectronIonQ)) + weight
+            return nothing
+        end
+    end
+    entries = NamedTuple[]
+    for (a, frame, node) in sort!(collect(keys(incidence)))
+        push!(entries, (species = a, frame = frame, node = node, weight = incidence[(a, frame, node)]))
+    end
+    partition = _ElectronIonQ[-row.statistics.weight for row in frames]
+    volume = prod(_exact_rational, inner.g.dx)
+    defect = map(x -> _exact_rational(x) * volume, work.density)
+    for edge in entries
+        f = (edge.species - 1) * ncells + edge.frame
+        partition[f] += edge.weight
+        defect[edge.node] -= _exact_rational(species[edge.species].q) * edge.weight
+    end
+    return frames, entries, partition, defect
+end
+
+# Components identify only the declared entirely-cold identity. They do not
+# introduce a solve, field scheduler, cutoff or omission of a mixed cold edge.
+function _electron_ion_overlap_plans(config, frames, incidence, density, pressure, species, inner, h, epsilon, number_scale)
+    ncells = length(density)
+    parent = collect(1:Base.checked_add(ncells, length(frames)))
+    rank = zeros(Int, length(parent))
+    function root(vertex)
+        while parent[vertex] != vertex
+            parent[vertex] = parent[parent[vertex]]
+            vertex = parent[vertex]
+        end
+        return vertex
+    end
+    for edge in incidence
+        iszero(config.logarithm[edge.species]) && continue
+        f = (edge.species - 1) * ncells + edge.frame
+        left, right = root(ncells + f), root(edge.node)
+        left == right && continue
+        if rank[left] < rank[right]
+            parent[left] = right
+        else
+            parent[right] = left
+            rank[left] == rank[right] && (rank[left] += 1)
+        end
+    end
+    hot = falses(length(parent))
+    for j in eachindex(pressure)
+        isfinite(pressure[j]) && pressure[j] >= 0 || throw(ArgumentError("thermal overlap pressure must be finite and nonnegative"))
+        pressure[j] > 0 && (hot[root(j)] = true)
+    end
+    for f in eachindex(frames)
+        frames[f].statistics.thermal > 0 && (hot[root(ncells + f)] = true)
+    end
+    T = eltype(density)
+    Q = _ElectronIonQ
+    volume = prod(_exact_rational, inner.g.dx)
+    gamma = _exact_rational(T(inner.model.closure.γ)) - 1
+    pi_bounds = _electron_ion_pi_bounds(T)
+    plans = NamedTuple[]
+    for edge in incidence
+        a, j = edge.species, edge.node
+        iszero(config.logarithm[a]) && continue
+        f = (a - 1) * ncells + edge.frame
+        old = frames[f].statistics
+        Ce = _exact_rational(density[j]) * volume / gamma
+        Te = _exact_rational(pressure[j]) / _exact_rational(density[j])
+        cold = !hot[root(j)]
+        if cold
+            beta = (zero(Q), zero(Q), zero(Q))
+        else
+            (iszero(Te) && iszero(old.thermal)) &&
+                throw(ArgumentError("singular mixed cold thermal overlap edge"))
+            iszero(old.thermal) && old.count < 2 &&
+                throw(ArgumentError("a single positive marker cannot receive momentum-preserving heat"))
+            local_config = (electron_mass = config.electron_mass, logarithm = (config.logarithm[a],))
+            _, coefficients, _ = _electron_ion_coefficients(local_config, (old,), (species[a],),
+                Ce, Te, volume, h, epsilon, number_scale, pi_bounds, T, (edge.weight,))
+            beta = coefficients[1]
+        end
+        push!(plans, merge(edge, (; beta, cold, Ce)))
+    end
+    return plans
+end
+
+function _electron_ion_overlap_entropy(before, after, Ce, density, pressure_before, pressure_after, bits)
+    Q = _ElectronIonQ
+    unchanged = before == after && isequal(pressure_before, pressure_after)
+    unchanged && return :unchanged, (zero(Q), zero(Q))
+    return _electron_ion_entropy((Ce, before.capacity),
+        (_exact_rational(pressure_before) / _exact_rational(density), before.thermal / before.capacity),
+        (_exact_rational(pressure_after) / _exact_rational(density), after.thermal / before.capacity), bits)
+end
+
+function _prepare_electron_ion_overlap!(config, work, inner, species, h, epsilon, number_scale, rng)
+    T = eltype(work.pressure)
+    Q = _ElectronIonQ
+    frames, incidence, partition, charge_defect = _electron_ion_overlap_layout!(work, species, inner)
+    copyto!(work.pressure, inner.fields.pe)
+    plans = _electron_ion_overlap_plans(config, frames, incidence, work.density,
+        work.pressure, species, inner, h, epsilon, number_scale)
+    initial_pressure = copy(work.pressure)
+    volume = prod(_exact_rational, inner.g.dx)
+    gamma = _exact_rational(T(inner.model.closure.γ)) - 1
+    edges = NamedTuple[]
+    energy_defect = energy_bound = zero(Q)
+    momentum_defect = momentum_bound = (zero(Q), zero(Q), zero(Q))
+    for plan in plans
+        a, f, j = plan.species, plan.frame, plan.node
+        ps, bins = species[a], work.bins.populations[a]
+        before = _electron_ion_stats(ps, bins, f, bins.velocity)
+        pressure_before = work.pressure[j]
+        Te = _exact_rational(pressure_before) / _exact_rational(work.density[j])
+        electron_target, targets = _electron_ion_targets(plan.Ce, Te, (before,), (plan.beta,))
+        target = targets[1]
+        materialized = _electron_ion_publish!(bins, ps, f, before, target, rng, bins.velocity)
+        after = _electron_ion_stats(ps, bins, f, bins.velocity)
+        all(c -> abs(after.momentum[c] - before.momentum[c]) <= materialized.momentum_bound[c], 1:3) &&
+            abs(after.kinetic - materialized.frame_energy) <= materialized.kinetic_bound ||
+            throw(ArgumentError("thermal overlap native frame certificate failed"))
+        change = after.kinetic - before.kinetic
+        exact_pressure = _exact_rational(pressure_before) - gamma * change / volume
+        exact_pressure >= 0 || throw(ArgumentError("thermal overlap actual heat exceeds its causal electron energy"))
+        pressure_after = iszero(change) ? pressure_before : _from_exact(T, exact_pressure)
+        radius = _electron_ion_radius(pressure_after)
+        abs(_exact_rational(pressure_after) - exact_pressure) <= radius ||
+            throw(ArgumentError("thermal overlap pressure exceeded its publication bound"))
+        !plan.cold && (pressure_after <= 0 || after.thermal <= 0) &&
+            throw(ArgumentError("thermal overlap target lost positive thermal energy"))
+        defect = change + volume * (_exact_rational(pressure_after) - _exact_rational(pressure_before)) / gamma
+        bound = volume * radius / gamma
+        abs(defect) <= bound || throw(ArgumentError("thermal overlap causal-node energy certificate failed"))
+        entropy, entropy_bounds = _electron_ion_overlap_entropy(before, after, plan.Ce,
+            work.density[j], pressure_before, pressure_after, config.log_bits)
+        work.pressure[j] = pressure_after
+        energy_defect += defect
+        energy_bound += bound
+        momentum_defect = ntuple(c -> momentum_defect[c] + after.momentum[c] - before.momentum[c], 3)
+        momentum_bound = ntuple(c -> momentum_bound[c] + materialized.momentum_bound[c], 3)
+        push!(edges, (species = a, frame = f, node = j, weight = plan.weight,
+            beta = plan.beta, cold = plan.cold, pressure_before = pressure_before,
+            pressure_after = pressure_after, before = before, after = after,
+            target = target, electron_target = electron_target, materialized = materialized,
+            entropy = entropy, entropy_bounds = entropy_bounds, energy_defect = defect, energy_bound = bound))
+    end
+    next_time, next_step = _validated_step_clock(inner.time[], inner.step[], h)
+    report = _electron_ion_overlap_empty_report(config, next_time, next_step, h)
+    work.pending = merge(report, (density = copy(work.density), initial_pressure = initial_pressure,
+        initial_frames = frames, incidence = incidence, edges = edges, frame_partition = partition,
+        charge_defect = charge_defect, energy_defect = energy_defect, energy_bound = energy_bound,
+        momentum_defect = momentum_defect, momentum_bound = momentum_bound))
+    for a in eachindex(species), c = 1:3
+        copyto!(species[a].v[c], work.bins.populations[a].velocity[c])
+    end
+    copyto!(inner.fields.pe, work.pressure)
+    return nothing
 end
 
 function _prepare_electron_ion!(config, work, inner, species, h, epsilon, number_scale, rng)
@@ -458,7 +671,7 @@ function _electron_ion_validate_statistics(s, mass, current)
     return nothing
 end
 
-function _electron_ion_validate_materialized(row, ps, bins, cell, ::Type{T}) where {T}
+function _electron_ion_validate_materialized(row, ps, bins, cell, ::Type{T}, caps = nothing) where {T}
     Q = _ElectronIonQ
     m, old, actual = row.materialized, row.before, row.after
     _electron_ion_record(m, _ELECTRON_ION_MATERIALIZED_KEYS)
@@ -487,17 +700,175 @@ function _electron_ion_validate_materialized(row, ps, bins, cell, ::Type{T}) whe
     mass = _exact_rational(ps.m)
     m.frame_energy == mass * old.weight * sum(x -> x * x, old.mean) / 2 + m.scale^2 * m.seed_energy ||
         throw(ArgumentError("electron-ion receipt frame energy is inconsistent"))
-    momentum_cap, kinetic_cap = _electron_ion_endpoint_bounds(ps, bins, cell)
-    all(c -> m.momentum_bound[c] == momentum_cap[c] &&
+    momentum_cap, kinetic_cap = caps === nothing ? _electron_ion_endpoint_bounds(ps, bins, cell) : caps
+    all(c -> (caps === nothing ? m.momentum_bound[c] == momentum_cap[c] : m.momentum_bound[c] <= momentum_cap[c]) &&
         abs(actual.momentum[c] - old.momentum[c]) <= m.momentum_bound[c], 1:3) &&
         m.kinetic_bound <= kinetic_cap && abs(actual.kinetic - m.frame_energy) <= m.kinetic_bound ||
         throw(ArgumentError("electron-ion receipt exceeds actual endpoint rounding bounds"))
     return nothing
 end
 
+# Historical intermediate frames have subsequently been rescaled. These caps
+# follow rho(x)<=u*abs(x)+eta and weighted Cauchy, using that edge's actual K.
+# Evolution still checks the tighter component/frame bounds before each edge.
+function _electron_ion_overlap_caps(statistics, mass, ::Type{T}) where {T}
+    Q = _ElectronIonQ
+    W, K = statistics.weight, statistics.kinetic
+    iszero(W) && return (zero(Q), zero(Q), zero(Q)), zero(Q)
+    S = 2K / mass
+    u = BigInt(1) // (BigInt(1) << precision(T))
+    eta = _exact_rational(nextfloat(zero(T)))
+    first = iszero(K) ? zero(Q) : _electron_ion_root_scale(T, W * S, RoundUp)
+    second = iszero(K) ? zero(Q) : _electron_ion_root_scale(T, 3W * S, RoundUp)
+    momentum = mass * (u * first + eta * W)
+    kinetic = mass * ((u + 3u^2 / 2) * S + (1 + 3u) * eta * second + 9eta^2 * W / 2)
+    return (momentum, momentum, momentum), kinetic
+end
+
+function _validate_electron_ion_overlap_roles(report)
+    report === nothing && return nothing
+    _electron_ion_record(report, _ELECTRON_ION_OVERLAP_KEYS)
+    roles = AbstractArray[]
+    for name in (:density, :initial_pressure, :initial_frames, :incidence, :edges, :frame_partition, :charge_defect)
+        array = getproperty(report, name)
+        array === nothing && name in (:density, :initial_pressure) && continue
+        array isa Array || throw(ArgumentError("thermal overlap receipt roles require standard Array storage"))
+        for other in roles
+            _particle_arrays_mightalias(array, other) &&
+                throw(ArgumentError("thermal overlap receipt roles must be independent"))
+        end
+        push!(roles, array)
+    end
+    return nothing
+end
+
+function _validate_electron_ion_overlap_report(report, config::_ElectronIonThermalConfig{T,N,S}, inner, species, fields, time, step, dt, epsilon, number_scale) where {T,N,S}
+    if step == 0
+        report === nothing || throw(ArgumentError("unadvanced thermal overlap cannot carry a report"))
+        return nothing
+    end
+    Q = _ElectronIonQ
+    _electron_ion_record(report, _ELECTRON_ION_OVERLAP_KEYS)
+    report.policy isa Int && report.policy == 2 && report.time isa T && isequal(report.time, time) &&
+        report.step isa Int && report.step == step && report.dt isa T && isequal(report.dt, dt) &&
+        report.shape === _electron_ion_shape(S) && report.frame_policy === :periodic_floor_cell &&
+        report.edge_order === :species_frame_node ||
+        throw(ArgumentError("thermal overlap receipt does not match policy, shape or source clock"))
+    _validate_electron_ion_overlap_roles(report)
+    if !_electron_ion_active(config)
+        expected = _electron_ion_overlap_empty_report(config, time, step, dt)
+        typeof(report) === typeof(expected) && isequal(report, expected) ||
+            throw(ArgumentError("inactive thermal overlap requires its empty numeric receipt"))
+        return nothing
+    end
+    report.density isa Array{T} && size(report.density) == inner.g.n &&
+        report.initial_pressure isa Array{T} && size(report.initial_pressure) == inner.g.n &&
+        all(x -> isfinite(x) && x >= 0, report.initial_pressure) &&
+        report.initial_frames isa Vector{NamedTuple} && report.incidence isa Vector{NamedTuple} &&
+        report.edges isa Vector{NamedTuple} && report.frame_partition isa Vector{Q} &&
+        report.charge_defect isa Array{Q} && size(report.charge_defect) == inner.g.n &&
+        all(_electron_ion_finite, report.frame_partition) && all(_electron_ion_finite, report.charge_defect) &&
+        _electron_ion_finite(report.energy_defect) && _electron_ion_finite(report.energy_bound) && report.energy_bound >= 0 &&
+        report.momentum_defect isa NTuple{3,Q} && all(_electron_ion_finite, report.momentum_defect) &&
+        report.momentum_bound isa NTuple{3,Q} && all(x -> _electron_ion_finite(x) && x >= 0, report.momentum_bound) ||
+        throw(ArgumentError("thermal overlap receipt has invalid array/scalar types or signs"))
+    work = _electron_ion_work(config, inner, species)
+    actual, incidence, partition, charge_defect = _electron_ion_overlap_layout!(work, species, inner)
+    isequal(report.density, work.density) && report.incidence == incidence &&
+        report.frame_partition == partition && report.charge_defect == charge_defect &&
+        length(report.initial_frames) == length(actual) ||
+        throw(ArgumentError("thermal overlap receipt differs from actual shape incidence or source inventory"))
+    ncells = work.bins.ncells
+    for f in eachindex(actual)
+        initial = report.initial_frames[f]
+        _electron_ion_record(initial, _ELECTRON_ION_OVERLAP_FRAME_KEYS)
+        initial.species isa Int && initial.species == actual[f].species &&
+            initial.frame isa Int && initial.frame == actual[f].frame ||
+            throw(ArgumentError("thermal overlap initial frame order is invalid"))
+        _electron_ion_validate_statistics(initial.statistics,
+            _exact_rational(species[initial.species].m), actual[f].statistics)
+    end
+    for edge in report.incidence
+        _electron_ion_record(edge, _ELECTRON_ION_OVERLAP_INCIDENCE_KEYS)
+        edge.species isa Int && edge.frame isa Int && edge.node isa Int &&
+            _electron_ion_finite(edge.weight) && edge.weight > 0 ||
+            throw(ArgumentError("thermal overlap incidence has invalid scalar types or signs"))
+    end
+    plans = _electron_ion_overlap_plans(config, report.initial_frames, incidence,
+        work.density, report.initial_pressure, species, inner, dt, epsilon, number_scale)
+    length(report.edges) == length(plans) || throw(ArgumentError("thermal overlap receipt omits or adds active edges"))
+    current = [row.statistics for row in report.initial_frames]
+    pressure = copy(report.initial_pressure)
+    volume = prod(_exact_rational, inner.g.dx)
+    gamma = _exact_rational(T(inner.model.closure.γ)) - 1
+    energy_defect = energy_bound = zero(Q)
+    momentum_defect = momentum_bound = (zero(Q), zero(Q), zero(Q))
+    for k in eachindex(plans)
+        plan, row = plans[k], report.edges[k]
+        _electron_ion_record(row, _ELECTRON_ION_OVERLAP_EDGE_KEYS)
+        row.species isa Int && row.species == plan.species && row.frame isa Int && row.frame == plan.frame &&
+            row.node isa Int && row.node == plan.node && _electron_ion_finite(row.weight) && row.weight == plan.weight &&
+            row.beta isa NTuple{3,Q} && all(_electron_ion_finite, row.beta) && row.beta == plan.beta &&
+            row.cold isa Bool && row.cold === plan.cold && row.pressure_before isa T &&
+            isequal(row.pressure_before, pressure[plan.node]) && row.pressure_after isa T &&
+            isfinite(row.pressure_after) && row.pressure_after >= 0 &&
+            _electron_ion_finite(row.target) && row.target >= 0 &&
+            _electron_ion_finite(row.electron_target) && row.electron_target >= 0 &&
+            _electron_ion_finite(row.energy_defect) && _electron_ion_finite(row.energy_bound) && row.energy_bound >= 0 &&
+            row.entropy_bounds isa NTuple{2,Q} && all(_electron_ion_finite, row.entropy_bounds) ||
+            throw(ArgumentError("thermal overlap edge order, coefficients or numeric leaves are invalid"))
+        f = (plan.species - 1) * ncells + plan.frame
+        ps, bins = species[plan.species], work.bins.populations[plan.species]
+        mass = _exact_rational(ps.m)
+        _electron_ion_validate_statistics(row.before, mass, actual[f].statistics)
+        _electron_ion_validate_statistics(row.after, mass, actual[f].statistics)
+        row.before == current[f] || throw(ArgumentError("thermal overlap frame chain is broken"))
+        Te = _exact_rational(row.pressure_before) / _exact_rational(work.density[plan.node])
+        electron_target, targets = _electron_ion_targets(plan.Ce, Te, (row.before,), (plan.beta,))
+        row.target == targets[1] && row.electron_target == electron_target ||
+            throw(ArgumentError("thermal overlap edge differs from its conservative pair target"))
+        _electron_ion_validate_materialized(row, ps, bins, plan.frame, T,
+            _electron_ion_overlap_caps(row.after, mass, T))
+        !plan.cold && (row.pressure_after <= 0 || row.after.thermal <= 0) &&
+            throw(ArgumentError("thermal overlap receipt lost positive thermal energy"))
+        change = row.after.kinetic - row.before.kinetic
+        exact_pressure = _exact_rational(row.pressure_before) - gamma * change / volume
+        expected = iszero(change) ? row.pressure_before : _from_exact(T, exact_pressure)
+        exact_pressure >= 0 && isequal(expected, row.pressure_after) ||
+            throw(ArgumentError("thermal overlap receipt does not pay actual heat at its causal node"))
+        defect = change + volume * (_exact_rational(row.pressure_after) - _exact_rational(row.pressure_before)) / gamma
+        bound = volume * _electron_ion_radius(row.pressure_after) / gamma
+        row.energy_defect == defect && row.energy_bound == bound && abs(defect) <= bound ||
+            throw(ArgumentError("thermal overlap edge energy identity is inconsistent"))
+        entropy, entropy_bounds = _electron_ion_overlap_entropy(row.before, row.after, plan.Ce,
+            work.density[plan.node], row.pressure_before, row.pressure_after, config.log_bits)
+        row.entropy === entropy && row.entropy_bounds == entropy_bounds ||
+            throw(ArgumentError("thermal overlap actual edge entropy is inconsistent"))
+        pressure[plan.node] = row.pressure_after
+        current[f] = row.after
+        energy_defect += defect
+        energy_bound += bound
+        momentum_defect = ntuple(c -> momentum_defect[c] + row.after.momentum[c] - row.before.momentum[c], 3)
+        momentum_bound = ntuple(c -> momentum_bound[c] + row.materialized.momentum_bound[c], 3)
+    end
+    all(f -> current[f] == actual[f].statistics, eachindex(actual)) && isequal(pressure, fields.pe) ||
+        throw(ArgumentError("thermal overlap trace does not reach the saved physical endpoint"))
+    kinetic_change = sum((actual[f].statistics.kinetic - report.initial_frames[f].statistics.kinetic for f in eachindex(actual)); init = zero(Q))
+    electron_change = volume * sum((_exact_rational(fields.pe[j]) - _exact_rational(report.initial_pressure[j]) for j in eachindex(pressure)); init = zero(Q)) / gamma
+    energy_defect == kinetic_change + electron_change && report.energy_defect == energy_defect &&
+        report.energy_bound == energy_bound && abs(energy_defect) <= energy_bound &&
+        report.momentum_defect == momentum_defect && report.momentum_bound == momentum_bound &&
+        all(c -> abs(momentum_defect[c]) <= momentum_bound[c], 1:3) ||
+        throw(ArgumentError("thermal overlap global native energy/momentum budget does not telescope"))
+    return nothing
+end
+
 # Validation uses current endpoint particles and pressure, not a collision/RNG
 # replay. Fresh derived bins/deposition are private and never published.
 function _validate_electron_ion_report(report, config, inner, species, fields, time, step, dt, epsilon, number_scale)
+    config.policy == 2 && return _validate_electron_ion_overlap_report(
+        report, config, inner, species, fields, time, step, dt, epsilon, number_scale,
+    )
     if step == 0
         report === nothing || throw(ArgumentError("unadvanced electron-ion state cannot carry a report"))
         return nothing

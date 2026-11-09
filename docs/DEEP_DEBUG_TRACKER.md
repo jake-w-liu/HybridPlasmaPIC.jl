@@ -154,9 +154,22 @@ Current work:
   The independent 352-line essential covers physical coefficients, actual
   moments/force, cold draws, sparse/late failure and raw/archive continuation.
   It is registered in full/focused CI; all new executable, scientific and resource
-  acceptance remains pending. The separately approved CIC/TSC extension now
-  implements stored-shape overlap and conservative ordered edge exchange in
-  four production owners and the guide. Drag, inertia and backends remain open.
+  acceptance remains pending. Its integration is pushed at `c742258`; the
+  [focused run](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42580430039)
+  and full CI remain queued at this snapshot.
+- The CIC/TSC extension has complete four-owner source/223-line guide review and
+  exact adoption on `c742258`. Actual stored-shape incidence, periodic duplicate
+  images and explicit partition/charge defects feed an ordered conservative
+  frame/node edge sweep. Each causal electron node pays that edge's actual ion
+  kinetic change; native budgets telescope. Historical receipt bounds use the
+  approved derived IEEE/Cauchy caps; actual evolution retains tighter component
+  gates. Complete policy2/schema3 includes fixed shape/order, frame/node chains,
+  full endpoint/RNG restore and default/NGP preservation. The independent
+  317-line essential checks off-node D1–3 weights, physical rates, exact pair
+  heat flux, actual budgets/feedback, cold/sparse/late undo and malformed/raw/archive
+  continuation. All new runtime/scientific/resource acceptance remains pending.
+  CGL ion-only composition is now in read-only source/physics design. Consistent
+  electron-ion drag, inertia and backends remain open.
 - Coupled EMPIC error control has an approved 415-line V3 contract and active
   seven-path production implementation, with an independent guide/essential
   worker. It uses a full-time projected Euler/Heun pair, distinct endpoint

@@ -113,7 +113,7 @@ Source names below resolve to these canonical files:
 | External validation | Pinned external references plus case 34 parallel and case 35 oblique Hall production histories | Bounded production validation exists; complete manual campaigns, broader regimes, full profile replay and matched cost/accuracy comparisons remain CAP-007 work |
 | Kinetic species diversity | Arbitrary ES collections landed; CPU EMPIC collections with opt-in D1–3 dividing schedules and specialized EMPIC1D S1/S2, both with optional relativistic motion are source-implemented and reviewed | Existing exact-revision GitHub controls pass; scientific/resource acceptance, broader schedules and collision/boundary/partition/device composition remain CAP-008 work |
 | Multidimensional shocks | Existing reduced shocks plus separate [OpenHallHybrid source](OPEN_HALL_HYBRID.md), built on real mixed operators | Bounded isothermal numerical reservoirs, full-Hall projected field trials, SBP CIC, synchronous particles/sources, energy and full RNG restart are source-implemented/reviewed. Existing numerical/rejection/continuation controls pass CI; physical-boundary/refinement/resource acceptance, evolving pressure and broader boundaries/backends remain CAP-009 work |
-| Coupled sources and collisions | `CollisionalElectrostaticPIC` / `CollisionalEMPICStepper` source with deferred acceptance; `CollisionalHybridStepper` and full RNG checkpoint/archive state (`2b2420b`); ideal evolving, S1/S2 transport and S3b conduction pressure/force extensions have exact-revision CI controls | Fixed-step first-order CPU composition plus bounded actual-pencil ES/EM physical/RNG source families; reduced NGP electron-ion heat exchange has reviewed source/essential integration and pending acceptance. CIC/TSC overlap is in implementation; anisotropic/inertial models, other sources, schedules and backends remain CAP-010 work |
+| Coupled sources and collisions | `CollisionalElectrostaticPIC` / `CollisionalEMPICStepper` source with deferred acceptance; `CollisionalHybridStepper` and full RNG checkpoint/archive state (`2b2420b`); ideal evolving, S1/S2 transport and S3b conduction pressure/force extensions have exact-revision CI controls | Fixed-step first-order CPU composition plus bounded actual-pencil ES/EM physical/RNG source families; reduced NGP and CIC/TSC electron-ion heat exchange have reviewed source/essential integration and pending acceptance. CGL ion-only composition is in read-only design; inertial models, other sources, schedules and backends remain CAP-010 work |
 | Electron transport | `EvolvingElectrons` covers ideal massless pressure; `TransportElectrons` provides constant Ohmic transport (S1), with complete-source hyperresistive S2 and shared scalar pressure range routing. `ConductingElectrons` adds an original-quotient S3b source candidate with bounded preparation and projected full-Nyquist conduction | [S2 gates](TRANSPORT_SOURCE_RANGE_PLAN.md), [scalar pressure verification](SCALAR_PRESSURE_RATE_RANGE_PLAN.md) and [S3b GitHub verification](EVOLVING_ELECTRONS.md#constant-isotropic-conduction-source-candidate) remain open; broader conditioning, complete-step cost, conduction models, equilibration, anisotropy, inertia and backends remain CAP-011 work |
 
 At the initial assessment, the geometry symbol search found only primitive
@@ -237,12 +237,14 @@ has completed source review and root integration. Canonical implicit-hybrid
 evolving scalar pressure is integrated, preserving schema1. Grounded
 multidimensional adaptive ES, persistent species schedules and field-aligned
 scalar conduction now have reviewed source and canonical integration. Three
-workers now implement CIC/TSC thermal overlap and coupled EMPIC error control;
+workers now derive CGL ion-only composition and implement coupled EMPIC error control;
 the controller's child owns its independent guide and essentials. Periodic AMR
 has completed source review/adoption and canonical integration with independent
 controls. Reduced NGP thermal exchange has complete source/essential review and
-canonical integration, with all new executable acceptance pending. Its overlap
-extension has an approved 171-line contract. The 415-line coupled controller
+canonical integration, with all new executable acceptance pending. Its CIC/TSC
+overlap extension has complete source/guide/independent-essential review and
+canonical integration on `c742258`, including derived historical rounding caps
+and distinct policy2/schema3 continuation. The 415-line coupled controller
 contract is approved, including actual branch-charge correction and a distinct
 full-time phase; first-mode shape support is CIC/TSC. The separate two-owner JET
 representation repair is pushed at `566ddc1` with its fixed compiler cap intact.
@@ -278,7 +280,7 @@ the linked workflow owns current exclusive file assignments.
 | 008 ES/EM arbitrary species | Canonical ES/EM collection owners | Existing deposition, Maxwell, phase and persistence owners | Dividing schedules retain their checked scope. [Persistent deadlines, sampled-state limits and schema3](EMPIC_SPECIES_IMPLEMENTATION.md#persistent-nondividing-species-schedules) have reviewed source and registrations; new remote acceptance pending. Distinct full-time CIC/TSC coupled error control is in approved implementation | Complete controller/source integration and actual phase/current/restart/refinement/cost acceptance; broader shape/source/collision/boundary/backend intersections remain |
 | 009 full-Hall multidimensional shocks | Root integration of frozen Hall A and B source | Mixed operators and reviewed bounded field/reservoir/time/phase contract | Complete [numerical-reservoir core](OPEN_HALL_HYBRID.md) and [full physical/RNG IO](OPEN_HALL_HYBRID_CHECKPOINT.md) source reviewed; essential remote regressions prepared | Exact-revision runtime, boundary/convergence, failure/restart, compiler and resource acceptance; broader physics remains open |
 | 010 composed sources and RNG restart | Integrator/checkpoint owners; independent collision audit track | 001 and phase/growth/checkpoint contracts | Fixed-step first-order isothermal CPU `CollisionalHybridStepper` landed; `2b2420b` exact-SHA CI/compiler gates pass. Ideal evolving, S1/S2 transport and S3b conduction extensions implemented, CI pending | Bounded generic collisional ES/EMPIC source is implemented; accept current extensions, then extend schedules, other closures/models/sources and backends; preserve full pressure/force/RNG/phase/rollback contract |
-| 011 electron transport/energy | Canonical electron/integrator/diagnostic owners | Term-specific balance and carried-force contract | S1 is landed; S2/S3b and field-aligned scalar conduction have current source/registrations. HPIC requires registered SpectralOperators0.1.9. Reduced [NGP electron-ion exchange](ELECTRON_ION_THERMAL_EXCHANGE.md) has reviewed source/essentials and schema2 integration; CIC/TSC overlap is in approved implementation | Complete exact-head HPIC, resource/conditioning and science gates; overlap exchange, drag, flux limiting, pressure tensors, full inertia, boundaries and backends remain open |
+| 011 electron transport/energy | Canonical electron/integrator/diagnostic owners | Term-specific balance and carried-force contract | S1 is landed; S2/S3b and field-aligned scalar conduction have current source/registrations. HPIC requires registered SpectralOperators0.1.9. Reduced [NGP/CIC/TSC electron-ion exchange](ELECTRON_ION_THERMAL_EXCHANGE.md) has reviewed source/essentials and distinct schema2/3 integration | Complete exact-head HPIC, resource/conditioning and science gates; consistent drag, flux limiting, pressure tensors, full inertia, boundaries and backends remain open |
 
 For every row, its detailed section below supplies the required conservation,
 accuracy/convergence, error/rollback, restart, parallel, hardware, performance and
@@ -1014,7 +1016,8 @@ sources one by one with their own conservation/accuracy contracts.
   full exact-revision CI remains pending.
   Anisotropic/inertial composition remains open. Reduced NGP electron-ion
   heat exchange now has reviewed source/essential integration and pending
-  acceptance; its CIC/TSC overlap extension is in implementation.
+  acceptance; its CIC/TSC overlap extension now has reviewed source/essentials
+  and canonical integration with distinct policy2/schema3 continuation.
   Full exact-revision CI passed at `b5ce21a` (run 41683122086); the two
   broader composition items are separate extensions.
 - [ ] Persist complete RNG state/stream assignment, split phase, source clocks,

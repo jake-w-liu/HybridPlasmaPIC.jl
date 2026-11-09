@@ -35,7 +35,8 @@ with constant `η ≥ 0`, `ηH ≥ 0`
 and `de2 = 0`. Conduction retains its original-quotient numerical policy and guard.
 With stored pressure, initialize `inner.fields.pe` before `init!`; the field
 substep evolves pressure and the ion-ion collision substep leaves it unchanged.
-Thermal exchange additionally requires NGP, grid γ=T(5/3) and actual ne≥nfloor;
+Thermal exchange requires grid γ=T(5/3) and actual ne≥nfloor. NGP keeps its
+simultaneous nodal star; CIC/TSC use ordered positive frame/node overlap edges;
 it omits drag and finite electron momentum. Ohmic/hyperresistive heating and
 conduction occur only in the field stages. Transport rolls back its independently
 carried ion force as well as the full E. The ordered populations,
@@ -513,6 +514,9 @@ end
 _apply_electron_ion!(::Nothing, st, species, h) = nothing
 function _apply_electron_ion!(config::_ElectronIonThermalConfig, st, species, h)
     _electron_ion_active(config) || return nothing
+    config.policy == 2 && return _prepare_electron_ion_overlap!(
+        config, st.thermal_work, st.inner, species, h, st.epsilon0, st.weight_to_number, st.rng,
+    )
     return _prepare_electron_ion!(config, st.thermal_work, st.inner, species, h,
         st.epsilon0, st.weight_to_number, st.rng)
 end
@@ -553,8 +557,9 @@ function _validate_electron_ion_clock(st::CollisionalHybridStepper)
     if st.source_count == 0
         report === nothing || throw(ArgumentError("unadvanced electron-ion state cannot carry a report"))
     else
-        _electron_ion_record(report, _ELECTRON_ION_REPORT_KEYS)
-        report.policy === 1 && isequal(report.time, st.source_time) &&
+        report_keys = st.electron_ion.policy == 1 ? _ELECTRON_ION_REPORT_KEYS : _ELECTRON_ION_OVERLAP_KEYS
+        _electron_ion_record(report, report_keys)
+        report.policy === st.electron_ion.policy && isequal(report.time, st.source_time) &&
             report.step === st.source_count && isequal(report.dt, st.dt) ||
             throw(ArgumentError("electron-ion report does not match the source clock"))
     end
@@ -569,6 +574,11 @@ function _commit_electron_ion_report!(st::CollisionalHybridStepper)
             throw(ArgumentError("electron-ion source did not prepare its completed report"))
         st.thermal_report = report
     else
+        if st.electron_ion.policy == 2
+            st.thermal_report = _electron_ion_overlap_empty_report(st.electron_ion,
+                st.source_time, st.source_count, st.dt)
+            return nothing
+        end
         st.thermal_report = (policy = 1, time = st.source_time, step = st.source_count,
             dt = st.dt, cells = NamedTuple[])
     end

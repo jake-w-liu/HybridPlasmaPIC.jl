@@ -116,7 +116,7 @@ jobs:
               "electromagnetic-species" => ("test_empic_species.jl", "test_empic1d_species.jl", "test_empic_relativistic_species.jl", "test_relativistic_energy_range.jl", "test_empic.jl", "test_empic1d.jl", "test_electrostatic_species_diversity.jl", "test_electrostatic_species.jl"),
               "persistent-species" => ("test_empic_persistent_schedule.jl", "test_empic_species_schedule.jl", "test_empic_species.jl", "test_empic1d_species.jl", "test_empic_relativistic_species.jl"),
               "collisional-transport" => ("test_collisional_hybrid.jl", "test_collisional_checkpoint.jl", "test_collisional_physics.jl"),
-              "electron-ion-thermal" => ("test_electron_ion_thermal_exchange.jl", "test_collisional_hybrid.jl", "test_collisional_checkpoint.jl", "test_collisional_physics.jl"),
+              "electron-ion-thermal" => ("test_electron_ion_thermal_exchange.jl", "test_electron_ion_overlap.jl", "test_collisional_hybrid.jl", "test_collisional_checkpoint.jl", "test_collisional_physics.jl"),
               "particle-accuracy" => ("test_boris_accuracy.jl", "test_relativistic_species_factors.jl", "test_relativistic_output_closure.jl"),
               "electromagnetic-continuity" => ("test_empic_relativistic_species.jl",),
               "electron-conduction" => ("test_electron_conduction.jl", "test_evolving_pressure.jl", "test_transport_electrons.jl", "test_transport_electrons_io.jl", "test_transport_hyperresistivity.jl", "test_scalar_pressure_range.jl"),
