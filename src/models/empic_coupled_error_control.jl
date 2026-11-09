@@ -299,12 +299,11 @@ function _ec_new_stage(
 ) where {T}
     return _new_empic1d_state(es.g, 0, es.n0, c, shape, relativistic, false, one(T), n_sub, nothing)
 end
-function _ec_restore_fields!(stage::Union{EMPIC,EMPIC1D}, fields::NamedTuple)
-    if stage isa EMPIC
-        fields = fields::NamedTuple{(:E, :B, :J, :rho_n, :rho_np1, :Jraw)}
-    else
-        fields = fields::NamedTuple{(:Ex, :Ey, :Bz, :Jx, :Jy, :rho_n, :rho_np1)}
-    end
+function _ec_restore_fields!(stage::EMPIC, fields::NamedTuple)
+    _restore_checkpoint_fields!(_empic_event_fields(stage), fields)
+    return stage
+end
+function _ec_restore_fields!(stage::EMPIC1D, fields::NamedTuple)
     _restore_checkpoint_fields!(_empic_event_fields(stage), fields)
     return stage
 end

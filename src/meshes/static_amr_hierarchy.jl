@@ -52,6 +52,32 @@ struct StaticAMRHierarchy1D{T<:Union{Float32,Float64},S<:Tuple}
     owner_patch::Vector{Int}
     owner_cell::Vector{Int}
     interfaces::Vector{Int}
+
+    function StaticAMRHierarchy1D{T,S}(
+        nbase::Int,
+        L::T,
+        refinements::S,
+        patches::Vector{_StaticAMRPatch1D},
+        vertices::Vector{_CompositeQ},
+        widths::Vector{_CompositeQ},
+        dual_volumes::Vector{_CompositeQ},
+        owner_patch::Vector{Int},
+        owner_cell::Vector{Int},
+        interfaces::Vector{Int},
+    ) where {T<:Union{Float32,Float64},S<:Tuple}
+        return new{T,S}(
+            nbase,
+            L,
+            refinements,
+            patches,
+            vertices,
+            widths,
+            dual_volumes,
+            owner_patch,
+            owner_cell,
+            interfaces,
+        )
+    end
 end
 
 function _static_amr_specs(refinements)

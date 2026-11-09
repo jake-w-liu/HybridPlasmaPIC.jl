@@ -729,11 +729,18 @@ end
 
 # Opposite face/edge/corner images of a touching leaf or point. The caller's
 # canonical tree query only visits physical overlaps of these translated boxes.
-function _camr_contact_images(L::NTuple{D}, lo, hi) where {D}
-    choices =
-        ntuple(d -> iszero(lo[d]) ? (0, 1) : (hi[d] == _exact_rational(L[d]) ? (0, -1) : (0,)), D)
+function _camr_contact_images(
+    L::NTuple{D},
+    lo::NTuple{D,_CompositeQ},
+    hi::NTuple{D,_CompositeQ},
+) where {D}
     result = Tuple{NTuple{D,_CompositeQ},NTuple{D,_CompositeQ}}[]
-    for shift in Iterators.product(choices...)
+    for bit in _camr_bits(Val(D))
+        shift = ntuple(
+            d -> iszero(lo[d]) ? (iszero(bit[d]) ? 0 : 1) :
+                (hi[d] == _exact_rational(L[d]) ? (iszero(bit[d]) ? 0 : -1) : 0),
+            D,
+        )
         all(iszero, shift) && continue
         push!(
             result,
