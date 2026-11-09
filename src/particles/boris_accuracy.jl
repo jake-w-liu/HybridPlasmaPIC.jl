@@ -17,9 +17,22 @@ _boris_exact_factor(f::_BorisSpeciesFactors) = _exact_rational(f.q) / _exact_rat
 
 # The carrier specialization is defined after its type; kinematics_range.jl is
 # included first and owns the scalar-coefficient priming method.
-function _rel_prime_exact_coefficient(factor::_BorisSpeciesFactors)
+@inline function _rel_prime_exact_coefficient(factor::_BorisSpeciesFactors)
     qm = _boris_native_factor(factor)
-    return isfinite(qm) && _boris_exact_factor(factor) == _exact_rational(qm)
+    isfinite(qm) || return false
+    q, m = factor.q, factor.m
+    if _boris_accuracy_mode() && all(isfinite, (q, m)) &&
+       !iszero(q) && !iszero(m) && !iszero(qm)
+        q_fraction, q_exponent = frexp(Float64(q))
+        m_fraction, m_exponent = frexp(Float64(m))
+        qm_fraction, qm_exponent = frexp(Float64(qm))
+        shift = q_exponent - qm_exponent - m_exponent
+        -1 <= shift <= 0 || return false
+        # Normalized products/targets lie around unity. A nonzero residual
+        # has quantum at least 2^-106, so this FMA cannot underflow to zero.
+        return iszero(fma(qm_fraction, m_fraction, -ldexp(q_fraction, shift)))
+    end
+    return _boris_exact_factor(factor) == _exact_rational(qm)
 end
 
 @inline _boris_accuracy_mode() = rounding(Float64) === RoundNearest && !get_zero_subnormals()
@@ -65,16 +78,15 @@ end
 end
 @inline function _boris_relative_coefficient(factor::_BorisSpeciesFactors{T}, ::Type{T}) where {T}
     u = ldexp(1.0, -precision(T))
-    # hq = fl(fl(q/m) * (dt/2)) carries one product rounding plus the quotient
-    # rounding when fl(q/m) != q/m. fma(qm, m, -q) forms qm*m - q from the
-    # exact product with a single rounding, so it is zero exactly when qm is
-    # the correctly rounded quotient; charge only the product rounding then.
+    # The native half coefficient carries one product rounding, plus the
+    # quotient rounding unless the stored quotient equals original q/m.
+    # The shared exact-coefficient owner avoids a residual lost to underflow.
     q, m, qm = factor.q, factor.m, factor.qm
     isfinite(q) &&
         isfinite(m) &&
         isfinite(qm) &&
         abs(qm) >= floatmin(T) &&
-        iszero(fma(qm, m, -q)) &&
+        _rel_prime_exact_coefficient(factor) &&
         return u
     return _boris_upper_add(_boris_upper_mul(2.0, u), _boris_upper_mul(u, u))
 end
@@ -92,7 +104,7 @@ end
     # An IEEE product with a stored exact-zero operand and zero radius is
     # exact: the result is a signed zero with no rounding, so no error from
     # the other operand or from the node's own rounding propagates through it.
-    (iszero(a) && iszero(ea)) || (iszero(b) && iszero(eb)) && return 0.0
+    ((iszero(a) && iszero(ea)) || (iszero(b) && iszero(eb))) && return 0.0
     return _boris_upper_add(
         _boris_upper_add(
             _boris_upper_add(_boris_upper_mul(abs(a), eb), _boris_upper_mul(abs(b), ea)),

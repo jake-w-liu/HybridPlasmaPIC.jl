@@ -877,4 +877,46 @@ end
         @test get_zero_subnormals() == oldmode
     end
 end
+
+@testset "Boris certificate range and residual boundaries" begin
+    q, m = floatmin(Float64), 0.75
+    for sign in (-1.0, 1.0)
+        factor = H._BorisSpeciesFactors(sign * q, m, sign * q / m)
+        @test Q(factor.qm) * Q(m) != Q(factor.q)
+        @test !H._rel_prime_exact_coefficient(factor)
+        @test H._boris_relative_coefficient(factor, Float64) > ldexp(1.0, -precision(Float64))
+    end
+    @test H._rel_prime_exact_coefficient(H._BorisSpeciesFactors(q, 1.0, q))
+    for (T, qm, h, electric) in (
+        (Float16, Float16(1), ldexp(Float16(1), -24), Float16(2)),
+        (Float32, ldexp(1.0f0, -50), ldexp(1.0f0, -100), 4.0f0),
+    )
+        z = zero(T)
+        args = (z, z, z, electric, z, z, z, z, z, qm, h)
+        native, parts = H._boris_kick_parts(args...)
+        reference, _ = exact_reference((z, z, z), (electric, z, z), (z, z, z), qm, h)
+        @test all(iszero, native)
+        @test !H._boris_kick_in_range(native, parts, z, z, z, qm, h)
+        @test isequal(boris_kick(args...), map(x -> nearest(T, x), reference))
+    end
+    args = (0.0, 0.0, 0.0, 0x1p-100, 0.0, 0.0, 0.0, 0.0, 0.0, 0x1p1000, 0x1p-100)
+    native, parts = H._boris_kick_parts(args...)
+    @test !H._boris_kick_dd(native, parts, args...)
+    @test boris_kick(args...) == (0x1p800, 0.0, 0.0)
+    ball = H._RelBorisBound((1.0, 0x1p-54), 0.0)
+    @test Q(H._rel_boris_distance(ball, 1.0)) >= Q(2)^(-54)
+    args = (0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.25)
+    native, parts = H._boris_kick_parts(args...)
+    oldmode = get_zero_subnormals()
+    try
+        set_zero_subnormals(true)
+        @test get_zero_subnormals()
+        @test !H._boris_kick_dd(native, parts, args...)
+    finally
+        set_zero_subnormals(oldmode)
+    end
+    @test get_zero_subnormals() == oldmode
+    @test H._boris_product_error(0.0, 1.0, 0.0, 0.5, 0.25) == 0.0
+    @test H._boris_product_error(1.0, 0.0, 0.5, 0.0, 0.25) == 0.0
+end
 end

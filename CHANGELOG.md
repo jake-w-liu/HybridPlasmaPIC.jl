@@ -421,6 +421,14 @@ records scoped verification and remaining exact-revision acceptance gates.
 
 ### Fixed
 
+- Boris native certification normalizes original quotient equality before its
+  FMA residual test, preserving inexact ratios whose residual would underflow.
+  The DD tier retains the original native range and arithmetic-mode requirements,
+  checks its coefficient/norm domain, and uses the canonical full low-word
+  outward distance. Exact-zero multiplication treats either operand symmetrically.
+  Physical formulas, exact replay and four-ulp tolerances are unchanged; remote
+  regression/compiler/resource acceptance remains required.
+
 - `ImplicitEMPICStepper` now publishes divergence-consistent endpoint fields
   inside every residual: trial E is projected onto the endpoint charge and
   trial B is projected divergence-free before midpoint fields, gathers, curls
