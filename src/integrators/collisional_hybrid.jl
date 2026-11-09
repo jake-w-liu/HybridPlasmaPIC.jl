@@ -574,9 +574,12 @@ end
 _apply_electron_ion!(::Nothing, st, species, h) = nothing
 function _apply_electron_ion!(config::_ElectronIonThermalConfig, st, species, h)
     _electron_ion_active(config) || return nothing
+    work = st.thermal_work
+    work === nothing &&
+        throw(ArgumentError("active electron-ion exchange requires thermal work storage"))
     config.policy == 2 && return _prepare_electron_ion_overlap!(
         config,
-        st.thermal_work,
+        work,
         st.inner,
         species,
         h,
@@ -586,7 +589,7 @@ function _apply_electron_ion!(config::_ElectronIonThermalConfig, st, species, h)
     )
     return _prepare_electron_ion!(
         config,
-        st.thermal_work,
+        work,
         st.inner,
         species,
         h,
