@@ -1,9 +1,11 @@
 # Synchronous implicit electromagnetic collections
 
 `ImplicitEMPICStepper` is a distinct coupled source implementation. It solves
-particle velocities and both Maxwell fields together. Numerical, compiler,
-restart and resource acceptance remain pending remote verification; source
-implementation is not an exact energy or stability theorem.
+particle velocities and both Maxwell fields together. Existing numerical,
+rejection and restart regressions pass in group 1 of the exact-main
+[CI run](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41813949753)
+on Julia 1.12.7/1.13.3. Method refinement, independent-code and resource
+acceptance remain open; this is not an exact energy or stability theorem.
 
 ## Supported boundary and API
 
@@ -143,7 +145,7 @@ private charge/constraint validation does not reconstruct public fields. No
 priming, recentering, projection or nonlinear re-solve occurs. Other explicit or
 hybrid payloads reject with no implicit migration.
 
-All actual convergence/order/dispersion, failure/reuse/restart, compiler/format
-and matched physical-error cost acceptance remains open. Larger stable-looking
+Broader convergence/order/dispersion, failure/reuse/restart and matched
+physical-error cost acceptance remain open beyond the existing CI controls. Larger stable-looking
 steps or the vacuum linear CN response do not establish nonlinear stability or
 resolved kinetic physics. Exact-head remote CI must close for every push.

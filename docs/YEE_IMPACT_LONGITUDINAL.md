@@ -3,8 +3,10 @@
 `YeeImpactLongitudinalPIC` is a distinct nonrelativistic CPU Float32/64 model.
 The source implements zero contacts or one certified common contact cluster per
 external step, using at most two synchronized local kick-drift-kick chunks.
-Exact-revision GitHub runtime, convergence, rollback/restart, compiler, formatting
-and complete-step resource acceptance remain pending. This is an additional
+Existing event, rollback/restart and concrete compiler controls pass in group 11
+of the exact-main [CI run](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41813949753)
+on Julia 1.12.7/1.13.3. Broader convergence and complete-step resource acceptance
+remain open. This is an additional
 bounded capability, not completion of all bounded PIC or a material sheath model.
 
 ```julia
@@ -88,6 +90,6 @@ schema4 metadata/checksum container and atomic publication owners.
 The existing longitudinal manual suite includes compact independent physical-
 volume/current/work, bounded travel-time refinement, mixed selected/nonselected
 particles, carried remainder clearance, common-time rejection, branch,
-late-failure/retry, view/empty/restart and concrete compiler controls. They remain
-unrun for this candidate. Absorption/emission, circuits, multiple clusters, transverse walls,
+late-failure/retry, view/empty/restart and concrete compiler controls. These now
+pass in the exact-main run linked above. Absorption/emission, circuits, multiple clusters, transverse walls,
 relativity, GPU/MPI and broader physical/cost acceptance remain separate work.

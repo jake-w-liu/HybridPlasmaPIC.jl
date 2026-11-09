@@ -1,8 +1,9 @@
 # Static composite electrostatic PIC
 
-Source implementation candidate. Exact-revision GitHub numerical, compiler,
-restart and resource acceptance is pending. No local Julia or tests were run
-for this implementation. CAP-006C remains open beyond this bounded first family.
+The existing numerical, rejection and restart regressions pass in group 1 of
+the exact-main [CI run](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41813949753)
+on Julia 1.12.7/1.13.3. Self-force/refinement, independent-code and resource
+acceptance remain open. CAP-006C extends beyond this bounded static family.
 
 `StaticAMRHierarchy1D(nbase,L,refinements=())` owns nested static 2:1 interval
 patches. Each refinement is `(parent_patch,first_parent_cell,last_parent_cell)`;

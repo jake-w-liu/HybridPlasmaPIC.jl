@@ -1,209 +1,94 @@
 # Plasma simulation audit and implementation tracker
 
-Updated: 2026-11-02 (Asia/Taipei). Goal remains **active**.
+Updated: 2026-11-09 (Asia/Taipei). The full goal remains **active and incomplete**.
 
-User objective: audit the full codebase until an independent pass finds no new
-confirmed defects; optimize measured bottlenecks; plan and implement missing
-capabilities toward a leading, comprehensive plasma simulation tool. Compatibility with the latest stable Julia is an explicit acceptance gate. Every
-verified fix or implementation is committed and pushed separately to `main`. Each push must
-also pass GitHub CI; a confirmed billing block is recorded separately.
-Passing a subset of tests does not establish whole-project correctness or
-completeness. Comparative leadership requires reproducible external benchmarks.
+The goal covers correctness, measured optimization and the complete CAP-001–011
+implementation backlog. Source implementation, executable acceptance, physical
+validation and resource acceptance are separate gates. No current evidence
+establishes global absence of bugs or comparative world leadership.
 
 ## Development and verification
 
-The [parallel implementation workflow](IMPLEMENTATION_WORKFLOW.md) records current
-workers, exclusive file ownership, dependencies and separate implementation,
-review and CI stages. Static composite ES is reviewed and submitted to GitHub CI.
-The resident CUDA and compatible implicit-EM sources are frozen for root review.
-Shared scalar dependencies and the absorption repair are reviewed/pushed;
-root integrates the frozen completed-clock admission repair.
-Root owns registrations/docs, dependency release and CI closure.
+The [implementation workflow](IMPLEMENTATION_WORKFLOW.md) owns current work and
+exclusive file ownership; the [completeness plan](PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md)
+owns capability requirements. This tracker records checked revisions and gaps.
+Keep the shared development machine free of Julia workloads during this
+resumption: package tests, compiler/JET, formatting and MPI run on GitHub.
+Existing numerical assertions and tolerances remain. Every source candidate
+must pass exact-revision CI before main publication; device claims also need
+actual suitable hardware. No inherited process or CI run is stopped.
 
-Current user instruction (2026-11-02): review canonical source and callers,
-and close the correctness and GitHub CI loop for every push. Run package,
-compiler/JET, formatter and MPI checks on GitHub so other computations can use
-the development machine. Do not run local Julia, compiler, formatter or device
-workloads. Keep existing assertions and acceptance limits intact; a failed check
-requires diagnosis and a verified repair. Device-only checks need a suitable
-remote runner and remain unverified until results exist.
+## Numerical accuracy standard
 
-Earlier implementation-first publications used `[skip ci]`. Their source-review
-records below describe evidence at publication, not current runtime acceptance.
-The current remote runs and failed checks below supersede that earlier deferral.
-Historical local and failed-run evidence remains retained.
-
-## Numerical accuracy standard (user decision, 2026-10-26)
-
-The audit uses a **normwise** floating-point contract:
-
-- Finite inputs never produce NaN, Inf or a silently wrong value through
-  intermediate overflow or underflow. Such cases take an exact (or wide-precision)
-  evaluation of the same expression, or raise an explicit error before state is
-  published, as documented per API.
-- Conservation identities hold to roundoff where the method conserves exactly.
-- Results agree with the exact expression to a few ulps of the operation's
-  scale, for example `max(|v|, |h E|)` for a particle kick, `|x| + |dt v|` for a
-  drift and `Σ|contribution|` for a deposited moment.
-- Componentwise relative accuracy of a component that nearly cancels is **not**
-  certified; absolute error at that scale is the requirement.
-
-The previous componentwise contract made the hot loops prohibitively expensive
-(measured on Apple M5, Julia 1.12.7): an unlanded certified Boris pusher ran at
-about 520 ns/push against 4–7 ns/push on `main`, an unlanded bounded Yee step at
-about 780 ns per cell, and the landed Coulomb kernel spends about half its time
-in compensated updates. Work under the old contract is being migrated to this
-standard; tests that asserted componentwise tolerances for cancellation are
-rewritten as normwise bounds.
+The existing numerical contract is normwise. Finite inputs retain the documented
+range and nearest-overflow behavior, with exact or bounded wider replay where
+native arithmetic cannot be certified. Cancellation is judged at the operation
+scale, not by a relative error on a nearly zero component. A certificate may
+retain native bits only under its documented range and arithmetic premises.
+Each model guide owns its equations, centering and method-specific limits.
 
 <a id="current-progress-2026-10-26"></a>
 <a id="current-progress-2026-10-27"></a>
 
 ## Current progress
 
-On 2026-11-03, `main` advanced from `531f5ba` to `4618564` after exact-revision
-[run 41672495637](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41672495637)
-passed all 26 jobs. The [workflow](IMPLEMENTATION_WORKFLOW.md#current-source-candidates)
-lists the families and fixes it contains. The ±16/32-byte packet allocation
-variation on Ubuntu comes from Linux usable-size accounting
-([diagnosis](WHISTLER_ALLOCATION_CI_DIAGNOSIS.md#usable-size-accounting-2026-11-03));
-the earlier 4,768/6,352-byte failures remain unattributed. CI acceptance is not
-scientific or resource acceptance.
+Checked on 2026-11-09: main is `9b4d363806722319c2241e4af04ed1ed1da00119`.
+[Run 41813949753](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41813949753)
+passes all 26 jobs: eleven test groups on actual Julia 1.12.7 and 1.13.3,
+formatting, and real MPI at 2/4/8 ranks. All 26 raw job logs were retained and
+matched to that exact revision. Group 11 records 86/79 whole-package JET reports
+and zero package-located reports; the full reports remain in the logs.
+These results establish the current CI result, not every physical or resource gate.
 
-On 2026-11-04, nine plan milestones whose remaining gate was exact-revision CI,
-the original 007A job logs, or model documentation were checked with their
-evidence. This raises the [completeness plan](PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md)
-count from 14 to 23 of 79. Their resource gates stay open in the family plans.
+Post-pause source reconciliation found that the prior bounded source stack,
+compatible implicit Yee EM, corrected scalar storage/clock/restore paths and new
+independent species-schedule/implicit-hybrid/slab oracles are already on main.
+The historical dirty primary checkout and its seven recorded file hashes are
+unchanged; new work uses isolated current-main checkouts.
 
-The periodic curvilinear hybrid now has complete bounded source reviewed and
-integrated: seven new files for the J=1 shear geometry, physical field transforms,
-canonical complete TSC moments/gather, true continuous original-factor Lorentz
-rates, collective RK4 and endpoint preparation, quiet loading, physical work/energy/
-flux diagnostics and full synchronous checkpoint/archive restoration. Source
-review added the missing divergence<=tolerance receipt invariant. Shared owners
-are unchanged apart from canonical registrations. Essential remote checks are
-prepared; runtime/scientific/resource acceptance and full toroidal work remain
-open. See the [model guide](SHEARED_PERIODIC_HYBRID.md).
+Recorded milestones are **23 checked / 56 open / 79 total (29.1%)**. This is an
+unweighted checklist, not a measured percentage of complete simulator physics.
+All eleven capability areas retain open work. The previously recorded 14/79
+snapshot is historical; no new checkbox is raised by this resumption alone.
 
-The synchronous implicit EM family now has complete source reviewed/integrated:
-joint original-factor velocity/E/B residuals, actual endpoint charge and midpoint
-current in every residual/probe, shared bounded nonlinear driver, separate actual
-constraints, four exact signed work pieces and full physical IO. Three existing
-owners recover literally; root reproduced all 29 author inverse/ownership checks
-and checked the final eight file hashes. Review added last_dt<=time admission,
-without imposing time=count*last_dt. A separate follow-on now applies that
-same necessary clock bound to the existing implicit-hybrid phase owner. The original extraction proof remains
-pinned to its earlier source revision.
-Essential GitHub checks are prepared; runtime/scientific/resource gates stay open.
-See the [model guide](IMPLICIT_EM.md).
+SpectralOperators **0.1.9 is registered, annotated-tagged and
+[released](https://github.com/jake-w-liu/SpectralOperators.jl/releases/tag/v0.1.9)**
+from `76898af`, tree `34b2dd609fdb6c74cba95ff89ca533a5db87b9e5`.
+Both candidate and main five-job runs pass; every Julia job passes 28,145
+assertions on the minimum/latest matrix across Linux/macOS. Registration,
+tag target and complete release notes were read back. HPIC requires 0.1.9.
 
-Static composite ES now has complete reviewed/integrated bounded source: nested
-2:1 patches, unique leaves/shared nodes, one global Neumann solve, original
-physical clouds, synchronous Verlet, real coarse/fine crossings, signed exact
-work/rounding/residual reports and complete physical IO. Root checked all frozen
-files and the byte-identical source-helper move. Review added dt<=time and moved
-exact-zero preparation ahead of publication. Essential GitHub checks cover an
-independent Neumann matrix solve, analytic charged crossing, rejection and stale
-physical restore; they are unrun locally. See the [guide](STATIC_COMPOSITE_ELECTROSTATIC.md).
-Runtime/scientific/self-force/resource gates and dynamic AMR remain open.
-The CUDA contract and exact shared APIs are approved. Its eleven shared scalar
-dependency files are now reviewed/integrated: four opt-in arithmetic operations,
-canonical mover/scale/coupling/moment/native Ohm/RK rows and unchanged CPU default
-entry prefixes. Root reproduced 171 author source/default-expansion checks,
-including ten whole-file inverses and all 48 Boris nodes. Review removed a new
-same-type restriction on reachable mixed-precision custom shape weights; every
-prior range predicate and exact fallback remains. Numerical/compiler/format/
-allocation acceptance and actual NVIDIA lowering/execution remain pending.
-The device family and paired orbit-current/gather implicit EM implement in
-separate paths. A separate source audit records missing duration/clock
-admission in existing phase owners; those repairs are queued with their actual
-full-step or substep semantics preserved. No milestone advances for source
-presence or queued CI.
-The [workflow](IMPLEMENTATION_WORKFLOW.md) records the precise owned paths and
-broader geometry, conservative-method and adaptive-hierarchy work still open.
+Current work:
 
-The separate bounded `OpenHallHybrid` core and complete persistence are now
-source-implemented and reviewed together: SBP-volume CIC, nonlinear full-Hall
-induction with explicit SAT/projection work, bounded paired RK4 trials,
-synchronous original-factor Boris/ballistic transport, both face reservoirs,
-stable IDs/full RNG and last/cumulative source/energy ledgers. Root read all
-new production files, both guides and six canonical seam changes; all six
-literal legacy inverses and ten author source checks passed, and thirteen
-frozen A/B files matched their receipts before integration amendments. Essential
-remote regressions are prepared. No local Julia execution or runtime,
-scientific-boundary, compiler or resource acceptance is claimed. See the
-[model](OPEN_HALL_HYBRID.md) and [full restore contract](OPEN_HALL_HYBRID_CHECKPOINT.md).
+- Repair canonical Boris certificate premises found by fresh source audit:
+  quotient residual underflow, DD range/mode/domain admission, full low-word
+  distance and symmetric exact-zero products. No tolerance is relaxed; new
+  executable acceptance is pending.
+- Implement completed-boundary dynamic composite ES regridding, canonical
+  charge/field reconstruction, explicit mesh-energy exchange and full restart.
+  The approved bounded 1D contract leaves multidimensional/hybrid/EM AMR open.
+- Independently audit current compatible implicit Yee EM and add two small
+  transverse vacuum/cold-plasma checks missing from its earlier controls.
+- The resident CUDA family is reconciled against current main and remains a
+  separate candidate. Actual NVIDIA compiler, numerical, rollback and cost
+  acceptance are open. This repository currently has no self-hosted runner
+  listed by its Actions API; that does not establish hardware unavailability
+  elsewhere.
 
-The bounded self-consistent slab gyrokinetic family is source-implemented and
-reviewed in an isolated integration candidate: true gyrocentre phase space,
-reciprocal ring-TSC, full-k polarization/modified adiabatic electrons, collective
-RK4 plus endpoint field refresh, energy diagnostics and complete physical
-checkpoint/archive. Root checked canonical arithmetic/coupling/FFT/IO owners and
-completed public archive restoration and canonical half-open wrapping. Essential
-regressions cover uniform transport, a zonal Nyquist field, constant-potential
-force, zero/rejected steps and checkpoint/archive continuation; they have not
-been run locally. Exact-revision remote runtime, scientific and resource
-acceptance remain open. See the [model guide](SLAB_GYROKINETIC.md) and
-[current assignments](IMPLEMENTATION_WORKFLOW.md).
+The source/test graph has 197 directly registered test files and 273 literal
+reachable test files. MPI multi-rank tests run separately in the workflow.
+This is registration evidence, not an assertion-coverage proof. Scientific,
+independent-code, refinement, boundary/geometry/composition and measured resource
+work remain governed by the capability plans.
 
-The status below reconciles landed source with exact-revision CI and complete compiler-review receipts.
-This is a dated progress snapshot; linked GitHub runs provide live CI status.
-The historical primary checkout and its uncommitted radiation work
-are preserved; integration and fresh audits use isolated worktrees. The full
-CAP-001–011 objective remains active and incomplete.
+## Historical implementation evidence through 2026-11-02
 
-The [official downloads page](https://julialang.org/downloads/) identifies
-Julia **1.13.3** as stable (checked again 2026-11-02 Asia/Taipei). New campaigns run
-actual 1.12.7 and 1.13.3; a stale local `release` alias is not version evidence.
-The existing CI matrix selects minimum `1.12` and latest stable `1`.
-The latest fully accepted containing revision is `d0d04f4`, including both
-complete compiler-tree reviews. That historical run does not validate newer
-implementations. The full suite for `531f5ba` is queued in
-[run 41436219662](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41436219662);
-no acceptance milestone advances while its result is pending.
-
-Current CI repairs, checked 2026-11-02:
-
-- SpectralOperators `8bf69f4` fails all four Julia jobs in
-  [run 41378026613](https://github.com/jake-w-liu/SpectralOperators.jl/actions/runs/41378026613):
-  27,894 assertions pass and 45 existing zero-allocation assertions fail in each;
-  formatting also fails. Candidate `f1eb13f` retains the checks and alias
-  protections, separates tuple-family traversal and applies the actual formatter
-  patch. Its [validation run](https://github.com/jake-w-liu/SpectralOperators.jl/actions/runs/41436256658)
-  passes formatting and all 27,939 assertions on actual Julia 1.13.3 Linux;
-  three Julia jobs remain queued in the checked snapshot.
-  It has not replaced `main` or been registered.
-- At historical `8adce3e`, [essentials run 41385075678](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41385075678)
-  records 106,694 passes/12 failures on Julia 1.12.7 and 106,688 passes/18 failures
-  on Julia 1.13.3. A four-file candidate removes unnecessary captured/dynamic
-  validation paths and corrects the finite-cloud late-overflow fixture's charge;
-  every assertion and JET gate remains. Root reproduced 32 text/source checks;
-  candidate runtime/compiler acceptance is pending. The latest-only two stored-
-  subnormal and four broad endpoint JET failures require measured observations;
-  valid reinterpret endpoint controls pass108 assertions in that older run.
-  Auxiliary observations run separately after the unchanged strict tests.
-- Candidate `bb7da93` minimum-Julia [longitudinal job](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41442148118/job/125266382813)
-  completed with 106,888 passes/22 failures/zero errors on actual Julia 1.12.7.
-  All impact, longitudinal and broad Yee groups pass; the failures are 18
-  absorption snapshot comparisons and four absorption JET assertions. Root read
-  the complete summary and actual reports. The reviewed two-file repair retains
-  every capture field in value snapshots and the same finite/nonnegative/zero
-  predicates through explicit scalar selections. Root reproduced 21 author
-  source checks, checked complete old-file inverses and actual Base equality/copy
-  sources. No numerical or JET assertion is changed; candidate validation is pending.
-  The separate after-test observation completed and is auxiliary evidence only.
-- All eight audited completed-clock groups now have a reviewed source repair
-  at their existing live/IO owners. Explicit EM checks its actual fast duration;
-  finite nonnegative legacy origins and scalar zero-step returns are retained.
-  Root reproduced 149 source/Git checks, including nineteen complete old-file
-  inverses. The existing counter-boundary fixture now starts from an actual
-  completed step; its assertions remain. Compact phase controls and existing
-  clock/IO essentials require exact-revision remote validation.
-- Historical `06fa658` [conduction run 41377913235](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41377913235)
-  records 5,292 passes/two strict Faraday equality failures on latest Julia with
-  SO 0.1.8. Its recorded dyadic/without-inactive-Ex comparisons match the oracle;
-  unchanged strict consumer checks must pass with the accepted dependency.
-  None of these historical results substitutes for current exact-revision CI.
+The records below retain their original source review, failed candidates,
+measurements and acceptance boundaries. Pending statements in this historical
+section describe the recorded revision, not current main. Current exact-head
+CI is above; current family acceptance is in each linked model guide. The old
+34-entry full compiler-review ledger remains preserved and is not silently
+extended by a green CI badge.
 
 | Work | Verified integration state | Remaining work |
 | --- | --- | --- |

@@ -1,9 +1,10 @@
 # Directional ADE PML for serial Yee fields
 
-Status: source candidate; no tests were added or run. Numerical convergence,
-finite-grid reflection, coupled amplification/long-time stability, actual
-rollback/restart, compiler/format and complete-step resource acceptance remain
-unverified. This is one field-only part of CAP-002C, not completion of bounded PIC.
+The construction/advance smoke test passes for Float32/64 and D1–3 in group 10
+of the exact-main [CI run](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41813949753).
+It advances a seeded pulse for twelve steps and checks finite fields and
+diagnostics. Reflection/refinement, long-time stability, rollback/restart and
+complete-step resource acceptance remain unverified. This is one field-only part of CAP-002C, not completion of bounded PIC.
 
 `YeePML` implements source-free classical directional PML with causal auxiliary
 differential equations (kappa=1, alpha=0). It supports serial CPU Float32/64 in
@@ -146,4 +147,4 @@ clock/ledger/cache values may be stale. Physical/memory arrays and Refs retain
 identities; no reconstruction, field projection or silent vacuum/scalar migration
 occurs. Atomic trusted Serialization and the existing checksummed archive4 remain
 canonical. Runtime restart and broader source/material/backend/particle/PML
-acceptance remain open under the current no-tests instruction.
+acceptance remain open beyond the construction/advance smoke test.

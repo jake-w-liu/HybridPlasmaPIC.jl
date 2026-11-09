@@ -9,9 +9,10 @@ residual gates, not a claim of exact native operator identities.
 It supplies full nonlinear Hall and pressure induction; it does not turn the
 existing reduced `PerpShock` into a different method.
 
-This source candidate still needs exact integrated GitHub numerical, compiler,
-formatting, continuation and resource acceptance. No local Julia workload was
-run. The family requires both the advancing model and its distinct
+Existing numerical, rejection and continuation controls pass in group 1 of the
+exact-main [CI run](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41813949753)
+on Julia 1.12.7/1.13.3. Physical-boundary, refinement and resource acceptance
+remain open. The family requires both the advancing model and its distinct
 [checkpoint/archive owner](OPEN_HALL_HYBRID_CHECKPOINT.md). Full CAP009 remains
 open: this is not transparent Hall outflow, a continuum well-posedness or
 stability theorem, material/sheath physics, or complete open-boundary energy

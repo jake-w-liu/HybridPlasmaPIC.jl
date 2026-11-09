@@ -1,228 +1,115 @@
 # Parallel implementation workflow
 
-Updated 2026-11-03. The full simulator goal remains active and incomplete.
+Updated 2026-11-09. The full simulator goal remains active and incomplete.
 The [completeness plan](PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md) owns the full
-CAP-001–011 backlog; the [audit tracker](DEEP_DEBUG_TRACKER.md#current-progress)
-owns checked commits, failures and acceptance. This page owns current scheduling,
-file ownership and handoffs.
+CAP-001–011 scope; the [audit tracker](DEEP_DEBUG_TRACKER.md#current-progress)
+owns checked revisions, failures and acceptance. This page owns scheduling,
+exclusive file writers and handoffs.
 
 ## Working rules
 
-1. Keep three independent implementation tracks active. Root is the fourth
-   worker and owns integration, shared registration files and remote CI.
-2. Give each repository path one writer, including across isolated worktrees.
-   A worktree prevents accidental interference; it does not resolve conflicting
-   implementations of the same owner. Request an ownership transfer before
-   editing another track's file.
-3. Build complete bounded solver families: real evolution, diagnostics, failure
-   handling, physical phase and restart. Do not count a type, exported function,
-   prescribed-field surrogate or placeholder as a completed solver.
-4. Freeze the small actual interface needed by a dependent track early. Continue
-   independent work while that interface is prepared; do not duplicate its owner.
-5. Keep source implementation moving while GitHub jobs queue. Preserve failures
-   and investigate them in parallel. Local formatting, package loading and
-   focused tests are allowed; the full suite runs on GitHub.
-6. Submit reviewed candidates through GitHub, retaining every existing numerical,
-   compiler, allocation and cost gate. Root pushes each candidate to a
-   validation branch and fast-forwards `main` only after that exact revision
-   passes CI. A failed candidate stays unaccepted; a billing exception requires
-   actual GitHub evidence.
+1. Give each actual path one writer, including across worktrees. Root owns
+   registrations, exports, dependencies, workflows, current global docs and CI.
+2. Complete real evolution, diagnostics, failure behavior, physical phase and
+   persistence. A type, primitive or prescribed-field surrogate is not a complete
+   self-consistent simulator family.
+3. Preserve canonical numerical owners where equations agree. Freeze a small
+   dependency interface early; never copy physics to bypass its owner.
+4. Keep independent source work moving while GitHub runs. During this resumption
+   Julia/parser/compiler/formatter/test/device workloads stay on remote runners.
+   Preserve unrelated local edits and inherited processes/CI.
+5. Keep every existing numerical, compiler, allocation and cost gate. Push each
+   reviewed candidate to a validation branch; fast-forward main only after that
+   exact revision passes CI. Record actual billing evidence for an exception.
+6. Record source implementation, source review, CI, scientific and resource
+   acceptance separately. Real backend claims require the actual device/ranks.
 
-## Current source candidates
+## Verified baseline and current work
 
-`main` is `4618564`. It was fast-forwarded from `531f5ba` after
-[run 41672495637](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41672495637)
-passed all 26 jobs at that exact revision: Julia 1.12.7 and 1.13.3 across the
-11 test groups, formatting, and real MPI with 2, 4 and 8 ranks. Every family
-below is on `main` and CI accepted at that revision. Scientific and resource
-acceptance remain open for all of them.
+Main is `9b4d363806722319c2241e4af04ed1ed1da00119` at this checked snapshot.
+[Run 41813949753](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41813949753)
+passes all 26 jobs: minimum/latest Julia across eleven groups, formatting and
+real MPI at 2/4/8 ranks. Root retained every raw job log and exact head.
+The source stack, compatible implicit Yee EM and wave-1 species-schedule,
+implicit-hybrid and slab-gyrokinetic controls are on main. Green CI is separate
+from the remaining scientific/resource gates and a fresh source audit.
 
-| Family | Source commits |
-| --- | --- |
-| Self-consistent full-f slab gyrokinetics | `08e1bf2` |
-| Synchronous open Hall numerical reservoirs | `cd78339` |
-| Coupled periodic shear hybrid | `c53ef77` |
-| Synchronous coupled implicit EM | `d665c47`; Gauss/divergence-consistent residual fields `7bd8417` |
-| Compatible periodic Yee implicit EM | `e26cde9` |
-| Static composite electrostatic PIC | `5de5b35` |
-| Clock admission | `ae23c71`, `d8a327b` |
-| Shared CUDA scalar dependencies | `30cb6ee` (CPU paths only; no device lowering checked) |
-| Absorbing history repair | `462fbdb` |
-| Closed Yee validation | `bb7da93` |
+SpectralOperators 0.1.9 is registered, annotated-tagged and
+[released](https://github.com/jake-w-liu/SpectralOperators.jl/releases/tag/v0.1.9)
+at `76898af`; its candidate/main five-job matrices pass. HPIC already requires
+that version. Root completed the previously missing tag/release and reconciled
+its publication record.
 
-The first complete sharded runs exposed failures that are fixed on `main`:
-the scalar pressure range test, which needs SpectralOperators 0.1.9 (`8bb4add`),
-stored-bit predicates under flush-to-zero (`5e32ffe`), a self-contradictory
-relativistic kinematics test (`8004115`), the Boris certification slowdown in
-`test_empic1d.jl` (`0365eda`, `5a5f9db`), JET package reports
-(now zero located, total at most 86), typed empty EMPIC checkpoint populations
-(`113729d`, `f36df4e`) and the linear CN allocation check
-([diagnosis](WHISTLER_ALLOCATION_CI_DIAGNOSIS.md#usable-size-accounting-2026-11-03)).
-Review of the JET work caught two regressions it had introduced: collisional
-wrapper type headers (`93786d4`) and a YeePML `UndefVarError` (`32f9c15`).
-Both are fixed and now have tests. Coverage upload was removed because no
-Codecov token is configured.
-
-The resident CUDA hybrid is on branch `implement/resident-cuda-hybrid-20261103`
-and is not on `main`. Its extension loads with CUDA.jl 6.5 but has not run on an
-NVIDIA device.
-
-## Active assignments
-
-| Track | Worker | Complete deliverable | Current stage |
+| Track | Worker / owner | Deliverable | Stage |
 | --- | --- | --- | --- |
-| Static composite-grid electrostatic PIC | Root integrated frozen `cpu_model_factor_admission` source | Nested hierarchy, global Neumann field solve, physical-cloud crossings, diagnostics and complete physical persistence | On `main`; CI accepted at `4618564` |
-| First resident CUDA hybrid | Frozen `self_consistent_gyrokinetic_design` source, root review | Complete device field/particle lifecycle and physical persistence with actual CUDA/cuFFT APIs | Nine files integrated byte-identical after formatting on branch `implement/resident-cuda-hybrid-20261103`; abstract checkpoint seam added for JET; extension loads with CUDA.jl 6.5; NVIDIA execution pending |
-| Shared CUDA scalar dependencies | Root integration of frozen `cpu_model_factor_admission` v2 source | Canonical arithmetic/coupling/scale/native Ohm/RK4 extractions with existing default CPU expression/order retained | On `main`; CPU paths CI accepted at `4618564`; device lowering pending |
-| Compatible implicit EM current/gather | Frozen `yee_longitudinal_coupled_implementation` source, root review | Paired orbit-averaged current/gather, midpoint field/particle solve and physical persistence | Integrated as `e26cde9` after fixing duplicate struct fields and checkpoint scratch in the frozen source; on `main`, CI accepted |
-| Absorption CI repair | Root integrates frozen `cpu_model_factor_admission` source | Value snapshots retain every capture field; same canonical history predicates use explicit scalar selections | `462fbdb` on `main`; CI accepted |
-| Completed-clock admission | Root integration of frozen `cpu_model_factor_admission` source | All eight audited full-step/fast-substep/source/budget phase owners and actual live/IO callers | `d8a327b` on `main`; CI accepted |
-| Spectral scalar dependencies | Frozen `self_consistent_gyrokinetic_design` source, root integration | Minimal canonical complex products and D1 curl descriptor; current CPU validation/scaling preserved | SpectralOperators 0.1.9 registered (General #174587); HPIC requires 0.1.9 |
-| Integration and CI | Root | Shared registrations/docs, canonical source review, dependency publication, commits/pushes and exact-revision CI closure | 11-group CI on both runtimes; `main` at `4618564` |
+| Boris certificate premises | Root integrates frozen `post_devin_numeric_audit` repair | Underflow-safe original quotient equality; DD range/mode/domain and outward-distance gates; symmetric zero products | Two canonical files reviewed/adopted; compact remote regressions prepared; executable acceptance pending |
+| Dynamic composite ES | `dynamic_amr_es_implementation` | Real completed-boundary refine/coarsen, canonical charge/field reconstruction, mesh-energy exchange, physical steps and complete restart | Full contract approved; five new files implementing |
+| Implicit Yee transverse acceptance | `cuda_resume_integration` | Independent true-Yee vacuum and unequal-species cold-plasma midpoint controls | Production source audit found no confirmed defect; compact two-case oracle implementation assigned |
+| Physical-pencil model audit | `post_devin_numeric_audit` | Actual distributed ES/EM/hybrid/Maxwell evolution/phase/collective/restore audit and required repairs | Read-only canonical mapping; production scope requires root approval |
+| Resident CUDA hybrid | Root holds frozen reconciled source | Complete resident D1/3V isothermal lifecycle, diagnostics and physical persistence | Nine files reconciled against current main; registration and actual NVIDIA acceptance remain open |
+| Integration and CI | Root | Source review, shared registrations, current Markdown, commits/main publication and exact-head CI | Active alongside the three independent workers |
 
-The curvilinear contract keeps logical positions and Cartesian velocities,
-primary contravariant magnetic flux and a compatible covariant electric curl.
-Its canonical Ohm source-risk flag must be false before differentiation; the
-continuous Lorentz rate retains original q/m and complete field factors. This
-periodic nonorthogonal map does not supply toroidal axis, wall, equilibrium or
-variable-J support. Those remain explicit CAP-006A work.
+## Exclusive file writers
 
-The implicit EM contract solves velocities and both fields together and
-recomputes charge/current inside every residual and Jv probe. It exposes actual
-Gauss/divB/continuity defects and four signed work terms, including the spatial
-work of current correction. It does not inherit an exact energy theorem from a
-different current/gather scheme. The first scope is nonrelativistic all-mobile
-CPU CIC, exact-neutral collections and odd periodic grids; broader conservative,
-relativistic, source and backend families remain open.
+**Boris integration transfers to root:** `src/particles/boris_accuracy.jl` and
+`src/particles/boris.jl`. Other arithmetic owners, formulas and tolerances remain
+outside that repair. Root owns the existing accuracy test file and remote gates.
 
-## Exclusive file ownership
+**Dynamic ES worker owns only five new paths:**
 
-Completed Hall, slab, periodic-shear, synchronous implicit EM and static composite
-ES author patches are frozen. Their owners transfer to root for integration and
-later repairs. Static ES includes the byte-identical `_yl_source_scalar` move
-from `models/yee_longitudinal_pic.jl` to `utils/validation.jl`; canonical cloud,
-force and plate owners remain in place. Broader clock findings retain a separate
-frozen audit; do not edit those owners without a new root assignment.
+- `src/meshes/dynamic_composite_adaptation.jl`
+- `src/models/dynamic_composite_electrostatic.jl`
+- `src/diagnostics/dynamic_composite_electrostatic.jl`
+- `src/io/dynamic_composite_electrostatic_checkpoint.jl`
+- `docs/DYNAMIC_COMPOSITE_ELECTROSTATIC.md`
 
-**CUDA family** owns only these nine new paths:
+The static cloud, Neumann solve, KDK and physical-checkpoint owners remain
+canonical. Regrid retains particles and global time, reconstructs the constrained
+field on the new mesh and records actual signed mesh-energy exchange. Prior
+physical-step history keeps its own detached mesh/epoch. Same-topology adaptation
+is a validated no-op. Root owns includes/exports/writer unions/tests/workflows.
 
-- `src/models/cuda_hybrid.jl`
-- `ext/cuda_hybrid/types.jl`
-- `ext/cuda_hybrid/validation.jl`
-- `ext/cuda_hybrid/kernels.jl`
-- `ext/cuda_hybrid/fourier.jl`
-- `ext/cuda_hybrid/evolution.jl`
-- `ext/cuda_hybrid/snapshot.jl`
-- `ext/cuda_hybrid/checkpoint.jl`
-- `docs/CUDA_HYBRID.md`
+**Implicit Yee acceptance worker owns only** new
+`test/test_implicit_yee_transverse.jl` and `docs/IMPLICIT_YEE_EM.md`. Its reference
+matrices use direct cyclic incidence and original species normalization, without
+calling production residual/current/curl helpers. Root owns test registration.
+Any production finding first receives a separate ownership transfer.
 
-**Frozen shared scalar dependencies** transfer to root for integration and
-repairs: new `src/utils/scalar_ops.jl` and these ten existing paths:
+**Physical-pencil audit is read-only.** It covers the actual model and checkpoint
+paths in `ext/pencil_*.jl`, not just replicated-field MPI or Fourier primitives.
+No source writer is inferred from an audit assignment; root approves precise
+canonical repair paths after a confirmed finding.
 
-- `src/particles/boris.jl`
-- `src/particles/kinematics_range.jl`
-- `src/coupling/shapes.jl`
-- `src/coupling/deposit.jl`
-- `src/coupling/gather.jl`
-- `src/coupling/moments.jl`
-- `src/models/hybrid_pic.jl`
-- `src/electrons/closures.jl`
-- `src/electrons/ohms_law.jl`
-- `src/integrators/extrapolated_leapfrog.jl`
+**CUDA source is frozen for root:** `src/models/cuda_hybrid.jl`, seven files under
+`ext/cuda_hybrid/` (`types`, `validation`, `kernels`, `fourier`, `evolution`,
+`snapshot`, `checkpoint`) and `docs/CUDA_HYBRID.md`. Root retains extension/module,
+Project compat and shared IO registrations. The canonical Boris repair is a
+shared dependency; no CUDA-specific quotient workaround is added. The repository
+Actions API currently lists no self-hosted runner; actual NVIDIA execution remains
+open and no hardware-unavailability conclusion is inferred.
 
-Its default expansion must retain current CPU arithmetic, generic branches,
-validation, exact cold behavior and read/write/reduction order. CUDA consumes
-frozen signatures and record fields; neither worker duplicates a physics owner.
-Actual device lowering, semantics and performance still need remote acceptance.
+## Handoff and verification
 
-**Compatible implicit EM** owns only five new paths and the minimal explicit
-third-family union/header/adapters in `src/integrators/implicit_pic_nonlinear.jl`:
+A handoff includes complete owned files/patch, pre-edit contract, checked callers,
+source/hash scope and unresolved runtime/resource gates. Existing-owner repairs
+must retain the intended formulas, errors, ranges, publication and persistence.
+Incoming alias checks precede detachment; prepare all replacement state before
+publication. Do not reinitialize or reconstruct saved physical phase silently.
+Root reads and composes the complete result, keeps essential independent controls
+compact and submits the exact revision to GitHub. No source-only pass is called
+runtime, scientific or performance acceptance.
 
-- `src/coupling/periodic_yee_cloud.jl`
-- `src/integrators/implicit_yee_em.jl`
-- `src/diagnostics/implicit_yee_em.jl`
-- `src/io/implicit_yee_em_checkpoint.jl`
-- `docs/IMPLICIT_YEE_EM.md`
+## Full implementation queue
 
-The existing nonlinear algorithm body must remain byte-identical. Root retains
-all `shapes.jl` documentation edits, module/exports and outer IO registrations.
-
-**Absorption repair** is reviewed/pushed with its IO source, physics and every
-assertion unchanged. **Completed-clock admission** transfers its nineteen-file
-freeze to root for integration. The worker now independently audits the frozen
-CUDA family without edits. Explicit EMPIC uses its stored fast duration; no
-full-step/species interval bound or time=count*duration rule is introduced.
-Existing finite nonnegative origins remain supported where established by the
-legacy hybrid and EMPIC APIs; a new zero-origin restriction is outside this repair.
-
-The clock repair transfers these paths to root: `abstract_integrator.jl`,
-`extrapolated_leapfrog.jl`, `camcl.jl`, `collisional_electrostatic.jl` and
-`collisional_hybrid.jl` under `src/integrators/`; `yee_longitudinal_pic.jl`,
-`open_hall_hybrid.jl`, `empic_collection.jl`, `full_pic.jl`,
-`yee_conductive_layer.jl` and `yee_pml.jl` under `src/models/`;
-`src/parallel/mpi.jl`; `ext/pencil_particles.jl`; and `checkpoint.jl`,
-`empic_collection_checkpoint.jl`, `collisional_electrostatic_checkpoint.jl`,
-`collisional_checkpoint.jl`, `yee_conductive_layer_checkpoint.jl` and
-`yee_pml_checkpoint.jl` under `src/io/`. Root applies outer IO type registrations
-after that handoff. The SpectralOperators single-file extraction is also frozen
-and transferred to root; its CUDA family files remain frozen.
-
-**Root** owns `src/HybridPlasmaPIC.jl`, existing extension includes, shared
-checkpoint/archive registrations, `Project.toml`, workflows, focused essentials,
-README, CHANGELOG, global trackers/documentation map and CI repair/observation
-files. Workers supply registration hunks. SpectralOperators canonical mode-row
-and D1 curl-descriptor changes, all upstream CI/release/registration and the
-actual accepted consumer compat floor remain root-owned. Every path has one
-active writer; isolated worktrees do not permit competing edits.
-
-## Interface and handoff
-
-The completed Hall split demonstrates the handoff boundary: its actual
-configuration/binding/storage, source/phase/report, replacement/reserve and final
-commit hooks were frozen for the independent IO owner. Every new family must
-save its full physical phase, validate incoming original roles before detachment,
-prepare replacements privately and restore stored state verbatim. A seed or
-reinitialization is not a replacement for stochastic continuation state.
-
-Each worker hands root the complete patch, owned path list, model guide,
-source/caller review and any unresolved issues. Existing-owner extractions must
-show that legacy arithmetic, checks and publication survive the extraction.
-Keep evidence proportional to the change; do not create a new tracking framework.
-Root reviews canonical seams once, composes registrations, checks local links,
-and submits the exact candidate to GitHub.
-
-## Implementation queue after current handoffs
-
-Assign the next ready item when a worker completes its current deliverable.
-Keep ownership disjoint and use the existing completeness plan for detailed
-model contracts and all remaining combinations.
-
-| Wave | Parallel work | Required boundary |
-| --- | --- | --- |
-| Current | Resident CUDA hybrid device acceptance on NVIDIA hardware; scientific and resource acceptance of the families now on `main` | Actual device lowering, semantics and cost; fixed physical comparisons and refinement |
-| Next | Broader geometry; remaining CAP families from the completeness plan | Every new method keeps its own field/coupling/phase contract |
-| Following | Dynamic AMR and multidimensional hierarchy; broader electron transport/anisotropy/inertia; broader open EM particle/source boundaries | Composite field/particle ownership, term-specific energy balances and boundary charge/current accounting |
-| Composition | Extend accepted families across species, collisions/sources, schedules, MPI/device storage and restart | Explicit supported-combination matrix; no automatic claim from component availability |
-| Continuous | Independent physical validation, latest Julia, failure/restart checks and measured optimization | GitHub or suitable remote hardware; retain failed evidence and fixed acceptance limits |
-
-Large new families may use separate core and persistence workers after their
-interface freezes, as Hall does now. Do not start more active tracks than the
-four available workers can own and review.
-
-## Progress stages
-
-Record these separately for every bounded slice:
-
-| Stage | Meaning |
+| Work | Required completion boundary |
 | --- | --- |
-| Planned | Equations, public contract, dependencies and file owner are specified |
-| Implementing | Real source is being written; missing behavior remains explicit |
-| Implemented | Complete admitted evolution, diagnostics, failure handling and persistence are present |
-| Reviewed | Canonical owners/callers, edge cases and full patch have been inspected |
-| CI accepted | Exact-revision remote checks pass; record run, Julia versions and scope |
-| Scientifically/resource accepted | Required physical comparisons, refinement, real ranks/devices and fixed cost gates pass |
+| Current certificate repairs and implicit/pencil acceptance | Original numerical contracts, actual public lifecycle and complete continuation; no suppressed findings |
+| Resident GPU families | Real device lowering, semantics, failure/restore and measured resources; broader precision/shape/model/backend combinations remain |
+| Dynamic AMR and geometry | Current dynamic 1D ES family, then multidimensional/periodic/EM hierarchy, subcycling and full toroidal/variable-J geometry |
+| Sources, boundaries and electron physics | General particle/EM boundaries, multiple events, broader transport/anisotropy/inertia and electron-ion exchange |
+| Composition | Explicit supported species/collision/source/schedule/geometry/MPI/device/restart combinations |
+| Scientific validation and optimization | Independent physical/code comparisons, space/time/particle refinement and fixed resource targets measured remotely |
 
-The current **23/79 (29.1%)** number counts checked roadmap milestones; it is
-not a source-code completion percentage. Do not increase it for drafted code,
-line counts or queued CI. Update stage/owner/failures here and in the audit
-tracker at each handoff, integration and acceptance change.
+The plan's **23/79 checked (29.1%)** count remains unweighted and does not measure
+full simulator completion. All eleven capability areas remain open. No check is
+raised because code exists, jobs queue or an unrelated primitive passes.

@@ -2,10 +2,11 @@
 
 `YeeAbsorbingLongitudinalPIC` is a distinct nonrelativistic CPU Float32/64
 longitudinal source candidate. It admits zero captures or one uniquely isolated
-capture per external step. Numerical/convergence, rollback/restart, compiler,
-formatting and complete-step resource acceptance are deferred during the current
-implementation-first pass. Existing authored controls remain unrun; new test
-execution is paused. It does not complete [bounded PIC](BOUNDED_PARTICLE_COUPLING_PLAN.md).
+capture per external step. Existing capture, rollback/restart and concrete
+compiler controls pass in group 11 of the exact-main
+[CI run](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41813949753)
+on Julia 1.12.7/1.13.3. Broader convergence and complete-step resource acceptance
+remain open. It does not complete [bounded PIC](BOUNDED_PARTICLE_COUPLING_PLAN.md).
 
 ```julia
 state = YeeAbsorbingLongitudinalPIC(grid;
@@ -170,7 +171,7 @@ record 182 passes and 22 failures in these absorption groups on Julia 1.12.7:
 18 snapshot comparisons and four JET assertions. The repair retains every
 capture-record field in value-based snapshots and selects explicit history
 scalars in the canonical validator. Numerical maps, IO and every assertion remain
-unchanged; the repair requires exact-revision remote validation. Multiple
+unchanged. The repaired suite now passes in the exact-main run linked above. Multiple
 captures, general material absorption/emission, transverse walls, relativistic/
 device/distributed execution and wider physical/resource acceptance remain
 separate work.
