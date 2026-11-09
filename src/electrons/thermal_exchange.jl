@@ -1213,7 +1213,7 @@ function _validate_electron_ion_overlap_report(
         report.momentum_bound isa NTuple{3,Q} &&
         all(x -> _electron_ion_finite(x) && x >= 0, report.momentum_bound) ||
         throw(ArgumentError("thermal overlap receipt has invalid array/scalar types or signs"))
-    work = _electron_ion_work(config, inner, species)
+    work = _electron_ion_work(config, inner, species)::_ElectronIonThermalWork
     actual, incidence, partition, charge_defect =
         _electron_ion_overlap_layout!(work, species, inner)
     isequal(report.density, work.density) &&
@@ -1441,7 +1441,7 @@ function _validate_electron_ion_report(
     end
     length(report.cells) == length(fields.pe) ||
         throw(DimensionMismatch("electron-ion receipt cell count differs"))
-    work = _electron_ion_work(config, inner, species)
+    work = _electron_ion_work(config, inner, species)::_ElectronIonThermalWork
     _electron_ion_density!(work, species, inner)
     for a in eachindex(species)
         ps = species[a]
