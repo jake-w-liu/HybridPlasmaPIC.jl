@@ -1,0 +1,868 @@
+﻿2026-11-09T09:00:24.5031320Z Current runner version: '2.338.2'
+2026-11-09T09:00:24.5051700Z ##[group]Runner Image Provisioner
+2026-11-09T09:00:24.5052407Z Hosted Compute Agent
+2026-11-09T09:00:24.5052924Z Version: 20261028.624
+2026-11-09T09:00:24.5053488Z Commit: 54898b74c23fde5556c9b3c3a2290865feef0dfe
+2026-11-09T09:00:24.5054074Z Build Date: 2026-10-28T21:51:42Z
+2026-11-09T09:00:24.5054688Z Worker ID: {900407fe-067d-4b1e-b38e-465ea9158f34}
+2026-11-09T09:00:24.5055428Z Region: westus3
+2026-11-09T09:00:24.5055917Z Cloud: Azure
+2026-11-09T09:00:24.5056399Z ##[endgroup]
+2026-11-09T09:00:24.5057481Z ##[group]Operating System
+2026-11-09T09:00:24.5058297Z Ubuntu
+2026-11-09T09:00:24.5058788Z 26.04.1
+2026-11-09T09:00:24.5059240Z LTS
+2026-11-09T09:00:24.5059685Z ##[endgroup]
+2026-11-09T09:00:24.5060156Z ##[group]Runner Image
+2026-11-09T09:00:24.5060677Z Image: ubuntu-26.04
+2026-11-09T09:00:24.5061223Z Version: 20261101.186.1
+2026-11-09T09:00:24.5062260Z Included Software: https://github.com/actions/runner-images/blob/ubuntu26/20261101.186/images/ubuntu/Ubuntu2604-Readme.md
+2026-11-09T09:00:24.5063551Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu26%2F20261101.186
+2026-11-09T09:00:24.5064311Z ##[endgroup]
+2026-11-09T09:00:24.5065555Z ##[group]GITHUB_TOKEN Permissions
+2026-11-09T09:00:24.5067123Z Contents: read
+2026-11-09T09:00:24.5067705Z Metadata: read
+2026-11-09T09:00:24.5068176Z Packages: read
+2026-11-09T09:00:24.5068652Z ##[endgroup]
+2026-11-09T09:00:24.5070657Z Secret source: Actions
+2026-11-09T09:00:24.5071484Z Cache mode: write
+2026-11-09T09:00:24.5072192Z Prepare workflow directory
+2026-11-09T09:00:24.5517967Z Prepare all required actions
+2026-11-09T09:00:24.5556422Z Getting action download info
+2026-11-09T09:00:24.8631708Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-11-09T09:00:24.9804189Z Download action repository 'julia-actions/setup-julia@v2' (SHA:4c0cb0fce8556fdb04a90347310e5db8b1f98fb9)
+2026-11-09T09:00:25.5439476Z Download action repository 'julia-actions/cache@v2' (SHA:d10a6fd8f31b12404a54613ebad242900567f2b9)
+2026-11-09T09:00:25.8048364Z Download action repository 'actions/upload-artifact@v4' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+2026-11-09T09:00:26.0073832Z Getting action download info
+2026-11-09T09:00:26.1513079Z Download action repository 'dcarbone/install-jq-action@f0e10f46ff84f4d32178b4b76e1ef180b16f82c3' (SHA:f0e10f46ff84f4d32178b4b76e1ef180b16f82c3)
+2026-11-09T09:00:26.3916456Z Download action repository 'actions/cache@5a3ec84eff668545956fd18022155c47e93e2684' (SHA:5a3ec84eff668545956fd18022155c47e93e2684)
+2026-11-09T09:00:26.5506791Z Download action repository 'pyTooling/Actions@42e17fae05f224e5ac3d79d021a4e3577878efe5' (SHA:42e17fae05f224e5ac3d79d021a4e3577878efe5)
+2026-11-09T09:00:27.1334144Z Complete job name: CUDA extension load (Julia 1, host only)
+2026-11-09T09:00:27.2156608Z ##[group]Run actions/checkout@v4
+2026-11-09T09:00:27.2157744Z with:
+2026-11-09T09:00:27.2158530Z   repository: jake-w-liu/HybridPlasmaPIC.jl
+2026-11-09T09:00:27.2165987Z   token: ***
+2026-11-09T09:00:27.2166739Z   ssh-strict: true
+2026-11-09T09:00:27.2167492Z   ssh-user: git
+2026-11-09T09:00:27.2168256Z   persist-credentials: true
+2026-11-09T09:00:27.2169089Z   clean: true
+2026-11-09T09:00:27.2169860Z   sparse-checkout-cone-mode: true
+2026-11-09T09:00:27.2170751Z   fetch-depth: 1
+2026-11-09T09:00:27.2171484Z   fetch-tags: false
+2026-11-09T09:00:27.2172231Z   show-progress: true
+2026-11-09T09:00:27.2173032Z   lfs: false
+2026-11-09T09:00:27.2173735Z   submodules: false
+2026-11-09T09:00:27.2174493Z   set-safe-directory: true
+2026-11-09T09:00:27.2175432Z   allow-unsafe-pr-checkout: false
+2026-11-09T09:00:27.2176565Z env:
+2026-11-09T09:00:27.2177233Z   CUDA_TEST_VERSION: 6
+2026-11-09T09:00:27.2178040Z   CUDA_TEST_ENV_NAME: hpic-cuda-host-env
+2026-11-09T09:00:27.2178930Z ##[endgroup]
+2026-11-09T09:00:27.6144490Z Syncing repository: jake-w-liu/HybridPlasmaPIC.jl
+2026-11-09T09:00:27.6148019Z ##[group]Getting Git version info
+2026-11-09T09:00:27.6150120Z Working directory is '/home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl'
+2026-11-09T09:00:27.6153474Z [command]/usr/bin/git version
+2026-11-09T09:00:27.6155178Z git version 2.56.0
+2026-11-09T09:00:27.6162200Z ##[endgroup]
+2026-11-09T09:00:27.6175533Z Temporarily overriding HOME='/home/runner/work/_temp/2ec25150-1645-470e-9676-7780e54ffb42' before making global git config changes
+2026-11-09T09:00:27.6179606Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-09T09:00:27.6183124Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl
+2026-11-09T09:00:27.6262132Z Deleting the contents of '/home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl'
+2026-11-09T09:00:27.6265728Z ##[group]Initializing the repository
+2026-11-09T09:00:27.6269781Z [command]/usr/bin/git init /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl
+2026-11-09T09:00:27.6420689Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-11-09T09:00:27.6423000Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-11-09T09:00:27.6424762Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-11-09T09:00:27.6426364Z hint: call:
+2026-11-09T09:00:27.6427300Z hint:
+2026-11-09T09:00:27.6428405Z hint: 	git config --global init.defaultBranch <name>
+2026-11-09T09:00:27.6429650Z hint:
+2026-11-09T09:00:27.6430839Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-11-09T09:00:27.6432554Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-11-09T09:00:27.6433979Z hint:
+2026-11-09T09:00:27.6435008Z hint: 	git branch -m <name>
+2026-11-09T09:00:27.6436043Z hint:
+2026-11-09T09:00:27.6437334Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-11-09T09:00:27.6447885Z Initialized empty Git repository in /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/.git/
+2026-11-09T09:00:27.6458113Z [command]/usr/bin/git remote add origin https://github.com/jake-w-liu/HybridPlasmaPIC.jl
+2026-11-09T09:00:27.6502772Z ##[endgroup]
+2026-11-09T09:00:27.6504612Z ##[group]Disabling automatic garbage collection
+2026-11-09T09:00:27.6506586Z [command]/usr/bin/git config --local gc.auto 0
+2026-11-09T09:00:27.6538089Z ##[endgroup]
+2026-11-09T09:00:27.6539856Z ##[group]Setting up auth
+2026-11-09T09:00:27.6546655Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-09T09:00:27.6574002Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-09T09:00:27.6992976Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-09T09:00:27.7024344Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-09T09:00:27.7256630Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-09T09:00:27.7287196Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-09T09:00:27.7523118Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-09T09:00:27.7558294Z ##[endgroup]
+2026-11-09T09:00:27.7561117Z ##[group]Fetching the repository
+2026-11-09T09:00:27.7569685Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +fc87d4fb24b231f8de6e3e47b71f0905282c974c:refs/remotes/origin/implement/persistent-species-20261109
+2026-11-09T09:00:28.8158948Z From https://github.com/jake-w-liu/HybridPlasmaPIC.jl
+2026-11-09T09:00:28.8159736Z  * [new ref]         fc87d4fb24b231f8de6e3e47b71f0905282c974c -> origin/implement/persistent-species-20261109
+2026-11-09T09:00:28.8162763Z ##[endgroup]
+2026-11-09T09:00:28.8163235Z ##[group]Determining the checkout info
+2026-11-09T09:00:28.8164329Z ##[endgroup]
+2026-11-09T09:00:28.8169605Z [command]/usr/bin/git sparse-checkout disable
+2026-11-09T09:00:28.8211985Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-11-09T09:00:28.8248618Z ##[group]Checking out the ref
+2026-11-09T09:00:28.8249535Z [command]/usr/bin/git checkout --progress --force -B implement/persistent-species-20261109 refs/remotes/origin/implement/persistent-species-20261109
+2026-11-09T09:00:28.8843105Z Switched to a new branch 'implement/persistent-species-20261109'
+2026-11-09T09:00:28.8847234Z branch 'implement/persistent-species-20261109' set up to track 'origin/implement/persistent-species-20261109'.
+2026-11-09T09:00:28.8853435Z ##[endgroup]
+2026-11-09T09:00:28.8895762Z [command]/usr/bin/git log -1 --format=%H
+2026-11-09T09:00:28.8918541Z fc87d4fb24b231f8de6e3e47b71f0905282c974c
+2026-11-09T09:00:28.9120053Z ##[group]Run julia-actions/setup-julia@v2
+2026-11-09T09:00:28.9120339Z with:
+2026-11-09T09:00:28.9120508Z   version: 1
+2026-11-09T09:00:28.9120695Z   include-all-prereleases: false
+2026-11-09T09:00:28.9120904Z   arch: default
+2026-11-09T09:00:28.9121083Z   show-versioninfo: false
+2026-11-09T09:00:28.9121271Z env:
+2026-11-09T09:00:28.9121430Z   CUDA_TEST_VERSION: 6
+2026-11-09T09:00:28.9121633Z   CUDA_TEST_ENV_NAME: hpic-cuda-host-env
+2026-11-09T09:00:28.9121862Z ##[endgroup]
+2026-11-09T09:00:30.2365265Z [command]/usr/bin/tar xf /home/runner/work/_temp/c34ffcc8-033b-4ec0-b371-343ad176ce52 --strip-components=1 -C /opt/hostedtoolcache/julia/1.13.3/x64
+2026-11-09T09:00:33.4962201Z [command]/opt/hostedtoolcache/julia/1.13.3/x64/bin/julia --version
+2026-11-09T09:00:33.5091562Z julia version 1.13.3
+2026-11-09T09:00:33.5385770Z ##[group]Run julia-actions/cache@v2
+2026-11-09T09:00:33.5386022Z with:
+2026-11-09T09:00:33.5386296Z   cache-name: julia-cache;workflow=HybridPlasmaPIC CI;job=cuda-host
+2026-11-09T09:00:33.5386635Z   include-matrix: true
+2026-11-09T09:00:33.5386844Z   cache-artifacts: true
+2026-11-09T09:00:33.5387030Z   cache-packages: true
+2026-11-09T09:00:33.5387208Z   cache-registries: true
+2026-11-09T09:00:33.5387393Z   cache-compiled: true
+2026-11-09T09:00:33.5387582Z   cache-scratchspaces: true
+2026-11-09T09:00:33.5387782Z   cache-logs: true
+2026-11-09T09:00:33.5387957Z   delete-old-caches: true
+2026-11-09T09:00:33.5389922Z   token: ***
+2026-11-09T09:00:33.5390088Z env:
+2026-11-09T09:00:33.5390248Z   CUDA_TEST_VERSION: 6
+2026-11-09T09:00:33.5390448Z   CUDA_TEST_ENV_NAME: hpic-cuda-host-env
+2026-11-09T09:00:33.5390669Z ##[endgroup]
+2026-11-09T09:00:33.5439655Z ##[start-action display=Install jq;id=__julia-actions_cache.__dcarbone_install-jq-action]
+2026-11-09T09:00:33.5508725Z ##[group]Run dcarbone/install-jq-action@f0e10f46ff84f4d32178b4b76e1ef180b16f82c3
+2026-11-09T09:00:33.5509056Z with:
+2026-11-09T09:00:33.5509219Z   force: false
+2026-11-09T09:00:33.5509383Z   version: 1.7.1
+2026-11-09T09:00:33.5509543Z env:
+2026-11-09T09:00:33.5509714Z   CUDA_TEST_VERSION: 6
+2026-11-09T09:00:33.5509911Z   CUDA_TEST_ENV_NAME: hpic-cuda-host-env
+2026-11-09T09:00:33.5510129Z ##[endgroup]
+2026-11-09T09:00:33.5538958Z ##[start-action display=Check for jq - Unix-ish;id=__julia-actions_cache.__dcarbone_install-jq-action.jq-check-unix]
+2026-11-09T09:00:33.5578184Z ##[group]Run _jq_bin="$(which jq)"
+2026-11-09T09:00:33.5578479Z [36;1m_jq_bin="$(which jq)"[0m
+2026-11-09T09:00:33.5578701Z [36;1mif [ -f "${_jq_bin}" ]; then[0m
+2026-11-09T09:00:33.5578954Z [36;1m  echo "found=true" >> $GITHUB_OUTPUT[0m
+2026-11-09T09:00:33.5579203Z [36;1melse[0m
+2026-11-09T09:00:33.5579395Z [36;1m  echo "found=false" >> $GITHUB_OUTPUT[0m
+2026-11-09T09:00:33.5579622Z [36;1mfi[0m
+2026-11-09T09:00:33.5646066Z shell: /usr/bin/sh +e {0}
+2026-11-09T09:00:33.5646285Z env:
+2026-11-09T09:00:33.5646450Z   CUDA_TEST_VERSION: 6
+2026-11-09T09:00:33.5646658Z   CUDA_TEST_ENV_NAME: hpic-cuda-host-env
+2026-11-09T09:00:33.5646889Z ##[endgroup]
+2026-11-09T09:00:33.5766582Z ##[end-action id=__julia-actions_cache.__dcarbone_install-jq-action.jq-check-unix;outcome=success;conclusion=success;duration_ms=22]
+2026-11-09T09:00:33.5771857Z ##[start-action display=Install jq - Unix-ish non-1.7;id=__julia-actions_cache.__dcarbone_install-jq-action.__run]
+2026-11-09T09:00:33.5780842Z ##[end-action id=__julia-actions_cache.__dcarbone_install-jq-action.__run;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-11-09T09:00:33.5783246Z ##[start-action display=Install jq - Unix-ish 1.7;id=__julia-actions_cache.__dcarbone_install-jq-action.__run_2]
+2026-11-09T09:00:33.5790623Z ##[end-action id=__julia-actions_cache.__dcarbone_install-jq-action.__run_2;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-11-09T09:00:33.5792383Z ##[start-action display=Check for jq - Windows-ish;id=__julia-actions_cache.__dcarbone_install-jq-action.jq-check-windows]
+2026-11-09T09:00:33.5795679Z ##[end-action id=__julia-actions_cache.__dcarbone_install-jq-action.jq-check-windows;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-11-09T09:00:33.5797826Z ##[start-action display=Install jq - Windows-ish non-1.7;id=__julia-actions_cache.__dcarbone_install-jq-action.__run_3]
+2026-11-09T09:00:33.5801664Z ##[end-action id=__julia-actions_cache.__dcarbone_install-jq-action.__run_3;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-11-09T09:00:33.5803551Z ##[start-action display=Install jq - Windows-ish 1.7;id=__julia-actions_cache.__dcarbone_install-jq-action.__run_4]
+2026-11-09T09:00:33.5807354Z ##[end-action id=__julia-actions_cache.__dcarbone_install-jq-action.__run_4;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-11-09T09:00:33.5841677Z ##[end-action id=__julia-actions_cache.__dcarbone_install-jq-action;outcome=success;conclusion=success;duration_ms=40]
+2026-11-09T09:00:33.5851935Z ##[start-action display=Run if [ -n "" %5D%3B then;id=__julia-actions_cache.paths]
+2026-11-09T09:00:33.5868333Z ##[group]Run if [ -n "" ]; then
+2026-11-09T09:00:33.5868602Z [36;1mif [ -n "" ]; then[0m
+2026-11-09T09:00:33.5868799Z [36;1m    depot=""[0m
+2026-11-09T09:00:33.5869025Z [36;1melif [ -n "$JULIA_DEPOT_PATH" ]; then[0m
+2026-11-09T09:00:33.5869279Z [36;1m    # Use the first depot path[0m
+2026-11-09T09:00:33.5869579Z [36;1m    depot=$(echo $JULIA_DEPOT_PATH | cut -d$PATH_DELIMITER -f1)[0m
+2026-11-09T09:00:33.5869868Z [36;1melse[0m
+2026-11-09T09:00:33.5870039Z [36;1m    depot="~/.julia"[0m
+2026-11-09T09:00:33.5870231Z [36;1mfi[0m
+2026-11-09T09:00:33.5870448Z [36;1mif [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]]; then[0m
+2026-11-09T09:00:33.5870749Z [36;1m  depot="${depot/#\~/$USERPROFILE}"  # Windows paths[0m
+2026-11-09T09:00:33.5871086Z [36;1m  depot="${depot//\\//}"             # Replace backslashes with forward slashes[0m
+2026-11-09T09:00:33.5871425Z [36;1melse[0m
+2026-11-09T09:00:33.5871686Z [36;1m  depot="${depot/#\~/$HOME}"  # Unix-like paths[0m
+2026-11-09T09:00:33.5871921Z [36;1mfi[0m
+2026-11-09T09:00:33.5872126Z [36;1mecho "depot=$depot" | tee -a "$GITHUB_OUTPUT"[0m
+2026-11-09T09:00:33.5872372Z [36;1m[0m
+2026-11-09T09:00:33.5872535Z [36;1mcache_paths=()[0m
+2026-11-09T09:00:33.5872738Z [36;1martifacts_path="${depot}/artifacts"[0m
+2026-11-09T09:00:33.5873011Z [36;1m[ "true" = "true" ] && cache_paths+=("$artifacts_path")[0m
+2026-11-09T09:00:33.5873294Z [36;1mpackages_path="${depot}/packages"[0m
+2026-11-09T09:00:33.5873566Z [36;1m[ "true" = "true" ] && cache_paths+=("$packages_path")[0m
+2026-11-09T09:00:33.5873843Z [36;1mregistries_path="${depot}/registries"[0m
+2026-11-09T09:00:33.5874090Z [36;1mif [ "true" = "true" ]; then[0m
+2026-11-09T09:00:33.5874324Z [36;1m    if [ ! -d "${registries_path}" ]; then[0m
+2026-11-09T09:00:33.5874575Z [36;1m        cache_paths+=("$registries_path")[0m
+2026-11-09T09:00:33.5874798Z [36;1m    else[0m
+2026-11-09T09:00:33.5875619Z [36;1m        echo "::warning::Julia depot registries already exist. Skipping restoring of cached registries to avoid potential merge conflicts when updating. Please ensure that \`julia-actions/cache\` precedes any workflow steps which add registries."[0m
+2026-11-09T09:00:33.5876481Z [36;1m    fi[0m
+2026-11-09T09:00:33.5876643Z [36;1mfi[0m
+2026-11-09T09:00:33.5876824Z [36;1mcompiled_path="${depot}/compiled"[0m
+2026-11-09T09:00:33.5877090Z [36;1m[ "true" = "true" ] && cache_paths+=("$compiled_path")[0m
+2026-11-09T09:00:33.5877381Z [36;1mscratchspaces_path="${depot}/scratchspaces"[0m
+2026-11-09T09:00:33.5877668Z [36;1m[ "true" = "true" ] && cache_paths+=("$scratchspaces_path")[0m
+2026-11-09T09:00:33.5877937Z [36;1mlogs_path="${depot}/logs"[0m
+2026-11-09T09:00:33.5878178Z [36;1m[ "true" = "true" ] && cache_paths+=("$logs_path")[0m
+2026-11-09T09:00:33.5878421Z [36;1m{[0m
+2026-11-09T09:00:33.5878592Z [36;1m    echo "cache-paths<<EOF"[0m
+2026-11-09T09:00:33.5878822Z [36;1m    printf "%s\n" "${cache_paths[@]}"[0m
+2026-11-09T09:00:33.5879045Z [36;1m    echo "EOF"[0m
+2026-11-09T09:00:33.5879233Z [36;1m} | tee -a "$GITHUB_OUTPUT"[0m
+2026-11-09T09:00:33.5923458Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-09T09:00:33.5923748Z env:
+2026-11-09T09:00:33.5923918Z   CUDA_TEST_VERSION: 6
+2026-11-09T09:00:33.5924117Z   CUDA_TEST_ENV_NAME: hpic-cuda-host-env
+2026-11-09T09:00:33.5924340Z   PATH_DELIMITER: :
+2026-11-09T09:00:33.5924533Z ##[endgroup]
+2026-11-09T09:00:33.6016971Z depot=/home/runner/.julia
+2026-11-09T09:00:33.6044509Z cache-paths<<EOF
+2026-11-09T09:00:33.6044714Z /home/runner/.julia/artifacts
+2026-11-09T09:00:33.6045066Z /home/runner/.julia/packages
+2026-11-09T09:00:33.6045278Z /home/runner/.julia/registries
+2026-11-09T09:00:33.6045490Z /home/runner/.julia/compiled
+2026-11-09T09:00:33.6045699Z /home/runner/.julia/scratchspaces
+2026-11-09T09:00:33.6045910Z /home/runner/.julia/logs
+2026-11-09T09:00:33.6046087Z EOF
+2026-11-09T09:00:33.6055790Z ##[end-action id=__julia-actions_cache.paths;outcome=success;conclusion=success;duration_ms=20]
+2026-11-09T09:00:33.6076857Z ##[start-action display=Generate Keys;id=__julia-actions_cache.keys]
+2026-11-09T09:00:33.6093180Z ##[group]Run # `matrix_key` joins all of matrix keys/values (including nested objects) to ensure that concurrent runs each use a unique cache key.
+2026-11-09T09:00:33.6093913Z [36;1m# `matrix_key` joins all of matrix keys/values (including nested objects) to ensure that concurrent runs each use a unique cache key.[0m
+2026-11-09T09:00:33.6094423Z [36;1m# When `matrix` isn't set for the job then `MATRIX_JSON=null`.[0m
+2026-11-09T09:00:33.6094749Z [36;1mif [ "true" == "true" ] && [ "$MATRIX_JSON" != "null" ]; then[0m
+2026-11-09T09:00:33.6095482Z [36;1m  matrix_key=$(echo "$MATRIX_JSON" | jq 'paths(type != "object") as $p | ($p | join("-")) + "=" + (getpath($p) | tostring)' | jq -rs 'join(";") | . + ";"')[0m
+2026-11-09T09:00:33.6095921Z [36;1mfi[0m
+2026-11-09T09:00:33.6096250Z [36;1mrestore_key="julia-cache;workflow=HybridPlasmaPIC CI;job=cuda-host;os=Linux;${matrix_key}"[0m
+2026-11-09T09:00:33.6096645Z [36;1m# URL encode any restricted characters:[0m
+2026-11-09T09:00:33.6097134Z [36;1m# https://github.com/actions/toolkit/blob/5430c5d84832076372990c7c27f900878ff66dc9/packages/cache/src/cache.ts#L38-L43[0m
+2026-11-09T09:00:33.6097633Z [36;1mrestore_key=$(sed 's/,/%2C/g' <<<"${restore_key}")[0m
+2026-11-09T09:00:33.6097938Z [36;1mkey="${restore_key}run_id=42570140304;run_attempt=1"[0m
+2026-11-09T09:00:33.6098247Z [36;1mecho "restore-key=${restore_key}" >> $GITHUB_OUTPUT[0m
+2026-11-09T09:00:33.6098521Z [36;1mecho "key=${key}" >> $GITHUB_OUTPUT[0m
+2026-11-09T09:00:33.6140444Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-09T09:00:33.6140725Z env:
+2026-11-09T09:00:33.6140894Z   CUDA_TEST_VERSION: 6
+2026-11-09T09:00:33.6141096Z   CUDA_TEST_ENV_NAME: hpic-cuda-host-env
+2026-11-09T09:00:33.6141382Z   MATRIX_JSON: {
+  "julia-version": "1",
+  "cuda-version": "6"
+}
+2026-11-09T09:00:33.6141663Z ##[endgroup]
+2026-11-09T09:00:33.6249028Z ##[end-action id=__julia-actions_cache.keys;outcome=success;conclusion=success;duration_ms=17]
+2026-11-09T09:00:33.6250998Z ##[start-action display=Run actions/cache@5a3ec84eff668545956fd18022155c47e93e2684;id=__julia-actions_cache.cache]
+2026-11-09T09:00:33.6283399Z ##[group]Run actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+2026-11-09T09:00:33.6283678Z with:
+2026-11-09T09:00:33.6284206Z   path: /home/runner/.julia/artifacts
+/home/runner/.julia/packages
+/home/runner/.julia/registries
+/home/runner/.julia/compiled
+/home/runner/.julia/scratchspaces
+/home/runner/.julia/logs
+
+2026-11-09T09:00:33.6285256Z   key: julia-cache;workflow=HybridPlasmaPIC CI;job=cuda-host;os=Linux;julia-version=1;cuda-version=6;run_id=42570140304;run_attempt=1
+2026-11-09T09:00:33.6285881Z   restore-keys: julia-cache;workflow=HybridPlasmaPIC CI;job=cuda-host;os=Linux;julia-version=1;cuda-version=6;
+2026-11-09T09:00:33.6286275Z   enableCrossOsArchive: false
+2026-11-09T09:00:33.6286495Z   fail-on-cache-miss: false
+2026-11-09T09:00:33.6286687Z   lookup-only: false
+2026-11-09T09:00:33.6286865Z   save-always: false
+2026-11-09T09:00:33.6287035Z env:
+2026-11-09T09:00:33.6287203Z   CUDA_TEST_VERSION: 6
+2026-11-09T09:00:33.6287403Z   CUDA_TEST_ENV_NAME: hpic-cuda-host-env
+2026-11-09T09:00:33.6287627Z ##[endgroup]
+2026-11-09T09:00:33.7125502Z (node:2239) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-09T09:00:33.7126094Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-09T09:00:33.9141070Z Cache not found for input keys: julia-cache;workflow=HybridPlasmaPIC CI;job=cuda-host;os=Linux;julia-version=1;cuda-version=6;run_id=42570140304;run_attempt=1, julia-cache;workflow=HybridPlasmaPIC CI;job=cuda-host;os=Linux;julia-version=1;cuda-version=6;
+2026-11-09T09:00:33.9205497Z ##[end-action id=__julia-actions_cache.cache;outcome=success;conclusion=success;duration_ms=295]
+2026-11-09T09:00:33.9208268Z ##[start-action display=make depot if not restored, then list depot directory sizes;id=__julia-actions_cache.__run]
+2026-11-09T09:00:33.9228084Z ##[group]Run mkdir -p /home/runner/.julia
+2026-11-09T09:00:33.9228377Z [36;1mmkdir -p /home/runner/.julia[0m
+2026-11-09T09:00:33.9228634Z [36;1mdu -shc /home/runner/.julia/* || true[0m
+2026-11-09T09:00:33.9274760Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-09T09:00:33.9275237Z env:
+2026-11-09T09:00:33.9275404Z   CUDA_TEST_VERSION: 6
+2026-11-09T09:00:33.9275610Z   CUDA_TEST_ENV_NAME: hpic-cuda-host-env
+2026-11-09T09:00:33.9275836Z ##[endgroup]
+2026-11-09T09:00:33.9387939Z du: cannot access '/home/runner/.julia/*': No such file or directory
+2026-11-09T09:00:33.9388249Z 0	total
+2026-11-09T09:00:33.9399730Z ##[end-action id=__julia-actions_cache.__run;outcome=success;conclusion=success;duration_ms=19]
+2026-11-09T09:00:33.9401606Z ##[start-action display=Update any cached registries;id=__julia-actions_cache.__run_2]
+2026-11-09T09:00:33.9424769Z ##[group]Run if [ -d "/home/runner/.julia/registries" ] && [ -n "$(ls -A "/home/runner/.julia/registries")" ]; then
+2026-11-09T09:00:33.9439969Z [36;1mif [ -d "/home/runner/.julia/registries" ] && [ -n "$(ls -A "/home/runner/.julia/registries")" ]; then[0m
+2026-11-09T09:00:33.9440566Z [36;1m  echo "Registries directory exists and is non-empty. Updating any registries"[0m
+2026-11-09T09:00:33.9441039Z [36;1m  julia -e "import Pkg; isdefined(Pkg, :Registry) && Pkg.Registry.update();"[0m
+2026-11-09T09:00:33.9441384Z [36;1melse[0m
+2026-11-09T09:00:33.9441691Z [36;1m  echo "Registries directory does not exist or is empty. Skipping registry update"[0m
+2026-11-09T09:00:33.9442029Z [36;1mfi[0m
+2026-11-09T09:00:33.9480907Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-09T09:00:33.9481187Z env:
+2026-11-09T09:00:33.9481356Z   CUDA_TEST_VERSION: 6
+2026-11-09T09:00:33.9481556Z   CUDA_TEST_ENV_NAME: hpic-cuda-host-env
+2026-11-09T09:00:33.9481770Z ##[endgroup]
+2026-11-09T09:00:33.9537517Z Registries directory does not exist or is empty. Skipping registry update
+2026-11-09T09:00:33.9542833Z ##[end-action id=__julia-actions_cache.__run_2;outcome=success;conclusion=success;duration_ms=14]
+2026-11-09T09:00:33.9546024Z ##[start-action display=Run pyTooling/Actions/with-post-step@42e17fae05f224e5ac3d79d021a4e3577878efe5;id=__julia-actions_cache.__pyTooling_Actions]
+2026-11-09T09:00:33.9603797Z ##[group]Run pyTooling/Actions/with-post-step@42e17fae05f224e5ac3d79d021a4e3577878efe5
+2026-11-09T09:00:33.9604139Z with:
+2026-11-09T09:00:33.9604299Z   main: echo ""
+2026-11-09T09:00:33.9605212Z   post: julia $GITHUB_ACTION_PATH/handle_caches.jl rm "jake-w-liu/HybridPlasmaPIC.jl" "julia-cache;workflow=HybridPlasmaPIC CI;job=cuda-host;os=Linux;julia-version=1;cuda-version=6;" "refs/heads/implement/persistent-species-20261109" "true"
+2026-11-09T09:00:33.9605906Z   key: POST
+2026-11-09T09:00:33.9606060Z env:
+2026-11-09T09:00:33.9606219Z   CUDA_TEST_VERSION: 6
+2026-11-09T09:00:33.9606424Z   CUDA_TEST_ENV_NAME: hpic-cuda-host-env
+2026-11-09T09:00:33.9608497Z   GH_TOKEN: ***
+2026-11-09T09:00:33.9608682Z ##[endgroup]
+2026-11-09T09:00:33.9838740Z 
+2026-11-09T09:00:33.9878180Z ##[end-action id=__julia-actions_cache.__pyTooling_Actions;outcome=success;conclusion=success;duration_ms=33]
+2026-11-09T09:00:33.9881677Z ##[start-action display=Run pyTooling/Actions/with-post-step@42e17fae05f224e5ac3d79d021a4e3577878efe5;id=__julia-actions_cache.__pyTooling_Actions_2]
+2026-11-09T09:00:33.9889460Z ##[end-action id=__julia-actions_cache.__pyTooling_Actions_2;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-11-09T09:00:33.9891596Z ##[start-action display=Run echo "cache-hit=$CACHE_HIT" >> $GITHUB_OUTPUT;id=__julia-actions_cache.hit]
+2026-11-09T09:00:34.0048388Z ##[group]Run echo "cache-hit=$CACHE_HIT" >> $GITHUB_OUTPUT
+2026-11-09T09:00:34.0048732Z [36;1mecho "cache-hit=$CACHE_HIT" >> $GITHUB_OUTPUT[0m
+2026-11-09T09:00:34.0092678Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-09T09:00:34.0093116Z env:
+2026-11-09T09:00:34.0093281Z   CUDA_TEST_VERSION: 6
+2026-11-09T09:00:34.0093481Z   CUDA_TEST_ENV_NAME: hpic-cuda-host-env
+2026-11-09T09:00:34.0093692Z   CACHE_HIT: 
+2026-11-09T09:00:34.0093858Z ##[endgroup]
+2026-11-09T09:00:34.0242789Z ##[end-action id=__julia-actions_cache.hit;outcome=success;conclusion=success;duration_ms=35]
+2026-11-09T09:00:34.0303336Z ##[group]Run set -euo pipefail
+2026-11-09T09:00:34.0303590Z [36;1mset -euo pipefail[0m
+2026-11-09T09:00:34.0303876Z [36;1mexport CUDA_TEST_ENV="$RUNNER_TEMP/$CUDA_TEST_ENV_NAME"[0m
+2026-11-09T09:00:34.0304168Z [36;1mjulia --project=. -e '[0m
+2026-11-09T09:00:34.0304374Z [36;1m  using Pkg[0m
+2026-11-09T09:00:34.0304581Z [36;1m  Pkg.activate(ENV["CUDA_TEST_ENV"])[0m
+2026-11-09T09:00:34.0304982Z [36;1m  Pkg.develop(path = pwd())[0m
+2026-11-09T09:00:34.0305250Z [36;1m  version = ENV["CUDA_TEST_VERSION"][0m
+2026-11-09T09:00:34.0305566Z [36;1m  # Test the exact declared floor; the other row resolves supported 6.x.[0m
+2026-11-09T09:00:34.0305950Z [36;1m  requirement = version == "6" ? version : VersionNumber(version)[0m
+2026-11-09T09:00:34.0306323Z [36;1m  Pkg.add(Pkg.PackageSpec(name = "CUDA", version = requirement))' \[0m
+2026-11-09T09:00:34.0306632Z [36;1m  2>&1 | tee cuda-host-setup.log[0m
+2026-11-09T09:00:34.0345005Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-09T09:00:34.0345320Z env:
+2026-11-09T09:00:34.0345486Z   CUDA_TEST_VERSION: 6
+2026-11-09T09:00:34.0345690Z   CUDA_TEST_ENV_NAME: hpic-cuda-host-env
+2026-11-09T09:00:34.0345907Z ##[endgroup]
+2026-11-09T09:00:34.4989243Z   Activating new project at `~/work/_temp/hpic-cuda-host-env`
+2026-11-09T09:00:34.5426234Z   Installing known registries into `~/.julia`
+2026-11-09T09:00:35.7421847Z        Added `General` registry to ~/.julia/registries
+2026-11-09T09:00:36.0201999Z    Resolving package versions...
+2026-11-09T09:00:37.5864585Z    Installed PkgVersion ──────────── v0.3.3
+2026-11-09T09:00:37.5900134Z    Installed MPIABI_jll ──────────── v1.0.1+0
+2026-11-09T09:00:37.5947580Z    Installed oneTBB_jll ──────────── v2023.1.0+0
+2026-11-09T09:00:37.5969302Z    Installed MKL_jll ─────────────── v2025.2.0+0
+2026-11-09T09:00:37.6580982Z    Installed MicrosoftMPI_jll ────── v10.1.5+0
+2026-11-09T09:00:37.6593913Z    Installed MPICH_jll ───────────── v5.0.3+0
+2026-11-09T09:00:37.6611424Z    Installed MPI ─────────────────── v0.20.29
+2026-11-09T09:00:37.6798197Z    Installed IntelOpenMP_jll ─────── v2025.2.0+0
+2026-11-09T09:00:37.6804358Z    Installed Xorg_libpciaccess_jll ─ v0.19.0+0
+2026-11-09T09:00:37.7079340Z    Installed SpectralOperators ───── v0.1.9
+2026-11-09T09:00:37.7115572Z    Installed PrecompileTools ─────── v1.3.4
+2026-11-09T09:00:37.7404243Z    Installed OpenMPI_jll ─────────── v5.0.14+0
+2026-11-09T09:00:37.7434376Z    Installed Krylov ──────────────── v0.10.12
+2026-11-09T09:00:37.7442648Z    Installed Hwloc_jll ───────────── v2.15.0+3
+2026-11-09T09:00:37.7447279Z    Installed AbstractFFTs ────────── v1.5.0
+2026-11-09T09:00:37.7544535Z    Installed XML2_jll ────────────── v2.15.4+0
+2026-11-09T09:00:37.7548525Z    Installed Reexport ────────────── v1.2.2
+2026-11-09T09:00:37.7935051Z    Installed Preferences ─────────── v1.6.1
+2026-11-09T09:00:37.8104513Z    Installed JLLWrappers ─────────── v1.8.0
+2026-11-09T09:00:37.8144788Z    Installed MPIPreferences ──────── v0.1.12
+2026-11-09T09:00:37.8148186Z    Installed FFTW ────────────────── v1.10.0
+2026-11-09T09:00:37.8188845Z    Installed Libiconv_jll ────────── v1.18.0+0
+2026-11-09T09:00:37.8898966Z    Installed MPItrampoline_jll ───── v5.5.7+0
+2026-11-09T09:00:37.9497493Z    Installed FFTW_jll ────────────── v3.3.12+0
+2026-11-09T09:00:37.9515394Z    Installed DocStringExtensions ─── v0.10.2
+2026-11-09T09:00:39.3855383Z   Installing 6 artifacts
+2026-11-09T09:00:39.9103001Z    Installed artifact Xorg_libpciaccess 23.4 KiB
+2026-11-09T09:00:40.1076933Z    Installed artifact XML2              1.7 MiB
+2026-11-09T09:00:40.1146079Z    Installed artifact Hwloc             3.0 MiB
+2026-11-09T09:00:40.1154609Z    Installed artifact Libiconv          1022.9 KiB
+2026-11-09T09:00:40.2093961Z    Installed artifact MPICH             5.8 MiB
+2026-11-09T09:00:40.2410326Z    Installed artifact FFTW              1.8 MiB
+2026-11-09T09:00:40.4502812Z     Updating `~/work/_temp/hpic-cuda-host-env/Project.toml`
+2026-11-09T09:00:40.4506202Z   [00a894a3] + HybridPlasmaPIC v0.1.0 `~/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl`
+2026-11-09T09:00:40.4506717Z     Updating `~/work/_temp/hpic-cuda-host-env/Manifest.toml`
+2026-11-09T09:00:41.3118266Z   [621f4979] + AbstractFFTs v1.5.0
+2026-11-09T09:00:41.3118695Z   [ffbed154] + DocStringExtensions v0.10.2
+2026-11-09T09:00:41.3119043Z   [7a1cc6ca] + FFTW v1.10.0
+2026-11-09T09:00:41.3136245Z   [00a894a3] + HybridPlasmaPIC v0.1.0 `~/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl`
+2026-11-09T09:00:41.3136787Z   [692b3bcd] + JLLWrappers v1.8.0
+2026-11-09T09:00:41.3137104Z   [ba0b0d4f] + Krylov v0.10.12
+2026-11-09T09:00:41.3137402Z   [da04e1cc] + MPI v0.20.29
+2026-11-09T09:00:41.3137676Z   [3da0fdf6] + MPIPreferences v0.1.12
+2026-11-09T09:00:41.3138029Z   [eebad327] + PkgVersion v0.3.3
+2026-11-09T09:00:41.3138343Z   [aea7be01] + PrecompileTools v1.3.4
+2026-11-09T09:00:41.3138668Z   [21216c6a] + Preferences v1.6.1
+2026-11-09T09:00:41.3138968Z   [189a3867] + Reexport v1.2.2
+2026-11-09T09:00:41.3139316Z   [8acda80e] + SpectralOperators v0.1.9
+2026-11-09T09:00:41.3139649Z   [f5851436] + FFTW_jll v3.3.12+0
+2026-11-09T09:00:41.3139940Z   [e33a78d0] + Hwloc_jll v2.15.0+3
+2026-11-09T09:00:41.3140263Z   [1d5cc7b8] + IntelOpenMP_jll v2025.2.0+0
+2026-11-09T09:00:41.3140594Z   [94ce4f54] + Libiconv_jll v1.18.0+0
+2026-11-09T09:00:41.3140902Z   [856f044c] + MKL_jll v2025.2.0+0
+2026-11-09T09:00:41.3141195Z   [b5ada748] + MPIABI_jll v1.0.1+0
+2026-11-09T09:00:41.3141487Z   [7cb0a576] + MPICH_jll v5.0.3+0
+2026-11-09T09:00:41.3141805Z   [f1f71cc9] + MPItrampoline_jll v5.5.7+0
+2026-11-09T09:00:41.3142133Z   [9237b28f] + MicrosoftMPI_jll v10.1.5+0
+2026-11-09T09:00:41.3142453Z   [fe0851c0] + OpenMPI_jll v5.0.14+0
+2026-11-09T09:00:41.3142769Z   [02c8fc9c] + XML2_jll v2.15.4+0
+2026-11-09T09:00:41.3143088Z   [a65dc6b1] + Xorg_libpciaccess_jll v0.19.0+0
+2026-11-09T09:00:41.3143429Z   [1317d2d5] + oneTBB_jll v2023.1.0+0
+2026-11-09T09:00:41.3143731Z   [0dad84c5] + ArgTools v1.1.2
+2026-11-09T09:00:41.3144471Z   [56f22d72] + Artifacts v1.11.0
+2026-11-09T09:00:41.3144762Z   [2a0f44e3] + Base64 v1.11.0
+2026-11-09T09:00:41.3145171Z   [ade2ca70] + Dates v1.11.0
+2026-11-09T09:00:41.3145458Z   [8ba89e20] + Distributed v1.11.0
+2026-11-09T09:00:41.3145756Z   [f43a241f] + Downloads v1.7.0
+2026-11-09T09:00:41.3146053Z   [7b1f6079] + FileWatching v1.11.0
+2026-11-09T09:00:41.3146402Z   [ac6e5ff7] + JuliaSyntaxHighlighting v1.12.0
+2026-11-09T09:00:41.3146763Z   [4af54fe1] + LazyArtifacts v1.11.0
+2026-11-09T09:00:41.3147065Z   [b27032c2] + LibCURL v1.0.0
+2026-11-09T09:00:41.3147356Z   [76f85450] + LibGit2 v1.11.0
+2026-11-09T09:00:41.3147633Z   [8f399da3] + Libdl v1.11.0
+2026-11-09T09:00:41.3147928Z   [37e2e46d] + LinearAlgebra v1.13.0
+2026-11-09T09:00:41.3148230Z   [56ddb016] + Logging v1.11.0
+2026-11-09T09:00:41.3148507Z   [d6f4376e] + Markdown v1.11.0
+2026-11-09T09:00:41.3148793Z   [ca575930] + NetworkOptions v1.3.0
+2026-11-09T09:00:41.3149094Z   [44cfe95a] + Pkg v1.13.0
+2026-11-09T09:00:41.3149370Z   [de0858da] + Printf v1.11.0
+2026-11-09T09:00:41.3149662Z   [9a3f8284] + Random v1.11.0
+2026-11-09T09:00:41.3149931Z   [ea8e919c] + SHA v1.0.0
+2026-11-09T09:00:41.3150210Z   [9e88b42a] + Serialization v1.11.0
+2026-11-09T09:00:41.3150516Z   [6462fe0b] + Sockets v1.11.0
+2026-11-09T09:00:41.3150802Z   [2f01184e] + SparseArrays v1.13.0
+2026-11-09T09:00:41.3151110Z   [f489334b] + StyledStrings v1.11.0
+2026-11-09T09:00:41.3151847Z   [fa267f1f] + TOML v1.0.3
+2026-11-09T09:00:41.3153228Z   [a4e569a6] + Tar v1.10.0
+2026-11-09T09:00:41.3154419Z   [cf7118a7] + UUIDs v1.11.0
+2026-11-09T09:00:41.3154782Z   [4ec0a83e] + Unicode v1.11.0
+2026-11-09T09:00:41.3155320Z   [e66e0078] + CompilerSupportLibraries_jll v1.5.5+2
+2026-11-09T09:00:41.3156254Z   [deac9b47] + LibCURL_jll v8.22.0+0
+2026-11-09T09:00:41.3157522Z   [e37daf67] + LibGit2_jll v1.9.7+0
+2026-11-09T09:00:41.3158788Z   [29816b5a] + LibSSH2_jll v1.11.104+0
+2026-11-09T09:00:41.3160047Z   [14a3606d] + MozillaCACerts_jll v2026.10.20
+2026-11-09T09:00:41.3161436Z   [4536629a] + OpenBLAS_jll v0.3.30+0
+2026-11-09T09:00:41.3162711Z   [458c3c95] + OpenSSL_jll v3.5.8+0
+2026-11-09T09:00:41.3164260Z   [efcefdf7] + PCRE2_jll v10.47.0+0
+2026-11-09T09:00:41.3164626Z   [bea87d4a] + SuiteSparse_jll v7.10.1+0
+2026-11-09T09:00:41.3165906Z   [83775a58] + Zlib_jll v1.3.2+0
+2026-11-09T09:00:41.3167206Z   [3161d3a3] + Zstd_jll v1.5.7+1
+2026-11-09T09:00:41.3168908Z   [8e850b90] + libblastrampoline_jll v5.15.0+0
+2026-11-09T09:00:41.3170391Z   [8e850ede] + nghttp2_jll v1.70.0+0
+2026-11-09T09:00:41.3171591Z   [3f19e933] + p7zip_jll v17.8.3+0
+2026-11-09T09:00:41.3553235Z    Resolving package versions...
+2026-11-09T09:00:43.4616217Z    Installed MSVCRuntime_jll ───────────── v14.51.36247+0
+2026-11-09T09:00:43.4640796Z    Installed CompositionsBase ──────────── v0.1.2
+2026-11-09T09:00:43.4647737Z    Installed LLVMLoopInfo ──────────────── v1.0.0
+2026-11-09T09:00:43.4706975Z    Installed LLVMExtra_jll ─────────────── v0.0.56+0
+2026-11-09T09:00:43.4715124Z    Installed cuSOLVER ──────────────────── v6.5.1
+2026-11-09T09:00:43.4719402Z    Installed CUPTI ─────────────────────── v6.5.1
+2026-11-09T09:00:43.4724104Z    Installed NVTX ──────────────────────── v1.0.3
+2026-11-09T09:00:43.4727285Z    Installed MacroTools ────────────────── v0.5.16
+2026-11-09T09:00:43.5498115Z    Installed cuRAND ────────────────────── v6.5.1
+2026-11-09T09:00:43.5585521Z    Installed Adapt ─────────────────────── v4.8.0
+2026-11-09T09:00:43.5688532Z    Installed CompilerCaching ───────────── v0.5.3
+2026-11-09T09:00:43.5696375Z    Installed ConstructionBase ──────────── v1.6.1
+2026-11-09T09:00:43.5830652Z    Installed GPUCompiler ───────────────── v2.22.0
+2026-11-09T09:00:43.5835364Z    Installed LibTracyClient_jll ────────── v0.13.1+0
+2026-11-09T09:00:43.5856036Z    Installed tree_sitter_gcn_jll ───────── v0.1.0+0
+2026-11-09T09:00:43.6748862Z    Installed CUDA_Compiler_jll ─────────── v0.6.4+0
+2026-11-09T09:00:43.6884773Z    Installed CUDACore ──────────────────── v6.5.1
+2026-11-09T09:00:43.6905614Z    Installed demumble_jll ──────────────── v1.3.0+0
+2026-11-09T09:00:43.6928607Z    Installed OrderedCollections ────────── v2.0.3
+2026-11-09T09:00:43.6934161Z    Installed ExprTools ─────────────────── v0.1.11
+2026-11-09T09:00:43.6937930Z    Installed ChunkSplitters ────────────── v3.2.0
+2026-11-09T09:00:43.6950484Z    Installed Random123 ─────────────────── v1.7.1
+2026-11-09T09:00:43.6978292Z    Installed CUDA ──────────────────────── v6.5.1
+2026-11-09T09:00:43.7666369Z    Installed HashArrayMappedTries ──────── v0.2.0
+2026-11-09T09:00:43.7937664Z    Installed IteratorInterfaceExtensions ─ v1.0.0
+2026-11-09T09:00:43.7950402Z    Installed DataAPI ───────────────────── v1.16.0
+2026-11-09T09:00:43.7957311Z    Installed NVTX_jll ──────────────────── v3.2.2+0
+2026-11-09T09:00:43.7963820Z    Installed Statistics ────────────────── v1.11.5
+2026-11-09T09:00:43.7968094Z    Installed InitialValues ─────────────── v0.3.1
+2026-11-09T09:00:43.7983566Z    Installed RandomNumbers ─────────────── v1.6.0
+2026-11-09T09:00:43.7987555Z    Installed GPUArrays ─────────────────── v12.2.0
+2026-11-09T09:00:43.8436333Z    Installed Atomix ────────────────────── v1.7.0
+2026-11-09T09:00:43.8574312Z    Installed CEnum ─────────────────────── v0.5.0
+2026-11-09T09:00:43.8683296Z    Installed tree_sitter_llvm_jll ──────── v1.1.0+0
+2026-11-09T09:00:43.8706904Z    Installed ArgCheck ──────────────────── v2.5.0
+2026-11-09T09:00:43.8711878Z    Installed DataValueInterfaces ───────── v1.0.0
+2026-11-09T09:00:43.8712430Z    Installed NVML ──────────────────────── v6.5.1
+2026-11-09T09:00:43.8716669Z    Installed TaskLocalValues ───────────── v0.1.3
+2026-11-09T09:00:43.8719295Z    Installed NVPTX_LLVM_Backend_jll ────── v23.1.2+2
+2026-11-09T09:00:43.9082506Z    Installed StaticArraysCore ──────────── v1.4.5
+2026-11-09T09:00:43.9278904Z    Installed JuliaNVTXCallbacks_jll ────── v0.2.1+0
+2026-11-09T09:00:43.9516812Z    Installed GPUArraysCore ─────────────── v0.2.2
+2026-11-09T09:00:43.9517523Z    Installed LMDB_jll ──────────────────── v1.0.3+0
+2026-11-09T09:00:43.9564126Z    Installed CUDA_Runtime_Discovery ────── v2.1.1
+2026-11-09T09:00:43.9643572Z    Installed BangBang ──────────────────── v0.4.9
+2026-11-09T09:00:43.9673515Z    Installed CUDA_Runtime_jll ──────────── v0.25.0+3
+2026-11-09T09:00:43.9914711Z    Installed LLVM ──────────────────────── v10.4.3
+2026-11-09T09:00:43.9957230Z    Installed ThreadTeams ───────────────── v1.4.0
+2026-11-09T09:00:44.0134426Z    Installed StringManipulation ────────── v0.6.1
+2026-11-09T09:00:44.0288269Z    Installed LMDB ──────────────────────── v3.0.1
+2026-11-09T09:00:44.0319187Z    Installed Tracy ─────────────────────── v0.1.6
+2026-11-09T09:00:44.0356453Z    Installed SPIRV_Tools_jll ───────────── v2025.4.0+0
+2026-11-09T09:00:44.0438906Z    Installed tree_sitter_ptx_jll ───────── v0.1.0+0
+2026-11-09T09:00:44.1205829Z    Installed KernelAbstractions ────────── v0.10.6
+2026-11-09T09:00:44.1212228Z    Installed cuBLAS ────────────────────── v6.5.1
+2026-11-09T09:00:44.1218628Z    Installed cuSPARSE ──────────────────── v6.5.1
+2026-11-09T09:00:44.1259923Z    Installed PrettyTables ──────────────── v3.5.1
+2026-11-09T09:00:44.1265681Z    Installed ScopedValues ──────────────── v1.6.2
+2026-11-09T09:00:44.1304687Z    Installed UnsafeAtomics ─────────────── v0.4.0
+2026-11-09T09:00:44.1324230Z    Installed CUDA_Driver_jll ───────────── v13.5.0+0
+2026-11-09T09:00:44.2189015Z    Installed Tables ────────────────────── v1.14.0
+2026-11-09T09:00:44.2215729Z    Installed GPUToolbox ────────────────── v3.5.1
+2026-11-09T09:00:44.2341885Z    Installed pocl_standalone_jll ───────── v7.2.3+7
+2026-11-09T09:00:44.2393158Z    Installed cuFFT ─────────────────────── v6.5.1
+2026-11-09T09:00:44.2398807Z    Installed Scratch ───────────────────── v1.3.0
+2026-11-09T09:00:44.2420175Z    Installed AcceleratedKernels ────────── v0.5.12
+2026-11-09T09:00:44.2428554Z    Installed OhMyThreads ───────────────── v0.8.9
+2026-11-09T09:00:44.2443438Z    Installed StableTasks ───────────────── v0.1.7
+2026-11-09T09:00:44.3012327Z    Installed KernelInterface ───────────── v0.4.6
+2026-11-09T09:00:44.3019627Z    Installed InverseFunctions ──────────── v0.1.18
+2026-11-09T09:00:44.3815640Z    Installed SLEEF_jll ─────────────────── v3.9.0+2
+2026-11-09T09:00:44.3825927Z    Installed CUDATools ─────────────────── v6.5.1
+2026-11-09T09:00:44.3829346Z    Installed LLVMOpenMP_jll ────────────── v23.1.1+0
+2026-11-09T09:00:44.3834042Z    Installed LaTeXStrings ──────────────── v1.4.1
+2026-11-09T09:00:44.3835284Z    Installed BFloat16s ─────────────────── v0.6.5
+2026-11-09T09:00:44.3835578Z    Installed TableTraits ───────────────── v1.0.1
+2026-11-09T09:00:44.4331999Z    Installed SPIRVIntrinsics ───────────── v1.6.0
+2026-11-09T09:00:44.4358375Z    Installed Crayons ───────────────────── v4.2.0
+2026-11-09T09:00:44.4509643Z    Installed SPIRV_LLVM_Backend_jll ────── v23.1.4+2
+2026-11-09T09:00:44.4510346Z    Installed tree_sitter_spirv_jll ─────── v0.1.0+0
+2026-11-09T09:00:44.4567080Z    Installed Accessors ─────────────────── v0.1.46
+2026-11-09T09:00:46.5683922Z   Installing 17 artifacts
+2026-11-09T09:00:46.6597583Z    Installed artifact tree_sitter_gcn    11.5 KiB
+2026-11-09T09:00:46.6715952Z    Installed artifact tree_sitter_spirv  5.8 KiB
+2026-11-09T09:00:46.6788448Z    Installed artifact tree_sitter_ptx    19.7 KiB
+2026-11-09T09:00:46.6886254Z    Installed artifact demumble           281.4 KiB
+2026-11-09T09:00:46.7004483Z    Installed artifact NVTX               11.8 KiB
+2026-11-09T09:00:46.7207492Z    Installed artifact LMDB               403.4 KiB
+2026-11-09T09:00:46.8761768Z    Installed artifact SLEEF              2.8 MiB
+2026-11-09T09:00:46.8989720Z    Installed artifact LLVMOpenMP         568.7 KiB
+2026-11-09T09:00:46.9963278Z    Installed artifact LibTracyClient     362.4 KiB
+2026-11-09T09:00:47.0034812Z    Installed artifact SPIRV_LLVM_Backend 7.4 MiB
+2026-11-09T09:00:47.1146465Z    Installed artifact LLVMExtra          3.8 MiB
+2026-11-09T09:00:47.1235888Z    Installed artifact JuliaNVTXCallbacks 7.5 KiB
+2026-11-09T09:00:47.2504534Z    Installed artifact NVPTX_LLVM_Backend 8.5 MiB
+2026-11-09T09:00:47.2551055Z    Installed artifact SPIRV_Tools        2.1 MiB
+2026-11-09T09:00:47.2710744Z    Installed artifact tree_sitter_llvm   109.2 KiB
+2026-11-09T09:00:49.1496251Z    Installed artifact pocl_standalone    76.9 MiB
+2026-11-09T09:00:50.4407856Z    Installed artifact CUDA_Driver        108.2 MiB
+2026-11-09T09:00:50.5165547Z     Updating `~/work/_temp/hpic-cuda-host-env/Project.toml`
+2026-11-09T09:00:50.5167729Z   [052768ef] + CUDA v6.5.1
+2026-11-09T09:00:50.5170355Z     Updating `~/work/_temp/hpic-cuda-host-env/Manifest.toml`
+2026-11-09T09:00:52.6003877Z   [6a4ca0a5] + AcceleratedKernels v0.5.12
+2026-11-09T09:00:52.6004309Z   [7d9f7c33] + Accessors v0.1.46
+2026-11-09T09:00:52.6004616Z   [79e6a3ab] + Adapt v4.8.0
+2026-11-09T09:00:52.6005161Z   [dce04be8] + ArgCheck v2.5.0
+2026-11-09T09:00:52.6005483Z   [a9b6321e] + Atomix v1.7.0
+2026-11-09T09:00:52.6005811Z   [ab4f0b2a] + BFloat16s v0.6.5
+2026-11-09T09:00:52.6006108Z   [198e06fe] + BangBang v0.4.9
+2026-11-09T09:00:52.6006686Z ⌅ [fa961155] + CEnum v0.5.0
+2026-11-09T09:00:52.6007011Z   [052768ef] + CUDA v6.5.1
+2026-11-09T09:00:52.6007604Z   [bd0ed864] + CUDACore v6.5.1
+2026-11-09T09:00:52.6007895Z   [9ec180c6] + CUDATools v6.5.1
+2026-11-09T09:00:52.6008208Z   [1af6417a] + CUDA_Runtime_Discovery v2.1.1
+2026-11-09T09:00:52.6008546Z   [9e67e8f6] + CUPTI v6.5.1
+2026-11-09T09:00:52.6008853Z   [ae650224] + ChunkSplitters v3.2.0
+2026-11-09T09:00:52.6009175Z   [9db33cc3] + CompilerCaching v0.5.3
+2026-11-09T09:00:52.6009496Z   [a33af91c] + CompositionsBase v0.1.2
+2026-11-09T09:00:52.6009770Z   [187b0558] + ConstructionBase v1.6.1
+2026-11-09T09:00:52.6010033Z   [a8cc5b0e] + Crayons v4.2.0
+2026-11-09T09:00:52.6010288Z   [9a962f9c] + DataAPI v1.16.0
+2026-11-09T09:00:52.6010566Z   [e2d170a0] + DataValueInterfaces v1.0.0
+2026-11-09T09:00:52.6010845Z   [e2ba6199] + ExprTools v0.1.11
+2026-11-09T09:00:52.6011097Z   [0c68f7d7] + GPUArrays v12.2.0
+2026-11-09T09:00:52.6011361Z   [46192b85] + GPUArraysCore v0.2.2
+2026-11-09T09:00:52.6011632Z   [61eb1bfa] + GPUCompiler v2.22.0
+2026-11-09T09:00:52.6011902Z   [096a3bc2] + GPUToolbox v3.5.1
+2026-11-09T09:00:52.6012171Z   [076d061b] + HashArrayMappedTries v0.2.0
+2026-11-09T09:00:52.6012455Z   [22cec73e] + InitialValues v0.3.1
+2026-11-09T09:00:52.6012735Z   [3587e190] + InverseFunctions v0.1.18
+2026-11-09T09:00:52.6013106Z   [82899510] + IteratorInterfaceExtensions v1.0.0
+2026-11-09T09:00:52.6013505Z   [63c18a36] + KernelAbstractions v0.10.6
+2026-11-09T09:00:52.6013849Z   [4ee993da] + KernelInterface v0.4.6
+2026-11-09T09:00:52.6014245Z   [929cbde3] + LLVM v10.4.3
+2026-11-09T09:00:52.6014532Z   [8b046642] + LLVMLoopInfo v1.0.0
+2026-11-09T09:00:52.6014826Z   [11f193de] + LMDB v3.0.1
+2026-11-09T09:00:52.6015255Z   [b964fa9f] + LaTeXStrings v1.4.1
+2026-11-09T09:00:52.6015559Z   [1914dd2f] + MacroTools v0.5.16
+2026-11-09T09:00:52.6015961Z   [611af6d1] + NVML v6.5.1
+2026-11-09T09:00:52.6016383Z   [5da4648a] + NVTX v1.0.3
+2026-11-09T09:00:52.6016810Z   [67456a42] + OhMyThreads v0.8.9
+2026-11-09T09:00:52.6017196Z   [bac558e1] + OrderedCollections v2.0.3
+2026-11-09T09:00:52.6017635Z   [08abe8d2] + PrettyTables v3.5.1
+2026-11-09T09:00:52.6017849Z   [74087812] + Random123 v1.7.1
+2026-11-09T09:00:52.6018059Z   [e6cf234a] + RandomNumbers v1.6.0
+2026-11-09T09:00:52.6018279Z   [71d1d633] + SPIRVIntrinsics v1.6.0
+2026-11-09T09:00:52.6018491Z   [7e506255] + ScopedValues v1.6.2
+2026-11-09T09:00:52.6018695Z   [6c6a2e73] + Scratch v1.3.0
+2026-11-09T09:00:52.6018905Z   [91464d47] + StableTasks v0.1.7
+2026-11-09T09:00:52.6019110Z   [1e83bf80] + StaticArraysCore v1.4.5
+2026-11-09T09:00:52.6019322Z   [10745b16] + Statistics v1.11.5
+2026-11-09T09:00:52.6019538Z   [892a3eda] + StringManipulation v0.6.1
+2026-11-09T09:00:52.6019757Z   [3783bdb8] + TableTraits v1.0.1
+2026-11-09T09:00:52.6020009Z   [bd369af6] + Tables v1.14.0
+2026-11-09T09:00:52.6020475Z   [ed4db957] + TaskLocalValues v0.1.3
+2026-11-09T09:00:52.6020761Z   [100744f9] + ThreadTeams v1.4.0
+2026-11-09T09:00:52.6033567Z   [e689c965] + Tracy v0.1.6
+2026-11-09T09:00:52.6033860Z   [013be700] + UnsafeAtomics v0.4.0
+2026-11-09T09:00:52.6034165Z   [182d3088] + cuBLAS v6.5.1
+2026-11-09T09:00:52.6034421Z   [533571aa] + cuFFT v6.5.1
+2026-11-09T09:00:52.6034661Z   [20fd9a0b] + cuRAND v6.5.1
+2026-11-09T09:00:52.6035009Z   [887afef0] + cuSOLVER v6.5.1
+2026-11-09T09:00:52.6035271Z   [b26da814] + cuSPARSE v6.5.1
+2026-11-09T09:00:52.6035481Z   [d1e2174e] + CUDA_Compiler_jll v0.6.4+0
+2026-11-09T09:00:52.6035711Z   [4ee394cb] + CUDA_Driver_jll v13.5.0+0
+2026-11-09T09:00:52.6036153Z ⌅ [76a88914] + CUDA_Runtime_jll v0.25.0+3
+2026-11-09T09:00:52.6036496Z   [9c1d0b0a] + JuliaNVTXCallbacks_jll v0.2.1+0
+2026-11-09T09:00:52.6036842Z   [dad2f222] + LLVMExtra_jll v0.0.56+0
+2026-11-09T09:00:52.6037112Z   [1d63c593] + LLVMOpenMP_jll v23.1.1+0
+2026-11-09T09:00:52.6037375Z   [6206cf0b] + LMDB_jll v1.0.3+0
+2026-11-09T09:00:52.6037626Z   [ad6e5548] + LibTracyClient_jll v0.13.1+0
+2026-11-09T09:00:52.6037923Z   [ce32ce21] + MSVCRuntime_jll v14.51.36247+0
+2026-11-09T09:00:52.6038214Z   [ef6e0fe3] + NVPTX_LLVM_Backend_jll v23.1.2+2
+2026-11-09T09:00:52.6038528Z   [e98f9f5b] + NVTX_jll v3.2.2+0
+2026-11-09T09:00:52.6038817Z   [63e82ce6] + SLEEF_jll v3.9.0+2
+2026-11-09T09:00:52.6039314Z   [4376b9bf] + SPIRV_LLVM_Backend_jll v23.1.4+2
+2026-11-09T09:00:52.6039725Z ⌅ [6ac6d60f] + SPIRV_Tools_jll v2025.4.0+0
+2026-11-09T09:00:52.6040148Z   [1e29f10c] + demumble_jll v1.3.0+0
+2026-11-09T09:00:52.6040481Z   [54f56a70] + pocl_standalone_jll v7.2.3+7
+2026-11-09T09:00:52.6040810Z   [8b5cbfcf] + tree_sitter_gcn_jll v0.1.0+0
+2026-11-09T09:00:52.6041156Z   [44208993] + tree_sitter_llvm_jll v1.1.0+0
+2026-11-09T09:00:52.6041503Z   [71e3f6e6] + tree_sitter_ptx_jll v0.1.0+0
+2026-11-09T09:00:52.6041837Z   [f0e86581] + tree_sitter_spirv_jll v0.1.0+0
+2026-11-09T09:00:52.6042177Z   [b77e0a4c] + InteractiveUtils v1.11.0
+2026-11-09T09:00:52.6042497Z   [3fa0cd96] + REPL v1.11.0
+2026-11-09T09:00:52.6043402Z         Info Packages marked with ⌅ have new versions available but compatibility constraints restrict them from upgrading. To see why use `status --outdated -m`
+2026-11-09T09:00:54.6145412Z Precompiling packages...
+2026-11-09T09:00:55.0286200Z    0.4 s  ✓ LLVMLoopInfo
+2026-11-09T09:00:55.1486266Z    0.5 s  ✓ StableTasks
+2026-11-09T09:00:55.5256093Z    0.9 s  ✓ GPUToolbox
+2026-11-09T09:00:55.7126177Z    0.7 s  ✓ KernelInterface
+2026-11-09T09:00:55.7434045Z    0.6 s  ✓ Reexport
+2026-11-09T09:00:56.2526285Z    0.5 s  ✓ Statistics
+2026-11-09T09:00:56.2756097Z    0.7 s  ✓ Adapt
+2026-11-09T09:00:56.4106159Z    0.7 s  ✓ DataAPI
+2026-11-09T09:00:56.7486195Z    2.1 s  ✓ CUDA_Runtime_Discovery
+2026-11-09T09:00:56.7896230Z    0.5 s  ✓ DataValueInterfaces
+2026-11-09T09:00:56.9036183Z    0.7 s  ✓ ConstructionBase
+2026-11-09T09:00:56.9556812Z    0.5 s  ✓ StaticArraysCore
+2026-11-09T09:00:57.3781390Z    0.6 s  ✓ ChunkSplitters
+2026-11-09T09:00:57.6319302Z    0.7 s  ✓ InverseFunctions
+2026-11-09T09:00:57.6325176Z    3.0 s  ✓ MacroTools
+2026-11-09T09:00:57.7516479Z    1.0 s  ✓ OrderedCollections
+2026-11-09T09:00:57.7936194Z    0.4 s  ✓ HashArrayMappedTries
+2026-11-09T09:00:57.9916327Z    0.4 s  ✓ CompositionsBase
+2026-11-09T09:00:58.0778484Z    1.2 s  ✓ RandomNumbers
+2026-11-09T09:00:58.1456854Z    0.4 s  ✓ CEnum
+2026-11-09T09:00:58.4526787Z    0.7 s  ✓ AbstractFFTs
+2026-11-09T09:00:58.4796281Z    0.4 s  ✓ ExprTools
+2026-11-09T09:00:58.4936204Z    0.5 s  ✓ ArgCheck
+2026-11-09T09:00:58.6886231Z    1.1 s  ✓ InitialValues
+2026-11-09T09:00:58.7566025Z    0.6 s  ✓ TaskLocalValues
+2026-11-09T09:00:58.8396082Z    0.4 s  ✓ LaTeXStrings
+2026-11-09T09:00:58.9116206Z    0.5 s  ✓ IteratorInterfaceExtensions
+2026-11-09T09:00:59.3326261Z    0.6 s  ✓ BFloat16s
+2026-11-09T09:00:59.5636813Z    0.8 s  ✓ Scratch
+2026-11-09T09:00:59.5886247Z    0.7 s  ✓ Preferences
+2026-11-09T09:00:59.9036579Z    1.0 s  ✓ Statistics → SparseArraysExt
+2026-11-09T09:00:59.9936375Z    0.7 s  ✓ GPUArraysCore
+2026-11-09T09:01:00.1306083Z    1.6 s  ✓ Crayons
+2026-11-09T09:01:00.2068850Z    0.6 s  ✓ ConstructionBase → ConstructionBaseLinearAlgebraExt
+2026-11-09T09:01:00.4126876Z    0.5 s  ✓ InverseFunctions → InverseFunctionsDatesExt
+2026-11-09T09:01:00.4596967Z    0.9 s  ✓ Adapt → AdaptSparseArraysExt
+2026-11-09T09:01:00.4676574Z    0.5 s  ✓ ScopedValues
+2026-11-09T09:01:00.5616370Z    0.4 s  ✓ CompositionsBase → CompositionsBaseInverseFunctionsExt
+2026-11-09T09:01:00.8876401Z    0.5 s  ✓ TableTraits
+2026-11-09T09:01:01.1497082Z    0.7 s  ✓ PrecompileTools
+2026-11-09T09:01:01.3065303Z    0.8 s  ✓ JLLWrappers
+2026-11-09T09:01:01.4966129Z    1.3 s  ✓ Random123
+2026-11-09T09:01:02.3386108Z    1.0 s  ✓ demumble_jll
+2026-11-09T09:01:02.5446378Z    1.7 s  ✓ Tables
+2026-11-09T09:01:02.9326163Z    1.4 s  ✓ LibTracyClient_jll
+2026-11-09T09:01:03.1006507Z    0.8 s  ✓ MSVCRuntime_jll
+2026-11-09T09:01:03.2116387Z    2.6 s  ✓ Accessors
+2026-11-09T09:01:03.6156163Z    1.1 s  ✓ NVTX_jll
+2026-11-09T09:01:04.2596423Z    1.0 s  ✓ LLVMExtra_jll
+2026-11-09T09:01:04.3666059Z    1.4 s  ✓ JuliaNVTXCallbacks_jll
+2026-11-09T09:01:04.3876207Z    1.3 s  ✓ SPIRV_Tools_jll
+2026-11-09T09:01:04.8376371Z    1.2 s  ✓ tree_sitter_ptx_jll
+2026-11-09T09:01:05.1176540Z    0.9 s  ✓ Xorg_libpciaccess_jll
+2026-11-09T09:01:05.9096320Z    1.5 s  ✓ LLVMOpenMP_jll
+2026-11-09T09:01:06.3326652Z    1.5 s  ✓ Libiconv_jll
+2026-11-09T09:01:06.6806155Z    1.6 s  ✓ NVPTX_LLVM_Backend_jll
+2026-11-09T09:01:07.2616346Z    1.4 s  ✓ SPIRV_LLVM_Backend_jll
+2026-11-09T09:01:07.3666357Z    1.0 s  ✓ tree_sitter_llvm_jll
+2026-11-09T09:01:07.5376687Z    6.4 s  ✓ StringManipulation
+2026-11-09T09:01:07.8436320Z    3.5 s  ✓ CUDA_Driver_jll
+2026-11-09T09:01:07.9695335Z    1.3 s  ✓ tree_sitter_gcn_jll
+2026-11-09T09:01:08.3537202Z    1.1 s  ✓ tree_sitter_spirv_jll
+2026-11-09T09:01:08.3801906Z    1.0 s  ✓ LMDB_jll
+2026-11-09T09:01:08.5956186Z    0.7 s  ✓ Accessors → LinearAlgebraExt
+2026-11-09T09:01:08.7026310Z    1.2 s  ✓ Tracy
+2026-11-09T09:01:09.4495664Z    1.1 s  ✓ NVTX
+2026-11-09T09:01:09.4916169Z    0.9 s  ✓ XML2_jll
+2026-11-09T09:01:10.0906081Z    1.7 s  ✓ SLEEF_jll
+2026-11-09T09:01:10.9288340Z    1.4 s  ✓ LMDB
+2026-11-09T09:01:11.2086063Z    1.1 s  ✓ BangBang
+2026-11-09T09:01:12.4066282Z    1.5 s  ✓ Hwloc_jll
+2026-11-09T09:01:13.0606246Z    1.8 s  ✓ CompilerCaching
+2026-11-09T09:01:13.2196409Z    0.8 s  ✓ BangBang → BangBangTablesExt
+2026-11-09T09:01:14.0296389Z    4.6 s  ✓ CUDA_Compiler_jll
+2026-11-09T09:01:14.2056371Z    1.1 s  ✓ OhMyThreads
+2026-11-09T09:01:14.3866380Z    1.2 s  ✓ pocl_standalone_jll
+2026-11-09T09:01:15.0556262Z    0.9 s  ✓ OhMyThreads → MarkdownExt
+2026-11-09T09:01:18.7566103Z    4.7 s  ✓ CUDA_Runtime_jll
+2026-11-09T09:01:22.1755967Z    7.8 s  ✓ ThreadTeams
+2026-11-09T09:01:31.6108025Z   23.6 s  ✓ LLVM
+2026-11-09T09:01:32.9526619Z    1.3 s  ✓ LLVM → BFloat16sExt
+2026-11-09T09:01:34.0046282Z    2.4 s  ✓ UnsafeAtomics
+2026-11-09T09:01:35.1395379Z    1.1 s  ✓ Atomix
+2026-11-09T09:01:36.5578012Z   27.9 s  ✓ PrettyTables
+2026-11-09T09:01:38.0036276Z    4.0 s  ✓ SPIRVIntrinsics
+2026-11-09T09:02:10.2469713Z   38.6 s  ✓ GPUCompiler
+2026-11-09T09:02:10.9167988Z    0.7 s  ✓ UnsafeAtomics → UnsafeAtomicsGPUCompilerExt
+2026-11-09T09:02:30.6079935Z   19.7 s  ✓ KernelAbstractions
+2026-11-09T09:02:31.4790636Z    0.9 s  ✓ KernelAbstractions → LinearAlgebraExt
+2026-11-09T09:02:31.7395527Z    1.1 s  ✓ KernelAbstractions → SparseArraysExt
+2026-11-09T09:02:34.0335224Z    2.6 s  ✓ AcceleratedKernels
+2026-11-09T09:02:37.1142600Z    3.1 s  ✓ GPUArrays
+2026-11-09T09:02:55.2330450Z   18.1 s  ✓ CUDACore
+2026-11-09T09:02:58.0450220Z    2.8 s  ✓ AcceleratedKernels → CUDACoreExt
+2026-11-09T09:03:02.8246067Z    4.8 s  ✓ cuFFT
+2026-11-09T09:03:03.0636239Z    5.0 s  ✓ cuRAND
+2026-11-09T09:03:05.2666396Z    7.2 s  ✓ NVML
+2026-11-09T09:03:06.1926491Z    8.1 s  ✓ CUPTI
+2026-11-09T09:03:06.8096134Z    8.8 s  ✓ cuSPARSE
+2026-11-09T09:03:12.1734628Z    9.4 s  ✓ cuBLAS
+2026-11-09T09:03:17.9446281Z    5.8 s  ✓ cuSOLVER
+2026-11-09T09:03:28.1629591Z   22.0 s  ✓ CUDATools
+2026-11-09T09:03:32.1404053Z    4.0 s  ✓ CUDA
+2026-11-09T09:03:32.1406198Z   103 dependencies successfully precompiled in 158 seconds. 35 already precompiled.
+2026-11-09T09:03:32.2592266Z ##[group]Run set -euo pipefail
+2026-11-09T09:03:32.2592529Z [36;1mset -euo pipefail[0m
+2026-11-09T09:03:32.2592875Z [36;1mjulia --project="$RUNNER_TEMP/$CUDA_TEST_ENV_NAME" test/test_cuda_hybrid_host.jl \[0m
+2026-11-09T09:03:32.2593230Z [36;1m  2>&1 | tee cuda-host.log[0m
+2026-11-09T09:03:32.2637610Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-09T09:03:32.2637885Z env:
+2026-11-09T09:03:32.2638049Z   CUDA_TEST_VERSION: 6
+2026-11-09T09:03:32.2638250Z   CUDA_TEST_ENV_NAME: hpic-cuda-host-env
+2026-11-09T09:03:32.2638470Z ##[endgroup]
+2026-11-09T09:03:37.2697760Z  Downloading artifact: IntelOpenMP
+2026-11-09T09:03:38.7477707Z  Downloading artifact: oneTBB
+2026-11-09T09:03:50.7702152Z ERROR: LoadError: ParseError:
+2026-11-09T09:03:50.7750171Z # Error @ /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/models/empic_collection.jl:1430:46
+2026-11-09T09:03:50.7750876Z         throw(ArgumentError("persistent report layout differs"))
+2026-11-09T09:03:50.7751518Z     report.kind === (es isa EMPIC ? :vector :planar) && report.bootstrap isa Bool &&
+2026-11-09T09:03:50.7752474Z #                                            └ ── space required after `:` in `?` expression
+2026-11-09T09:03:50.7752901Z Stacktrace:
+2026-11-09T09:03:50.7753143Z   [1] top-level scope
+2026-11-09T09:03:50.7753578Z     @ ~/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/models/empic_collection.jl:1430
+2026-11-09T09:03:50.7763707Z   [2] include(mapexpr::Function, mod::Module, _path::String)
+2026-11-09T09:03:50.7764040Z     @ Base ./Base.jl:310
+2026-11-09T09:03:50.7764238Z   [3] top-level scope
+2026-11-09T09:03:50.7764543Z     @ ~/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/HybridPlasmaPIC.jl:138
+2026-11-09T09:03:50.7765046Z   [4] include(mod::Module, _path::String)
+2026-11-09T09:03:50.7765308Z     @ Base ./Base.jl:309
+2026-11-09T09:03:50.7799367Z   [5] include_package_for_output(pkg::Base.PkgId, input::String, depot_path::Vector{String}, dl_load_path::Vector{String}, load_path::Vector{String}, concrete_deps::Vector{Pair{Base.PkgId, UInt128}}, source::Nothing, preresolved::Vector{Pair{Base.PkgId, String}})
+2026-11-09T09:03:50.7800490Z     @ Base ./loading.jl:3229
+2026-11-09T09:03:50.7800691Z   [6] top-level scope
+2026-11-09T09:03:50.7800864Z     @ stdin:5
+2026-11-09T09:03:50.7802813Z   [7] eval(m::Module, e::Any)
+2026-11-09T09:03:50.7803270Z     @ Core ./boot.jl:489
+2026-11-09T09:03:50.7803874Z   [8] include_string(mapexpr::typeof(identity), mod::Module, code::String, filename::String)
+2026-11-09T09:03:50.7804537Z     @ Base ./loading.jl:3064
+2026-11-09T09:03:50.7805058Z   [9] include_string
+2026-11-09T09:03:50.7805432Z     @ ./loading.jl:3074 [inlined]
+2026-11-09T09:03:50.7805863Z  [10] exec_options(opts::Base.JLOptions)
+2026-11-09T09:03:50.7806288Z     @ Base ./client.jl:342
+2026-11-09T09:03:50.7806654Z  [11] _start()
+2026-11-09T09:03:50.7807014Z     @ Base ./client.jl:577
+2026-11-09T09:03:50.7807732Z in expression starting at /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/models/empic_collection.jl:1430
+2026-11-09T09:03:50.7808756Z in expression starting at /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/HybridPlasmaPIC.jl:1
+2026-11-09T09:03:50.7809719Z in expression starting at stdin:5
+2026-11-09T09:03:50.8351110Z 
+2026-11-09T09:03:50.8351698Z   2 dependencies had output during precompilation:
+2026-11-09T09:03:50.8352439Z ┌ HybridPlasmaPIC
+2026-11-09T09:03:50.8352723Z │  [Output was shown above]
+2026-11-09T09:03:50.8352987Z └  
+2026-11-09T09:03:50.8353170Z ┌ MKL_jll
+2026-11-09T09:03:50.8353373Z │  Downloading artifact: IntelOpenMP
+2026-11-09T09:03:50.8353732Z │   Downloading artifact: oneTBB
+2026-11-09T09:03:50.8353939Z └  
+2026-11-09T09:03:51.1812706Z ERROR: LoadError: The following 1 package failed to precompile:
+2026-11-09T09:03:51.1812970Z 
+2026-11-09T09:03:51.1813044Z HybridPlasmaPIC 
+2026-11-09T09:03:51.1814261Z Failed to precompile HybridPlasmaPIC [00a894a3-a090-46f4-90cd-35631ef5d77e] to "/home/runner/.julia/compiled/v1.13/HybridPlasmaPIC/jl_lPMmfn" (ProcessExited(1)).
+2026-11-09T09:03:51.1814743Z 
+2026-11-09T09:03:51.1815216Z in expression starting at /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/test/test_cuda_hybrid_host.jl:2
+2026-11-09T09:03:51.2061538Z ##[error]Process completed with exit code 1.
+2026-11-09T09:03:51.2118377Z ##[group]Run actions/upload-artifact@v4
+2026-11-09T09:03:51.2118612Z with:
+2026-11-09T09:03:51.2118840Z   name: cuda-host-1-fc87d4fb24b231f8de6e3e47b71f0905282c974c
+2026-11-09T09:03:51.2119144Z   path: cuda-host-setup.log
+cuda-host.log
+
+2026-11-09T09:03:51.2119381Z   if-no-files-found: warn
+2026-11-09T09:03:51.2119581Z   compression-level: 6
+2026-11-09T09:03:51.2119759Z   overwrite: false
+2026-11-09T09:03:51.2119934Z   include-hidden-files: false
+2026-11-09T09:03:51.2120122Z env:
+2026-11-09T09:03:51.2120274Z   CUDA_TEST_VERSION: 6
+2026-11-09T09:03:51.2120461Z   CUDA_TEST_ENV_NAME: hpic-cuda-host-env
+2026-11-09T09:03:51.2120673Z ##[endgroup]
+2026-11-09T09:03:51.3502271Z (node:4071) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-09T09:03:51.3503144Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-09T09:03:51.3545519Z Multiple search paths detected. Calculating the least common ancestor of all paths
+2026-11-09T09:03:51.3552309Z The least common ancestor is /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl. This will be the root directory of the artifact
+2026-11-09T09:03:51.3553402Z With the provided path, there will be 2 files uploaded
+2026-11-09T09:03:51.3554262Z Artifact name is valid!
+2026-11-09T09:03:51.3554640Z Root directory input is valid!
+2026-11-09T09:03:51.6851121Z Beginning upload of artifact content to blob storage
+2026-11-09T09:03:51.7042463Z (node:4071) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-11-09T09:03:51.9327973Z Uploaded bytes 5979
+2026-11-09T09:03:51.9951898Z Finished uploading artifact content to blob storage!
+2026-11-09T09:03:51.9952635Z SHA256 digest of uploaded artifact zip is 98b18f244a1993b01e97d3c79d3fed4917a24eb5e6b6aa8dcdff1f326746336c
+2026-11-09T09:03:51.9953903Z Finalizing artifact upload
+2026-11-09T09:03:52.4428337Z Artifact cuda-host-1-fc87d4fb24b231f8de6e3e47b71f0905282c974c.zip successfully finalized. Artifact ID 13661166566
+2026-11-09T09:03:52.4429383Z Artifact cuda-host-1-fc87d4fb24b231f8de6e3e47b71f0905282c974c has been successfully uploaded! Final size is 5979 bytes. Artifact ID is 13661166566
+2026-11-09T09:03:52.4433986Z Artifact download URL: https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42570140304/artifacts/13661166566
+2026-11-09T09:03:52.4674267Z Post job cleanup.
+2026-11-09T09:03:52.4693319Z ##[start-action display=Run pyTooling/Actions/with-post-step@42e17fae05f224e5ac3d79d021a4e3577878efe5;id=__afaf711a-0c94-46c6-9675-2d2537863eb1.__pyTooling_Actions]
+2026-11-09T09:03:52.4715490Z Post job cleanup.
+2026-11-09T09:03:53.1644726Z       Active manifest files: 1 found
+2026-11-09T09:03:53.2330628Z       Active artifact files: 33 found
+2026-11-09T09:03:53.2337854Z       Active scratchspaces: 0 found
+2026-11-09T09:03:53.2366400Z      Deleted no artifacts, repos, packages or scratchspaces
+2026-11-09T09:03:54.0817979Z No existing caches found on ref `refs/heads/implement/persistent-species-20261109` matching restore key `julia-cache;workflow=HybridPlasmaPIC CI;job=cuda-host;os=Linux;julia-version=1;cuda-version=6;`
+2026-11-09T09:03:54.1061070Z ##[end-action id=__afaf711a-0c94-46c6-9675-2d2537863eb1.__pyTooling_Actions;outcome=success;conclusion=success;duration_ms=1636]
+2026-11-09T09:03:54.1063639Z ##[start-action display=Run actions/cache@5a3ec84eff668545956fd18022155c47e93e2684;id=__afaf711a-0c94-46c6-9675-2d2537863eb1.cache]
+2026-11-09T09:03:54.1067006Z ##[end-action id=__afaf711a-0c94-46c6-9675-2d2537863eb1.cache;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-11-09T09:03:54.1120760Z Post job cleanup.
+2026-11-09T09:03:54.1872552Z [command]/usr/bin/git version
+2026-11-09T09:03:54.1913188Z git version 2.56.0
+2026-11-09T09:03:54.1944000Z Temporarily overriding HOME='/home/runner/work/_temp/5a2451b5-cf12-4204-84b8-e5d59c852411' before making global git config changes
+2026-11-09T09:03:54.1945446Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-09T09:03:54.1948702Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl
+2026-11-09T09:03:54.1983460Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-09T09:03:54.2016394Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-09T09:03:54.2283988Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-09T09:03:54.2305926Z http.https://github.com/.extraheader
+2026-11-09T09:03:54.2315787Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-11-09T09:03:54.2351606Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-09T09:03:54.2616927Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-09T09:03:54.2647990Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-09T09:03:54.3021006Z Cleaning up orphan processes
+2026-11-09T09:03:54.3317869Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684, actions/checkout@v4, actions/upload-artifact@v4, julia-actions/setup-julia@v2, pyTooling/Actions/with-post-step@42e17fae05f224e5ac3d79d021a4e3577878efe5. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

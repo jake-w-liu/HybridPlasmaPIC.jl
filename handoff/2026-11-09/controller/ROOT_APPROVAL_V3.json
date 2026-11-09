@@ -1,0 +1,31 @@
+{
+  "utc": "2026-11-09T07:18:42.804896+00:00",
+  "approval": "Implement full reviewed V3 projected Euler-Heun CIC/TSC controller stage",
+  "root_source_review": "All415 main lines, source-map/force-owner amendment and actual project/current/null, scalar Euler, canonical radical-combination/finish and complete magnetic/calendar helpers read. Root independently checks C_h=PJ-GdeltaRho/h, reduced lift and G(rhoH-rhoE), scaled physical-v inverse-mass formula, same actualh and no prime. Source-only; runtime/order/effectivity/resource not accepted.",
+  "contract_sha256": "da03b71492263139d0a774ec190df5c74fb7c5f531f6c62748637a0abe5775f1",
+  "required_repin_base": "566ddc10b4f597d123c62041b31bc87677512f9c",
+  "existing_exclusive_paths": [
+    "src/particles/kinematics_range.jl",
+    "src/models/empic_collection.jl",
+    "src/models/full_pic.jl",
+    "src/io/empic_collection_checkpoint.jl"
+  ],
+  "unchanged_from_123_existing_hashes": {
+    "src/particles/kinematics_range.jl": "5499b790c1691f1f5e48e9fdb9fb428fc7e6c3a1b32476c53a2513cc12df9df3",
+    "src/models/empic_collection.jl": "8e5abcdcffc116e66a7eabd0636972a94549502497b463760e906e74d4de9afd",
+    "src/models/full_pic.jl": "1b94500067c8baa28f3156dd9493aa49c8ab805c0e4d9e8f333f8327ac12fb60",
+    "src/io/empic_collection_checkpoint.jl": "101dca70a46e4fd6bc9981a1eaafa2b656b986efb1ff7d1d46fab183c484216a"
+  },
+  "new_exclusive_paths": [
+    "src/models/empic_coupled_error_control.jl",
+    "src/diagnostics/empic_coupled_error_control.jl",
+    "src/io/empic_coupled_error_control_checkpoint.jl",
+    "docs/EMPIC_COUPLED_ERROR_CONTROL.md",
+    "test/test_empic_coupled_error_control.jl"
+  ],
+  "root_seams": "module/includes/exports/sharedwriters/globaldocs/workflows/fullregistration; no generic codec weakening",
+  "required": "Preserve all legacy equations/modes/centering/schemas and exact interval-choice inverse; canonical operator/current/derivative/radical owners only; meter call-local and replay-aware; explicit constructor-only NGP restriction; historical vs future proposals; full original roles/physicalphase/restart. Re-pin shared represented lift at566 beforeedits.",
+  "ownership": "/root/dynamic_amr_es_implementation solely9 paths; may delegate disjoint new paths only after a slot frees and report explicit ownership",
+  "forbidden": "localJulia/parser/compiler/formatter/numerical/proxy/tests/device/profile, CI/commit/push/processactions, unrelatedownerwrites or suppressed gates",
+  "remaining": "All executable/science/resource, NGPjump/error guarantee/multirate/backend/composition remain open"
+}

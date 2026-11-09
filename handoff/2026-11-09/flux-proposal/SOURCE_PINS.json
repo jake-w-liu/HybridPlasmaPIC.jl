@@ -1,0 +1,180 @@
+{
+  "immutable_git_base": "5de6522bbc58a7a8ecd3988b5c0b5dfa587e48e3",
+  "repository_used": "/Users/jake/EMPIRE/codes/PlasmaWorkspace/HybridPlasmaPIC-cgl-collisional-20261109",
+  "base_sources": [
+    {
+      "path": "src/electrons/closures.jl",
+      "sha256": "9f4094c69eb66166f450846745f68893b2ae50b85f7b450529c160d6618399a4",
+      "bytes": 20764,
+      "lines": 426,
+      "git_blob": "6e960d62ebbe568fa2cd12e5cfebf8b94cea42cc"
+    },
+    {
+      "path": "src/electrons/energy_equation.jl",
+      "sha256": "87520b08eaba5a841ef9e18cf0cf591acd3a027d2aa2ebc3ebd91388554bcbce",
+      "bytes": 21710,
+      "lines": 596,
+      "git_blob": "2a01adfd95da26b5cfe6d553faaa4a367d8292a5"
+    },
+    {
+      "path": "src/electrons/field_aligned_conduction.jl",
+      "sha256": "56493ba503ee481116037c8bfeb68aa49678a5d43ab0eb9ba9ae5bcacb838f6a",
+      "bytes": 6761,
+      "lines": 162,
+      "git_blob": "b1fe8d2e5fda63a1da87b85bd32a5cf7aca1a322"
+    },
+    {
+      "path": "src/integrators/extrapolated_leapfrog.jl",
+      "sha256": "3228956a16ef5c73b83f335cc70c26eeeca127016173c282f2abaee90108f62e",
+      "bytes": 109754,
+      "lines": 2775,
+      "git_blob": "b446b73b76ad2b6da8f39918b649e0cec325eccf"
+    },
+    {
+      "path": "src/models/hybrid_pic.jl",
+      "sha256": "589e08f22d494a7cb62cf52999a7bdf012ca930ef74780093ef39b382c4d504a",
+      "bytes": 7944,
+      "lines": 184,
+      "git_blob": "15e7ea7b7becaf35ca4080323a4b3ffac6f14f46"
+    },
+    {
+      "path": "src/diagnostics/conservation.jl",
+      "sha256": "6c42736c92251dcd5c93bba3d8c7d53291be8076b447c14272fa8d78052ca73b",
+      "bytes": 27304,
+      "lines": 630,
+      "git_blob": "e34b367bfdcacf3d8bc6951e11cb1fbc60e3fa7e"
+    },
+    {
+      "path": "src/io/checkpoint.jl",
+      "sha256": "2d3489872cba9fc191d8cb402d8dbed5560bf29ef90e88bfce07a087db15ba18",
+      "bytes": 70093,
+      "lines": 1638,
+      "git_blob": "e1da9a1167b2b5e9c5a429d91310dfc657769f32"
+    },
+    {
+      "path": "src/integrators/collisional_hybrid.jl",
+      "sha256": "1b7d288f40beb49084976a14cba8d98092618887cee79fd1d644b744d650b126",
+      "bytes": 25174,
+      "lines": 586,
+      "git_blob": "b44e940610eaafb3f9637bb50b7d39b505403b28"
+    },
+    {
+      "path": "src/io/collisional_checkpoint.jl",
+      "sha256": "aefe1a64819c6d123c5c6ccf70cbe4aff9b1039c4c89ecfd2a7170541ded7ecc",
+      "bytes": 15663,
+      "lines": 339,
+      "git_blob": "fbaea6ece8f0a7b7b33e1b378c8ef2964807508c"
+    },
+    {
+      "path": "src/io/restart.jl",
+      "sha256": "c407876177c8611573c12c9d5368f9bfe87ac6e5ab57e10dc5055e87d1be5dfe",
+      "bytes": 14843,
+      "lines": 313,
+      "git_blob": "684a2f40eb8f2ac83529173f43dca19a4f323751"
+    },
+    {
+      "path": "src/utils/exact_arithmetic.jl",
+      "sha256": "9a49220b5d9286117114cd45ce896b70e0e1cb562f88c49127d5183531aa7b14",
+      "bytes": 20029,
+      "lines": 470,
+      "git_blob": "2f8cf4d66b1d6acbc2c02c4f3ea25f7ad612f96e"
+    },
+    {
+      "path": "src/electrons/thermal_exchange.jl",
+      "sha256": "34342166131db518c1c58f67e8b3f52b496e90e1709eed871d7f02d7c07af923",
+      "bytes": 54896,
+      "lines": 956,
+      "git_blob": "03ed2df8d4dfd5831cb81cae0df1680589f0334c"
+    },
+    {
+      "path": "src/electrons/ohms_law.jl",
+      "sha256": "ceef27013136416058241ef57a8bc98a11f3d13affe9577e0ffdb82041cead00",
+      "bytes": 44566,
+      "lines": 1279,
+      "git_blob": "a7f8e5833aeb9ec7d7b5a041804492bb9172c9bc"
+    },
+    {
+      "path": "src/fields/field_state.jl",
+      "sha256": "f2f23558bbb59080041a23327c1e68b4de9536c652d7961d8d39a1bca1934ee3",
+      "bytes": 3882,
+      "lines": 111,
+      "git_blob": "323cd4349876770818722fd4dbc1d295134aa027"
+    },
+    {
+      "path": "src/verification/normalization.jl",
+      "sha256": "a820f882fb6268beb634447d2ae795c2faed71557601be63c62a54d031377485",
+      "bytes": 16988,
+      "lines": 393,
+      "git_blob": "cc32fd8bab07280d5cc3f710b082f8c2d63c5aed"
+    },
+    {
+      "path": "src/HybridPlasmaPIC.jl",
+      "sha256": "15239f786301c5aa0f4eb2b02e5dd4ded9d258cf4b181a6f23b68df695a6459c",
+      "bytes": 19749,
+      "lines": 596,
+      "git_blob": "10a59ebc191eb10c1fcb7292ac4e13f73cd803a3"
+    },
+    {
+      "path": "docs/FIELD_ALIGNED_CONDUCTION.md",
+      "sha256": "bbda8180d7c52b94f5d5947bf2fe83f9d032f7b1e2938b031f3f69a26461c6a4",
+      "bytes": 6187,
+      "lines": 114,
+      "git_blob": "f290a4964865c6f06e83b7702d7e8649ac0a584d"
+    },
+    {
+      "path": "docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md",
+      "sha256": "c62863aa15c78e2b7902ab8ba42a9e4050a3e09366413d49947e938320849f5c",
+      "bytes": 102312,
+      "lines": 1195,
+      "git_blob": "232756c3771a5bd8cf8a34e8a9a7a7911040788f"
+    },
+    {
+      "path": "src/integrators/camcl.jl",
+      "sha256": "080ede233feb7c035c29f76174ada422fa92238390c9cbc8a9028368a5b83325",
+      "bytes": 15174,
+      "lines": 318,
+      "git_blob": "7530364d2a40dbba8f112c64fe495b9470e96a5e"
+    },
+    {
+      "path": "src/models/hall_mhd.jl",
+      "sha256": "4644d3042c98b5089840074b988f2c426e8f98f78d048d1c2a8130567d3b2df9",
+      "bytes": 11420,
+      "lines": 375,
+      "git_blob": "45953b6daf31a19c118123b53d1120e38a08e611"
+    },
+    {
+      "path": "src/integrators/implicit_hybrid.jl",
+      "sha256": "bcd986cfb8dc42f4b607f25ac03b9cb723897590731d5aadf33cab4baa146eec",
+      "bytes": 50856,
+      "lines": 1473,
+      "git_blob": "ab90642cc7330fecbb6a847648d75765887f872b"
+    }
+  ],
+  "released_cgl_overlay": [
+    {
+      "path": "src/electrons/closures.jl",
+      "sha256": "c78bd0c247b94c35d4dedc4828a09285c79fb432d84e0fa6784b91ff79492bd1",
+      "bytes": 21075,
+      "lines": 430
+    },
+    {
+      "path": "src/integrators/collisional_hybrid.jl",
+      "sha256": "dace28d5418adcb8f596d298cbc42af351b860b7643da58550281b44d7e4f124",
+      "bytes": 28135,
+      "lines": 638
+    },
+    {
+      "path": "src/io/collisional_checkpoint.jl",
+      "sha256": "4aac848c826ea53aa01b69a984b4a4e9b5c8e63e5b29fdd65c5bc9f19b17c6fc",
+      "bytes": 17592,
+      "lines": 375
+    },
+    {
+      "path": "docs/COLLISIONAL_CGL.md",
+      "sha256": "506e00884304aece7d40fbee9e4b6fe75ddd2942ff12fb34aa8f0c70d8cb7333",
+      "bytes": 7940,
+      "lines": 143
+    }
+  ],
+  "qualification": "This is a source composition, not a claim that the CGL overlay is an integrated or remote main head. Root may refine two doc passages before integration."
+}

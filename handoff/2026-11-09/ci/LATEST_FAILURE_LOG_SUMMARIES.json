@@ -1,0 +1,89 @@
+[
+  {
+    "job": 129005385324,
+    "bytes": 68953,
+    "sha256": "e350ec2218a49bc33b245bea323c055c5ce5051e043aa3c79143c7a086c680a8",
+    "raw_log_local": "/Users/jake/EMPIRE/codes/PlasmaWorkspace/HybridPlasmaPIC-audit-evidence/2026-11-09/opencode-handoff-plan/latest-ci-failures/129005385324.log",
+    "selected": [
+      {
+        "line": 765,
+        "text": "2026-11-09T09:03:50.7702152Z ERROR: LoadError: ParseError:"
+      },
+      {
+        "line": 805,
+        "text": "2026-11-09T09:03:51.1812706Z ERROR: LoadError: The following 1 package failed to precompile:"
+      }
+    ]
+  },
+  {
+    "job": 129014270899,
+    "bytes": 31927,
+    "sha256": "456c6e042fd5d1463f488c2280513ef53e7d76de41b319fc67e1c08269e6ffcd",
+    "raw_log_local": "/Users/jake/EMPIRE/codes/PlasmaWorkspace/HybridPlasmaPIC-audit-evidence/2026-11-09/opencode-handoff-plan/latest-ci-failures/129014270899.log",
+    "selected": []
+  },
+  {
+    "job": 128983114996,
+    "bytes": 242726,
+    "sha256": "616f192b7d854fbfc236bce38365289e938eb73ffb6ccd10919c85b89f99604a",
+    "raw_log_local": "/Users/jake/EMPIRE/codes/PlasmaWorkspace/HybridPlasmaPIC-audit-evidence/2026-11-09/opencode-handoff-plan/latest-ci-failures/128983114996.log",
+    "selected": [
+      {
+        "line": 829,
+        "text": "2026-11-09T08:53:45.1603069Z \u2514   n_reports = 91"
+      },
+      {
+        "line": 1345,
+        "text": "2026-11-09T08:53:50.4379979Z \u2514   n_reports = 0"
+      },
+      {
+        "line": 1347,
+        "text": "2026-11-09T08:53:50.5194719Z JET static analysis: Test Failed at /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/test/test_jet.jl:48"
+      },
+      {
+        "line": 1349,
+        "text": "2026-11-09T08:53:51.6528394Z    Evaluated: 91 <= 86"
+      },
+      {
+        "line": 1450,
+        "text": "2026-11-09T08:54:05.7730696Z ERROR: LoadError: Some tests did not pass: 97946 passed, 1 failed, 0 errored, 0 broken."
+      },
+      {
+        "line": 1452,
+        "text": "2026-11-09T08:54:07.7574114Z ERROR: Package HybridPlasmaPIC errored during testing"
+      }
+    ]
+  },
+  {
+    "job": 128996436293,
+    "bytes": 261085,
+    "sha256": "9f1b55516b193ef575ee3aa313316dcde6fd55df9ffb95dde6d963cab37552e4",
+    "raw_log_local": "/Users/jake/EMPIRE/codes/PlasmaWorkspace/HybridPlasmaPIC-audit-evidence/2026-11-09/opencode-handoff-plan/latest-ci-failures/128996436293.log",
+    "selected": [
+      {
+        "line": 826,
+        "text": "2026-11-09T08:20:55.2452924Z \u2514   n_reports = 99"
+      },
+      {
+        "line": 1415,
+        "text": "2026-11-09T08:21:00.4714325Z \u2514   n_reports = 0"
+      },
+      {
+        "line": 1416,
+        "text": "2026-11-09T08:21:00.5384964Z JET static analysis: Test Failed at /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/test/test_jet.jl:48"
+      },
+      {
+        "line": 1418,
+        "text": "2026-11-09T08:21:00.5414192Z    Evaluated: 99 <= 86"
+      },
+      {
+        "line": 1520,
+        "text": "2026-11-09T08:21:16.3293174Z ERROR: LoadError: Some tests did not pass: 97946 passed, 1 failed, 0 errored, 0 broken."
+      },
+      {
+        "line": 1522,
+        "text": "2026-11-09T08:21:18.0801931Z ERROR: Package HybridPlasmaPIC errored during testing"
+      }
+    ]
+  }
+]

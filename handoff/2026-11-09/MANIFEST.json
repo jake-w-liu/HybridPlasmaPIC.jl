@@ -1,0 +1,224 @@
+{
+  "snapshot_utc": "2026-11-09T09:25:51.815300+00:00",
+  "status": "Frozen handoff prepared; Codex stops after publication; OpenCode not started",
+  "code_commit": "5aa628513fb854c96b2b387780edef1ea1faa66b",
+  "code_parent": "5de6522bbc58a7a8ecd3988b5c0b5dfa587e48e3",
+  "working_branch": "implement/cgl-integration-20261109",
+  "remote_main_last_checked": "9b4d363806722319c2241e4af04ed1ed1da00119",
+  "code_tree_listing_sha256": "39b83fb8fea284a39b1883e47926b810107cb6ba2548984e68bb9f0c8dd0c2b7",
+  "controller_status": "Nine paths frozen, unadopted, full final integration review pending; patch retains current parser defect; reconcile P01 before adoption",
+  "flux_status": "read-only proposal frozen; choices NOT approved for implementation",
+  "CGL_status": "Source committed at5aa6285, not runtime/science/resource accepted; see current parser blocker",
+  "historical_primary_head": "563888fcd78e8b2c816a63d2d105ea4b38bf6401",
+  "historical_primary_preserved_sha256": {
+    "src/particles/radiation_reaction.jl": "7f50d7b08bd7ea71bfbeabce2c3791e18fdfa965fb2759023966dcb4bd2dd7d6",
+    "test/test_forcing.jl": "071f832a1b61a2f01e1cdc5e176c9482787b040cec8903bb6eac342a6fa3f62d",
+    "NOTES.md": "1626beb8ee1205ceb6de53fb327ba14890a49e4d030d273922ab1c1602c57d34",
+    "STATE.md": "fb10d5ece2a0c7a3c6a20a5f1907e16f8f3f98f7b82976ca9ce38058da7a7908",
+    "diff-perf-112.err": "fa7838226226a8dc096e21f8d64057388e4260fc0e093bf1520fc50e1e9fdab0",
+    "diff-perf-112.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "test/test_radiation_arithmetic.jl": "56337a20a10b84426a73de9981f65bc285466daf9fbbbb112357b540b4b664bb"
+  },
+  "compiler_ledger_preserved_sha256": "6d30ec354917c839f80af386399dc58adbe9103d2ac8f38008ade447dc22d59d",
+  "local_execution": "No Julia/parser/compiler/formatter/test/numerical proxy/device/profile run. Keep computations remote.",
+  "artifacts": {
+    "CODE_TREE_BASELINE.txt": {
+      "sha256": "39b83fb8fea284a39b1883e47926b810107cb6ba2548984e68bb9f0c8dd0c2b7",
+      "bytes": 45726,
+      "source": "git ls-tree -r 5aa628513fb854c96b2b387780edef1ea1faa66b -- src ext test Project.toml .github/workflows"
+    },
+    "ISSUE_REGISTER.json": {
+      "sha256": "cc7de40300a9fdf57df3f62008daaeac303cba4720313365b23965a75a238536",
+      "bytes": 4016
+    },
+    "README.md": {
+      "sha256": "f532909b51c6f4d304609d61db9a908f7e609f543bbce6ff20265ca62f6f376a",
+      "bytes": 4180
+    },
+    "ROADMAP_CROSSWALK.json": {
+      "sha256": "b672b9c373d6618450c23735c42ab3ae044da6e655c5d4a4901bb906d410dbee",
+      "bytes": 68124
+    },
+    "WORK_PACKAGES.json": {
+      "sha256": "08981b41f332770d77c9dc7caae174b77d0b3e9c1a6fc2fe8a586021e1786297",
+      "bytes": 44920
+    },
+    "cgl-reviewed/ROOT_REFINEMENTS.json": {
+      "sha256": "c2b746e3438cd06275cdec059357f642051c2e5390af93a18404678e326efeaf",
+      "bytes": 655,
+      "source": "/Users/jake/EMPIRE/codes/PlasmaWorkspace/HybridPlasmaPIC-audit-evidence/2026-11-09/cgl-collisional-root-integration/ROOT_REFINEMENTS.json"
+    },
+    "cgl-reviewed/ROOT_SOURCE_CHECKS.json": {
+      "sha256": "6c821638dd2d719afa20297981e4b93fc55ac662406f95a9efd0806a7f44352a",
+      "bytes": 1751,
+      "source": "/Users/jake/EMPIRE/codes/PlasmaWorkspace/HybridPlasmaPIC-audit-evidence/2026-11-09/cgl-collisional-root-integration/ROOT_SOURCE_CHECKS.json"
+    },
+    "cgl-reviewed/ROOT_SOURCE_REVIEW.md": {
+      "sha256": "244fe79e6aac08dc0ddf93af222cdf557292c2ec8a7de7b8cd093d843b84b14a",
+      "bytes": 1406,
+      "source": "/Users/jake/EMPIRE/codes/PlasmaWorkspace/HybridPlasmaPIC-audit-evidence/2026-11-09/cgl-collisional-root-integration/ROOT_SOURCE_REVIEW.md"
+    },
+    "cgl-reviewed/worker-original.patch": {
+      "sha256": "da2e16b42b3669a2ff96d66d6fb75cac1844b283322c3e6aba4aa6eacdf2f941",
+      "bytes": 20872,
+      "source": "/Users/jake/EMPIRE/codes/PlasmaWorkspace/HybridPlasmaPIC-audit-evidence/2026-11-09/cgl-collisional-composition-implementation/cgl-collisional-v1.patch"
+    },
+    "ci/129005385324-loader.log": {
+      "sha256": "e350ec2218a49bc33b245bea323c055c5ce5051e043aa3c79143c7a086c680a8",
+      "bytes": 68953
+    },
+    "ci/129014270899-mpi-smoke.log": {
+      "sha256": "c8532ca61e304a779fde801740b5e06f8fb89699e2b19750e29e53e730415322",
+      "bytes": 27905
+    },
+    "ci/5fec-compiler-comparison.json": {
+      "sha256": "a800915a6e3812e60ccd91bb76646817f4c93447ee48f747df218077807c096e",
+      "bytes": 8236,
+      "source": "/Users/jake/EMPIRE/codes/PlasmaWorkspace/HybridPlasmaPIC-audit-evidence/2026-11-09/ci-5fec-compiler-failures/FULL_TRACE_COMPARISON.json"
+    },
+    "ci/LATEST_FAILURE_LOG_SUMMARIES.json": {
+      "sha256": "df3d2283ddaca6d5fe48e14b147e230180bfe59c3598e0bb4f76f370e09e9fa5",
+      "bytes": 3239
+    },
+    "ci/MPI_FAILURE_ARTIFACT.json": {
+      "sha256": "c61ca45b914d51432f631d22bed80138aeabf2cb619b3b03f3db699aaf995788",
+      "bytes": 2740
+    },
+    "ci/NEW_FAILURE_ANNOTATIONS.json": {
+      "sha256": "2e66939fb05396f27a3bfc33c0297ffc3a365aa944746090b44b3c5b25b703ac",
+      "bytes": 12851
+    },
+    "ci/STATUS_BEFORE_HANDOFF_PUSH.json": {
+      "sha256": "357d888bbdbbe5dc76fbfbc963e7134c607744a4807b0ac97142edebae74072b",
+      "bytes": 12510
+    },
+    "ci/overlap-publication.json": {
+      "sha256": "1d6834090c6ef742e1ab3844ddd22388e5e987c2017ab0ca7ca01244cdc22920",
+      "bytes": 1483,
+      "source": "/Users/jake/EMPIRE/codes/PlasmaWorkspace/HybridPlasmaPIC-audit-evidence/2026-11-09/electron-ion-overlap-root-integration/PUBLICATION_CANDIDATE.json"
+    },
+    "ci/thermal-publication.json": {
+      "sha256": "7a90bed89be822f55dd07597d274eae450b2c0d6e583ac684655418f06d5bf10",
+      "bytes": 1457,
+      "source": "/Users/jake/EMPIRE/codes/PlasmaWorkspace/HybridPlasmaPIC-audit-evidence/2026-11-09/electron-ion-thermal-root-integration/PUBLICATION_CANDIDATE.json"
+    },
+    "controller/AMENDMENT_V3.md": {
+      "sha256": "da03b71492263139d0a774ec190df5c74fb7c5f531f6c62748637a0abe5775f1",
+      "bytes": 26488,
+      "source": "/Users/jake/EMPIRE/codes/PlasmaWorkspace/HybridPlasmaPIC-audit-evidence/2026-11-09/empic-coupled-error-control-design/coupled-pair-derivation/implementation-v1/final-freeze-v1/AMENDMENT_V3.md"
+    },
+    "controller/FINAL_RECEIPT.json": {
+      "sha256": "9b2b8f80ef9f42069a261bd9edc092f72fd6086d955c79969a77c48dc02d3493",
+      "bytes": 3831,
+      "source": "/Users/jake/EMPIRE/codes/PlasmaWorkspace/HybridPlasmaPIC-audit-evidence/2026-11-09/empic-coupled-error-control-design/coupled-pair-derivation/implementation-v1/final-freeze-v1/FINAL_RECEIPT.json"
+    },
+    "controller/FORCE_DOMAIN_REVIEW.md": {
+      "sha256": "c68212d83bd9ea24d11efd3fc9f17587c444e77f1c7f37bb53e4d466b7feb845",
+      "bytes": 11725,
+      "source": "/Users/jake/EMPIRE/codes/PlasmaWorkspace/HybridPlasmaPIC-audit-evidence/2026-11-09/empic-coupled-error-control-design/coupled-pair-derivation/implementation-v1/final-freeze-v1/FORCE_DOMAIN_REVIEW.md"
+    },
+    "controller/FORCE_OWNER_AMENDMENT.md": {
+      "sha256": "87d892760d713d3ded3969fbe5a6e407ff7004eb3a4d4f43a1516b6b851527e2",
+      "bytes": 2220,
+      "source": "/Users/jake/EMPIRE/codes/PlasmaWorkspace/HybridPlasmaPIC-audit-evidence/2026-11-09/empic-coupled-error-control-design/coupled-pair-derivation/implementation-v1/final-freeze-v1/FORCE_OWNER_AMENDMENT.md"
+    },
+    "controller/HANDOFF_OPENCODE.md": {
+      "sha256": "f07acc0df3fbb7b9f4e10f4a6dd0c4d6d6ce738253f408de60a31bdbf5884f36",
+      "bytes": 10885,
+      "source": "/Users/jake/EMPIRE/codes/PlasmaWorkspace/HybridPlasmaPIC-audit-evidence/2026-11-09/empic-coupled-error-control-design/coupled-pair-derivation/implementation-v1/final-freeze-v1/HANDOFF_OPENCODE.md"
+    },
+    "controller/LEGACY_INVERSE_REVIEW.json": {
+      "sha256": "b2461d1966684cb2d946356e1ca066cea5390a5febd764c7784e9d86083dc1a5",
+      "bytes": 1549,
+      "source": "/Users/jake/EMPIRE/codes/PlasmaWorkspace/HybridPlasmaPIC-audit-evidence/2026-11-09/empic-coupled-error-control-design/coupled-pair-derivation/implementation-v1/final-freeze-v1/LEGACY_INVERSE_REVIEW.json"
+    },
+    "controller/PRE_EDIT_PINS.json": {
+      "sha256": "e583549316b6b3ffb4596db3f5451aae72857a6cd52f4f0af0ba47ba9e425445",
+      "bytes": 2990,
+      "source": "/Users/jake/EMPIRE/codes/PlasmaWorkspace/HybridPlasmaPIC-audit-evidence/2026-11-09/empic-coupled-error-control-design/coupled-pair-derivation/implementation-v1/final-freeze-v1/PRE_EDIT_PINS.json"
+    },
+    "controller/REVIEW_FINAL.md": {
+      "sha256": "299c4d33258f37a8884b2bbae2b5f2cb876620da05a09b597b4af7f62fb92a6f",
+      "bytes": 6312,
+      "source": "/Users/jake/EMPIRE/codes/PlasmaWorkspace/HybridPlasmaPIC-audit-evidence/2026-11-09/empic-coupled-error-control-design/coupled-pair-derivation/implementation-v1/final-freeze-v1/REVIEW_FINAL.md"
+    },
+    "controller/ROOT_APPROVAL_V3.json": {
+      "sha256": "93b33286045c0a309ea1029c305fe6906acf428ba34986c3c7e62b493994e46d",
+      "bytes": 2581,
+      "source": "/Users/jake/EMPIRE/codes/PlasmaWorkspace/HybridPlasmaPIC-audit-evidence/2026-11-09/empic-coupled-error-control-design/coupled-pair-derivation/implementation-v1/final-freeze-v1/ROOT_APPROVAL_V3.json"
+    },
+    "controller/SOURCE_MAP_REVIEW.md": {
+      "sha256": "7b22898f7b1fe37d13277579d567930369ca33548bae42ea4276bf702c090fdf",
+      "bytes": 5444,
+      "source": "/Users/jake/EMPIRE/codes/PlasmaWorkspace/HybridPlasmaPIC-audit-evidence/2026-11-09/empic-coupled-error-control-design/coupled-pair-derivation/implementation-v1/final-freeze-v1/SOURCE_MAP_REVIEW.md"
+    },
+    "controller/coupled-empic-final-v1.patch": {
+      "sha256": "fa98cec4d95d4e3896e5661433a468f2d8e64d6d3242cc5f675abf1049c4bff9",
+      "bytes": 165467,
+      "source": "/Users/jake/EMPIRE/codes/PlasmaWorkspace/HybridPlasmaPIC-audit-evidence/2026-11-09/empic-coupled-error-control-design/coupled-pair-derivation/implementation-v1/final-freeze-v1/coupled-empic-final-v1.patch"
+    },
+    "controller/empic_collection-literal-inverse.patch": {
+      "sha256": "f72b4ad011380cf13ad4b5de14f34b5e6af9484d454b2d832ef13c6ebbb208c6",
+      "bytes": 13135,
+      "source": "/Users/jake/EMPIRE/codes/PlasmaWorkspace/HybridPlasmaPIC-audit-evidence/2026-11-09/empic-coupled-error-control-design/coupled-pair-derivation/implementation-v1/final-freeze-v1/empic_collection-literal-inverse.patch"
+    },
+    "controller/empic_collection_checkpoint-literal-inverse.patch": {
+      "sha256": "4dbf5155edee66ef8da9d85a5abd5a71d48be54213c090d6047b6fe0a4805fee",
+      "bytes": 4293,
+      "source": "/Users/jake/EMPIRE/codes/PlasmaWorkspace/HybridPlasmaPIC-audit-evidence/2026-11-09/empic-coupled-error-control-design/coupled-pair-derivation/implementation-v1/final-freeze-v1/empic_collection_checkpoint-literal-inverse.patch"
+    },
+    "flux-proposal/FREEZE_RECEIPT.json": {
+      "sha256": "aa1d13b0d205b3874f39ebb0c6b58b36118ac5100be112e885202aa049ed6f7b",
+      "bytes": 1519,
+      "source": "/Users/jake/EMPIRE/codes/PlasmaWorkspace/HybridPlasmaPIC-audit-evidence/2026-11-09/flux-limited-electron-conduction-contract/FREEZE_RECEIPT.json"
+    },
+    "flux-proposal/PRE_EDIT_CONTRACT.md": {
+      "sha256": "c33458b7b18cbcaa95b0515d1744fa9a43130497069edf74aaa48ef43069962c",
+      "bytes": 21035,
+      "source": "/Users/jake/EMPIRE/codes/PlasmaWorkspace/HybridPlasmaPIC-audit-evidence/2026-11-09/flux-limited-electron-conduction-contract/PRE_EDIT_CONTRACT.md"
+    },
+    "flux-proposal/PRIMARY_SOURCES.md": {
+      "sha256": "6d78bf603fadd9984f3c9ec6155b269e70cae4418502c25682d8adcf335bda62",
+      "bytes": 1875,
+      "source": "/Users/jake/EMPIRE/codes/PlasmaWorkspace/HybridPlasmaPIC-audit-evidence/2026-11-09/flux-limited-electron-conduction-contract/PRIMARY_SOURCES.md"
+    },
+    "flux-proposal/REMAINING_CAP010_CAP011.md": {
+      "sha256": "ba90282d45f6097ab52a53a0e4d5a6678dad71a0e656e2babe5617a965b7bc08",
+      "bytes": 7210,
+      "source": "/Users/jake/EMPIRE/codes/PlasmaWorkspace/HybridPlasmaPIC-audit-evidence/2026-11-09/flux-limited-electron-conduction-contract/REMAINING_CAP010_CAP011.md"
+    },
+    "flux-proposal/SOURCE_MAP_AND_PROOF_REVIEW.md": {
+      "sha256": "6497451ea825f70bae38b70599e02442ca46f73dad3a4f64d591b41baa73ea48",
+      "bytes": 5991,
+      "source": "/Users/jake/EMPIRE/codes/PlasmaWorkspace/HybridPlasmaPIC-audit-evidence/2026-11-09/flux-limited-electron-conduction-contract/SOURCE_MAP_AND_PROOF_REVIEW.md"
+    },
+    "flux-proposal/SOURCE_PINS.json": {
+      "sha256": "842ded7679420140547bc54919bc8f8eee754b9835257399f0050e50bf7356a8",
+      "bytes": 6355,
+      "source": "/Users/jake/EMPIRE/codes/PlasmaWorkspace/HybridPlasmaPIC-audit-evidence/2026-11-09/flux-limited-electron-conduction-contract/SOURCE_PINS.json"
+    },
+    "reviews/CAP001_007_011_REVIEW.md": {
+      "sha256": "ab376c29959afd731fc3ed57917064ed602c6b5f076bd3b5b2d04129247fa072",
+      "bytes": 29030,
+      "source": "/Users/jake/EMPIRE/codes/PlasmaWorkspace/HybridPlasmaPIC-audit-evidence/2026-11-09/opencode-handoff-plan/CAP001_007_011_REVIEW.md"
+    },
+    "reviews/CAP002_006_REVIEW.md": {
+      "sha256": "5130f2c9029d0901d0d2a31d2f986f332f49b1a9cc91a892ae276a0706af79a4",
+      "bytes": 32784,
+      "source": "/Users/jake/EMPIRE/codes/PlasmaWorkspace/HybridPlasmaPIC-audit-evidence/2026-11-09/opencode-handoff-plan/CAP002_006_REVIEW.md"
+    },
+    "verify_handoff.py": {
+      "sha256": "a1c0af1a7b631307d8f130a22aaecc1b45426b83486c30b3ece7324c161cb728",
+      "bytes": 6293
+    }
+  },
+  "documents": {
+    "README.md": "4967f85844f07677ccdbee30711afa6a61864627d8ae38959aad2eaaae573b73",
+    "docs/IMPLEMENTATION_WORKFLOW.md": "1f2d062419bc0a84c5a476c323c3cd813e875faf559b24894bb8a24d09ad6e65",
+    "docs/DEEP_DEBUG_TRACKER.md": "be4d9bf20f4cb3fc1e691630bb9288c073a5e6db5bbc4c249203f5d4a3fe16c2",
+    "docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md": "79104f5dd86058cdfd1283e0e68a20f23f8aae059904bb1e707b9e92de1ad555",
+    "docs/OPENCODE_IMPLEMENTATION_HANDOFF.md": "19e7d6588afcd715a2def168429cf5990b8797b4e56b75bdb751fdec22bb3158",
+    "docs/OPENCODE_ACCEPTANCE_TRACKER.md": "7d82b23a7b4f7b39673cc9f4c950334578fa028ef301275623143cb05dcb0810"
+  },
+  "verified_loader_blocker": "src/models/empic_collection.jl:1430/1854; raw CUDA-host and MPI logs confirm first ParseError; no repair in this frozen baseline"
+}

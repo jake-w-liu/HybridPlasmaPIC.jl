@@ -1,0 +1,47 @@
+{
+  "status": "READ_ONLY_UNAPPROVED_FROZEN_STOPPED",
+  "source_base": "5de6522bbc58a7a8ecd3988b5c0b5dfa587e48e3",
+  "pin_files_verified": 25,
+  "production_or_test_edits": false,
+  "local_workloads": false,
+  "CI_or_git_publication": false,
+  "findings": "No confirmed current production defect. Proposed new-family contracts and unexecuted gates are not runtime acceptance. Root owns current integrated CGL adoption and all prior frozen paths.",
+  "files": [
+    {
+      "path": "PRE_EDIT_CONTRACT.md",
+      "sha256": "c33458b7b18cbcaa95b0515d1744fa9a43130497069edf74aaa48ef43069962c",
+      "bytes": 21035,
+      "lines": 105
+    },
+    {
+      "path": "PRIMARY_SOURCES.md",
+      "sha256": "6d78bf603fadd9984f3c9ec6155b269e70cae4418502c25682d8adcf335bda62",
+      "bytes": 1875,
+      "lines": 7
+    },
+    {
+      "path": "REMAINING_CAP010_CAP011.md",
+      "sha256": "ba90282d45f6097ab52a53a0e4d5a6678dad71a0e656e2babe5617a965b7bc08",
+      "bytes": 7210,
+      "lines": 19
+    },
+    {
+      "path": "SOURCE_MAP_AND_PROOF_REVIEW.md",
+      "sha256": "6497451ea825f70bae38b70599e02442ca46f73dad3a4f64d591b41baa73ea48",
+      "bytes": 5991,
+      "lines": 35
+    },
+    {
+      "path": "SOURCE_PINS.json",
+      "sha256": "842ded7679420140547bc54919bc8f8eee754b9835257399f0050e50bf7356a8",
+      "bytes": 6355,
+      "lines": 180
+    },
+    {
+      "path": "SOURCE_PINS.sha256",
+      "sha256": "4c8a072848ec2863eb31645b6ba61b1084124682d3fbab294d51df45feb9f2a8",
+      "bytes": 2704,
+      "lines": 25
+    }
+  ]
+}

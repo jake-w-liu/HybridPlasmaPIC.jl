@@ -1,0 +1,932 @@
+{
+  "version": 1,
+  "code_baseline": "5aa628513fb854c96b2b387780edef1ea1faa66b",
+  "meaning": "Dependencies govern acceptance; independent source/design work can run in parallel under exclusive exact-path ownership. Applicable composition rows add their own serial-physics and backend prerequisites. Status open does not mean every primitive is missing.",
+  "packages": [
+    {
+      "id": "P00",
+      "title": "Freeze and reconcile takeover",
+      "cap": "GLOBAL",
+      "acceptance_dependencies": [],
+      "source_state": "Handoff prepared; operator startup and dirty-primary review remain",
+      "canonical_owners": [
+        "Project.toml",
+        "docs/DEEP_DEBUG_TRACKER.md"
+      ],
+      "deliverables": "Inventory refs/worktrees/source packets, preserve the seven primary hashes and compiler ledger; establish explicit model/support/evidence matrices.",
+      "close_when": "A clean isolated operator checkout, verified artifact hashes, no lost dirty work, exact source/dependency/hardware baseline and named owners; every required combination has a row.",
+      "status": "open",
+      "owner": "OpenCode assignment pending user start",
+      "evidence": []
+    },
+    {
+      "id": "P01",
+      "title": "Close current CI and compiler regressions",
+      "cap": "GLOBAL",
+      "acceptance_dependencies": [
+        "P00"
+      ],
+      "source_state": "VERIFIED package-load ParseError remains at two EMPIC ternaries; new 91/99-report JET failures need complete disposition; prior repairs are not current-head acceptance",
+      "canonical_owners": [
+        ".github/workflows/HybridPlasmaPIC-CI.yml",
+        ".github/workflows/implementation-essentials.yml",
+        "test/test_jet.jl",
+        "src/models/empic_collection.jl"
+      ],
+      "deliverables": "First repair both invalid symbol-valued ternaries at src/models/empic_collection.jl:1430/1854 and reconcile the frozen controller. Then triage every actual failed job, including new 91/99-report JET trees, formatter artifacts, focused prerequisites and real MPI failures. Preserve all numerical/compiler/resource gates.",
+      "close_when": "Every failure has raw-log/source disposition; actual minimum/latest Julia, focused/neighbors/Aqua/concrete and whole-tree JET plus all required exact-head jobs pass. Actual billing evidence is the only CI exception; unexecuted science/hardware stays open.",
+      "status": "open",
+      "owner": "OpenCode assignment pending user start",
+      "evidence": []
+    },
+    {
+      "id": "P02",
+      "title": "Complete serial collision resources and regimes",
+      "cap": "001",
+      "acceptance_dependencies": [
+        "P01"
+      ],
+      "source_state": "CPU pairing/scattering exists; broader cost/range campaign open",
+      "canonical_owners": [
+        "src/particles/coulomb_local.jl",
+        "src/particles/collisions.jl",
+        "src/particles/coulomb_scattering.jl"
+      ],
+      "deliverables": "Retain canonical self/cross/reuse physics; complete occupancy/species/weight/exponent-span and full-operation optimization campaigns.",
+      "close_when": "Independent drift/diffusion/rate/isolation and seeded unequal-weight statistics; empty/singleton/odd cells; paired init/bin/shuffle/scatter/diagnostic/restore time, allocation and peak-memory targets frozen before optimization.",
+      "status": "open",
+      "owner": "OpenCode assignment pending user start",
+      "evidence": []
+    },
+    {
+      "id": "P03",
+      "title": "Complete rank/device collision ownership",
+      "cap": "001",
+      "acceptance_dependencies": [
+        "P02",
+        "P08",
+        "P13"
+      ],
+      "source_state": "Pencil ES/EM source exists; broader/device composition missing",
+      "canonical_owners": [
+        "ext/pencil_collisional_pic.jl",
+        "ext/pencil_collisional_empic.jl",
+        "ext/HybridPlasmaPICCUDAExt.jl"
+      ],
+      "deliverables": "Keep complete physical collision cells together or derive cross-rank pairing; implement device pairing/stream/reuse ownership and necessary solver compositions.",
+      "close_when": "Actual 2/4/8 ranks and real devices: unique pair coverage, empty peers, imbalance, rates/conservation-in-expectation, rank-local/device rejection and full advanced-stream continuation; no host/emulation substitution.",
+      "status": "open",
+      "owner": "OpenCode assignment pending user start",
+      "evidence": []
+    },
+    {
+      "id": "P04",
+      "title": "Accept current bounded Yee families",
+      "cap": "002",
+      "acceptance_dependencies": [
+        "P01"
+      ],
+      "source_state": "Bounded vacuum and restricted particle maps exist",
+      "canonical_owners": [
+        "src/models/yee_electromagnetic_pic.jl",
+        "src/models/yee_impact_longitudinal_pic.jl",
+        "src/models/yee_absorbing_longitudinal_pic.jl"
+      ],
+      "deliverables": "Validate existing finite-cloud PEC, event-free EM and restricted longitudinal impact/capture maps before extending them.",
+      "close_when": "Independent Yee/cavity and trajectory/source oracles; continuity/Gauss, actual particle/grid/plate work, both polarizations, force-driven refinement, late undo and full phase raw/archive continuation. Ledger closure alone does not pass physical accuracy.",
+      "status": "open",
+      "owner": "OpenCode assignment pending user start",
+      "evidence": []
+    },
+    {
+      "id": "P05",
+      "title": "Implement general material particle boundaries",
+      "cap": "002",
+      "acceptance_dependencies": [
+        "P04"
+      ],
+      "source_state": "D2/3/general repeated events remain missing",
+      "canonical_owners": [
+        "src/models/yee_electromagnetic_pic.jl",
+        "src/models/yee_impact_longitudinal_pic.jl",
+        "src/models/yee_absorbing_longitudinal_pic.jl"
+      ],
+      "deliverables": "Add complete D2/3 crossed-cell/face/edge/corner paths, repeated impact/capture/injection, transverse/material/sheath/emission laws and surface reservoirs/IDs.",
+      "close_when": "No lost path remainder or duplicated charge/IDs; independent local continuity including wall flux, impulse/energy receiving reservoirs, simultaneous-event termination/refinement, late failure/retry and complete pending-event restart.",
+      "status": "open",
+      "owner": "OpenCode assignment pending user start",
+      "evidence": []
+    },
+    {
+      "id": "P06",
+      "title": "Accept absorbers and implement open plasma coupling",
+      "cap": "002",
+      "acceptance_dependencies": [
+        "P04",
+        "P05"
+      ],
+      "source_state": "Vacuum conductivity/ADE PML source exists; coupled/open scope incomplete",
+      "canonical_owners": [
+        "src/models/yee_pml.jl",
+        "src/models/yee_conductive_layer.jl",
+        "src/io/yee_pml_checkpoint.jl"
+      ],
+      "deliverables": "Measure existing layers; derive charge-compatible PIC/source exits and injection; add general CPML parameters/conditions only with a concrete operator contract.",
+      "close_when": "Reflection versus angle/frequency/polarization/thickness/resolution, corner overlap and late-time behavior; actual layer memories/work and restart; plasma charge/Gauss/boundary flux and long-run stability tested together.",
+      "status": "open",
+      "owner": "OpenCode assignment pending user start",
+      "evidence": []
+    },
+    {
+      "id": "P07",
+      "title": "Compose nonperiodic production physics",
+      "cap": "002",
+      "acceptance_dependencies": [
+        "P05",
+        "P06",
+        "P10",
+        "P14",
+        "P31"
+      ],
+      "source_state": "Broader relativistic/scheduled/backend boundaries missing",
+      "canonical_owners": [
+        "src/models/yee_electromagnetic_pic.jl",
+        "src/models/full_pic.jl",
+        "ext/pencil_empic.jl"
+      ],
+      "deliverables": "Compose relativistic and scheduled species, curved material fields/thermal boundaries, domain ownership and residency with the accepted boundary/event model.",
+      "close_when": "Each supported combination has phase/current/impulse/work and full persistent state; independent bounded-plasma comparison, whole-operation rejection and actual-rank/device acceptance at matched error.",
+      "status": "open",
+      "owner": "OpenCode assignment pending user start",
+      "evidence": []
+    },
+    {
+      "id": "P08",
+      "title": "Close distributed layout and operator contract",
+      "cap": "003",
+      "acceptance_dependencies": [
+        "P01"
+      ],
+      "source_state": "Periodic operators exist; broader layout/conditioning scope open",
+      "canonical_owners": [
+        "src/parallel/pencil_decomposition.jl",
+        "ext/pencil_fourier.jl",
+        "ext/pencil_particles.jl"
+      ],
+      "deliverables": "Qualify owned/permuted/thin/empty layouts and all directions; implement required nonperiodic/wider-shape/staggered support without a global hot-path gather.",
+      "close_when": "Independent local/global operator/moment oracles at actual ranks, original-factor/Fourier null/DC/Nyquist checks, collective invalid-input rejection, bounded owned-plus-support memory and complete communicator/plan cleanup.",
+      "status": "open",
+      "owner": "OpenCode assignment pending user start",
+      "evidence": []
+    },
+    {
+      "id": "P09",
+      "title": "Accept actual-pencil solver lifecycles",
+      "cap": "003",
+      "acceptance_dependencies": [
+        "P08"
+      ],
+      "source_state": "Charged ES/EM/hybrid/Maxwell and restart source exists",
+      "canonical_owners": [
+        "ext/pencil_electrostatic.jl",
+        "ext/pencil_empic.jl",
+        "ext/pencil_hybrid.jl",
+        "tools/ci_distributed_fft.jl"
+      ],
+      "deliverables": "Complete numerical, collective, physical-phase and matching-layout persistence acceptance for every existing actual-pencil family.",
+      "close_when": "Nonuniform charged multiple species, real domain/seam migration and empty peers; serial observable comparisons, full saved arrays and variable-step phase; asymmetric rejection/I/O finishes collectively without partial publication or hang.",
+      "status": "open",
+      "owner": "OpenCode assignment pending user start",
+      "evidence": []
+    },
+    {
+      "id": "P10",
+      "title": "Implement broader distributed families",
+      "cap": "003",
+      "acceptance_dependencies": [
+        "P09",
+        "P35"
+      ],
+      "source_state": "Broader closures/shapes/relativity/open/source families incomplete",
+      "canonical_owners": [
+        "ext/pencil_hybrid.jl",
+        "ext/pencil_empic.jl",
+        "ext/pencil_collisional_pic.jl"
+      ],
+      "deliverables": "Extend admitted pressure/transport/CGL, shapes/schedules/relativity, source and mixed/open families using accepted serial physics and actual owned operators.",
+      "close_when": "Summation before floors, source-range recovery, charge/current/energy and real migration/rollback/full restart for each matrix row; reject unimplemented ownership cases before collective work.",
+      "status": "open",
+      "owner": "OpenCode assignment pending user start",
+      "evidence": []
+    },
+    {
+      "id": "P11",
+      "title": "Implement repartition and cluster scaling",
+      "cap": "003",
+      "acceptance_dependencies": [
+        "P09",
+        "P10"
+      ],
+      "source_state": "Changed layout/rank and real multi-node closure open",
+      "canonical_owners": [
+        "ext/pencil_checkpoint.jl",
+        "ext/pencil_particles.jl",
+        "src/parallel/pencil_decomposition.jl"
+      ],
+      "deliverables": "Add rebalance, changed-rank/layout physical and RNG redistribution and generation/recovery policy; run real multi-node scaling.",
+      "close_when": "IDs/weights/charge/streams neither lost nor duplicated; same-layout deterministic and changed-layout statistical contracts separated; strong/weak scaling, slowest rank, communication, imbalance and peak storage on named nodes.",
+      "status": "open",
+      "owner": "OpenCode assignment pending user start",
+      "evidence": []
+    },
+    {
+      "id": "P12",
+      "title": "Close actual GPU primitive contracts",
+      "cap": "004",
+      "acceptance_dependencies": [
+        "P01"
+      ],
+      "source_state": "CUDA/Metal primitives exist; actual device/range gates open",
+      "canonical_owners": [
+        "ext/HybridPlasmaPICCUDAExt.jl",
+        "ext/HybridPlasmaPICMetalExt.jl"
+      ],
+      "deliverables": "Verify native lowering, arithmetic/precision/mode/range, gather/deposit/push/wrap/reduction and failure/stream-context contracts on each real device.",
+      "close_when": "Scalar indexing disabled; independent primitive/trajectory/source oracles including empty/block edges, alias/range failures and subsequent reuse; actual synchronized kernels, transfers, allocations and context restoration.",
+      "status": "open",
+      "owner": "OpenCode assignment pending user start",
+      "evidence": []
+    },
+    {
+      "id": "P13",
+      "title": "Accept and extend complete resident first solvers",
+      "cap": "004",
+      "acceptance_dependencies": [
+        "P12"
+      ],
+      "source_state": "CUDA D1/F64/CIC/isothermal lifecycle exists; real acceptance and other variants open",
+      "canonical_owners": [
+        "src/models/cuda_hybrid.jl",
+        "ext/cuda_hybrid/types.jl",
+        "ext/cuda_hybrid/evolution.jl",
+        "ext/cuda_hybrid/checkpoint.jl"
+      ],
+      "deliverables": "Accept the current CUDA family, then implement D2/3/F32/other shapes/variable intervals/range scope and a genuine Metal resident field-plus-particle lifecycle.",
+      "close_when": "Actual-device init/prime/repeated coupled steps, independent dispersion/constraints/work, late async rejection and changed-count raw/archive continuation; measured absence of per-step full field/particle host solves/copies.",
+      "status": "open",
+      "owner": "OpenCode assignment pending user start",
+      "evidence": []
+    },
+    {
+      "id": "P14",
+      "title": "Implement resident physics families",
+      "cap": "004",
+      "acceptance_dependencies": [
+        "P13",
+        "P35"
+      ],
+      "source_state": "Broader closures, solvers, sources and geometry/device combinations missing",
+      "canonical_owners": [
+        "src/models/cuda_hybrid.jl",
+        "ext/cuda_hybrid/",
+        "ext/HybridPlasmaPICMetalExt.jl"
+      ],
+      "deliverables": "Port each required accepted serial family and closure/source/phase to resident storage/operators, including ES/EM, transport/tensors, collisions, implicit/geometry/GK/AMR where valid.",
+      "close_when": "Each advertised device row runs complete numerical/scientific/failure/restart and resource gates; atomic-order tolerance is declared, host replay or import-only success cannot close it.",
+      "status": "open",
+      "owner": "OpenCode assignment pending user start",
+      "evidence": []
+    },
+    {
+      "id": "P15",
+      "title": "Implement and accept multi-GPU",
+      "cap": "004",
+      "acceptance_dependencies": [
+        "P11",
+        "P14"
+      ],
+      "source_state": "Missing complete multi-device composition",
+      "canonical_owners": [
+        "src/parallel/pencil_decomposition.jl",
+        "ext/HybridPlasmaPICPencilFFTSExt.jl",
+        "ext/HybridPlasmaPICCUDAExt.jl"
+      ],
+      "deliverables": "Compose domain-owned arrays/migration with direct-device or explicitly accounted host staging, ordering/streams, local RNG and repartition/restart.",
+      "close_when": "Actual multiple devices/nodes, verified transport path, unequal occupancy, arbitrary migration, late failure/stream separation, supported restart and matched-error scaling/memory/transfer evidence.",
+      "status": "open",
+      "owner": "OpenCode assignment pending user start",
+      "evidence": []
+    },
+    {
+      "id": "P16",
+      "title": "Close implicit solver audit and common numerical owner",
+      "cap": "005",
+      "acceptance_dependencies": [
+        "P01"
+      ],
+      "source_state": "Residual-controlled sources exist; advice/preconditioning/cost gates open",
+      "canonical_owners": [
+        "src/integrators/implicit_pic_nonlinear.jl",
+        "src/integrators/gmres_storage.jl",
+        "src/initial_conditions/shock_cn.jl",
+        "src/integrators/timestep_bounds.jl"
+      ],
+      "deliverables": "Qualify linear/reduced CN versus coupled models, true residual/scaling/Jv/GMRES/budgets; resolve timestep advisory contract and optimize measured repeated FFT/Krylov work.",
+      "close_when": "Independent assembled equations/actions/amplification, fresh final residuals, budget/domain/backtracking failures with reuse; no hidden explicit/smaller-step/direct fallback; matched-accuracy full-call residual/iteration/allocation cost.",
+      "status": "open",
+      "owner": "OpenCode assignment pending user start",
+      "evidence": []
+    },
+    {
+      "id": "P17",
+      "title": "Accept and extend coupled implicit hybrid",
+      "cap": "005",
+      "acceptance_dependencies": [
+        "P16"
+      ],
+      "source_state": "Isothermal and evolving-pressure joint source exists",
+      "canonical_owners": [
+        "src/integrators/implicit_hybrid.jl",
+        "src/electrons/energy_equation.jl",
+        "src/io/implicit_hybrid_checkpoint.jl"
+      ],
+      "deliverables": "Accept joint v/B/pe and old schema1/new schema2; implement derived orbit averaging/subcycled paths and method-specific preconditioning; compose later physics only after its contracts.",
+      "close_when": "Independent nonlinear pressure/velocity/B equations, true residual/work/positivity and zero-pressure/Jv limits; nontrivial order/dispersion/tolerance sweeps, late rollback, fresh/stale/legacy raw/archive continuation and time-to-error cost.",
+      "status": "open",
+      "owner": "OpenCode assignment pending user start",
+      "evidence": []
+    },
+    {
+      "id": "P18",
+      "title": "Accept and extend coupled implicit EM",
+      "cap": "005",
+      "acceptance_dependencies": [
+        "P16",
+        "P04"
+      ],
+      "source_state": "Spectral and compatible periodic Yee maps exist; broader forms missing",
+      "canonical_owners": [
+        "src/integrators/implicit_em.jl",
+        "src/integrators/implicit_yee_em.jl",
+        "src/io/implicit_em_checkpoint.jl"
+      ],
+      "deliverables": "Accept current spectral/Yee source-current-field/work equations, then implement D2/3 compatible paths, wider admitted orbits/spacing and boundary/relativity/schedule/backend compositions.",
+      "close_when": "Independent coupled solves and all published equation/continuity/Gauss/work defects, transverse and multi-cell/seam controls, order separated from mesh/particle error, exact phase restart and late failure. Tighter nonlinear tolerance cannot erase spatial correction work.",
+      "status": "open",
+      "owner": "OpenCode assignment pending user start",
+      "evidence": []
+    },
+    {
+      "id": "P19",
+      "title": "Accept coupled shear and toroidal annulus",
+      "cap": "006A",
+      "acceptance_dependencies": [
+        "P01"
+      ],
+      "source_state": "Genuine shear/annulus coupled source exists",
+      "canonical_owners": [
+        "src/models/sheared_periodic_hybrid_pic.jl",
+        "src/models/toroidal_annulus_hybrid_pic.jl",
+        "src/fields/toroidal_annulus_hybrid_operators.jl"
+      ],
+      "deliverables": "Qualify coordinate/inverse/J/metric/source-work and all-stage ions/beta/pe/contact/reservoir evolution before broader geometry.",
+      "close_when": "Independent weighted adjoints, mapped uniform fields, analytic/manufactured geometry and coupled wave/equilibrium refinements; face inflow/outflow/SAT/work, normal trace/positivity, late rollback and all physical/history restart; physical boundary behavior measured beyond ledgers.",
+      "status": "open",
+      "owner": "OpenCode assignment pending user start",
+      "evidence": []
+    },
+    {
+      "id": "P20",
+      "title": "Implement full curvilinear/toroidal scope",
+      "cap": "006A",
+      "acceptance_dependencies": [
+        "P19",
+        "P05"
+      ],
+      "source_state": "Solid axis/material/equilibria/import/general maps and backends remain",
+      "canonical_owners": [
+        "src/meshes/toroidal_annulus_mesh.jl",
+        "src/coupling/toroidal_annulus_hybrid_coupling.jl",
+        "src/initial_conditions/toroidal_annulus_hybrid.jl"
+      ],
+      "deliverables": "Add solid-axis topology/parity/crossings, curved material walls, finite-temperature/flow equilibria and imported/shaped/general topology, followed by owned/device implementations.",
+      "close_when": "Axis/orbit/metric refinement and physical force balance, invariant and work checks appropriate to symmetry, actual coupled evolution and full boundary/equilibrium persistence; independent geometry reference and error-matched resource evidence.",
+      "status": "open",
+      "owner": "OpenCode assignment pending user start",
+      "evidence": []
+    },
+    {
+      "id": "P21",
+      "title": "Accept self-consistent full-f slab gyrokinetics",
+      "cap": "006B",
+      "acceptance_dependencies": [
+        "P01"
+      ],
+      "source_state": "Full-f constant-B slab family exists; method/science/cost gates open",
+      "canonical_owners": [
+        "src/models/slab_gyrokinetic_pic.jl",
+        "src/io/slab_gyrokinetic_checkpoint.jl"
+      ],
+      "deliverables": "Accept the declared ring-TSC/full-k polarization/modified adiabatic electron model through actual nonuniform collective RK evolution.",
+      "close_when": "Independent mode/FLR/electron-field residuals, genuine nonzero truncation order, separate time/mesh/marker/velocity/ring refinement, number/momentum/energy, later-stage solve failure/reuse and exact-head full continuation/resource gates.",
+      "status": "open",
+      "owner": "OpenCode assignment pending user start",
+      "evidence": []
+    },
+    {
+      "id": "P22",
+      "title": "Implement broader gyrokinetic physics and composition",
+      "cap": "006B",
+      "acceptance_dependencies": [
+        "P21",
+        "P20",
+        "P35"
+      ],
+      "source_state": "Nonuniform/toroidal/delta-f/collision/kinetic-EM/backend stages missing",
+      "canonical_owners": [
+        "src/models/gyrokinetics.jl",
+        "src/models/slab_gyrokinetic_pic.jl",
+        "src/particles/collisions.jl"
+      ],
+      "deliverables": "Derive and implement geometry/mirror/bounce, selected evolving-weight/equilibrium model, GK collision Jacobian/invariants/RNG, kinetic electron/EM/free-energy and valid source/backend/AMR compositions.",
+      "close_when": "Independent mirror/bounce and matched Cyclone or appropriate code cases, FLR/free-energy and weight/equilibrium/RNG work, full solve-failure/restart and transport uncertainty; slab results cannot accept absent geometry.",
+      "status": "open",
+      "owner": "OpenCode assignment pending user start",
+      "evidence": []
+    },
+    {
+      "id": "P23",
+      "title": "Accept adaptive ES and implement remaining boundaries",
+      "cap": "006C",
+      "acceptance_dependencies": [
+        "P01"
+      ],
+      "source_state": "Static/dynamic 1D and grounded/periodic D2/3 ES exist",
+      "canonical_owners": [
+        "src/meshes/cartesian_amr_hierarchy.jl",
+        "src/fields/cartesian_composite_poisson.jl",
+        "src/models/adaptive_composite_electrostatic.jl"
+      ],
+      "deliverables": "Accept actual hierarchy/cloud/Q1/KDK/regrid histories, then add neutral-Neumann/material/electrode/mixed-axis/harmonic-source contracts to the canonical assembly.",
+      "close_when": "Independent constraints/dense quadrature/manufactured fields/all-row gauge residuals, arbitrary-width and interface/self-force work, separate fixed-width/time/space refinements, repeated no-step/regrid/changed-topology continuation and late solve/path failure.",
+      "status": "open",
+      "owner": "OpenCode assignment pending user start",
+      "evidence": []
+    },
+    {
+      "id": "P24",
+      "title": "Implement adaptive hybrid/EM, subcycling and backends",
+      "cap": "006C",
+      "acceptance_dependencies": [
+        "P23",
+        "P17",
+        "P18",
+        "P35"
+      ],
+      "source_state": "Compatible current/flux synchronization and broader hierarchy missing",
+      "canonical_owners": [
+        "src/models/adaptive_composite_electrostatic.jl",
+        "src/meshes/cartesian_composite_adaptation.jl",
+        "src/fields/cartesian_composite_poisson.jl"
+      ],
+      "deliverables": "Derive compatible face/edge currents, divergence/Gauss/reflux and work; implement all coupled stages/local time interpolation, pending subcycles, partition/rebalance and device hierarchy.",
+      "close_when": "Independent coarse-fine current/flux/field identities, uniform-fine reference and transmission/refinement, real subcycle/regrid histories, full phase/RNG/topology restart, actual hardware and whole-step cost versus equal-error uniform fine.",
+      "status": "open",
+      "owner": "OpenCode assignment pending user start",
+      "evidence": []
+    },
+    {
+      "id": "P25",
+      "title": "Complete pinned references and production wave matrix",
+      "cap": "007",
+      "acceptance_dependencies": [
+        "P01"
+      ],
+      "source_state": "Reference infrastructure and parallel/oblique fluid histories exist",
+      "canonical_owners": [
+        "validation/mode_history.jl",
+        "validation/27_nhds_dispersion_comparison/run.jl",
+        "validation/34_production_parallel_dispersion/run.jl",
+        "validation/35_production_oblique_hall/run.jl"
+      ],
+      "deliverables": "Replay pinned references; extend production oblique kinetic/thermal/mass-ratio/ES/EM/damping regimes with correct branch/normalization and uncertainty.",
+      "close_when": "Theory never supplies fitted omega/rate; frozen windows/cadence/seeds and alias diagnostics, independent primary references, time/space/particle refinement and held-out observables. Preserve historical fitter failure and its later correction distinctly.",
+      "status": "open",
+      "owner": "OpenCode assignment pending user start",
+      "evidence": []
+    },
+    {
+      "id": "P26",
+      "title": "Complete nonlinear profiles and datasets",
+      "cap": "007",
+      "acceptance_dependencies": [
+        "P25",
+        "P32"
+      ],
+      "source_state": "Existing B/scalar summaries do not cover all full profiles",
+      "canonical_owners": [
+        "validation/28_hybridvpic_perp_shock/run.jl",
+        "validation/21_published_preisser2020_summary/run.jl"
+      ],
+      "deliverables": "Retrieve licensed/checksummed matched data and code builds, then compare full n/B/u/p and shock-frame/time statistics rather than summary self-roundtrips.",
+      "close_when": "Matched physical equations/geometry/units/boundaries, source/build/data hashes, alignment/uncertainty and convergence; missing data/build remains open and is never replaced with fabricated traces.",
+      "status": "open",
+      "owner": "OpenCode assignment pending user start",
+      "evidence": []
+    },
+    {
+      "id": "P27",
+      "title": "Complete independent cross-family physics validation",
+      "cap": "007",
+      "acceptance_dependencies": [
+        "P04",
+        "P09",
+        "P19",
+        "P21",
+        "P23",
+        "P35"
+      ],
+      "source_state": "Broad matched independent campaigns remain open",
+      "canonical_owners": [
+        "validation/",
+        "src/verification/instability_sweep.jl",
+        "validation/32_magnetic_reconnection/run.jl"
+      ],
+      "deliverables": "Validate bounded EM, collisions, gyro/geometry/AMR and reconnection against appropriate independent models; reconcile labels with actual eta/inertia/source configuration.",
+      "close_when": "Converged held-out observables and conservation/Ohm/flux budgets with uncertainty; explicit parameter scans distinguish models. A code label or a closing scalar ledger does not establish the physical mechanism.",
+      "status": "open",
+      "owner": "OpenCode assignment pending user start",
+      "evidence": []
+    },
+    {
+      "id": "P28",
+      "title": "Establish comparative error-matched effectiveness",
+      "cap": "007",
+      "acceptance_dependencies": [
+        "P25",
+        "P26",
+        "P27",
+        "P02"
+      ],
+      "source_state": "No universal leadership/optimization evidence exists",
+      "canonical_owners": [
+        "validation/",
+        "docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md"
+      ],
+      "deliverables": "Freeze problems, versions, named hardware, physical error/uncertainty and cost budgets; execute fair serial/rank/device comparisons including failed cases.",
+      "close_when": "Time-to-solution, compile/setup/steady work, memory, communication/transfer and scaling at matched error. Any superiority statement is limited to measured regimes and machines.",
+      "status": "open",
+      "owner": "OpenCode assignment pending user start",
+      "evidence": []
+    },
+    {
+      "id": "P29",
+      "title": "Accept arbitrary-species schedules and IO",
+      "cap": "008",
+      "acceptance_dependencies": [
+        "P01"
+      ],
+      "source_state": "Ordinary/dividing/persistent collection source exists",
+      "canonical_owners": [
+        "src/models/empic_collection.jl",
+        "src/models/full_pic.jl",
+        "src/io/empic_collection_checkpoint.jl"
+      ],
+      "deliverables": "Accept generic and specialized collections, fixed/mobile/tracer rows, original q/m and all distinct half/full phases, pending deadlines, current/work/controller histories and schema1/2/3.",
+      "close_when": "Independent corrected-current/endpoints and every subinterval continuity, species permutations and unequal q/m production physics, variable macro calls/pending right edges, late whole-macro undo, stale/aliased/corrupt raw/archive continuation and full CI.",
+      "status": "open",
+      "owner": "OpenCode assignment pending user start",
+      "evidence": []
+    },
+    {
+      "id": "P30",
+      "title": "Review/adopt coupled error controller; close remaining domains",
+      "cap": "008",
+      "acceptance_dependencies": [
+        "P29"
+      ],
+      "source_state": "Nine-file controller patch frozen and applicable; NOT adopted",
+      "canonical_owners": [
+        "src/models/empic_collection.jl",
+        "src/models/full_pic.jl",
+        "src/io/empic_collection_checkpoint.jl"
+      ],
+      "deliverables": "Read complete portable final9 and contract, register model/diagnostic/IO/573-line essential, verify old inverses, accept CIC/TSC full-time pair; separately derive NGP jumps and any true multirate-cost policy.",
+      "close_when": "Actual stage charge differs between low/high branches; independent force/current/Maxwell/clock/work, knot/seam/C1/domain/budget and step0-current controls; fresh-grid/raw/archive replay, order/effectivity/tolerance sweeps and complete-operation resources. No FFT portability or universal true-error theorem inferred.",
+      "status": "open",
+      "owner": "OpenCode assignment pending user start",
+      "evidence": []
+    },
+    {
+      "id": "P31",
+      "title": "Implement schedule/source/boundary/backend intersections",
+      "cap": "008",
+      "acceptance_dependencies": [
+        "P30",
+        "P35",
+        "P05",
+        "P09",
+        "P14"
+      ],
+      "source_state": "Current collision wrappers intentionally reject many combinations",
+      "canonical_owners": [
+        "src/models/empic_collection.jl",
+        "src/integrators/collisional_empic.jl",
+        "src/integrators/collisional_electrostatic.jl"
+      ],
+      "deliverables": "Derive each supported phase/current/source/impulse/work and transaction across collisions, relativity, boundary events, nonmobile rows, partition and residency.",
+      "close_when": "Noncommuting coupled physical controls and order, continuity/work for actual events/subintervals, no partial macro/RNG commit, full pending state and actual-rank/device restart; removing a guard alone never passes.",
+      "status": "open",
+      "owner": "OpenCode assignment pending user start",
+      "evidence": []
+    },
+    {
+      "id": "P32",
+      "title": "Qualify current full-Hall open shock family",
+      "cap": "009",
+      "acceptance_dependencies": [
+        "P01"
+      ],
+      "source_state": "D2/3 CIC isothermal numerical-reservoir source exists",
+      "canonical_owners": [
+        "src/models/open_hall_hybrid.jl",
+        "src/fields/mixed_shock_operators.jl",
+        "src/diagnostics/open_hall_energy.jl"
+      ],
+      "deliverables": "Accept actual mixed/SBP/SAT/projected particle-field-reservoir model and declare a physically qualified numerical-boundary regime.",
+      "close_when": "Independent transpose/face work/manufactured induction/divergence, whistlers/upstream/1D controls, SAT/distance/perturbation/reflection and mesh/time/particle/birth sweeps; full histories/RNG undo/restart. Finite projection or hnu admission is not boundary stability.",
+      "status": "open",
+      "owner": "OpenCode assignment pending user start",
+      "evidence": []
+    },
+    {
+      "id": "P33",
+      "title": "Implement open pressure/transport/inertia and material models",
+      "cap": "009",
+      "acceptance_dependencies": [
+        "P32",
+        "P40",
+        "P41"
+      ],
+      "source_state": "Broader open closures/thermal/material reservoir problems missing",
+      "canonical_owners": [
+        "src/models/open_hall_hybrid.jl",
+        "src/boundaries/open_hall_reservoir.jl",
+        "src/io/open_hall_checkpoint.jl"
+      ],
+      "deliverables": "Add actual stage pressure/enthalpy and compatible incoming/outgoing heat, then derived dissipative/inertial/material/sheath models and complete external work.",
+      "close_when": "Independent thermal/charge/momentum/energy fluxes, inlet/outlet/newborn phase, positivity without clipping, reflection/profile refinement and all reservoir/source/RNG/field state continuation and late failure.",
+      "status": "open",
+      "owner": "OpenCode assignment pending user start",
+      "evidence": []
+    },
+    {
+      "id": "P34",
+      "title": "Compose full-Hall shocks with distributed/device ownership",
+      "cap": "009",
+      "acceptance_dependencies": [
+        "P33",
+        "P10",
+        "P14"
+      ],
+      "source_state": "Broader rank/device open models missing",
+      "canonical_owners": [
+        "src/models/open_hall_hybrid.jl",
+        "src/boundaries/open_hall_reservoir.jl",
+        "ext/pencil_hybrid.jl"
+      ],
+      "deliverables": "Integrate admitted open reservoirs, growth/IDs, mixed operators and closure physics with real ownership/residency.",
+      "close_when": "Actual rank/device injection/migration/stream separation, physical flux/profile equivalence, collective/asynchronous late failure, full restart and scaling at matched shock accuracy.",
+      "status": "open",
+      "owner": "OpenCode assignment pending user start",
+      "evidence": []
+    },
+    {
+      "id": "P35",
+      "title": "Accept existing composed sources, thermal and CGL",
+      "cap": "010/011",
+      "acceptance_dependencies": [
+        "P01",
+        "P02"
+      ],
+      "source_state": "Serial/pencil wrappers, NGP/CIC/TSC thermal and CGL source exist",
+      "canonical_owners": [
+        "src/integrators/collisional_hybrid.jl",
+        "src/electrons/thermal_exchange.jl",
+        "src/io/collisional_checkpoint.jl",
+        "src/electrons/field_aligned_conduction.jl"
+      ],
+      "deliverables": "Accept each precise new source/transport family at the integrated head; preserve scalar schema1, NGP2, overlap3 and CGL4 plus normalization and original coefficient policy.",
+      "close_when": "Independent physical relaxation/incidence/tensor/force/rate, actual native energy/momentum/entropy, sparse/cold/mixed-precision limits, true zero reduction, late RNG undo and full raw/archive continuation; no bath/drag/inertia/tensor scope inferred.",
+      "status": "open",
+      "owner": "OpenCode assignment pending user start",
+      "evidence": []
+    },
+    {
+      "id": "P36",
+      "title": "Implement reaction growth, namespaces and advanced source state",
+      "cap": "010",
+      "acceptance_dependencies": [
+        "P35",
+        "P29"
+      ],
+      "source_state": "Primitives exist; complete reaction/neutral/growth composition open",
+      "canonical_owners": [
+        "src/particles/collisions.jl",
+        "src/integrators/collisional_hybrid.jl",
+        "src/io/checkpoint.jl"
+      ],
+      "deliverables": "Compose ionization/neutral reservoirs, newborn phase/current, growth/storage and monotonic global/per-species IDs with full source clocks/counters/RNG.",
+      "close_when": "Independent threshold/rate/recoil/charge/energy statistics, IDs unique after deletion/growth/migration/restart, exhaustion/failure before partial commit and exact advanced-stream/ID/source continuation.",
+      "status": "open",
+      "owner": "OpenCode assignment pending user start",
+      "evidence": []
+    },
+    {
+      "id": "P37",
+      "title": "Implement variable/higher-order source evolution",
+      "cap": "010",
+      "acceptance_dependencies": [
+        "P35",
+        "P36",
+        "P17"
+      ],
+      "source_state": "Existing post-field stochastic split is first order",
+      "canonical_owners": [
+        "src/integrators/collisional_hybrid.jl",
+        "src/integrators/extrapolated_leapfrog.jl",
+        "src/io/collisional_checkpoint.jl"
+      ],
+      "deliverables": "Define stronger split/variable-step phases, accepted/rejected draws and all field/current/pressure refresh; reuse canonical source and field owners.",
+      "close_when": "Independent noncommuting source-field and weak/statistical-order refinement, rejected-step retry and uninterrupted/restarted histories with all clocks/RNG. A symmetric name or two half calls is not an order proof.",
+      "status": "open",
+      "owner": "OpenCode assignment pending user start",
+      "evidence": []
+    },
+    {
+      "id": "P38",
+      "title": "Implement accounted RF/ray/radiation/external sources",
+      "cap": "010",
+      "acceptance_dependencies": [
+        "P36",
+        "P35"
+      ],
+      "source_state": "Standalone antenna/ray/reduced-radiation components exist",
+      "canonical_owners": [
+        "src/fields/antenna.jl",
+        "src/raycon/",
+        "src/particles/radiation_reaction.jl"
+      ],
+      "deliverables": "Reconcile preserved radiation edits, derive receiving reservoir/coupling time/current/force and external work, and own callback/resource commit behavior.",
+      "close_when": "Analytic/manufactured power/impulse/charge transfer, zero-source reduction, actual growth/phase if relevant, combined energy and full ray/source/external/RNG restart; rejected callbacks cannot hide partial external effects.",
+      "status": "open",
+      "owner": "OpenCode assignment pending user start",
+      "evidence": []
+    },
+    {
+      "id": "P39",
+      "title": "Implement complete rank/device sources and RNG growth",
+      "cap": "010/011",
+      "acceptance_dependencies": [
+        "P03",
+        "P10",
+        "P14",
+        "P36",
+        "P37",
+        "P38"
+      ],
+      "source_state": "Full broader parallel/device source systems incomplete",
+      "canonical_owners": [
+        "ext/pencil_collisional_pic.jl",
+        "ext/cuda_hybrid/",
+        "src/particles/collisions.jl"
+      ],
+      "deliverables": "Compose source schedules/reservoirs/reactions, device-local RNG/ID/growth and collective publication with accepted physics and ownership.",
+      "close_when": "Actual devices/ranks with growth, empty/imbalanced partitions, stream uniqueness, one-rank/async failure, full-generation restart; deterministic same-layout versus changed-layout statistics, transfer/memory/cost explicitly measured.",
+      "status": "open",
+      "owner": "OpenCode assignment pending user start",
+      "evidence": []
+    },
+    {
+      "id": "P40",
+      "title": "Implement limited/state-dependent/anisotropic heat conduction",
+      "cap": "011",
+      "acceptance_dependencies": [
+        "P01",
+        "P35"
+      ],
+      "source_state": "Constant scalar/tensor source exists; frozen limiter proposal unapproved",
+      "canonical_owners": [
+        "src/electrons/closures.jl",
+        "src/electrons/energy_equation.jl",
+        "src/electrons/field_aligned_conduction.jl"
+      ],
+      "deliverables": "Review frozen physical limiter proposal first; settle original-factor saturation, full Nyquist/classical limit, variable divergence-form mobility, actual prepared-flux cap, entropy and cold/boundary domains before coding.",
+      "close_when": "Independent actual-stage cap and source/mean/work/entropy defects, constant/zero/classical limits, varying-B/coefficient and finite saturated range rescue, positivity/late undo/full policy IO. Mixed-zero fronts need an admitted positive conservative model, not clipping or undefined-rate acceptance.",
+      "status": "open",
+      "owner": "OpenCode assignment pending user start",
+      "evidence": []
+    },
+    {
+      "id": "P41",
+      "title": "Implement full drag, electron inertia and evolving tensors",
+      "cap": "011",
+      "acceptance_dependencies": [
+        "P35",
+        "P40",
+        "P17"
+      ],
+      "source_state": "Reduced thermal/algebraic CGL/transverse filter are not these models",
+      "canonical_owners": [
+        "src/electrons/thermal_exchange.jl",
+        "src/electrons/ohms_law.jl",
+        "src/fields/field_state.jl",
+        "src/models/hybrid_pic.jl"
+      ],
+      "deliverables": "Separate derived contracts for momentum drag/recoil/Joule/thermal sharing, full electron momentum/bulk energy, and spatial evolving gyrotropic/tensor pressure with selected heat/isotropization terms.",
+      "close_when": "Independent drifting multi-ion equilibration and full momentum/energy/entropy rates, dynamic tensor compression/isotropic/CGL limits, electron-scale dispersion/Ohm/work/solver residuals, zero-mass/source limits and full persistent state; avoid double-counted heating and guard-only admission.",
+      "status": "open",
+      "owner": "OpenCode assignment pending user start",
+      "evidence": []
+    },
+    {
+      "id": "P42",
+      "title": "Finish whole-code audit and measured optimization",
+      "cap": "GLOBAL",
+      "acceptance_dependencies": [
+        "P01",
+        "P02",
+        "P03",
+        "P04",
+        "P05",
+        "P06",
+        "P07",
+        "P08",
+        "P09",
+        "P10",
+        "P11",
+        "P12",
+        "P13",
+        "P14",
+        "P15",
+        "P16",
+        "P17",
+        "P18",
+        "P19",
+        "P20",
+        "P21",
+        "P22",
+        "P23",
+        "P24",
+        "P25",
+        "P26",
+        "P27",
+        "P28",
+        "P29",
+        "P30",
+        "P31",
+        "P32",
+        "P33",
+        "P34",
+        "P35",
+        "P36",
+        "P37",
+        "P38",
+        "P39",
+        "P40",
+        "P41"
+      ],
+      "source_state": "Final independent audit/resources remain open",
+      "canonical_owners": [
+        "src/",
+        "ext/",
+        "test/",
+        "docs/DEEP_DEBUG_TRACKER.md"
+      ],
+      "deliverables": "Audit every exported/public lifecycle and consumer after the last implementation; iterate confirmed defect repair; profile full operations and retained exceptional paths under fixed baselines.",
+      "close_when": "No unresolved confirmed defect in declared audited scope, every mandatory risk settled, meaningful independent wrong-method challenges, preserved complete compiler trees/numerical gates, fixed resource targets and all final compatibility rows rechecked.",
+      "status": "open",
+      "owner": "OpenCode assignment pending user start",
+      "evidence": []
+    },
+    {
+      "id": "P43",
+      "title": "Close compatibility, documentation and accepted release",
+      "cap": "GLOBAL",
+      "acceptance_dependencies": [
+        "P42"
+      ],
+      "source_state": "Project-wide acceptance remains incomplete",
+      "canonical_owners": [
+        "README.md",
+        "docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md",
+        ".github/workflows/HybridPlasmaPIC-CI.yml"
+      ],
+      "deliverables": "Close all79 milestones and all required model/geometry/closure/species/source/precision/integrator/backend/restart rows, update examples/guides/schema/migrations and publish accepted main/release metadata.",
+      "close_when": "Every applicable G1-G10 gate has exact-head evidence; no required open/unknown/blocked row, no unsupported silent fallback; full required main CI green or evidenced billing-only exception, real hardware/science/resources separately complete and all docs match final behavior.",
+      "status": "open",
+      "owner": "OpenCode assignment pending user start",
+      "evidence": []
+    }
+  ]
+}

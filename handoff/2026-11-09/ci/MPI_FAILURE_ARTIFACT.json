@@ -1,0 +1,80 @@
+{
+  "job": 129014270899,
+  "artifact": 13660305754,
+  "zip_sha256": "385351c5126a1227693653b1e236510195b21b573d479984e9b256ea7b875ea0",
+  "raw_sha256": "c8532ca61e304a779fde801740b5e06f8fb89699e2b19750e29e53e730415322",
+  "selected": [
+    {
+      "line": 9,
+      "text": "\u001b[0KERROR: LoadError: ParseError:"
+    },
+    {
+      "line": 10,
+      "text": "\u001b[0K# Error @ /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/models/empic_collection.jl:1430:46"
+    },
+    {
+      "line": 12,
+      "text": "\u001b[0K    report.kind === (es isa EMPIC ? :vector :planar) && report.bootstrap isa Bool &&"
+    },
+    {
+      "line": 13,
+      "text": "\u001b[0K#                                            \u2514 \u2500\u2500 space required after `:` in `?` expression"
+    },
+    {
+      "line": 16,
+      "text": "\u001b[0K    @ ~/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/models/empic_collection.jl:1430"
+    },
+    {
+      "line": 37,
+      "text": "\u001b[0Kin expression starting at /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/models/empic_collection.jl:1430"
+    },
+    {
+      "line": 43,
+      "text": "ERROR: LoadError: The following 1 direct dependency failed to precompile:"
+    },
+    {
+      "line": 48,
+      "text": "ERROR: LoadError: ParseError:"
+    },
+    {
+      "line": 49,
+      "text": "# Error @ /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/models/empic_collection.jl:1430:46"
+    },
+    {
+      "line": 51,
+      "text": "    report.kind === (es isa EMPIC ? :vector :planar) && report.bootstrap isa Bool &&"
+    },
+    {
+      "line": 52,
+      "text": "#                                            \u2514 \u2500\u2500 space required after `:` in `?` expression"
+    },
+    {
+      "line": 55,
+      "text": "    @ ~/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/models/empic_collection.jl:1430"
+    },
+    {
+      "line": 76,
+      "text": "in expression starting at /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/models/empic_collection.jl:1430"
+    },
+    {
+      "line": 81,
+      "text": "\u001b[0KERROR: LoadError: ParseError:"
+    },
+    {
+      "line": 82,
+      "text": "\u001b[0K# Error @ /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/models/empic_collection.jl:1430:46"
+    },
+    {
+      "line": 84,
+      "text": "\u001b[0K    report.kind === (es isa EMPIC ? :vector :planar) && report.bootstrap isa Bool &&"
+    },
+    {
+      "line": 85,
+      "text": "\u001b[0K#                                            \u2514 \u2500\u2500 space required after `:` in `?` expression"
+    },
+    {
+      "line": 88,
+      "text": "\u001b[0K    @ ~/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/models/empic_collection.jl:1430"
+    }
+  ]
+}

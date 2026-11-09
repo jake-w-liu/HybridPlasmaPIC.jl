@@ -1,0 +1,89 @@
+{
+  "baseline": "566ddc10b4f597d123c62041b31bc87677512f9c",
+  "worktree": "/Users/jake/EMPIRE/codes/PlasmaWorkspace/HybridPlasmaPIC-coupled-empic-error-control-20261109",
+  "status": "",
+  "contract_sha256": "da03b71492263139d0a774ec190df5c74fb7c5f531f6c62748637a0abe5775f1",
+  "pins": [
+    {
+      "path": "src/particles/kinematics_range.jl",
+      "bytes": 31869,
+      "sha256": "5499b790c1691f1f5e48e9fdb9fb428fc7e6c3a1b32476c53a2513cc12df9df3"
+    },
+    {
+      "path": "src/models/empic_collection.jl",
+      "bytes": 90619,
+      "sha256": "8e5abcdcffc116e66a7eabd0636972a94549502497b463760e906e74d4de9afd"
+    },
+    {
+      "path": "src/models/full_pic.jl",
+      "bytes": 107998,
+      "sha256": "1b94500067c8baa28f3156dd9493aa49c8ab805c0e4d9e8f333f8327ac12fb60"
+    },
+    {
+      "path": "src/io/empic_collection_checkpoint.jl",
+      "bytes": 25481,
+      "sha256": "101dca70a46e4fd6bc9981a1eaafa2b656b986efb1ff7d1d46fab183c484216a"
+    },
+    {
+      "path": "src/boundaries/periodic.jl",
+      "bytes": 1963,
+      "sha256": "917d80312a0d87fa6d082b05b13bb679cbaa4eef2b97b62f99fdd7a07aa0c74e"
+    },
+    {
+      "path": "src/integrators/extrapolated_leapfrog.jl",
+      "bytes": 109754,
+      "sha256": "3228956a16ef5c73b83f335cc70c26eeeca127016173c282f2abaee90108f62e"
+    },
+    {
+      "path": "src/diagnostics/relativistic_moments.jl",
+      "bytes": 5294,
+      "sha256": "88962f5be8e1ed295ba7a3a6c3fe7a8dda798959f617395edf4689a825aa57a4"
+    },
+    {
+      "path": "src/coupling/moments.jl",
+      "bytes": 27819,
+      "sha256": "bbe261b3b5bafb961e94a53b9cba7babc5f469a5dbc8f17e38f5eadbcbcdf28a"
+    },
+    {
+      "path": "src/coupling/shapes.jl",
+      "bytes": 9621,
+      "sha256": "74e4bd0a6ddeab38a7f96b2ad5fd2ad67e89380b1ab05ee190049e00b3d70890"
+    },
+    {
+      "path": "src/models/electrostatic.jl",
+      "bytes": 32810,
+      "sha256": "6410cefa3af24eb79a2efac3c7be45f5d1eeedb1539ca56b30d3c5a96f152f9a"
+    },
+    {
+      "path": "src/HybridPlasmaPIC.jl",
+      "bytes": 19637,
+      "sha256": "831fe200a273c8305bfd4c5623bd3aa6c3e92641bdfeafbdd8dfc89a130f285a"
+    },
+    {
+      "path": "src/io/restart.jl",
+      "bytes": 14843,
+      "sha256": "c407876177c8611573c12c9d5368f9bfe87ac6e5ab57e10dc5055e87d1be5dfe"
+    },
+    {
+      "path": "src/io/checkpoint.jl",
+      "bytes": 70093,
+      "sha256": "2d3489872cba9fc191d8cb402d8dbed5560bf29ef90e88bfce07a087db15ba18"
+    },
+    {
+      "path": "Project.toml",
+      "bytes": 1994,
+      "sha256": "32fc8bc970606ad2b84e1d74d59ab35d8a892ebfdfbd5d9e23093e63375414ab"
+    }
+  ],
+  "ownership": [
+    "src/particles/kinematics_range.jl",
+    "src/models/empic_collection.jl",
+    "src/models/full_pic.jl",
+    "src/io/empic_collection_checkpoint.jl",
+    "src/models/empic_coupled_error_control.jl",
+    "src/diagnostics/empic_coupled_error_control.jl",
+    "src/io/empic_coupled_error_control_checkpoint.jl",
+    "docs/EMPIC_COUPLED_ERROR_CONTROL.md",
+    "test/test_empic_coupled_error_control.jl"
+  ]
+}

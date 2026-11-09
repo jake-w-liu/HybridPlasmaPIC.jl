@@ -1,0 +1,46 @@
+{
+  "baseline": "566ddc10b4f597d123c62041b31bc87677512f9c",
+  "checks": [
+    {
+      "check": "kinematics additive helper removal restores complete original file bytes",
+      "verified": true
+    },
+    {
+      "check": "shared magnetic sink and full-time caller inverse returns exact saved optional-meter-only source",
+      "verified": true
+    },
+    {
+      "check": "removing only no-op meter plumbing restores complete full_pic original bytes",
+      "verified": true
+    },
+    {
+      "check": "full literal interval choice extraction and old wrapper remain exact recorded final bytes",
+      "verified": true
+    },
+    {
+      "check": "choice prefix plus unchanged old receipt/consumed-duration tail reconstruct old decision literally",
+      "verified": true
+    },
+    {
+      "check": "recorded population values extraction exact in current source",
+      "verified": true
+    },
+    {
+      "check": "population values canonical body literal after moving storage validation to old wrapper",
+      "verified": true
+    },
+    {
+      "check": "every old checkpoint common key/value and planar polarization expression is literal in new canonical helper",
+      "verified": true
+    },
+    {
+      "check": "checkpoint common expression literal in old baseline",
+      "verified": true
+    },
+    {
+      "check": "ordinary physical moment diagnostic body preserved literally in canonical helper",
+      "verified": true
+    }
+  ],
+  "interpretation": "Text/source verification only, no Julia parse/runtime or numerical acceptance."
+}

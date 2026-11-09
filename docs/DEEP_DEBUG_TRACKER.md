@@ -1,6 +1,6 @@
 # Plasma simulation audit and implementation tracker
 
-Updated: 2026-11-09 (Asia/Taipei). The full goal remains **active and incomplete**.
+Updated: 2026-11-09 (Asia/Taipei). The full goal remains **incomplete; Codex stops at the requested OpenCode handoff**.
 
 The goal covers correctness, measured optimization and the complete CAP-001–011
 implementation backlog. Source implementation, executable acceptance, physical
@@ -32,6 +32,10 @@ Each model guide owns its equations, centering and method-specific limits.
 
 ## Current progress
 
+**Handoff/stop snapshot (2026-11-09):** follow the [detailed OpenCode plan](OPENCODE_IMPLEMENTATION_HANDOFF.md) and [complete acceptance tracker](OPENCODE_ACCEPTANCE_TRACKER.md). All workers have finished and frozen their work; OpenCode has not started. Code baseline is `5aa6285`, CGL integrated but unexecuted. The nine-path controller is frozen and unadopted; flux conduction is an unapproved proposal. **VERIFIED current loader blocker:** `src/models/empic_collection.jl:1430/1854`, confirmed by [job 129005385324](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42570140304/job/129005385324) and the [MPI artifact](../handoff/2026-11-09/ci/MPI_FAILURE_ARTIFACT.json). New 91/99-report JET failures still need complete disposition. Main has not received this unaccepted stack. The plan and [priority register](../handoff/2026-11-09/ISSUE_REGISTER.json) supersede assignments and current-tense work descriptions in the dated development history below; those records retain their exact historical scope.
+
+### Development history before handoff
+
 Checked on 2026-11-09: main is `9b4d363806722319c2241e4af04ed1ed1da00119`.
 [Run 41813949753](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41813949753)
 passes all 26 jobs: eleven test groups on actual Julia 1.12.7 and 1.13.3,
@@ -58,7 +62,7 @@ Both candidate and main five-job runs pass; every Julia job passes 28,145
 assertions on the minimum/latest matrix across Linux/macOS. Registration,
 tag target and complete release notes were read back. HPIC requires 0.1.9.
 
-Current work:
+Work recorded during implementation before handoff:
 
 - Canonical Boris certificate premises are repaired: quotient residual
   underflow, DD range/mode/domain admission, full low-word distance and symmetric

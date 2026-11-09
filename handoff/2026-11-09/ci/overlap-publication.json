@@ -1,0 +1,41 @@
+{
+  "head": "5de6522bbc58a7a8ecd3988b5c0b5dfa587e48e3",
+  "branch": "implement/electron-ion-overlap-20261109",
+  "main": "9b4d363806722319c2241e4af04ed1ed1da00119",
+  "paths": 13,
+  "insertions": 864,
+  "deletions": 57,
+  "runs": [
+    {
+      "conclusion": "",
+      "createdAt": "2026-11-09T08:00:27Z",
+      "databaseId": 42582890537,
+      "event": "workflow_dispatch",
+      "headSha": "5de6522bbc58a7a8ecd3988b5c0b5dfa587e48e3",
+      "name": "Implementation essentials",
+      "status": "queued",
+      "url": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42582890537"
+    },
+    {
+      "conclusion": "",
+      "createdAt": "2026-11-09T08:00:15Z",
+      "databaseId": 42582866872,
+      "event": "workflow_dispatch",
+      "headSha": "5de6522bbc58a7a8ecd3988b5c0b5dfa587e48e3",
+      "name": "Implementation essentials",
+      "status": "queued",
+      "url": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42582866872"
+    },
+    {
+      "conclusion": "",
+      "createdAt": "2026-11-09T07:59:19Z",
+      "databaseId": 42582766543,
+      "event": "push",
+      "headSha": "5de6522bbc58a7a8ecd3988b5c0b5dfa587e48e3",
+      "name": "HybridPlasmaPIC CI",
+      "status": "queued",
+      "url": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42582766543"
+    }
+  ],
+  "qualification": "Pushed source-reviewed validation candidate; all new remote/scientific/resource acceptance pending; no main promotion or billing exception."
+}

@@ -1,0 +1,58 @@
+{
+  "scope": "First OpenCode work is P00/P01; no new implementation started after user requested the handoff.",
+  "billing": "No billing-block evidence established by inspected failure annotations; actual jobs executed and reported code/test/format failures.",
+  "issues": [
+    {
+      "id": "CI-PARSE-001",
+      "status": "VERIFIED runtime/source blocker; not fixed in handoff code baseline",
+      "source": [
+        "src/models/empic_collection.jl:1430",
+        "src/models/empic_collection.jl:1854"
+      ],
+      "controller_frozen_source": [
+        "src/models/empic_collection.jl:1480",
+        "src/models/empic_collection.jl:1904"
+      ],
+      "evidence": "GitHub job129005385324 log lines765-771, SHAe350ec2218a49bc33b245bea323c055c5ce5051e043aa3c79143c7a086c680a8",
+      "observed": "ParseError: space required after : in ? expression at report.kind ternary. Both matching invalid forms are present in current code and controller freeze.",
+      "next": "Review/correct both es isa EMPIC ? :vector :planar forms to an explicit ternary separator (es isa EMPIC ? :vector : :planar), inspect analogous sites; run remote minimum/latest package load, formatter, host and actual MPI suites. Reconcile the frozen controller with this repair before adoption.",
+      "job_url": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42570140304/job/129005385324"
+    },
+    {
+      "id": "CI-JET-001",
+      "status": "old full trees classified; repair execution pending",
+      "observed": "5fec94/87 and7ea96/88 versus cap86; package-located0. Full prior86/79 chains retained; binding/annular additions source-traced.",
+      "next": "Verify566ddc1 repair on exact integrated head; keep cap/filter/34-entry ledger unchanged and classify every changed complete leaf+frame chain."
+    },
+    {
+      "id": "CI-JET-002",
+      "status": "new raw failures verified; full added-tree disposition open",
+      "observed": "5703 latest job128983114996 reports91; bc86550 minimum job128996436293 reports99; both package-located0 and cap86 failed.",
+      "next": "Download/read full reports and compare exact runtime-matched baselines. Do not assume earlier two-owner566 repair covers these additional diagnostics."
+    },
+    {
+      "id": "CI-FMT-001",
+      "status": "formatter failures verified; latest candidate acceptance open",
+      "observed": "7ea/5703/bc/grounded formatter jobs fail;75f74bd contains reviewed14-file runner patch but later source still needs formatting.",
+      "next": "Fix the parser blocker first; run remote format-candidate at the final candidate, review exact artifact, preserve active-owner changes, then require the real full-CI formatting job."
+    },
+    {
+      "id": "CI-FOCUS-001",
+      "status": "prerequisite repair pushed; rerun open",
+      "observed": "5703 pressure essentials5267pass/12errors each lacked transport_io_public_state defining include;123c4a2 restores canonical IO-before-hyper ordering.",
+      "next": "Rerun implicit-hybrid-pressure minimum/latest; do not alter numerical assertions."
+    },
+    {
+      "id": "REPLAY-001",
+      "status": "Hypothesis/unexecuted portability gate; no measured FFT-plan failure",
+      "observed": "Controller exact retained native primitive replay depends on reproducing those bits under destination environment/plans.",
+      "next": "Use independently constructed destination grids/plans and fresh processes for raw/archive continuation; define allowed environments/wisdom policy without silent reprojection or tolerance weakening."
+    },
+    {
+      "id": "VALIDATION-001",
+      "status": "source configuration/label reconciliation, no measured causal mechanism",
+      "observed": "Reconnection helper documents collisionless behavior while its inspected default eta is0.005 and model uses etaT; case32 label requires actual-deck audit.",
+      "next": "Record actual supplied eta/inertia and run independently declared parameter/refinement/particle scans before asserting a mechanism."
+    }
+  ]
+}

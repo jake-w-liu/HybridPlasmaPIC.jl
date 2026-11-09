@@ -1,5 +1,7 @@
 # Plasma simulator completeness and implementation plan
 
+**OpenCode handoff (2026-11-09):** use the [44-package implementation/acceptance plan](OPENCODE_IMPLEMENTATION_HANDOFF.md) and [complete 79-milestone crosswalk](OPENCODE_ACCEPTANCE_TRACKER.md). Codex stops; all workers are finished. No new acceptance checkbox is raised. Current source has a verified loader blocker and pending CI/science/resources. Historical source assessments below retain their pinned scope.
+
 Initial source assessment: **2026-10-23**, revision
 `bf2a8bc615f514f8d2868934849bf44814140bbb`. This document plans work; it does not
 certify the proposed implementations. Source status was reconciled on
@@ -228,34 +230,7 @@ mean code or runtime verification is complete. “Scope proposal” marks the
 additional CAP-008–011 model expansion. Root owns integration, tracker consistency,
 commit/push and CI. A named subsystem below is a code owner; an unassigned
 implementation agent is explicitly unassigned, not implicitly running.
-Current assignments (2026-11-09): root integrates reviewed CPU/CUDA candidates,
-repairs exact-head CI failures and owns shared registrations, current docs and
-main publication. Dynamic 1D ES and independent Yee/pencil controls are integrated
-in validation candidates; the latest CUDA hosted import/admission job passes 38
-checks, with actual device acceptance open. The toroidal-annulus source family
-has completed source review and root integration. Canonical implicit-hybrid
-evolving scalar pressure is integrated, preserving schema1. Grounded
-multidimensional adaptive ES, persistent species schedules and field-aligned
-scalar conduction now have reviewed source and canonical integration. Three
-workers now derive flux-limited scalar conduction and implement coupled EMPIC error control;
-the controller's child owns its independent guide and essentials. Periodic AMR
-has completed source review/adoption and canonical integration with independent
-controls. Reduced NGP thermal exchange has complete source/essential review and
-canonical integration, with all new executable acceptance pending. Its CIC/TSC
-overlap extension has complete source/guide/independent-essential review and
-canonical integration on `c742258`, including derived historical rounding caps
-and distinct policy2/schema3 continuation. The 415-line coupled controller
-contract is approved, including actual branch-charge correction and a distinct
-full-time phase; first-mode shape support is CIC/TSC. The separate two-owner JET
-representation repair is pushed at `566ddc1` with its fixed compiler cap intact.
-Runtime, science and resources remain separate gates.
-CGL ion-only composition also has complete canonical source/guide/essential
-integration on `5de6522`, with original invariant values, full anisotropic
-rollback and schema4 continuation. Its numerical/compiler/CI/science/resource
-acceptance remains pending. The next flux-limited conduction contract is read-only.
-Hall, slab, periodic shear and synchronous implicit EM are on main with remaining
-scientific/resource gates. Earlier audit assignments describe historical work;
-the linked workflow owns current exclusive file assignments.
+Current assignment snapshot (2026-11-09): all Codex workers finished; no active writer remains. OpenCode has not started. The [handoff plan](OPENCODE_IMPLEMENTATION_HANDOFF.md) owns current scheduling, exact code state, P00–P43 and acceptance criteria. Existing source integrations are frozen at `5aa6285`, including the reviewed ideal CGL composition. Every new executable/scientific/resource gate remains distinct and pending where unrun. The nine-path coupled controller is frozen but unadopted; its final complete source needs integration review and parser-fix reconciliation. The flux-limited conduction contract is read-only and unapproved. The two current EMPIC parser errors, new JET trees and formatter/MPI failures are first-priority P01 work. Earlier implementation-owner labels in the table below identify canonical subsystems or historical contributors, not live worker assignments.
 
 | Slice | Implementation owner / canonical code | Dependencies | State and checked evidence | Next concrete action |
 | --- | --- | --- | --- | --- |
@@ -281,7 +256,7 @@ the linked workflow owns current exclusive file assignments.
 | 006C adaptive plasma hierarchy | Root integration of frozen static composite-ES source; AMR/field/coupling/model/IO | Real patch/covered/leaf ownership and composite field method | Static composite ES on main; real dynamic 1D ES source integrated in candidates and focused 136 assertions pass per Julia line | Full integrated/scientific/resource acceptance; multidimensional/EM/subcycled/backend hierarchy remains open |
 | 007A/B reference provenance + production dispersion | Canonical validation/reference owners; next campaign agent unassigned | Source/network/toolchain; accepted production solver | Pinned provenance, parallel production histories and oblique Hall case 35 landed; CI state is in the audit tracker | Complete manual campaigns and broaden thermal/kinetic/EM regimes, uncertainty and matched-cost comparisons; [production plan](PRODUCTION_DISPERSION_PLAN.md) |
 | 007C–E profiles, new physics, comparative costs | Agent unassigned; validation/benchmark owners | Accepted corresponding capability; datasets/hardware | Existing scalar comparisons inspected; campaigns unrun here | Freeze matched inputs/diagnostics/uncertainty and preserve raw reference outputs |
-| 008 ES/EM arbitrary species | Canonical ES/EM collection owners | Existing deposition, Maxwell, phase and persistence owners | Dividing schedules retain their checked scope. [Persistent deadlines, sampled-state limits and schema3](EMPIC_SPECIES_IMPLEMENTATION.md#persistent-nondividing-species-schedules) have reviewed source and registrations; new remote acceptance pending. Distinct full-time CIC/TSC coupled error control is in approved implementation | Complete controller/source integration and actual phase/current/restart/refinement/cost acceptance; broader shape/source/collision/boundary/backend intersections remain |
+| 008 ES/EM arbitrary species | Canonical ES/EM collection owners | Existing deposition, Maxwell, phase and persistence owners | Dividing schedules retain their checked scope. [Persistent deadlines, sampled-state limits and schema3](EMPIC_SPECIES_IMPLEMENTATION.md#persistent-nondividing-species-schedules) have reviewed source and registrations; new remote acceptance pending. Distinct full-time CIC/TSC coupled error control has a frozen unadopted patch | Complete controller/source integration and actual phase/current/restart/refinement/cost acceptance; broader shape/source/collision/boundary/backend intersections remain |
 | 009 full-Hall multidimensional shocks | Root integration of frozen Hall A and B source | Mixed operators and reviewed bounded field/reservoir/time/phase contract | Complete [numerical-reservoir core](OPEN_HALL_HYBRID.md) and [full physical/RNG IO](OPEN_HALL_HYBRID_CHECKPOINT.md) source reviewed; essential remote regressions prepared | Exact-revision runtime, boundary/convergence, failure/restart, compiler and resource acceptance; broader physics remains open |
 | 010 composed sources and RNG restart | Integrator/checkpoint owners; independent collision audit track | 001 and phase/growth/checkpoint contracts | Fixed-step first-order isothermal CPU `CollisionalHybridStepper` landed; `2b2420b` exact-SHA CI/compiler gates pass. Ideal evolving, S1/S2 transport, S3b conduction, NGP/CIC/TSC thermal and CGL ion-only source extensions have canonical integration with new acceptance pending | Bounded generic collisional ES/EMPIC source is implemented; accept current extensions, then extend schedules, evolving/dissipative anisotropy, other models/sources and backends; preserve full force/RNG/phase/rollback contract |
 | 011 electron transport/energy | Canonical electron/integrator/diagnostic owners | Term-specific balance and carried-force contract | S1 is landed; S2/S3b and field-aligned scalar conduction have current source/registrations. HPIC requires registered SpectralOperators0.1.9. Reduced [NGP/CIC/TSC electron-ion exchange](ELECTRON_ION_THERMAL_EXCHANGE.md) has reviewed source/essentials and distinct schema2/3 integration | Complete exact-head HPIC, resource/conditioning and science gates; consistent drag, flux limiting, pressure tensors, full inertia, boundaries and backends remain open |

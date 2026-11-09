@@ -1,0 +1,1830 @@
+{
+  "source_commit": "5aa628513fb854c96b2b387780edef1ea1faa66b",
+  "source_file": "docs/PLASMA_COMPLETENESS_IMPLEMENTATION_PLAN.md",
+  "count": 79,
+  "legacy_checked": 23,
+  "open": 56,
+  "meaning": "Immutable roadmap bookkeeping, not full-simulator percentage. Every applicable G1-G10 and package-specific gate must pass before closure.",
+  "items": [
+    {
+      "id": "M001",
+      "section": "Completion contract shared by every slice",
+      "cap": "SHARED",
+      "legacy_checked": false,
+      "source_line": 131,
+      "source_text": "State equations, units, normalization, spatial/temporal centering, admissible inputs and model limits. Specify which conservation identities are discrete, convergent, statistical or inapplicable because a boundary/source exchanges them.",
+      "source_text_sha256": "bf6a5758953c9a0e5fe3a5c20cb4eb8bb3e282d9891e4f738df13e535b61164d",
+      "work_packages": [
+        "ALL"
+      ],
+      "gates": [
+        "G1"
+      ]
+    },
+    {
+      "id": "M002",
+      "section": "Completion contract shared by every slice",
+      "cap": "SHARED",
+      "legacy_checked": false,
+      "source_line": 134,
+      "source_text": "Name canonical owners and every affected caller. Preserve documented constructors and checkpoint readers or provide an explicit schema/API migration. Share physics kernels where the equations agree; distinct discretizations need distinct state, not duplicated physical policy or a universal speculative framework.",
+      "source_text_sha256": "018ae2761b29aee770b26987657ed49a6559eb91bfa130189de5ac9759c4d541",
+      "work_packages": [
+        "ALL"
+      ],
+      "gates": [
+        "G2"
+      ]
+    },
+    {
+      "id": "M003",
+      "section": "Completion contract shared by every slice",
+      "cap": "SHARED",
+      "legacy_checked": false,
+      "source_line": 138,
+      "source_text": "Freeze baseline source, resolved dependencies, machine configuration and inputs before editing. Retain failures and rejected candidates. Complete the pre-edit brief and at least three wrong-patch/mutant challenges.",
+      "source_text_sha256": "29ff270c4fb804419c8fa351838224bb5b3d2829dec52360f92f2ccd95818c2c",
+      "work_packages": [
+        "ALL"
+      ],
+      "gates": [
+        "G3"
+      ]
+    },
+    {
+      "id": "M004",
+      "section": "Completion contract shared by every slice",
+      "cap": "SHARED",
+      "legacy_checked": false,
+      "source_line": 141,
+      "source_text": "Test exact/manufactured solutions, independent discrete oracles and held-out invariants; vary dimensions, precision, signs, empty populations, shape order, species, grid parity, crossings and timestep histories. Use timestep/grid/particle refinement separately so noise does not masquerade as truncation error.",
+      "source_text_sha256": "0137cdc5a5adc7f11b6841c2f90afb3f0112cfaff37c0e94b808115255596bf8",
+      "work_packages": [
+        "ALL"
+      ],
+      "gates": [
+        "G4"
+      ]
+    },
+    {
+      "id": "M005",
+      "section": "Completion contract shared by every slice",
+      "cap": "SHARED",
+      "legacy_checked": false,
+      "source_line": 145,
+      "source_text": "Exercise nonfinite/out-of-range inputs, aliases, invalid configuration, resource limits, incomplete solves and I/O failure. Define the commit point; before it, rejection restores public physical state, clocks and persistent phase. State precisely whether RNG/scratch may advance. Distributed transport failure is distinct from recoverable collective validation failure.",
+      "source_text_sha256": "4e25fd9fcd5200532fd877583d10b3659a7e519fa8e2047e22abf06e8ec533f7",
+      "work_packages": [
+        "ALL"
+      ],
+      "gates": [
+        "G5"
+      ]
+    },
+    {
+      "id": "M006",
+      "section": "Completion contract shared by every slice",
+      "cap": "SHARED",
+      "legacy_checked": false,
+      "source_line": 150,
+      "source_text": "Verify uninterrupted versus restarted evolution, corrupted/versioned input, ownership, object cleanup and same-environment reproducibility. Cross-backend or changed-rank continuation needs numerical/statistical equivalence unless a deterministic reduction/order contract has actually been implemented.",
+      "source_text_sha256": "771139653219bb7b7ba523bfa457f68baea57b1b26c64e6aabda96e500ac2f92",
+      "work_packages": [
+        "ALL"
+      ],
+      "gates": [
+        "G6"
+      ]
+    },
+    {
+      "id": "M007",
+      "section": "Completion contract shared by every slice",
+      "cap": "SHARED",
+      "legacy_checked": false,
+      "source_line": 154,
+      "source_text": "Run minimum-supported and latest-stable Julia in exact-source environments; record actual versions. Run focused tests, neighbors, Aqua, concrete JET and full package JET trees. Classify every changed report; a lower count is not a diagnosis.",
+      "source_text_sha256": "51ea08330060d38b5c6ea16615ff551625797b5f839d392cc1c3dbbb282d2958",
+      "work_packages": [
+        "ALL"
+      ],
+      "gates": [
+        "G7"
+      ]
+    },
+    {
+      "id": "M008",
+      "section": "Completion contract shared by every slice",
+      "cap": "SHARED",
+      "legacy_checked": false,
+      "source_line": 157,
+      "source_text": "Run real devices/ranks when claimed. A skip, emulation, `COMM_SELF` run or CPU conversion is not a hardware/cluster pass. Required unavailable checks stay open.",
+      "source_text_sha256": "818bae4c0c69d5c3b3932ffb799a493da66caf32e0514a8f97e14555407e4d9e",
+      "work_packages": [
+        "ALL"
+      ],
+      "gates": [
+        "G8"
+      ]
+    },
+    {
+      "id": "M009",
+      "section": "Completion contract shared by every slice",
+      "cap": "SHARED",
+      "legacy_checked": false,
+      "source_line": 159,
+      "source_text": "Complete fixed performance gates below, then independently audit the whole dataflow from a different entry point, including restart/error paths and tests' ability to reject wrong implementations.",
+      "source_text_sha256": "8953370ae173eeac499a3cd571ac19a6da543e1722054696819a10426f1e897b",
+      "work_packages": [
+        "ALL"
+      ],
+      "gates": [
+        "G9"
+      ]
+    },
+    {
+      "id": "M010",
+      "section": "Completion contract shared by every slice",
+      "cap": "SHARED",
+      "legacy_checked": false,
+      "source_line": 162,
+      "source_text": "Update examples, model support table, diagnostics and restart schema. Commit and push each accepted implementation/fix separately to `main`; require the entire required exact-revision GitHub matrix green, or retain explicit evidence of a billing block. Preserve hardware/large validation results separately from ordinary GitHub CI.",
+      "source_text_sha256": "67ed3237b09d92e7f8ec02919615fcdc1e7fa6133dbeec0ed0df4c15520239ec",
+      "work_packages": [
+        "ALL"
+      ],
+      "gates": [
+        "G10"
+      ]
+    },
+    {
+      "id": "M011",
+      "section": "CAP-001 — spatially local interspecies collisions",
+      "cap": "001",
+      "legacy_checked": true,
+      "source_line": 317,
+      "source_text": "Cell-local self/cross pairing with empty/singleton/odd populations, arbitrary species counts/weights, shared physical-rate arithmetic, alias rejection and staging before velocity publication.",
+      "source_text_sha256": "00ef95078cbd57fa87ee6f87655345ccfd824d86b5df074f93b9d7ba9e3d4cd4",
+      "work_packages": [
+        "P02"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M012",
+      "section": "CAP-001 — spatially local interspecies collisions",
+      "cap": "001",
+      "legacy_checked": true,
+      "source_line": 320,
+      "source_text": "Independent drift/diffusion, equilibration-rate, conservation, scaling, cross-cell isolation, fixed-RNG replay and legacy regression suites are part of the accepted CPU tests. Ordinary reusable-workspace calls are allocation-free.",
+      "source_text_sha256": "8ebf5559f57faf7b717f0fb41c30eb958950865f45363dd033870691b92d9059",
+      "work_packages": [
+        "P02"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M013",
+      "section": "CAP-001 — spatially local interspecies collisions",
+      "cap": "001",
+      "legacy_checked": false,
+      "source_line": 323,
+      "source_text": "Broader complete-call cost campaign, extreme occupancy/species imbalance, production workload and independently controlled timing acceptance.",
+      "source_text_sha256": "b60e4a1ea42efd45a6d58ee1f90f9146b5b43d5e9ebca1060a674b4c6348164e",
+      "work_packages": [
+        "P02"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M014",
+      "section": "CAP-001 — spatially local interspecies collisions",
+      "cap": "001",
+      "legacy_checked": true,
+      "source_line": 325,
+      "source_text": "CAP-010 supplies fixed-step first-order isothermal CPU composition and full advanced-RNG/phase restart.",
+      "source_text_sha256": "1f0d1cd744b07258126f5504984db2c3f7e68b58e9df63485ec5ecc042ed5436",
+      "work_packages": [
+        "P35"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M015",
+      "section": "CAP-001 — spatially local interspecies collisions",
+      "cap": "001",
+      "legacy_checked": true,
+      "source_line": 327,
+      "source_text": "Accept the implemented ideal evolving-scalar, S1/S2 transport and S3b conduction extensions through exact-revision GitHub CI; ion-ion collisions leave pressure fixed, while existing field stages provide the applicable Ohmic/hyperresistive heat and conduction. Accepted at `b5ce21a`: [run 41683122086](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41683122086) ran all four collisional test files on Julia 1.12.7 and 1.13.3, with every job green. Resource acceptance remains open in [the guide](COLLISIONAL_HYBRID.md#verification-status).",
+      "source_text_sha256": "2cc38e0bafd8e829865480f09e7f1d8090ca9ecba7cd33fafa21df00f53622c8",
+      "work_packages": [
+        "P35"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M016",
+      "section": "CAP-001 — spatially local interspecies collisions",
+      "cap": "001",
+      "legacy_checked": false,
+      "source_line": 333,
+      "source_text": "Accept actual-pencil [collisional ES](DISTRIBUTED_COLLISIONAL_ELECTROSTATIC.md) and [EM sources](DISTRIBUTED_COLLISIONAL_EMPIC.md): migrated populations pass an explicit canonical collision-cell ownership gate, use owned logical bins/global dx and persist full per-rank RNG/physical state. Actual-rank/statistical/restart acceptance and broader MPI families remain open; CAP-004 must still supply real device pairing/streams.",
+      "source_text_sha256": "c58da466245349693d2dd784dbeeb032c770547b2f03a2e14236249a1df26166",
+      "work_packages": [
+        "P03"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M017",
+      "section": "CAP-002 — nonperiodic electromagnetic PIC",
+      "cap": "002",
+      "legacy_checked": true,
+      "source_line": 356,
+      "source_text": "**002A: Maxwell vacuum/cavity.** Dimension-parametric staggered state, periodic cross-check and conducting walls; explicit centering/CFL contract; compatible curl/divergence and field-energy/Poynting diagnostics. Gate cavity frequencies, analytic pulse transport, reflection phase and spatial/time order at multiple modes, incidence directions and corner configurations.",
+      "source_text_sha256": "9abc1087652390089c320f7c6c6b2baccaa5ad60a48b02a5ddbd978263cbd16b",
+      "work_packages": [
+        "P04"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M018",
+      "section": "CAP-002 — nonperiodic electromagnetic PIC",
+      "cap": "002",
+      "legacy_checked": true,
+      "source_line": 361,
+      "source_text": "**002B prerequisite: closed longitudinal charge/current.** Extensive nodal CIC charge and endpoint path impulse are implemented for CPU Float32/64 with exact range replay and atomic output publication. Their scalar path voltage shares the same overlap geometry and stored-dx work metric. Optional finite physical-width triangular-cloud static coupling adds a continuous stationary work-adjoint field, with explicit particle-bound endpoint tails and distinct wall response. Native voltage/cloud arithmetic and resource acceptance remain open. GitHub verification is pending; see [the scoped contract](BOUNDED_PARTICLE_COUPLING_PLAN.md).",
+      "source_text_sha256": "20fb5727b8f777fd805eb55f3f2614bc952431e00e5dd05e80f37f66a455b66b",
+      "work_packages": [
+        "P04"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M019",
+      "section": "CAP-002 — nonperiodic electromagnetic PIC",
+      "cap": "002",
+      "legacy_checked": false,
+      "source_line": 370,
+      "source_text": "**002B: bounded particle coupling.** Deposit the complete trajectory before removal/injection; split multi-cell and multi-face crossings, preserve IDs and species charge, account for wall surface charge/current. Gate discrete local continuity including boundary flux, Gauss propagation, particle-field work, reflecting-wall energy, exact free-flight crossing maps and empty populations. An event-free longitudinal electrostatic `YeeLongitudinalPIC` source candidate now supplies synchronized cloud Verlet coupling, exact background/free-plate initialization, diagnostics and distinct checkpoint/archive state. Its [scoped contract and GitHub gates](BOUNDED_PARTICLE_COUPLING_PLAN.md#event-free-longitudinal-coupled-source-candidate) do not accept transverse EM coupling or wall events. `YeeElectromagneticPIC` now adds a distinct event-free 1D3V source candidate: both polarizations, exact compatible transverse currents/PEC mask, synchronized Boris/Yee stages, scoped combined-rest/physical-H exit guards, diagnostics and complete schema-2 restart. [Contract and pending GitHub gates](BOUNDED_PARTICLE_COUPLING_PLAN.md#event-free-1d3v-electromagnetic-source-candidate) do not accept general nonlinear stability, wall events or broader bounded EM. Both coupled source candidates now retain complete rational original-geometry gathers, q/m and full-dt half through canonical Boris, rounding only final half-kick velocities. Their schema-2 force policy rejects the former schema-1 rounded-gather map. Exact-revision runtime/compiler/format and complete-step resource acceptance remain pending; ordinary native bits are not preserved. The distinct [`YeeImpactLongitudinalPIC` source candidate](YEE_IMPACT_LONGITUDINAL.md) now implements nonrelativistic CPU Float32/64 finite-cloud reflection on a closed longitudinal 1D grid: zero contacts or one connected certified cluster per external step, original-factor forces and at most two rational-duration synchronized KDK chunks. Conservative carried state/source/time bounds check the full remainder from the original external-step state; ledgers, diagnostics and distinct restart stage before publication. Exact-revision GitHub numerical, independent force-driven convergence, rollback/restart, JET/compiler, formatting/CI and complete-step resource acceptance remain pending. Broader wall laws, multiple clusters, transverse walls, relativity and backend integration remain open. The distinct [`YeeAbsorbingLongitudinalPIC` source candidate](YEE_ABSORBING_LONGITUDINAL.md) adds zero or one uniquely isolated certified-passive instantaneous full-cloud capture per external step in the same closed nonrelativistic CPU Float32/64 longitudinal 1D domain. It retains original-force rational-duration KDK, full death current, dynamic exact plate and capture ledgers, stable Vector compaction and distinct restart. Its survivor carry handles the finite force jump separately from reflection's fixed-source contract. Exact-head GitHub numerical/convergence, rollback/restart, JET/compiler, formatting/CI and resource acceptance remain pending. General material/sheath laws, multiple captures, transverse walls and backends remain open; **002B is not complete**.",
+      "source_text_sha256": "79c1607f0e95299c107116455bb82d8dc7bcfa6aa5bc17d406c4ffc464203c12",
+      "work_packages": [
+        "P05"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M020",
+      "section": "CAP-002 — nonperiodic electromagnetic PIC",
+      "cap": "002",
+      "legacy_checked": false,
+      "source_line": 411,
+      "source_text": "**002C: absorbing/radiating boundaries.** Add a measured absorbing layer with configurable thickness/profile and accounted energy removal; inject external fields/particles with explicit energy/charge budgets. Gate reflection spectra versus angle/frequency/resolution and long-time stability, including face/edge/corner layers and particle exits through them.",
+      "source_text_sha256": "7af3584ff1f29192dad8c9e36b8f1e3b4a2bc86753a7e5f01082f445f21c9097",
+      "work_packages": [
+        "P06"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M021",
+      "section": "CAP-002 — nonperiodic electromagnetic PIC",
+      "cap": "002",
+      "legacy_checked": false,
+      "source_line": 433,
+      "source_text": "**002D: production integration.** Relativistic and subcycled species, restart including layer/surface state and half-time fields; CAP-003 halos, CAP-004 resident kernels and external bounded-plasma comparisons under CAP-007.",
+      "source_text_sha256": "83682dcc551bfabc67e2aa60f4aac06cd4988011100536799c9f469c93a5a14b",
+      "work_packages": [
+        "P07"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M022",
+      "section": "CAP-003 — domain-owned distributed stepping",
+      "cap": "003",
+      "legacy_checked": false,
+      "source_line": 505,
+      "source_text": "**003A: layout/storage.** Explicit owned/ghost regions, cell volumes, staggered locations where relevant, communicator lifecycle and physical-boundary ownership. Gate unequal partitions, thin/empty allowed partitions, all directions, periodic seams and shape-radius halos; reject impossible layouts collectively.",
+      "source_text_sha256": "2a16254fac8e5c2db246e5619d5a24226b4ceaf4af77a624e3dd8d1ac82e7454",
+      "work_packages": [
+        "P08"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M023",
+      "section": "CAP-003 — domain-owned distributed stepping",
+      "cap": "003",
+      "legacy_checked": true,
+      "source_line": 509,
+      "source_text": "**003B: distributed operators.** Reuse FFT plans and implement derivative, curl, Laplacian, projection/filter and normalization in actual pencil layouts. Gate analytic modes, DC/Nyquist, divergence/curl identities, transpose/inverse parity and preallocated plan reuse on 2/4/8 real ranks. Mixed nonperiodic SBP/Fourier operators are a separate accepted backend, not a periodic shortcut. Evidenced at `b5ce21a`: the real MPI jobs of [run 41683122086](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41683122086) ran the distributed FFT, derivative, operator, projection/filter, inverse-range and workspace-allocation suites at 2, 4 and 8 ranks with no failures. Stage E timing and transport inventory remain open in the [operator plan](DISTRIBUTED_OPERATOR_IMPLEMENTATION_PLAN.md); scaling is 003E.",
+      "source_text_sha256": "9323565d811a3e66a9efb369e56b257521536d8acd2aba8a1a802aaf1930ed9e",
+      "work_packages": [
+        "P08"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M024",
+      "section": "CAP-003 — domain-owned distributed stepping",
+      "cap": "003",
+      "legacy_checked": false,
+      "source_line": 519,
+      "source_text": "**003C: moments and full hybrid step.** Deposit local/ghost contributions, sum ghost moments once, apply species/rank summation before floors, then solve local fields and gather with complete halos. Migrate across any crossed domains before the next owner-dependent operation. Gate serial-reference trajectories, budgets, pressure, variable-step phases and collections across rank boundaries.",
+      "source_text_sha256": "e7f8933001684ca4f128bbb95bbdf507d6fc128f39437c0f0b9cec5dc0523d1d",
+      "work_packages": [
+        "P09"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M025",
+      "section": "CAP-003 — domain-owned distributed stepping",
+      "cap": "003",
+      "legacy_checked": false,
+      "source_line": 524,
+      "source_text": "**003D: production families.** Extend accepted composition to ES/EM, full-Hall shocks, collisions and open boundaries; attach rank-local diagnostics, partition-aware checkpoint and restart to each actual solver family.",
+      "source_text_sha256": "9bb949b9777d493dc9eedc16aa21cb91fb6ba01497abd6a6541242ceea85d644",
+      "work_packages": [
+        "P10"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M026",
+      "section": "CAP-003 — domain-owned distributed stepping",
+      "cap": "003",
+      "legacy_checked": false,
+      "source_line": 527,
+      "source_text": "**003E: scaling.** Real multi-node strong/weak scaling and load imbalance campaigns, plus restart on supported changed layouts. Use no full-field gather in the measured hot path; account separately for explicitly requested output.",
+      "source_text_sha256": "b318129244f6d0ae59e254e4314c31ab8057c0e635a9b673aff7fe4e2e4d345a",
+      "work_packages": [
+        "P11"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M027",
+      "section": "CAP-004 — complete GPU-resident solvers",
+      "cap": "004",
+      "legacy_checked": false,
+      "source_line": 554,
+      "source_text": "**004A: kernel contract closure.** Audit deposit/gather, push, wrapping, moments, pressure, sorting/growth and reductions on real hardware; include shape boundaries, empty/block-edge counts, invalid input/rollback and large index ranges. Metal primitive controls exist; the resident CUDA candidate now supplies D1 CIC particle/coupling kernels and remote device controls, with execution and broader kernel/model coverage still open. Preserve honest precision support.",
+      "source_text_sha256": "fd02231af17e539289a104f12bda99e92f65a217f0a8c8e2ccce4c206051a2b6",
+      "work_packages": [
+        "P12"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M028",
+      "section": "CAP-004 — complete GPU-resident solvers",
+      "cap": "004",
+      "legacy_checked": false,
+      "source_line": 560,
+      "source_text": "**004B: one complete periodic solver.** Build storage/operator support and one complete hybrid stepping path with scalar algebraic closure, including initialization, diagnostics and restart. No per-step field/particle host copy, host scalar indexing or hidden CPU solve. If a backend cannot supply the chosen device FFT/operator, leave that solver/backend unsupported until implemented.",
+      "source_text_sha256": "4c09068f3ccfb3f48e01eb24fd1fb1692620d4f9a33edf8c7ac808de581735d3",
+      "work_packages": [
+        "P13"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M029",
+      "section": "CAP-004 — complete GPU-resident solvers",
+      "cap": "004",
+      "legacy_checked": false,
+      "source_line": 565,
+      "source_text": "**004C: full family coverage.** Add evolving/CGL closures, collections, CAM-CL, ES/EM including relativistic/current-correction paths, collisions, boundaries and all persistent phase state as separate composed slices.",
+      "source_text_sha256": "44bf545ec25bc8f2d0d42ef67fb4007520cc2f9876fb6a5fb7ae70021a9b51b2",
+      "work_packages": [
+        "P14"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M030",
+      "section": "CAP-004 — complete GPU-resident solvers",
+      "cap": "004",
+      "legacy_checked": false,
+      "source_line": 568,
+      "source_text": "**004D: multi-GPU.** Combine CAP-003 ownership with measured direct-device or explicitly reported host-staged communication, device/RNG ownership, rank migration and restart. Hardware support must be detected and tested per path.",
+      "source_text_sha256": "3a8545e545239b30ddb65562bb6578db1cfef14d0f9ff1b9016bcb9d84b22181",
+      "work_packages": [
+        "P15"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M031",
+      "section": "CAP-005 — nonlinear coupled implicit integration",
+      "cap": "005",
+      "legacy_checked": false,
+      "source_line": 601,
+      "source_text": "**005A: audit existing implicit-labelled paths.** The shock path now supplies a converged, true-residual-checked frozen-moment CN solve with explicit tolerances/iteration limits and staged whole-step publication. Its [scoped source and verification record](SHOCK_CN_SOLVE_PLAN.md) retains the former approximation as history. Complete current-revision residual, amplification/timestep-range and assembled-system acceptance; align `recommended_dt` with the actual coupled resolution limits. This broader milestone remains open.",
+      "source_text_sha256": "b5f573efea2df03c2af9e749ec5641bdb754129e79611b97b5fba35b1019b041",
+      "work_packages": [
+        "P16"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M032",
+      "section": "CAP-005 — nonlinear coupled implicit integration",
+      "cap": "005",
+      "legacy_checked": false,
+      "source_line": 609,
+      "source_text": "**005B: residual and transaction.** The new synchronous family implements joint velocity/B represented residuals, frozen dimensionless block scales, absolute/relative tolerance, bounded Newton/GMRES/probe/backtracking budgets and private candidate ownership. Fresh final gates precede full publication; typed failures preserve public state and prior report by source dataflow. No timestep retry occurs. Independent numerical and transaction acceptance remain open; see the [complete contract](IMPLICIT_HYBRID.md).",
+      "source_text_sha256": "edb66fb9654bd080595b98172123be068a2bd6947eb2b4523df7bbd459a10675",
+      "work_packages": [
+        "P16"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M033",
+      "section": "CAP-005 — nonlinear coupled implicit integration",
+      "cap": "005",
+      "legacy_checked": false,
+      "source_line": 616,
+      "source_text": "**005C: coupled hybrid.** Periodic isothermal CPU collections, full-time fields/particles and complete fixed-policy/report persistence are source- implemented. Strict density and canonical original-factor Boris/moment/field owners are reused. Canonical evolving-pressure source is integrated with exact third-block/work and complete schema2/raw/archive continuation controls pending; orbit averaging, selected dissipative terms and preconditioning remain open. Accept the actual spatial/particle residual, phase/order, work and momentum errors and restart before advancing this milestone; the represented defect report is not exact conservation.",
+      "source_text_sha256": "3461534613309a6fa5ae01d2f1424256f60cf27093b302ab175c607749886898",
+      "work_packages": [
+        "P17"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M034",
+      "section": "CAP-005 — nonlinear coupled implicit integration",
+      "cap": "005",
+      "legacy_checked": false,
+      "source_line": 635,
+      "source_text": "**005D: implicit EM and broader geometry.** EM requires its own coupled Maxwell/charge-current equations; it is not an automatic hybrid mode. Integrate compatible boundaries, domain ownership and device execution only after the corresponding explicit operator contracts pass.",
+      "source_text_sha256": "08a84e994aa02334164fb41c1258a6e8e53d6a2164b48b4c69902b3f8792e448",
+      "work_packages": [
+        "P18"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M035",
+      "section": "CAP-006A: coupled toroidal/curvilinear plasma solver",
+      "cap": "006A",
+      "legacy_checked": false,
+      "source_line": 682,
+      "source_text": "Define physical versus logical particle coordinates, vector/covector components, Jacobian-weighted densities, axis/outer-boundary regularity and equilibrium representation. Extend `curvilinear_mesh.jl` with the compatible curl/field solve and volume/face measures required by the selected hybrid model.",
+      "source_text_sha256": "4194362363de9f8bf279021d08e999d358ae41aaeb109739b84e70bddde0e8ff",
+      "work_packages": [
+        "P19"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M036",
+      "section": "CAP-006A: coupled toroidal/curvilinear plasma solver",
+      "cap": "006A",
+      "legacy_checked": false,
+      "source_line": 686,
+      "source_text": "Implement geometry-aware deposit/gather with a proved discrete work identity; evolve actual particle populations and fields on `ToroidalGrid`. Retain the existing metric utilities as tested components, not the stepper.",
+      "source_text_sha256": "5f96bdf35ac2ec587ed840262a5d5a36bf7a670aa1bccc1ae00bc04e32c45d60",
+      "work_packages": [
+        "P19"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M037",
+      "section": "CAP-006A: coupled toroidal/curvilinear plasma solver",
+      "cap": "006A",
+      "legacy_checked": false,
+      "source_line": 689,
+      "source_text": "Add equilibrium loading, boundaries, full restart and volume-weighted energy/flux/particle diagnostics. Then add CAP-003/004 ownership and devices.",
+      "source_text_sha256": "ee0b2b3a31fb71977f64d473fc029d80f5796b804576750444cb83d27170f0d1",
+      "work_packages": [
+        "P20"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M038",
+      "section": "CAP-006B: self-consistent gyrokinetic solver",
+      "cap": "006B",
+      "legacy_checked": true,
+      "source_line": 716,
+      "source_text": "Choose and document a complete model before implementation: proposed first slice is electrostatic gyrokinetic ions with adiabatic electrons, explicit equilibrium, ordering and long-wavelength/polarization approximation. Introduce a distribution/marker population with owned weights, parallel velocity, magnetic moment and equilibrium parameters; the existing single `GuidingCentre` remains a local-field utility. [SLAB_GYROKINETIC.md](SLAB_GYROKINETIC.md) documents the full-f electrostatic ions, modified adiabatic electrons, uniform equilibrium and long-wavelength polarization. `GyrocentreSet` owns positions, `vpar`, `mu` and weights; the stepper derives the uniform equilibrium density from the marker inventory.",
+      "source_text_sha256": "39993099d9c873bce2f2c8a6a5231bacc3c4b9e455968cc68fd79c4daf615ca4",
+      "work_packages": [
+        "P21"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M039",
+      "section": "CAP-006B: self-consistent gyrokinetic solver",
+      "cap": "006B",
+      "legacy_checked": false,
+      "source_line": 726,
+      "source_text": "Implement marker evolution, gyroaveraged deposition/interpolation and the matching quasineutrality/polarization field equation, with gauge/nullspace handling and a free-energy diagnostic derived from the same approximation. Full-f versus delta-f is an explicit model decision, not a runtime fallback.",
+      "source_text_sha256": "e9c1bab32e5f8f9e3528649e32f638d2dc078cd14928f2d224a1a541cac6c641",
+      "work_packages": [
+        "P21"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M040",
+      "section": "CAP-006B: self-consistent gyrokinetic solver",
+      "cap": "006B",
+      "legacy_checked": false,
+      "source_line": 730,
+      "source_text": "Add geometry and collision integration, restart of weights/equilibrium/RNG, then kinetic electrons and electromagnetic potentials with their own energy balance. Couple Raycon heating only through CAP-010's accounted source contract.",
+      "source_text_sha256": "e2a2fb1533ad4dd0bd7bf9a86f78bce480db12e36cd3d62010c7a61014e4540a",
+      "work_packages": [
+        "P22"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M041",
+      "section": "CAP-006C: adaptive plasma hierarchy",
+      "cap": "006C",
+      "legacy_checked": false,
+      "source_line": 785,
+      "source_text": "Add an owned hierarchy of patches, valid/ghost regions, refinement ratios, tagging/regridding and covered-cell accounting. Existing `AMRGrid` only stores one scalar 1D level; its transfer arithmetic remains the local oracle.",
+      "source_text_sha256": "596ec6df68eb1f846512d0b7ba419197e8fd7320a58459578d8d1eddc94ab30b",
+      "work_packages": [
+        "P23"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M042",
+      "section": "CAP-006C: adaptive plasma hierarchy",
+      "cap": "006C",
+      "legacy_checked": false,
+      "source_line": 788,
+      "source_text": "First couple a static hierarchy to electrostatic PIC with a composite field solve, charge normalization, particle ownership and compatible gather. Then implement moving refinement, conservative remap and synchronized time evolution; do not claim adaptive evolution from a `refine` return value.",
+      "source_text_sha256": "87a58f066422c6700acd54d98d6383692cfc3c3aa9af85649958168e1459d8d3",
+      "work_packages": [
+        "P23"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M043",
+      "section": "CAP-006C: adaptive plasma hierarchy",
+      "cap": "006C",
+      "legacy_checked": false,
+      "source_line": 792,
+      "source_text": "Extend to hybrid/EM with flux/current synchronization, divergence and charge constraints, time interpolation/subcycling and coarse/fine correction derived for the actual solver. Add distributed partition/rebalance and device storage after serial hierarchy correctness.",
+      "source_text_sha256": "bfe3c5679fda2840532f27962f9f59894ded3b588463c70d252a44a2c008bda7",
+      "work_packages": [
+        "P24"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M044",
+      "section": "CAP-007 — independent validation and comparative evidence",
+      "cap": "007",
+      "legacy_checked": true,
+      "source_line": 814,
+      "source_text": "**007A: reproducible references.** Pin NHDS/Hybrid-VPIC source revisions, patches, compiler/build options, input decks, checksums, units, license and raw outputs. The [shared provenance implementation](EXTERNAL_REFERENCE_PROVENANCE_PLAN.md) replaces moving clones and unchecked cache reuse. Real pinned builds and all ten unchanged physics metrics pass on Julia 1.12.7 and 1.13.2; pushed as `95c5678`, with all six exact-SHA CI jobs and full compiler review complete. Missing/build-failed references stay failed/unavailable. This metadata does not establish a hermetic toolchain. The original run's six job logs were rechecked on 2026-11-04; see the provenance plan's progress list.",
+      "source_text_sha256": "5d8fe56ecf7150a4501cde25f2fcc99edee89fb146078402bc3ac5e5984b6774",
+      "work_packages": [
+        "P25"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M045",
+      "section": "CAP-007 — independent validation and comparative evidence",
+      "cap": "007",
+      "legacy_checked": false,
+      "source_line": 824,
+      "source_text": "**007B: production dispersion.** Keep the independent eigenvalue comparison in case 27, but also measure frequencies/damping/growth from actual initialized hybrid/Hall/EM time series and compare with the applicable independent theory or solver. Sweep modes, angles, temperature/mass ratios and refinement; freeze fitting windows, uncertainty estimation and branch selection before results. The [existing frequency helper repair](VALIDATION_FREQUENCY_PLAN.md) is a prerequisite: 3,153 registered checks, compiler/resource review and actual case 20 pass per runtime; correction `27372b2` has six green CI jobs and a complete compiler-tree review. This does not close the broader campaign. The [first production matrix](PRODUCTION_DISPERSION_PLAN.md) now passes all 324 metrics on both runtimes across 40 cold parallel profiles and six timestep-order histories. Corrected long-history fitting, actual test sandboxes, independent raw-data replay and CLI/plot integration pass locally; the slice is pushed as `839c109`. Minimum-Julia CI exposed twelve fitter residual failures; its other five jobs passed. The [observation-centering repair](MODE_HISTORY_CENTERING_PLAN.md) retains that evidence and all original thresholds. Oblique, thermal, kinetic and EM regimes remain open.",
+      "source_text_sha256": "ca1f7b9714417bef8c504dcd06c43d3fcd8d9ca25491d0723d019ce3ff57c574",
+      "work_packages": [
+        "P25"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M046",
+      "section": "CAP-007 — independent validation and comparative evidence",
+      "cap": "007",
+      "legacy_checked": false,
+      "source_line": 842,
+      "source_text": "**007C: nonlinear profiles.** Reproduce matched shock setups, including initialization, boundary conditions, closures and diagnostics. Compare full density/B/velocity/pressure profiles and time statistics, not just peak scalar agreement. Add full Preisser dataset replay with checksummed downloads and parameter mapping; do not infer it from the bundled summary roundtrip.",
+      "source_text_sha256": "81fc1bb3ac012b97cabc910c8e29c7cbda590c662be5ef1d50c3abbabe289a56",
+      "work_packages": [
+        "P26"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M047",
+      "section": "CAP-007 — independent validation and comparative evidence",
+      "cap": "007",
+      "legacy_checked": false,
+      "source_line": 847,
+      "source_text": "**007D: expanded physics.** Benchmark bounded EM against an independent PIC solver, collisional equilibration against an independent kinetic reference, toroidal orbits/gyrokinetics against matched references, and AMR against uniform fine-grid solutions plus independent code. For reconnection, distinguish resistive versus collisionless mechanisms and measure reconnection rate, topology and energy partition beyond mode amplification.",
+      "source_text_sha256": "ba35decc896b277254b1a8c0f04480cdb048a7af601eadc689f005ba74720fa6",
+      "work_packages": [
+        "P27"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M048",
+      "section": "CAP-007 — independent validation and comparative evidence",
+      "cap": "007",
+      "legacy_checked": false,
+      "source_line": 853,
+      "source_text": "**007E: fair cost/accuracy campaigns.** Pin hardware/software and problems; compare accuracy/uncertainty, runtime, peak memory, scaling, setup and restart costs. Publish raw measurements and unsuccessful cases. Scope every comparative claim to the actual problems and machines; no single benchmark establishes worldwide superiority.",
+      "source_text_sha256": "2782a1a2971fad54f155319b3cce5827f8d2a076971a2d75c353add5ebd28bdb",
+      "work_packages": [
+        "P28"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M049",
+      "section": "CAP-008 — arbitrary kinetic species in ES/EM",
+      "cap": "008",
+      "legacy_checked": true,
+      "source_line": 885,
+      "source_text": "ES collections, shared Poisson source and charge/momentum/energy diagnostics.",
+      "source_text_sha256": "ba53a3aaa7da13298eca86759b2ec8e1225d232453fb8770d5d35f437b40cde7",
+      "work_packages": [
+        "P29"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M050",
+      "section": "CAP-008 — arbitrary kinetic species in ES/EM",
+      "cap": "008",
+      "legacy_checked": true,
+      "source_line": 886,
+      "source_text": "Accept [synchronous CPU EM collections](EMPIC_SPECIES_IMPLEMENTATION.md): summed charge-conserving currents, mobile/fixed populations, optional relativistic motion, physical diagnostics and restart are implemented; exact-revision GitHub checks and full compiler review remain. Accepted at `b5ce21a`: [run 41683122086](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41683122086) passed `test_empic_species.jl` on both runtimes and the JET gate (zero package-located reports). Complete-step cost acceptance remains open.",
+      "source_text_sha256": "29ba5dfb08e6a8b86fd6336597dbe408e747bcb5b5ce6a72becf7620a4bad847",
+      "work_packages": [
+        "P29"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M051",
+      "section": "CAP-008 — arbitrary kinetic species in ES/EM",
+      "cap": "008",
+      "legacy_checked": true,
+      "source_line": 893,
+      "source_text": "Accept [specialized EMPIC1D synchronous collections](EMPIC1D_SPECIES_IMPLEMENTATION_PLAN.md): S1 source is implemented and reviewed, with the actual Ex/Ey/Bz solver, invariant planar inputs, staged publication and distinct persistence. Exact-revision GitHub runtime/compiler/format acceptance remains pending. Accepted at `b5ce21a`: run 41683122086 passed `test_empic1d_species.jl` on both runtimes, the JET gate including its EMPIC1D concrete calls, and formatting. S1 resource acceptance remains open in the EMPIC1D plan.",
+      "source_text_sha256": "900920af702b4d78267d089b3af9b180e068dcbe61ee04cb056494cc571765e3",
+      "work_packages": [
+        "P29"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M052",
+      "section": "CAP-008 — arbitrary kinetic species in ES/EM",
+      "cap": "008",
+      "legacy_checked": false,
+      "source_line": 900,
+      "source_text": "Accept per-species dividing integer schedules: specialized S2 and the explicit generic D1–3 opt-in share velocity histories, future setters and every-fast drift/current with independent magnetic history. Both have complete schema-2/policy-1 restart and explicit tagged schema-1 migration; default generic state/schema 1 stays. Specialized 59 and generic 33 text/source checks and root source/caller review are complete; runtime, physical refinement, compiler, formatter and resource gates remain pending. No new tests were added or run for the generic extension. The separate persistent nondividing source now retains actual deadlines, all-row segment coupling, sampled-state adaptive limits and complete schema3/policy2 restart. Root reviewed/adopted both canonical owners, two guides and compact independent essentials. All new remote/scientific/resource gates remain open; sampled-state limits do not close full coupled error control.",
+      "source_text_sha256": "9afea3c0d6eca19367c783a432c8fb9d739f8f3ff628a5be81b1e5021b254b81",
+      "work_packages": [
+        "P29",
+        "P30",
+        "P31"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M053",
+      "section": "CAP-008 — arbitrary kinetic species in ES/EM",
+      "cap": "008",
+      "legacy_checked": false,
+      "source_line": 913,
+      "source_text": "Accept new EM collection checkpoint/archive, including generic/specialized schedule phase/migration; extend CAP-001 interactions, CAP-002 boundaries, CAP-003 partitions and CAP-004 residency. Existing ES collection persistence remains landed.",
+      "source_text_sha256": "48f1f9d87f7f09534b9ea77082dbd2290044dd041ca1b4e18e39b298b663a092",
+      "work_packages": [
+        "P29",
+        "P30"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M054",
+      "section": "CAP-009 — full-Hall multidimensional open-boundary shocks",
+      "cap": "009",
+      "legacy_checked": false,
+      "source_line": 953,
+      "source_text": "Derive and implement Hall/pressure/inertia terms supported by the declared model, compatible mixed operators and accurate timestep/implicit solve control. The massless isothermal raw RHS/operator/projector source is present; its runtime acceptance remains open; the separate bounded controller source is implemented. Pressure evolution, transport and inertia require separately declared boundary/model extensions.",
+      "source_text_sha256": "9ab9b3ae0bc75073e1bd880d4386b6479b5a01b03a424049df3109be800bf5e1",
+      "work_packages": [
+        "P32",
+        "P33"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M055",
+      "section": "CAP-009 — full-Hall multidimensional open-boundary shocks",
+      "cap": "009",
+      "legacy_checked": false,
+      "source_line": 959,
+      "source_text": "Couple upstream/downstream particle reservoirs and fields, pressure evolution, actual source/flux diagnostics and restart phase.",
+      "source_text_sha256": "5751f86d7eddce0668fa9ebdc8f61a7027edc70118325709fda73c18fb1f2506",
+      "work_packages": [
+        "P33"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M056",
+      "section": "CAP-009 — full-Hall multidimensional open-boundary shocks",
+      "cap": "009",
+      "legacy_checked": false,
+      "source_line": 961,
+      "source_text": "Extend to distributed/device execution through accepted CAP-002/003/004 operator and ownership contracts; validate multidimensional shock structure.",
+      "source_text_sha256": "3486a8f3379db460a3808f40fb83c955306ed24429451f45fb630877d436faba",
+      "work_packages": [
+        "P34"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M057",
+      "section": "CAP-010 — composed sources, collisions and reproducible restart",
+      "cap": "010",
+      "legacy_checked": true,
+      "source_line": 1003,
+      "source_text": "First slice (landed as `2b2420b`, exact-SHA CI/compiler review passed): `CollisionalHybridStepper` composes fixed-step CPU `HybridStepper` runs (ideal isothermal electrons) with cell-local collisions between the field advance and the carried-E formation, persists the advanced RNG and source ledger in checkpoints/archives and rolls back the whole step including the RNG. [Guide and verified state](COLLISIONAL_HYBRID.md).",
+      "source_text_sha256": "37a1417ca9044c62964bf0feeddfbd7394e2681f59a58a048da4832a857cd16a",
+      "work_packages": [
+        "P35"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M058",
+      "section": "CAP-010 — composed sources, collisions and reproducible restart",
+      "cap": "010",
+      "legacy_checked": true,
+      "source_line": 1008,
+      "source_text": "Accept the ideal `EvolvingElectrons` extension: implemented on the same source schedule, with pressure/RNG rollback and schema-1 consistency checks; focused component, zero-log, restart and failure tests pass in the [scoped remote run](COLLISIONAL_HYBRID.md#verification-status); full CI remains pending. Full CI passed at `b5ce21a` ([run 41683122086](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41683122086)).",
+      "source_text_sha256": "300e96eaa92281f557f914d5adf90da4e4ee528ef14a7e635d1087c4d51287b3",
+      "work_packages": [
+        "P35"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M059",
+      "section": "CAP-010 — composed sources, collisions and reproducible restart",
+      "cap": "010",
+      "legacy_checked": true,
+      "source_line": 1013,
+      "source_text": "Accept S1 `TransportElectrons` composition (`eta>=0`, `etaH=de2=0`): optional outer force snapshot, canonical inner policy-1 persistence and pressure/force/RNG regression tests are implemented; exact-revision CI pending. Exact-revision CI passed at `b5ce21a` (run 41683122086).",
+      "source_text_sha256": "e6b9bd1d9e65ca0cb084b716610161a6a03bd068a30c983a37d268608ed06f1a",
+      "work_packages": [
+        "P35"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M060",
+      "section": "CAP-010 — composed sources, collisions and reproducible restart",
+      "cap": "010",
+      "legacy_checked": true,
+      "source_line": 1017,
+      "source_text": "Accept the S2 admission extension (`eta>=0`, `etaH>=0`, `de2=0`): it reuses the same full-field/pressure/force/RNG owners and policy-1 persistence, with focused positive-hyperresistivity regressions passing in that scoped run; full exact-revision CI remains pending. Anisotropic/inertial composition remains open. Reduced NGP electron-ion heat exchange now has reviewed source/essential integration and pending acceptance; its CIC/TSC overlap extension now has reviewed source/essentials and canonical integration with distinct policy2/schema3 continuation. Full exact-revision CI passed at `b5ce21a` (run 41683122086); the two broader composition items are separate extensions.",
+      "source_text_sha256": "badf0f3c8462e0d1ea8daf682c574620b70bb89b87aa2b4db3ca5ab535eeff8a",
+      "work_packages": [
+        "P35"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M061",
+      "section": "CAP-010 — composed sources, collisions and reproducible restart",
+      "cap": "010",
+      "legacy_checked": false,
+      "source_line": 1027,
+      "source_text": "Persist complete RNG state/stream assignment, split phase, source clocks, ionization ID counters and external reservoir state. A saved initial seed alone does not specify continuation after random draws.",
+      "source_text_sha256": "f064d8177283e3a83f7e5295384192cef1e26b7b616580658035ef02373387a3",
+      "work_packages": [
+        "P36",
+        "P37"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M062",
+      "section": "CAP-010 — composed sources, collisions and reproducible restart",
+      "cap": "010",
+      "legacy_checked": false,
+      "source_line": 1030,
+      "source_text": "Make rollback semantics explicit for state, counters, RNG and externally effectful callbacks. A source failure cannot commit only half a species pair.",
+      "source_text_sha256": "dc77710e27e62bc154cacf673c017d2e4e51ba33d07d22b82fe851c176b774e8",
+      "work_packages": [
+        "P36",
+        "P37",
+        "P38"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M063",
+      "section": "CAP-010 — composed sources, collisions and reproducible restart",
+      "cap": "010",
+      "legacy_checked": false,
+      "source_line": 1032,
+      "source_text": "Add accounted Raycon power deposition only after specifying coupling time, receiving reservoir and conservation; standalone ray tracing remains usable.",
+      "source_text_sha256": "eded76af5c62cc5690f9636ae24bdf00a90e2a6ef2f6d650347d1a855815530e",
+      "work_packages": [
+        "P38"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M064",
+      "section": "CAP-010 — composed sources, collisions and reproducible restart",
+      "cap": "010",
+      "legacy_checked": false,
+      "source_line": 1034,
+      "source_text": "Integrate MPI cell ownership and real device RNG/particle growth when those backends are accepted. Specify deterministic versus statistical cross-layout reproducibility and test that distinction.",
+      "source_text_sha256": "1292d7c1ad4598f95e60cc26b635120c5772ca67908d79072d2ed8ed565df990",
+      "work_packages": [
+        "P39"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M065",
+      "section": "CAP-011 — electron transport and complete energy accounting",
+      "cap": "011",
+      "legacy_checked": false,
+      "source_line": 1056,
+      "source_text": "Derive continuous and discrete reservoir/work/flux balances for each added term, including density floors, boundary work and source coupling.",
+      "source_text_sha256": "f5cca5b78fa307795464eddc253564b04cc531f06b00bd894f69a343f5a00e96",
+      "work_packages": [
+        "P40",
+        "P41"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M066",
+      "section": "CAP-011 — electron transport and complete energy accounting",
+      "cap": "011",
+      "legacy_checked": false,
+      "source_line": 1058,
+      "source_text": "Implement coupled stage updates and admissibility checks with transaction rollback; add transport timestep/implicit residual limits and boundary data.",
+      "source_text_sha256": "b17784ee9a69c5b6d485d53596c40046d8b9b71fce466cba3e1f46fb4210672a",
+      "work_packages": [
+        "P40",
+        "P41"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M067",
+      "section": "CAP-011 — electron transport and complete energy accounting",
+      "cap": "011",
+      "legacy_checked": false,
+      "source_line": 1060,
+      "source_text": "Integrate collections, MPI/device operators, checkpoint/archive and time-centered diagnostics only for supported combinations.",
+      "source_text_sha256": "40152217fe37ef8f4ec4d19f857d20e2028eb522611b3827e60c2a97b252fb6e",
+      "work_packages": [
+        "P39",
+        "P41",
+        "P43"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M068",
+      "section": "CAP-011 — electron transport and complete energy accounting",
+      "cap": "011",
+      "legacy_checked": true,
+      "source_line": 1135,
+      "source_text": "Implement exact quotient storage, fresh per-axis null removal, bounded dyadic preparation and post-transform rational projection in the canonical pressure path. General quotients are prepared before entering the unchanged dyadic-only transform; no arbitrary rational is silently accepted by it.",
+      "source_text_sha256": "06ae8d1f51a3ba69b8b13cabbe44bbd369b7f284699455d14544e16ae95fbf45",
+      "work_packages": [
+        "P35"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M069",
+      "section": "CAP-011 — electron transport and complete energy accounting",
+      "cap": "011",
+      "legacy_checked": true,
+      "source_line": 1139,
+      "source_text": "Compose both hyperresistive branches, scalar/collection and fixed collisional consumers. Preserve zero-κ reduction and derived-scratch retry; required conduction policy 2 rejects policy 1. Transport policy 1, collision outer schema 1 and archive container 4 retain their meanings.",
+      "source_text_sha256": "6048dcb2f14f4e29d84cb054e7b20b3fa8945e480f3a12e97d29cfc62904425d",
+      "work_packages": [
+        "P35"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M070",
+      "section": "CAP-011 — electron transport and complete energy accounting",
+      "cap": "011",
+      "legacy_checked": true,
+      "source_line": 1143,
+      "source_text": "Add compact independent original-variation/null/Nyquist, quotient-range rescue, complete signed-source cancellation, rejection/retry and policy/resume controls while retaining existing tolerances and unsuppressed compiler gates.",
+      "source_text_sha256": "b319bc2fd1b1261273e211ea72a96bb998e83d59cf57bd0fca813ee2eeedf851",
+      "work_packages": [
+        "P35"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M071",
+      "section": "CAP-011 — electron transport and complete energy accounting",
+      "cap": "011",
+      "legacy_checked": false,
+      "source_line": 1146,
+      "source_text": "Accept numerical/compiler/format and integration checks on the exact GitHub revision; measure complete-step BigInt/FFT work, allocation and memory.",
+      "source_text_sha256": "419a2c1fa049cb56a99beef0f3a414530d370a3ab6e0d2e2deda3fc06a042ef9",
+      "work_packages": [
+        "P01",
+        "P35"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M072",
+      "section": "CAP-011 — electron transport and complete energy accounting",
+      "cap": "011",
+      "legacy_checked": false,
+      "source_line": 1148,
+      "source_text": "Extend conditioning qualification and broader transport models/backends. Normalized-duration rate storage remains a separate implementation gate.",
+      "source_text_sha256": "006ca51b314d7251febe8622198c9e9a97f6d6cdcd511fda02964d8113129ad9",
+      "work_packages": [
+        "P40",
+        "P41"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M073",
+      "section": "Progress and release evidence",
+      "cap": "FINAL",
+      "legacy_checked": true,
+      "source_line": 1178,
+      "source_text": "Read immutable source, README, current roadmap and relevant design/test owners.",
+      "source_text_sha256": "93f7fad0d6b64cde41bdffaf55474dc5b635e2aff93e648085551ab05fc4ee82",
+      "work_packages": [
+        "P00"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M074",
+      "section": "Progress and release evidence",
+      "cap": "FINAL",
+      "legacy_checked": true,
+      "source_line": 1179,
+      "source_text": "Separate implemented solver contracts, partial building blocks, missing integration and untested risks; identify CAP-008–011 as additional scope proposals beyond the coarse roadmap.",
+      "source_text_sha256": "b186bc8c080864ab5072a8f85cfa5a72b608d2d3504c486ba4f0a5bbe527c20c",
+      "work_packages": [
+        "P00"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M075",
+      "section": "Progress and release evidence",
+      "cap": "FINAL",
+      "legacy_checked": true,
+      "source_line": 1182,
+      "source_text": "Expand CAP-001–011 into contracts, dependencies, implementation slices, correctness/failure/restart/parallel gates and fixed measurement strategy.",
+      "source_text_sha256": "147a88815ffea4bff5a65921d350cf99569efe91e7c4f9c64ead51e15efaaeac",
+      "work_packages": [
+        "P00"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M076",
+      "section": "Progress and release evidence",
+      "cap": "FINAL",
+      "legacy_checked": true,
+      "source_line": 1184,
+      "source_text": "Root reviewed the complete plan and integrated its owners/stages with the live audit tracker and README; implementation acceptance remains separate.",
+      "source_text_sha256": "4f296548f1caaa2dbac9e63f622a1395d6c4d8c3a7d8ec048a9e18ce23aac2db",
+      "work_packages": [
+        "P00"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M077",
+      "section": "Progress and release evidence",
+      "cap": "FINAL",
+      "legacy_checked": false,
+      "source_line": 1186,
+      "source_text": "Execute each implementation slice and replace its unchecked gates with exact source, commands, outputs, hardware, cost matrix and CI evidence.",
+      "source_text_sha256": "315d42f1f0e559698642ea03b398cff9e1356513ac6dfc265a3fe23c0c464dbc",
+      "work_packages": [
+        "ALL"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M078",
+      "section": "Progress and release evidence",
+      "cap": "FINAL",
+      "legacy_checked": false,
+      "source_line": 1188,
+      "source_text": "Run the final compatibility matrix: model × geometry × closure × species × source × precision × integrator × backend × restart. Cover each supported intersection and reject unsupported ones before state mutation.",
+      "source_text_sha256": "0cea8def539c7130e2dd22d31334c89787e66042a9807511382a72897d966822",
+      "work_packages": [
+        "P43"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    },
+    {
+      "id": "M079",
+      "section": "Progress and release evidence",
+      "cap": "FINAL",
+      "legacy_checked": false,
+      "source_line": 1191,
+      "source_text": "Independent full audit of all public paths and complete final validation; revisit the matrix after the last implementation, not merely the last failing test.",
+      "source_text_sha256": "3a3fc77879cefdfb11d513ecf3c1637c864e3a683c6e31996df8887ada3ff99c",
+      "work_packages": [
+        "P42",
+        "P43"
+      ],
+      "gates": [
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9",
+        "G10"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,104 @@
+{
+  "status": "frozen complete bounded V3 source for root/OpenCode integration; no runtime/science/resource acceptance",
+  "baseline": "566ddc10b4f597d123c62041b31bc87677512f9c",
+  "worktree": "/Users/jake/EMPIRE/codes/PlasmaWorkspace/HybridPlasmaPIC-coupled-empic-error-control-20261109",
+  "contract_sha256": "da03b71492263139d0a774ec190df5c74fb7c5f531f6c62748637a0abe5775f1",
+  "exact_scope": [
+    "src/particles/kinematics_range.jl",
+    "src/models/empic_collection.jl",
+    "src/models/full_pic.jl",
+    "src/io/empic_collection_checkpoint.jl",
+    "src/models/empic_coupled_error_control.jl",
+    "src/diagnostics/empic_coupled_error_control.jl",
+    "src/io/empic_coupled_error_control_checkpoint.jl",
+    "docs/EMPIC_COUPLED_ERROR_CONTROL.md",
+    "test/test_empic_coupled_error_control.jl"
+  ],
+  "files": [
+    {
+      "path": "src/particles/kinematics_range.jl",
+      "bytes": 34792,
+      "lines": 789,
+      "sha256": "c6e90a4050a2de51589b6bfc754a5eb59eaad79e4679526716fe9e3e3189b316"
+    },
+    {
+      "path": "src/models/empic_collection.jl",
+      "bytes": 94163,
+      "lines": 1921,
+      "sha256": "57cfee03f225a84442251dc3a114c7df70dd213bce82af4674c29b4ea024a938"
+    },
+    {
+      "path": "src/models/full_pic.jl",
+      "bytes": 110769,
+      "lines": 2936,
+      "sha256": "9d2e21589d4cdc8c2b6001072121c5442ae6dde34285c8e4be8060654e5f7c97"
+    },
+    {
+      "path": "src/io/empic_collection_checkpoint.jl",
+      "bytes": 26434,
+      "lines": 573,
+      "sha256": "256fdb6f2d36ce274e83721de1134e426e994d43cc4f0e450c6c0cbfca00dd36"
+    },
+    {
+      "path": "src/models/empic_coupled_error_control.jl",
+      "bytes": 71458,
+      "lines": 1099,
+      "sha256": "efe06d1d5de903df9d96598187120633445960afc53e9fa22713a7f4a8fae09d"
+    },
+    {
+      "path": "src/diagnostics/empic_coupled_error_control.jl",
+      "bytes": 2328,
+      "lines": 32,
+      "sha256": "c6f5cb303b08342532770bc4ad76224c6897c9290625c3559bade04071dfeeeb"
+    },
+    {
+      "path": "src/io/empic_coupled_error_control_checkpoint.jl",
+      "bytes": 12535,
+      "lines": 213,
+      "sha256": "d9aeac6bfd56ceae8f53db9b9028b234b5611a1e9aa8df1530b7719498cea3d9"
+    },
+    {
+      "path": "docs/EMPIC_COUPLED_ERROR_CONTROL.md",
+      "bytes": 12116,
+      "lines": 210,
+      "sha256": "b295ddb98851622eea477ce62eae1c70909eb88697fbd19a34a46e777d952a60"
+    },
+    {
+      "path": "test/test_empic_coupled_error_control.jl",
+      "bytes": 29583,
+      "lines": 573,
+      "sha256": "b5a3ddf29b4da4118a9403717c20dd271f218cef49d47f407c9abaedff285956"
+    }
+  ],
+  "patch": {
+    "path": "/Users/jake/EMPIRE/codes/PlasmaWorkspace/HybridPlasmaPIC-audit-evidence/2026-11-09/empic-coupled-error-control-design/coupled-pair-derivation/implementation-v1/final-freeze-v1/coupled-empic-final-v1.patch",
+    "bytes": 165467,
+    "sha256": "fa98cec4d95d4e3896e5661433a468f2d8e64d6d3242cc5f675abf1049c4bff9"
+  },
+  "source_checks": [
+    "complete nine-file source plus canonical caller/contract review",
+    "exact child3 final receipt match",
+    "only approved nine paths changed",
+    "literal legacy inverse10checks",
+    "git diff --check empty",
+    "temporary text-only forward apply --whitespace=error-all and inverse exact nine-file roundtrip"
+  ],
+  "not_run": [
+    "Julia",
+    "parser",
+    "compiler",
+    "formatter",
+    "numerical reference/proxy",
+    "tests",
+    "device",
+    "profiling",
+    "CI"
+  ],
+  "source_review_findings_remaining": "No additional confirmed source defect found in bounded final pass; this is not a runtime or scientific proof.",
+  "retained_early_freezes": [
+    "early-draft1",
+    "controls/controls-draft-v1.patch",
+    "controls/DRAFT_RECEIPT_v1.json"
+  ],
+  "stop_instruction": "User requested handoff to OpenCode then STOP; no new implementation track authorized in this active handoff."
+}

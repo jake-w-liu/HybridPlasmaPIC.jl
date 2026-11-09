@@ -1,0 +1,368 @@
+{
+  "snapshot_utc": "2026-11-09T09:04:41.016428+00:00",
+  "main": "9b4d363806722319c2241e4af04ed1ed1da00119",
+  "qualification": "Read-only GitHub API snapshot before publishing final handoff. Does not include future handoff-head or CGL-specific jobs; inspect live exact-head runs when OpenCode starts. Skipped/queued jobs are not passes; no billing exception evidence established.",
+  "runs": [
+    {
+      "run": 41813949753,
+      "url": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/41813949753",
+      "head": "9b4d363806722319c2241e4af04ed1ed1da00119",
+      "branch": "main",
+      "name": "HybridPlasmaPIC CI",
+      "event": "push",
+      "status": "completed",
+      "conclusion": "success",
+      "jobs": 26,
+      "success": 26,
+      "skipped": 0,
+      "completed": 26,
+      "failed": []
+    },
+    {
+      "run": 42559406370,
+      "url": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42559406370",
+      "head": "5fec15192830f87978e839de2651fccd88d2b3c6",
+      "branch": "implement/resident-cuda-20261109",
+      "name": "HybridPlasmaPIC CI",
+      "event": "push",
+      "status": "completed",
+      "conclusion": "failure",
+      "jobs": 29,
+      "success": 27,
+      "skipped": 0,
+      "completed": 29,
+      "failed": [
+        {
+          "id": 128972293761,
+          "name": "Julia 1 (ubuntu, group 11)",
+          "conclusion": "failure",
+          "url": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42559406370/job/128972293761"
+        },
+        {
+          "id": 128972294051,
+          "name": "Julia 1.12 (ubuntu, group 11)",
+          "conclusion": "failure",
+          "url": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42559406370/job/128972294051"
+        }
+      ]
+    },
+    {
+      "run": 42560968726,
+      "url": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42560968726",
+      "head": "7ea6ae87e2a4909c25f58cdebc18b4109494b6d8",
+      "branch": "implement/toroidal-annulus-20261109",
+      "name": "HybridPlasmaPIC CI",
+      "event": "push",
+      "status": "completed",
+      "conclusion": "failure",
+      "jobs": 29,
+      "success": 26,
+      "skipped": 0,
+      "completed": 29,
+      "failed": [
+        {
+          "id": 128977073974,
+          "name": "Formatting check (JuliaFormatter)",
+          "conclusion": "failure",
+          "url": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42560968726/job/128977073974"
+        },
+        {
+          "id": 128977074152,
+          "name": "Julia 1.12 (ubuntu, group 11)",
+          "conclusion": "failure",
+          "url": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42560968726/job/128977074152"
+        },
+        {
+          "id": 128977074221,
+          "name": "Julia 1 (ubuntu, group 11)",
+          "conclusion": "failure",
+          "url": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42560968726/job/128977074221"
+        }
+      ]
+    },
+    {
+      "run": 42562939210,
+      "url": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42562939210",
+      "head": "5703c956680b73f695cff5d3dec87bc5b4582d18",
+      "branch": "implement/implicit-hybrid-pressure-20261109",
+      "name": "HybridPlasmaPIC CI",
+      "event": "push",
+      "status": "queued",
+      "conclusion": null,
+      "jobs": 29,
+      "success": 21,
+      "skipped": 0,
+      "completed": 23,
+      "failed": [
+        {
+          "id": 128983114162,
+          "name": "Formatting check (JuliaFormatter)",
+          "conclusion": "failure",
+          "url": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42562939210/job/128983114162"
+        },
+        {
+          "id": 128983114996,
+          "name": "Julia 1 (ubuntu, group 11)",
+          "conclusion": "failure",
+          "url": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42562939210/job/128983114996"
+        }
+      ]
+    },
+    {
+      "run": 42567282429,
+      "url": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42567282429",
+      "head": "bc865502054d5343696e87e0a1cdf78b5394a98d",
+      "branch": "implement/field-aligned-conduction-20261109",
+      "name": "HybridPlasmaPIC CI",
+      "event": "push",
+      "status": "queued",
+      "conclusion": null,
+      "jobs": 29,
+      "success": 16,
+      "skipped": 0,
+      "completed": 18,
+      "failed": [
+        {
+          "id": 128996435968,
+          "name": "Formatting check (JuliaFormatter)",
+          "conclusion": "failure",
+          "url": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42567282429/job/128996435968"
+        },
+        {
+          "id": 128996436293,
+          "name": "Julia 1.12 (ubuntu, group 11)",
+          "conclusion": "failure",
+          "url": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42567282429/job/128996436293"
+        }
+      ]
+    },
+    {
+      "run": 42568171303,
+      "url": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42568171303",
+      "head": "57980ae0bbc27b71f0e198f7185b3baa1de38ae6",
+      "branch": "implement/multidimensional-amr-20261109",
+      "name": "HybridPlasmaPIC CI",
+      "event": "push",
+      "status": "queued",
+      "conclusion": null,
+      "jobs": 29,
+      "success": 7,
+      "skipped": 0,
+      "completed": 8,
+      "failed": [
+        {
+          "id": 128999196838,
+          "name": "Formatting check (JuliaFormatter)",
+          "conclusion": "failure",
+          "url": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42568171303/job/128999196838"
+        }
+      ]
+    },
+    {
+      "run": 42570140304,
+      "url": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42570140304",
+      "head": "fc87d4fb24b231f8de6e3e47b71f0905282c974c",
+      "branch": "implement/persistent-species-20261109",
+      "name": "HybridPlasmaPIC CI",
+      "event": "push",
+      "status": "queued",
+      "conclusion": null,
+      "jobs": 29,
+      "success": 0,
+      "skipped": 0,
+      "completed": 7,
+      "failed": [
+        {
+          "id": 129005385324,
+          "name": "CUDA extension load (Julia 1, host only)",
+          "conclusion": "failure",
+          "url": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42570140304/job/129005385324"
+        },
+        {
+          "id": 129005385430,
+          "name": "Formatting check (JuliaFormatter)",
+          "conclusion": "failure",
+          "url": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42570140304/job/129005385430"
+        },
+        {
+          "id": 129005385443,
+          "name": "CUDA extension load (Julia 1.12, host only)",
+          "conclusion": "failure",
+          "url": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42570140304/job/129005385443"
+        },
+        {
+          "id": 129005385457,
+          "name": "Physical-pencil models (latest Julia, 2-rank)",
+          "conclusion": "failure",
+          "url": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42570140304/job/129005385457"
+        },
+        {
+          "id": 129005385460,
+          "name": "Real MPI smoke (2-rank)",
+          "conclusion": "failure",
+          "url": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42570140304/job/129005385460"
+        },
+        {
+          "id": 129005385473,
+          "name": "Real MPI smoke (4-rank)",
+          "conclusion": "failure",
+          "url": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42570140304/job/129005385473"
+        },
+        {
+          "id": 129005385518,
+          "name": "Real MPI smoke (8-rank)",
+          "conclusion": "failure",
+          "url": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42570140304/job/129005385518"
+        }
+      ]
+    },
+    {
+      "run": 42572957571,
+      "url": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42572957571",
+      "head": "75f74bd522452e199667f753dda1d13de2b41d7a",
+      "branch": "fix/remote-format-20261109",
+      "name": "HybridPlasmaPIC CI",
+      "event": "push",
+      "status": "queued",
+      "conclusion": null,
+      "jobs": 29,
+      "success": 0,
+      "skipped": 0,
+      "completed": 2,
+      "failed": [
+        {
+          "id": 129014270899,
+          "name": "Real MPI smoke (4-rank)",
+          "conclusion": "failure",
+          "url": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42572957571/job/129014270899"
+        },
+        {
+          "id": 129014271157,
+          "name": "Physical-pencil models (latest Julia, 2-rank)",
+          "conclusion": "failure",
+          "url": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42572957571/job/129014271157"
+        }
+      ]
+    },
+    {
+      "run": 42573214137,
+      "url": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42573214137",
+      "head": "123c4a23e59923f02ce96150c34ce32ccae72442",
+      "branch": "fix/implicit-pressure-ci-20261109",
+      "name": "HybridPlasmaPIC CI",
+      "event": "push",
+      "status": "queued",
+      "conclusion": null,
+      "jobs": 29,
+      "success": 0,
+      "skipped": 0,
+      "completed": 0,
+      "failed": []
+    },
+    {
+      "run": 42575003889,
+      "url": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42575003889",
+      "head": "8246e2d4d3446de493fe021c4fbd658af9fd12c8",
+      "branch": "implement/periodic-amr-20261109",
+      "name": "HybridPlasmaPIC CI",
+      "event": "push",
+      "status": "queued",
+      "conclusion": null,
+      "jobs": 29,
+      "success": 0,
+      "skipped": 0,
+      "completed": 0,
+      "failed": []
+    },
+    {
+      "run": 42575498701,
+      "url": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42575498701",
+      "head": "566ddc10b4f597d123c62041b31bc87677512f9c",
+      "branch": "fix/canonical-source-representation-20261109",
+      "name": "HybridPlasmaPIC CI",
+      "event": "push",
+      "status": "queued",
+      "conclusion": null,
+      "jobs": 29,
+      "success": 0,
+      "skipped": 0,
+      "completed": 0,
+      "failed": []
+    },
+    {
+      "run": 42580363296,
+      "url": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42580363296",
+      "head": "c742258540ba82304322bde65abbffb5b11e7af0",
+      "branch": "implement/electron-ion-thermal-20261109",
+      "name": "HybridPlasmaPIC CI",
+      "event": "push",
+      "status": "queued",
+      "conclusion": null,
+      "jobs": 29,
+      "success": 0,
+      "skipped": 0,
+      "completed": 0,
+      "failed": []
+    },
+    {
+      "run": 42582766543,
+      "url": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42582766543",
+      "head": "5de6522bbc58a7a8ecd3988b5c0b5dfa587e48e3",
+      "branch": "implement/electron-ion-overlap-20261109",
+      "name": "HybridPlasmaPIC CI",
+      "event": "push",
+      "status": "queued",
+      "conclusion": null,
+      "jobs": 29,
+      "success": 0,
+      "skipped": 0,
+      "completed": 0,
+      "failed": []
+    },
+    {
+      "run": 42575706406,
+      "url": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42575706406",
+      "head": "566ddc10b4f597d123c62041b31bc87677512f9c",
+      "branch": "fix/canonical-source-representation-20261109",
+      "name": "Implementation essentials",
+      "event": "workflow_dispatch",
+      "status": "queued",
+      "conclusion": null,
+      "jobs": 3,
+      "success": 0,
+      "skipped": 1,
+      "completed": 1,
+      "failed": []
+    },
+    {
+      "run": 42582866872,
+      "url": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42582866872",
+      "head": "5de6522bbc58a7a8ecd3988b5c0b5dfa587e48e3",
+      "branch": "implement/electron-ion-overlap-20261109",
+      "name": "Implementation essentials",
+      "event": "workflow_dispatch",
+      "status": "queued",
+      "conclusion": null,
+      "jobs": 3,
+      "success": 0,
+      "skipped": 1,
+      "completed": 1,
+      "failed": []
+    },
+    {
+      "run": 42582890537,
+      "url": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42582890537",
+      "head": "5de6522bbc58a7a8ecd3988b5c0b5dfa587e48e3",
+      "branch": "implement/electron-ion-overlap-20261109",
+      "name": "Implementation essentials",
+      "event": "workflow_dispatch",
+      "status": "queued",
+      "conclusion": null,
+      "jobs": 2,
+      "success": 0,
+      "skipped": 1,
+      "completed": 1,
+      "failed": []
+    }
+  ]
+}

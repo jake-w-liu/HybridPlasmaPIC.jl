@@ -1,0 +1,7 @@
+# Root CGL source review
+
+Read all three final source deltas, full143-line guide and own bounded refinements, approved171-line contract/actual21pins, canonical coefficient/force/energy/stage/transaction/IO/array validation and existing fixtures. Read all238 essential lines (including the empty/union additions). No further confirmed defect found in this bounded source pass. Whole-wrapper non-CGL, IOschema1/2/3 and closure-doc-only inverses recover5de exactly. Original force floor/type conversions/raw-energy dispatch and physics owners are unchanged.
+
+Root tightens the new coefficient type guard to exactly the four named floating types and clarifies actual stored versus ideal isotropy. IO is byte-exact to worker freeze. New essential uses existing canonical component references, fresh source invariants, anisotropic buffers/RNG undo, same-context wide coefficient and physical/raw/archive cases. Every assertion, including specific field/sample failures and mixed-precision/empty cases, is unexecuted until GitHub. No local Julia/parser/compiler/formatter/test/numerical proxy/device/profile. No numerical/scientific/resource acceptance is claimed.
+
+The user's newer direction is a complete OpenCode handoff and acceptance plan, then stop. CGL is made reviewable as in-flight work; no new feature implementation starts, controller9 remains source-frozen/unadopted, flux design remains unapproved.

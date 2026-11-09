@@ -1,0 +1,41 @@
+{
+  "head": "c742258540ba82304322bde65abbffb5b11e7af0",
+  "remote_branch": "implement/electron-ion-thermal-20261109",
+  "main": "9b4d363806722319c2241e4af04ed1ed1da00119",
+  "paths": 15,
+  "insertions": 1467,
+  "deletions": 82,
+  "runs": [
+    {
+      "conclusion": "",
+      "createdAt": "2026-11-09T07:36:42Z",
+      "databaseId": 42580431592,
+      "event": "workflow_dispatch",
+      "headSha": "c742258540ba82304322bde65abbffb5b11e7af0",
+      "name": "Implementation essentials",
+      "status": "queued",
+      "url": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42580431592"
+    },
+    {
+      "conclusion": "",
+      "createdAt": "2026-11-09T07:36:41Z",
+      "databaseId": 42580430039,
+      "event": "workflow_dispatch",
+      "headSha": "c742258540ba82304322bde65abbffb5b11e7af0",
+      "name": "Implementation essentials",
+      "status": "queued",
+      "url": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42580430039"
+    },
+    {
+      "conclusion": "",
+      "createdAt": "2026-11-09T07:36:04Z",
+      "databaseId": 42580363296,
+      "event": "push",
+      "headSha": "c742258540ba82304322bde65abbffb5b11e7af0",
+      "name": "HybridPlasmaPIC CI",
+      "status": "queued",
+      "url": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42580363296"
+    }
+  ],
+  "qualification": "Pushed validation candidate; all new remote acceptance pending. No main publication or billing exception."
+}

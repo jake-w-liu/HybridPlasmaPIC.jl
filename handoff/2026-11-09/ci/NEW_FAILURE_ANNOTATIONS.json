@@ -1,0 +1,308 @@
+[
+  {
+    "job": 128983114996,
+    "name": "Julia 1 (ubuntu, group 11)",
+    "started_at": "2026-11-09T08:46:48Z",
+    "completed_at": "2026-11-09T08:54:14Z",
+    "runner": "GitHub Actions 1000029443",
+    "steps": [
+      {
+        "name": "Instantiate and test",
+        "conclusion": "failure"
+      }
+    ],
+    "annotations": [
+      {
+        "path": ".github",
+        "blob_href": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/blob/5703c956680b73f695cff5d3dec87bc5b4582d18/.github",
+        "start_line": 2,
+        "start_column": null,
+        "end_line": 2,
+        "end_column": null,
+        "annotation_level": "warning",
+        "title": "",
+        "message": "Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684, actions/checkout@v4, actions/upload-artifact@v4, julia-actions/setup-julia@v2, pyTooling/Actions/with-post-step@42e17fae05f224e5ac3d79d021a4e3577878efe5. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/",
+        "raw_details": ""
+      },
+      {
+        "path": ".github",
+        "blob_href": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/blob/5703c956680b73f695cff5d3dec87bc5b4582d18/.github",
+        "start_line": 1158,
+        "start_column": null,
+        "end_line": 1158,
+        "end_column": null,
+        "annotation_level": "failure",
+        "title": "",
+        "message": "Process completed with exit code 1.",
+        "raw_details": ""
+      },
+      {
+        "path": ".github",
+        "blob_href": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/blob/5703c956680b73f695cff5d3dec87bc5b4582d18/.github",
+        "start_line": 1,
+        "start_column": null,
+        "end_line": 1,
+        "end_column": null,
+        "annotation_level": "notice",
+        "title": "",
+        "message": "\"The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748\"",
+        "raw_details": ""
+      }
+    ]
+  },
+  {
+    "job": 128996435968,
+    "name": "Formatting check (JuliaFormatter)",
+    "started_at": "2026-11-09T07:04:10Z",
+    "completed_at": "2026-11-09T07:04:38Z",
+    "runner": "GitHub Actions 1000029331",
+    "steps": [
+      {
+        "name": "Check formatting",
+        "conclusion": "failure"
+      }
+    ],
+    "annotations": [
+      {
+        "path": ".github",
+        "blob_href": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/blob/bc865502054d5343696e87e0a1cdf78b5394a98d/.github",
+        "start_line": 2,
+        "start_column": null,
+        "end_line": 2,
+        "end_column": null,
+        "annotation_level": "warning",
+        "title": "",
+        "message": "Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684, actions/checkout@v4, actions/upload-artifact@v4, julia-actions/setup-julia@v2, pyTooling/Actions/with-post-step@42e17fae05f224e5ac3d79d021a4e3577878efe5. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/",
+        "raw_details": ""
+      },
+      {
+        "path": ".github",
+        "blob_href": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/blob/bc865502054d5343696e87e0a1cdf78b5394a98d/.github",
+        "start_line": 51,
+        "start_column": null,
+        "end_line": 51,
+        "end_column": null,
+        "annotation_level": "failure",
+        "title": "",
+        "message": "Process completed with exit code 1.",
+        "raw_details": ""
+      },
+      {
+        "path": ".github",
+        "blob_href": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/blob/bc865502054d5343696e87e0a1cdf78b5394a98d/.github",
+        "start_line": 1,
+        "start_column": null,
+        "end_line": 1,
+        "end_column": null,
+        "annotation_level": "notice",
+        "title": "",
+        "message": "\"The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748\"",
+        "raw_details": ""
+      }
+    ]
+  },
+  {
+    "job": 128996436293,
+    "name": "Julia 1.12 (ubuntu, group 11)",
+    "started_at": "2026-11-09T08:13:19Z",
+    "completed_at": "2026-11-09T08:21:26Z",
+    "runner": "GitHub Actions 1000029400",
+    "steps": [
+      {
+        "name": "Instantiate and test",
+        "conclusion": "failure"
+      }
+    ],
+    "annotations": [
+      {
+        "path": ".github",
+        "blob_href": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/blob/bc865502054d5343696e87e0a1cdf78b5394a98d/.github",
+        "start_line": 2,
+        "start_column": null,
+        "end_line": 2,
+        "end_column": null,
+        "annotation_level": "warning",
+        "title": "",
+        "message": "Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684, actions/checkout@v4, actions/upload-artifact@v4, julia-actions/setup-julia@v2, pyTooling/Actions/with-post-step@42e17fae05f224e5ac3d79d021a4e3577878efe5. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/",
+        "raw_details": ""
+      },
+      {
+        "path": ".github",
+        "blob_href": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/blob/bc865502054d5343696e87e0a1cdf78b5394a98d/.github",
+        "start_line": 1228,
+        "start_column": null,
+        "end_line": 1228,
+        "end_column": null,
+        "annotation_level": "failure",
+        "title": "",
+        "message": "Process completed with exit code 1.",
+        "raw_details": ""
+      },
+      {
+        "path": ".github",
+        "blob_href": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/blob/bc865502054d5343696e87e0a1cdf78b5394a98d/.github",
+        "start_line": 1,
+        "start_column": null,
+        "end_line": 1,
+        "end_column": null,
+        "annotation_level": "notice",
+        "title": "",
+        "message": "\"The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748\"",
+        "raw_details": ""
+      }
+    ]
+  },
+  {
+    "job": 128999196838,
+    "name": "Formatting check (JuliaFormatter)",
+    "started_at": "2026-11-09T07:30:15Z",
+    "completed_at": "2026-11-09T07:30:42Z",
+    "runner": "GitHub Actions 1000029350",
+    "steps": [
+      {
+        "name": "Check formatting",
+        "conclusion": "failure"
+      }
+    ],
+    "annotations": [
+      {
+        "path": ".github",
+        "blob_href": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/blob/57980ae0bbc27b71f0e198f7185b3baa1de38ae6/.github",
+        "start_line": 2,
+        "start_column": null,
+        "end_line": 2,
+        "end_column": null,
+        "annotation_level": "warning",
+        "title": "",
+        "message": "Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684, actions/checkout@v4, actions/upload-artifact@v4, julia-actions/setup-julia@v2, pyTooling/Actions/with-post-step@42e17fae05f224e5ac3d79d021a4e3577878efe5. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/",
+        "raw_details": ""
+      },
+      {
+        "path": ".github",
+        "blob_href": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/blob/57980ae0bbc27b71f0e198f7185b3baa1de38ae6/.github",
+        "start_line": 51,
+        "start_column": null,
+        "end_line": 51,
+        "end_column": null,
+        "annotation_level": "failure",
+        "title": "",
+        "message": "Process completed with exit code 1.",
+        "raw_details": ""
+      },
+      {
+        "path": ".github",
+        "blob_href": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/blob/57980ae0bbc27b71f0e198f7185b3baa1de38ae6/.github",
+        "start_line": 1,
+        "start_column": null,
+        "end_line": 1,
+        "end_column": null,
+        "annotation_level": "notice",
+        "title": "",
+        "message": "\"The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748\"",
+        "raw_details": ""
+      }
+    ]
+  },
+  {
+    "job": 129005385324,
+    "name": "CUDA extension load (Julia 1, host only)",
+    "started_at": "2026-11-09T09:00:23Z",
+    "completed_at": "2026-11-09T09:03:56Z",
+    "runner": "GitHub Actions 1000029455",
+    "steps": [
+      {
+        "name": "Load extension and check host admissions",
+        "conclusion": "failure"
+      }
+    ],
+    "annotations": [
+      {
+        "path": ".github",
+        "blob_href": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/blob/fc87d4fb24b231f8de6e3e47b71f0905282c974c/.github",
+        "start_line": 2,
+        "start_column": null,
+        "end_line": 2,
+        "end_column": null,
+        "annotation_level": "warning",
+        "title": "",
+        "message": "Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684, actions/checkout@v4, actions/upload-artifact@v4, julia-actions/setup-julia@v2, pyTooling/Actions/with-post-step@42e17fae05f224e5ac3d79d021a4e3577878efe5. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/",
+        "raw_details": ""
+      },
+      {
+        "path": ".github",
+        "blob_href": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/blob/fc87d4fb24b231f8de6e3e47b71f0905282c974c/.github",
+        "start_line": 58,
+        "start_column": null,
+        "end_line": 58,
+        "end_column": null,
+        "annotation_level": "failure",
+        "title": "",
+        "message": "Process completed with exit code 1.",
+        "raw_details": ""
+      },
+      {
+        "path": ".github",
+        "blob_href": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/blob/fc87d4fb24b231f8de6e3e47b71f0905282c974c/.github",
+        "start_line": 1,
+        "start_column": null,
+        "end_line": 1,
+        "end_column": null,
+        "annotation_level": "notice",
+        "title": "",
+        "message": "\"The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748\"",
+        "raw_details": ""
+      }
+    ]
+  },
+  {
+    "job": 129014270899,
+    "name": "Real MPI smoke (4-rank)",
+    "started_at": "2026-11-09T08:42:09Z",
+    "completed_at": "2026-11-09T08:43:30Z",
+    "runner": "GitHub Actions 1000029437",
+    "steps": [
+      {
+        "name": "Run real MPI regression smoke test",
+        "conclusion": "failure"
+      }
+    ],
+    "annotations": [
+      {
+        "path": ".github",
+        "blob_href": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/blob/75f74bd522452e199667f753dda1d13de2b41d7a/.github",
+        "start_line": 2,
+        "start_column": null,
+        "end_line": 2,
+        "end_column": null,
+        "annotation_level": "warning",
+        "title": "",
+        "message": "Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684, actions/checkout@v4, actions/upload-artifact@v4, julia-actions/setup-julia@v2, pyTooling/Actions/with-post-step@42e17fae05f224e5ac3d79d021a4e3577878efe5. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/",
+        "raw_details": ""
+      },
+      {
+        "path": ".github",
+        "blob_href": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/blob/75f74bd522452e199667f753dda1d13de2b41d7a/.github",
+        "start_line": 19,
+        "start_column": null,
+        "end_line": 19,
+        "end_column": null,
+        "annotation_level": "failure",
+        "title": "",
+        "message": "Process completed with exit code 1.",
+        "raw_details": ""
+      },
+      {
+        "path": ".github",
+        "blob_href": "https://github.com/jake-w-liu/HybridPlasmaPIC.jl/blob/75f74bd522452e199667f753dda1d13de2b41d7a/.github",
+        "start_line": 1,
+        "start_column": null,
+        "end_line": 1,
+        "end_column": null,
+        "annotation_level": "notice",
+        "title": "",
+        "message": "\"The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748\"",
+        "raw_details": ""
+      }
+    ]
+  }
+]

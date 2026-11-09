@@ -1,0 +1,2822 @@
+diff --git a/src/io/empic_collection_checkpoint.jl b/src/io/empic_collection_checkpoint.jl
+index 711a213..326c243 100644
+--- a/src/io/empic_collection_checkpoint.jl
++++ b/src/io/empic_collection_checkpoint.jl
+@@ -46,12 +46,14 @@ end
+ # discarded by a legacy destination or inferred from a dividing history.
+ function _reject_empic_event_checkpoint_fields(s)
+     _validate_checkpoint_container(s, (:schema_version,))
++    _reject_empic_coupled_checkpoint_fields(s)
+     any(k -> haskey(s, k), _EMPIC_EVENT_CHECKPOINT_FIELDS) &&
+         throw(ArgumentError("persistent event checkpoint requires an event-schedule destination"))
+     return nothing
+ end
+ 
+ function _normalize_empic_event_checkpoint(s)
++    _reject_empic_coupled_checkpoint_fields(s)
+     _validate_checkpoint_container(s, (:schema_version, :schedule_policy, _EMPIC_EVENT_CHECKPOINT_FIELDS...))
+     s.schema_version === 3 && s.schedule_policy === 2 && s.phase_policy === :persistent_event ||
+         throw(ArgumentError("persistent schedules require schema3/policy2 without phase migration"))
+@@ -266,10 +268,12 @@ function load_archive!(
+ end
+ 
+ _empic_collection_checkpoint_schema(st) =
++    _empic_collection(st).schedule isa _EMPICCoupledSchedule ? 4 :
+     _empic_collection(st).schedule isa _EMPICEventSchedule ? 3 :
+     (_empic_collection(st).schedule === nothing ? 1 : 2)
+ 
+ function _normalize_empic_collection_checkpoint(s, st::EMPIC)
++    _empic_collection(st).schedule isa _EMPICCoupledSchedule && return _normalize_empic_coupled_checkpoint(s)
+     _empic_collection(st).schedule isa _EMPICEventSchedule &&
+         return _normalize_empic_event_checkpoint(s)
+     _reject_empic_event_checkpoint_fields(s)
+@@ -289,6 +293,7 @@ _normalize_empic_collection_checkpoint(s, st::EMPIC1D) =
+     _normalize_empic_species_schedule_checkpoint(s, st)
+ 
+ function _normalize_empic_species_schedule_checkpoint(s, st)
++    _empic_collection(st).schedule isa _EMPICCoupledSchedule && return _normalize_empic_coupled_checkpoint(s)
+     _empic_collection(st).schedule isa _EMPICEventSchedule &&
+         return _normalize_empic_event_checkpoint(s)
+     _reject_empic_event_checkpoint_fields(s)
+@@ -319,6 +324,7 @@ function _validate_normalized_empic_collection_checkpoint(
+     st::_ElectromagneticCheckpointStepper,
+     g::FourierGrid{D,T},
+ ) where {D,T}
++    _empic_collection(st).schedule isa _EMPICCoupledSchedule && return _validate_empic_coupled_checkpoint(s, st, g)
+     _empic_collection(st).schedule isa _EMPICEventSchedule &&
+         return _validate_empic_event_checkpoint(s, st, g)
+     version = _empic_collection_checkpoint_schema(st)
+@@ -428,15 +434,8 @@ end
+ _checkpoint_state(st::_ElectromagneticCheckpointStepper, species::AbstractVector{<:ParticleSet}) =
+     _empic_collection_checkpoint_state(st, species, st.g)
+ 
+-function _empic_collection_checkpoint_state(
+-    st::_ElectromagneticCheckpointStepper,
+-    species::AbstractVector{<:ParticleSet},
+-    ::FourierGrid{D,T},
+-) where {D,T}
++function _empic_collection_checkpoint_common(st, species, ::FourierGrid{D,T}) where {D,T}
+     work = _empic_collection(st)
+-    _empic_collection_validate_species(st, species)
+-    _empic_collection_validate_phase(st)
+-    work.initialized[] && _empic_collection_bound(work, species)
+     state = (
+         integrator = _empic_collection_checkpoint_integrator(st),
+         D = D,
+@@ -462,6 +461,20 @@ function _empic_collection_checkpoint_state(
+         last_sub_dt = st.last_sub_dt[],
+     )
+     st isa EMPIC1D && (state = merge(state, (polarization = :ex_ey_bz,)))
++    return state
++end
++
++function _empic_collection_checkpoint_state(
++    st::_ElectromagneticCheckpointStepper,
++    species::AbstractVector{<:ParticleSet},
++    ::FourierGrid{D,T},
++) where {D,T}
++    _empic_collection(st).schedule isa _EMPICCoupledSchedule && return _empic_coupled_checkpoint_state(st, species)
++    work = _empic_collection(st)
++    _empic_collection_validate_species(st, species)
++    _empic_collection_validate_phase(st)
++    work.initialized[] && _empic_collection_bound(work, species)
++    state = _empic_collection_checkpoint_common(st, species, st.g)
+     if work.schedule isa _EMPICEventSchedule
+         return _empic_event_checkpoint_state(st, state)
+     end
+@@ -491,6 +504,7 @@ function _restore_empic_collection_checkpoint!(
+     s,
+     ::FourierGrid{D,T},
+ ) where {D,T}
++    _empic_collection(st).schedule isa _EMPICCoupledSchedule && return _restore_empic_coupled_checkpoint!(st, species, s, st.g)
+     _empic_collection(st).schedule isa _EMPICEventSchedule &&
+         return _restore_empic_event_checkpoint!(st, species, s, st.g)
+     work = _empic_collection(st)
+diff --git a/src/models/empic_collection.jl b/src/models/empic_collection.jl
+index 48264ba..9111c8f 100644
+--- a/src/models/empic_collection.jl
++++ b/src/models/empic_collection.jl
+@@ -78,7 +78,8 @@ function _empic_event_proposal(mobile, cap, adaptive, minimum, limits, budget, :
+     end
+     return (cap = upper, adaptive = flags, minimum = lower, limits = policy, budget = Int(budget))
+ end
+-function _empic_collection_schedule(mobile, ns, stride, cap, adaptive, minimum, limits, budget, ::Type{T}) where {T}
++function _empic_collection_schedule(mobile, ns, stride, cap, adaptive, minimum, limits, budget, ::Type{T}, error_control = nothing) where {T}
++    error_control === nothing || return _empic_coupled_schedule(mobile, ns, stride, cap, adaptive, minimum, limits, budget, T, error_control)
+     if cap === nothing
+         all(isnothing, (adaptive, minimum, limits, budget)) ||
+             throw(ArgumentError("persistent schedule options require species_dt"))
+@@ -95,7 +96,8 @@ end
+     EMPIC(g, species::AbstractVector; mobile=trues(length(species)),
+           background_charge=0, neutrality=:require, charge_rtol=64eps(T),
+           c=5, shape=CIC(), n_sub=1, species_stride=nothing,
+-          species_dt=nothing, event_budget=nothing, relativistic=false)
++          species_dt=nothing, event_budget=nothing, error_control=nothing,
++          relativistic=false)
+ 
+ Periodic CPU Float32/Float64 electromagnetic PIC with arbitrary finite species
+ charges and positive masses. By default each mobile population kicks and drifts
+@@ -111,6 +113,12 @@ opts into persistent nondividing kick deadlines and is mutually exclusive with
+ field segment. `species_adaptive`, `species_dt_min` and explicit `schedule_limits`
+ enable a sampled-state resolution heuristic; it is not coupled error control.
+ 
++Explicit `error_control` with a persistent calendar selects the closed full-time
++projected Euler/Heun controller described in `docs/EMPIC_COUPLED_ERROR_CONTROL.md`.
++That policy supports CIC/TSC knot crossings, evaluates all mobile forces at both
++trial stages and uses schema4/policy3. NGP rejects at this opt-in boundary. Its
++measured embedded defect supplies no universal true-error or stability theorem.
++
+ `background_charge` is a fixed uniform charge density. `:require` uses the same
+ exact physical-charge tolerance as electrostatic collections; `:neutralize`
+ explicitly supplies a uniform compensator, reported by diagnostics. Neither
+@@ -144,6 +152,7 @@ function EMPIC(
+     species_dt_min = nothing,
+     schedule_limits = nothing,
+     event_budget = nothing,
++    error_control = nothing,
+     background_charge = zero(T),
+     neutrality::Symbol = :require,
+     charge_rtol = 64eps(T),
+@@ -157,6 +166,7 @@ function EMPIC(
+         throw(ArgumentError("electromagnetic collections require Float32 or Float64"))
+     shape isa Union{NGP,CIC,TSC} ||
+         throw(ArgumentError("electromagnetic collections require NGP, CIC or TSC"))
++    error_control === nothing || shape isa Union{CIC,TSC} || throw(ArgumentError("coupled error control requires CIC or TSC; NGP jump control is not implemented"))
+     neutrality in (:require, :neutralize) ||
+         throw(ArgumentError("neutrality must be :require or :neutralize"))
+     _espic_validate_collection_type(species, g)
+@@ -172,7 +182,7 @@ function EMPIC(
+     stage = _new_empic_state(g, 0, background, cT, shape, relativistic, false, one(T), ns, nothing)
+     P = eltype(species)
+     schedule = _empic_collection_schedule(mobile, ns, species_stride, species_dt,
+-        species_adaptive, species_dt_min, schedule_limits, event_budget, T)
++        species_adaptive, species_dt_min, schedule_limits, event_budget, T, error_control)
+     work = _EMPICCollectionWork{D,T,P,typeof(stage),typeof(schedule)}(
+         neutrality,
+         rtol,
+@@ -185,6 +195,7 @@ function EMPIC(
+         schedule,
+     )
+     es = _new_empic_state(g, 0, background, cT, shape, relativistic, false, one(T), ns, work)
++    _empic_coupled_bind!(es, schedule)
+     _empic_collection_validate_species(es, species)
+     return es
+ end
+@@ -339,6 +350,15 @@ function _empic_collection_validate_populations(
+     relativistic::Bool,
+ ) where {T}
+     _empic_collection_validate_storage(es, species)
++    return _empic_collection_validate_population_values(es, species, c, relativistic)
++end
++
++function _empic_collection_validate_population_values(
++    es::Union{EMPIC,EMPIC1D},
++    species,
++    c::T,
++    relativistic::Bool,
++) where {T}
+     work = _empic_collection(es)
+     _require_finite_real("background_charge", es.n0, T)
+     for (i, ps) in enumerate(species)
+@@ -434,6 +454,7 @@ _empic_collection_seed_fields(es::EMPIC1D) = (es.Ex, es.Ey, es.Bz)
+ function init_empic!(es::Union{EMPIC,EMPIC1D}, species::AbstractVector)
+     T = eltype(es.rho_n)
+     work = _empic_collection(es)
++    work.schedule isa _EMPICCoupledSchedule && return _empic_coupled_init!(es, species)
+     all(ps -> ps isa eltype(work.owners), species) || throw(
+         ArgumentError(
+             "population storage type changed; construct a new electromagnetic collection state",
+@@ -654,6 +675,7 @@ function _empic_collection_validate_phase(es::Union{EMPIC,EMPIC1D})
+ end
+ 
+ function step_empic!(es::Union{EMPIC,EMPIC1D}, species::AbstractVector, dt::Real)
++    es.collection !== nothing && es.collection.schedule isa _EMPICCoupledSchedule && return _empic_coupled_step!(es, species, dt)
+     T = eltype(es.rho_n)
+     dtT =
+         _require_resolved_dt("step_empic!", _validated_nonnegative_dt(T, dt; name = "step_empic!"))
+@@ -727,6 +749,7 @@ Offsets are nominal stage intervals, not exact timestamps relative to the rounde
+ public clock. This explicit mover does not conserve discrete total energy exactly. Fixed populations have no velocity time offset.
+ """
+ function electromagnetic_diagnostics(es::Union{EMPIC,EMPIC1D}, species::AbstractVector)
++    es.collection !== nothing && es.collection.schedule isa _EMPICCoupledSchedule && return _empic_coupled_diagnostics(es, species)
+     T = eltype(es.rho_n)
+     charges = _empic_collection_validate_species(es, species)
+     work = _empic_collection(es)
+@@ -735,6 +758,10 @@ function electromagnetic_diagnostics(es::Union{EMPIC,EMPIC1D}, species::Abstract
+     _empic_collection_bound(work, species)
+     _empic_collection_validate_phase(es)
+     _empic_collection_require_finite_fields(es)
++    return _empic_collection_moment_diagnostics(es, species, charges, work)
++end
++function _empic_collection_moment_diagnostics(es, species, charges, work)
++    T = eltype(es.rho_n)
+     kinetic, momentum =
+         es.relativistic ? _relativistic_particle_moments(species, es.c) :
+         (kinetic_energy(species), total_momentum(species))
+@@ -766,7 +793,8 @@ end
+     EMPIC1D(g, species::AbstractVector; mobile=trues(length(species)),
+             background_charge=0, neutrality=:require, charge_rtol=64eps(T),
+             c=5, shape=CIC(), n_sub=1, species_stride=nothing,
+-            species_dt=nothing, event_budget=nothing, relativistic=false)
++            species_dt=nothing, event_budget=nothing, error_control=nothing,
++            relativistic=false)
+ 
+ Specialized periodic CPU Float32/64 PIC with fields `Ex/Ey/Bz` and ordered
+ arbitrary finite species charges and positive masses. Every original stored
+@@ -781,6 +809,10 @@ and TSC are supported.
+ Alternatively, `species_dt` plus `event_budget` opts into the persistent
+ nondividing schedule described by [`EMPIC`](@ref), including its fixed-source
+ policy, optional sampled-state adaptation and schema3/policy2 restart.
++Adding the closed `error_control` proposal selects full-time CIC/TSC projected
++Euler/Heun evolution, complete signed work and schema4/policy3 restart, as
++specified in `docs/EMPIC_COUPLED_ERROR_CONTROL.md`. This constructor selection
++keeps the planar `Ex/Ey/Bz` polarization and explicitly rejects NGP.
+ 
+ The background/neutrality, identity binding, variable fast phase and physical
+ moment diagnostics follow the collection API of [`EMPIC`](@ref). Initialize
+@@ -800,6 +832,7 @@ function EMPIC1D(
+     species_dt_min = nothing,
+     schedule_limits = nothing,
+     event_budget = nothing,
++    error_control = nothing,
+     background_charge = zero(T),
+     neutrality::Symbol = :require,
+     charge_rtol = 64eps(T),
+@@ -812,6 +845,7 @@ function EMPIC1D(
+         throw(ArgumentError("electromagnetic collections require Float32 or Float64"))
+     shape isa Union{NGP,CIC,TSC} ||
+         throw(ArgumentError("electromagnetic collections require NGP, CIC or TSC"))
++    error_control === nothing || shape isa Union{CIC,TSC} || throw(ArgumentError("coupled error control requires CIC or TSC; NGP jump control is not implemented"))
+     neutrality in (:require, :neutralize) ||
+         throw(ArgumentError("neutrality must be :require or :neutralize"))
+     _espic_validate_collection_type(species, g)
+@@ -830,7 +864,7 @@ function EMPIC1D(
+     rows = species_dt === nothing && species_stride === nothing ?
+         [active ? 1 : 0 for active in mobile] : species_stride
+     schedule = _empic_collection_schedule(mobile, ns, rows, species_dt,
+-        species_adaptive, species_dt_min, schedule_limits, event_budget, T)
++        species_adaptive, species_dt_min, schedule_limits, event_budget, T, error_control)
+     work = _EMPICCollectionWork{1,T,P,typeof(stage),typeof(schedule)}(
+         neutrality,
+         rtol,
+@@ -843,6 +877,7 @@ function EMPIC1D(
+         schedule,
+     )
+     es = _new_empic1d_state(g, 0, background, cT, shape, relativistic, false, one(T), ns, work)
++    _empic_coupled_bind!(es, schedule)
+     _empic_collection_validate_species(es, species)
+     return es
+ end
+@@ -1153,12 +1188,15 @@ For a state constructed with `species_dt`, the persistent keywords instead
+ replace its future proposal; `nothing` retains each current value. Pending
+ intervals/deadlines remain intact and new choices apply at the next due kick.
+ Dividing and persistent owner kinds cannot be switched by this setter.
++On a constructor-selected full-time controller, `error_control` replaces its
++complete future proposal. Historical admission, pending deadlines and work stay
++owned by their accepted policy; no setter migrates a half phase.
+ """
+ set_empic1d_schedule!(es::EMPIC1D; n_sub::Integer = es.n_sub, species_stride = nothing,
+     species_dt = nothing, species_adaptive = nothing, species_dt_min = nothing,
+-    schedule_limits = nothing, event_budget = nothing) =
++    schedule_limits = nothing, event_budget = nothing, error_control = nothing) =
+     _set_empic_collection_schedule!(es, n_sub, species_stride, species_dt,
+-        species_adaptive, species_dt_min, schedule_limits, event_budget)
++        species_adaptive, species_dt_min, schedule_limits, event_budget, error_control)
+ 
+ """
+     set_empic_schedule!(state::EMPIC; n_sub=state.n_sub, species_stride=nothing,
+@@ -1175,15 +1213,19 @@ external boundaries with no concurrent use.
+ For an opted-in persistent owner, copied `species_dt`, `species_adaptive`,
+ `species_dt_min`, `schedule_limits` and `event_budget` replace future choices
+ without retiming the current pending intervals. `nothing` retains each value.
++For a constructor-selected full-time controller, a complete `error_control`
++proposal updates future choices while retaining historical admission and work.
+ """
+ set_empic_schedule!(es::EMPIC; n_sub::Integer = es.n_sub, species_stride = nothing,
+     species_dt = nothing, species_adaptive = nothing, species_dt_min = nothing,
+-    schedule_limits = nothing, event_budget = nothing) =
++    schedule_limits = nothing, event_budget = nothing, error_control = nothing) =
+     _set_empic_collection_schedule!(es, n_sub, species_stride, species_dt,
+-        species_adaptive, species_dt_min, schedule_limits, event_budget)
++        species_adaptive, species_dt_min, schedule_limits, event_budget, error_control)
+ 
+-function _set_empic_collection_schedule!(es, n_sub, stride, cap, adaptive, minimum, limits, budget)
++function _set_empic_collection_schedule!(es, n_sub, stride, cap, adaptive, minimum, limits, budget, error_control = nothing)
+     work = _empic_collection(es)
++    work.schedule isa _EMPICCoupledSchedule && return _empic_coupled_set!(es, n_sub, stride, cap, adaptive, minimum, limits, budget, error_control)
++    error_control === nothing || throw(ArgumentError("construct a coupled error-control owner before changing its control proposal"))
+     if work.schedule isa _EMPICEventSchedule
+         stride === nothing || throw(ArgumentError("persistent schedules do not use species_stride"))
+         n_sub isa Integer && !(n_sub isa Bool) && 1 <= n_sub <= typemax(Int) ||
+@@ -1294,8 +1336,8 @@ function _empic_event_within(h, q, m, E, B, V, limits, c, dx)
+         Q(h) * abs(Q(q)) * E <= Q(limits.electric) * Q(m) * Q(c) &&
+         Q(h) * V <= Q(limits.travel) * minimum(Q, dx)
+ end
+-function _empic_event_decision(stage, schedule, ps, i, time, previous, bootstrap)
+-    T, Q, proposal = eltype(ps), _exact_rational, schedule.proposal
++function _empic_event_interval_choice(stage, proposal, ps, i, previous, bootstrap)
++    T, Q = eltype(ps), _exact_rational
+     E, B, V = _empic_event_bounds(stage, ps)
+     adaptive = proposal.adaptive[i]
+     cap = Q(proposal.cap[i])
+@@ -1312,6 +1354,14 @@ function _empic_event_decision(stage, schedule, ps, i, time, previous, bootstrap
+             halvings += 1
+         end
+     end
++    return (selected = selected, cap = cap, upper = proposal.cap[i], minimum = proposal.minimum[i],
++        adaptive = adaptive, limits = proposal.limits, q = ps.q, m = ps.m, E1 = E, B1 = B, V1 = V, halvings = halvings)
++end
++
++function _empic_event_decision(stage, schedule, ps, i, time, previous, bootstrap)
++    T, Q, proposal = eltype(ps), _exact_rational, schedule.proposal
++    choice = _empic_event_interval_choice(stage, proposal, ps, i, previous, bootstrap)
++    selected, cap, adaptive, E, B, V, halvings = choice.selected, choice.cap, choice.adaptive, choice.E1, choice.B1, choice.V1, choice.halvings
+     prior = bootstrap ? selected : previous
+     consumed = prior / T(2) + selected / T(2)
+     return (species = i, time = time, previous = prior,
+diff --git a/src/models/full_pic.jl b/src/models/full_pic.jl
+index 7dc3763..8fd5a28 100644
+--- a/src/models/full_pic.jl
++++ b/src/models/full_pic.jl
+@@ -424,12 +424,13 @@ function _esirkepov_Jx!(
+     return _esirkepov_Jx!(es, g, n, cb, tb, Jx0, dt)
+ end
+ 
+-function _esirkepov_Jx!(es::EMPIC1D{T}, Jx0::T, dt::T) where {T}
++function _esirkepov_Jx!(es::EMPIC1D{T}, Jx0::T, dt::T, meter = nothing) where {T}
+     g = es.g
+-    return _esirkepov_Jx!(es, g, g.n[1], g.cbuf, g.tbuf, Jx0, dt)
++    return _esirkepov_Jx!(es, g, g.n[1], g.cbuf, g.tbuf, Jx0, dt, meter)
+ end
+ 
+-function _esirkepov_Jx!(es::EMPIC1D{T}, g, n, cb, tb, Jx0::T, dt::T) where {T}
++function _esirkepov_Jx!(es::EMPIC1D{T}, g, n, cb, tb, Jx0::T, dt::T, meter = nothing) where {T}
++    _empic_fft_charge!(meter, 2)
+     # ρ̂^{n+1} − ρ̂^n
+     @inbounds for i = 1:n
+         cb[i] = Complex{T}(es.rho_np1[i] - es.rho_n[i])
+@@ -1005,6 +1006,9 @@ end
+            _em_increment_lost_range(forcing, increment, candidate)
+ end
+ 
++_empic_fft_charge!(::Nothing, count::Int) = nothing
++_empic_continuity_observe!(::Nothing, absolute, scale) = nothing
++
+ function _em_exact_update_coefficients(c, dt)
+     exact_dt = _exact_rational(dt)
+     exact_c = _exact_rational(c)
+@@ -1070,6 +1074,7 @@ function _em_dyadic_transform(
+     values::Array{Complex{Rational{BigInt}},D},
+     g::FourierGrid{D,T},
+     inverse::Bool = false,
++    meter = nothing,
+ ) where {D,T}
+     ceil_log_n = 8sizeof(Int) - leading_zeros(length(values) - 1)
+     # Reserve integer-sum headroom as well as overflow headroom. When the grid
+@@ -1105,6 +1110,7 @@ function _em_dyadic_transform(
+             occupied |= !iszero(work[I])
+         end
+         occupied || continue
++        _empic_fft_charge!(meter, 1)
+         inverse ? (g.iplan * work) : (g.plan * work)
+         @inbounds for I in eachindex(work)
+             coefficient = _spectral_exact_complex(work[I])::Complex{Rational{BigInt}}
+@@ -1127,13 +1133,13 @@ end
+     return !isfinite(value) || (!iszero(value) && !(bounds[1] <= magnitude <= bounds[2]))
+ end
+ 
+-function _em_continuity_scaled(g::FourierGrid{D,T}, rho_n, rho_np1, J, dt::T) where {D,T}
++function _em_continuity_scaled(g::FourierGrid{D,T}, rho_n, rho_np1, J, dt::T, meter = nothing) where {D,T}
+     delta = map(rho_np1, rho_n) do following, preceding
+         complex(_exact_rational(following) - _exact_rational(preceding), zero(Rational{BigInt}))
+     end
+-    density_hat = _em_dyadic_transform(delta, g)
++    density_hat = _em_dyadic_transform(delta, g, false, meter)
+     current_hat = [
+-        _em_dyadic_transform(map(value -> complex(_exact_rational(value)), field), g) for
++        _em_dyadic_transform(map(value -> complex(_exact_rational(value)), field), g, false, meter) for
+         field in Iterators.take(J, D)
+     ]
+     residual_hat = similar(density_hat)
+@@ -1148,13 +1154,14 @@ function _em_continuity_scaled(g::FourierGrid{D,T}, rho_n, rho_np1, J, dt::T) wh
+         end
+         residual_hat[I] = density_hat[I] + exact_dt * divergence
+     end
+-    density = _em_dyadic_transform(density_hat, g, true)
+-    residual = _em_dyadic_transform(residual_hat, g, true)
++    density = _em_dyadic_transform(density_hat, g, true, meter)
++    residual = _em_dyadic_transform(residual_hat, g, true, meter)
+     rmax, scale = zero(Rational{BigInt}), zero(Rational{BigInt})
+     @inbounds for I in eachindex(density)
+         rmax = max(rmax, abs(real(residual[I])))
+         scale = max(scale, abs(real(density[I])))
+     end
++    _empic_continuity_observe!(meter, rmax, scale)
+     return _from_exact(T, rmax / (iszero(scale) ? one(scale) : scale))
+ end
+ 
+@@ -1167,6 +1174,7 @@ end
+     density,
+     divergence,
+     lost::Bool,
++    meter = nothing,
+ ) where {D,T}
+     rmax, scale = zero(T), zero(T)
+     @inbounds for I in eachindex(density)
+@@ -1190,8 +1198,9 @@ end
+         end
+     end
+     if lost && isfinite(dt) && all(isfinite, rho_n) && all(isfinite, rho_np1)
+-        return _em_continuity_scaled(g, rho_n, rho_np1, J, dt)
++        return _em_continuity_scaled(g, rho_n, rho_np1, J, dt, meter)
+     end
++    _empic_continuity_observe!(meter, rmax, scale)
+     return rmax / (scale > 0 ? scale : one(T))
+ end
+ 
+@@ -1201,6 +1210,7 @@ function _em_normalized_derivative_parts(
+     axis,
+     exponents,
+     kexponents,
++    meter = nothing,
+ ) where {T,D}
+     parts = Tuple{Array{T,D},Rational{BigInt}}[]
+     lo, hi = exponents
+@@ -1209,6 +1219,7 @@ function _em_normalized_derivative_parts(
+     lower, upper, needed = _em_scale_bounds(T, lo, hi, klo, khi, length(field))
+     if !needed
+         part = similar(field)
++        _empic_fft_charge!(meter, 2)
+         deriv!(part, field, g, axis)
+         push!(parts, (part, BigInt(1) // BigInt(1)))
+         return parts
+@@ -1236,6 +1247,7 @@ function _em_normalized_derivative_parts(
+         end
+         if nonzero
+             part = similar(field)
++            _empic_fft_charge!(meter, 2)
+             deriv!(part, work, g, axis)
+             push!(parts, (part, _em_power_of_two(shift)))
+         end
+@@ -1244,15 +1256,17 @@ function _em_normalized_derivative_parts(
+     return parts
+ end
+ 
+-function _em_derivative_parts!(out, field, g, axis)
++function _em_derivative_parts!(out, field, g, axis, meter = nothing)
++    _empic_fft_charge!(meter, 2)
+     deriv!(out, field, g, axis)
+     exponents = _em_field_exponents(field)
+     kexponents = _em_field_exponents(g.kvec[axis])
+     _em_scale_bounds(eltype(field), exponents..., kexponents..., length(field))[3] || return nothing
+-    return _em_normalized_derivative_parts(field, g, axis, exponents, kexponents)
++    return _em_normalized_derivative_parts(field, g, axis, exponents, kexponents, meter)
+ end
+ 
+-function _em_curl_parts!(out, fields, g::FourierGrid{D,T}) where {D,T}
++function _em_curl_parts!(out, fields, g::FourierGrid{D,T}, meter = nothing) where {D,T}
++    _empic_fft_charge!(meter, D == 1 ? 4 : 6)
+     curl!(out, fields, g)
+     # Every component contributes to the canonical curl's common FFT scale,
+     # including longitudinal components and diagonal field/axis pairs.
+@@ -1275,6 +1289,7 @@ function _em_curl_parts!(out, fields, g::FourierGrid{D,T}) where {D,T}
+                     plus,
+                     exponents[minus],
+                     kexponents[plus],
++                    meter,
+                 ),
+             )
+         end
+@@ -1285,6 +1300,7 @@ function _em_curl_parts!(out, fields, g::FourierGrid{D,T}) where {D,T}
+                 minus,
+                 exponents[plus],
+                 kexponents[minus],
++                meter,
+             )
+             for (part, scale) in negative
+                 push!(parts, (part, -scale))
+@@ -1302,6 +1318,44 @@ function _em_exact_derivative(parts, i)
+     return result
+ end
+ 
++# One complete magnetic scalar row, shared by staggered and full-time callers.
++function _em_exact_magnetic_row(value::T, exact_increment::Rational{BigInt}, backward::Bool = false) where {T}
++    return _from_exact(T, backward ? _exact_rational(value) + exact_increment :
++        _exact_rational(value) - exact_increment)
++end
++
++# Weighted derivatives retain their actual native parts and original Q scales.
++# The packet owns each part once; these temporary recipes borrow those operands.
++function _empic_weighted_derivative(stages, weights, role, component)
++    length(stages) == length(weights) && !isempty(stages) &&
++        all(w -> w isa Rational{BigInt} && denominator(w) > 0 && w >= 0, weights) && sum(weights) == 1 ||
++        throw(ArgumentError("full-time Maxwell derivative weights are invalid"))
++    return [(array, weight * scale) for (stage, weight) in zip(stages, weights)
++        for (array, scale) in getproperty(stage, role)[component]]
++end
++function _empic_full_time_field_update!(out, origin, stages, weights, h::T) where {T}
++    H, coefficients = _exact_rational(h), _em_exact_update_coefficients(out.c, h)
++    E = out isa EMPIC ? out.E : (out.Ex, out.Ey)
++    B = out isa EMPIC ? out.B : (out.Bz,)
++    oldE = out isa EMPIC ? origin.E : (origin.Ex, origin.Ey)
++    oldB = out isa EMPIC ? origin.B : (origin.Bz,)
++    J = out isa EMPIC ? out.J : (out.Jx, out.Jy)
++    for component in eachindex(B)
++        parts = _empic_weighted_derivative(stages, weights, :electric, component)
++        for i in eachindex(B[component])
++            B[component][i] = _em_exact_magnetic_row(oldB[component][i], H * _em_exact_derivative(parts, i))
++        end
++    end
++    for component in eachindex(E)
++        parts = _empic_weighted_derivative(stages, weights, :magnetic, component)
++        for i in eachindex(E[component])
++            E[component][i] = _em_exact_electric_update(oldE[component][i],
++                _em_exact_derivative(parts, i), J[component][i], coefficients)
++        end
++    end
++    return out
++end
++
+ function _em_magnetic_update!(
+     out,
+     old,
+@@ -1334,11 +1388,7 @@ function _em_magnetic_update!(
+             exact_slope =
+                 parts === nothing ? _exact_rational(slope) : _em_exact_derivative(parts, i)
+             exact_increment = exact_interval * exact_slope
+-            candidate = _from_exact(
+-                T,
+-                backward ? _exact_rational(value) + exact_increment :
+-                _exact_rational(value) - exact_increment,
+-            )
++            candidate = _em_exact_magnetic_row(value, exact_increment, backward)
+         end
+         out[i] = candidate
+     end
+@@ -2074,7 +2124,8 @@ Range-sensitive inputs retain the complete density and timestep-weighted
+ current expression. Spectral input validation and FFT accuracy limits still
+ apply, including loss of relative accuracy for ill-conditioned cancellations.
+ """
+-function charge_conservation_residual(es::EMPIC1D{T}, dt::Real) where {T}
++function charge_conservation_residual(es::EMPIC1D{T}, dt::Real, meter = nothing) where {T}
++    _empic_fft_charge!(meter, 4)
+     g = es.g
+     n = g.n[1]
+     dtT = T(dt)
+@@ -2094,7 +2145,7 @@ function charge_conservation_residual(es::EMPIC1D{T}, dt::Real) where {T}
+     g.iplan * cb
+     dJx = similar(es.Jx)
+     deriv!(dJx, es.Jx, g, 1)                     # already Nyquist-free
+-    return _em_continuity_finish(g, es.rho_n, es.rho_np1, (es.Jx,), dtT, cb, dJx, lost)
++    return _em_continuity_finish(g, es.rho_n, es.rho_np1, (es.Jx,), dtT, cb, dJx, lost, meter)
+ end
+ 
+ # ---------------------------------------------------------------- dimension-parametric EM PIC
+@@ -2445,7 +2496,8 @@ function _correct_current_continuity!(es::EMPIC{D,T}, dt::T) where {D,T}
+     return _empic_correct_current!(es.J, es.Jraw, es.rho_n, es.rho_np1, es.g, dt)
+ end
+ 
+-function _empic_correct_current!(J, Jraw, rho_n, rho_np1, g::FourierGrid{D,T}, dt::T) where {D,T}
++function _empic_correct_current!(J, Jraw, rho_n, rho_np1, g::FourierGrid{D,T}, dt::T, meter = nothing) where {D,T}
++    _empic_fft_charge!(meter, 7)
+     buffers = (g.cbuf, g.tbuf, g.abuf)
+     for c = 1:3
+         buffers[c] .= Jraw[c]
+@@ -2832,7 +2884,8 @@ scale instead of assuming a small relative value.
+ Range-sensitive inputs retain the complete density and timestep-weighted
+ current expression; spectral input validation and FFT accuracy limits still apply.
+ """
+-function charge_conservation_residual(es::EMPIC{D,T}, dt::Real) where {D,T}
++function charge_conservation_residual(es::EMPIC{D,T}, dt::Real, meter = nothing) where {D,T}
++    _empic_fft_charge!(meter, D + 3)
+     g = es.g
+     dtT = T(dt)
+     dρhat = g.cbuf
+@@ -2858,7 +2911,7 @@ function charge_conservation_residual(es::EMPIC{D,T}, dt::Real) where {D,T}
+ 
+     dJ = similar(es.rho_n)
+     divergence!(dJ, es.J, g)
+-    return _em_continuity_finish(g, es.rho_n, es.rho_np1, es.J, dtT, dρrepr, dJ, lost)
++    return _em_continuity_finish(g, es.rho_n, es.rho_np1, es.J, dtT, dρrepr, dJ, lost, meter)
+ end
+ 
+ # Exact undo inventory for public relativistic steps; checkpoint payloads keep
+diff --git a/src/particles/kinematics_range.jl b/src/particles/kinematics_range.jl
+index 1a83fcb..f1454bb 100644
+--- a/src/particles/kinematics_range.jl
++++ b/src/particles/kinematics_range.jl
+@@ -15,6 +15,57 @@
+ 
+ const _RangeGuardedFloat = Union{Float16,Float32,Float64}
+ 
++# A full-time EM RHS keeps the complete scaled increment, not a rounded rate
++# or a finite Boris momentum map. The caller admits each materialized output.
++function _em_lorentz_scaled_parts(v::NTuple{3,T}, E::NTuple{3,T}, B::NTuple{3,T}, factor,
++    H::Rational{BigInt}, c::T, ::Val{rel}) where {T<:Union{Float32,Float64},rel}
++    all(isfinite, (v..., E..., B..., _boris_factor_operands(factor)..., c)) && c > 0 && H > 0 && denominator(H) > 0 ||
++        throw(ArgumentError("full-time Lorentz operands must be finite with positive c and interval"))
++    factor isa _BorisSpeciesFactors && !_stored_positive(factor.m) && throw(ArgumentError("full-time Lorentz mass must be positive"))
++    rel && !_supported_relativistic_output(v, c) && throw(ArgumentError("full-time Lorentz input is outside the supported velocity domain"))
++    Q = _exact_rational
++    V, A, M = map(x -> map(Q, x), (v, E, B))
++    coefficient = H * _boris_exact_factor(factor)
++    _, parts = _euler_kick_parts(V..., A..., M..., coefficient, Val(:predict))
++    increment = (parts[4], parts[5], parts[6])
++    if rel
++        gap = _exact_lorentz_gap(v..., c)
++        gap > 0 || throw(ArgumentError("full-time Lorentz input has a nonpositive exact gap"))
++        parallel = coefficient * sum(i -> V[i] * A[i], 1:3) / Q(c)^2
++        increment = ntuple(i -> increment[i] - parallel * V[i], 3)
++        return (coefficient = increment, gap = gap)
++    end
++    return (coefficient = increment, gap = one(Rational{BigInt}))
++end
++
++function _em_lorentz_pair_output(v0::NTuple{3,T}, p0, p1, c::T, ::Val{rel}) where {T<:Union{Float32,Float64},rel}
++    Q = _exact_rational
++    packets = p1 === nothing ? (p0,) : (p0, p1)
++    weight = p1 === nothing ? one(Rational{BigInt}) : BigInt(1) // BigInt(2)
++    for packet in packets
++        packet isa NamedTuple && keys(packet) == (:coefficient, :gap) &&
++            packet.coefficient isa NTuple{3,Rational{BigInt}} && packet.gap isa Rational{BigInt} &&
++            all(x -> denominator(x) > 0, (packet.coefficient..., packet.gap)) &&
++            (rel ? 0 < packet.gap <= 1 : packet.gap == 1) || throw(ArgumentError("full-time Lorentz increment layout differs"))
++    end
++    return ntuple(3) do component
++        origin = Q(v0[component])
++        if !rel
++            increment = weight * sum(p -> p.coefficient[component], packets)
++            iszero(increment) ? v0[component] : _kinematics_round(T, origin + increment)
++        else
++            rational = origin
++            radicands, coefficients = Rational{BigInt}[], Rational{BigInt}[]
++            for packet in packets
++                rational += _combine_relativistic_radical!(radicands, coefficients,
++                    packet.gap, weight * packet.coefficient[component])
++            end
++            rational == origin && all(iszero, coefficients) ? v0[component] :
++                _finish_relativistic_energy(T, rational, radicands, coefficients)
++        end
++    end
++end
++
+ # The single rounding back to T: an IEEE conversion or a correctly rounded
+ # exact conversion, including subnormal results and overflow to ±Inf.
+ @inline _kinematics_round(::Type{T}, x::AbstractFloat) where {T} = T(x)
+diff --git a/src/models/empic_coupled_error_control.jl b/src/models/empic_coupled_error_control.jl
+new file mode 100644
+index 0000000..62a7621
+--- /dev/null
++++ b/src/models/empic_coupled_error_control.jl
+@@ -0,0 +1,1099 @@
++# Full-time coupled projected Euler/Heun control. Legacy half phases are separate.
++const _EMPICCoupledQ = Rational{BigInt}
++const _EC_CONTROL_KEYS = (:pair,:metric,:domain,:atol,:rtol,:h_min,:h_max,
++    :max_trials,:max_force_evals,:max_deposits,:max_fft_calls,:max_report_cells)
++const _EC_COST_KEYS = (:trials,:force_evals,:deposits,:fft_calls,:report_cells)
++const _EC_PHASE_KEYS = (:time,:elapsed,:interval,:last,:next,:next_h,:initial_energy,
++    :field_defect,:particle_defect,:coupling_defect,:admission_control,:costs,:report)
++struct _EMPICCoupledPhase{T}
++    time::_EMPICCoupledQ
++    elapsed::_EMPICCoupledQ
++    interval::Vector{T}
++    last::Vector{_EMPICCoupledQ}
++    next::Vector{_EMPICCoupledQ}
++    next_h::T
++    initial_energy::_EMPICCoupledQ
++    field_defect::_EMPICCoupledQ
++    particle_defect::_EMPICCoupledQ
++    coupling_defect::_EMPICCoupledQ
++    admission_control::NamedTuple
++    costs::NamedTuple
++    report::Union{Nothing,NamedTuple}
++end
++mutable struct _EMPICCoupledSchedule{T}
++    proposal::NamedTuple
++    control::NamedTuple
++    phase::_EMPICCoupledPhase{T}
++    candidate::_EMPICCoupledPhase{T}
++    shadow::Any
++    candidate_shadow::Any
++    signature::Union{Nothing,String}
++    busy::Threads.Atomic{Bool}
++end
++mutable struct _EMPICCoupledMeter
++    control::NamedTuple
++    trials::Int
++    force_evals::Int
++    deposits::Int
++    fft_calls::Int
++    report_cells::Int
++    continuity::Union{Nothing,NamedTuple}
++end
++struct _EMPICCoupledReject <: Exception
++    reason::Symbol
++    stage::Symbol
++    species::Int
++    particle::Int
++    defect::Union{Nothing,_EMPICCoupledQ}
++end
++Base.showerror(io::IO,e::_EMPICCoupledReject) = print(io,"coupled trial rejected: ",e.reason," at ",e.stage," species=",e.species," particle=",e.particle," defect=",e.defect)
++_ec_q(x) = x isa _EMPICCoupledQ && denominator(x) > 0
++function _ec_identical(left,right)
++    typeof(left)===typeof(right) || return false
++    if left isa NamedTuple || left isa Tuple
++        return length(left)==length(right) && all(pair -> _ec_identical(pair[1],pair[2]),zip(left,right))
++    elseif left isa AbstractArray
++        return axes(left)==axes(right) && all(pair -> _ec_identical(pair[1],pair[2]),zip(left,right))
++    end
++    return isequal(left,right)
++end
++_ec_zero_costs() = (trials=0,force_evals=0,deposits=0,fft_calls=0,report_cells=0)
++_ec_meter(control) = _EMPICCoupledMeter(control,0,0,0,0,0,nothing)
++_ec_costs(m::_EMPICCoupledMeter) = NamedTuple{_EC_COST_KEYS}(Tuple(getfield(m,k) for k in _EC_COST_KEYS))
++function _ec_costs_check(costs)
++    costs isa NamedTuple && keys(costs)==_EC_COST_KEYS && all(x -> x isa Int && x>=0,values(costs)) || throw(ArgumentError("coupled cost layout differs"))
++    return nothing
++end
++_ec_cost_add(a,b) = NamedTuple{_EC_COST_KEYS}(Tuple(Base.checked_add(getproperty(a,k),getproperty(b,k)) for k in _EC_COST_KEYS))
++_ec_cost_sub(a,b) = NamedTuple{_EC_COST_KEYS}(Tuple(getproperty(a,k)-getproperty(b,k) for k in _EC_COST_KEYS))
++function _ec_charge!(meter::_EMPICCoupledMeter,role::Symbol,count::Int)
++    count>=0 || throw(ArgumentError("coupled work charge must be nonnegative"))
++    role in _EC_COST_KEYS || throw(ArgumentError("unknown coupled work role"))
++    limit = getproperty(meter.control,Symbol("max_",role))
++    next = Base.checked_add(getfield(meter,role),count)
++    next<=limit || throw(ArgumentError("coupled $(role) work budget exhausted: required=$next, cap=$limit"))
++    setfield!(meter,role,next)
++    return nothing
++end
++_empic_fft_charge!(meter::_EMPICCoupledMeter,count::Int) = _ec_charge!(meter,:fft_calls,count)
++function _empic_continuity_observe!(meter::_EMPICCoupledMeter,absolute,scale)
++    meter.continuity = isfinite(absolute) && isfinite(scale) ?
++        (absolute=_exact_rational(absolute),scale=_exact_rational(scale)) : nothing
++    return nothing
++end
++_ec_reject(reason,stage,s=0,p=0,defect=nothing) = throw(_EMPICCoupledReject(reason,stage,s,p,defect))
++function _ec_mode(::Type{T}) where {T}
++    rounding(T)===RoundNearest && rounding(Float64)===RoundNearest && !get_zero_subnormals() || throw(ArgumentError("coupled control requires nearest rounding and gradual underflow"))
++    return nothing
++end
++function _ec_control(proposal,::Type{T}) where {T}
++    proposal isa NamedTuple && keys(proposal)==_EC_CONTROL_KEYS || throw(ArgumentError("coupled error_control requires the closed projected-pair proposal"))
++    proposal.pair===:projected_euler_heun_v1 && proposal.metric===:component_max_v1 && proposal.domain===:cic_tsc_continuous_v1 || throw(ArgumentError("unsupported coupled pair/metric/domain"))
++    roles=(:x,:v,:E,:B,:clock)
++    for name in (:atol,:rtol)
++        record=getproperty(proposal,name)
++        record isa NamedTuple && keys(record)==roles || throw(ArgumentError("coupled tolerances require x/v/E/B/clock roles"))
++    end
++    atols=NamedTuple{roles}(map(values(proposal.atol)) do v
++        result=_empic_event_scalar("coupled absolute tolerance",v,T)
++        _stored_positive(result) || throw(ArgumentError("coupled absolute tolerances must be positive"))
++        result
++    end)
++    rtols=NamedTuple{roles}(map(values(proposal.rtol)) do v
++        result=_empic_event_scalar("coupled relative tolerance",v,T)
++        _stored_nonnegative(result) && result<one(T) || throw(ArgumentError("coupled relative tolerances must be in[0,1)"))
++        result
++    end)
++    minimum=_empic_event_scalar("coupled h_min",proposal.h_min,T)
++    maximum=_empic_event_scalar("coupled h_max",proposal.h_max,T)
++    0<minimum<=maximum || throw(ArgumentError("coupled interval bounds must be positive and ordered"))
++    _require_resolved_dt("coupled h_min",minimum);_require_resolved_dt("coupled h_max",maximum)
++    names=(:max_trials,:max_force_evals,:max_deposits,:max_fft_calls,:max_report_cells)
++    limits=NamedTuple{names}(map(names) do name
++        v=getproperty(proposal,name)
++        v isa Integer && !(v isa Bool) && 1<=v<=typemax(Int) || throw(ArgumentError("coupled work caps must be positive fitting Int values"))
++        Int(v)
++    end)
++    return merge((pair=proposal.pair,metric=proposal.metric,domain=proposal.domain,atol=atols,rtol=rtols,h_min=minimum,h_max=maximum),limits)
++end
++function _ec_zero_phase(::Type{T},count,control;energy=zero(_EMPICCoupledQ),costs=_ec_zero_costs()) where {T}
++    z=zero(_EMPICCoupledQ)
++    return _EMPICCoupledPhase{T}(z,z,zeros(T,count),fill(z,count),fill(z,count),control.h_max,energy,z,z,z,control,costs,nothing)
++end
++function _empic_coupled_schedule(mobile,ns,stride,cap,adaptive,minimum,limits,budget,::Type{T},control) where {T}
++    cap===nothing && throw(ArgumentError("coupled error control requires species_dt and event_budget at construction"))
++    stride===nothing || throw(ArgumentError("coupled control cannot use species_stride"))
++    proposal=_empic_event_proposal(mobile,cap,adaptive,minimum,limits,budget,T)
++    ns<=proposal.budget || throw(ArgumentError("base field partition exceeds coupled event budget"))
++    closed=_ec_control(control,T);phase=_ec_zero_phase(T,length(mobile),closed)
++    return _EMPICCoupledSchedule{T}(proposal,closed,phase,_ec_zero_phase(T,length(mobile),closed),nothing,nothing,nothing,Threads.Atomic{Bool}(false))
++end
++_empic_coupled_bind!(es,schedule) = nothing
++function _ec_spectral_signature(g)
++    expected=SpectralOperators._fourier_metadata(g.n,g.L)
++    for role in (:n,:L,:dx,:midx,:kfull,:ik,:kvec)
++        isequal(getproperty(g,role),getproperty(expected,role)) || throw(ArgumentError("coupled Fourier metadata is not canonical"))
++    end
++    bytes=UInt8[]
++    for vector in (collect(g.n),collect(g.L),collect(g.dx),g.midx...,g.kfull...,g.ik...,g.kvec...)
++        append!(bytes,reinterpret(UInt8,vector))
++    end
++    return bytes2hex(SHA.sha256(bytes))
++end
++function _empic_coupled_bind!(es,schedule::_EMPICCoupledSchedule)
++    schedule.signature=_ec_spectral_signature(es.g)
++    return nothing
++end
++function _ec_acquire(schedule)
++    Threads.atomic_cas!(schedule.busy,false,true)==false || throw(ArgumentError("coupled EMPIC already has an active operation"))
++    return nothing
++end
++_ec_release(schedule) = (Threads.atomic_xchg!(schedule.busy,false);nothing)
++function _ec_copy_fields(fields)
++    return NamedTuple{keys(fields)}(map(v -> v isa Tuple ? map(copy,v) : copy(v),values(fields)))
++end
++function _ec_copy_species(species,::Val{D},::Type{T}) where {D,T}
++    result=_ElectrostaticHostParticle{D,T}[]
++    _pic_prepare_species_stages!(result,species)
++    return result
++end
++function _ec_new_stage(es::EMPIC{D,T};c=es.c,shape=es.shape,relativistic=es.relativistic,n_sub=es.n_sub) where {D,T}
++    return _new_empic_state(es.g,0,es.n0,c,shape,relativistic,false,one(T),n_sub,nothing)
++end
++function _ec_new_stage(es::EMPIC1D{T};c=es.c,shape=es.shape,relativistic=es.relativistic,n_sub=es.n_sub) where {T}
++    return _new_empic1d_state(es.g,0,es.n0,c,shape,relativistic,false,one(T),n_sub,nothing)
++end
++function _ec_restore_fields!(stage,fields)
++    _restore_checkpoint_fields!(_empic_event_fields(stage),fields)
++    return stage
++end
++function _ec_snapshot(stage,species)
++    return (species=NamedTuple[deepcopy(_checkpoint_particle_state(ps)) for ps in species],fields=_ec_copy_fields(_empic_event_fields(stage)))
++end
++_ec_snapshot_populations(record,::Val{D},::Type{T}) where {D,T} = _ElectrostaticHostParticle{D,T}[_checkpoint_species(ps,Val(D),T) for ps in record.species]
++function _ec_energy(stage,species)
++    U=_empic_event_energy(stage)
++    K=if stage.relativistic
++        value=first(_relativistic_particle_moments(species,stage.c))
++        isfinite(value) || throw(ArgumentError("coupled reported relativistic kinetic energy is nonfinite"))
++        _exact_rational(value)
++    else
++        _kinetic_energy_rational(species)
++    end
++    return K,U
++end
++function _ec_count_particles(species,mobile=nothing)
++    count=0
++    for (i,ps) in enumerate(species)
++        mobile===nothing || mobile[i] || continue
++        count=Base.checked_add(count,nparticles(ps))
++    end
++    return count
++end
++function _ec_source!(rho,stage,species,target,meter)
++    _ec_charge!(meter,:deposits,_ec_count_particles(species))
++    return _empic_charge_sum!(rho,stage.ne,species,stage.g,stage.shape,stage.n0,target)
++end
++function _ec_current!(stage::EMPIC,species,mobile,meter)
++    _ec_charge!(meter,:deposits,Base.checked_mul(3,_ec_count_particles(species,mobile)))
++    midpoints=[map(_ -> eltype(stage.rho_n)[],ps.x) for ps in species]
++    _empic_current_sum!(stage.Jraw,(work=stage.worke,density=stage.ne),species,midpoints,mobile,stage.g,stage.shape,Val(:stored_positions))
++    return (current=map(copy,stage.Jraw),dc=nothing)
++end
++function _ec_current!(stage::EMPIC1D{T},species,mobile,meter) where {T}
++    _ec_charge!(meter,:deposits,Base.checked_mul(2,_ec_count_particles(species,mobile)))
++    Jy=similar(stage.Jy)
++    _empic_exact_current_sum!(Jy,species,fill(nothing,length(species)),mobile,stage.g,stage.shape,2,Val(:stored_positions))
++    all(isfinite,Jy) || throw(ArgumentError("coupled raw transverse current is nonfinite"))
++    dc=_empic1d_collection_Jx0(stage,(staged=species,mobile=mobile))
++    return (current=(Jy,),dc=dc)
++end
++function _ec_average_current(a,b,::Type{T}) where {T}
++    current=map(a.current,b.current) do left,right
++        map((x,y) -> _from_exact(T,(_exact_rational(x)+_exact_rational(y))/2),left,right)
++    end
++    dc=a.dc===nothing ? nothing : _from_exact(T,(_exact_rational(a.dc)+_exact_rational(b.dc))/2)
++    all(x -> all(isfinite,x),current) && (dc===nothing || isfinite(dc)) || throw(ArgumentError("coupled averaged current is nonfinite"))
++    return (current=current,dc=dc)
++end
++function _ec_correct!(stage::EMPIC,raw,h,meter,which)
++    foreach(copyto!,stage.Jraw,raw.current)
++    _empic_correct_current!(stage.J,stage.Jraw,stage.rho_n,stage.rho_np1,stage.g,h,meter)
++    all(a -> all(isfinite,a),stage.J) || _ec_reject(:nonfinite_current,which)
++    return nothing
++end
++function _ec_correct!(stage::EMPIC1D,raw,h,meter,which)
++    copyto!(stage.Jy,only(raw.current));_zero_nyquist_mode!(stage.Jy)
++    _esirkepov_Jx!(stage,raw.dc,h,meter)
++    all(a -> all(isfinite,a),(stage.Jx,stage.Jy)) || _ec_reject(:nonfinite_current,which)
++    return nothing
++end
++function _ec_force!(stage,species,mobile,H,meter)
++    rows=Union{Nothing,NamedTuple}[]
++    for (i,ps) in enumerate(species)
++        if !mobile[i]
++            push!(rows,nothing);continue
++        end
++        _ec_charge!(meter,:force_evals,nparticles(ps))
++        _empic_collection_gather!(stage,ps;initial=true)
++        T=eltype(ps)
++        E,B=if stage isa EMPIC
++            map(copy,stage.Ep),map(copy,stage.Bp)
++        else
++            ((copy(stage.Exp),copy(stage.Eyp),zeros(T,nparticles(ps))),
++                (zeros(T,nparticles(ps)),zeros(T,nparticles(ps)),copy(stage.Bzp)))
++        end
++        all(a -> all(isfinite,a),(E...,B...)) || _ec_reject(:nonfinite_gather,:force,i)
++        factor=_validated_boris_factor(ps)
++        increments=NamedTuple[_em_lorentz_scaled_parts(ntuple(c -> ps.v[c][p],3),ntuple(c -> E[c][p],3),
++            ntuple(c -> B[c][p],3),factor,H,stage.c,Val(stage.relativistic)) for p in eachindex(ps.weight)]
++        push!(rows,(E=E,B=B,increments=increments))
++    end
++    return rows
++end
++function _ec_parts(derivative,parts)
++    if parts===nothing
++        all(isfinite,derivative) || _ec_reject(:nonfinite_derivative,:field)
++        return [(copy(derivative),one(_EMPICCoupledQ))]
++    end
++    all(pair -> all(isfinite,first(pair)),parts) || _ec_reject(:nonfinite_derivative,:field)
++    return [(copy(array),scale) for (array,scale) in parts]
++end
++function _ec_derivatives!(stage::EMPIC,meter)
++    ep=_em_curl_parts!(stage.curlE,stage.E,stage.g,meter)
++    bp=_em_curl_parts!(stage.curlB,stage.B,stage.g,meter)
++    return (electric=ntuple(c -> _ec_parts(stage.curlE[c],ep===nothing ? nothing : ep[c]),3),
++        magnetic=ntuple(c -> _ec_parts(stage.curlB[c],bp===nothing ? nothing : bp[c]),3))
++end
++function _ec_derivatives!(stage::EMPIC1D{T},meter) where {T}
++    ep=_em_derivative_parts!(stage.dEy,stage.Ey,stage.g,1,meter)
++    bp=_em_derivative_parts!(stage.dBz,stage.Bz,stage.g,1,meter)
++    electric=(_ec_parts(stage.dEy,ep),)
++    transverse=[(array,-scale) for (array,scale) in _ec_parts(stage.dBz,bp)]
++    longitudinal=Tuple{Array{T,1},_EMPICCoupledQ}[]
++    return (electric=electric,magnetic=(longitudinal,transverse))
++end
++function _ec_cut_receipt(x,y,L,dx,shape)
++    Q=_exact_rational;period=Q(L);spacing=Q(dx)
++    iszero(y-x) && return (direction=0,seam=false,segments=())
++    direction=y>x ? 1 : -1
++    parameters=_EMPICCoupledQ[0,1]
++    first_plane=ceil(BigInt,min(x,y)/period)
++    last_plane=floor(BigInt,max(x,y)/period)
++    last_plane-first_plane<=1 || throw(ArgumentError("coupled branch crossed its admitted travel range"))
++    for plane=first_plane:last_plane
++        boundary=plane*period
++        theta=(boundary-x)/(y-x)
++        0<theta<1 && push!(parameters,theta)
++    end
++    sort!(unique!(parameters))
++    offset=shape isa CIC ? zero(_EMPICCoupledQ) : BigInt(1)//BigInt(2)
++    pieces=NamedTuple[]
++    for j=1:length(parameters)-1
++        a,b=parameters[j],parameters[j+1]
++        tile=floor(BigInt,(x+(a+b)*(y-x)/2)/period)
++        left=x+a*(y-x)-tile*period;right=x+b*(y-x)-tile*period
++        first=ceil(BigInt,min(left,right)/spacing-offset)
++        last=floor(BigInt,max(left,right)/spacing-offset)
++        push!(pieces,(tile=tile,start=left,finish=right,first=first,last=last,offset=offset))
++    end
++    return (direction=direction,seam=floor(BigInt,x/period)!=floor(BigInt,y/period),segments=Tuple(pieces))
++end
++function _ec_stencil_receipt(ps,g,shape)
++    D=length(g.n)
++    return [ntuple(d -> begin
++        coordinate=_particle_cell_position(ps,g,d,p)
++        base,weights=_stencil1d(shape,coordinate)
++        (coordinate=coordinate,base=base,weights=weights)
++    end,D) for p in eachindex(ps.weight)]
++end
++function _ec_particle_branch!(destination,origin,euler,forces0,forces1,stage,mobile,h,which)
++    T=eltype(stage.rho_n);D=length(stage.g.n);H=_exact_rational(h)
++    rows=Union{Nothing,NamedTuple}[]
++    for (s,(before,after)) in enumerate(zip(origin,destination))
++        if !mobile[s]
++            push!(rows,nothing);continue
++        end
++        n=nparticles(before)
++        ideal=ntuple(_ -> Vector{_EMPICCoupledQ}(undef,n),D)
++        lifted=ntuple(_ -> Vector{_EMPICCoupledQ}(undef,n),D)
++        winding=ntuple(_ -> Vector{BigInt}(undef,n),D)
++        defect=ntuple(_ -> Vector{_EMPICCoupledQ}(undef,n),D)
++        wrapped=ntuple(_ -> Vector{T}(undef,n),D)
++        cuts=Vector{NTuple{D,NamedTuple}}(undef,n)
++        for p in eachindex(before.weight)
++            v0=ntuple(c -> before.v[c][p],3)
++            p1=forces1===nothing ? nothing : forces1[s].increments[p]
++            output=_em_lorentz_pair_output(v0,forces0[s].increments[p],p1,stage.c,Val(stage.relativistic))
++            all(isfinite,output) || _ec_reject(:nonfinite_velocity,which,s,p)
++            stage.relativistic && !_supported_relativistic_output(output,stage.c) && _ec_reject(:unsupported_velocity,which,s,p)
++            for c=1:3
++                after.v[c][p]=output[c]
++            end
++            for d=1:D
++                x=_exact_rational(before.x[d][p])
++                velocity=forces1===nothing ? _exact_rational(v0[d]) :
++                    (_exact_rational(v0[d])+_exact_rational(euler[s].v[d][p]))/2
++                target=_particle_coordinate(x,velocity,H)
++                represented=_periodic_represented_lift(target,stage.g.L[d])
++                bound=_exact_rational(stage.g.L[d])/4
++                max(abs(target-x),abs(represented.lifted-x))<bound || _ec_reject(:travel,which,s,p,max(abs(target-x),abs(represented.lifted-x))/bound)
++                after.x[d][p]=represented.wrapped
++                ideal[d][p],lifted[d][p]=target,represented.lifted
++                winding[d][p],defect[d][p],wrapped[d][p]=represented.winding,represented.defect,represented.wrapped
++            end
++            cuts[p]=ntuple(d -> _ec_cut_receipt(_exact_rational(before.x[d][p]),lifted[d][p],stage.g.L[d],stage.g.dx[d],stage.shape),D)
++        end
++        push!(rows,(ideal=ideal,lifted=lifted,winding=winding,defect=defect,wrapped=wrapped,cuts=cuts,
++            stencil=_ec_stencil_receipt(after,stage.g,stage.shape)))
++    end
++    return rows
++end
++function _ec_constraint(stage,meter)
++    T=eltype(stage.rho_n)
++    E=stage isa EMPIC ? stage.E : (stage.Ex,stage.Ey)
++    B=stage isa EMPIC ? stage.B : (stage.Bz,)
++    projectedE=stage isa EMPIC ? map(copy,E) : (copy(stage.Ex),copy(stage.Ey),zeros(T,stage.g.n))
++    projectedB=stage isa EMPIC ? map(copy,B) : (zeros(T,stage.g.n),zeros(T,stage.g.n),copy(stage.Bz))
++    _empic_fft_charge!(meter,7)
++    _spectral_divergence_project!(projectedE,stage.rho_np1,stage.g)
++    _empic_fft_charge!(meter,6)
++    _spectral_divergence_project!(projectedB,nothing,stage.g)
++    e=ntuple(c -> map((a,b) -> _exact_rational(a)-_exact_rational(b),projectedE[c],E[c]),length(E))
++    b=ntuple(c -> begin
++        projected=stage isa EMPIC ? projectedB[c] : projectedB[3]
++        map((a,x) -> _exact_rational(a)-_exact_rational(x),projected,B[c])
++    end,length(B))
++    return (electric=e,magnetic=b)
++end
++function _ec_component_norm(difference,start,low,high,absolute,relative)
++    result=zero(_EMPICCoupledQ)
++    for i in eachindex(difference)
++        scale=_exact_rational(absolute)+_exact_rational(relative)*max(abs(_exact_rational(start[i])),abs(_exact_rational(low[i])),abs(_exact_rational(high[i])))
++        result=max(result,abs(difference[i])/scale)
++    end
++    return result
++end
++function _ec_field_norm(difference,start,low,high,control,role)
++    result=zero(_EMPICCoupledQ)
++    for c in eachindex(difference)
++        result=max(result,_ec_component_norm(difference[c],start[c],low[c],high[c],getproperty(control.atol,role),getproperty(control.rtol,role)))
++    end
++    return result
++end
++function _ec_observed_constraint_norm(constraint,origin,low,high,control)
++    E0=_empic_event_field_E(low,origin)
++    B0=_empic_event_field_B(low,origin)
++    return (electric=_ec_field_norm(constraint.electric,E0,_empic_event_E(low),_empic_event_E(high),control,:E),
++        magnetic=_ec_field_norm(constraint.magnetic,B0,_empic_event_B(low),_empic_event_B(high),control,:B))
++end
++function _ec_particle_norm(origin,low,high,lifts,mobile,g,control)
++    position,velocity=zero(_EMPICCoupledQ),zero(_EMPICCoupledQ)
++    for (s,(before,left,right)) in enumerate(zip(origin,low,high))
++        mobile[s] || continue
++        for p in eachindex(before.weight)
++            for d in eachindex(before.x)
++                delta=lifts.high[s].lifted[d][p]-lifts.low[s].lifted[d][p]
++                abs(delta)<_exact_rational(g.L[d])/2 || _ec_reject(:ambiguous_position,:pair,s,p)
++                position=max(position,abs(delta)/(_exact_rational(control.atol.x)+_exact_rational(control.rtol.x)*_exact_rational(g.L[d])))
++            end
++            for c=1:3
++                scale=_exact_rational(control.atol.v)+_exact_rational(control.rtol.v)*max(abs(_exact_rational(before.v[c][p])),abs(_exact_rational(left.v[c][p])),abs(_exact_rational(right.v[c][p])))
++                velocity=max(velocity,abs(_exact_rational(right.v[c][p])-_exact_rational(left.v[c][p]))/scale)
++            end
++        end
++    end
++    return position,velocity
++end
++function _ec_row_receipts(origin,out,stages,weights,h)
++    H=_exact_rational(h);c2=_exact_rational(out.c)^2
++    E0,B0=_empic_event_field_E(out,origin),_empic_event_field_B(out,origin)
++    E,B,J=_empic_event_E(out),_empic_event_B(out),_empic_event_J(out)
++    etaE=ntuple(length(E)) do c
++        parts=_empic_weighted_derivative(stages,weights,:magnetic,c)
++        result=similar(E[c],_EMPICCoupledQ)
++        for i in eachindex(result)
++            result[i]=_exact_rational(E[c][i])-_exact_rational(E0[c][i])-H*c2*_em_exact_derivative(parts,i)+H*_exact_rational(J[c][i])
++        end
++        result
++    end
++    etaB=ntuple(length(B)) do c
++        parts=_empic_weighted_derivative(stages,weights,:electric,c)
++        result=similar(B[c],_EMPICCoupledQ)
++        for i in eachindex(result)
++            result[i]=_exact_rational(B[c][i])-_exact_rational(B0[c][i])+H*_em_exact_derivative(parts,i)
++        end
++        result
++    end
++    return (electric=etaE,magnetic=etaB)
++end
++function _ec_continuity(stage,h,meter)
++    meter.continuity=nothing
++    relative=charge_conservation_residual(stage,h,meter)
++    isfinite(relative) && relative>=0 && meter.continuity!==nothing || _ec_reject(:unresolved_continuity,:field)
++    return merge((relative=relative,),meter.continuity)
++end
++function _ec_stage_power(species,forces,mobile)
++    result=zero(_EMPICCoupledQ)
++    for (s,ps) in enumerate(species)
++        mobile[s] || continue
++        for p in eachindex(ps.weight)
++            result+=_exact_rational(ps.q)*_exact_rational(ps.weight[p])*
++                sum(c -> _exact_rational(ps.v[c][p])*_exact_rational(forces[s].E[c][p]),1:3)
++        end
++    end
++    return result
++end
++function _ec_interval_work(stage,origin_species,low_species,high_species,origin_fields,forces0,forces1,raw,h,mobile)
++    H=_exact_rational(h);volume=prod(_exact_rational,stage.g.dx)
++    E0=_empic_event_field_E(stage,origin_fields);E1=_empic_event_E(stage);J=_empic_event_J(stage)
++    used=volume*H*sum(c -> sum(i -> _exact_rational(J[c][i])*(_exact_rational(E0[c][i])+_exact_rational(E1[c][i]))/2,eachindex(J[c]);init=zero(_EMPICCoupledQ)),eachindex(J);init=zero(_EMPICCoupledQ))
++    rawwork=if stage isa EMPIC
++        volume*H*sum(c -> sum(i -> _exact_rational(raw.current[c][i])*(_exact_rational(E0[c][i])+_exact_rational(E1[c][i]))/2,eachindex(raw.current[c]);init=zero(_EMPICCoupledQ)),eachindex(raw.current);init=zero(_EMPICCoupledQ))
++    else
++        volume*H*sum(i -> _exact_rational(only(raw.current)[i])*(_exact_rational(E0[2][i])+_exact_rational(E1[2][i]))/2,eachindex(stage.Jy);init=zero(_EMPICCoupledQ))
++    end
++    particle=H*(_ec_stage_power(origin_species,forces0,mobile)+_ec_stage_power(low_species,forces1,mobile))/2
++    K1,U1=_ec_energy(stage,high_species)
++    K0=stage.relativistic ? begin
++        value=first(_relativistic_particle_moments(origin_species,stage.c))
++        isfinite(value) || throw(ArgumentError("coupled initial reported kinetic energy is nonfinite"))
++        _exact_rational(value)
++    end : _kinetic_energy_rational(origin_species)
++    U0=_field_energy_rational(E0,_empic_event_field_B(stage,origin_fields),_exact_rational(stage.c)^2,stage.g.dx)
++    df,dp,dc=U1-U0+used,K1-K0-particle,particle-used
++    return (work_used=used,work_raw=stage isa EMPIC ? rawwork : nothing,
++        work_raw_transverse=stage isa EMPIC1D ? rawwork : nothing,particle_work=particle,
++        field_before=U0,field_after=U1,kinetic_before=K0,kinetic_after=K1,
++        field_defect=df,particle_defect=dp,coupling_defect=dc,total_defect=U1-U0+K1-K0)
++end
++function _ec_pair!(stage,origin_species,origin_fields,mobile,target,h,delta,time,next_time,source,elapsed,control,meter)
++    T=eltype(stage.rho_n);D=length(stage.g.n);H=_exact_rational(h)
++    before_cost=_ec_costs(meter);_ec_charge!(meter,:trials,1)
++    _ec_restore_fields!(stage,origin_fields)
++    rho0=similar(stage.rho_n);_ec_source!(rho0,stage,origin_species,target,meter)
++    isequal(rho0,origin_fields.rho_np1) || throw(ArgumentError("coupled origin charge differs from its committed source"))
++    force0=_ec_force!(stage,origin_species,mobile,H,meter)
++    raw0=_ec_current!(stage,origin_species,mobile,meter)
++    derivatives0=_ec_derivatives!(stage,meter)
++    low=_ec_new_stage(stage);_ec_restore_fields!(low,origin_fields)
++    low_species=_ec_copy_species(origin_species,Val(D),T)
++    low_lift=_ec_particle_branch!(low_species,origin_species,nothing,force0,nothing,stage,mobile,h,:low)
++    copyto!(low.rho_n,rho0);_ec_source!(low.rho_np1,low,low_species,target,meter)
++    _ec_correct!(low,raw0,h,meter,:low)
++    _empic_full_time_field_update!(low,origin_fields,(derivatives0,),(one(_EMPICCoupledQ),),h)
++    all(a -> all(isfinite,a),(_empic_event_E(low)...,_empic_event_B(low)...,_empic_event_J(low)...)) || _ec_reject(:nonfinite_field,:low)
++    constraint_low=_ec_constraint(low,meter)
++    cl=_ec_observed_constraint_norm(constraint_low,origin_fields,low,low,control)
++    max(cl.electric,cl.magnetic)<=1 || _ec_reject(:field_constraint,:low,0,0,max(cl.electric,cl.magnetic))
++    continuity_low=_ec_continuity(low,h,meter)
++    force1=_ec_force!(low,low_species,mobile,H,meter)
++    raw1=_ec_current!(low,low_species,mobile,meter)
++    derivatives1=_ec_derivatives!(low,meter)
++    # Gathering/current scratch cannot replace the low branch's consumed current.
++    low_snapshot=_ec_snapshot(low,low_species)
++    if low isa EMPIC
++        foreach(copyto!,low.Jraw,raw0.current)
++        low_snapshot=merge(low_snapshot,(fields=merge(low_snapshot.fields,(Jraw=map(copy,raw0.current),)),))
++    end
++    high_species=_ec_copy_species(origin_species,Val(D),T)
++    high_lift=_ec_particle_branch!(high_species,origin_species,low_species,force0,force1,stage,mobile,h,:high)
++    rawhigh=_ec_average_current(raw0,raw1,T)
++    copyto!(stage.rho_n,rho0);_ec_source!(stage.rho_np1,stage,high_species,target,meter)
++    _ec_correct!(stage,rawhigh,h,meter,:high)
++    weights=(BigInt(1)//BigInt(2),BigInt(1)//BigInt(2));stages=(derivatives0,derivatives1)
++    _empic_full_time_field_update!(stage,origin_fields,stages,weights,h)
++    all(a -> all(isfinite,a),(_empic_event_E(stage)...,_empic_event_B(stage)...,_empic_event_J(stage)...)) || _ec_reject(:nonfinite_field,:high)
++    constraint_high=_ec_constraint(stage,meter)
++    continuity_high=_ec_continuity(stage,h,meter)
++    lifts=(low=low_lift,high=high_lift)
++    nx,nv=_ec_particle_norm(origin_species,low_species,high_species,lifts,mobile,stage.g,control)
++    E0=_empic_event_field_E(stage,origin_fields);B0=_empic_event_field_B(stage,origin_fields)
++    de=map((a,b) -> map((x,y) -> _exact_rational(x)-_exact_rational(y),a,b),_empic_event_E(stage),_empic_event_E(low))
++    db=map((a,b) -> map((x,y) -> _exact_rational(x)-_exact_rational(y),a,b),_empic_event_B(stage),_empic_event_B(low))
++    ne=_ec_field_norm(de,E0,_empic_event_E(low),_empic_event_E(stage),control,:E)
++    nb=_ec_field_norm(db,B0,_empic_event_B(low),_empic_event_B(stage),control,:B)
++    scale=_exact_rational(control.atol.clock)+_exact_rational(control.rtol.clock)*max(abs(_exact_rational(time)),abs(_exact_rational(next_time)),abs(source),abs(source+delta))
++    duration_defect=H-delta;addition_defect=_exact_rational(next_time)-_exact_rational(time)-H
++    nc=max(abs(duration_defect),abs(addition_defect),abs(duration_defect+addition_defect))/scale
++    ch=_ec_observed_constraint_norm(constraint_high,origin_fields,low,stage,control)
++    norms=(x=nx,v=nv,E=ne,B=nb,clock=nc,constraint_E_low=cl.electric,constraint_B_low=cl.magnetic,constraint_E_high=ch.electric,constraint_B_high=ch.magnetic)
++    norm=maximum(values(norms));norm<=1 || _ec_reject(:embedded_defect,:pair,0,0,norm)
++    work=_ec_interval_work(stage,origin_species,low_species,high_species,origin_fields,force0,force1,rawhigh,h,mobile)
++    interval=(dt=h,source_before=source,source_after=source+delta,elapsed_before=elapsed,elapsed_after=elapsed+H,
++        public_before=time,public_after=next_time,duration_defect=duration_defect,addition_defect=addition_defect,
++        origin=(species=NamedTuple[deepcopy(_checkpoint_particle_state(ps)) for ps in origin_species],fields=_ec_copy_fields(origin_fields)),
++        low=low_snapshot,high=_ec_snapshot(stage,high_species),
++        stage0=(forces=force0,raw=raw0,derivatives=derivatives0,stencil=[_ec_stencil_receipt(ps,stage.g,stage.shape) for ps in origin_species]),
++        stage1=(forces=force1,raw=raw1,derivatives=derivatives1,stencil=[_ec_stencil_receipt(ps,stage.g,stage.shape) for ps in low_species]),
++        raw_effective=rawhigh,lifts=lifts,norms=norms,norm=norm,constraint_low=constraint_low,constraint_high=constraint_high,
++        continuity=(low=continuity_low,high=continuity_high),
++        rows=(low=_ec_row_receipts(origin_fields,low,(derivatives0,),(one(_EMPICCoupledQ),),h),high=_ec_row_receipts(origin_fields,stage,stages,weights,h)),
++        work=work,costs=_ec_cost_sub(_ec_costs(meter),before_cost))
++    return high_species,interval
++end
++function _ec_role_arrays(value,result=AbstractArray[],descended=IdDict{Any,Bool}();depth=0)
++    depth<=32 || throw(ArgumentError("coupled closed receipt exceeds its schema nesting bound"))
++    if value isa AbstractArray
++        push!(result,value)
++        # Repeated roles remain visible to independence checks, but a cycle
++        # must not recursively enumerate the same container forever.
++        haskey(descended,value) && return result
++        descended[value]=true
++        if !(eltype(value)<:Number)
++            for entry in value
++                _ec_role_arrays(entry,result,descended;depth=depth+1)
++            end
++        end
++    elseif value isa NamedTuple || value isa Tuple
++        for entry in value
++            _ec_role_arrays(entry,result,descended;depth=depth+1)
++        end
++    elseif value isa ParticleSet
++        append!(result,_empic_event_arrays(value))
++    end
++    return result
++end
++function _ec_independent(arrays)
++    for (i,a) in enumerate(arrays),j=1:i-1
++        b=arrays[j]
++        left,right=_checkpoint_packed_chunks(a),_checkpoint_packed_chunks(b)
++        (_particle_arrays_mightalias(a,b) ||
++            (left!==nothing && _particle_arrays_mightalias(left,b)) ||
++            (right!==nothing && _particle_arrays_mightalias(a,right)) ||
++            (left!==nothing && right!==nothing && _particle_arrays_mightalias(left,right))) &&
++            throw(ArgumentError("coupled particle/field/controller/report storage roles overlap"))
++    end
++    return nothing
++end
++function _ec_report_cells(value)
++    count=0
++    for array in _ec_role_arrays(value)
++        count=Base.checked_add(count,length(array))
++    end
++    return count
++end
++function _empic_collection_schedule_arrays(schedule::_EMPICCoupledSchedule)
++    arrays=AbstractArray[schedule.proposal.cap,schedule.proposal.adaptive,schedule.proposal.minimum]
++    for phase in (schedule.phase,schedule.candidate)
++        append!(arrays,(phase.interval,phase.last,phase.next))
++        append!(arrays,_ec_role_arrays(phase.report))
++    end
++    append!(arrays,_empic_event_shadow_arrays(schedule.shadow))
++    append!(arrays,_empic_event_shadow_arrays(schedule.candidate_shadow))
++    return arrays
++end
++_empic_collection_schedule_axes(::_EMPICCoupledSchedule,array,count) = nothing
++function _empic_collection_validate_schedule(es,schedule::_EMPICCoupledSchedule{T}) where {T}
++    _ec_mode(T)
++    es.shape isa Union{CIC,TSC} || throw(ArgumentError("coupled error control admits CIC/TSC only"))
++    _ec_identical(schedule.control,_ec_control(schedule.control,T)) || throw(ArgumentError("coupled control representation changed"))
++    p=schedule.proposal
++    _ec_identical(p,_empic_event_proposal(es.collection.mobile,p.cap,p.adaptive,p.minimum,p.limits,p.budget,T)) || throw(ArgumentError("coupled nominal proposal representation changed"))
++    es.n_sub isa Int && 1<=es.n_sub<=p.budget || throw(ArgumentError("coupled base/event budget differs"))
++    schedule.signature isa String && schedule.signature==_ec_spectral_signature(es.g) || throw(ArgumentError("coupled spectral symbol changed"))
++    for phase in (schedule.phase,schedule.candidate)
++        all(a -> axes(a,1)==Base.OneTo(length(es.collection.mobile)),(phase.interval,phase.last,phase.next)) || throw(ArgumentError("coupled calendar row layout changed"))
++        phase.report===nothing || phase.report isa NamedTuple || throw(ArgumentError("coupled report container differs"))
++    end
++    return nothing
++end
++function _ec_configuration(es;proposal=es.collection.schedule.proposal,control=es.collection.schedule.control,
++    n_sub=es.n_sub,c=es.c,relativistic=es.relativistic,signature=es.collection.schedule.signature)
++    return merge(_empic_event_configuration(es;c,relativistic),
++        (n_sub=n_sub,proposal=(cap=Tuple(proposal.cap),adaptive=Tuple(proposal.adaptive),minimum=Tuple(proposal.minimum),limits=proposal.limits,budget=proposal.budget),
++            control=control,signature=signature))
++end
++function _ec_shadow(es,populations,fields,bindings,clock;kwargs...)
++    return _empic_event_shadow_values(es,populations,fields,bindings,_ec_configuration(es;kwargs...),clock)
++end
++function _ec_shadow_matches(es,schedule)
++    shadow=schedule.shadow;work=es.collection
++    shadow isa NamedTuple && keys(shadow)==(:species,:fields,:bindings,:configuration,:clock) || throw(ArgumentError("coupled committed shadow is absent"))
++    _ec_identical(shadow.configuration,_ec_configuration(es)) &&
++        isequal(shadow.clock,(es.time[],es.step[],es.last_dt[],es.last_sub_dt[])) &&
++        isequal(shadow.fields,_empic_event_fields(es)) && length(shadow.species)==length(shadow.bindings)==length(work.owners) ||
++        throw(ArgumentError("coupled source/configuration/physical field/clock changed; initialize full-time data"))
++    for (ps,saved,binding) in zip(work.owners,shadow.species,shadow.bindings)
++        length(binding)==length(_empic_event_arrays(ps)) && all(p -> p[1]===p[2],zip(_empic_event_arrays(ps),binding)) &&
++            isequal((ps.q,ps.m),(saved.q,saved.m)) && all(p -> isequal(p[1],p[2]),zip(_empic_event_arrays(ps),_empic_event_arrays(saved))) ||
++            throw(ArgumentError("coupled source/provenance/component identity changed; initialize full-time data"))
++    end
++    return nothing
++end
++function _ec_phase_scalar_check(es,phase,population_count::Int,initialized,clock)
++    T=eltype(es.rho_n);time,step,full,fast=clock
++    phase isa _EMPICCoupledPhase{T} && initialized isa Bool || throw(ArgumentError("coupled phase type differs"))
++    _validate_empic_clock_phase(time,step,full,fast)
++    all(_ec_q,(phase.time,phase.elapsed,phase.initial_energy,phase.field_defect,phase.particle_defect,phase.coupling_defect,phase.last...,phase.next...)) &&
++        phase.time>=0 && phase.elapsed>=0 && phase.initial_energy>=0 && isfinite(phase.next_h) && _stored_positive(phase.next_h) || throw(ArgumentError("coupled phase exact scalars differ"))
++    _require_resolved_dt("coupled next interval",phase.next_h);_ec_costs_check(phase.costs)
++    _ec_identical(phase.admission_control,_ec_control(phase.admission_control,T)) || throw(ArgumentError("coupled historical admission control differs"))
++    count=length(es.collection.mobile)
++    population_count==count && all(a -> axes(a,1)==Base.OneTo(count),(phase.interval,phase.last,phase.next)) || throw(ArgumentError("coupled phase population rows differ"))
++    all(isfinite,phase.interval) || throw(ArgumentError("coupled nominal intervals are nonfinite"))
++    if step==0
++        _particle_stored_zero(time) && iszero(phase.time) && iszero(phase.elapsed) && phase.report===nothing &&
++            all(_particle_stored_zero,phase.interval) && all(iszero,(phase.last...,phase.next...)) &&
++            all(iszero,(phase.field_defect,phase.particle_defect,phase.coupling_defect)) || throw(ArgumentError("coupled step-zero phase is advanced"))
++    else
++        initialized && phase.report!==nothing && phase.time>0 && phase.elapsed>0 || throw(ArgumentError("coupled advanced phase lacks a complete report"))
++        for i in eachindex(es.collection.mobile)
++            if es.collection.mobile[i]
++                phase.interval[i]>=2floatmin(T) && phase.last[i]<=phase.time<=phase.next[i] &&
++                    phase.next[i]-phase.last[i]==_exact_rational(phase.interval[i]) || throw(ArgumentError("coupled nominal deadline history differs"))
++            else
++                _particle_stored_zero(phase.interval[i]) && iszero(phase.last[i]) && iszero(phase.next[i]) || throw(ArgumentError("fixed coupled population has an active calendar"))
++            end
++        end
++    end
++    return nothing
++end
++function _ec_validate_phase(es,phase,species,fields,initialized,clock,meter;replay=true)
++    _ec_phase_scalar_check(es,phase,length(species),initialized,clock)
++    if initialized
++        if iszero(clock[2])
++            currents=es isa EMPIC ? (fields.J...,fields.Jraw...) : (fields.Jx,fields.Jy)
++            _ec_identical(fields.rho_n,fields.rho_np1) &&
++                all(array -> all(_particle_stored_zero,array),currents) ||
++                throw(ArgumentError("initialized coupled step-zero source/current inventory differs from full-time initialization"))
++        end
++        probe=_ec_new_stage(es);_ec_restore_fields!(probe,fields)
++        K,U=_ec_energy(probe,species)
++        K+U-phase.initial_energy==phase.field_defect+phase.particle_defect+phase.coupling_defect || throw(ArgumentError("coupled cumulative measured-energy ledger differs"))
++        charges=_pic_collection_charges(es.g,es.n0,species)
++        target=_empic_collection_charge_target(es,es.collection,charges)
++        rho=similar(probe.rho_np1);_ec_source!(rho,probe,species,target,meter)
++        isequal(rho,fields.rho_np1) || throw(ArgumentError("coupled ending charge/source differs"))
++        constraint=_ec_constraint(probe,meter)
++        control=phase.admission_control
++        observed=_ec_observed_constraint_norm(constraint,fields,probe,probe,control)
++        max(observed.electric,observed.magnetic)<=1 || throw(ArgumentError("coupled ending field constraint differs"))
++        phase.report===nothing || _ec_report_check(es,phase,species,fields,clock,meter;replay)
++    end
++    return nothing
++end
++function _empic_collection_validate_species_history(es,schedule::_EMPICCoupledSchedule)
++    # Public controlled operations own the full observed/replayed admission.
++    count=es.collection.initialized[] ? length(es.collection.owners) : length(es.collection.mobile)
++    _ec_phase_scalar_check(es,schedule.phase,count,es.collection.initialized[],
++        (es.time[],es.step[],es.last_dt[],es.last_sub_dt[]))
++    es.collection.initialized[] && _ec_shadow_matches(es,schedule)
++    return nothing
++end
++function _ec_ready(es,species,meter)
++    charges=_empic_collection_validate_species(es,species)
++    work=es.collection;work.initialized[] || throw(ArgumentError("initialize coupled full-time data before evolution or observation"))
++    _empic_collection_bound(work,species);_ec_shadow_matches(es,work.schedule)
++    _empic_collection_require_finite_fields(es)
++    _ec_validate_phase(es,work.schedule.phase,species,_empic_event_fields(es),true,
++        (es.time[],es.step[],es.last_dt[],es.last_sub_dt[]),meter)
++    return charges
++end
++function _ec_sync_magnetic!(stage::EMPIC)
++    foreach(copyto!,stage.Bc,stage.B);return nothing
++end
++function _ec_sync_magnetic!(stage::EMPIC1D)
++    copyto!(stage.Bzc,stage.Bz);return nothing
++end
++function _ec_publish!(es,work,phase,shadow;particles)
++    schedule=work.schedule
++    reset=_ec_zero_phase(eltype(es.rho_n),length(work.mobile),schedule.control)
++    schedule.candidate,schedule.candidate_shadow=phase,shadow
++    if particles
++        for (ps,private) in zip(work.owners,work.staged)
++            foreach(copyto!,ps.x,private.x);foreach(copyto!,ps.v,private.v)
++        end
++    end
++    foreach(copyto!,_empic_transaction_fields(es),_empic_transaction_fields(work.stage))
++    es.time[],es.step[]=work.stage.time[],work.stage.step[]
++    es.last_dt[],es.last_sub_dt[]=work.stage.last_dt[],work.stage.last_sub_dt[]
++    schedule.phase,schedule.shadow=phase,shadow
++    schedule.candidate,schedule.candidate_shadow=reset,nothing
++    return es
++end
++function _empic_coupled_init!(es,species)
++    work=es.collection;schedule=work.schedule;_ec_acquire(schedule)
++    try
++        T=eltype(es.rho_n)
++        all(ps -> ps isa eltype(work.owners),species) || throw(ArgumentError("coupled population storage type differs"))
++        charges=_empic_collection_validate_species(es,species)
++        all(a -> all(isfinite,a),_empic_collection_seed_fields(es)) || throw(ArgumentError("coupled full-time seed fields must be finite"))
++        _empic_collection_prepare!(es,species)
++        meter=_ec_meter(schedule.control);stage=work.stage
++        target=_empic_collection_charge_target(es,work,charges)
++        _ec_source!(stage.rho_n,stage,work.staged,target,meter)
++        _empic_fft_charge!(meter,stage isa EMPIC ? 7 : 2)
++        _empic_collection_initialize_fields!(stage)
++        stage.time[],stage.step[]=zero(T),0;stage.last_dt[],stage.last_sub_dt[]=zero(T),zero(T)
++        K,U=_ec_energy(stage,work.staged)
++        phase=_ec_zero_phase(T,length(species),schedule.control;energy=K+U,costs=_ec_costs(meter))
++        _ec_validate_phase(es,phase,work.staged,_empic_event_fields(stage),true,(zero(T),0,zero(T),zero(T)),meter)
++        phase=_EMPICCoupledPhase{T}(phase.time,phase.elapsed,phase.interval,phase.last,phase.next,phase.next_h,
++            phase.initial_energy,phase.field_defect,phase.particle_defect,phase.coupling_defect,phase.admission_control,_ec_costs(meter),nothing)
++        shadow=_ec_shadow(es,work.staged,_empic_event_fields(stage),species,(zero(T),0,zero(T),zero(T)))
++        _ec_independent(vcat(_ec_role_arrays(phase.report),_empic_event_shadow_arrays(shadow),_ec_role_arrays((phase.interval,phase.last,phase.next))))
++        _empic_collection_validate_storage(es,species);sizehint!(work.owners,length(species))
++        _ec_publish!(es,work,phase,shadow;particles=false)
++        empty!(work.owners);append!(work.owners,species);work.initialized[]=true
++        return es
++    finally
++        _ec_release(schedule)
++    end
++end
++function _empic_coupled_set!(es,n_sub,stride,cap,adaptive,minimum,limits,budget,control)
++    schedule=es.collection.schedule;_ec_acquire(schedule)
++    try
++        stride===nothing || throw(ArgumentError("coupled control cannot use species_stride"))
++        n_sub isa Integer && !(n_sub isa Bool) && 1<=n_sub<=typemax(Int) || throw(ArgumentError("coupled n_sub must fit a positive Int"))
++        T=eltype(es.rho_n);old=schedule.proposal
++        proposed=_empic_event_proposal(es.collection.mobile,cap===nothing ? old.cap : cap,
++            adaptive===nothing ? old.adaptive : adaptive,minimum===nothing ? old.minimum : minimum,
++            limits===nothing ? old.limits : limits,budget===nothing ? old.budget : budget,T)
++        n_sub<=proposed.budget || throw(ArgumentError("coupled base field partition exceeds event budget"))
++        closed=control===nothing ? schedule.control : _ec_control(control,T)
++        _empic_collection_validate_schedule(es,schedule)
++        es.collection.initialized[] && _ec_ready(es,es.collection.owners,_ec_meter(schedule.phase.admission_control))
++        phase=schedule.phase
++        next_h=_ec_future_hint(phase,closed)
++        candidate=_EMPICCoupledPhase{T}(phase.time,phase.elapsed,copy(phase.interval),deepcopy(phase.last),deepcopy(phase.next),next_h,
++            phase.initial_energy,phase.field_defect,phase.particle_defect,phase.coupling_defect,phase.admission_control,phase.costs,deepcopy(phase.report))
++        shadow=es.collection.initialized[] ? _ec_shadow(es,es.collection.owners,_empic_event_fields(es),es.collection.owners,
++            (es.time[],es.step[],es.last_dt[],es.last_sub_dt[]);proposal=proposed,control=closed,n_sub=Int(n_sub)) : nothing
++        _ec_independent(vcat(_ec_role_arrays((proposed,candidate.interval,candidate.last,candidate.next,candidate.report)),_empic_event_shadow_arrays(shadow)))
++        es.n_sub=Int(n_sub);schedule.proposal,schedule.control=proposed,closed
++        schedule.phase,schedule.shadow=candidate,shadow
++        return es
++    finally
++        _ec_release(schedule)
++    end
++end
++function _ec_recommend(h,norm,control)
++    exact=norm<=BigInt(1)//BigInt(4) ? 2*_exact_rational(h) : _exact_rational(h)
++    return _empic_event_floor(typeof(h),min(_exact_rational(control.h_max),max(_exact_rational(control.h_min),exact)))
++end
++function _ec_future_hint(phase,control)
++    hint=phase.report===nothing ? phase.admission_control.h_max :
++        _ec_recommend(last(phase.report.intervals).dt,last(phase.report.intervals).norm,phase.report.control)
++    return min(control.h_max,max(control.h_min,hint))
++end
++const _EC_REPORT_KEYS = (:kind,:control,:event_proposal,:configuration,:n_sub,:start,:finish,:requested,
++    :elapsed_before,:elapsed_after,:public_before,:public_after,:step_before,:step_after,
++    :initial_calendar,:initial_next_h,:cost_before,:costs,:cost_after,:admission_costs,:verification_costs,
++    :initial_energy,:defects_before,:intervals,:rejections,:decisions,:work_used,:work_raw,:work_raw_transverse,
++    :particle_work,:field_before,:field_after,:kinetic_before,:kinetic_after,:field_defect,:particle_defect,
++    :coupling_defect,:total_defect,:clock_defect)
++const _EC_INTERVAL_KEYS = (:dt,:source_before,:source_after,:elapsed_before,:elapsed_after,:public_before,:public_after,
++    :duration_defect,:addition_defect,:origin,:low,:high,:stage0,:stage1,:raw_effective,:lifts,:norms,:norm,
++    :constraint_low,:constraint_high,:continuity,:rows,:work,:costs)
++function _ec_nominal_decision!(stage,species,mobile,proposal,i,time,previous,bootstrap,meter)
++    ps=species[i];_ec_charge!(meter,:force_evals,nparticles(ps))
++    _empic_collection_gather!(stage,ps;initial=true)
++    choice=_empic_event_interval_choice(stage,proposal,ps,i,previous,bootstrap)
++    return merge((species=i,time=time,previous=previous,bootstrap=bootstrap),choice)
++end
++function _ec_sum_work(intervals,kind)
++    first_work=first(intervals).work;last_work=last(intervals).work
++    total(name)=sum(i -> getproperty(i.work,name),intervals;init=zero(_EMPICCoupledQ))
++    return (work_used=total(:work_used),work_raw=kind===:vector ? total(:work_raw) : nothing,
++        work_raw_transverse=kind===:planar ? total(:work_raw_transverse) : nothing,particle_work=total(:particle_work),
++        field_before=first_work.field_before,field_after=last_work.field_after,
++        kinetic_before=first_work.kinetic_before,kinetic_after=last_work.kinetic_after,
++        field_defect=total(:field_defect),particle_defect=total(:particle_defect),coupling_defect=total(:coupling_defect),total_defect=total(:total_defect))
++end
++function _empic_coupled_step!(es,species,dt)
++    work=es.collection;schedule=work.schedule;_ec_acquire(schedule)
++    try
++        T=eltype(es.rho_n);D=length(es.g.n)
++        duration=_require_resolved_dt("coupled step",_validated_nonnegative_dt(T,dt;name="coupled EMPIC"))
++        isfinite(dt) && dt>=0 && (iszero(dt) || !_particle_stored_zero(duration)) || throw(ArgumentError("coupled nonzero duration must survive conversion"))
++        meter=_ec_meter(iszero(duration) ? schedule.phase.admission_control : schedule.control)
++        charges=_ec_ready(es,species,meter)
++        _particle_stored_zero(duration) && return es
++        original=schedule.phase;control=schedule.control;proposal=schedule.proposal
++        admission_costs=_ec_costs(meter)
++        _empic_collection_prepare!(es,species);stage=work.stage
++        start,finish=original.time,original.time+_exact_rational(duration)
++        source,elapsed,clock_value=start,original.elapsed,stage.time[]
++        H=copy(original.interval);a=deepcopy(original.last);b=deepcopy(original.next)
++        _ec_charge!(meter,:report_cells,Base.checked_mul(6,length(work.mobile)))
++        historical_proposal=deepcopy(proposal)
++        initial_calendar=(interval=copy(H),last=deepcopy(a),next=deepcopy(b))
++        intervals=NamedTuple[];rejections=NamedTuple[];decisions=NamedTuple[]
++        base=1;next_h=original.next_h
++        target=_empic_collection_charge_target(es,work,charges)
++        while source<finish
++            origin_species=_ec_copy_species(work.staged,Val(D),T)
++            origin_fields=_ec_copy_fields(_empic_event_fields(stage))
++            for i in eachindex(work.mobile)
++                work.mobile[i] || continue
++                bootstrap=es.step[]==0 && isempty(intervals) && iszero(H[i])
++                if bootstrap || b[i]==source
++                    _ec_restore_fields!(stage,origin_fields)
++                    decision=_ec_nominal_decision!(stage,origin_species,work.mobile,proposal,i,source,H[i],bootstrap,meter)
++                    length(decisions)<proposal.budget-length(intervals) || throw(ArgumentError("coupled nominal decision/event budget exhausted"))
++                    _ec_charge!(meter,:report_cells,1);push!(decisions,decision)
++                    H[i],a[i],b[i]=decision.selected,source,source+_exact_rational(decision.selected)
++                end
++            end
++            calendar=(time=start,next=b)
++            edge,base=_empic_event_next(calendar,work.mobile,source,finish,base,es.n_sub)
++            delta=min(_exact_rational(next_h),edge-source)
++            while true
++                delta>=_exact_rational(control.h_min) || throw(ArgumentError("coupled source gap fell below h_min"))
++                h=_empic_event_interval(T,delta)
++                control.h_min<=h<=control.h_max || throw(ArgumentError("coupled actual interval is outside h_min/h_max"))
++                next_public,_=_validated_step_clock(clock_value,es.step[],h)
++                next_public>clock_value || throw(ArgumentError("coupled public clock cannot advance"))
++                before=_ec_costs(meter)
++                outcome=try
++                    _ec_pair!(stage,origin_species,origin_fields,work.mobile,target,h,delta,clock_value,next_public,source,elapsed,control,meter)
++                catch failure
++                    failure isa _EMPICCoupledReject || rethrow()
++                    rejected=(dt=h,source=source,delta=delta,clock_value=clock_value,reason=failure.reason,stage=failure.stage,
++                        species=failure.species,particle=failure.particle,defect=failure.defect,costs=_ec_cost_sub(_ec_costs(meter),before))
++                    _ec_charge!(meter,:report_cells,1);push!(rejections,rejected)
++                    nothing
++                end
++                if outcome===nothing
++                    delta/=2
++                    continue
++                end
++                high,interval=outcome
++                length(intervals)<proposal.budget-length(decisions) || throw(ArgumentError("coupled accepted interval/event budget exhausted"))
++                cells=Base.checked_add(1,_ec_report_cells(interval));_ec_charge!(meter,:report_cells,cells)
++                push!(intervals,interval)
++                empty!(work.staged);append!(work.staged,high)
++                source,elapsed,clock_value=source+delta,elapsed+_exact_rational(h),next_public
++                stage.time[]=clock_value;next_h=_ec_recommend(h,interval.norm,control)
++                break
++            end
++        end
++        _,count=_validated_step_clock(es.time[],es.step[],zero(T))
++        stage.step[],stage.last_dt[],stage.last_sub_dt[]=count,duration,last(intervals).dt
++        _ec_sync_magnetic!(stage)
++        kind=es isa EMPIC ? :vector : :planar
++        summary=_ec_sum_work(intervals,kind)
++        report=(kind=kind,control=control,event_proposal=historical_proposal,configuration=_empic_event_configuration(es),n_sub=es.n_sub,
++            start=start,finish=finish,requested=duration,elapsed_before=original.elapsed,elapsed_after=elapsed,
++            public_before=es.time[],public_after=clock_value,step_before=es.step[],step_after=count,
++            initial_calendar=initial_calendar,initial_next_h=original.next_h,cost_before=original.costs,
++            costs=_ec_costs(meter),cost_after=_ec_cost_add(original.costs,_ec_costs(meter)),admission_costs=admission_costs,verification_costs=_ec_zero_costs(),
++            initial_energy=original.initial_energy,defects_before=(field=original.field_defect,particle=original.particle_defect,coupling=original.coupling_defect),
++            intervals=intervals,rejections=rejections,decisions=decisions,work_used=summary.work_used,work_raw=summary.work_raw,work_raw_transverse=summary.work_raw_transverse,
++            particle_work=summary.particle_work,field_before=summary.field_before,field_after=summary.field_after,kinetic_before=summary.kinetic_before,kinetic_after=summary.kinetic_after,
++            field_defect=summary.field_defect,particle_defect=summary.particle_defect,coupling_defect=summary.coupling_defect,total_defect=summary.total_defect,
++            clock_defect=_exact_rational(clock_value)-_exact_rational(es.time[])-_exact_rational(duration))
++        _ec_report_cells(report)==meter.report_cells || throw(ArgumentError("coupled report-cell reservation differs"))
++        phase=_EMPICCoupledPhase{T}(finish,elapsed,H,a,b,next_h,original.initial_energy,
++            original.field_defect+summary.field_defect,original.particle_defect+summary.particle_defect,
++            original.coupling_defect+summary.coupling_defect,control,report.cost_after,report)
++        before_verification=_ec_costs(meter)
++        _ec_validate_phase(es,phase,work.staged,_empic_event_fields(stage),true,(clock_value,count,duration,last(intervals).dt),meter)
++        verification=_ec_cost_sub(_ec_costs(meter),before_verification)
++        report=merge(report,(costs=_ec_costs(meter),cost_after=_ec_cost_add(original.costs,_ec_costs(meter)),verification_costs=verification))
++        phase=_EMPICCoupledPhase{T}(finish,elapsed,H,a,b,next_h,original.initial_energy,phase.field_defect,phase.particle_defect,phase.coupling_defect,control,report.cost_after,report)
++        _ec_report_check(es,phase,work.staged,_empic_event_fields(stage),(clock_value,count,duration,last(intervals).dt),nothing;replay=false)
++        shadow=_ec_shadow(es,work.staged,_empic_event_fields(stage),species,(clock_value,count,duration,last(intervals).dt))
++        arrays=vcat(_ec_role_arrays((phase.interval,phase.last,phase.next,phase.report)),_empic_event_shadow_arrays(shadow))
++        _ec_independent(arrays)
++        _empic_collection_validate_storage(es,species)
++        for array in arrays,ps in species
++            _mightalias_particle_storage(array,ps) && throw(ArgumentError("coupled candidate/report aliases public particles"))
++        end
++        return _ec_publish!(es,work,phase,shadow;particles=true)
++    finally
++        _ec_release(schedule)
++    end
++end
++function _ec_closed(value,arrays=IdDict{Any,Bool}();depth=0)
++    # Schema4 has a fixed nonrecursive packet hierarchy;32 exceeds its actual
++    # stage/particle/cut nesting while bounding malformed input traversal.
++    depth<=32 || throw(ArgumentError("coupled receipt exceeds its closed schema nesting bound"))
++    if value===nothing || value isa Union{Bool,Symbol,String,Int,UInt64,UInt32,BigInt,CIC,TSC}
++        return nothing
++    elseif value isa _EMPICCoupledQ
++        _ec_q(value) || throw(ArgumentError("coupled exact numeric receipt is invalid"))
++    elseif value isa Union{Float32,Float64}
++        isfinite(value) || throw(ArgumentError("coupled numeric receipt is nonfinite"))
++    elseif value isa NamedTuple || value isa Tuple
++        foreach(entry -> _ec_closed(entry,arrays;depth=depth+1),value)
++    elseif value isa Array || value isa BitVector
++        haskey(arrays,value) && throw(ArgumentError("coupled receipt repeats an array role or contains a cycle"))
++        arrays[value]=true
++        all(i -> isassigned(value,i),eachindex(value)) || throw(ArgumentError("coupled receipt has unassigned entries"))
++        foreach(entry -> _ec_closed(entry,arrays;depth=depth+1),value)
++    else
++        throw(ArgumentError("coupled receipt contains an unsupported value type $(typeof(value))"))
++    end
++    return nothing
++end
++function _ec_snapshot_check(es,record)
++    T=eltype(es.rho_n);D=length(es.g.n)
++    record isa NamedTuple && keys(record)==(:species,:fields) && record.species isa Vector && length(record.species)==length(es.collection.mobile) || throw(ArgumentError("coupled stage snapshot layout differs"))
++    for ps in record.species
++        ps isa NamedTuple && keys(ps)==_CHECKPOINT_PARTICLE_FIELDS && ps.x isa NTuple{D,Vector{T}} &&
++            ps.v isa NTuple{3,Vector{T}} && ps.weight isa Vector{T} && ps.id isa Vector{UInt64} && ps.tag isa Vector{UInt32} && ps.q isa T && ps.m isa T ||
++            throw(ArgumentError("coupled stage particle record requires canonical ordinary vectors"))
++        count=length(ps.weight)
++        all(a -> axes(a,1)==Base.OneTo(count),(ps.x...,ps.v...,ps.weight,ps.id,ps.tag)) || throw(DimensionMismatch("coupled stage particle sizes differ"))
++    end
++    _validate_checkpoint_fields(record.fields,_empic_event_fields(es))
++    keys(record.fields)==keys(_empic_event_fields(es)) || throw(ArgumentError("coupled stage field inventory has extra fields"))
++    for value in values(record.fields),array in (value isa Tuple ? value : (value,))
++        array isa Array{T,D} && size(array)==es.g.n && all(isfinite,array) || throw(ArgumentError("coupled stage fields are invalid"))
++    end
++    populations=_ec_snapshot_populations(record,Val(D),T)
++    _empic_collection_validate_population_values(es,populations,es.c,es.relativistic)
++    return populations
++end
++function _ec_install_samples!(stage::EMPIC,ps,sample)
++    _ensure_empic_electron_buffers!(stage,nparticles(ps))
++    foreach(copyto!,stage.Ep,sample.E);foreach(copyto!,stage.Bp,sample.B)
++    return nothing
++end
++function _ec_install_samples!(stage::EMPIC1D,ps,sample)
++    _ensure_electron_buffers!(stage,nparticles(ps))
++    copyto!(stage.Exp,sample.E[1]);copyto!(stage.Eyp,sample.E[2]);copyto!(stage.Bzp,sample.B[3])
++    return nothing
++end
++function _ec_report_check(es,phase,species,fields,clock,meter;replay=true)
++    r=phase.report;T=eltype(es.rho_n);D=length(es.g.n)
++    r isa NamedTuple && keys(r)==_EC_REPORT_KEYS || throw(ArgumentError("coupled report has noncanonical fields"))
++    _ec_closed(r)
++    r.kind===(es isa EMPIC ? :vector : :planar) && _ec_identical(r.control,_ec_control(r.control,T)) &&
++        _ec_identical(r.control,phase.admission_control) && _ec_identical(r.configuration,_empic_event_configuration(es)) || throw(ArgumentError("coupled historical report policy/source differs"))
++    p=r.event_proposal
++    p isa NamedTuple && keys(p)==(:cap,:adaptive,:minimum,:limits,:budget) &&
++        p.cap isa Vector{T} && p.minimum isa Vector{T} && p.adaptive isa BitVector || throw(ArgumentError("coupled historical calendar proposal differs"))
++    _empic_event_proposal(es.collection.mobile,p.cap,p.adaptive,p.minimum,p.limits,p.budget,T)
++    r.n_sub isa Int && 1<=r.n_sub<=p.budget && r.requested isa T && r.requested>0 &&
++        r.public_before isa T && r.public_after isa T && r.public_before>=0 && r.public_after>r.public_before &&
++        r.step_before isa Int && r.step_after isa Int && 0<=r.step_before<r.step_after && r.step_after==Base.checked_add(r.step_before,1) &&
++        all(_ec_q,(r.start,r.finish,r.elapsed_before,r.elapsed_after,r.initial_energy,r.clock_defect)) &&
++        0<=r.start<r.finish && r.finish-r.start==_exact_rational(r.requested) && 0<=r.elapsed_before<r.elapsed_after || throw(ArgumentError("coupled report clocks differ"))
++    time,step,full,fast=clock
++    isequal((r.public_after,r.step_after,r.requested),(time,step,full)) && r.finish==phase.time && r.elapsed_after==phase.elapsed &&
++        r.initial_energy==phase.initial_energy || throw(ArgumentError("coupled report differs from complete phase"))
++    r.initial_calendar isa NamedTuple && keys(r.initial_calendar)==(:interval,:last,:next) &&
++        r.initial_calendar.interval isa Vector{T} && r.initial_calendar.last isa Vector{_EMPICCoupledQ} && r.initial_calendar.next isa Vector{_EMPICCoupledQ} &&
++        all(a -> axes(a,1)==Base.OneTo(length(species)),values(r.initial_calendar)) &&
++        r.initial_next_h isa T && r.control.h_min<=r.initial_next_h<=r.control.h_max || throw(ArgumentError("coupled report initial calendar/controller differs"))
++    for costs in (r.cost_before,r.costs,r.cost_after,r.admission_costs,r.verification_costs)
++        _ec_costs_check(costs)
++    end
++    r.cost_after==phase.costs==_ec_cost_add(r.cost_before,r.costs) || throw(ArgumentError("coupled cumulative work counters differ"))
++    for name in _EC_COST_KEYS
++        getproperty(r.costs,name)<=getproperty(r.control,Symbol("max_",name)) || throw(ArgumentError("coupled operation exceeded its historical work cap"))
++    end
++    r.intervals isa Vector{NamedTuple} && !isempty(r.intervals) && r.rejections isa Vector{NamedTuple} && r.decisions isa Vector{NamedTuple} || throw(ArgumentError("coupled trial history containers differ"))
++    isequal(phase.next_h,_ec_future_hint(phase,es.collection.schedule.control)) || throw(ArgumentError("coupled future interval hint differs from historical admission"))
++    length(r.intervals)+length(r.decisions)<=p.budget && _ec_report_cells(r)==r.costs.report_cells || throw(ArgumentError("coupled report event/cell bound differs"))
++    _ec_independent(_ec_role_arrays(r))
++    H=copy(r.initial_calendar.interval);a=deepcopy(r.initial_calendar.last);b=deepcopy(r.initial_calendar.next)
++    for i in eachindex(es.collection.mobile)
++        if r.step_before==0 || !es.collection.mobile[i]
++            _particle_stored_zero(H[i]) && iszero(a[i]) && iszero(b[i]) || throw(ArgumentError("coupled initial inactive calendar differs"))
++        else
++            H[i]>=2floatmin(T) && a[i]<=r.start<=b[i] && b[i]-a[i]==_exact_rational(H[i]) || throw(ArgumentError("coupled initial pending calendar differs"))
++        end
++    end
++    source,elapsed,clock_value=r.start,r.elapsed_before,r.public_before
++    hint=r.initial_next_h;base=1;dcursor=1;rcursor=1
++    trial_cost=_ec_zero_costs();decision_force=0
++    previous_high=nothing
++    probe=_ec_new_stage(es)
++    reasons=(:nonfinite_gather,:nonfinite_derivative,:nonfinite_velocity,:unsupported_velocity,:travel,
++        :ambiguous_position,:nonfinite_current,:nonfinite_field,:field_constraint,:unresolved_continuity,:embedded_defect)
++    for interval in r.intervals
++        interval isa NamedTuple && keys(interval)==_EC_INTERVAL_KEYS || throw(ArgumentError("coupled interval fields differ"))
++        before=_ec_snapshot_check(es,interval.origin)
++        _ec_snapshot_check(es,interval.low);_ec_snapshot_check(es,interval.high)
++        previous_high===nothing || isequal(previous_high,interval.origin) || throw(ArgumentError("coupled accepted physical history is discontinuous"))
++        interval.source_before==source && interval.elapsed_before==elapsed && isequal(interval.public_before,clock_value) || throw(ArgumentError("coupled interval origins differ"))
++        for i in eachindex(es.collection.mobile)
++            es.collection.mobile[i] || continue
++            bootstrap=r.step_before==0 && source==r.start && iszero(H[i])
++            if bootstrap || b[i]==source
++                dcursor<=length(r.decisions) || throw(ArgumentError("coupled report omitted a due nominal decision"))
++                decision=r.decisions[dcursor]
++                keys(decision)==(:species,:time,:previous,:bootstrap,:selected,:cap,:upper,:minimum,:adaptive,:limits,:q,:m,:E1,:B1,:V1,:halvings) &&
++                    decision.species==i && decision.time==source && isequal(decision.previous,H[i]) && decision.bootstrap===bootstrap || throw(ArgumentError("coupled nominal decision ordering differs"))
++                sample=interval.stage0.forces[i]
++                sample===nothing && throw(ArgumentError("coupled nominal decision has no actual force-stage sample"))
++                _ec_install_samples!(probe,before[i],sample)
++                choice=_empic_event_interval_choice(probe,p,before[i],i,H[i],bootstrap)
++                expected=merge((species=i,time=source,previous=H[i],bootstrap=bootstrap),choice)
++                _ec_identical(decision,expected) || throw(ArgumentError("coupled nominal decision differs from canonical sampled policy"))
++                decision_force=Base.checked_add(decision_force,nparticles(before[i]))
++                H[i],a[i],b[i]=decision.selected,source,source+_exact_rational(decision.selected)
++                dcursor+=1
++            end
++        end
++        edge,base=_empic_event_next((time=r.start,next=b),es.collection.mobile,source,r.finish,base,r.n_sub)
++        delta=min(_exact_rational(hint),edge-source)
++        while rcursor<=length(r.rejections) && r.rejections[rcursor].source==source
++            rejected=r.rejections[rcursor]
++            keys(rejected)==(:dt,:source,:delta,:clock_value,:reason,:stage,:species,:particle,:defect,:costs) &&
++                rejected.dt isa T && r.control.h_min<=rejected.dt<=r.control.h_max && rejected.delta==delta &&
++                isequal(rejected.dt,_empic_event_interval(T,delta)) && isequal(rejected.clock_value,clock_value) &&
++                rejected.reason in reasons && rejected.stage isa Symbol && rejected.species isa Int && rejected.particle isa Int &&
++                rejected.species>=0 && rejected.particle>=0 && (rejected.defect===nothing || _ec_q(rejected.defect)) || throw(ArgumentError("coupled rejected-trial receipt differs"))
++            _ec_costs_check(rejected.costs);rejected.costs.trials==1 && rejected.costs.report_cells==0 || throw(ArgumentError("coupled rejected-trial counters differ"))
++            rejected.reason in (:embedded_defect,:field_constraint) && !(rejected.defect!==nothing && rejected.defect>1) && throw(ArgumentError("coupled rejection has no failed measured defect"))
++            rejected.reason===:travel && !(rejected.defect!==nothing && rejected.defect>=1) && throw(ArgumentError("coupled travel rejection has no failed travel ratio"))
++            trial_cost=_ec_cost_add(trial_cost,rejected.costs)
++            delta/=2;rcursor+=1
++        end
++        delta>=_exact_rational(r.control.h_min) && interval.source_after==source+delta && interval.dt isa T &&
++            isequal(interval.dt,_empic_event_interval(T,delta)) && r.control.h_min<=interval.dt<=r.control.h_max &&
++            interval.norm isa _EMPICCoupledQ && 0<=interval.norm<=1 && interval.norm==maximum(values(interval.norms)) || throw(ArgumentError("coupled accepted trial/halving/defect differs"))
++        next_clock,_=_validated_step_clock(clock_value,r.step_before,interval.dt)
++        isequal(next_clock,interval.public_after) && next_clock>clock_value &&
++            interval.duration_defect==_exact_rational(interval.dt)-delta &&
++            interval.addition_defect==_exact_rational(next_clock)-_exact_rational(clock_value)-_exact_rational(interval.dt) &&
++            interval.elapsed_after==elapsed+_exact_rational(interval.dt) || throw(ArgumentError("coupled actual interval clock/materialization differs"))
++        _ec_costs_check(interval.costs);interval.costs.trials==1 && interval.costs.report_cells==0 || throw(ArgumentError("coupled accepted-trial work counters differ"))
++        if replay
++            charges=_pic_collection_charges(es.g,es.n0,before)
++            target=_empic_collection_charge_target(es,es.collection,charges)
++            fresh=try
++                _,packet=_ec_pair!(probe,before,interval.origin.fields,es.collection.mobile,target,interval.dt,delta,clock_value,next_clock,source,elapsed,r.control,meter)
++                packet
++            catch failure
++                failure isa _EMPICCoupledReject || rethrow()
++                throw(ArgumentError("saved coupled accepted trial now fails its own historical admission: $(failure.reason)"))
++            end
++            _ec_identical(interval,fresh) || throw(ArgumentError("coupled accepted trial differs from canonical source/force/field/rounding replay"))
++        end
++        trial_cost=_ec_cost_add(trial_cost,interval.costs)
++        source,elapsed,clock_value=source+delta,interval.elapsed_after,next_clock
++        hint=_ec_recommend(interval.dt,interval.norm,r.control)
++        previous_high=interval.high
++    end
++    dcursor==length(r.decisions)+1 && rcursor==length(r.rejections)+1 && source==r.finish && elapsed==r.elapsed_after &&
++        isequal(clock_value,r.public_after) && isequal(last(r.intervals).dt,fast) && H==phase.interval && a==phase.last && b==phase.next || throw(ArgumentError("coupled final clock/calendar/retry history differs"))
++    previous_high!==nothing && isequal(previous_high.fields,fields) || throw(ArgumentError("coupled report ending physical fields differ"))
++    _ec_species_records_equal(previous_high.species,species) || throw(ArgumentError("coupled report ending particles differ"))
++    expected_cost=_ec_cost_add(_ec_cost_add(r.admission_costs,r.verification_costs),trial_cost)
++    expected_cost=merge(expected_cost,(force_evals=Base.checked_add(expected_cost.force_evals,decision_force),report_cells=r.costs.report_cells))
++    expected_cost==r.costs || throw(ArgumentError("coupled operation counters omit actual admission/verification/trial/decision work"))
++    summary=_ec_sum_work(r.intervals,r.kind)
++    for name in keys(summary)
++        isequal(getproperty(r,name),getproperty(summary,name)) || throw(ArgumentError("coupled accepted work aggregate differs"))
++    end
++    r.defects_before isa NamedTuple && keys(r.defects_before)==(:field,:particle,:coupling) && all(_ec_q,values(r.defects_before)) &&
++        r.field_before+r.kinetic_before-r.initial_energy==sum(values(r.defects_before)) &&
++        r.total_defect==r.field_defect+r.particle_defect+r.coupling_defect &&
++        phase.field_defect==r.defects_before.field+r.field_defect && phase.particle_defect==r.defects_before.particle+r.particle_defect &&
++        phase.coupling_defect==r.defects_before.coupling+r.coupling_defect &&
++        r.clock_defect==_exact_rational(r.public_after)-_exact_rational(r.public_before)-_exact_rational(r.requested) || throw(ArgumentError("coupled cumulative work/clock receipt differs"))
++    return nothing
++end
++function _ec_species_records_equal(records,species)
++    length(records)==length(species) || return false
++    return all(zip(records,species)) do pair
++        record,ps=pair
++        isequal((record.q,record.m),(ps.q,ps.m)) && all(p -> isequal(p[1],p[2]),zip((record.x...,record.v...,record.weight,record.id,record.tag),_empic_event_arrays(ps)))
++    end
++end
+diff --git a/src/diagnostics/empic_coupled_error_control.jl b/src/diagnostics/empic_coupled_error_control.jl
+new file mode 100644
+index 0000000..7546381
+--- /dev/null
++++ b/src/diagnostics/empic_coupled_error_control.jl
+@@ -0,0 +1,32 @@
++# Full-time phases and exact represented receipts remain distinct from the
++# canonical rounded physical moment views returned by the common diagnostic.
++_empic_collection_velocity_offsets(schedule::_EMPICCoupledSchedule,mobile,offset) = fill(zero(_EMPICCoupledQ),length(mobile))
++function _empic_collection_schedule_diagnostics(schedule::_EMPICCoupledSchedule,result)
++    phase=schedule.phase;report=phase.report
++    measured=phase.field_defect+phase.particle_defect+phase.coupling_defect
++    return deepcopy(merge(result,(schedule_policy=3,phase_policy=:full_time_coupled,
++        magnetic_time_offset=zero(_EMPICCoupledQ),source_time=phase.time,actual_elapsed=phase.elapsed,
++        public_clock_defect=_exact_rational(schedule.shadow.clock[1])-phase.time,
++        public_minus_actual=_exact_rational(schedule.shadow.clock[1])-phase.elapsed,
++        actual_minus_source=phase.elapsed-phase.time,nominal_H=phase.interval,last_deadline=phase.last,next_deadline=phase.next,
++        species_dt=schedule.proposal.cap,species_adaptive=schedule.proposal.adaptive,species_dt_min=schedule.proposal.minimum,
++        schedule_limits=schedule.proposal.limits,event_budget=schedule.proposal.budget,
++        error_control=schedule.control,admission_control=phase.admission_control,controller_next_h=phase.next_h,
++        spectral_signature=schedule.signature,initial_reported_energy=phase.initial_energy,
++        field_defect=phase.field_defect,particle_defect=phase.particle_defect,coupling_defect=phase.coupling_defect,
++        physical_work_defect=measured,cumulative_costs=phase.costs,last_error_control_report=report)))
++end
++function _empic_coupled_diagnostics(es,species)
++    schedule=es.collection.schedule;_ec_acquire(schedule)
++    try
++        meter=_ec_meter(schedule.phase.admission_control)
++        charges=_ec_ready(es,species,meter)
++        result=_empic_collection_moment_diagnostics(es,species,charges,es.collection)
++        K,U=_ec_energy(es,species)
++        defect=K+U-schedule.phase.initial_energy-schedule.phase.field_defect-schedule.phase.particle_defect-schedule.phase.coupling_defect
++        return merge(result,(reported_kinetic_energy=K,represented_field_energy=U,reported_total_energy=K+U,
++            accounting_defect=defect,observation_costs=_ec_costs(meter)))
++    finally
++        _ec_release(schedule)
++    end
++end
+diff --git a/src/io/empic_coupled_error_control_checkpoint.jl b/src/io/empic_coupled_error_control_checkpoint.jl
+new file mode 100644
+index 0000000..9e79cd3
+--- /dev/null
++++ b/src/io/empic_coupled_error_control_checkpoint.jl
+@@ -0,0 +1,213 @@
++# Schema4 preserves the full-time controller and its own historical admission.
++# The shared serializer/archive owners remain the only byte-format owners.
++const _EMPIC_COUPLED_CHECKPOINT_FIELDS =
++    (:coupled_control,:coupled_proposal,:coupled_phase,:spectral_signature)
++function _reject_empic_coupled_checkpoint_fields(s)
++    _validate_checkpoint_container(s,(:schema_version,))
++    (s.schema_version===4 || any(k -> haskey(s,k),_EMPIC_COUPLED_CHECKPOINT_FIELDS) ||
++        (haskey(s,:phase_policy) && s.phase_policy===:full_time_coupled)) &&
++        throw(ArgumentError("coupled full-time checkpoint requires a coupled destination without phase migration"))
++    return nothing
++end
++function _normalize_empic_coupled_checkpoint(s)
++    _validate_checkpoint_container(s,(:schema_version,:schedule_policy,:phase_policy,_EMPIC_COUPLED_CHECKPOINT_FIELDS...))
++    s.schema_version===4 && s.schedule_policy===3 && s.phase_policy===:full_time_coupled ||
++        throw(ArgumentError("coupled full-time checkpoints require schema4/policy3 without phase migration"))
++    return s
++end
++function _ec_checkpoint_schedule(st)
++    schedule=_empic_collection(st).schedule
++    schedule isa _EMPICCoupledSchedule || throw(ArgumentError("construct a coupled full-time checkpoint destination"))
++    return schedule
++end
++_ec_checkpoint_phase_wire(phase) = NamedTuple{_EC_PHASE_KEYS}(Tuple(getfield(phase,k) for k in _EC_PHASE_KEYS))
++function _ec_checkpoint_phase(wire,::Type{T}) where {T}
++    wire isa NamedTuple && keys(wire)==_EC_PHASE_KEYS || throw(ArgumentError("coupled saved phase has noncanonical fields"))
++    all(_ec_q,(wire.time,wire.elapsed,wire.initial_energy,wire.field_defect,wire.particle_defect,wire.coupling_defect)) &&
++        wire.interval isa Vector{T} && wire.last isa Vector{_EMPICCoupledQ} && wire.next isa Vector{_EMPICCoupledQ} &&
++        wire.next_h isa T && (wire.report===nothing || wire.report isa NamedTuple) ||
++        throw(ArgumentError("coupled saved phase requires exact canonical scalar/vector types"))
++    _ec_identical(wire.admission_control,_ec_control(wire.admission_control,T)) ||
++        throw(ArgumentError("coupled saved historical admission control is not canonical"))
++    _ec_costs_check(wire.costs)
++    _ec_closed(wire)
++    return _EMPICCoupledPhase{T}(Tuple(getproperty(wire,k) for k in _EC_PHASE_KEYS)...)
++end
++function _ec_checkpoint_context(st,g,s,populations)
++    p=s.coupled_proposal
++    Model=st isa EMPIC ? EMPIC : EMPIC1D
++    context=Model(g,populations;mobile=s.mobile,background_charge=s.n0,
++        neutrality=s.neutrality,charge_rtol=s.charge_rtol,c=s.c,shape=s.shape,
++        n_sub=s.n_sub,relativistic=s.relativistic,species_dt=p.cap,
++        species_adaptive=p.adaptive,species_dt_min=p.minimum,schedule_limits=p.limits,
++        event_budget=p.budget,error_control=s.coupled_control)
++    _ec_restore_fields!(context,s.fields)
++    _ec_sync_magnetic!(context)
++    context.time[],context.step[]=s.time,s.step
++    context.last_dt[],context.last_sub_dt[]=s.last_dt,s.last_sub_dt
++    return context
++end
++# This helper is called only while the destination owner is held. It validates
++# the ORIGINAL graph before any constructor/copy can hide repeated roles.
++function _ec_prepare_checkpoint(s,st,g::FourierGrid{D,T};destination=nothing) where {D,T}
++    _ec_checkpoint_schedule(st);_ec_mode(T)
++    g===st.g || throw(ArgumentError("coupled checkpoint must use its destination grid"))
++    _normalize_empic_coupled_checkpoint(s)
++    required=(_EMPIC_COLLECTION_CHECKPOINT_FIELDS...,(st isa EMPIC1D ? (:polarization,) : ())...,
++        :schedule_policy,:phase_policy,_EMPIC_COUPLED_CHECKPOINT_FIELDS...)
++    keys(s)==required && s.D isa Int && s.T===T && s.ncell isa typeof(g.n) && s.L isa typeof(g.L) &&
++        s.mobile isa BitVector && s.species isa Vector && all(i -> isassigned(s.species,i),eachindex(s.species)) ||
++        throw(ArgumentError("coupled checkpoint envelope has noncanonical fields or types"))
++    for record in s.species
++        record isa NamedTuple && keys(record)==_CHECKPOINT_PARTICLE_FIELDS ||
++            throw(ArgumentError("coupled saved particle record has noncanonical fields"))
++    end
++    s.fields isa NamedTuple && keys(s.fields)==keys(_empic_event_fields(st)) ||
++        throw(ArgumentError("coupled saved field inventory differs"))
++    _ec_independent(_ec_role_arrays((s.mobile,s.species,s.fields,s.coupled_control,s.coupled_proposal,s.coupled_phase)))
++    _empic_event_checkpoint_graph(s)
++    destination===nothing || _empic_event_checkpoint_live_links(s,st,destination)
++    _ec_closed((s.species,s.fields,s.coupled_control,s.coupled_proposal,s.coupled_phase))
++    _empic_event_checkpoint_proposal_layout(s.coupled_proposal,T)
++    control=_ec_control(s.coupled_control,T)
++    _ec_identical(control,s.coupled_control) || throw(ArgumentError("coupled saved future control is not canonical"))
++    p=s.coupled_proposal
++    proposal=_empic_event_proposal(s.mobile,p.cap,p.adaptive,p.minimum,p.limits,p.budget,T)
++    _ec_identical(proposal,p) || throw(ArgumentError("coupled saved nominal proposal is not canonical"))
++    s.n_sub isa Int && 1<=s.n_sub<=proposal.budget || throw(ArgumentError("coupled saved base/event budget differs"))
++    phase=_ec_checkpoint_phase(s.coupled_phase,T)
++    s.spectral_signature isa String && s.spectral_signature==_ec_spectral_signature(g) ||
++        throw(ArgumentError("coupled saved spectral operator signature differs"))
++    populations=_validate_empic_collection_checkpoint_envelope(s,st,g,4)
++    # The constructor only allocates/adopts saved scalar policy; no init/solve/
++    # projection is invoked. Incoming primaries are copied verbatim to context.
++    context=_ec_checkpoint_context(st,g,s,populations)
++    populations=_ec_snapshot_check(context,(species=s.species,fields=s.fields))
++    context.collection.schedule.phase=phase
++    context.collection.initialized[]=s.initialized
++    clock=(s.time,s.step,s.last_dt,s.last_sub_dt)
++    _ec_identical(phase.next_h,_ec_future_hint(phase,control)) ||
++        throw(ArgumentError("coupled saved next interval differs from its historical recommendation and future bounds"))
++    if !s.initialized
++        iszero(s.step) && all(iszero,(phase.time,phase.elapsed,phase.initial_energy,phase.field_defect,
++            phase.particle_defect,phase.coupling_defect,phase.interval...,phase.last...,phase.next...)) &&
++            all(iszero,values(phase.costs)) && phase.report===nothing ||
++            throw(ArgumentError("uninitialized coupled seeds must retain an empty zero-time history"))
++    end
++    meter=_ec_meter(phase.admission_control)
++    _ec_validate_phase(context,phase,populations,s.fields,s.initialized,clock,meter)
++    return (context=context,populations=populations,proposal=proposal,control=control,phase=phase)
++end
++function _validate_empic_coupled_checkpoint(s,st,g;destination=nothing)
++    schedule=_ec_checkpoint_schedule(st);_ec_acquire(schedule)
++    try
++        _ec_prepare_checkpoint(s,st,g;destination)
++        return nothing
++    finally
++        _ec_release(schedule)
++    end
++end
++function _empic_coupled_checkpoint_state_locked(st,species)
++    schedule=_ec_checkpoint_schedule(st);work=st.collection
++    T=eltype(st.rho_n);D=length(st.g.n)
++    _empic_collection_validate_storage(st,species)
++    fields=_empic_event_fields(st);wire=_ec_checkpoint_phase_wire(schedule.phase)
++    # Inspect actual flags (including packed chunks), public views and every
++    # private phase/report role before the common builder copies any leaves.
++    _ec_independent(_ec_role_arrays((work.mobile,species,fields,schedule.control,schedule.proposal,wire)))
++    graph=(mobile=work.mobile,species=[_checkpoint_particle_state(ps) for ps in species],
++        fields=fields,control=schedule.control,proposal=schedule.proposal,phase=wire)
++    _empic_event_checkpoint_graph(graph)
++    _ec_closed((fields,schedule.control,schedule.proposal,wire))
++    if work.initialized[]
++        _ec_ready(st,species,_ec_meter(schedule.phase.admission_control))
++    else
++        _empic_collection_validate_species(st,species)
++        _ec_phase_scalar_check(st,schedule.phase,length(species),false,
++            (st.time[],st.step[],st.last_dt[],st.last_sub_dt[]))
++    end
++    ordinary=_ec_copy_species(species,Val(D),T)
++    common=_empic_collection_checkpoint_common(st,species,st.g)
++    original=merge(common,(schema_version=4,schedule_policy=3,phase_policy=:full_time_coupled,
++        species=NamedTuple[_checkpoint_particle_state(ps) for ps in ordinary],fields=fields,
++        coupled_control=schedule.control,coupled_proposal=schedule.proposal,coupled_phase=wire,
++        spectral_signature=schedule.signature))
++    saved=deepcopy(original)
++    _ec_prepare_checkpoint(saved,st,st.g)
++    return saved
++end
++function _empic_coupled_checkpoint_state(st,species)
++    schedule=_ec_checkpoint_schedule(st);_ec_acquire(schedule)
++    try
++        return _empic_coupled_checkpoint_state_locked(st,species)
++    finally
++        _ec_release(schedule)
++    end
++end
++function _ec_checkpoint_copy_stage!(destination,prepared)
++    # Types, shapes and ordinary independent stores were admitted before commit.
++    foreach(copyto!,_empic_transaction_fields(destination),_empic_transaction_fields(prepared))
++    destination.c,destination.shape,destination.relativistic,destination.n_sub=
++        prepared.c,prepared.shape,prepared.relativistic,prepared.n_sub
++    destination.time[],destination.step[]=prepared.time[],prepared.step[]
++    destination.last_dt[],destination.last_sub_dt[]=prepared.last_dt[],prepared.last_sub_dt[]
++    return nothing
++end
++function _restore_empic_coupled_checkpoint_locked!(st,species,s,g::FourierGrid{D,T}) where {D,T}
++    work=st.collection;schedule=_ec_checkpoint_schedule(st)
++    # This inspects original aliases/live links before deepcopy. Stale numerical
++    # destination values are deliberately not passed through _ec_ready.
++    _empic_collection_validate_storage(st,species)
++    _ec_independent(_ec_role_arrays((work.mobile,species)))
++    _ec_prepare_checkpoint(s,st,g;destination=species)
++    length(species)==length(s.species) && all(ps -> ps isa eltype(work.owners),species) ||
++        throw(ArgumentError("coupled checkpoint destination population layout differs"))
++    for (ps,record) in zip(species,s.species)
++        _validate_checkpoint_destination(ps,length(record.weight))
++    end
++    saved=deepcopy(s)
++    admitted=_ec_prepare_checkpoint(saved,st,g)
++    context,phase,proposal,control=admitted.context,admitted.phase,admitted.proposal,admitted.control
++    candidate=_ec_zero_phase(T,length(species),control)
++    clock=(saved.time,saved.step,saved.last_dt,saved.last_sub_dt)
++    shadow=saved.initialized ? _ec_shadow(context,admitted.populations,saved.fields,species,clock) : nothing
++    arrays=vcat(_ec_role_arrays((proposal,_ec_checkpoint_phase_wire(phase),_ec_checkpoint_phase_wire(candidate))),
++        _empic_event_shadow_arrays(shadow))
++    _ec_independent(arrays)
++    for array in arrays,ps in species
++        _mightalias_particle_storage(array,ps) && throw(ArgumentError("coupled restored phase/report/shadow aliases public particles"))
++    end
++    # Reserve all permitted growth before the first ordinary value/length store.
++    for (ps,record) in zip(species,saved.species)
++        count=length(record.weight)
++        for array in (ps.x...,ps.v...,ps.weight,ps.id,ps.tag)
++            if length(array)!=count
++                array isa Vector || throw(ArgumentError("only Vector coupled checkpoint destinations may resize"))
++                sizehint!(array,count)
++            end
++        end
++    end
++    sizehint!(work.owners,length(species))
++    # Public/stage objects and all their arrays retain identity. The independent
++    # prepared context already carries full B in Bc/Bzc and reset scratch rows.
++    for (ps,record) in zip(species,saved.species)
++        _restore_checkpoint_particles!(ps,record)
++    end
++    _ec_checkpoint_copy_stage!(st,context)
++    _ec_checkpoint_copy_stage!(work.stage,context)
++    schedule.proposal,schedule.control=proposal,control
++    schedule.phase,schedule.candidate=phase,candidate
++    schedule.shadow,schedule.candidate_shadow=shadow,nothing
++    schedule.signature=saved.spectral_signature
++    empty!(work.owners);append!(work.owners,species)
++    work.initialized[]=saved.initialized
++    return st
++end
++function _restore_empic_coupled_checkpoint!(st,species,s,g)
++    schedule=_ec_checkpoint_schedule(st);_ec_acquire(schedule)
++    try
++        return _restore_empic_coupled_checkpoint_locked!(st,species,s,g)
++    finally
++        _ec_release(schedule)
++    end
++end
+diff --git a/docs/EMPIC_COUPLED_ERROR_CONTROL.md b/docs/EMPIC_COUPLED_ERROR_CONTROL.md
+new file mode 100644
+index 0000000..303d2b0
+--- /dev/null
++++ b/docs/EMPIC_COUPLED_ERROR_CONTROL.md
+@@ -0,0 +1,210 @@
++# Coupled error control for periodic EMPIC
++
++`EMPIC` and planar `EMPIC1D` accept an explicit `error_control` proposal on an
++ordered persistent species schedule. This CPU Float32/Float64 policy evolves
++physical positions, velocities, E and B at the same full-time phase, using a
++projected Euler–Heun pair and the canonical charge/current/Maxwell operators.
++It measures a coupled embedded defect. Scientific order, true-error guarantees,
++effectivity across support cuts and resource acceptance require independent
++remote results; source implementation alone does not establish them.
++
++## Select the policy
++
++Use `species_dt`, `event_budget` and `error_control` together. The opt-in supports
++CIC/TSC; NGP is rejected at this constructor selection. Existing NGP ordinary,
++dividing and persistent schedules remain available with their existing phases.
++`species_stride` cannot be combined with this policy. No old phase is migrated
++or inferred by a setter or restart.
++
++The proposal has exactly these keys, including exactly five named tolerance
++roles in the displayed order. There are no hidden common-unit tolerances:
++
++```julia
++T = Float64
++proposal = (
++    pair=:projected_euler_heun_v1, metric=:component_max_v1,
++    domain=:cic_tsc_continuous_v1,
++    atol=(x=T(1e-5), v=T(1e-5), E=T(1e-5), B=T(1e-5), clock=T(1e-12)),
++    rtol=(x=T(1e-3), v=T(1e-3), E=T(1e-3), B=T(1e-3), clock=zero(T)),
++    h_min=T(1/65536), h_max=T(1/128), max_trials=1024,
++    max_force_evals=100_000, max_deposits=1_000_000,
++    max_fft_calls=100_000, max_report_cells=2_000_000,
++)
++```
++
++This is an unexecuted API illustration; its tolerances, budget and time bounds
++must be chosen for the user's units/problem. Atols must remain finite positive
++after conversion; rtols are finite in `[0,1)`. Time bounds are positive resolved
++T intervals, with `h_min<=h_max`; each budget is a positive Int-sized integer.
++The policy requires nearest rounding and gradual underflow.
++
++```julia
++using HybridPlasmaPIC
++g = FourierGrid((8,), (one(T),))
++a = ParticleSet{1,T}(1; q=T(-2), m=T(3))
++b = ParticleSet{1,T}(1; q=one(T), m=T(5))
++a.x[1][1], a.weight[1], a.v[1][1] = T(7/32), T(1/2), T(1/16)
++b.x[1][1], b.weight[1], b.v[1][1] = T(21/32), one(T), T(-1/32)
++species = [a,b]
++st = EMPIC(g,species; c=one(T),shape=CIC(),
++    species_dt=T[1/8,3/16],event_budget=1024,error_control=proposal)
++fill!(st.E[2],T(1/32))
++init_empic!(st,species)
++step_empic!(st,species,T(1/64))
++diag = electromagnetic_diagnostics(st,species)
++```
++
++Particles must have finite loaded positions and velocities, finite nonnegative
++weights, original finite charges and positive masses. Ordinary injective writable
++CPU storage and ordered fixed source inventory retain their collection meanings.
++Fixed rows require zero velocity and `species_dt=0`; they deposit charge and
++stay fixed. Empty rows and zero-weight mobile markers are admitted. Mobile
++markers participate in force and error/domain checks regardless of weight.
++
++## The actual coupled pair
++
++`init_empic!` receives full-time x/v/E/B, prepares the canonical source/Gauss
++state and starts a zero-time controller/calendar. It performs no velocity or
++magnetic half prime. `phase_policy=:full_time_coupled`; physical velocity and
++magnetic diagnostic offsets are zero. The planar model keeps its existing
++polarization, including stored `v_z=0`.
++
++For each trial, choose an exact source-calendar gap `delta` bounded by the next
++mandatory edge and proposed interval. Materialize one resolved actual `h::T`;
++BOTH branches consume `H=Q(h)`. Gather/deposit at every mobile origin, then form
++Euler x/v/B. Deposit Euler charge and correct its current through the canonical
++finite-interval continuity owner before completing Euler E. The actual stored
++Euler fields and particles supply the second force/current stage. Construct
++Heun from the original state and both stages, deposit its own charge, correct
++its actual averaged current and complete its own E/B update. Publish only an
++admitted high branch. Euler and Heun normally have different endpoint charge;
++they share the source endpoint, actual h, source inventory and physical phase.
++
++Nonrelativistic force retains original q/m in exact scaled increments.
++Relativistic force uses physical velocity:
++
++```text
++Delta v = H*q/(m*gamma) * [E + v × B - v*(v·E)/c²].
++```
++
++Completed Euler/Heun outputs use the shared exact rational/radical combination
++and rounding owners. No pre-rounded q/m, unscaled overflow-prone acceleration,
++rounded half-h or separately rounded stage increment replaces that formula.
++Every materialized relativistic stage/output must satisfy the shared supported
++velocity rule: its rounded normalized squared speed stays strictly below one,
++with an exact stored-speed check on the admitted near-boundary side. Exact
++subluminality alone does not widen that rule. No velocity clipping or
++renormalization is supplied.
++
++On effective Fourier range modes, let `G=-i*k/|k|²` and `P=I-G*D`, using the
++actual stored `kvec`, including its per-axis Nyquist zeros. The consumed current
++is `P*Jraw-G*(rho_end-rho_start)/H`. The longitudinal high-minus-low field
++therefore includes `G*(rho_high-rho_low)`. A raw-current difference alone is
++not the coupled embedded defect. True DC raw current remains physical; non-DC
++all-zero-effective-k current is suppressed. Mixed Nyquist/range modes retain
++their valid components. Initial homogeneous excluded E/B modes are retained.
++Gauss is a range-mode constraint; physical DC charge and excluded density modes
++remain separately observed channels.
++
++## Norm, cuts, clocks and retries
++
++The component maximum includes all mobile spatial positions/all three velocities
++and every represented E/B component. Velocity and field scales are
++`atol+rtol*max(abs(start),abs(low),abs(high))`; position scale is
++`atol_x+rtol_x*L_d`, with the actual unique lifted high-minus-low displacement.
++There is no Richardson divisor or assumed convergence exponent.
++
++CIC integer cuts, TSC half-integer cuts and physical periodic seams are admitted.
++All stages use their actual canonical rounded stencil, including knot ties;
++there is no artificial smoothing or single-piece rejection. Actual branch lifts,
++BigInt winding, ideal/represented endpoint difference, sampled stencils and
++compact directed cut ranges are retained. Ideal and represented branch travel
++must each stay below `L/4`, and branch separation below `L/2`, to give an
++unambiguous torus metric. These sampled straight stage paths are not an exact
++orbit event history. The physical seam remains explicit when represented
++`L` differs from `n*dx`.
++
++The controller separately observes actual-h minus calendar-gap, public rounded
++clock increment minus actual h, and their sum under the clock role tolerance.
++Source time advances by delta; public time follows actual repeated additions.
++Neither clock replaces the other. Nominal species caps/deadlines and exact
++base-partition edges remain mandatory. They control future nominal decisions,
++not whether a mobile force is sampled: every trial has both force stages even
++during a pending nominal interval. Right-edge decisions stay pending until the
++next positive call. Zero duration validates and consumes nothing.
++
++Accept only norm<=1 plus finite/source/constraint/speed/travel/role/phase/budget
++admission. On an observed retryable rejection discard both branches and retry
++half the gap from the identical accepted origin. After success, recommend at
++most `2h` when norm<=1/4, otherwise h, within the explicit bounds. These are
++controller rules, not an order theorem. Unresolved/below-hmin mandatory gaps or
++exhausted budgets fail visibly. There is no promise that every tolerance/macro
++endpoint is reachable. Canonical source/FFT/programming errors propagate; they
++are not converted by broad exception catches into successful retries.
++
++## Receipts, budgets and persistence
++
++`last_error_control_report` retains its historical control/event proposal,
++accepted `intervals`, bounded rejection/deadline receipts, actual origin/low/high
++particles/fields/source/current/derivative operands, lifts, norm and work/cost
++observations. `error_control` and `controller_next_h` describe future choices;
++`nominal_H`, `last_deadline` and `next_deadline` describe the nominal calendar.
++`admission_control` retains the policy that admits the current physical state
++and report, separately from the future `error_control` proposal.
++The full external `step_empic!` increments public step once.
++
++Signed field, particle and coupling defects sum to the actual reported total
++energy change. Consumed field work uses actual high current and mean endpoint
++E; particle work uses actual gathered electric samples. Generic raw work has
++all three current components; planar raw work is explicitly transverse Jy-only.
++Relativistic kinetic energy is the canonical reported rounded physical moment,
++not an exact irrational number. Rejected trials spend computational budget and
++contribute no accepted physical work. Conservation, passivity and stability are
++not inferred from these accounting identities.
++
++Budgets count all attempted force evaluations, scalar deposition contributions,
++reserved primitive FFT-plan calls including range replays, trials and retained
++report scalar cells. Actual admission and final-verification replay costs are
++separate receipts and count against each positive operation's work budget.
++Valid historical reports use their own retained admission policy for observation
++and capture; a smaller future budget can require raising it before advancing.
++FFT reservations bound primitive plan calls in the reviewed canonical
++dependency; dependency changes require rechecking them. They are not measured
++CPU time or peak bytes. Full-operation
++allocation/peak-memory/performance acceptance remains separate.
++
++Existing family setters admit copied future proposals. Pair/metric/domain are
++immutable; changing tolerances/caps does not retime pending deadlines or rewrite
++old report/history. Each old report is validated under its own historical
++proposal. A new owner-local guard covers init/step/setter/diagnostics/save/load.
++All fallible work, including final cumulative ledger, complete report and shadow,
++precedes ordinary publication. A late failure discards the entire external
++operation, including previously accepted private subintervals. Independent states
++sharing a grid/FFT scratch retain the existing concurrency restriction.
++
++Completed-boundary raw/archive schema 4/policy 3 stores full-time primaries, source,
++provenance, exact spectral-operator signature, clocks/calendar, future and
++historical controller state, complete bounded report and cumulative ledger.
++Original graph/live links are checked before copying. Restore supports changed
++ordinary destination counts and stale old numerical values, then publishes the
++saved phase verbatim without solving, reprojecting or re-priming. Different
++operator bits or old schema 1/2/3 phases do not silently migrate. The canonical
++atomic serializer/checksummed archive container remains the IO owner.
++Uninitialized count-zero constructor seeds are also retained as uninitialized,
++with finite data and empty zero-time history; their source/Gauss preparation
++starts only at explicit `init_empic!`. Capture materializes admitted public
++strided views into ordinary saved vectors; matching-count view destinations keep
++their existing arrays on restore.
++
++Accepted reports undergo exact typed native numerical replay. Reproducible
++admission therefore uses the retained native arithmetic/FFT environment and
++matching replay results. The operator signature is saved; native plans, wisdom
++and library environment are not serialized. Essentials construct fresh target
++grids/plans within their runtime. Broader planning/wisdom/backend portability is
++unexecuted.
++
++Full NGP jump handling, a true-error guarantee, knot/seam effectivity and
++convergence, asynchronous multirate force reduction, source-growth/collision/
++boundary/backend intersections and measured resource acceptance remain open.
++Minimum/latest supported Julia acceptance runs on GitHub; no local numerical
++workload or unexecuted result is presented as a passing check by this guide.
+diff --git a/test/test_empic_coupled_error_control.jl b/test/test_empic_coupled_error_control.jl
+new file mode 100644
+index 0000000..f28ad96
+--- /dev/null
++++ b/test/test_empic_coupled_error_control.jl
+@@ -0,0 +1,573 @@
++module EMPICCoupledErrorControlTests
++using HybridPlasmaPIC, Test, Serialization
++const H = HybridPlasmaPIC
++const Q = Rational{BigInt}
++cross3(a,b) = (a[2]*b[3]-a[3]*b[2],a[3]*b[1]-a[1]*b[3],a[1]*b[2]-a[2]*b[1])
++
++function control(::Type{T};hmax=T(1/64),hmin=hmax/T(64),tol=T(1/4),trials=128) where {T}
++    return (pair=:projected_euler_heun_v1,metric=:component_max_v1,
++        domain=:cic_tsc_continuous_v1,
++        atol=(x=tol,v=tol,E=tol,B=tol,clock=T(128)*eps(T)),
++        rtol=(x=zero(T),v=zero(T),E=zero(T),B=zero(T),clock=zero(T)),
++        h_min=hmin,h_max=hmax,max_trials=trials,max_force_evals=100_000,
++        max_deposits=1_000_000,max_fft_calls=100_000,max_report_cells=2_000_000)
++end
++function population(::Type{T},D;weighted=false,count=1,knot=nothing,seam=false) where {T}
++    rows=[ParticleSet{D,T}(count;q=-2,m=3),ParticleSet{D,T}(1;q=1,m=5),
++        ParticleSet{D,T}(1;q=0,m=1),ParticleSet{D,T}(0;q=3,m=7)]
++    for (s,ps) in enumerate(rows),p in eachindex(ps.weight),d=1:D
++        ps.x[d][p]=T(s==1 ? (d==1 ? 7/32 : 5/16) : (s==2 ? 21/32 : 3/4))
++        ps.weight[p]=weighted && s<=2 ? (s==1 ? T(1/2)/T(count) : one(T)) : zero(T)
++        if s<=2
++            ps.v[d][p]=T(s==1 ? 1/8 : -1/16)
++        end
++    end
++    for ps in rows[1:2]
++        fill!(ps.v[2],T(1/32))
++    end
++    if knot!==nothing
++        fill!(rows[1].x[1],T(knot))
++    end
++    if seam
++        fill!(rows[1].x[1],prevfloat(one(T)))
++        fill!(rows[1].v[1],T(1/8))
++    end
++    return rows
++end
++function fixture(::Type{T},Model;D=1,shape=CIC(),weighted=false,proposal=control(T),
++    count=1,knot=nothing,seam=false,n_sub=1,relativistic=false,initialize=true) where {T}
++    n=D==1 ? (4,) : (D==2 ? (4,4) : (4,3,3))
++    g=FourierGrid(n,ntuple(_->one(T),D))
++    ps=population(T,D;weighted,count,knot,seam)
++    if Model===EMPIC
++        fill!(ps[1].v[3],T(1/64));fill!(ps[2].v[3],T(-1/128))
++    end
++    es=Model(g,ps;mobile=Bool[true,true,false,true],c=one(T),shape,n_sub,
++        species_dt=T[1/2,3/4,0,1/2],event_budget=256,
++        error_control=proposal,relativistic)
++    if es isa EMPIC
++        fill!(es.E[1],T(1/32))
++        for I in CartesianIndices(g.n)
++            es.E[2][I]=T(1/16)*T(cos(2pi*(I[1]-1)/g.n[1]))
++            es.B[3][I]=T(1/32)*T(sin(2pi*(I[1]-1)/g.n[1]))
++        end
++    else
++        fill!(es.Ex,T(1/32))
++        for i in eachindex(es.Ey)
++            es.Ey[i]=T(1/16)*T(cos(2pi*(i-1)/g.n[1]))
++            es.Bz[i]=T(1/32)*T(sin(2pi*(i-1)/g.n[1]))
++        end
++    end
++    initialize && init_empic!(es,ps)
++    return es,ps
++end
++function eb(es)
++    es isa EMPIC && return (E=map(copy,es.E),B=map(copy,es.B))
++    z=zeros(eltype(es.Ex),size(es.Ex))
++    return (E=(copy(es.Ex),copy(es.Ey),copy(z)),B=(copy(z),copy(z),copy(es.Bz)))
++end
++setfuture(es;kwargs...) = es isa EMPIC ? set_empic_schedule!(es;kwargs...) : set_empic1d_schedule!(es;kwargs...)
++function snapshot(es,ps)
++    io=IOBuffer();serialize(io,H._checkpoint_state(es,ps));return take!(io)
++end
++physical(es,ps)=deepcopy((fields=eb(es),particles=[H._checkpoint_particle_state(p) for p in ps]))
++function leaf_view(a)
++    backing=zeros(eltype(a),length(a)+2)
++    result=view(backing,2:length(a)+1);copyto!(result,a);return result
++end
++
++# Full-node cardinal B-splines, independent of production stencil selection.
++# Only tiny n>=3 references use these finite periodic images.
++cardinal(::CIC,r)=max(0.0,1-abs(r))
++cardinal(::TSC,r)=abs(r)<=0.5 ? 0.75-r*r : (abs(r)<1.5 ? (1.5-abs(r))^2/2 : 0.0)
++function nodal_weights(ps,p,g,shape)
++    s=ntuple(d->Float64(mod(ps.x[d][p],g.L[d])/g.dx[d]),length(g.n))
++    return [prod(d->sum(cardinal(shape,s[d]-(I[d]-1)+image*g.n[d]) for image=-1:1),1:length(g.n)) for I in CartesianIndices(g.n)]
++end
++function sources(ps,g,shape,mobile)
++    rho=zeros(g.n);J=ntuple(_->zeros(g.n),3);volume=prod(Float64,g.dx)
++    for (s,row) in enumerate(ps),p in eachindex(row.weight)
++        weights=nodal_weights(row,p,g,shape)
++        charge=Float64(row.q)*Float64(row.weight[p])/volume
++        rho .+= charge.*weights
++        if mobile[s]
++            for c=1:3
++                J[c] .+= (charge*Float64(row.v[c][p])).*weights
++            end
++        end
++    end
++    return rho,J
++end
++function sample(fields,ps,p,g,shape)
++    weights=nodal_weights(ps,p,g,shape)
++    return ntuple(c->sum(Float64.(fields[c]).*weights),3)
++end
++# Direct finite DFT; no production FFT/curl/projection is called by this oracle.
++function dft(values,g;inverse=false)
++    result=Array{ComplexF64}(undef,g.n)
++    sign=inverse ? 1 : -1
++    for I in CartesianIndices(g.n)
++        value=0.0+0.0im
++        for J in CartesianIndices(g.n)
++            angle=sign*2pi*sum(d->(I[d]-1)*(J[d]-1)/g.n[d],1:length(g.n))
++            value+=values[J]*cis(angle)
++        end
++        result[I]=inverse ? value/prod(g.n) : value
++    end
++    return result
++end
++wavevector(g,I)=ntuple(d->d<=length(g.n) ? Float64(g.kvec[d][I[d]]) : 0.0,3)
++function curl(fields,g)
++    hats=map(a->dft(a,g),fields);out=map(a->similar(a),hats)
++    for I in CartesianIndices(g.n)
++        value=cross3(wavevector(g,I),ntuple(c->hats[c][I],3))
++        for c=1:3
++            out[c][I]=1im*value[c]
++        end
++    end
++    return map(a->real.(dft(a,g;inverse=true)),out)
++end
++function corrected_current(raw,rho0,rho1,g,h)
++    hats=map(a->dft(a,g),raw);delta=dft(rho1.-rho0,g)
++    dc=first(CartesianIndices(g.n))
++    for I in CartesianIndices(g.n)
++        k=wavevector(g,I);k2=sum(abs2,k)
++        if k2>0
++            longitudinal=sum(c->k[c]*hats[c][I],1:3)
++            for c=1:3
++                hats[c][I]+=k[c]*(1im*delta[I]/h-longitudinal)/k2
++            end
++        elseif I!=dc
++            for c=1:3
++                hats[c][I]=0
++            end
++        end
++    end
++    return map(a->real.(dft(a,g;inverse=true)),hats)
++end
++function gradient_lift(rho,g)
++    hat=dft(rho,g);out=ntuple(_->zeros(ComplexF64,g.n),3)
++    for I in CartesianIndices(g.n)
++        k=wavevector(g,I);k2=sum(abs2,k)
++        iszero(k2) && continue
++        for c=1:3
++            out[c][I]=-1im*k[c]*hat[I]/k2
++        end
++    end
++    return map(a->real.(dft(a,g;inverse=true)),out)
++end
++function force_parts(ps,p,E,B,h)
++    v=ntuple(c->Q(ps.v[c][p]),3);electric=map(Q,E);magnetic=map(Q,B)
++    return (Q(h)*Q(ps.q)/Q(ps.m)).*(electric.+cross3(v,magnetic))
++end
++function wrapped(::Type{T},x,L) where {T}
++    value=T(mod(x,Q(L)))
++    return value==L ? zero(T) : value
++end
++function pair_reference(es,particles,h)
++    T=eltype(es.rho_n);g,shape,mobile=es.g,es.shape,es.collection.mobile
++    start=eb(es);old=deepcopy(particles);low=deepcopy(old);high=deepcopy(old)
++    increments=NTuple{3,Q}[]
++    for (s,ps) in enumerate(old),p in eachindex(ps.weight)
++        electric=T.(sample(start.E,ps,p,g,shape));magnetic=T.(sample(start.B,ps,p,g,shape))
++        increment=mobile[s] ? force_parts(ps,p,electric,magnetic,h) : ntuple(_->zero(Q),3)
++        push!(increments,increment)
++        mobile[s] || continue
++        for c=1:3
++            low[s].v[c][p]=T(Q(ps.v[c][p])+increment[c])
++        end
++        for d=1:length(g.n)
++            low[s].x[d][p]=wrapped(T,Q(ps.x[d][p])+Q(h)*Q(ps.v[d][p]),g.L[d])
++        end
++    end
++    rho0,J0=sources(old,g,shape,mobile);rhoE,_=sources(low,g,shape,mobile)
++    rho0,rhoE=T.(rho0),T.(rhoE);J0=map(a->T.(a),J0)
++    JE=corrected_current(J0,rho0,rhoE,g,Float64(h))
++    curlE0,curlB0=curl(start.E,g),curl(start.B,g)
++    BE=ntuple(c->T.(start.B[c].-Float64(h).*curlE0[c]),3)
++    EE=ntuple(c->T.(start.E[c].+Float64(h)*Float64(es.c)^2.*curlB0[c].-Float64(h).*JE[c]),3)
++    cursor=0
++    for (s,ps) in enumerate(low),p in eachindex(ps.weight)
++        cursor+=1;mobile[s] || continue
++        electric=T.(sample(EE,ps,p,g,shape));magnetic=T.(sample(BE,ps,p,g,shape))
++        increment=force_parts(ps,p,electric,magnetic,h)
++        for c=1:3
++            high[s].v[c][p]=T(Q(old[s].v[c][p])+(increments[cursor][c]+increment[c])/2)
++        end
++        for d=1:length(g.n)
++            high[s].x[d][p]=wrapped(T,Q(old[s].x[d][p])+Q(h)*(Q(old[s].v[d][p])+Q(ps.v[d][p]))/2,g.L[d])
++        end
++    end
++    rhoH,_=sources(high,g,shape,mobile);_,J1=sources(low,g,shape,mobile)
++    rhoH=T.(rhoH);J1=map(a->T.(a),J1)
++    Jbar=ntuple(c->T.((Float64.(J0[c]).+Float64.(J1[c]))./2),3)
++    JH=corrected_current(Jbar,rho0,rhoH,g,Float64(h))
++    curlEE,curlBE=curl(EE,g),curl(BE,g)
++    BH=ntuple(c->T.(start.B[c].-Float64(h)/2.*(curlE0[c].+curlEE[c])),3)
++    EH=ntuple(c->T.(start.E[c].+Float64(h)*Float64(es.c)^2/2.*(curlB0[c].+curlBE[c]).-Float64(h).*JH[c]),3)
++    return (low=low,high=high,E_low=EE,B_low=BE,E_high=EH,B_high=BH,
++        J_low=JE,J_high=JH,Jraw_high=Jbar,rho0=rho0,rho_low=rhoE,rho_high=rhoH,
++        longitudinal=gradient_lift(Float64.(rhoH).-Float64.(rhoE),g))
++end
++function check_particles(actual,expected,tolerance)
++    for (a,b) in zip(actual,expected)
++        @test a.q==b.q && a.m==b.m && a.weight==b.weight && a.id==b.id && a.tag==b.tag
++        for (u,v) in zip((a.x...,a.v...),(b.x...,b.v...))
++            @test isapprox(u,v;rtol=tolerance,atol=tolerance)
++        end
++    end
++end
++function check_fields(actual,E,B,tolerance)
++    if hasproperty(actual,:E)
++        for c=1:3
++            @test isapprox(actual.E[c],E[c];rtol=tolerance,atol=tolerance)
++            @test isapprox(actual.B[c],B[c];rtol=tolerance,atol=tolerance)
++        end
++    else
++        for (a,b) in ((actual.Ex,E[1]),(actual.Ey,E[2]),(actual.Bz,B[3]))
++            @test isapprox(a,b;rtol=tolerance,atol=tolerance)
++        end
++    end
++end
++
++@testset "Projected Euler-Heun independent coupled reference" begin
++    cases=vec([(T,Model,1,shape) for T in (Float32,Float64),Model in (EMPIC,EMPIC1D),shape in (CIC(),TSC())])
++    append!(cases,[(Float64,EMPIC,D,CIC()) for D in (2,3)])
++    for (T,Model,D,shape) in cases
++        @testset "$T $Model D=$D $(typeof(shape))" begin
++            h=T(1/64);es,ps=fixture(T,Model;D,shape,weighted=true)
++            @test ps[1].v[1][1]==T(1/8) # Initialization is physically full time.
++            original=snapshot(es,ps);step_empic!(es,ps,-zero(T))
++            @test snapshot(es,ps)==original
++            before=eb(es);reference=pair_reference(es,ps,h)
++            step_empic!(es,ps,h)
++            d=electromagnetic_diagnostics(es,ps);r=d.last_error_control_report
++            @test d.schedule_policy===3 && d.phase_policy===:full_time_coupled
++            @test all(iszero,d.velocity_time_offsets) && iszero(d.magnetic_time_offset)
++            @test es.step[]==1 && es.last_dt[]==h && es.last_sub_dt[]==h
++            @test d.source_time==Q(h) && d.public_clock_defect==Q(es.time[])-d.source_time
++            @test length(r.intervals)==1 && only(r.intervals).dt==h
++            @test r.costs.trials==r.admission_costs.trials+r.verification_costs.trials+1
++            @test r.costs.force_evals>=4 && r.costs.fft_calls>0 && only(r.intervals).costs.trials==1
++            interval=only(r.intervals)
++            @test interval.source_before==0 && interval.source_after==Q(h) && interval.norm<=1
++            tolerance=T===Float32 ? 1024eps(T) : 2e-10
++            check_particles(ps,reference.high,tolerance)
++            check_particles(interval.low.species,reference.low,tolerance)
++            check_fields(interval.low.fields,reference.E_low,reference.B_low,tolerance)
++            check_fields(interval.high.fields,reference.E_high,reference.B_high,tolerance)
++            current=es isa EMPIC ? es.J : (es.Jx,es.Jy,zeros(T,es.g.n))
++            for c=1:3
++                @test isapprox(current[c],reference.J_high[c];rtol=tolerance,atol=tolerance)
++                if es isa EMPIC
++                    @test isapprox(es.Jraw[c],reference.Jraw_high[c];rtol=tolerance,atol=tolerance)
++                end
++            end
++            @test isapprox(es.rho_np1,reference.rho_high;rtol=tolerance,atol=tolerance)
++            @test maximum(a->maximum(abs,a),reference.longitudinal)>1e-12
++            # Removing G(rhoH-rhoE) cannot satisfy this actual branch comparison.
++            lowE=es isa EMPIC ? interval.low.fields.E : (interval.low.fields.Ex,interval.low.fields.Ey,zeros(T,es.g.n))
++            highE=es isa EMPIC ? interval.high.fields.E : (interval.high.fields.Ex,interval.high.fields.Ey,zeros(T,es.g.n))
++            for c=1:3
++                @test isapprox(Float64.(highE[c]).-Float64.(lowE[c]),Float64.(reference.E_high[c]).-Float64.(reference.E_low[c]);rtol=tolerance,atol=tolerance)
++            end
++            @test (es isa EMPIC ? r.work_raw!==nothing && r.work_raw_transverse===nothing : r.work_raw===nothing && r.work_raw_transverse!==nothing)
++            @test r.total_defect==r.field_defect+r.particle_defect+r.coupling_defect
++            @test r.total_defect==r.field_after-r.field_before+r.kinetic_after-r.kinetic_before
++            # Actual effective-symbol null modes are distinct from physical DC.
++            hats=map(a->dft(a,es.g),current);dc=first(CartesianIndices(es.g.n))
++            for I in CartesianIndices(es.g.n)
++                if I!=dc && iszero(sum(abs2,wavevector(es.g,I)))
++                    @test all(c->abs(hats[c][I])<=10tolerance,1:3)
++                end
++            end
++            for c=1:3
++                @test isapprox(sum(current[c]),sum(reference.Jraw_high[c]);rtol=tolerance,atol=tolerance)
++            end
++            @test any(c->es isa EMPIC ? es.E[c]!=before.E[c] || es.B[c]!=before.B[c] : (c==1 ? es.Ex!=before.E[1] : es.Ey!=before.E[2]),1:3)
++        end
++    end
++end
++
++# Independent4096-bit evaluation of the physical-v formula. These remote checks
++# do not call the production radical combiner/finisher as their reference.
++function radical_reference(v0,parts0,parts1,::Type{T}) where {T}
++    return setprecision(BigFloat,4096) do
++        ntuple(3) do c
++            a=BigFloat(parts0.coefficient[c])*sqrt(BigFloat(parts0.gap))
++            increment=parts1===nothing ? a : (a+BigFloat(parts1.coefficient[c])*sqrt(BigFloat(parts1.gap)))/2
++            T(BigFloat(v0[c])+increment)
++        end
++    end
++end
++function physical_parts(v,E,B,q,m,h,c)
++    V,e,b=map(x->map(Q,x),(v,E,B));gap=(Q(c)^2-sum(abs2,V))/Q(c)^2
++    coefficient=(Q(h)*Q(q)/Q(m)).*(e.+cross3(V,b).-V.*(sum(V.*e)/Q(c)^2))
++    return (coefficient=coefficient,gap=gap)
++end
++@testset "Original-factor and canonical radical scalar outputs" begin
++    for T in (Float32,Float64)
++        z=zero(T);v=(z,-z,z);E=(nextfloat(z),z,z);B=(z,z,z)
++        row=ParticleSet{1,T}(0;q=floatmax(T),m=floatmin(T))
++        factor=H._validated_boris_factor(row);h=Q(nextfloat(z))
++        parts=H._em_lorentz_scaled_parts(v,E,B,factor,h,one(T),Val(false))
++        expected=ntuple(c->T(Q(v[c])+h*Q(row.q)/Q(row.m)*Q(E[c])),3)
++        @test H._em_lorentz_pair_output(v,parts,nothing,one(T),Val(false))==expected
++        inert=H._em_lorentz_scaled_parts(v,B,B,factor,h,one(T),Val(true))
++        @test isequal(H._em_lorentz_pair_output(v,inert,nothing,one(T),Val(true)),v)
++        tiny=ParticleSet{1,T}(0;q=nextfloat(z),m=floatmax(T))
++        rescued=H._em_lorentz_scaled_parts(v,(one(T),z,z),B,H._validated_boris_factor(tiny),Q(tiny.m),one(T),Val(false))
++        @test H._em_lorentz_pair_output(v,rescued,nothing,one(T),Val(false))[1]==nextfloat(z)
++        # sqrt(3/4)=(3/2)*sqrt(1/3): two distinct radicands cancel exactly.
++        cancel0=(coefficient=(one(Q),one(Q),one(Q)),gap=Q(3)/4)
++        cancel1=(coefficient=ntuple(_->-Q(3)/2,3),gap=Q(1)/3)
++        @test isequal(H._em_lorentz_pair_output(v,cancel0,cancel1,T(6),Val(true)),v)
++        # c=5,v=3 has rational sqrt(g)=4/5. The parallel increment is an
++        # exact midpoint at3, then just ABOVE it; raw uncanonicalized roots fail.
++        v=(T(3),z,z);E=(one(T),z,z);B=(z,z,z);c=T(5)
++        factor=H._validated_boris_factor(ParticleSet{1,T}(0))
++        h=Q(125)/64*Q(eps(T(3)))/2
++        for electric in (E,(nextfloat(one(T)),z,z))
++            own=physical_parts(v,electric,B,one(T),one(T),h,c)
++            actual=H._em_lorentz_scaled_parts(v,electric,B,factor,h,c,Val(true))
++            @test actual==own
++            expected=electric[1]==one(T) ? T(3) : nextfloat(T(3))
++            @test H._em_lorentz_pair_output(v,actual,nothing,c,Val(true))==expected
++        end
++        E,B=(T(1/8),T(1/32),z),(z,z,T(1/16));h=Q(1)/64
++        p0=physical_parts(v,E,B,one(T),one(T),h,c)
++        low=radical_reference(v,p0,nothing,T)
++        p1=physical_parts(low,E,B,one(T),one(T),h,c)
++        a0=H._em_lorentz_scaled_parts(v,E,B,factor,h,c,Val(true))
++        a1=H._em_lorentz_scaled_parts(low,E,B,factor,h,c,Val(true))
++        @test H._em_lorentz_pair_output(v,a0,a1,c,Val(true))==radical_reference(v,p0,p1,T)
++        @test_throws ArgumentError H._em_lorentz_scaled_parts((one(T),z,z),E,B,factor,h,one(T),Val(true))
++        invalid=(coefficient=(Q(2),zero(Q),zero(Q)),gap=one(Q))
++        outside=H._em_lorentz_pair_output((z,z,z),invalid,nothing,one(T),Val(true))
++        @test !H._supported_relativistic_output(outside,one(T)) # Publication owns rejection.
++        near=(prevfloat(one(T)),z,z)
++        stationary=H._em_lorentz_scaled_parts(near,(z,z,z),(z,z,z),factor,h,one(T),Val(true))
++        @test H._em_lorentz_pair_output(near,stationary,nothing,one(T),Val(true))==near
++    end
++end
++
++@testset "Continuous cuts, seam and pending full-time force" begin
++    for T in (Float32,Float64),Model in (EMPIC,EMPIC1D),shape in (CIC(),TSC())
++        knot=shape isa CIC ? T(1/4) : T(3/8)
++        for seam in (false,true)
++            es,ps=fixture(T,Model;shape,knot,seam)
++            step_empic!(es,ps,T(1/64))
++            d=electromagnetic_diagnostics(es,ps)
++            @test d.last_deadline[1]==0 && d.next_deadline[1]==Q(1)/2
++            interval=only(d.last_error_control_report.intervals)
++            @test interval.stage1.stencil[1]==interval.lifts.low[1].stencil
++            if seam
++                @test ps[1].x[1][1]<T(1/16) && interval.lifts.high[1].winding[1][1]==1
++                @test interval.lifts.high[1].cuts[1][1].seam
++            else
++                knot_stencil=interval.stage0.stencil[1][1][1]
++                @test knot_stencil.base==1
++                @test knot_stencil.weights==(shape isa CIC ? (one(T),zero(T)) : (T(1/2),T(1/2),zero(T)))
++            end
++            pending=deepcopy(d.next_deadline);before=deepcopy(ps[1].v)
++            reference=pair_reference(es,ps,T(1/64))
++            step_empic!(es,ps,T(1/64))
++            d=electromagnetic_diagnostics(es,ps)
++            @test d.next_deadline==pending && isempty(d.last_error_control_report.decisions)
++            @test ps[1].v!=before
++            check_particles(ps,reference.high,T===Float32 ? 1024eps(T) : 2e-10)
++        end
++        # Closed new-policy restriction is distinct from old NGP support.
++        @test_throws ArgumentError fixture(T,Model;shape=NGP())
++        oldps=population(T,1)
++        old=Model(FourierGrid((4,),(one(T),)),oldps;shape=NGP(),
++            mobile=Bool[true,true,false,true],species_dt=T[1/2,3/4,0,1/2],event_budget=32)
++        init_empic!(old,oldps);step_empic!(old,oldps,T(1/64))
++        @test H._checkpoint_state(old,oldps).schema_version===3
++    end
++end
++
++@testset "Controller rejection, late rollback and complete schema4 restart" begin
++    for T in (Float32,Float64),Model in (EMPIC,EMPIC1D)
++        h=T(1/32)
++        tight=control(T;hmax=h,tol=T(1/4096))
++        es,ps=fixture(T,Model;proposal=tight)
++        step_empic!(es,ps,h)
++        d=electromagnetic_diagnostics(es,ps);report=d.last_error_control_report
++        @test !isempty(report.rejections) && length(report.intervals)>1
++        @test report.costs.trials==report.admission_costs.trials+report.verification_costs.trials+length(report.intervals)+length(report.rejections)
++        @test d.actual_elapsed==sum(Q(i.dt) for i in report.intervals)
++        oldreport=deepcopy(report);pending=deepcopy(d.next_deadline)
++        # A future smaller trial budget must not invalidate the historical
++        # report that actually used a larger budget and retained rejections.
++        future=control(T;trials=1)
++        setfuture(es;error_control=future,species_dt=T[3/4,1,0,1/2])
++        d=electromagnetic_diagnostics(es,ps)
++        hint=d.controller_next_h
++        setfuture(es;error_control=merge(future,(h_min=min(future.h_min,hint/T(4)),h_max=hint/T(2))))
++        setfuture(es;error_control=future)
++        d=electromagnetic_diagnostics(es,ps)
++        @test d.controller_next_h==hint
++        io=IOBuffer();serialize(io,oldreport);oldbytes=take!(io)
++        io=IOBuffer();serialize(io,d.last_error_control_report)
++        @test take!(io)==oldbytes && d.next_deadline==pending
++        saved=H._checkpoint_state(es,ps);before=snapshot(es,ps)
++        @test saved.schema_version===4 && saved.schedule_policy===3 && saved.phase_policy===:full_time_coupled
++        @test_throws ArgumentError H._restore_checkpoint_state!(es,ps,merge(saved,(phase_policy=:persistent_event,)))
++        @test_throws ArgumentError H._restore_checkpoint_state!(es,ps,merge(saved,(spectral_signature=saved.spectral_signature*"x",)))
++        @test_throws ArgumentError H._restore_checkpoint_state!(es,ps,merge(saved,(coupled_control=merge(saved.coupled_control,(h_max=Q(saved.coupled_control.h_max),)),)))
++        cycle=Any[];push!(cycle,cycle)
++        cyclic=merge(saved,(coupled_phase=merge(saved.coupled_phase,(report=merge(saved.coupled_phase.report,(intervals=cycle,)),)),))
++        @test_throws ArgumentError H._restore_checkpoint_state!(es,ps,cyclic)
++        # Both source arrays are numerically zero, so this packet differs only
++        # in its original role graph, before any deepcopy could conceal it.
++        @test all(iszero,saved.fields.rho_n) && all(iszero,saved.fields.rho_np1)
++        bad=merge(saved,(fields=merge(saved.fields,(rho_np1=saved.fields.rho_n,)),))
++        @test_throws ArgumentError H._restore_checkpoint_state!(es,ps,bad)
++        livefields=es isa EMPIC ? merge(saved.fields,(E=(saved.fields.E[1],es.E[2],saved.fields.E[3]),)) : merge(saved.fields,(Ey=es.Ey,))
++        @test_throws ArgumentError H._restore_checkpoint_state!(es,ps,merge(saved,(fields=livefields,)))
++        @test snapshot(es,ps)==before
++        @test_throws ArgumentError setfuture(es;error_control=merge(future,(domain=:single_piece,)))
++        @test snapshot(es,ps)==before
++        mktempdir() do directory
++            raw,archive=joinpath(directory,"coupled.chk"),joinpath(directory,"coupled.run")
++            save_checkpoint(raw,es,ps);archive_run(archive,es,ps;rng_seed=0)
++            other,rows=fixture(T,Model;count=2)
++            @test other.g!==es.g && other.g.plan!==es.g.plan # Fresh target grid/plans.
++            owner=rows[1]
++            for row in rows
++                for a in (row.x...,row.v...,row.weight)
++                    fill!(a,T(NaN))
++                end
++                row.q,row.m=T(NaN),-one(T)
++            end
++            for a in (other isa EMPIC ? (other.E...,other.B...,other.J...,other.Jraw...,other.rho_n,other.rho_np1) : (other.Ex,other.Ey,other.Bz,other.Jx,other.Jy,other.rho_n,other.rho_np1))
++                fill!(a,T(NaN))
++            end
++            other.time[],other.step[],other.last_dt[],other.last_sub_dt[]=T(Inf),-1,T(Inf),T(Inf)
++            load_checkpoint!(other,rows,raw)
++            @test rows[1]===owner && length(rows[1].weight)==1 && snapshot(other,rows)==before
++            # A positive operation must also pay for historical admission and
++            # final verification replay, unlike capture of valid saved history.
++            setfuture(es;error_control=control(T));setfuture(other;error_control=control(T))
++            step_empic!(es,ps,T(1/1024));step_empic!(other,rows,T(1/1024))
++            @test snapshot(other,rows)==snapshot(es,ps)
++            load_archive!(other,rows,archive)
++            @test snapshot(other,rows)==before
++        end
++        # A resolved positive final edge below h_min occurs after a private
++        # accepted interval. The ENTIRE external operation must roll back.
++        late,rows=fixture(T,Model;proposal=control(T;hmax=T(1/64),hmin=T(1/128)))
++        initial=snapshot(late,rows)
++        @test_throws ArgumentError step_empic!(late,rows,T(5/256))
++        @test snapshot(late,rows)==initial
++        exhausted,rows=fixture(T,Model;proposal=control(T;hmax=h,tol=eps(T),trials=1))
++        initial=snapshot(exhausted,rows)
++        @test_throws ArgumentError step_empic!(exhausted,rows,h)
++        @test snapshot(exhausted,rows)==initial
++        setfuture(exhausted;error_control=control(T;hmax=h))
++        clean,cleanrows=fixture(T,Model;proposal=control(T;hmax=h))
++        step_empic!(exhausted,rows,h);step_empic!(clean,cleanrows,h)
++        @test physical(exhausted,rows)==physical(clean,cleanrows)
++    end
++end
++
++@testset "Full-time physical-v relativistic caller and C1 rollback" begin
++    for T in (Float32,Float64),Model in (EMPIC,EMPIC1D)
++        es,ps=fixture(T,Model;relativistic=true)
++        fields=es isa EMPIC ? (es.E...,es.B...) : (es.Ex,es.Ey,es.Bz)
++        foreach(a->fill!(a,zero(T)),fields)
++        electric=(T(1/8),T(1/32),zero(T));magnetic=ntuple(_->zero(T),3)
++        if es isa EMPIC
++            foreach(fill!,es.E,electric)
++        else
++            fill!(es.Ex,electric[1]);fill!(es.Ey,electric[2])
++        end
++        init_empic!(es,ps);expected=deepcopy(ps);h=T(1/64)
++        for i=1:2,p in eachindex(ps[i].weight)
++            v=ntuple(c->ps[i].v[c][p],3)
++            p0=physical_parts(v,electric,magnetic,ps[i].q,ps[i].m,h,es.c)
++            low=radical_reference(v,p0,nothing,T)
++            p1=physical_parts(low,electric,magnetic,ps[i].q,ps[i].m,h,es.c)
++            high=radical_reference(v,p0,p1,T)
++            for c=1:3
++                expected[i].v[c][p]=high[c]
++            end
++            for d=1:length(es.g.n)
++                expected[i].x[d][p]=wrapped(T,Q(ps[i].x[d][p])+Q(h)*(Q(v[d])+Q(low[d]))/2,es.g.L[d])
++            end
++        end
++        step_empic!(es,ps,h)
++        check_particles(ps,expected,64eps(T))
++        setfuture(es;error_control=control(T;hmax=h,hmin=h))
++        es isa EMPIC ? fill!(es.E[1],T(512)) : fill!(es.Ex,T(512))
++        init_empic!(es,ps);before=snapshot(es,ps)
++        @test_throws ArgumentError step_empic!(es,ps,h)
++        @test snapshot(es,ps)==before
++    end
++end
++
++@testset "Exact right edge and non-dyadic source/public clocks" begin
++    for T in (Float32,Float64),Model in (EMPIC,EMPIC1D)
++        h=T(1/64);es,ps=fixture(T,Model)
++        setfuture(es;species_dt=T[h,2h,0,h])
++        step_empic!(es,ps,h)
++        d=electromagnetic_diagnostics(es,ps)
++        @test d.last_deadline[1]==0 && d.next_deadline[1]==Q(h)
++        before=snapshot(es,ps);step_empic!(es,ps,zero(T))
++        @test snapshot(es,ps)==before
++        step_empic!(es,ps,h)
++        @test electromagnetic_diagnostics(es,ps).last_deadline[1]==Q(h)
++        clock,rows=fixture(T,Model;proposal=control(T;hmax=T(1/32),hmin=T(1/65536)),n_sub=3)
++        step_empic!(clock,rows,T(0.1))
++        d=electromagnetic_diagnostics(clock,rows);r=d.last_error_control_report
++        @test d.source_time==Q(T(0.1)) && d.actual_elapsed==sum(Q(i.dt) for i in r.intervals)
++        @test d.public_clock_defect==Q(clock.time[])-d.source_time
++        @test d.public_minus_actual==Q(clock.time[])-d.actual_elapsed
++        @test clock.step[]==1 && all(i->i.norm<=1,r.intervals)
++    end
++end
++
++@testset "Uninitialized schema4 seeds and ordinary view destinations" begin
++    for T in (Float32,Float64),Model in (EMPIC,EMPIC1D)
++        es,ps=fixture(T,Model;initialize=false)
++        old_id=ps[1].id;ps[1].id=es.collection.mobile.chunks
++        @test_throws ArgumentError H._checkpoint_state(es,ps)
++        ps[1].id=old_id
++        saved=H._checkpoint_state(es,ps)
++        @test !saved.initialized && saved.step==0 && saved.coupled_phase.report===nothing
++        @test all(iszero,values(saved.coupled_phase.costs))
++        target,rows=fixture(T,Model;count=2)
++        H._restore_checkpoint_state!(target,rows,saved)
++        @test !target.collection.initialized[] && snapshot(target,rows)==snapshot(es,ps)
++        bad=merge(saved,(coupled_phase=merge(saved.coupled_phase,(initial_energy=one(Q),)),))
++        before=snapshot(target,rows)
++        @test_throws ArgumentError H._restore_checkpoint_state!(target,rows,bad)
++        @test snapshot(target,rows)==before
++        init_empic!(target,rows);init_empic!(es,ps)
++        zero_state=H._checkpoint_state(target,rows);zero_before=snapshot(target,rows)
++        bad=deepcopy(zero_state);bad.fields.rho_n[1]+=one(T)
++        @test_throws ArgumentError H._restore_checkpoint_state!(target,rows,bad)
++        bad=deepcopy(zero_state)
++        current=target isa EMPIC ? bad.fields.J[1] : bad.fields.Jx
++        current[1]=one(T)
++        @test_throws ArgumentError H._restore_checkpoint_state!(target,rows,bad)
++        @test snapshot(target,rows)==zero_before
++        step_empic!(target,rows,T(1/64));step_empic!(es,ps,T(1/64))
++        @test snapshot(target,rows)==snapshot(es,ps)
++    end
++    for Model in (EMPIC,EMPIC1D)
++        original=population(Float64,1)
++        rows=[ParticleSet{1,Float64}(map(leaf_view,p.x),map(leaf_view,p.v),leaf_view(p.weight),leaf_view(p.id),leaf_view(p.tag),p.q,p.m) for p in original]
++        es=Model(FourierGrid((4,),(1.0,)),rows;mobile=Bool[true,true,false,true],
++            species_dt=[1/2,3/4,0,1/2],event_budget=256,error_control=control(Float64),c=1.0)
++        init_empic!(es,rows);step_empic!(es,rows,1/64)
++        saved=H._checkpoint_state(es,rows);before=snapshot(es,rows)
++        @test all(p->p.x isa Tuple{Vector{Float64}},saved.species)
++        leaves=[(p.x...,p.v...,p.weight,p.id,p.tag) for p in rows]
++        step_empic!(es,rows,1/64);H._restore_checkpoint_state!(es,rows,saved)
++        @test snapshot(es,rows)==before
++        @test all(pair->all(p->p[1]===p[2],zip(pair[1],(pair[2].x...,pair[2].v...,pair[2].weight,pair[2].id,pair[2].tag))),zip(leaves,rows))
++    end
++end
++end

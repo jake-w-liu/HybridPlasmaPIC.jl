@@ -1,5 +1,7 @@
 # HybridPlasmaPIC.jl
 
+**Implementation handoff (2026-11-09):** [OpenCode plan and acceptance criteria](docs/OPENCODE_IMPLEMENTATION_HANDOFF.md) · [complete progress tracker](docs/OPENCODE_ACCEPTANCE_TRACKER.md). Codex has stopped; full simulator implementation and current candidate acceptance remain incomplete.
+
 A research-grade **hybrid particle-in-cell (PIC) plasma solver** in Julia:
 kinetic ions (Boris-pushed macroparticles), massless fluid electrons
 (generalized Ohm's law), and spectral fields on periodic grids — plus a family

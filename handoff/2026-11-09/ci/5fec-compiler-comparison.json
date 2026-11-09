@@ -1,0 +1,130 @@
+{
+  "normalization": "Only .jl line numbers and numeric #/#s synthetic suffixes; owner/error/types/frame order preserved.",
+  "parser_validation": "All96 parsed7ea minimum chains match retained independent inventory exactly under same normalization.",
+  "records": [
+    {
+      "job": 128972294051,
+      "actual_head": "5fec15192830f87978e839de2651fccd88d2b3c6",
+      "actual_julia": "1.12.7",
+      "whole_reports": 94,
+      "unchanged_cap": 86,
+      "package_located": 0,
+      "complete_chains_match_reviewed_7ea_subset": 94,
+      "unmatched_current_chains": 0,
+      "prior_accepted_chains_retained": 86,
+      "same_binding_additions": 8,
+      "annular_only_missing_vs_7ea": [
+        {
+          "raw_line": 1265,
+          "text": "BoundsError: attempt to access Tuple{Tuple, Tuple} at index [3]: Tn = fieldtype(T::Type{Tuple{Tuple, Tuple}}, n::Int64)",
+          "trace": [
+            "(::Type{\u2026} where {\u2026})(mesh::Any, closure::Any, owners::Any, beta::Any, fields::Any, pressure_reservoir::Any, div_rtol::Any, div_atol::Any, refresh_rtol::Any, _counts::Any, _qm::Any, _weights::Any, _components::Any, _normal_flux::Any, work::Any, _committed::Any, _configuration::Any, initialized::Any, time::Any, step::Any, last_dt::Any, initial_energy::Any, outward_work::Any, controller_work::Any, stage_defect::Any, rk_defect::Any, last_report::Any, last_endpoint::Any, _busy::Any) @ HybridPlasmaPIC /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/models/toroidal_annulus_hybrid_pic.jl:63",
+            "convert(::Type{Tuple{Tuple, Tuple}}, x::NTuple{N, Any}) where N @ Base ./essentials.jl:614",
+            "ntuple(f::Base.var\"#cvt1#convert##0\"{Tuple{Tuple, Tuple}, <:Tuple}, ::Val{3}) @ Base ./ntuple.jl:52",
+            "(::Base.var\"#cvt1#convert##0\"{Tuple{Tuple, Tuple}, <:Tuple})(n::Int64) @ Base ./essentials.jl:609"
+          ]
+        },
+        {
+          "raw_line": 1273,
+          "text": "invalid builtin function call: getfield(x::SubArray{_A, 2, Union{}, Tuple{Int64, Base.Slice{Base.OneTo{Int64}}, Base.Slice{Base.OneTo{Int64}}}, true} where _A, f::Symbol)",
+          "trace": [
+            "ToroidalAnnulusHybridPIC(mesh::ToroidalAnnulusGrid{T}, species::AbstractVector) where T @ HybridPlasmaPIC /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/models/toroidal_annulus_hybrid_pic.jl:225",
+            "ToroidalAnnulusHybridPIC(mesh::ToroidalAnnulusGrid, species::AbstractVector; closure::EvolvingElectrons, beta0::Nothing, pe0::Any, pressure_reservoir::Tuple{\u2026}, div_rtol::Any, div_atol::Any, refresh_rtol::Any) @ HybridPlasmaPIC /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/models/toroidal_annulus_hybrid_pic.jl:281",
+            "ntuple(f::HybridPlasmaPIC.var\"#1533#1534\"{\u2026} where {\u2026}, n::Int64) @ Base ./ntuple.jl:19",
+            "(::HybridPlasmaPIC.var\"#1533#1534\"{var\"#s179\", ToroidalAnnulusGrid{\u2026}} where {var\"#s179\"<:Tuple{\u2026}, T, O})(side::Int64) @ HybridPlasmaPIC /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/models/toroidal_annulus_hybrid_pic.jl:281",
+            "copy(a::SubArray{_A, 2, Union{}, Tuple{Int64, Base.Slice{Base.OneTo{\u2026}}, Base.Slice{Base.OneTo{\u2026}}}, true} where _A) @ SparseArrays /cache/build/builder-amdci5-2/julialang/julia-ci/usr/share/julia/stdlib/v1.12/SparseArrays/src/sparsevector.jl:852",
+            "getproperty(x::SubArray{_A, 2, Union{}, Tuple{Int64, Base.Slice{\u2026}, Base.Slice{\u2026}}, true} where _A, f::Symbol) @ Base ./Base_compiler.jl:54"
+          ]
+        }
+      ],
+      "gate_lines": [
+        {
+          "line": 99,
+          "text": "[command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +5fec15192830f87978e839de2651fccd88d2b3c6:refs/remotes/origin/implement/resident-cuda-20261109"
+        },
+        {
+          "line": 101,
+          "text": " * [new ref]         5fec15192830f87978e839de2651fccd88d2b3c6 -> origin/implement/resident-cuda-20261109"
+        },
+        {
+          "line": 113,
+          "text": "5fec15192830f87978e839de2651fccd88d2b3c6"
+        },
+        {
+          "line": 123,
+          "text": "julia version 1.12.7"
+        },
+        {
+          "line": 836,
+          "text": "\u2514   n_reports = 94"
+        },
+        {
+          "line": 1396,
+          "text": "\u2514   n_reports = 0"
+        },
+        {
+          "line": 1399,
+          "text": "   Evaluated: 94 <= 86"
+        }
+      ]
+    },
+    {
+      "job": 128972293761,
+      "actual_head": "5fec15192830f87978e839de2651fccd88d2b3c6",
+      "actual_julia": "1.13.3",
+      "whole_reports": 87,
+      "unchanged_cap": 86,
+      "package_located": 0,
+      "complete_chains_match_reviewed_7ea_subset": 87,
+      "unmatched_current_chains": 0,
+      "prior_accepted_chains_retained": 79,
+      "same_binding_additions": 8,
+      "annular_only_missing_vs_7ea": [
+        {
+          "raw_line": 1217,
+          "text": "invalid builtin function call: getfield(x::SubArray{_A, 2, Union{}, Tuple{Int64, Base.Slice{Base.OneTo{Int64}}, Base.Slice{Base.OneTo{Int64}}}, true} where _A, f::Symbol)",
+          "trace": [
+            "ToroidalAnnulusHybridPIC(mesh::ToroidalAnnulusGrid{T}, species::AbstractVector) where T @ HybridPlasmaPIC /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/models/toroidal_annulus_hybrid_pic.jl:225",
+            "ToroidalAnnulusHybridPIC(mesh::ToroidalAnnulusGrid, species::AbstractVector; closure::EvolvingElectrons, beta0::Nothing, pe0::Any, pressure_reservoir::Tuple{\u2026}, div_rtol::Any, div_atol::Any, refresh_rtol::Any) @ HybridPlasmaPIC /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/models/toroidal_annulus_hybrid_pic.jl:281",
+            "ntuple(f::HybridPlasmaPIC.var\"#1533#1534\"{\u2026} where {\u2026}, n::Int64) @ Base ./ntuple.jl:19",
+            "(::HybridPlasmaPIC.var\"#1533#1534\"{var\"#s185\", ToroidalAnnulusGrid{\u2026}} where {var\"#s185\"<:Tuple{\u2026}, T, O})(side::Int64) @ HybridPlasmaPIC /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/models/toroidal_annulus_hybrid_pic.jl:281",
+            "copy(a::SubArray{_A, 2, Union{}, Tuple{Int64, Base.Slice{Base.OneTo{\u2026}}, Base.Slice{Base.OneTo{\u2026}}}, true} where _A) @ SparseArrays /cache/build/builder-amdci4-1/julialang/julia-ci/usr/share/julia/stdlib/v1.13/SparseArrays/src/sparsevector.jl:860",
+            "getproperty(x::SubArray{_A, 2, Union{}, Tuple{Int64, Base.Slice{\u2026}, Base.Slice{\u2026}}, true} where _A, f::Symbol) @ Base ./Base_compiler.jl:57"
+          ]
+        }
+      ],
+      "gate_lines": [
+        {
+          "line": 99,
+          "text": "[command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +5fec15192830f87978e839de2651fccd88d2b3c6:refs/remotes/origin/implement/resident-cuda-20261109"
+        },
+        {
+          "line": 101,
+          "text": " * [new ref]         5fec15192830f87978e839de2651fccd88d2b3c6 -> origin/implement/resident-cuda-20261109"
+        },
+        {
+          "line": 113,
+          "text": "5fec15192830f87978e839de2651fccd88d2b3c6"
+        },
+        {
+          "line": 123,
+          "text": "julia version 1.13.3"
+        },
+        {
+          "line": 828,
+          "text": "\u2514   n_reports = 87"
+        },
+        {
+          "line": 1321,
+          "text": "\u2514   n_reports = 0"
+        },
+        {
+          "line": 1325,
+          "text": "   Evaluated: 87 <= 86"
+        }
+      ]
+    }
+  ],
+  "source_disposition": "Both versions retain their86/79 accepted prior chains and add the same8 binding-construction/store chains already source-reviewed for7ea. Actual static/dynamic owners are byte-identical between5fec and7ea. The missing2/1 chains enter the new annular source file; one constructor prints anonymously, so classification uses its actual source path rather than public type spelling. The pushed566ddc1 typed canonical binding repair covers this same source owner; current repaired-head compiler execution still required. No new numerical runtime defect is established by these diagnostics.",
+  "qualification": "Actual raw/Git text/source comparison only; cap86/filter/accepted34-entry ledger unchanged."
+}

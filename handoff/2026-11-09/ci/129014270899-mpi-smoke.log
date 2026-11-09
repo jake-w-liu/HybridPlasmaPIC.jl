@@ -1,0 +1,496 @@
+Precompiling packages...
+PrecompilingPrecompiling packages...
+ packages...
+Precompiling packages...
+    HybridPlasmaPIC Being precompiled by another process (pid: 2847, pidfile: /home/runner/.julia/compiled/v1.12/HybridPlasmaPIC/YGgim_qZjuz.ji.pidfile)
+    HybridPlasmaPIC Being precompiled by another process (pid: 2847, pidfile: /home/runner/.julia/compiled/v1.12/HybridPlasmaPIC/YGgim_qZjuz.ji.pidfile)
+    HybridPlasmaPIC Being precompiled by another process (pid: 2847, pidfile: /home/runner/.julia/compiled/v1.12/HybridPlasmaPIC/YGgim_qZjuz.ji.pidfile)
+Info Given HybridPlasmaPIC was explicitly requested, output will be shown live [0K
+[0KERROR: LoadError: ParseError:
+[0K# Error @ /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/models/empic_collection.jl:1430:46
+[0K        throw(ArgumentError("persistent report layout differs"))
+[0K    report.kind === (es isa EMPIC ? :vector :planar) && report.bootstrap isa Bool &&
+[0K#                                            └ ── space required after `:` in `?` expression
+[0KStacktrace:
+[0K  [1] top-level scope
+[0K    @ ~/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/models/empic_collection.jl:1430
+[0K  [2] include(mapexpr::Function, mod::Module, _path::String)
+[0K    @ Base ./Base.jl:307
+[0K  [3] top-level scope
+[0K    @ ~/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/HybridPlasmaPIC.jl:138
+[0K  [4] include(mod::Module, _path::String)
+[0K    @ Base ./Base.jl:306
+[0K  [5] include_package_for_output(pkg::Base.PkgId, input::String, depot_path::Vector{String}, dl_load_path::Vector{String}, load_path::Vector{String}, concrete_deps::Vector{Pair{Base.PkgId, UInt128}}, source::Nothing)
+[0K    @ Base ./loading.jl:3106
+[0K  [6] top-level scope
+[0K    @ stdin:5
+[0K  [7] eval(m::Module, e::Any)
+[0K    @ Core ./boot.jl:489
+[0K  [8] include_string(mapexpr::typeof(identity), mod::Module, code::String, filename::String)
+[0K    @ Base ./loading.jl:2952
+[0K  [9] include_string
+[0K    @ ./loading.jl:2962 [inlined]
+[0K [10] exec_options(opts::Base.JLOptions)
+[0K    @ Base ./client.jl:315
+[0K [11] _start()
+[0K    @ Base ./client.jl:550
+[0Kin expression starting at /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/models/empic_collection.jl:1430
+[0Kin expression starting at /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/HybridPlasmaPIC.jl:1
+[0Kin expression starting at stdin:5
+              ✗ HybridPlasmaPIC
+  0 dependencies successfully precompiled in 6 seconds. 56 already precompiled.
+
+ERROR: LoadError: The following 1 direct dependency failed to precompile:
+
+HybridPlasmaPIC 
+
+Failed to precompile HybridPlasmaPIC [00a894a3-a090-46f4-90cd-35631ef5d77e] to "/home/runner/.julia/compiled/v1.12/HybridPlasmaPIC/jl_Hqk1Md".
+ERROR: LoadError: ParseError:
+# Error @ /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/models/empic_collection.jl:1430:46
+        throw(ArgumentError("persistent report layout differs"))
+    report.kind === (es isa EMPIC ? :vector :planar) && report.bootstrap isa Bool &&
+#                                            └ ── space required after `:` in `?` expression
+Stacktrace:
+  [1] top-level scope
+    @ ~/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/models/empic_collection.jl:1430
+  [2] include(mapexpr::Function, mod::Module, _path::String)
+    @ Base ./Base.jl:307
+  [3] top-level scope
+    @ ~/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/HybridPlasmaPIC.jl:138
+  [4] include(mod::Module, _path::String)
+    @ Base ./Base.jl:306
+  [5] include_package_for_output(pkg::Base.PkgId, input::String, depot_path::Vector{String}, dl_load_path::Vector{String}, load_path::Vector{String}, concrete_deps::Vector{Pair{Base.PkgId, UInt128}}, source::Nothing)
+    @ Base ./loading.jl:3106
+  [6] top-level scope
+    @ stdin:5
+  [7] eval(m::Module, e::Any)
+    @ Core ./boot.jl:489
+  [8] include_string(mapexpr::typeof(identity), mod::Module, code::String, filename::String)
+    @ Base ./loading.jl:2952
+  [9] include_string
+    @ ./loading.jl:2962 [inlined]
+ [10] exec_options(opts::Base.JLOptions)
+    @ Base ./client.jl:315
+ [11] _start()
+    @ Base ./client.jl:550
+in expression starting at /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/models/empic_collection.jl:1430
+in expression starting at /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/HybridPlasmaPIC.jl:1
+in expression starting at stdin:
+in expression starting at /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/test/test_mpi_multirank.jl:1
+Info Given HybridPlasmaPIC was explicitly requested, output will be shown live [0K
+[0KERROR: LoadError: ParseError:
+[0K# Error @ /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/models/empic_collection.jl:1430:46
+[0K        throw(ArgumentError("persistent report layout differs"))
+[0K    report.kind === (es isa EMPIC ? :vector :planar) && report.bootstrap isa Bool &&
+[0K#                                            └ ── space required after `:` in `?` expression
+[0KStacktrace:
+[0K  [1] top-level scope
+[0K    @ ~/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/models/empic_collection.jl:1430
+[0K  [2] include(mapexpr::Function, mod::Module, _path::String)
+[0K    @ Base ./Base.jl:307
+[0K  [3] top-level scope
+[0K    @ ~/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/HybridPlasmaPIC.jl:138
+[0K  [4] include(mod::Module, _path::String)
+[0K    @ Base ./Base.jl:306
+[0K  [5] include_package_for_output(pkg::Base.PkgId, input::String, depot_path::Vector{String}, dl_load_path::Vector{String}, load_path::Vector{String}, concrete_deps::Vector{Pair{Base.PkgId, UInt128}}, source::Nothing)
+[0K    @ Base ./loading.jl:3106
+[0K  [6] top-level scope
+[0K    @ stdin:5
+[0K  [7] eval(m::Module, e::Any)
+[0K    @ Core ./boot.jl:489
+[0K  [8] include_string(mapexpr::typeof(identity), mod::Module, code::String, filename::String)
+[0K    @ Base ./loading.jl:2952
+[0K  [9] include_string
+[0K    @ ./loading.jl:2962 [inlined]
+[0K [10] exec_options(opts::Base.JLOptions)
+[0K    @ Base ./client.jl:315
+[0K [11] _start()
+[0K    @ Base ./client.jl:550
+[0Kin expression starting at /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/models/empic_collection.jl:1430
+[0Kin expression starting at /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/HybridPlasmaPIC.jl:1
+[0Kin expression starting at stdin:5
+              ✗ HybridPlasmaPIC
+  0 dependencies successfully precompiled in 12 seconds. 56 already precompiled.
+
+ERROR: LoadError: The following 1 direct dependency failed to precompile:
+
+HybridPlasmaPIC 
+
+Failed to precompile HybridPlasmaPIC [00a894a3-a090-46f4-90cd-35631ef5d77e] to "/home/runner/.julia/compiled/v1.12/HybridPlasmaPIC/jl_f615M0".
+ERROR: LoadError: ParseError:
+# Error @ /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/models/empic_collection.jl:1430:46
+        throw(ArgumentError("persistent report layout differs"))
+    report.kind === (es isa EMPIC ? :vector :planar) && report.bootstrap isa Bool &&
+#                                            └ ── space required after `:` in `?` expression
+Stacktrace:
+  [1] top-level scope
+    @ ~/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/models/empic_collection.jl:1430
+  [2] include(mapexpr::Function, mod::Module, _path::String)
+    @ Base ./Base.jl:307
+  [3] top-level scope
+    @ ~/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/HybridPlasmaPIC.jl:138
+  [4] include(mod::Module, _path::String)
+    @ Base ./Base.jl:306
+  [5] include_package_for_output(pkg::Base.PkgId, input::String, depot_path::Vector{String}, dl_load_path::Vector{String}, load_path::Vector{String}, concrete_deps::Vector{Pair{Base.PkgId, UInt128}}, source::Nothing)
+    @ Base ./loading.jl:3106
+  [6] top-level scope
+    @ stdin:5
+  [7] eval(m::Module, e::Any)
+    @ Core ./boot.jl:489
+  [8] include_string(mapexpr::typeof(identity), mod::Module, code::String, filename::String)
+    @ Base ./loading.jl:2952
+  [9] include_string
+    @ ./loading.jl:2962 [inlined]
+ [10] exec_options(opts::Base.JLOptions)
+    @ Base ./client.jl:315
+ [11] _start()
+    @ Base ./client.jl:550
+in expression starting at /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/models/empic_collection.jl:1430
+in expression starting at /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/HybridPlasmaPIC.jl:1
+in expression starting at stdin:
+in expression starting at /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/test/test_mpi_multirank.jl:1
+Info Given HybridPlasmaPIC was explicitly requested, output will be shown live [0K
+[0KERROR: LoadError: ParseError:
+[0K# Error @ /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/models/empic_collection.jl:1430:46
+[0K        throw(ArgumentError("persistent report layout differs"))
+[0K    report.kind === (es isa EMPIC ? :vector :planar) && report.bootstrap isa Bool &&
+[0K#                                            └ ── space required after `:` in `?` expression
+[0KStacktrace:
+[0K  [1] top-level scope
+[0K    @ ~/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/models/empic_collection.jl:1430
+[0K  [2] include(mapexpr::Function, mod::Module, _path::String)
+[0K    @ Base ./Base.jl:307
+[0K  [3] top-level scope
+[0K    @ ~/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/HybridPlasmaPIC.jl:138
+[0K  [4] include(mod::Module, _path::String)
+[0K    @ Base ./Base.jl:306
+[0K  [5] include_package_for_output(pkg::Base.PkgId, input::String, depot_path::Vector{String}, dl_load_path::Vector{String}, load_path::Vector{String}, concrete_deps::Vector{Pair{Base.PkgId, UInt128}}, source::Nothing)
+[0K    @ Base ./loading.jl:3106
+[0K  [6] top-level scope
+[0K    @ stdin:5
+[0K  [7] eval(m::Module, e::Any)
+[0K    @ Core ./boot.jl:489
+[0K  [8] include_string(mapexpr::typeof(identity), mod::Module, code::String, filename::String)
+[0K    @ Base ./loading.jl:2952
+[0K  [9] include_string
+[0K    @ ./loading.jl:2962 [inlined]
+[0K [10] exec_options(opts::Base.JLOptions)
+[0K    @ Base ./client.jl:315
+[0K [11] _start()
+[0K    @ Base ./client.jl:550
+[0Kin expression starting at /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/models/empic_collection.jl:1430
+[0Kin expression starting at /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/HybridPlasmaPIC.jl:1
+[0Kin expression starting at stdin:5
+              ✗ HybridPlasmaPIC
+  0 dependencies successfully precompiled in 18 seconds. 56 already precompiled.
+
+ERROR: LoadError: The following 1 direct dependency failed to precompile:
+
+HybridPlasmaPIC 
+
+Failed to precompile HybridPlasmaPIC [00a894a3-a090-46f4-90cd-35631ef5d77e] to "/home/runner/.julia/compiled/v1.12/HybridPlasmaPIC/jl_aBfI03".
+ERROR: LoadError: ParseError:
+# Error @ /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/models/empic_collection.jl:1430:46
+        throw(ArgumentError("persistent report layout differs"))
+    report.kind === (es isa EMPIC ? :vector :planar) && report.bootstrap isa Bool &&
+#                                            └ ── space required after `:` in `?` expression
+Stacktrace:
+  [1] top-level scope
+    @ ~/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/models/empic_collection.jl:1430
+  [2] include(mapexpr::Function, mod::Module, _path::String)
+    @ Base ./Base.jl:307
+  [3] top-level scope
+    @ ~/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/HybridPlasmaPIC.jl:138
+  [4] include(mod::Module, _path::String)
+    @ Base ./Base.jl:306
+  [5] include_package_for_output(pkg::Base.PkgId, input::String, depot_path::Vector{String}, dl_load_path::Vector{String}, load_path::Vector{String}, concrete_deps::Vector{Pair{Base.PkgId, UInt128}}, source::Nothing)
+    @ Base ./loading.jl:3106
+  [6] top-level scope
+    @ stdin:5
+  [7] eval(m::Module, e::Any)
+    @ Core ./boot.jl:489
+  [8] include_string(mapexpr::typeof(identity), mod::Module, code::String, filename::String)
+    @ Base ./loading.jl:2952
+  [9] include_string
+    @ ./loading.jl:2962 [inlined]
+ [10] exec_options(opts::Base.JLOptions)
+    @ Base ./client.jl:315
+ [11] _start()
+    @ Base ./client.jl:550
+in expression starting at /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/models/empic_collection.jl:1430
+in expression starting at /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/HybridPlasmaPIC.jl:1
+in expression starting at stdin:
+in expression starting at /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/test/test_mpi_multirank.jl:1
+Info Given HybridPlasmaPIC was explicitly requested, output will be shown live [0K
+[0KERROR: LoadError: ParseError:
+[0K# Error @ /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/models/empic_collection.jl:1430:46
+[0K        throw(ArgumentError("persistent report layout differs"))
+[0K    report.kind === (es isa EMPIC ? :vector :planar) && report.bootstrap isa Bool &&
+[0K#                                            └ ── space required after `:` in `?` expression
+[0KStacktrace:
+[0K  [1] top-level scope
+[0K    @ ~/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/models/empic_collection.jl:1430
+[0K  [2] include(mapexpr::Function, mod::Module, _path::String)
+[0K    @ Base ./Base.jl:307
+[0K  [3] top-level scope
+[0K    @ ~/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/HybridPlasmaPIC.jl:138
+[0K  [4] include(mod::Module, _path::String)
+[0K    @ Base ./Base.jl:306
+[0K  [5] include_package_for_output(pkg::Base.PkgId, input::String, depot_path::Vector{String}, dl_load_path::Vector{String}, load_path::Vector{String}, concrete_deps::Vector{Pair{Base.PkgId, UInt128}}, source::Nothing)
+[0K    @ Base ./loading.jl:3106
+[0K  [6] top-level scope
+[0K    @ stdin:5
+[0K  [7] eval(m::Module, e::Any)
+[0K    @ Core ./boot.jl:489
+[0K  [8] include_string(mapexpr::typeof(identity), mod::Module, code::String, filename::String)
+[0K    @ Base ./loading.jl:2952
+[0K  [9] include_string
+[0K    @ ./loading.jl:2962 [inlined]
+[0K [10] exec_options(opts::Base.JLOptions)
+[0K    @ Base ./client.jl:315
+[0K [11] _start()
+[0K    @ Base ./client.jl:550
+[0Kin expression starting at /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/models/empic_collection.jl:1430
+[0Kin expression starting at /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/HybridPlasmaPIC.jl:1
+[0Kin expression starting at stdin:5
+              ✗ HybridPlasmaPIC
+  0 dependencies successfully precompiled in 25 seconds. 56 already precompiled.
+
+ERROR: LoadError: The following 1 direct dependency failed to precompile:
+
+HybridPlasmaPIC 
+
+Failed to precompile HybridPlasmaPIC [00a894a3-a090-46f4-90cd-35631ef5d77e] to "/home/runner/.julia/compiled/v1.12/HybridPlasmaPIC/jl_NnLqHR".
+ERROR: LoadError: ParseError:
+# Error @ /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/models/empic_collection.jl:1430:46
+        throw(ArgumentError("persistent report layout differs"))
+    report.kind === (es isa EMPIC ? :vector :planar) && report.bootstrap isa Bool &&
+#                                            └ ── space required after `:` in `?` expression
+Stacktrace:
+  [1] top-level scope
+    @ ~/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/models/empic_collection.jl:1430
+  [2] include(mapexpr::Function, mod::Module, _path::String)
+    @ Base ./Base.jl:307
+  [3] top-level scope
+    @ ~/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/HybridPlasmaPIC.jl:138
+  [4] include(mod::Module, _path::String)
+    @ Base ./Base.jl:306
+  [5] include_package_for_output(pkg::Base.PkgId, input::String, depot_path::Vector{String}, dl_load_path::Vector{String}, load_path::Vector{String}, concrete_deps::Vector{Pair{Base.PkgId, UInt128}}, source::Nothing)
+    @ Base ./loading.jl:3106
+  [6] top-level scope
+    @ stdin:5
+  [7] eval(m::Module, e::Any)
+    @ Core ./boot.jl:489
+  [8] include_string(mapexpr::typeof(identity), mod::Module, code::String, filename::String)
+    @ Base ./loading.jl:2952
+  [9] include_string
+    @ ./loading.jl:2962 [inlined]
+ [10] exec_options(opts::Base.JLOptions)
+    @ Base ./client.jl:315
+ [11] _start()
+    @ Base ./client.jl:550
+in expression starting at /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/models/empic_collection.jl:1430
+in expression starting at /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/HybridPlasmaPIC.jl:1
+in expression starting at stdin:
+in expression starting at /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/test/test_mpi_multirank.jl:1
+  Installing known registries into `~/.julia`
+       Added `General` registry to ~/.julia/registries
+    Updating registry at `~/.julia/registries/General.toml`
+   Installed MPIABI_jll ──────────── v1.0.1+0
+   Installed Xorg_libpciaccess_jll ─ v0.19.0+0
+   Installed XML2_jll ────────────── v2.15.4+0
+   Installed MPICH_jll ───────────── v5.0.3+0
+   Installed oneTBB_jll ──────────── v2023.1.0+0
+   Installed FFTW ────────────────── v1.10.0
+   Installed Preferences ─────────── v1.6.1
+   Installed MPI ─────────────────── v0.20.29
+   Installed Hwloc_jll ───────────── v2.15.0+3
+   Installed OpenMPI_jll ─────────── v5.0.14+0
+   Installed MicrosoftMPI_jll ────── v10.1.5+0
+   Installed MKL_jll ─────────────── v2025.2.0+0
+   Installed JLLWrappers ─────────── v1.8.0
+   Installed SpectralOperators ───── v0.1.9
+   Installed PkgVersion ──────────── v0.3.3
+   Installed AbstractFFTs ────────── v1.5.0
+   Installed PrecompileTools ─────── v1.3.4
+   Installed Libiconv_jll ────────── v1.18.0+0
+   Installed MPItrampoline_jll ───── v5.5.7+0
+   Installed IntelOpenMP_jll ─────── v2025.2.0+0
+   Installed Reexport ────────────── v1.2.2
+   Installed FFTW_jll ────────────── v3.3.12+0
+   Installed MPIPreferences ──────── v0.1.12
+   Installed Krylov ──────────────── v0.10.12
+   Installed DocStringExtensions ─── v0.10.2
+  Installing 6 artifacts
+   Installed artifact Xorg_libpciaccess 26.2 KiB
+   Installed artifact FFTW              2.2 MiB
+   Installed artifact Libiconv          1.9 MiB
+   Installed artifact XML2              2.2 MiB
+   Installed artifact MPICH             8.8 MiB
+   Installed artifact Hwloc             3.6 MiB
+    Updating `~/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/Project.toml`
+  [7a1cc6ca] + FFTW v1.10.0
+  [ba0b0d4f] + Krylov v0.10.12
+  [da04e1cc] + MPI v0.20.29
+  [8acda80e] + SpectralOperators v0.1.9
+  [ade2ca70] ~ Dates ⇒ v1.11.0
+  [37e2e46d] ~ LinearAlgebra ⇒ v1.12.0
+  [9a3f8284] ~ Random ⇒ v1.11.0
+  [ea8e919c] ~ SHA ⇒ v0.7.0
+  [9e88b42a] ~ Serialization ⇒ v1.11.0
+    Updating `~/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/Manifest.toml`
+  [621f4979] + AbstractFFTs v1.5.0
+  [ffbed154] + DocStringExtensions v0.10.2
+  [7a1cc6ca] + FFTW v1.10.0
+  [692b3bcd] + JLLWrappers v1.8.0
+  [ba0b0d4f] + Krylov v0.10.12
+  [da04e1cc] + MPI v0.20.29
+  [3da0fdf6] + MPIPreferences v0.1.12
+  [eebad327] + PkgVersion v0.3.3
+  [aea7be01] + PrecompileTools v1.3.4
+  [21216c6a] + Preferences v1.6.1
+  [189a3867] + Reexport v1.2.2
+  [8acda80e] + SpectralOperators v0.1.9
+  [f5851436] + FFTW_jll v3.3.12+0
+  [e33a78d0] + Hwloc_jll v2.15.0+3
+  [1d5cc7b8] + IntelOpenMP_jll v2025.2.0+0
+  [94ce4f54] + Libiconv_jll v1.18.0+0
+  [856f044c] + MKL_jll v2025.2.0+0
+  [b5ada748] + MPIABI_jll v1.0.1+0
+  [7cb0a576] + MPICH_jll v5.0.3+0
+  [f1f71cc9] + MPItrampoline_jll v5.5.7+0
+  [9237b28f] + MicrosoftMPI_jll v10.1.5+0
+  [fe0851c0] + OpenMPI_jll v5.0.14+0
+  [02c8fc9c] + XML2_jll v2.15.4+0
+  [a65dc6b1] + Xorg_libpciaccess_jll v0.19.0+0
+  [1317d2d5] + oneTBB_jll v2023.1.0+0
+  [0dad84c5] + ArgTools v1.1.2
+  [56f22d72] + Artifacts v1.11.0
+  [2a0f44e3] + Base64 v1.11.0
+  [ade2ca70] ~ Dates ⇒ v1.11.0
+  [8ba89e20] + Distributed v1.11.0
+  [f43a241f] + Downloads v1.7.0
+  [7b1f6079] + FileWatching v1.11.0
+  [ac6e5ff7] + JuliaSyntaxHighlighting v1.12.0
+  [4af54fe1] + LazyArtifacts v1.11.0
+  [b27032c2] + LibCURL v0.6.4
+  [76f85450] + LibGit2 v1.11.0
+  [8f399da3] + Libdl v1.11.0
+  [37e2e46d] ~ LinearAlgebra ⇒ v1.12.0
+  [56ddb016] + Logging v1.11.0
+  [d6f4376e] + Markdown v1.11.0
+  [ca575930] + NetworkOptions v1.3.0
+  [44cfe95a] + Pkg v1.12.1
+  [de0858da] + Printf v1.11.0
+  [9a3f8284] ~ Random ⇒ v1.11.0
+  [ea8e919c] ~ SHA ⇒ v0.7.0
+  [9e88b42a] ~ Serialization ⇒ v1.11.0
+  [6462fe0b] + Sockets v1.11.0
+  [2f01184e] + SparseArrays v1.12.0
+  [f489334b] + StyledStrings v1.11.0
+  [fa267f1f] + TOML v1.0.3
+  [a4e569a6] + Tar v1.10.0
+  [cf7118a7] + UUIDs v1.11.0
+  [4ec0a83e] + Unicode v1.11.0
+  [e66e0078] + CompilerSupportLibraries_jll v1.3.1+2
+  [deac9b47] + LibCURL_jll v8.15.0+0
+  [e37daf67] + LibGit2_jll v1.9.0+0
+  [29816b5a] + LibSSH2_jll v1.11.3+1
+  [14a3606d] + MozillaCACerts_jll v2025.11.4
+  [4536629a] + OpenBLAS_jll v0.3.29+0
+  [458c3c95] + OpenSSL_jll v3.5.6+0
+  [bea87d4a] + SuiteSparse_jll v7.8.3+2
+  [83775a58] + Zlib_jll v1.3.1+2
+  [8e850b90] + libblastrampoline_jll v5.15.0+0
+  [8e850ede] + nghttp2_jll v1.64.0+1
+  [3f19e933] + p7zip_jll v17.7.0+0
+Precompiling packages...
+    701.8 ms  ✓ Reexport
+    986.8 ms  ✓ AbstractFFTs
+   1167.8 ms  ✓ Preferences
+   1845.7 ms  ✓ DocStringExtensions
+    909.9 ms  ✓ PrecompileTools
+   1154.9 ms  ✓ MPIPreferences
+    634.4 ms  ✓ JLLWrappers
+   2432.7 ms  ✓ PkgVersion
+   1549.0 ms  ✓ Libiconv_jll
+   1572.4 ms  ✓ MicrosoftMPI_jll
+   1988.3 ms  ✓ oneTBB_jll
+   1260.9 ms  ✓ Xorg_libpciaccess_jll
+   2348.1 ms  ✓ IntelOpenMP_jll
+   1583.5 ms  ✓ MPItrampoline_jll
+   1263.1 ms  ✓ FFTW_jll
+   1120.0 ms  ✓ XML2_jll
+    888.7 ms  ✓ Hwloc_jll
+   1446.0 ms  ✓ MPIABI_jll
+   1944.0 ms  ✓ MPICH_jll
+   2148.0 ms  ✓ OpenMPI_jll
+  10101.9 ms  ✓ Krylov
+   4954.6 ms  ✓ MKL_jll
+   5319.7 ms  ✓ MPI
+   9650.2 ms  ✓ FFTW
+    614.6 ms  ✓ SpectralOperators
+              ✗ HybridPlasmaPIC
+  25 dependencies successfully precompiled in 27 seconds. 31 already precompiled.
+  24 dependencies precompiled but different versions are currently loaded (ArgTools, Base64, Dates, Downloads, JuliaSyntaxHighlighting, LibCURL, LibCURL_jll, LibGit2, LibGit2_jll, LibSSH2_jll, Logging, Markdown, MozillaCACerts_jll, NetworkOptions, OpenSSL_jll, Pkg, Printf, StyledStrings, TOML, Tar, UUIDs, Zlib_jll, nghttp2_jll and p7zip_jll). Restart julia to access the new versions. Otherwise, 24 dependents of these packages may trigger further precompilation to work with the unexpected versions.
+  1 dependency had output during precompilation:
+┌ MKL_jll
+│  Downloading artifact: IntelOpenMP
+│   Downloading artifact: oneTBB
+└  
+
+The following 1 direct dependency failed to precompile:
+
+HybridPlasmaPIC 
+
+Failed to precompile HybridPlasmaPIC [00a894a3-a090-46f4-90cd-35631ef5d77e] to "/home/runner/.julia/compiled/v1.12/HybridPlasmaPIC/jl_G0eGGF".
+ERROR: LoadError: ParseError:
+# Error @ /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/models/empic_collection.jl:1430:46
+        throw(ArgumentError("persistent report layout differs"))
+    report.kind === (es isa EMPIC ? :vector :planar) && report.bootstrap isa Bool &&
+#                                            └ ── space required after `:` in `?` expression
+Stacktrace:
+  [1] top-level scope
+    @ ~/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/models/empic_collection.jl:1430
+  [2] include(mapexpr::Function, mod::Module, _path::String)
+    @ Base ./Base.jl:307
+  [3] top-level scope
+    @ ~/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/HybridPlasmaPIC.jl:138
+  [4] include(mod::Module, _path::String)
+    @ Base ./Base.jl:306
+  [5] include_package_for_output(pkg::Base.PkgId, input::String, depot_path::Vector{String}, dl_load_path::Vector{String}, load_path::Vector{String}, concrete_deps::Vector{Pair{Base.PkgId, UInt128}}, source::Nothing)
+    @ Base ./loading.jl:3106
+  [6] top-level scope
+    @ stdin:5
+  [7] eval(m::Module, e::Any)
+    @ Core ./boot.jl:489
+  [8] include_string(mapexpr::typeof(identity), mod::Module, code::String, filename::String)
+    @ Base ./loading.jl:2952
+  [9] include_string
+    @ ./loading.jl:2962 [inlined]
+ [10] exec_options(opts::Base.JLOptions)
+    @ Base ./client.jl:315
+ [11] _start()
+    @ Base ./client.jl:550
+in expression starting at /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/models/empic_collection.jl:1430
+in expression starting at /home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl/src/HybridPlasmaPIC.jl:1
+in expression starting at stdin:┌ Info: running MPI smoke
+│   ranks = 4
+└   cmd = "setenv(`/home/runner/.julia/artifacts/5d01062e0bb24ddc69e3bc74d421671c3328df53/bin/mpiexec -n 4 /opt/hostedtoolcache/julia/1.12.7/x64/bin/julia -C native -J/opt/hostedtoolcache/julia/1.12.7/x64/lib/julia/sys.so -g1 --project=/home/runner/work/HybridPlas" ⋯ 6175 bytes ⋯ "NER_TEMP=/home/runner/work/_temp\", \"GITHUB_REPOSITORY_OWNER=jake-w-liu\", \"GITHUB_EVENT_NAME=push\", \"DOTNET_NOLOGO=1\", \"OPENBLAS_MAIN_FREE=1\", \"ANDROID_NDK_HOME=/usr/local/lib/android/sdk/ndk/27.3.13750724\", \"AGENT_TOOLSDIRECTORY=/opt/hostedtoolcache\"])"
+ERROR: failed process: Process(setenv(`/home/runner/.julia/artifacts/5d01062e0bb24ddc69e3bc74d421671c3328df53/bin/mpiexec -n 4 /opt/hostedtoolcache/julia/1.12.7/x64/bin/julia -C native -J/opt/hostedtoolcache/julia/1.12.7/x64/lib/julia/sys.so -g1 --project=/home/runner/work/HybridPlasmaPIC.jl/HybridPlasmaPIC.jl test/test_mpi_multirank.jl`,["GITHUB_ARTIFACTS_LIST=/home/runner/work/_temp/_runner_file_commands/artifacts_list_09087ffa-19c7-4764-b129-356f81f8cee1", "DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1", "PATH=/home/runner/.julia/artifacts/0347524dbdef62819619b71a2fb991a60bc1659b/bin:/home/runner/.julia/artifacts/ecf26eae5dcb0d7b5dcef8262cd870e441268d04/bin:/home/runner/.julia/artifacts/5d01062e0bb24ddc69e3bc74d421671c3328df53/bin:/opt/hostedtoolcache/julia/1.12.7/x64/bin:/snap/bin:/home/runner/.local/bin:/opt/pipx_bin:/home/runner/.cargo/bin:/home/runner/.config/composer/vendor/bin:/usr/local/.ghcup/bin:/home/runner/.dotnet/tools:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin", "GITHUB_RUN_NUMBER=502", "GITHUB_REF_NAME=fix/remote-format-20261109", "RUNNER_ARCH=X64", "LD_LIBRARY_PATH=/opt/hostedtoolcache/julia/1.12.7/x64/bin/../lib/julia:/home/runner/.julia/artifacts/5acd766faaca59c3c1f3cfa67e2bf6dcf1e3e883/lib:/home/runner/.julia/artifacts/0347524dbdef62819619b71a2fb991a60bc1659b/lib:/home/runner/.julia/artifacts/f36f3fe2fef57e1f6dc8a55991543cf71bfa6ce0/lib:/home/runner/.julia/artifacts/ecf26eae5dcb0d7b5dcef8262cd870e441268d04/lib:/home/runner/.julia/artifacts/5d01062e0bb24ddc69e3bc74d421671c3328df53/lib:/opt/hostedtoolcache/julia/1.12.7/x64/bin/../lib/julia:/opt/hostedtoolcache/julia/1.12.7/x64/bin/../lib", "ACTIONS_ORCHESTRATION_ID=a0ded3e7-4110-86e3-b2c4-9507fbd782d2.mpi-smoke._4", "GOROOT_1_25_X64=/opt/hostedtoolcache/go/1.25.14/x64", "ACCEPT_EULA=Y"  …  "SELENIUM_JAR_PATH=/usr/share/java/selenium-server.jar", "JAVA_HOME_11_X64=/usr/lib/jvm/temurin-11-jdk-amd64", "GITHUB_TRIGGERING_ACTOR=jake-w-liu", "RUNNER_TEMP=/home/runner/work/_temp", "GITHUB_REPOSITORY_OWNER=jake-w-liu", "GITHUB_EVENT_NAME=push", "DOTNET_NOLOGO=1", "OPENBLAS_MAIN_FREE=1", "ANDROID_NDK_HOME=/usr/local/lib/android/sdk/ndk/27.3.13750724", "AGENT_TOOLSDIRECTORY=/opt/hostedtoolcache"]), ProcessExited(1)) [1]
+
+Stacktrace:
+ [1] pipeline_error
+   @ ./process.jl:597 [inlined]
+ [2] run(::Cmd; wait::Bool)
+   @ Base ./process.jl:512
+ [3] run(::Cmd)
+   @ Base ./process.jl:509
+ [4] top-level scope
+   @ none:11
+ [5] eval(m::Module, e::Any)
+   @ Core ./boot.jl:489
+ [6] exec_options(opts::Base.JLOptions)
+   @ Base ./client.jl:283
+ [7] _start()
+   @ Base ./client.jl:550

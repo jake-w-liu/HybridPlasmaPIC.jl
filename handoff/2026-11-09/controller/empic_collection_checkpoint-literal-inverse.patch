@@ -1,0 +1,92 @@
+--- a/src/io/empic_collection_checkpoint.jl
++++ b/src/io/empic_collection_checkpoint.jl
+@@ -46,14 +46,12 @@
+ # discarded by a legacy destination or inferred from a dividing history.
+ function _reject_empic_event_checkpoint_fields(s)
+     _validate_checkpoint_container(s, (:schema_version,))
+-    _reject_empic_coupled_checkpoint_fields(s)
+     any(k -> haskey(s, k), _EMPIC_EVENT_CHECKPOINT_FIELDS) &&
+         throw(ArgumentError("persistent event checkpoint requires an event-schedule destination"))
+     return nothing
+ end
+ 
+ function _normalize_empic_event_checkpoint(s)
+-    _reject_empic_coupled_checkpoint_fields(s)
+     _validate_checkpoint_container(s, (:schema_version, :schedule_policy, _EMPIC_EVENT_CHECKPOINT_FIELDS...))
+     s.schema_version === 3 && s.schedule_policy === 2 && s.phase_policy === :persistent_event ||
+         throw(ArgumentError("persistent schedules require schema3/policy2 without phase migration"))
+@@ -268,12 +266,10 @@
+ end
+ 
+ _empic_collection_checkpoint_schema(st) =
+-    _empic_collection(st).schedule isa _EMPICCoupledSchedule ? 4 :
+     _empic_collection(st).schedule isa _EMPICEventSchedule ? 3 :
+     (_empic_collection(st).schedule === nothing ? 1 : 2)
+ 
+ function _normalize_empic_collection_checkpoint(s, st::EMPIC)
+-    _empic_collection(st).schedule isa _EMPICCoupledSchedule && return _normalize_empic_coupled_checkpoint(s)
+     _empic_collection(st).schedule isa _EMPICEventSchedule &&
+         return _normalize_empic_event_checkpoint(s)
+     _reject_empic_event_checkpoint_fields(s)
+@@ -293,7 +289,6 @@
+     _normalize_empic_species_schedule_checkpoint(s, st)
+ 
+ function _normalize_empic_species_schedule_checkpoint(s, st)
+-    _empic_collection(st).schedule isa _EMPICCoupledSchedule && return _normalize_empic_coupled_checkpoint(s)
+     _empic_collection(st).schedule isa _EMPICEventSchedule &&
+         return _normalize_empic_event_checkpoint(s)
+     _reject_empic_event_checkpoint_fields(s)
+@@ -324,7 +319,6 @@
+     st::_ElectromagneticCheckpointStepper,
+     g::FourierGrid{D,T},
+ ) where {D,T}
+-    _empic_collection(st).schedule isa _EMPICCoupledSchedule && return _validate_empic_coupled_checkpoint(s, st, g)
+     _empic_collection(st).schedule isa _EMPICEventSchedule &&
+         return _validate_empic_event_checkpoint(s, st, g)
+     version = _empic_collection_checkpoint_schema(st)
+@@ -434,8 +428,15 @@
+ _checkpoint_state(st::_ElectromagneticCheckpointStepper, species::AbstractVector{<:ParticleSet}) =
+     _empic_collection_checkpoint_state(st, species, st.g)
+ 
+-function _empic_collection_checkpoint_common(st, species, ::FourierGrid{D,T}) where {D,T}
++function _empic_collection_checkpoint_state(
++    st::_ElectromagneticCheckpointStepper,
++    species::AbstractVector{<:ParticleSet},
++    ::FourierGrid{D,T},
++) where {D,T}
+     work = _empic_collection(st)
++    _empic_collection_validate_species(st, species)
++    _empic_collection_validate_phase(st)
++    work.initialized[] && _empic_collection_bound(work, species)
+     state = (
+         integrator = _empic_collection_checkpoint_integrator(st),
+         D = D,
+@@ -461,20 +462,6 @@
+         last_sub_dt = st.last_sub_dt[],
+     )
+     st isa EMPIC1D && (state = merge(state, (polarization = :ex_ey_bz,)))
+-    return state
+-end
+-
+-function _empic_collection_checkpoint_state(
+-    st::_ElectromagneticCheckpointStepper,
+-    species::AbstractVector{<:ParticleSet},
+-    ::FourierGrid{D,T},
+-) where {D,T}
+-    _empic_collection(st).schedule isa _EMPICCoupledSchedule && return _empic_coupled_checkpoint_state(st, species)
+-    work = _empic_collection(st)
+-    _empic_collection_validate_species(st, species)
+-    _empic_collection_validate_phase(st)
+-    work.initialized[] && _empic_collection_bound(work, species)
+-    state = _empic_collection_checkpoint_common(st, species, st.g)
+     if work.schedule isa _EMPICEventSchedule
+         return _empic_event_checkpoint_state(st, state)
+     end
+@@ -504,7 +491,6 @@
+     s,
+     ::FourierGrid{D,T},
+ ) where {D,T}
+-    _empic_collection(st).schedule isa _EMPICCoupledSchedule && return _restore_empic_coupled_checkpoint!(st, species, s, st.g)
+     _empic_collection(st).schedule isa _EMPICEventSchedule &&
+         return _restore_empic_event_checkpoint!(st, species, s, st.g)
+     work = _empic_collection(st)
