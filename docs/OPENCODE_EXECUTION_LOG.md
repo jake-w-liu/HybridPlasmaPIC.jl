@@ -109,9 +109,13 @@ group 11 and formatting. Group 5 failed twice (Julia 1.12.7 and 1.13.3) at
 and one continuation step, the reference state still reported
 `clock=(0.001,1,0.001)` while the loaded target reported
 `(0.002,2,0.001)`. Explicit pre-step clock assertions were added at
-`4c6cd45` to distinguish a restore-clock defect from a stepping defect; the
-focused `collisional-cgl` rerun is queued. This is an open P35/P01 failure, not
-a CGL pass.
+`4c6cd45`; the focused `collisional-cgl` run `42649127988` then passed the
+three restore-clock assertions but still produced the same final mismatch.
+The restore clock is therefore correct; the continuation path for the direct
+`_restore_checkpoint_state!` reference does not advance while the loaded target
+does. This is a confirmed open P35/P01 failure, not a CGL pass. The next test
+must instrument `reference.dt`, `reference.inner.time` and `reference.phase`
+around the step itself and compare with the target path.
 
 ### CI queue observation
 

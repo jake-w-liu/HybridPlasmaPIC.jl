@@ -45,7 +45,7 @@ Status values: `open`, `in progress`, `source reviewed`, `runtime accepted`,
 | P32 Full-Hall open shock | open | Source + focused; physical boundary regime and sweeps pending. |
 | P33 Open pressure/transport/inertia | open | Depends P32/P40/P41. |
 | P34 Open shocks distributed/device | open | Depends P33/P10/P14. |
-| P35 Composed sources/thermal/CGL | open | Source + focused; full CI group 5 exposed a CGL direct-restore/continuation clock mismatch at `test_collisional_cgl.jl:328` (`0bf27af`), with diagnostic assertions pending a focused rerun (`4c6cd45`). Integrated exact-head, native energy/entropy and resource gates remain open. |
+| P35 Composed sources/thermal/CGL | open | Source + focused; full CI group 5 exposed a CGL direct-restore/continuation mismatch at `test_collisional_cgl.jl:328` (`0bf27af`). Focused rerun `42649127988` at `4c6cd45` passed the restore-clock assertions but the direct-reference continuation still does not advance; confirmed open. Integrated exact-head, native energy/entropy and resource gates remain open. |
 | P36 Reaction growth/namespaces | open | Primitives exist; complete reaction/neutral/growth composition pending. |
 | P37 Variable/higher-order source | open | Post-field stochastic split remains first order; order/retry/restart pending. |
 | P38 Accounted RF/ray/radiation | open | Standalone components; accounted reservoir/coupling/restart pending. |
