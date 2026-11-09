@@ -327,6 +327,10 @@ end
                 @test reference.inner.time[] == st.inner.time[]
                 @test reference.inner.step[] == st.inner.step[]
                 @test reference.dt == st.dt
+                # Continue through the public canonical loader as well. This is
+                # the supported restart path and keeps the target/reference
+                # comparison on identical restored state.
+                loader(reference, rp, path)
                 step!(reference, rp, reference.dt)
                 @test isequal(
                     _composition_snapshot(target, tp),
