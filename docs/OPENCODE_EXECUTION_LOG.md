@@ -101,6 +101,26 @@ resource acceptance. The JET cap remains a P01 blocker: every remaining
 dependency/Base chain must be classified and reduced or the source must be
 restructured; the cap is not raised.
 
+### Full-CI group-5 CGL regression
+
+The full run `42612387035` at `0bf27af` completed all groups except group 5,
+group 11 and formatting. Group 5 failed twice (Julia 1.12.7 and 1.13.3) at
+`test/test_collisional_cgl.jl:328`: after a direct `_restore_checkpoint_state!`
+and one continuation step, the reference state still reported
+`clock=(0.001,1,0.001)` while the loaded target reported
+`(0.002,2,0.001)`. Explicit pre-step clock assertions were added at
+`4c6cd45` to distinguish a restore-clock defect from a stepping defect; the
+focused `collisional-cgl` rerun is queued. This is an open P35/P01 failure, not
+a CGL pass.
+
+### CI queue observation
+
+Focused and full runs repeatedly sat in the GitHub-hosted queue for tens of
+minutes to hours while older inherited runs drained. This is an observed
+service queue, not a billing exception and not evidence of a code result. No
+inherited run was cancelled; only OpenCode-created superseded runs were
+cancelled.
+
 ## Update rule
 
 Append dated entries with commit SHA, exact command/workflow URL, raw artifact
