@@ -1272,10 +1272,10 @@ function _ec_phase_scalar_check(es, phase, population_count::Int, initialized, c
     return nothing
 end
 function _ec_validate_phase(
-    es::EMPIC,
+    es::Union{EMPIC,EMPIC1D},
     phase::_EMPICCoupledPhase,
     species::AbstractVector,
-    fields::NamedTuple{(:E, :B, :J, :rho_n, :rho_np1, :Jraw)},
+    fields::NamedTuple,
     initialized::Bool,
     clock::Tuple,
     meter::_EMPICCoupledMeter;
@@ -1284,49 +1284,7 @@ function _ec_validate_phase(
     _ec_phase_scalar_check(es, phase, length(species), initialized, clock)
     if initialized
         if iszero(clock[2])
-            currents = (fields.J..., fields.Jraw...)
-            _ec_identical(fields.rho_n, fields.rho_np1) &&
-                all(array -> all(_particle_stored_zero, array), currents) || throw(
-                ArgumentError(
-                    "initialized coupled step-zero source/current inventory differs from full-time initialization",
-                ),
-            )
-        end
-        probe = _ec_new_stage(es)
-        _ec_restore_fields!(probe, fields)
-        K, U = _ec_energy(probe, species)
-        K + U - phase.initial_energy ==
-        phase.field_defect + phase.particle_defect + phase.coupling_defect ||
-            throw(ArgumentError("coupled cumulative measured-energy ledger differs"))
-        charges = _pic_collection_charges(es.g, es.n0, species)
-        target = _empic_collection_charge_target(es, es.collection, charges)
-        rho = similar(probe.rho_np1)
-        _ec_source!(rho, probe, species, target, meter)
-        isequal(rho, fields.rho_np1) || throw(ArgumentError("coupled ending charge/source differs"))
-        constraint = _ec_constraint(probe, meter)
-        control = phase.admission_control
-        observed = _ec_observed_constraint_norm(constraint, fields, probe, probe, control)
-        max(observed.electric, observed.magnetic) <= 1 ||
-            throw(ArgumentError("coupled ending field constraint differs"))
-        phase.report === nothing ||
-            _ec_report_check(es, phase, species, fields, clock, meter; replay)
-    end
-    return nothing
-end
-function _ec_validate_phase(
-    es::EMPIC1D,
-    phase::_EMPICCoupledPhase,
-    species::AbstractVector,
-    fields::NamedTuple{(:Ex, :Ey, :Bz, :Jx, :Jy, :rho_n, :rho_np1)},
-    initialized::Bool,
-    clock::Tuple,
-    meter::_EMPICCoupledMeter;
-    replay::Bool = true,
-)
-    _ec_phase_scalar_check(es, phase, length(species), initialized, clock)
-    if initialized
-        if iszero(clock[2])
-            currents = (fields.Jx, fields.Jy)
+            currents = es isa EMPIC ? (fields.J..., fields.Jraw...) : (fields.Jx, fields.Jy)
             _ec_identical(fields.rho_n, fields.rho_np1) &&
                 all(array -> all(_particle_stored_zero, array), currents) || throw(
                 ArgumentError(
