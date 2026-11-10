@@ -72,7 +72,11 @@ function _pacc_axis_moments(
     pair = (result[1], result[2])
     return (interior = pair, full = pair, mass = result[3])
 end
-function _pacc_span(mesh::CartesianAMRHierarchy{D}, x, widths) where {D}
+function _pacc_span(
+    mesh::CartesianAMRHierarchy{D},
+    x::NTuple{D,_CompositeQ},
+    widths::NTuple{D,_CompositeQ},
+) where {D}
     intervals = ntuple(D) do d
         L, a = _exact_rational(mesh.L[d]), widths[d]
         if 2a >= L

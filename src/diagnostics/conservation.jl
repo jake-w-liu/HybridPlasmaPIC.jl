@@ -109,6 +109,7 @@ end
     lower = upper = 0.0
     active = false
     for state in states
+        state === nothing && continue
         iszero(state.lower) && iszero(state.upper) && continue
         isfinite(state.lower) && isfinite(state.upper) || return false
         # Exact zero intervals need no addition allowance; the first active

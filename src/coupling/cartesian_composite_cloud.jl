@@ -27,7 +27,11 @@ function _acc_moments(x, lo, hi, a, L)
         throw(ArgumentError("composite cloud moment lost positive charge partition"))
     return (interior = interior, full = full, mass = left - right)
 end
-function _acc_span(mesh::CartesianAMRHierarchy{D}, x, widths) where {D}
+function _acc_span(
+    mesh::CartesianAMRHierarchy{D},
+    x::NTuple{D,_CompositeQ},
+    widths::NTuple{D,_CompositeQ},
+) where {D}
     mesh.periodic && return _pacc_span(mesh, x, widths)
     lo = ntuple(d -> max(zero(_CompositeQ), x[d] - widths[d]), D)
     hi = ntuple(d -> min(_exact_rational(mesh.L[d]), x[d] + widths[d]), D)
