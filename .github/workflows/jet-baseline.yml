@@ -1,0 +1,24 @@
+name: JET baseline audit
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  jet:
+    name: JET baseline / Julia ${{ matrix.julia-version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        julia-version: ['1.12', '1']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: ${{ matrix.julia-version }}
+      - uses: julia-actions/cache@v2
+      - name: Run JET package analysis
+        shell: bash
+        run: |
+          julia --project=. -e 'using Pkg; Pkg.instantiate(); Pkg.add("JET")'
+          julia --project=. -e 'using Test; include("test/test_jet.jl")'
