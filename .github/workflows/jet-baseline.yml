@@ -1,5 +1,5 @@
 name: JET baseline audit
-on: workflow_dispatch
+on: [push, workflow_dispatch]
 permissions:
   contents: read
 jobs:
