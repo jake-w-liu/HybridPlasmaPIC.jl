@@ -195,8 +195,8 @@ function _aca_proposal(
         for range in ranges
             total = Base.checked_mul(total, length(range))
         end
-        for I in Iterators.product(ranges...)
-            _aca_ensure!(refined, (a[1], Tuple(I)))
+        for I in CartesianIndices(ntuple(d -> length(ranges[d]), D))
+            _aca_ensure!(refined, (a[1], ntuple(d -> ranges[d][I[d]], D)))
         end
     end
     balanced = 0

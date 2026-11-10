@@ -622,7 +622,16 @@ function _ace_prepared(st, state, public, public_phi, history)
     _ace_independent(arrays)
     return nothing
 end
-function _ace_publish!(st, state, phi, owners, components, counts, history, phase)
+function _ace_publish!(
+    st::AdaptiveCompositeElectrostaticPIC{D,T},
+    state,
+    phi,
+    owners::Vector{_ElectrostaticHostParticle{D,T}},
+    components::Vector{Tuple},
+    counts::Vector{Int},
+    history,
+    phase,
+) where {D,T}
     st.mesh, st.phi, st._state = state.mesh, phi, state
     st._owners, st._components, st._counts, st._history = owners, components, counts, history
     st.time, st.step, st.last_dt = phase.time, phase.step, phase.last_dt
@@ -768,6 +777,8 @@ function step!(
         time > st.time ||
             throw(ArgumentError("adaptive composite global time must advance strictly"))
         old = st._state
+        old === nothing &&
+            throw(ArgumentError("call init! before adaptive composite stepping"))
         private = _ace_copy(old.species, Val(D), T)
         raw = _acq_raw_potential(old.mesh, old.phi)
         half, work = _exact_rational(tau) / 2, zero(_CompositeQ)
@@ -1019,6 +1030,7 @@ function _ace_regrid!(
     count = Base.checked_add(st.regrid_count, 1)
     owned = CartesianAMRHierarchy(mesh.nbase, mesh.L, mesh.refinements; periodic = mesh.periodic)
     old = st._state
+    old === nothing && throw(ArgumentError("call init! before adaptive composite regrid"))
     private = _ace_copy(old.species, Val(D), T)
     state = _ace_physical(st, owned, private)
     before, after = _ace_inventory(old, _ace_source(st, old.mesh, old.species)),
