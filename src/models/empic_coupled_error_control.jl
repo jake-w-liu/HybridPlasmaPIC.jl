@@ -777,11 +777,14 @@ function _ec_stage_power(species, forces, mobile)
     result = zero(_EMPICCoupledQ)
     for (s, ps) in enumerate(species)
         mobile[s] || continue
+        force = forces[s]
+        force === nothing &&
+            throw(ArgumentError("coupled mobile species lacks a stage force row"))
         for p in eachindex(ps.weight)
             result +=
                 _exact_rational(ps.q) *
                 _exact_rational(ps.weight[p]) *
-                sum(c -> _exact_rational(ps.v[c][p]) * _exact_rational(forces[s].E[c][p]), 1:3)
+                sum(c -> _exact_rational(ps.v[c][p]) * _exact_rational(force.E[c][p]), 1:3)
         end
     end
     return result
