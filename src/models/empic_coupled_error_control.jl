@@ -565,9 +565,14 @@ function _ec_particle_branch!(
             end
             for d = 1:D
                 x = _exact_rational(before.x[d][p])
-                velocity =
-                    forces1 === nothing ? _exact_rational(v0[d]) :
+                velocity = if forces1 === nothing
+                    _exact_rational(v0[d])
+                else
+                    euler === nothing && throw(
+                        ArgumentError("coupled high particle branch requires a Euler stage"),
+                    )
                     (_exact_rational(v0[d]) + _exact_rational(euler[s].v[d][p])) / 2
+                end
                 target = _particle_coordinate(x, velocity, H)
                 represented = _periodic_represented_lift(target, stage.g.L[d])
                 bound = _exact_rational(stage.g.L[d]) / 4

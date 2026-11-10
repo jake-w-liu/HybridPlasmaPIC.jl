@@ -532,10 +532,7 @@ function _ace_phase_check(
     end
     return nothing
 end
-function _ace_ready(
-    st::AdaptiveCompositeElectrostaticPIC{D,T},
-    species::AbstractVector,
-) where {D,T}
+function _ace_ready(st::AdaptiveCompositeElectrostaticPIC{D,T}, species::AbstractVector) where {D,T}
     _ace_storage(st, species)
     st.initialized || throw(ArgumentError("call init! before adaptive composite evolution or save"))
     state = st._state
