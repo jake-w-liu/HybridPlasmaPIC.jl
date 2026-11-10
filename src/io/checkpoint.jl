@@ -254,9 +254,12 @@ function _validate_checkpoint_fields(saved, fields::NamedTuple)
 end
 
 function _restore_checkpoint_fields!(fields::NamedTuple, saved::NamedTuple)
-    keys(fields) == keys(saved) ||
-        throw(ArgumentError("checkpoint field keys must match the destination"))
-    for (destination, source) in zip(values(fields), values(saved))
+    # Saved payloads may carry extra keys (for example the externally edited
+    # `extra` diagnostic); the destination keys select the restored subset.
+    for name in keys(fields)
+        hasproperty(saved, name) ||
+            throw(ArgumentError("checkpoint is missing destination field $(name)"))
+        destination, source = getproperty(fields, name), getproperty(saved, name)
         if destination isa Tuple
             map(copyto!, destination, source)
         else
