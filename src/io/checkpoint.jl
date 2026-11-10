@@ -266,19 +266,6 @@ function _restore_checkpoint_fields!(
     end
     return nothing
 end
-function _restore_checkpoint_fields!(fields::NamedTuple{names}, saved::NamedTuple) where {names}
-    # Saved payloads may carry extra keys (for example the externally edited
-    # `extra` diagnostic); project the destination keys before copying.
-    saved_fields = NamedTuple{names}(saved)
-    for (destination, source) in zip(values(fields), values(saved_fields))
-        if destination isa Tuple
-            map(copyto!, destination, source)
-        else
-            copyto!(destination, source)
-        end
-    end
-    return nothing
-end
 
 function _validate_checkpoint_field_state(s, st::_HybridCheckpointStepper{D,T}) where {D,T}
     _validate_checkpoint_field_components(:B, s.B, st.fields.B)
@@ -1046,7 +1033,12 @@ end
 function _restore_checkpoint_state!(st::HallMHDState, s)
     _validate_checkpoint_state(s, st)
     st.model = s.model
-    _restore_checkpoint_fields!(_hall_checkpoint_fields(st), s.fields)
+    hall_fields = _hall_checkpoint_fields(st)
+    # Saved payloads may carry extra externally edited keys; project first.
+    _restore_checkpoint_fields!(
+        hall_fields,
+        NamedTuple{keys(hall_fields)}(s.fields),
+    )
     foreach(copyto!, st.stage.lapJ, s.stage_lapJ)
     st.fields.floor_count[] = s.floor_count
     st.time[] = s.time
@@ -1230,7 +1222,12 @@ function _restore_checkpoint_state!(
     end
     _restore_checkpoint_particles!(electrons, s.electrons)
     ions === nothing || _restore_checkpoint_particles!(ions, s.ions)
-    _restore_checkpoint_fields!(_empic_checkpoint_fields(st), s.fields)
+    empic_fields = _empic_checkpoint_fields(st)
+    # Saved payloads may carry extra externally edited keys; project first.
+    _restore_checkpoint_fields!(
+        empic_fields,
+        NamedTuple{keys(empic_fields)}(s.fields),
+    )
     st.time[] = s.time
     st.step[] = s.step
     st.last_dt[] = s.last_dt
