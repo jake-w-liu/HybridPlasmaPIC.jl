@@ -25,7 +25,10 @@ struct ShearedHybridFieldReport{T}
     range_resolved::Bool
 end
 
-function _sheared_divergence_receipt(st, beta::NTuple{3,Array{T,3}}) where {T}
+function _sheared_divergence_receipt(
+    st::ShearedPeriodicHybridPIC,
+    beta::NTuple{3,Array{T,3}},
+) where {T}
     g, hats = st.g, st.work.hats
     magnitude = maximum(a -> maximum(abs, a), beta)
     isfinite(magnitude) || throw(ArgumentError("sheared magnetic flux must be finite"))

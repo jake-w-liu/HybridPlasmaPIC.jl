@@ -540,6 +540,9 @@ function _ec_particle_branch!(
             continue
         end
         n = nparticles(before)
+        force0 = forces0[s]
+        force0 === nothing &&
+            throw(ArgumentError("coupled mobile species lacks its force row"))
         ideal = ntuple(_ -> Vector{_EMPICCoupledQ}(undef, n), D)
         lifted = ntuple(_ -> Vector{_EMPICCoupledQ}(undef, n), D)
         winding = ntuple(_ -> Vector{BigInt}(undef, n), D)
@@ -548,10 +551,17 @@ function _ec_particle_branch!(
         cuts = Vector{NTuple{D,NamedTuple}}(undef, n)
         for p in eachindex(before.weight)
             v0 = ntuple(c -> before.v[c][p], 3)
-            p1 = forces1 === nothing ? nothing : forces1[s].increments[p]
+            p1 = if forces1 === nothing
+                nothing
+            else
+                force1 = forces1[s]
+                force1 === nothing &&
+                    throw(ArgumentError("coupled mobile species lacks its trial force row"))
+                force1.increments[p]
+            end
             output = _em_lorentz_pair_output(
                 v0,
-                forces0[s].increments[p],
+                force0.increments[p],
                 p1,
                 stage.c,
                 Val(stage.relativistic),
