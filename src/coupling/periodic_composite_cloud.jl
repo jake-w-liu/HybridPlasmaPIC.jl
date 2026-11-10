@@ -90,8 +90,10 @@ function _pacc_span(
         end
     end
     leaves = Int[]
-    for box in Iterators.product(intervals...)
-        append!(leaves, _camr_query(mesh, ntuple(d -> box[d][1], D), ntuple(d -> box[d][2], D)))
+    for I in CartesianIndices(ntuple(d -> length(intervals[d]), D))
+        lo = ntuple(d -> intervals[d][I[d]][1], D)
+        hi = ntuple(d -> intervals[d][I[d]][2], D)
+        append!(leaves, _camr_query(mesh, lo, hi))
     end
     return sort!(unique!(leaves))
 end

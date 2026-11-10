@@ -94,6 +94,8 @@ function _dce_validate_history(
     step,
     dt,
 ) where {T}
+    history === nothing &&
+        throw(ArgumentError("retained dynamic physical history is missing"))
     _sce_checkpoint_keys(history, _DCE_HISTORY_FIELDS)
     history.epoch_start_time isa T &&
         history.epoch_start_step isa Int &&
