@@ -11,7 +11,7 @@ Status values: `open`, `in progress`, `source reviewed`, `runtime accepted`,
 | Package | Status | Current evidence / next gate |
 |---|---|---|
 | P00 Freeze and reconcile | in progress | Packet verified PASS; seven primary hashes match; dirty primary untouched; support matrix created. Dependency/runtime versions and final owner sign-off still need exact-head records. |
-| P01 Close CI/compiler regressions | in progress | Parser repair `d95ba9c`; AMR constructor repair `93acac8`; package-located JET now 0 at `5cb3781`. Remaining blocker: whole-tree JET total 118/127 vs cap 86, formatter, and full exact-head CI. |
+| P01 Close CI/compiler regressions | in progress | Parser repair `d95ba9c`; AMR constructor repair `93acac8`. Whole-package JET now **86** on Julia 1.12.7 and **77** on 1.13.3 with package-located **0** at `8ae9b27` ([run 42768819449](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42768819449)); the unchanged cap is 86 and the re-measured `main` baseline is 86/79 ([run 42765960739](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42765960739)). CGL group-5 focused suite passes at `c43d539` ([run 42711493910](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42711493910)). Remaining: formatter and full exact-head CI at the final head. |
 | P02 Serial collision resources | open | Source + focused tests; resource/occupancy campaign not run. |
 | P03 Rank/device collisions | open | Depends P02/P08/P13; no real-rank/device acceptance. |
 | P04 Bounded Yee families | open | Source + focused tests; independent cavity/trajectory/work and event scope pending. |

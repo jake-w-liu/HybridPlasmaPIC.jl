@@ -131,3 +131,40 @@ Append dated entries with commit SHA, exact command/workflow URL, raw artifact
 path or checksum, actual Julia/runtime/dependency versions, pass/fail and the
 gate affected. Never replace a failed observation with a later success; add a
 superseding record. Keep failed candidates and unexecuted hypotheses explicit.
+
+### JET whole-package cap closure (2026-11-10)
+
+The accepted baseline was re-measured instead of assumed. A temporary audit
+branch (`audit/jet-baseline-86`, pushed from `main` at `9b4d363`) ran
+`test/test_jet.jl` unchanged: [run 42765960739](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42765960739)
+reports **86** whole-package reports on Julia 1.12.7 and **79** on 1.13.3, with
+package-located reports **0**. That reproduces the recorded cap measurement with
+the same JET 0.13.1 and dependency set.
+
+At `8ae9b27`, the unchanged gate reports **86** on Julia 1.12.7 and **77** on
+1.13.3, package-located **0**:
+[run 42768819449](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42768819449)
+(jobs `129671577789` and `129671577443`). The cap, the package-located gate, the
+comparison, the tolerances and the historical ledger are unchanged; the count
+was reduced only by concrete-typing and dispatch repairs.
+
+A root diff against the baseline (1.12.7) shows the branch removed five accepted
+chains and added only adaptive composite electrostatic chains. Every added chain
+was repaired: exact-key coupled field accessors, per-species force/lift/row
+guards, typed adaptive model/diagnostic/operator owners, `CartesianIndices` span
+and buffer enumeration, exact publish component vectors, typed static/dynamic
+AMR and Yee stage constructors, and the retained-history/step-zero guards. The
+remaining reports are the accepted dependency/Base baseline.
+
+### Full-CI group-5 CGL focused pass
+
+The direct-restore no-op was repaired in the test by continuing the reference
+through the public loader while keeping the direct-restore clock assertions.
+Focused `collisional-cgl` [run 42711493910](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42711493910)
+passes on both runtimes at `c43d539`.
+
+### Exact-head full CI pending
+
+Full CI at `0d6734b` (formatting-only successor of `8ae9b27`) was still queued
+when this entry was written. Its group 5, group 11, formatting, MPI and
+CUDA-host jobs are the next P01 acceptance evidence; no result is asserted here.
