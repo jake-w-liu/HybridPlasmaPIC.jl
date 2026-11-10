@@ -84,6 +84,74 @@ mutable struct AdaptiveCompositeElectrostaticPIC{D,T<:Union{Float32,Float64},S,B
     _components::Vector{Tuple}
     _counts::Vector{Int}
     _busy::Threads.Atomic{Bool}
+
+    # Explicit field types keep the implicit constructor's array/range
+    # conversions out of inference.
+    function AdaptiveCompositeElectrostaticPIC{D,T,S,B,F}(
+        mesh::CartesianAMRHierarchy{D,T},
+        phi::Vector{T},
+        time::T,
+        step::Int,
+        last_dt::T,
+        initialized::Bool,
+        epoch_start_time::T,
+        epoch_start_step::Int,
+        regrid_count::Int,
+        initial_energy::_CompositeQ,
+        field_defect::_CompositeQ,
+        kick_defect::_CompositeQ,
+        trajectory_defect::_CompositeQ,
+        physical_defect::_CompositeQ,
+        mesh_work::_CompositeQ,
+        last_regrid_report::Union{Nothing,AdaptiveCompositeESRegridReport{D,T}},
+        clouds::S,
+        background_charge::B,
+        rtol::T,
+        atol::T,
+        maxiter::Int,
+        periodic_neutrality::Symbol,
+        _factors::F,
+        _configuration::NamedTuple,
+        _state::Union{Nothing,_AdaptiveCompositePhysical{D,T}},
+        _history::Union{Nothing,NamedTuple},
+        _owners::Vector{_ElectrostaticHostParticle{D,T}},
+        _components::Vector{Tuple},
+        _counts::Vector{Int},
+        _busy::Threads.Atomic{Bool},
+    ) where {D,T,S,B,F}
+        return new{D,T,S,B,F}(
+            mesh,
+            phi,
+            time,
+            step,
+            last_dt,
+            initialized,
+            epoch_start_time,
+            epoch_start_step,
+            regrid_count,
+            initial_energy,
+            field_defect,
+            kick_defect,
+            trajectory_defect,
+            physical_defect,
+            mesh_work,
+            last_regrid_report,
+            clouds,
+            background_charge,
+            rtol,
+            atol,
+            maxiter,
+            periodic_neutrality,
+            _factors,
+            _configuration,
+            _state,
+            _history,
+            _owners,
+            _components,
+            _counts,
+            _busy,
+        )
+    end
 end
 function _ace_configuration(st)
     st.periodic_neutrality in (:require, :neutralize) &&
