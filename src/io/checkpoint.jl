@@ -253,13 +253,24 @@ function _validate_checkpoint_fields(saved, fields::NamedTuple)
     return nothing
 end
 
-function _restore_checkpoint_fields!(fields::NamedTuple, saved::NamedTuple)
+function _restore_checkpoint_fields!(
+    fields::NamedTuple{names},
+    saved::NamedTuple{names},
+) where {names}
+    for (destination, source) in zip(values(fields), values(saved))
+        if destination isa Tuple
+            map(copyto!, destination, source)
+        else
+            copyto!(destination, source)
+        end
+    end
+    return nothing
+end
+function _restore_checkpoint_fields!(fields::NamedTuple{names}, saved::NamedTuple) where {names}
     # Saved payloads may carry extra keys (for example the externally edited
-    # `extra` diagnostic); the destination keys select the restored subset.
-    for name in keys(fields)
-        hasproperty(saved, name) ||
-            throw(ArgumentError("checkpoint is missing destination field $(name)"))
-        destination, source = getproperty(fields, name), getproperty(saved, name)
+    # `extra` diagnostic); project the destination keys before copying.
+    saved_fields = NamedTuple{names}(saved)
+    for (destination, source) in zip(values(fields), values(saved_fields))
         if destination isa Tuple
             map(copyto!, destination, source)
         else
