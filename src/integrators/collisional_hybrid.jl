@@ -645,6 +645,8 @@ function _validate_electron_ion_clock(st::CollisionalHybridStepper)
         report === nothing ||
             throw(ArgumentError("unadvanced electron-ion state cannot carry a report"))
     else
+        report === nothing &&
+            throw(ArgumentError("advanced electron-ion state requires a stored report"))
         report_keys =
             st.electron_ion.policy == 1 ? _ELECTRON_ION_REPORT_KEYS : _ELECTRON_ION_OVERLAP_KEYS
         _electron_ion_record(report, report_keys)
