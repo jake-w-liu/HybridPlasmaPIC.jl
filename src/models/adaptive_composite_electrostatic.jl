@@ -294,9 +294,9 @@ function _ace_physical(
     )
 end
 function _ace_physical_check(
-    st::AdaptiveCompositeElectrostaticPIC,
-    state::_AdaptiveCompositePhysical,
-)
+    st::AdaptiveCompositeElectrostaticPIC{D,T},
+    state::_AdaptiveCompositePhysical{D,T},
+) where {D,T}
     _camr_validate(state.mesh)
     _acq_validate(state.operator, state.mesh)
     _ace_values(state.mesh, state.species, st._factors)
@@ -532,10 +532,12 @@ function _ace_phase_check(
     end
     return nothing
 end
-function _ace_ready(st::AdaptiveCompositeElectrostaticPIC, species::AbstractVector)
+function _ace_ready(
+    st::AdaptiveCompositeElectrostaticPIC{D,T},
+    species::AbstractVector,
+) where {D,T}
     _ace_storage(st, species)
-    st.initialized ||
-        throw(ArgumentError("call init! before adaptive composite evolution or save"))
+    st.initialized || throw(ArgumentError("call init! before adaptive composite evolution or save"))
     state = st._state
     state === nothing &&
         throw(ArgumentError("call init! before adaptive composite evolution or save"))

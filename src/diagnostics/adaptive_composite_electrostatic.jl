@@ -150,8 +150,7 @@ function _ace_diagnostics_ready(
                 kinetic_energy = K,
                 field_energy = U,
                 total_energy = K + U,
-                accounting_defect = K + U - st.initial_energy - st.physical_defect -
-                                    st.mesh_work,
+                accounting_defect = K + U - st.initial_energy - st.physical_defect - st.mesh_work,
                 solve_report = state.solve_report,
                 last_step_report = state.step_report,
                 last_physical_step = history,

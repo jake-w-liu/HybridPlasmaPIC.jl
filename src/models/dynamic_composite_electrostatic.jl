@@ -56,6 +56,64 @@ mutable struct DynamicCompositeElectrostaticPIC{
     _components::Vector{Tuple}
     _counts::Vector{Int}
     _busy::Threads.Atomic{Bool}
+
+    # Explicit field types keep the implicit constructor's array/range
+    # conversions out of inference.
+    function DynamicCompositeElectrostaticPIC{T,S,B,P,F}(
+        mesh::StaticAMRHierarchy1D{T},
+        E::Vector{T},
+        phi::Vector{T},
+        time::T,
+        step::Int,
+        last_dt::T,
+        initialized::Bool,
+        epoch_start_time::T,
+        epoch_start_step::Int,
+        regrid_count::Int,
+        initial_energy::_CompositeQ,
+        physical_defect::_CompositeQ,
+        mesh_work::_CompositeQ,
+        last_regrid_report::Union{Nothing,DynamicCompositeESRegridReport{T}},
+        shape::S,
+        background_charge::B,
+        left_plate_charge::P,
+        _factors::F,
+        _configuration::NamedTuple,
+        _state::StaticCompositeElectrostaticPIC{T},
+        _history::Union{Nothing,NamedTuple},
+        _owners::Vector{_ElectrostaticHostParticle{1,T}},
+        _components::Vector{Tuple},
+        _counts::Vector{Int},
+        _busy::Threads.Atomic{Bool},
+    ) where {T,S,B,P,F}
+        return new{T,S,B,P,F}(
+            mesh,
+            E,
+            phi,
+            time,
+            step,
+            last_dt,
+            initialized,
+            epoch_start_time,
+            epoch_start_step,
+            regrid_count,
+            initial_energy,
+            physical_defect,
+            mesh_work,
+            last_regrid_report,
+            shape,
+            background_charge,
+            left_plate_charge,
+            _factors,
+            _configuration,
+            _state,
+            _history,
+            _owners,
+            _components,
+            _counts,
+            _busy,
+        )
+    end
 end
 
 function _dce_configuration(st::StaticCompositeElectrostaticPIC)

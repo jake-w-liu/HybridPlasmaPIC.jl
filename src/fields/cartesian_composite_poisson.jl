@@ -146,12 +146,12 @@ function _acq_residual(data, phi, source)
     return all, all[data.mesh.free]
 end
 function _acq_solve(
-    data::_AdaptiveQ1Data,
+    data::_AdaptiveQ1Data{M},
     source::Vector{_CompositeQ},
     rtol::T,
     atol::T,
     maxiter::Int,
-) where {T}
+) where {T,M}
     data.mesh.periodic &&
         !iszero(sum(source; init = zero(_CompositeQ))) &&
         throw(ArgumentError("periodic Q1 solve requires exact original neutrality"))
