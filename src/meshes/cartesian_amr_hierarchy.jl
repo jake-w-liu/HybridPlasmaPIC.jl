@@ -737,7 +737,8 @@ function _camr_contact_images(
     result = Tuple{NTuple{D,_CompositeQ},NTuple{D,_CompositeQ}}[]
     for bit in _camr_bits(Val(D))
         shift = ntuple(
-            d -> iszero(lo[d]) ? (iszero(bit[d]) ? 0 : 1) :
+            d ->
+                iszero(lo[d]) ? (iszero(bit[d]) ? 0 : 1) :
                 (hi[d] == _exact_rational(L[d]) ? (iszero(bit[d]) ? 0 : -1) : 0),
             D,
         )

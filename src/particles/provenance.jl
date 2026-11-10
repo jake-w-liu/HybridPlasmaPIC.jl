@@ -159,6 +159,10 @@ end
 "Append-only per-particle provenance event log keyed by global particle ID (§9.4)."
 struct ParticleProvenanceLog
     events::Vector{ProvenanceEvent}
+
+    # Keep the field conversion out of the constructor: the implicit `Any`
+    # signature makes inference explore unrelated array/range conversions.
+    ParticleProvenanceLog(events::Vector{ProvenanceEvent}) = new(events)
 end
 ParticleProvenanceLog() = ParticleProvenanceLog(ProvenanceEvent[])
 

@@ -32,6 +32,49 @@ struct _YeeImpactStage{T}
     contacts::Vector{_YeeImpactContact}
     rho::Vector{_YeeImpactQ}
     net_impulse::Vector{_YeeImpactQ}
+
+    # Exact field types avoid the implicit `Any` conversion paths (array,
+    # range, bit-array and fixed-tuple conversions) that inference cannot
+    # discharge for these element types.
+    function _YeeImpactStage{T}(
+        owners::Vector{ParticleSet{1,T}},
+        components::Vector{Tuple},
+        candidates::Vector{_ElectrostaticHostParticle{1,T}},
+        event_candidates::Vector{_ElectrostaticHostParticle{1,T}},
+        offsets::Vector{Int},
+        factors::Vector{_YeeImpactQ},
+        acceleration::NTuple{3,Vector{_YeeImpactQ}},
+        gather::NTuple{3,Vector{_YeeImpactQ}},
+        bounds::NTuple{3,Vector{_YeeImpactQ}},
+        residual::NTuple{2,Vector{_YeeImpactQ}},
+        carried::NTuple{3,Vector{_YeeImpactQ}},
+        terminal::NTuple{2,Vector{_YeeImpactQ}},
+        selected_side::Vector{Int8},
+        roots::Vector{_YeeImpactBracket},
+        contacts::Vector{_YeeImpactContact},
+        rho::Vector{_YeeImpactQ},
+        net_impulse::Vector{_YeeImpactQ},
+    ) where {T}
+        return new{T}(
+            owners,
+            components,
+            candidates,
+            event_candidates,
+            offsets,
+            factors,
+            acceleration,
+            gather,
+            bounds,
+            residual,
+            carried,
+            terminal,
+            selected_side,
+            roots,
+            contacts,
+            rho,
+            net_impulse,
+        )
+    end
 end
 
 """

@@ -1360,8 +1360,10 @@ function _empic_full_time_field_update!(
     H, coefficients = _exact_rational(h), _em_exact_update_coefficients(out.c, h)
     E = out isa EMPIC ? out.E : (out.Ex, out.Ey)
     B = out isa EMPIC ? out.B : (out.Bz,)
-    oldE = out isa EMPIC ? origin.E : (origin.Ex, origin.Ey)
-    oldB = out isa EMPIC ? origin.B : (origin.Bz,)
+    # Dispatch the source inventory on the model so the coupled union split
+    # never reads the other model's field names.
+    oldE = _empic_event_field_E(out, origin)
+    oldB = _empic_event_field_B(out, origin)
     J = out isa EMPIC ? out.J : (out.Jx, out.Jy)
     for component in eachindex(B)
         parts = _empic_weighted_derivative(stages, weights, :electric, component)

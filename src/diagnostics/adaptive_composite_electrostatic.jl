@@ -94,58 +94,71 @@ function composite_electrostatic_diagnostics(
     _ace_acquire(st)
     try
         source = _ace_ready(st, species)
-        st.mesh.periodic && return _pacc_diagnostics_locked(st, source)
-        state = st._state
-        reaction, residual = _acq_residual(state.operator, state.phi, source.total)
-        inventory = _ace_inventory(state, source)
-        flux = _ace_flux(state)
-        history =
-            state.step_report === nothing ? st._history :
-            (
-                epoch_start_time = st.epoch_start_time,
-                epoch_start_step = st.epoch_start_step,
-                global_time = st.time,
-                global_step = st.step,
-                last_dt = st.last_dt,
-                state = _ace_physical_payload(state),
-            )
-        K, U = _kinetic_energy_rational(state.species), _acq_energy(state.operator, state.phi)
-        return deepcopy(
-            merge(
-                _ace_phase(st),
-                (
-                    mesh = st.mesh,
-                    phi = st.phi,
-                    E_mean = _acq_means(st.mesh, state.phi),
-                    nodal_source = source.total,
-                    inside_nodal_charge = source.inside,
-                    tail_nodal_charge = source.tail,
-                    background_nodal_charge = source.background,
-                    inventory = inventory,
-                    stratum_axes = Tuple(_acc_strata(Val(length(st.mesh.L)))),
-                    weak_gauss_residual = residual,
-                    free_conductor_charge = reaction[st.mesh.boundary],
-                    net_wall_charge = reaction[st.mesh.boundary] + source.tail[st.mesh.boundary],
-                    boundary_faces = flux.boundary_faces,
-                    interior_faces = flux.interior_faces,
-                    outward_boundary_flux = flux.outward,
-                    interior_normal_flux_jumps = flux.normal_jumps,
-                    physical_flux_reaction_defect = flux.total_outward + inventory.net_wall,
-                    kinetic_energy = K,
-                    field_energy = U,
-                    total_energy = K + U,
-                    accounting_defect = K + U - st.initial_energy - st.physical_defect -
-                                        st.mesh_work,
-                    solve_report = state.solve_report,
-                    last_step_report = state.step_report,
-                    last_physical_step = history,
-                    epoch_steps = st.step - st.epoch_start_step,
-                ),
-            ),
-        )
+        return _ace_diagnostics_ready(st, source)
     finally
         _ace_release(st)
     end
+end
+# Keyed on the source inventory so each branch reads only the fields that its
+# boundary model actually defines.
+function _ace_diagnostics_ready(
+    st::AdaptiveCompositeElectrostaticPIC,
+    source::_PeriodicCompositeSource,
+)
+    return _pacc_diagnostics_locked(st, source)
+end
+function _ace_diagnostics_ready(
+    st::AdaptiveCompositeElectrostaticPIC,
+    source::_AdaptiveCompositeSource,
+)
+    state = st._state
+    reaction, residual = _acq_residual(state.operator, state.phi, source.total)
+    inventory = _ace_inventory(state, source)
+    flux = _ace_flux(state)
+    history =
+        state.step_report === nothing ? st._history :
+        (
+            epoch_start_time = st.epoch_start_time,
+            epoch_start_step = st.epoch_start_step,
+            global_time = st.time,
+            global_step = st.step,
+            last_dt = st.last_dt,
+            state = _ace_physical_payload(state),
+        )
+    K, U = _kinetic_energy_rational(state.species), _acq_energy(state.operator, state.phi)
+    return deepcopy(
+        merge(
+            _ace_phase(st),
+            (
+                mesh = st.mesh,
+                phi = st.phi,
+                E_mean = _acq_means(st.mesh, state.phi),
+                nodal_source = source.total,
+                inside_nodal_charge = source.inside,
+                tail_nodal_charge = source.tail,
+                background_nodal_charge = source.background,
+                inventory = inventory,
+                stratum_axes = Tuple(_acc_strata(Val(length(st.mesh.L)))),
+                weak_gauss_residual = residual,
+                free_conductor_charge = reaction[st.mesh.boundary],
+                net_wall_charge = reaction[st.mesh.boundary] + source.tail[st.mesh.boundary],
+                boundary_faces = flux.boundary_faces,
+                interior_faces = flux.interior_faces,
+                outward_boundary_flux = flux.outward,
+                interior_normal_flux_jumps = flux.normal_jumps,
+                physical_flux_reaction_defect = flux.total_outward + inventory.net_wall,
+                kinetic_energy = K,
+                field_energy = U,
+                total_energy = K + U,
+                accounting_defect = K + U - st.initial_energy - st.physical_defect -
+                                    st.mesh_work,
+                solve_report = state.solve_report,
+                last_step_report = state.step_report,
+                last_physical_step = history,
+                epoch_steps = st.step - st.epoch_start_step,
+            ),
+        ),
+    )
 end
 
 function _pacc_diagnostics_locked(st::AdaptiveCompositeElectrostaticPIC{D}, source) where {D}

@@ -264,6 +264,11 @@ _ace_source(st, mesh, species) = _acc_source(
     st.background_charge;
     periodic_neutrality = st.periodic_neutrality,
 )
+# The bound background is a periodic-source quantity. Dispatch keeps the shared
+# source union from reading a field that only one inventory owns.
+_ace_bound_background(source::_PeriodicCompositeSource) = source.background_density
+_ace_bound_background(::_AdaptiveCompositeSource) =
+    throw(ArgumentError("grounded composite source has no periodic bound background"))
 function _ace_physical(
     st::AdaptiveCompositeElectrostaticPIC{D,T},
     mesh,
@@ -288,7 +293,10 @@ function _ace_physical(
         source isa _PeriodicCompositeSource ? source.background_density : nothing,
     )
 end
-function _ace_physical_check(st, state)
+function _ace_physical_check(
+    st::AdaptiveCompositeElectrostaticPIC,
+    state::_AdaptiveCompositePhysical,
+)
     _camr_validate(state.mesh)
     _acq_validate(state.operator, state.mesh)
     _ace_values(state.mesh, state.species, st._factors)
@@ -306,7 +314,7 @@ function _ace_physical_check(st, state)
     )
     if state.mesh.periodic
         _sce_q_finite(state.background_density) &&
-            state.background_density == source.background_density ||
+            state.background_density == _ace_bound_background(source) ||
             throw(ArgumentError("periodic composite bound background density differs"))
     else
         state.background_density === nothing ||
@@ -524,11 +532,13 @@ function _ace_phase_check(
     end
     return nothing
 end
-function _ace_ready(st, species)
+function _ace_ready(st::AdaptiveCompositeElectrostaticPIC, species::AbstractVector)
     _ace_storage(st, species)
-    st.initialized && st._state !== nothing ||
+    st.initialized ||
         throw(ArgumentError("call init! before adaptive composite evolution or save"))
     state = st._state
+    state === nothing &&
+        throw(ArgumentError("call init! before adaptive composite evolution or save"))
     st.mesh === state.mesh &&
         isequal(st.phi, state.phi) &&
         _ace_species_equal(species, state.species) ||

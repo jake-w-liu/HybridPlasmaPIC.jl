@@ -1271,6 +1271,13 @@ function _ec_phase_scalar_check(es, phase, population_count::Int, initialized, c
     end
     return nothing
 end
+# Current inventory by saved field keys. The coupled stage and the saved field
+# inventory are correlated at every call site but not in inference; keying this
+# access on the saved `NamedTuple` keeps each union split valid.
+_ec_phase_currents(fields::NamedTuple{(:E, :B, :J, :rho_n, :rho_np1, :Jraw)}) =
+    (fields.J..., fields.Jraw...)
+_ec_phase_currents(fields::NamedTuple{(:Ex, :Ey, :Bz, :Jx, :Jy, :rho_n, :rho_np1)}) =
+    (fields.Jx, fields.Jy)
 function _ec_validate_phase(
     es::Union{EMPIC,EMPIC1D},
     phase::_EMPICCoupledPhase,
@@ -1284,7 +1291,7 @@ function _ec_validate_phase(
     _ec_phase_scalar_check(es, phase, length(species), initialized, clock)
     if initialized
         if iszero(clock[2])
-            currents = es isa EMPIC ? (fields.J..., fields.Jraw...) : (fields.Jx, fields.Jy)
+            currents = _ec_phase_currents(fields)
             _ec_identical(fields.rho_n, fields.rho_np1) &&
                 all(array -> all(_particle_stored_zero, array), currents) || throw(
                 ArgumentError(

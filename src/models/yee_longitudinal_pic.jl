@@ -4,6 +4,14 @@ struct _YeeLongitudinalStage{T}
     owners::Vector{ParticleSet{1,T}}
     components::Vector{Tuple}
     candidates::Vector{_ElectrostaticHostParticle{1,T}}
+
+    function _YeeLongitudinalStage{T}(
+        owners::Vector{ParticleSet{1,T}},
+        components::Vector{Tuple},
+        candidates::Vector{_ElectrostaticHostParticle{1,T}},
+    ) where {T}
+        return new{T}(owners, components, candidates)
+    end
 end
 
 """
