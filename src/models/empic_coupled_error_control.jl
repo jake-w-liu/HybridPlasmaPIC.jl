@@ -541,8 +541,7 @@ function _ec_particle_branch!(
         end
         n = nparticles(before)
         force0 = forces0[s]
-        force0 === nothing &&
-            throw(ArgumentError("coupled mobile species lacks its force row"))
+        force0 === nothing && throw(ArgumentError("coupled mobile species lacks its force row"))
         ideal = ntuple(_ -> Vector{_EMPICCoupledQ}(undef, n), D)
         lifted = ntuple(_ -> Vector{_EMPICCoupledQ}(undef, n), D)
         winding = ntuple(_ -> Vector{BigInt}(undef, n), D)
@@ -778,8 +777,7 @@ function _ec_stage_power(species, forces, mobile)
     for (s, ps) in enumerate(species)
         mobile[s] || continue
         force = forces[s]
-        force === nothing &&
-            throw(ArgumentError("coupled mobile species lacks a stage force row"))
+        force === nothing && throw(ArgumentError("coupled mobile species lacks a stage force row"))
         for p in eachindex(ps.weight)
             result +=
                 _exact_rational(ps.q) *

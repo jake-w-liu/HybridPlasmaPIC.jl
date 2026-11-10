@@ -777,8 +777,7 @@ function step!(
         time > st.time ||
             throw(ArgumentError("adaptive composite global time must advance strictly"))
         old = st._state
-        old === nothing &&
-            throw(ArgumentError("call init! before adaptive composite stepping"))
+        old === nothing && throw(ArgumentError("call init! before adaptive composite stepping"))
         private = _ace_copy(old.species, Val(D), T)
         raw = _acq_raw_potential(old.mesh, old.phi)
         half, work = _exact_rational(tau) / 2, zero(_CompositeQ)
