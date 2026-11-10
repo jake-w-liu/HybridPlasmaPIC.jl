@@ -186,3 +186,20 @@ reordering are accepted while a missing destination key still rejects.
 
 The final exact-head full CI is the next evidence; nothing is claimed from the
 cancelled superseded run beyond the completed jobs above.
+
+### Exact-head P01 closure: full CI green at `3d35fa3`
+
+[Run 42818184257](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42818184257)
+completed **success** with **29/29 jobs green**: all eleven test groups on
+Julia 1.12.7 and 1.13.3, `Formatting check (JuliaFormatter)`, 2-/4-/8-rank real
+MPI smoke, and both CUDA host extension loads. Group 5 (CGL) and group 11 (JET)
+pass on both runtimes; the JET job records 86 whole-package reports on 1.12.7 and
+77 on 1.13.3 with package-located 0, against the unchanged cap 86.
+
+The full test groups include `test_quality.jl` (Aqua), the concrete-call JET
+checks and the complete suite, so the handoff's G7 compiler/CI gate is satisfied
+at this source revision. The only later commits are documentation; the source
+tree is byte-identical to `3d35fa3`.
+
+Remaining P01 scope: none. The broader CAP science/resource/hardware gates are
+separate packages and remain open.
