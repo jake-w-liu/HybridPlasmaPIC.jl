@@ -706,9 +706,12 @@ function _ec_particle_norm(origin, low, high, lifts, mobile, g, control)
     position, velocity = zero(_EMPICCoupledQ), zero(_EMPICCoupledQ)
     for (s, (before, left, right)) in enumerate(zip(origin, low, high))
         mobile[s] || continue
+        low_lift, high_lift = lifts.low[s], lifts.high[s]
+        (low_lift === nothing || high_lift === nothing) &&
+            throw(ArgumentError("coupled mobile species lacks a lift row"))
         for p in eachindex(before.weight)
             for d in eachindex(before.x)
-                delta = lifts.high[s].lifted[d][p] - lifts.low[s].lifted[d][p]
+                delta = high_lift.lifted[d][p] - low_lift.lifted[d][p]
                 abs(delta) < _exact_rational(g.L[d]) / 2 ||
                     _ec_reject(:ambiguous_position, :pair, s, p)
                 position = max(
