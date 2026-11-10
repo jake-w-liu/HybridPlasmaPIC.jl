@@ -1035,10 +1035,7 @@ function _restore_checkpoint_state!(st::HallMHDState, s)
     st.model = s.model
     hall_fields = _hall_checkpoint_fields(st)
     # Saved payloads may carry extra externally edited keys; project first.
-    _restore_checkpoint_fields!(
-        hall_fields,
-        NamedTuple{keys(hall_fields)}(s.fields),
-    )
+    _restore_checkpoint_fields!(hall_fields, NamedTuple{keys(hall_fields)}(s.fields))
     foreach(copyto!, st.stage.lapJ, s.stage_lapJ)
     st.fields.floor_count[] = s.floor_count
     st.time[] = s.time
@@ -1224,10 +1221,7 @@ function _restore_checkpoint_state!(
     ions === nothing || _restore_checkpoint_particles!(ions, s.ions)
     empic_fields = _empic_checkpoint_fields(st)
     # Saved payloads may carry extra externally edited keys; project first.
-    _restore_checkpoint_fields!(
-        empic_fields,
-        NamedTuple{keys(empic_fields)}(s.fields),
-    )
+    _restore_checkpoint_fields!(empic_fields, NamedTuple{keys(empic_fields)}(s.fields))
     st.time[] = s.time
     st.step[] = s.step
     st.last_dt[] = s.last_dt
