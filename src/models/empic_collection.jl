@@ -1441,12 +1441,35 @@ _empic_event_fields(es::EMPIC) = merge(_empic_physical_fields(es), (Jraw = es.Jr
 _empic_event_fields(es::EMPIC1D) = _empic_physical_fields(es)
 _empic_event_energy(es) =
     _field_energy_rational(_empic_event_E(es), _empic_event_B(es), _exact_rational(es.c)^2, es.g.dx)
-_empic_event_field_E(::EMPIC, fields) = fields.E
-_empic_event_field_E(::EMPIC1D, fields) = (fields.Ex, fields.Ey)
-_empic_event_field_B(::EMPIC, fields) = fields.B
-_empic_event_field_B(::EMPIC1D, fields) = (fields.Bz,)
-_empic_event_field_J(::EMPIC, fields) = fields.J
-_empic_event_field_J(::EMPIC1D, fields) = (fields.Jx, fields.Jy)
+_empic_event_field_E(::EMPIC, fields::NamedTuple{(:E, :B, :J, :rho_n, :rho_np1, :Jraw)}) = fields.E
+_empic_event_field_E(
+    ::EMPIC1D,
+    fields::NamedTuple{(:Ex, :Ey, :Bz, :Jx, :Jy, :rho_n, :rho_np1)},
+) = (fields.Ex, fields.Ey)
+_empic_event_field_B(::EMPIC, fields::NamedTuple{(:E, :B, :J, :rho_n, :rho_np1, :Jraw)}) = fields.B
+_empic_event_field_B(
+    ::EMPIC1D,
+    fields::NamedTuple{(:Ex, :Ey, :Bz, :Jx, :Jy, :rho_n, :rho_np1)},
+) = (fields.Bz,)
+_empic_event_field_J(::EMPIC, fields::NamedTuple{(:E, :B, :J, :rho_n, :rho_np1, :Jraw)}) = fields.J
+_empic_event_field_J(
+    ::EMPIC1D,
+    fields::NamedTuple{(:Ex, :Ey, :Bz, :Jx, :Jy, :rho_n, :rho_np1)},
+) = (fields.Jx, fields.Jy)
+# A coupled union split can pair a model with the other model's saved
+# inventory. Reject that explicitly instead of reading a missing field.
+_empic_event_field_E(::EMPIC, ::NamedTuple{(:Ex, :Ey, :Bz, :Jx, :Jy, :rho_n, :rho_np1)}) =
+    throw(ArgumentError("EMPIC field inventory does not match the coupled model"))
+_empic_event_field_E(::EMPIC1D, ::NamedTuple{(:E, :B, :J, :rho_n, :rho_np1, :Jraw)}) =
+    throw(ArgumentError("EMPIC1D field inventory does not match the coupled model"))
+_empic_event_field_B(::EMPIC, ::NamedTuple{(:Ex, :Ey, :Bz, :Jx, :Jy, :rho_n, :rho_np1)}) =
+    throw(ArgumentError("EMPIC field inventory does not match the coupled model"))
+_empic_event_field_B(::EMPIC1D, ::NamedTuple{(:E, :B, :J, :rho_n, :rho_np1, :Jraw)}) =
+    throw(ArgumentError("EMPIC1D field inventory does not match the coupled model"))
+_empic_event_field_J(::EMPIC, ::NamedTuple{(:Ex, :Ey, :Bz, :Jx, :Jy, :rho_n, :rho_np1)}) =
+    throw(ArgumentError("EMPIC field inventory does not match the coupled model"))
+_empic_event_field_J(::EMPIC1D, ::NamedTuple{(:E, :B, :J, :rho_n, :rho_np1, :Jraw)}) =
+    throw(ArgumentError("EMPIC1D field inventory does not match the coupled model"))
 
 function _empic_event_floor(::Type{T}, exact) where {T}
     value = _from_exact(T, exact)

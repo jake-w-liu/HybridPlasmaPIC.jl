@@ -457,11 +457,11 @@ function _dce_ready(st::DynamicCompositeElectrostaticPIC, species)
 end
 
 function _dce_publish!(
-    st,
+    st::DynamicCompositeElectrostaticPIC{T},
     current,
-    owners,
-    components,
-    counts,
+    owners::Vector{_ElectrostaticHostParticle{1,T}},
+    components::Vector{Tuple},
+    counts::Vector{Int},
     history,
     time,
     step,
@@ -473,7 +473,7 @@ function _dce_publish!(
     defect,
     work,
     report,
-)
+) where {T}
     # All numerical/graph/ledger work is complete. Only same-typed host stores follow.
     st._state = current
     st.mesh, st.E, st.phi = current.mesh, current.E, current.phi
