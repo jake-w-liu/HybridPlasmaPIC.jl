@@ -88,9 +88,9 @@ function patch_electric_field(
 end
 "Detached adaptive composite charge, physical-gradient/weak-Gauss, energy and full history diagnostics."
 function composite_electrostatic_diagnostics(
-    st::AdaptiveCompositeElectrostaticPIC,
+    st::AdaptiveCompositeElectrostaticPIC{D,T},
     species::AbstractVector,
-)
+) where {D,T}
     _ace_acquire(st)
     try
         source = _ace_ready(st, species)
@@ -102,16 +102,17 @@ end
 # Keyed on the source inventory so each branch reads only the fields that its
 # boundary model actually defines.
 function _ace_diagnostics_ready(
-    st::AdaptiveCompositeElectrostaticPIC,
+    st::AdaptiveCompositeElectrostaticPIC{D,T},
     source::_PeriodicCompositeSource,
-)
+) where {D,T}
     return _pacc_diagnostics_locked(st, source)
 end
 function _ace_diagnostics_ready(
-    st::AdaptiveCompositeElectrostaticPIC,
+    st::AdaptiveCompositeElectrostaticPIC{D,T},
     source::_AdaptiveCompositeSource,
-)
+) where {D,T}
     state = st._state
+    state === nothing && throw(ArgumentError("call init! before adaptive composite diagnostics"))
     reaction, residual = _acq_residual(state.operator, state.phi, source.total)
     inventory = _ace_inventory(state, source)
     flux = _ace_flux(state)

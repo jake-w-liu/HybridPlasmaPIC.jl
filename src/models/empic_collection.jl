@@ -1471,6 +1471,11 @@ _empic_event_field_J(::EMPIC, ::NamedTuple{(:Ex, :Ey, :Bz, :Jx, :Jy, :rho_n, :rh
 _empic_event_field_J(::EMPIC1D, ::NamedTuple{(:E, :B, :J, :rho_n, :rho_np1, :Jraw)}) =
     throw(ArgumentError("EMPIC1D field inventory does not match the coupled model"))
 
+_empic_event_raw_current(fields::NamedTuple{(:E, :B, :J, :rho_n, :rho_np1, :Jraw)}) =
+    fields.Jraw
+_empic_event_raw_current(::NamedTuple{(:Ex, :Ey, :Bz, :Jx, :Jy, :rho_n, :rho_np1)}) =
+    throw(ArgumentError("EMPIC raw current requires the EMPIC field inventory"))
+
 function _empic_event_floor(::Type{T}, exact) where {T}
     value = _from_exact(T, exact)
     isfinite(value) || throw(ArgumentError("persistent schedule duration exceeds numeric range"))
@@ -1983,7 +1988,7 @@ function _empic_event_report_valid(
             es.g.dx,
         ) || throw(ArgumentError("persistent report differs from its actual saved endpoint"))
     es isa EMPIC &&
-        !isequal(last(r.segments).raw_current, fields.Jraw) &&
+        !isequal(last(r.segments).raw_current, _empic_event_raw_current(fields)) &&
         throw(ArgumentError("persistent report raw current differs from its actual saved endpoint"))
     impulse = map(a -> fill(zero(_EMPICEventQ), size(a)), r.impulse)
     raw_impulse =
