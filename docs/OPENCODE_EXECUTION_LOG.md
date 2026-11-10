@@ -168,3 +168,21 @@ passes on both runtimes at `c43d539`.
 Full CI at `0d6734b` (formatting-only successor of `8ae9b27`) was still queued
 when this entry was written. Its group 5, group 11, formatting, MPI and
 CUDA-host jobs are the next P01 acceptance evidence; no result is asserted here.
+
+### Full-CI group 5/11 formatting pass and the group-7 regression
+
+Full CI [run 42773113428](https://github.com/jake-w-liu/HybridPlasmaPIC.jl/actions/runs/42773113428)
+at `cd2e811` records: group 5 (CGL) **success** on both runtimes, group 11
+(JET) **success** on both, `Formatting check (JuliaFormatter)` **success**, both
+CUDA host loads **success**, and 2-/4-rank real MPI **success**. The 8-rank job
+was still pending when the superseded run was cancelled, so it is not claimed.
+
+The only failure was group 7 (`test_io.jl`, 37,022 passed / 2 errored): my
+strict `keys(fields) == keys(saved)` check rejected saved payloads that carry an
+extra externally edited key (`extra::Symbol`) or reordered keys. That check was
+a regression, not a gate change. `_restore_checkpoint_fields!` now selects the
+destination keys explicitly and copies each field by name, so extra keys and
+reordering are accepted while a missing destination key still rejects.
+
+The final exact-head full CI is the next evidence; nothing is claimed from the
+cancelled superseded run beyond the completed jobs above.
